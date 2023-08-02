@@ -774,6 +774,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmGCEnabled(Handle<NativeContext> context);
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
+  bool IsWasmInliningIntoJSEnabled(Handle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
 
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);

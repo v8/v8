@@ -27,7 +27,8 @@ class JSInliner final : public AdvancedReducer {
   JSInliner(Editor* editor, Zone* local_zone, OptimizedCompilationInfo* info,
             JSGraph* jsgraph, JSHeapBroker* broker,
             SourcePositionTable* source_positions,
-            NodeOriginTable* node_origins, const wasm::WasmModule* wasm_module)
+            NodeOriginTable* node_origins, const wasm::WasmModule* wasm_module,
+            bool inline_wasm_fct_if_supported)
       : AdvancedReducer(editor),
         local_zone_(local_zone),
         info_(info),
@@ -35,9 +36,12 @@ class JSInliner final : public AdvancedReducer {
         broker_(broker),
         source_positions_(source_positions),
         node_origins_(node_origins),
-        wasm_module_(wasm_module) {
+        wasm_module_(wasm_module),
+        inline_wasm_fct_if_supported_(inline_wasm_fct_if_supported) {
     // In case WebAssembly is disabled.
     USE(wasm_module_);
+    USE(inline_wasm_fct_if_supported_);
+    DCHECK_IMPLIES(inline_wasm_fct_if_supported_, wasm_module_ != nullptr);
   }
 
   const char* reducer_name() const override { return "JSInliner"; }
@@ -74,6 +78,10 @@ class JSInliner final : public AdvancedReducer {
   SourcePositionTable* const source_positions_;
   NodeOriginTable* const node_origins_;
   const wasm::WasmModule* wasm_module_;
+
+  // Inline not only the wasm wrapper but also the wasm function itself if
+  // inlining into JavaScript is supported and the function is small enough.
+  bool inline_wasm_fct_if_supported_;
 
   OptionalSharedFunctionInfoRef DetermineCallTarget(Node* node);
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);

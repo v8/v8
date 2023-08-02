@@ -466,11 +466,10 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   wasm::NativeModule* native_module = wasm_call_params.native_module();
   const wasm::FunctionSig* sig = wasm_call_params.signature();
 
-  // Try "full" inlining of very simple WasmGC functions.
+  // Try "full" inlining of very simple wasm functions (mainly getters / setters
+  // for wasm gc objects).
   WasmInlineResult inline_result;
-  if (native_module->enabled_features().has_gc() &&
-      v8_flags.experimental_wasm_js_inlining && fct_index != -1 &&
-      native_module) {
+  if (inline_wasm_fct_if_supported_ && fct_index != -1 && native_module) {
     inline_result = TryWasmInlining(call_node);
   }
 

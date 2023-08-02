@@ -151,7 +151,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (mode() == kWasmOnly) {
+  if (mode() == kWasmWrappersOnly || mode() == kWasmFullInlining) {
     if (node->opcode() == IrOpcode::kJSWasmCall) {
       return inliner_.ReduceJSWasmCall(node);
     }

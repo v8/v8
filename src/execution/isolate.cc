@@ -3054,6 +3054,20 @@ bool Isolate::IsWasmInliningEnabled(Handle<NativeContext> context) {
 #endif
 }
 
+bool Isolate::IsWasmInliningIntoJSEnabled(Handle<NativeContext> context) {
+  // If Wasm GC is explicitly enabled via a callback, also enable inlining.
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
+  if (callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback(api_context)) return true;
+  }
+  return v8_flags.experimental_wasm_js_inlining;
+#else
+  return false;
+#endif
+}
+
 bool Isolate::IsWasmImportedStringsEnabled(Handle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmImportedStringsEnabledCallback callback =

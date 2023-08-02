@@ -1425,6 +1425,7 @@ DEFINE_BOOL(wasm_disable_deprecated, false,
             "disable deprecated gc instructions")
 
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
+DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
 // Stage wasm inlining in --future.
 DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
 

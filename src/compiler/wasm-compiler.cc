@@ -178,7 +178,6 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
     }                                    \
   } while (false)
 
-  DCHECK(v8_flags.experimental_wasm_js_inlining);
   DCHECK(native_module->enabled_features().has_gc());
   DCHECK(native_module->HasWireBytes());
   const wasm::WasmModule* module = native_module->module();
