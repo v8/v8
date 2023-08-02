@@ -225,6 +225,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpCodeObject(Register code_data_container_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
@@ -826,9 +831,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // point into the sandbox.
   void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination,
-                                 const MemOperand& field_operand);
-  void StoreSandboxedPointerField(Register value,
-                                  const MemOperand& dst_field_operand);
+                                 MemOperand field_operand);
+  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
 
   // Loads a field containing off-heap pointer and does necessary decoding
   // if sandboxed external pointers are enabled.

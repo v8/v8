@@ -559,6 +559,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
+      case MachineRepresentation::kIndirectPointer:    // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -647,6 +648,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
+      case MachineRepresentation::kIndirectPointer:    // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -2274,6 +2276,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -2331,6 +2334,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }

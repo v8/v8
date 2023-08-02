@@ -567,6 +567,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
         opcode = kLoong64LoadDecodeSandboxedPointer;
         break;
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:     // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kSimd256:
@@ -670,6 +671,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
         opcode = kLoong64StoreEncodeSandboxedPointer;
         break;
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:     // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kSimd256:
