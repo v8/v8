@@ -182,6 +182,13 @@ class HeapObject : public Object {
                                     int>::type = 0>
   inline void Relaxed_WriteField(size_t offset, T value);
 
+  // Atomically compares and swaps a field using seq cst memory ordering.
+  // Contains the required logic to properly handle number comparison.
+  template <typename CompareAndSwapImpl>
+  static Object SeqCst_CompareAndSwapField(
+      Object expected_value, Object new_value,
+      CompareAndSwapImpl compare_and_swap_impl);
+
   //
   // SandboxedPointer_t field accessors.
   //

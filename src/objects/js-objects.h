@@ -733,6 +733,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                               SeqCstAccessTag tag);
   inline Object RawFastPropertyAtSwap(FieldIndex index, Object value,
                                       SeqCstAccessTag tag);
+  Object RawFastPropertyAtCompareAndSwap(FieldIndex index, Object expected,
+                                         Object value, SeqCstAccessTag tag);
+  inline Object RawFastInobjectPropertyAtCompareAndSwap(FieldIndex index,
+                                                        Object expected,
+                                                        Object value,
+                                                        SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -911,6 +917,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   template <PropertyAttributes attrs>
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Isolate* isolate, Handle<JSObject> object, ShouldThrow should_throw);
+
+  inline Object RawFastPropertyAtCompareAndSwapInternal(FieldIndex index,
+                                                        Object expected,
+                                                        Object value,
+                                                        SeqCstAccessTag tag);
 
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };

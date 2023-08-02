@@ -500,6 +500,32 @@ Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
   return property_array()->Swap(index.outobject_array_index(), value, tag);
 }
 
+Object JSObject::RawFastInobjectPropertyAtCompareAndSwap(FieldIndex index,
+                                                         Object expected,
+                                                         Object value,
+                                                         SeqCstAccessTag tag) {
+  DCHECK(index.is_inobject());
+  DCHECK(IsShared(value));
+  Object previous_value =
+      SEQ_CST_COMPARE_AND_SWAP_FIELD(*this, index.offset(), expected, value);
+  if (previous_value == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value,
+                              UPDATE_WRITE_BARRIER);
+  }
+  return previous_value;
+}
+
+Object JSObject::RawFastPropertyAtCompareAndSwapInternal(FieldIndex index,
+                                                         Object expected,
+                                                         Object value,
+                                                         SeqCstAccessTag tag) {
+  if (index.is_inobject()) {
+    return RawFastInobjectPropertyAtCompareAndSwap(index, expected, value, tag);
+  }
+  return property_array().CompareAndSwap(index.outobject_array_index(),
+                                         expected, value, tag);
+}
+
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }

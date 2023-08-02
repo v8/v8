@@ -96,6 +96,21 @@ Object PropertyArray::Swap(PtrComprCageBase cage_base, int index, Object value,
   return result;
 }
 
+Object PropertyArray::CompareAndSwap(int index, Object expected, Object value,
+                                     SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray(*this));
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  DCHECK(IsShared(value));
+  Object result = TaggedField<Object>::SeqCst_CompareAndSwap(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (result == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value,
+                              UPDATE_WRITE_BARRIER);
+  }
+  return result;
+}
+
 ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
 
 int PropertyArray::length() const {

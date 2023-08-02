@@ -1148,6 +1148,30 @@ Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
                 isolate_);
 }
 
+Handle<Object> LookupIterator::CompareAndSwapDataValue(Handle<Object> expected,
+                                                       Handle<Object> value,
+                                                       SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  // Currently only shared structs and arrays support sequentially consistent
+  // access.
+  DCHECK(IsJSSharedStruct(*holder_, isolate_) ||
+         IsJSSharedArray(*holder_, isolate_));
+  DisallowGarbageCollection no_gc;
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  if (IsElement(*holder)) {
+    ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+    return accessor->CompareAndSwapAtomic(isolate_, holder, number_, *expected,
+                                          *value, kSeqCstAccess);
+  }
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return handle(holder->RawFastPropertyAtCompareAndSwap(field_index, *expected,
+                                                        *value, tag),
+                isolate_);
+}
+
 template <bool is_element>
 bool LookupIterator::SkipInterceptor(JSObject holder) {
   InterceptorInfo info = GetInterceptor<is_element>(holder);

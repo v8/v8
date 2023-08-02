@@ -130,6 +130,12 @@ class ElementsAccessor {
                                     InternalIndex entry, Object value,
                                     SeqCstAccessTag tag) = 0;
 
+  virtual Handle<Object> CompareAndSwapAtomic(Isolate* isolate,
+                                              Handle<JSObject> holder,
+                                              InternalIndex entry,
+                                              Object expected, Object value,
+                                              SeqCstAccessTag tag) = 0;
+
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> Add(Handle<JSObject> object,
                                                 uint32_t index,
                                                 Handle<Object> value,

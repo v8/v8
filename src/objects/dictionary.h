@@ -53,6 +53,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Swap the value for the entry.
   inline Object ValueAtSwap(InternalIndex entry, Object value, SeqCstAccessTag);
 
+  // Compare and swap the value for the entry.
+  inline Object ValueAtCompareAndSwap(InternalIndex entry, Object expected,
+                                      Object value, SeqCstAccessTag);
+
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
 

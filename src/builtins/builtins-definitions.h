@@ -938,8 +938,8 @@ namespace internal {
       kIndexOrFieldName, kValue)                                               \
   TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
       kArrayOrSharedObject, kIndexOrFieldName, kValue)                         \
-  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
-      kIndex, kOldValue, kNewValue)                                            \
+  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver,             \
+      kArrayOrSharedObject, kIndexOrFieldName, kOldValue, kNewValue)           \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsSub, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsAnd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \

@@ -521,6 +521,9 @@
 #define SEQ_CST_SWAP_FIELD(p, offset, value) \
   TaggedField<Object>::SeqCst_Swap(p, offset, value)
 
+#define SEQ_CST_COMPARE_AND_SWAP_FIELD(p, offset, expected, value) \
+  TaggedField<Object>::SeqCst_CompareAndSwap(p, offset, expected, value)
+
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else

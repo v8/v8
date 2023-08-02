@@ -151,6 +151,10 @@ class FixedArray
   inline Object swap(int index, Object value, SeqCstAccessTag,
                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  inline Object compare_and_swap(int index, Object expected, Object value,
+                                 SeqCstAccessTag,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
   inline void set_undefined(Isolate* isolate, int index);

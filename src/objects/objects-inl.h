@@ -228,6 +228,28 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value) {
       static_cast<AtomicT>(value));
 }
 
+// static
+template <typename CompareAndSwapImpl>
+Object HeapObject::SeqCst_CompareAndSwapField(
+    Object expected, Object value, CompareAndSwapImpl compare_and_swap_impl) {
+  Object actual_expected = expected;
+  do {
+    Object old_value = compare_and_swap_impl(actual_expected, value);
+    if (old_value == actual_expected || !IsNumber(old_value) ||
+        !IsNumber(actual_expected)) {
+      return old_value;
+    }
+    if (!Object::SameNumberValue(Object::Number(old_value),
+                                 Object::Number(actual_expected))) {
+      return old_value;
+    }
+    // The pointer comparison failed, but the numbers are equal. This can
+    // happen even if both numbers are HeapNumbers with the same value.
+    // Try again in the next iteration.
+    actual_expected = old_value;
+  } while (true);
+}
+
 bool HeapObject::InAnySharedSpace() const {
   return Tagged<HeapObject>(*this).InAnySharedSpace();
 }

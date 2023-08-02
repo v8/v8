@@ -276,6 +276,18 @@ T TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Swap(
   return T(tagged_to_full(cage_base, old_value));
 }
 
+// static
+template <typename T, int kFieldOffset, typename CompressionScheme>
+T TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_CompareAndSwap(
+    HeapObject host, int offset, T old, T value) {
+  Address ptr = value.ptr();
+  Address old_ptr = old.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AtomicTagged_t old_value = AsAtomicTagged::SeqCst_CompareAndSwap(
+      location(host, offset), full_to_tagged(old_ptr), full_to_tagged(ptr));
+  return T(tagged_to_full(host.ptr(), old_value));
+}
+
 }  // namespace internal
 }  // namespace v8
 

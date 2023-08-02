@@ -690,6 +690,26 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
+  Handle<Object> CompareAndSwapAtomic(Isolate* isolate, Handle<JSObject> holder,
+                                      InternalIndex entry, Object expected,
+                                      Object value, SeqCstAccessTag tag) final {
+    return handle(HeapObject::SeqCst_CompareAndSwapField(
+                      expected, value,
+                      [=](Object expected_value, Object new_value) {
+                        return Subclass::CompareAndSwapAtomicInternalImpl(
+                            holder->elements(), entry, expected_value,
+                            new_value, tag);
+                      }),
+                  isolate);
+  }
+
+  static Object CompareAndSwapAtomicInternalImpl(FixedArrayBase backing_store,
+                                                 InternalIndex entry,
+                                                 Object expected, Object value,
+                                                 SeqCstAccessTag tag) {
+    UNREACHABLE();
+  }
+
   void Set(Handle<JSObject> holder, InternalIndex entry, Object value) final {
     Subclass::SetImpl(holder, entry, value);
   }
@@ -1585,6 +1605,14 @@ class DictionaryElementsAccessor
     return handle(
         NumberDictionary::cast(backing_store)->ValueAtSwap(entry, value, tag),
         isolate);
+  }
+
+  static Object CompareAndSwapAtomicInternalImpl(FixedArrayBase backing_store,
+                                                 InternalIndex entry,
+                                                 Object expected, Object value,
+                                                 SeqCstAccessTag tag) {
+    return NumberDictionary::cast(backing_store)
+        .ValueAtCompareAndSwap(entry, expected, value, tag);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,
@@ -2910,6 +2938,14 @@ class SharedArrayElementsAccessor
     return handle(
         BackingStore::cast(backing_store)->swap(entry.as_int(), value, tag),
         isolate);
+  }
+
+  static Object CompareAndSwapAtomicInternalImpl(FixedArrayBase backing_store,
+                                                 InternalIndex entry,
+                                                 Object expected, Object value,
+                                                 SeqCstAccessTag tag) {
+    return BackingStore::cast(backing_store)
+        .compare_and_swap(entry.as_int(), expected, value, tag);
   }
 };
 

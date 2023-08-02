@@ -73,6 +73,8 @@ class TaggedField : public AllStatic {
 
   static inline Tagged_t Release_CompareAndSwap(HeapObject host, T old,
                                                 T value);
+  static inline T SeqCst_CompareAndSwap(HeapObject host, int offset, T old,
+                                        T value);
 
   // Note: Use these *_Map_Word methods only when loading a MapWord from a
   // MapField.

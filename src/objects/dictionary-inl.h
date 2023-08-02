@@ -99,6 +99,16 @@ Object Dictionary<Derived, Shape>::ValueAtSwap(InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAtCompareAndSwap(InternalIndex entry,
+                                                         Object expected,
+                                                         Object value,
+                                                         SeqCstAccessTag tag) {
+  return this->compare_and_swap(
+      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
+      expected, value, tag);
+}
+
+template <typename Derived, typename Shape>
 PropertyDetails Dictionary<Derived, Shape>::DetailsAt(InternalIndex entry) {
   return Shape::DetailsAt(Derived::cast(*this), entry);
 }

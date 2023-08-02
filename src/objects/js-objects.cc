@@ -5615,6 +5615,16 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Isolate* isolate,
                                : Nothing<bool>();
 }
 
+Object JSObject::RawFastPropertyAtCompareAndSwap(FieldIndex index,
+                                                 Object expected, Object value,
+                                                 SeqCstAccessTag tag) {
+  return HeapObject::SeqCst_CompareAndSwapField(
+      expected, value, [=](Object expected_value, Object new_value) {
+        return RawFastPropertyAtCompareAndSwapInternal(index, expected_value,
+                                                       new_value, tag);
+      });
+}
+
 bool JSGlobalProxy::IsDetached() const {
   return IsNull(native_context(), GetIsolate());
 }

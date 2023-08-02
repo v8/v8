@@ -232,6 +232,18 @@ Object FixedArray::swap(int index, Object value, SeqCstAccessTag,
   return previous_value;
 }
 
+Object FixedArray::compare_and_swap(int index, Object expected, Object value,
+                                    SeqCstAccessTag, WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  Object previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (previous_value == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  }
+  return previous_value;
+}
+
 Object FixedArray::swap(int index, Smi value, SeqCstAccessTag tag) {
   DCHECK(IsSmi(Object(value)));
   return swap(index, value, tag, SKIP_WRITE_BARRIER);
