@@ -131,6 +131,18 @@ in_category(
         close_tree = False,
         notifies = ["V8 Flake Sheriff"],
     ),
+    multibranch_builder(
+        name = "V8 Linux64 - arm64 - no wasm - debug builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {
+            "builder_group": "client.v8.ports",
+            "target_arch": "arm",
+            "target_bits": 64,
+        },
+        use_remoteexec = RECLIENT.DEFAULT,
+        close_tree = False,
+        first_branch_version = "11.7",
+    ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim",
         triggered_by_gitiles = True,
