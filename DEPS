@@ -115,7 +115,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e4e05cf281227737182c0b9a21bde452ba23e097',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '16be42a9ff1f7e4a3e53b93b3adc181fa7ff9161',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b394b5928646adf0f6015712ba94097043b60689',
   'buildtools/linux64': {
     'packages': [
       {
@@ -221,7 +221,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2643aac1bee8672583c6964b649b5dfa9baf3512',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1fa5aeada2a9da7a17ff2c60d07a262fd9eeb9bb',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -312,7 +312,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '2288062eef9624e8b48070ed2447139d3fd4a1c5',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '583dc6d1b3a0dd44579718699e37cad2f0c41a26',
     'condition': 'not build_with_chromium',
   }
 }
