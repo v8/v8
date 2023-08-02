@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/protectors-inl.h"
+#include "src/execution/protectors.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
@@ -435,6 +437,15 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      kMethodName)));
     }
+
+    // TypedsArrays in optimized code may go out of bounds. Trigger deopts
+    // through the ArrayBufferDetaching protector.
+    if (new_byte_length < array_buffer->byte_length()) {
+      if (Protectors::IsArrayBufferDetachingIntact(isolate)) {
+        Protectors::InvalidateArrayBufferDetaching(isolate);
+      }
+    }
+
     // [RAB] Set O.[[ArrayBufferByteLength]] to newLength.
     array_buffer->set_byte_length(new_byte_length);
   } else {

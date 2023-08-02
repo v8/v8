@@ -6361,22 +6361,23 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
       if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
         return NoChange();
       }
-      Node* buffer = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-          receiver, effect, control);
-      Node* buffer_bit_field = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-          buffer, effect, control);
-      Node* check = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-          jsgraph()->ZeroConstant());
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
-                                p.feedback()),
-          check, effect, control);
+
+      std::set<ElementsKind> elements_kinds;
+      for (MapRef map : inference.GetMaps()) {
+        elements_kinds.insert(map.elements_kind());
+      }
+
+      // The following detach check is built with the given {elements_kinds} in
+      // mind, so we have to install dependency on those.
+      inference.RelyOnMapsPreferStability(
+          dependencies(), jsgraph(), &effect, control,
+          CallParametersOf(node->op()).feedback());
+
+      JSCallReducerAssembler a(this, node);
+      a.CheckIfTypedArrayWasDetached(
+          TNode<JSTypedArray>::UncheckedCast(receiver),
+          std::move(elements_kinds), p.feedback());
+      std::tie(effect, control) = ReleaseEffectAndControlFromAssembler(&a);
     }
   }
 

@@ -4531,6 +4531,7 @@ class RepresentationSelector {
       case IrOpcode::kInt32Sub:
       case IrOpcode::kUint32LessThan:
       case IrOpcode::kUint32LessThanOrEqual:
+      case IrOpcode::kUint64LessThan:
       case IrOpcode::kUint64LessThanOrEqual:
       case IrOpcode::kUint32Div:
       case IrOpcode::kWord32And:

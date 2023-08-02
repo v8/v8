@@ -20,6 +20,7 @@
   V(Uint64Div)                                \
   V(Uint32LessThan)                           \
   V(Uint32LessThanOrEqual)                    \
+  V(Uint64LessThan)                           \
   V(Uint64LessThanOrEqual)                    \
   V(Word32And)                                \
   V(Word32Equal)                              \

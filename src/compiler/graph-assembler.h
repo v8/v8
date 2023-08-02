@@ -85,12 +85,12 @@ class Reducer;
   V(IntSub)                                         \
   T(Uint32LessThan, BoolT, Uint32T, Uint32T)        \
   T(Uint32LessThanOrEqual, BoolT, Uint32T, Uint32T) \
-  V(Uint64LessThan)                                 \
+  T(Uint64LessThan, BoolT, Uint64T, Uint64T)        \
   T(Uint64LessThanOrEqual, BoolT, Uint64T, Uint64T) \
   V(UintLessThan)                                   \
   T(Word32And, Word32T, Word32T, Word32T)           \
   T(Word32Equal, BoolT, Word32T, Word32T)           \
-  V(Word32Or)                                       \
+  T(Word32Or, Word32T, Word32T, Word32T)            \
   V(Word32Sar)                                      \
   V(Word32SarShiftOutZeros)                         \
   V(Word32Shl)                                      \
@@ -352,6 +352,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 #undef BINOP_DECL_TNODE
+  TNode<BoolT> UintPtrLessThan(TNode<UintPtrT> left, TNode<UintPtrT> right);
   TNode<BoolT> UintPtrLessThanOrEqual(TNode<UintPtrT> left,
                                       TNode<UintPtrT> right);
   TNode<UintPtrT> UintPtrAdd(TNode<UintPtrT> left, TNode<UintPtrT> right);
@@ -1017,7 +1018,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Boolean> ObjectIsCallable(TNode<Object> value);
   TNode<Boolean> ObjectIsSmi(TNode<Object> value);
   TNode<Boolean> ObjectIsUndetectable(TNode<Object> value);
-  Node* CheckIf(Node* cond, DeoptimizeReason reason);
+  Node* CheckIf(Node* cond, DeoptimizeReason reason,
+                const FeedbackSource& feedback = {});
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
   TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);
@@ -1047,6 +1049,12 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Number> TypedArrayLength(
       TNode<JSTypedArray> typed_array,
       std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context);
+  // Performs the full detached check. This includes fixed-length RABs whos
+  // underlying buffer has been shrunk OOB.
+  void CheckIfTypedArrayWasDetached(
+      TNode<JSTypedArray> typed_array,
+      std::set<ElementsKind> elements_kinds_candidates,
+      const FeedbackSource& feedback);
   TNode<Uint32T> LookupByteShiftForElementsKind(TNode<Uint32T> elements_kind);
   TNode<Uint32T> LookupByteSizeForElementsKind(TNode<Uint32T> elements_kind);
 
