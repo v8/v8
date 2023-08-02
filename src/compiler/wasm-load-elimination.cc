@@ -493,6 +493,12 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
     if (visited.insert(current).second) {
       if (current->opcode() == IrOpcode::kWasmStructSet) {
         Node* object = NodeProperties::GetValueInput(current, 0);
+        if (object->opcode() == IrOpcode::kDead ||
+            object->opcode() == IrOpcode::kDeadValue) {
+          // We are in dead code. Bail out with no mutable state.
+          return zone()->New<AbstractState>(HalfState(zone()),
+                                            state->immutable_state);
+        }
         WasmFieldInfo field_info = OpParameter<WasmFieldInfo>(current->op());
         bool is_mutable = field_info.type->mutability(field_info.field_index);
         if (is_mutable) {
