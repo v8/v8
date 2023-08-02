@@ -647,6 +647,7 @@ namespace internal {
   F(WasmCompileLazy, 2, 1)                    \
   F(WasmAllocateFeedbackVector, 3, 1)         \
   F(WasmCompileWrapper, 1, 1)                 \
+  F(TierUpWasmToJSWrapper, 1, 1)              \
   F(WasmTriggerTierUp, 1, 1)                  \
   F(WasmDebugBreak, 0, 1)                     \
   F(WasmArrayCopy, 5, 1)                      \
@@ -671,6 +672,7 @@ namespace internal {
   F(WasmStringHash, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)  \
+  F(CountUnoptimizedWasmToJSWrapper, 1, 1)  \
   F(DeserializeWasmModule, 2, 1)            \
   F(DisallowWasmCodegen, 1, 1)              \
   F(FlushWasmCode, 0, 1)                    \
@@ -678,6 +680,7 @@ namespace internal {
   F(GetWasmExceptionTagId, 2, 1)            \
   F(GetWasmExceptionValues, 1, 1)           \
   F(GetWasmRecoveredTrapCount, 0, 1)        \
+  F(HasUnoptimizedWasmToJSWrapper, 1, 1)    \
   F(IsAsmWasmCode, 1, 1)                    \
   F(IsLiftoffFunction, 1, 1)                \
   F(IsTurboFanFunction, 1, 1)               \

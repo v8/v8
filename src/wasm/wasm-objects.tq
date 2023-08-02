@@ -24,6 +24,8 @@ extern class WasmApiFunctionRef extends HeapObject {
   // to load memory start/size fields.
   instance: WasmInstanceObject|Undefined;
   suspend: Smi;  // Boolean.
+  wrapper_budget: Smi;
+  call_origin: Smi|WasmInternalFunction|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: PodArrayOfWasmValueType;
 }

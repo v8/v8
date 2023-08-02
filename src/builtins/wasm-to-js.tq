@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+namespace runtime {
+extern runtime TierUpWasmToJSWrapper(NoContext, WasmApiFunctionRef): JSAny;
+}  // namespace runtime
+
 namespace wasm {
 @export
 struct WasmToJSResult {
@@ -26,6 +30,13 @@ extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
+  // Trigger a wrapper tier-up when this function got called often enough.
+  dcheck(ref.wrapper_budget > 0);
+  ref.wrapper_budget = ref.wrapper_budget - 1;
+  if (ref.wrapper_budget == 0) {
+    runtime::TierUpWasmToJSWrapper(kNoContext, ref);
+  }
+
   const signaturePod = &ref.sig.bytes;
   const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
       signaturePod.object, signaturePod.offset,

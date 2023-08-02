@@ -1065,6 +1065,7 @@
   'wasm/code-flushing': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/wasm-to-js-tierup': [SKIP],
 
   # The test relies on precise switching of code kinds of wasm functions. With
   # multiple isolates that share the wasm functions, the precise switching is
@@ -1889,6 +1890,13 @@
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-export': [SKIP],
 }],  # (arch != x64 and arch != arm64)
+
+##############################################################################
+['arch != x64', {
+  # The generic wasm-to-js wrapper only exists for x64 so far, so specific tests
+  # don't work on other platforms yet.
+  'wasm/wasm-to-js-tierup': [SKIP],
+}], # arch != x64
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {

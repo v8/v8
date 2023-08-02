@@ -143,6 +143,65 @@ int WasmStackSize(Isolate* isolate) {
 
 }  // namespace
 
+RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  Address wrapper_start = isolate->builtins()
+                              ->code(Builtin::kWasmToJsWrapperAsm)
+                              .instruction_start();
+  int result = 0;
+  int import_count = instance->imported_function_targets().length();
+  for (int i = 0; i < import_count; ++i) {
+    if (instance->imported_function_targets().get(i) == wrapper_start) {
+      ++result;
+    }
+  }
+  int table_count = instance->tables().length();
+  for (int table_index = 0; table_index < table_count; ++table_index) {
+    if (!IsWasmIndirectFunctionTable(
+            instance->indirect_function_tables()->get(table_index))) {
+      continue;
+    }
+    Tagged<WasmIndirectFunctionTable> table = WasmIndirectFunctionTable::cast(
+        instance->indirect_function_tables()->get(table_index));
+
+    for (int entry_index = 0; entry_index < static_cast<int>(table->size());
+         ++entry_index) {
+      Address entry =
+          table->targets()
+              ->get<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
+                  entry_index, isolate);
+      if (entry == wrapper_start) ++result;
+    }
+  }
+  return Smi::FromInt(result);
+}
+
+RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  Tagged<WasmInternalFunction> internal;
+  Handle<Object> param = args.at<Object>(0);
+  if (WasmExportedFunction::IsWasmExportedFunction(*param)) {
+    Handle<WasmExportedFunction> exported =
+        Handle<WasmExportedFunction>::cast(param);
+    internal = exported->shared()->wasm_exported_function_data()->internal();
+  } else {
+    DCHECK(WasmJSFunction::IsWasmJSFunction(*param));
+    Handle<WasmJSFunction> wasm_js_function =
+        Handle<WasmJSFunction>::cast(param);
+    internal = wasm_js_function->shared()->wasm_js_function_data()->internal();
+  }
+
+  Code wrapper = isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm);
+  if (!internal->call_target()) {
+    return isolate->heap()->ToBoolean(internal->code() == wrapper);
+  }
+  return isolate->heap()->ToBoolean(internal->call_target() ==
+                                    wrapper.instruction_start());
+}
+
 RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   HandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
