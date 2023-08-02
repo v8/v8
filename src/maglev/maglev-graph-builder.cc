@@ -1006,33 +1006,30 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
   if (representation == ValueRepresentation::kTagged) return value;
 
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-  if (node_info->tagged_alternative != nullptr) {
-    return node_info->tagged_alternative;
+  auto& alternative = node_info->alternative();
+
+  if (ValueNode* alt = alternative.tagged()) {
+    return alt;
   }
 
   switch (representation) {
     case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type)) {
-        return node_info->tagged_alternative =
-                   AddNewNode<UnsafeSmiTag>({value});
+      if (NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
       }
-      return node_info->tagged_alternative = AddNewNode<Int32ToNumber>({value});
+      return alternative.set_tagged(AddNewNode<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type)) {
-        return node_info->tagged_alternative =
-                   AddNewNode<UnsafeSmiTag>({value});
+      if (NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
       }
-      return node_info->tagged_alternative =
-                 AddNewNode<Uint32ToNumber>({value});
+      return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      return node_info->tagged_alternative =
-                 AddNewNode<Float64ToTagged>({value});
+      return alternative.set_tagged(AddNewNode<Float64ToTagged>({value}));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      return node_info->tagged_alternative =
-                 AddNewNode<HoleyFloat64ToTagged>({value});
+      return alternative.set_tagged(AddNewNode<HoleyFloat64ToTagged>({value}));
     }
 
     case ValueRepresentation::kTagged:
@@ -1057,35 +1054,31 @@ ValueNode* MaglevGraphBuilder::GetSmiValue(
     return value;
   }
 
-  if (node_info->tagged_alternative != nullptr) {
-    BuildCheckSmi(node_info->tagged_alternative, !value->Is<Phi>());
-    return node_info->tagged_alternative;
+  auto& alternative = node_info->alternative();
+
+  if (ValueNode* alt = alternative.tagged()) {
+    BuildCheckSmi(alt, !value->Is<Phi>());
+    return alt;
   }
 
   switch (representation) {
     case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type)) {
-        return node_info->tagged_alternative =
-                   AddNewNode<UnsafeSmiTag>({value});
+      if (NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
       }
-      return node_info->tagged_alternative =
-                 AddNewNode<CheckedSmiTagInt32>({value});
+      return alternative.set_tagged(AddNewNode<CheckedSmiTagInt32>({value}));
     }
     case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type)) {
-        return node_info->tagged_alternative =
-                   AddNewNode<UnsafeSmiTag>({value});
+      if (NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(AddNewNode<UnsafeSmiTag>({value}));
       }
-      return node_info->tagged_alternative =
-                 AddNewNode<CheckedSmiTagUint32>({value});
+      return alternative.set_tagged(AddNewNode<CheckedSmiTagUint32>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      return node_info->tagged_alternative =
-                 AddNewNode<CheckedSmiTagFloat64>({value});
+      return alternative.set_tagged(AddNewNode<CheckedSmiTagFloat64>({value}));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      return node_info->tagged_alternative =
-                 AddNewNode<CheckedSmiTagFloat64>({value});
+      return alternative.set_tagged(AddNewNode<CheckedSmiTagFloat64>({value}));
     }
 
     case ValueRepresentation::kTagged:
@@ -1187,13 +1180,15 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
   }
 
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+  auto& alternative = node_info->alternative();
+
   // If there is an int32_alternative, then that works as a truncated value
   // too.
-  if (node_info->int32_alternative != nullptr) {
-    return node_info->int32_alternative;
+  if (ValueNode* alt = alternative.int32()) {
+    return alt;
   }
-  if (node_info->truncated_int32_to_number != nullptr) {
-    return node_info->truncated_int32_to_number;
+  if (ValueNode* alt = alternative.truncated_int32_to_number()) {
+    return alt;
   }
 
   switch (representation) {
@@ -1204,23 +1199,21 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
       if (NodeTypeIsSmi(old_type)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
-        return node_info->int32_alternative =
-                   AddNewNode<UnsafeSmiUntag>({value});
+        return alternative.set_int32(AddNewNode<UnsafeSmiUntag>({value}));
       }
       if (desired_type == NodeType::kSmi) {
-        return node_info->int32_alternative =
-                   AddNewNode<CheckedSmiUntag>({value});
+        return alternative.set_int32(AddNewNode<CheckedSmiUntag>({value}));
       }
       TaggedToFloat64ConversionType conversion_type =
           ToNumberHintToConversionType(hint);
       if (NodeTypeIs(old_type, desired_type)) {
-        return node_info->truncated_int32_to_number =
-                   AddNewNode<TruncateNumberOrOddballToInt32>({value},
-                                                              conversion_type);
+        return alternative.set_truncated_int32_to_number(
+            AddNewNode<TruncateNumberOrOddballToInt32>({value},
+                                                       conversion_type));
       }
-      return node_info->truncated_int32_to_number =
-                 AddNewNode<CheckedTruncateNumberOrOddballToInt32>(
-                     {value}, conversion_type);
+      return alternative.set_truncated_int32_to_number(
+          AddNewNode<CheckedTruncateNumberOrOddballToInt32>({value},
+                                                            conversion_type));
     }
     case ValueRepresentation::kFloat64:
     // Ignore conversion_type for HoleyFloat64, and treat them like Float64.
@@ -1228,8 +1221,8 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
     // the NaN-ness of the hole, and don't need to do extra oddball checks so
     // we can ignore the hint (though we'll miss updating the feedback).
     case ValueRepresentation::kHoleyFloat64: {
-      return node_info->truncated_int32_to_number =
-                 AddNewNode<TruncateFloat64ToInt32>({value});
+      return alternative.set_truncated_int32_to_number(
+          AddNewNode<TruncateFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kInt32:
@@ -1266,29 +1259,30 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
   }
 
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-  if (node_info->int32_alternative != nullptr) {
-    return node_info->int32_alternative;
+  auto& alternative = node_info->alternative();
+
+  if (ValueNode* alt = alternative.int32()) {
+    return alt;
   }
 
   switch (representation) {
     case ValueRepresentation::kTagged: {
       // TODO(leszeks): Widen this path to allow HeapNumbers with Int32 values.
-      return node_info->int32_alternative = BuildSmiUntag(value);
+      return alternative.set_int32(BuildSmiUntag(value));
     }
     case ValueRepresentation::kUint32: {
       if (node_info->is_smi()) {
-        return node_info->int32_alternative =
-                   AddNewNode<TruncateUint32ToInt32>({value});
+        return alternative.set_int32(
+            AddNewNode<TruncateUint32ToInt32>({value}));
       }
-      return node_info->int32_alternative =
-                 AddNewNode<CheckedUint32ToInt32>({value});
+      return alternative.set_int32(AddNewNode<CheckedUint32ToInt32>({value}));
     }
     case ValueRepresentation::kFloat64:
     // The check here will also work for the hole NaN, so we can treat
     // HoleyFloat64 as Float64.
     case ValueRepresentation::kHoleyFloat64: {
-      return node_info->int32_alternative =
-                 AddNewNode<CheckedTruncateFloat64ToInt32>({value});
+      return alternative.set_int32(
+          AddNewNode<CheckedTruncateFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kInt32:
@@ -1344,8 +1338,10 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
   }
 
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-  if (node_info->float64_alternative != nullptr) {
-    return node_info->float64_alternative;
+  auto& alternative = node_info->alternative();
+
+  if (ValueNode* alt = alternative.float64()) {
+    return alt;
   }
 
   switch (representation) {
@@ -1358,8 +1354,8 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
         case ToNumberHint::kAssumeNumber:
           // Number->Float64 conversions are exact alternatives, so they can
           // also become the canonical float64_alternative.
-          return node_info->float64_alternative = BuildNumberOrOddballToFloat64(
-                     value, TaggedToFloat64ConversionType::kOnlyNumber);
+          return alternative.set_float64(BuildNumberOrOddballToFloat64(
+              value, TaggedToFloat64ConversionType::kOnlyNumber));
         case ToNumberHint::kAssumeNumberOrOddball: {
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
@@ -1367,19 +1363,18 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
           // known number (and therefore not oddball).
           ValueNode* float64_node = BuildNumberOrOddballToFloat64(
               value, TaggedToFloat64ConversionType::kNumberOrOddball);
-          if (NodeTypeIsNumber(node_info->type)) {
-            node_info->float64_alternative = float64_node;
+          if (NodeTypeIsNumber(node_info->type())) {
+            alternative.set_float64(float64_node);
           }
           return float64_node;
         }
       }
     }
     case ValueRepresentation::kInt32:
-      return node_info->float64_alternative =
-                 AddNewNode<ChangeInt32ToFloat64>({value});
+      return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));
     case ValueRepresentation::kUint32:
-      return node_info->float64_alternative =
-                 AddNewNode<ChangeUint32ToFloat64>({value});
+      return alternative.set_float64(
+          AddNewNode<ChangeUint32ToFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
       switch (hint) {
         case ToNumberHint::kAssumeSmi:
@@ -1387,8 +1382,8 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
         case ToNumberHint::kAssumeNumber:
           // Number->Float64 conversions are exact alternatives, so they can
           // also become the canonical float64_alternative.
-          return node_info->float64_alternative =
-                     AddNewNode<CheckedHoleyFloat64ToFloat64>({value});
+          return alternative.set_float64(
+              AddNewNode<CheckedHoleyFloat64ToFloat64>({value}));
         case ToNumberHint::kAssumeNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
@@ -1431,9 +1426,9 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value,
       if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
         return GetInt32Constant(ClampToUint8(constant->value().value()));
       }
-      NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-      if (node_info->int32_alternative != nullptr) {
-        return AddNewNode<Int32ToUint8Clamped>({node_info->int32_alternative});
+      NodeInfo* info = known_node_aspects().TryGetInfoFor(value);
+      if (info && info->alternative().int32()) {
+        return AddNewNode<Int32ToUint8Clamped>({info->alternative().int32()});
       }
       return AddNewNode<CheckedNumberToUint8Clamped>({value});
     }
@@ -2237,9 +2232,11 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
     return result;
   }
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
-  if (info && info->is_constant()) {
-    if (constant_node) *constant_node = info->constant_alternative;
-    return TryGetConstant(info->constant_alternative);
+  if (info) {
+    if (auto c = info->alternative().constant()) {
+      if (constant_node) *constant_node = c;
+      return TryGetConstant(c);
+    }
   }
   return {};
 }
@@ -3197,9 +3194,9 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
                                     NodeType* old_type) {
   if (CheckStaticType(node, type, old_type)) return true;
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  if (old_type) *old_type = known_info->type;
-  if (NodeTypeIs(known_info->type, type)) return true;
-  known_info->type = CombineType(known_info->type, type);
+  if (old_type) *old_type = known_info->type();
+  if (NodeTypeIs(known_info->type(), type)) return true;
+  known_info->CombineType(type);
   return false;
 }
 
@@ -3208,9 +3205,9 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
                                     Function ensure_new_type) {
   if (CheckStaticType(node, type)) return true;
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  if (NodeTypeIs(known_info->type, type)) return true;
-  ensure_new_type(known_info->type);
-  known_info->type = CombineType(known_info->type, type);
+  if (NodeTypeIs(known_info->type(), type)) return true;
+  ensure_new_type(known_info->type());
+  known_info->CombineType(type);
   return false;
 }
 
@@ -3223,15 +3220,15 @@ void MaglevGraphBuilder::SetKnownType(ValueNode* node, NodeType type) {
   // though, since starting from this point the assumption is that the type is
   // the set type.
   // DCHECK(NodeTypeIs(type, known_info->type));
-  known_info->type = type;
+  known_info->set_type(type);
 }
 void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
                                        compiler::ObjectRef ref) {
   DCHECK(!node->Is<Constant>());
   DCHECK(!node->Is<RootConstant>());
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  known_info->type = StaticTypeForConstant(broker(), ref);
-  known_info->constant_alternative = GetConstant(ref);
+  known_info->set_type(StaticTypeForConstant(broker(), ref));
+  known_info->alternative().set_constant(GetConstant(ref));
 }
 
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
@@ -3239,8 +3236,8 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
   if (CheckStaticType(node, type, old_type)) return true;
   auto it = known_node_aspects().FindInfo(node);
   if (!known_node_aspects().IsValid(it)) return false;
-  if (old_type) *old_type = it->second.type;
-  return NodeTypeIs(it->second.type, type);
+  if (old_type) *old_type = it->second.type();
+  return NodeTypeIs(it->second.type(), type);
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
@@ -3324,14 +3321,14 @@ class KnownMapsMerger {
 
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
-    auto it = known_node_aspects.possible_maps.find(object);
-    auto node_info = known_node_aspects.node_infos.find(object);
-    NodeType type = node_info != known_node_aspects.node_infos.end()
-                        ? node_info->second.type
-                        : NodeType::kUnknown;
-    if (it != known_node_aspects.possible_maps.end()) {
+    auto node_info_it = known_node_aspects.FindInfo(object);
+    bool has_node_info = known_node_aspects.IsValid(node_info_it);
+    NodeType type =
+        has_node_info ? node_info_it->second.type() : NodeType::kUnknown;
+    if (has_node_info && node_info_it->second.possible_maps_are_known()) {
       // TODO(v8:7700): Make intersection non-quadratic.
-      for (compiler::MapRef possible_map : it->second.possible_maps) {
+      for (compiler::MapRef possible_map :
+           node_info_it->second.possible_maps()) {
         if (std::find(requested_maps_.begin(), requested_maps_.end(),
                       possible_map) != requested_maps_.end()) {
           // No need to add dependencies, we already have them for all known
@@ -3367,8 +3364,8 @@ class KnownMapsMerger {
   void UpdateKnownNodeAspects(ValueNode* object,
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
-    known_node_aspects.possible_maps[object] =
-        KnownNodeAspects::PossibleMaps{intersect_set_, any_map_is_unstable_};
+    auto node_info = known_node_aspects.GetOrCreateInfoFor(object);
+    node_info->set_possible_maps(intersect_set_, any_map_is_unstable_);
     // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
     // in case any_map_is_unstable changed to true for this object -- this can
     // happen if this was an intersection with the universal set which added new
@@ -3382,7 +3379,6 @@ class KnownMapsMerger {
     // those). This is ok, because that's at worst just an overestimate -- we
     // could track whether this node's any_map_is_unstable flipped from true to
     // false, but this is likely overkill.
-
     // Insert stable map dependencies which weren't inserted yet. This is only
     // needed if our set of known maps was empty and we created it anew based on
     // maps we checked.
@@ -3403,7 +3399,9 @@ class KnownMapsMerger {
   }
   bool emit_check_with_migration() const { return emit_check_with_migration_; }
 
-  compiler::ZoneRefSet<Map> intersect_set() const { return intersect_set_; }
+  const compiler::ZoneRefSet<Map>& intersect_set() const {
+    return intersect_set_;
+  }
 
   NodeType node_type() const { return node_type_; }
 
@@ -3460,8 +3458,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   }
 
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->type = CombineType(
-      known_info->type, StaticTypeForNode(broker(), local_isolate(), object));
+  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
 
   // Calculates if known maps are a subset of maps, their map intersection and
   // whether we should emit check with migration.
@@ -3475,14 +3472,14 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     // contradicting all possible maps).
     // TODO(olivf) Try to combine node_info and possible maps and ensure that
     // narrowing the type also clears impossible possible_maps.
-    if (!NodeTypeIs(known_info->type, merger.node_type())) {
-      known_info->type = IntersectType(known_info->type, merger.node_type());
+    if (!NodeTypeIs(known_info->type(), merger.node_type())) {
+      known_info->IntersectType(merger.node_type());
     }
 #ifdef DEBUG
     // Double check that, for every possible map, it's one of the maps we'd
     // want to check.
     for (compiler::MapRef map :
-         known_node_aspects().possible_maps[object].possible_maps) {
+         known_node_aspects().TryGetInfoFor(object)->possible_maps()) {
       DCHECK_NE(std::find(maps.begin(), maps.end(), map), maps.end());
     }
 #endif
@@ -3501,12 +3498,12 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   // Emit checks.
   if (merger.emit_check_with_migration()) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
-                                       GetCheckType(known_info->type));
+                                       GetCheckType(known_info->type()));
   } else {
     AddNewNode<CheckMaps>({object}, merger.intersect_set(),
-                          GetCheckType(known_info->type));
+                          GetCheckType(known_info->type()));
   }
-  known_info->type = merger.node_type();
+  known_info->set_type(merger.node_type());
   return ReduceResult::Done();
 }
 
@@ -3524,18 +3521,16 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
   }
 
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->type = CombineType(
-      known_info->type, StaticTypeForNode(broker(), local_isolate(), object));
+  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
 
-  AddNewNode<TransitionElementsKindOrCheckMap>({object}, transition_sources,
-                                               transition_target,
-                                               GetCheckType(known_info->type));
+  AddNewNode<TransitionElementsKindOrCheckMap>(
+      {object}, transition_sources, transition_target,
+      GetCheckType(known_info->type()));
   // After this operation, object's map is transition_target (or we deopted).
-  known_node_aspects().possible_maps[object] = KnownNodeAspects::PossibleMaps{
-      compiler::ZoneRefSet<Map>(transition_target),
-      !transition_target.is_stable()};
+  known_info->set_possible_maps(PossibleMaps{transition_target},
+                                !transition_target.is_stable());
   DCHECK(transition_target.IsJSReceiverMap());
-  known_info->type = NodeType::kJSReceiver;
+  known_info->set_type(NodeType::kJSReceiver);
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
@@ -3753,19 +3748,18 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
-    known_info->type = NodeType::kSmi;
+    known_info->set_type(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
     NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
-      known_info->type = NodeType::kJSReceiver;
+      known_info->set_type(NodeType::kJSReceiver);
       auto map = access_info.field_map().value();
-      known_node_aspects().possible_maps[value] =
-          KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
+      known_info->set_possible_maps(PossibleMaps{map}, false);
       broker()->dependencies()->DependOnStableMap(map);
     } else {
-      known_info->type = NodeType::kAnyHeapObject;
+      known_info->set_type(NodeType::kAnyHeapObject);
     }
   }
   return value;
@@ -3779,7 +3773,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
 
   ValueNode* length =
       AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
-  known_node_aspects().node_infos[length].type = NodeType::kSmi;
+  known_node_aspects().GetOrCreateInfoFor(length)->set_type(NodeType::kSmi);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -3790,14 +3784,12 @@ void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
   AddNewNode<StoreMap>({receiver}, map);
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
   DCHECK(map.IsJSReceiverMap());
-  node_info->type = NodeType::kJSReceiver;
+  node_info->set_type(NodeType::kJSReceiver);
   if (map.is_stable()) {
-    known_node_aspects().possible_maps[receiver] =
-        KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
+    node_info->set_possible_maps(PossibleMaps{map}, false);
     broker()->dependencies()->DependOnStableMap(map);
   } else {
-    known_node_aspects().possible_maps[receiver] =
-        KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), true};
+    node_info->set_possible_maps(PossibleMaps{map}, true);
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   }
 }
@@ -4196,11 +4188,10 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         return GetInt32Constant(constant->value().value());
       } else if (CheckType(object, NodeType::kSmi, &old_type)) {
-        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
-        if (!node_info->int32_alternative) {
-          node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({object});
-        }
-        return node_info->int32_alternative;
+        auto& alternative =
+            known_node_aspects().GetOrCreateInfoFor(object)->alternative();
+        return alternative.get_or_set_int32(
+            [&]() { return AddNewNode<UnsafeSmiUntag>({object}); });
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
@@ -5680,7 +5671,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
 namespace {
 
 bool CanInlineArrayIteratingBuiltin(compiler::JSHeapBroker* broker,
-                                    compiler::ZoneRefSet<Map> const& maps,
+                                    const PossibleMaps& maps,
                                     ElementsKind* kind_return) {
   DCHECK_NE(0, maps.size());
   *kind_return = maps.at(0).elements_kind();
@@ -5709,8 +5700,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     return ReduceResult::Fail();
   }
 
-  auto receiver_maps_it = known_node_aspects().possible_maps.find(receiver);
-  if (receiver_maps_it == known_node_aspects().possible_maps.end()) {
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  if (!node_info || !node_info->possible_maps_are_known()) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce Array.prototype.forEach - receiver "
                    "map is unknown"
@@ -5718,11 +5709,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     }
     return ReduceResult::Fail();
   }
-  const KnownNodeAspects::PossibleMaps& receiver_maps =
-      receiver_maps_it->second;
 
   ElementsKind elements_kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps.possible_maps,
+  if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
                                       &elements_kind)) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  ! Failed to reduce Array.prototype.forEach - doesn't "
@@ -5771,9 +5760,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* original_length_int32 = GetInt32(original_length);
 
   // Remember the receiver map set before entering the loop the call.
-  bool receiver_maps_were_unstable = receiver_maps.any_map_is_unstable;
-  compiler::ZoneRefSet<Map> receiver_maps_before_loop =
-      receiver_maps.possible_maps;
+  bool receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
+  PossibleMaps receiver_maps_before_loop(node_info->possible_maps());
 
   // Create a sub graph builder with one variable (for the index)
   MaglevSubGraphBuilder sub_builder(this, 1);
@@ -5794,13 +5782,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
   // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
-    known_node_aspects().possible_maps[receiver] =
-        KnownNodeAspects::PossibleMaps{receiver_maps_before_loop,
-                                       receiver_maps_were_unstable};
+    node_info->set_possible_maps(receiver_maps_before_loop,
+                                 receiver_maps_were_unstable);
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
-    DCHECK_EQ(known_node_aspects().possible_maps[receiver].possible_maps,
-              receiver_maps_before_loop);
+    DCHECK_EQ(node_info->possible_maps().size(),
+              receiver_maps_before_loop.size());
   }
   // Reset the cached loaded array length to the original length.
   RecordKnownProperty(receiver, broker()->length_string(), original_length,
@@ -5896,16 +5883,15 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
       recheck_maps_after_call = false;
     } else {
       // No need to recheck maps if there are known maps...
-      auto receiver_maps_after_call_it =
-          known_node_aspects().possible_maps.find(receiver);
-      if (receiver_maps_after_call_it !=
-          known_node_aspects().possible_maps.end()) {
+      if (auto receiver_info_after_call =
+              known_node_aspects().TryGetInfoFor(receiver)) {
         // ... and those known maps are equal to, or a subset of, the maps
         // before the call.
-        compiler::ZoneRefSet<Map> receiver_maps_after_call =
-            receiver_maps_after_call_it->second.possible_maps;
-        recheck_maps_after_call =
-            receiver_maps_before_loop.contains(receiver_maps_after_call);
+        if (receiver_info_after_call &&
+            receiver_info_after_call->possible_maps_are_known()) {
+          recheck_maps_after_call = receiver_maps_before_loop.contains(
+              receiver_info_after_call->possible_maps());
+        }
       }
     }
   }
@@ -6158,10 +6144,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (args.count() != 1) return ReduceResult::Fail();
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
 
-  auto possible_maps_it = known_node_aspects().possible_maps.find(receiver);
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (possible_maps_it == known_node_aspects().possible_maps.end()) {
+  if (!node_info || !node_info->possible_maps_are_known()) {
     return ReduceResult::Fail();
   }
 
@@ -6170,7 +6156,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_maps_it->second.possible_maps.is_empty()) {
+  if (node_info->possible_maps().is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
@@ -6183,7 +6169,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   ZoneVector<compiler::MapRef> receiver_map_refs(zone());
   // Check that all receiver maps are JSArray maps with compatible elements
   // kinds.
-  for (compiler::MapRef map : possible_maps_it->second.possible_maps) {
+  for (compiler::MapRef map : node_info->possible_maps()) {
     if (!map.IsJSArrayMap()) return ReduceResult::Fail();
     ElementsKind packed = GetPackedElementsKind(map.elements_kind());
     if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
@@ -6826,15 +6812,13 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
     ValueNode* receiver) {
   const compiler::HolderLookupResult not_found;
 
-  auto receiver_maps_it = known_node_aspects().possible_maps.find(receiver);
-  if (receiver_maps_it == known_node_aspects().possible_maps.end()) {
+  auto receiver_info = known_node_aspects().TryGetInfoFor(receiver);
+  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
     // No info about receiver, can't infer API holder.
     return not_found;
   }
-  const KnownNodeAspects::PossibleMaps& inference = receiver_maps_it->second;
-
-  compiler::ZoneRefSet<Map> const& receiver_maps = inference.possible_maps;
-  compiler::MapRef first_receiver_map = receiver_maps[0];
+  DCHECK(!receiver_info->possible_maps().is_empty());
+  compiler::MapRef first_receiver_map = receiver_info->possible_maps()[0];
 
   // See if we can constant-fold the compatible receiver checks.
   compiler::HolderLookupResult api_holder =
@@ -6856,8 +6840,7 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
   CHECK(!first_receiver_map.is_access_check_needed() ||
         function_template_info.accept_any_receiver());
 
-  for (size_t i = 1; i < receiver_maps.size(); ++i) {
-    compiler::MapRef receiver_map = receiver_maps[i];
+  for (compiler::MapRef receiver_map : receiver_info->possible_maps()) {
     compiler::HolderLookupResult holder_i =
         function_template_info.LookupHolderOfExpectedType(broker(),
                                                           receiver_map);
@@ -7557,10 +7540,10 @@ void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
 MaglevGraphBuilder::InferHasInPrototypeChainResult
 MaglevGraphBuilder::InferHasInPrototypeChain(
     ValueNode* receiver, compiler::HeapObjectRef prototype) {
-  auto possible_maps_it = known_node_aspects().possible_maps.find(receiver);
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
-  if (possible_maps_it == known_node_aspects().possible_maps.end()) {
+  if (!node_info || !node_info->possible_maps_are_known()) {
     return kMayBeInPrototypeChain;
   }
 
@@ -7569,7 +7552,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (possible_maps_it->second.possible_maps.is_empty()) {
+  if (node_info->possible_maps().is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return kIsNotInPrototypeChain;
   }
@@ -7581,7 +7564,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
-  for (compiler::MapRef map : possible_maps_it->second.possible_maps) {
+  for (compiler::MapRef map : node_info->possible_maps()) {
     receiver_map_refs.push_back(map);
     while (true) {
       if (IsSpecialReceiverInstanceType(map.instance_type())) {
@@ -9025,10 +9008,10 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
                                               node);
   } else {
     NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(node);
-    if (ValueNode* as_int32 = node_info->int32_alternative) {
+    if (auto as_int32 = node_info->alternative().int32()) {
       return make_specialized_branch_if_compare(ValueRepresentation::kInt32,
                                                 as_int32);
-    } else if (ValueNode* as_float64 = node_info->float64_alternative) {
+    } else if (auto as_float64 = node_info->alternative().float64()) {
       return make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
                                                 as_float64);
     } else {
@@ -9412,8 +9395,8 @@ void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
   // Avoid the check if {value} has an alternative whose representation doesn't
   // allow the hole.
   if (const NodeInfo* info = known_node_aspects().TryGetInfoFor(value)) {
-    if (info->int32_alternative || info->truncated_int32_to_number ||
-        info->float64_alternative) {
+    auto& alt = info->alternative();
+    if (alt.int32() || alt.truncated_int32_to_number() || alt.float64()) {
       return;
     }
   }

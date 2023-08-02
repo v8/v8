@@ -19,26 +19,13 @@ namespace internal {
 namespace maglev {
 
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
+  bool any_merged_map_is_unstable = false;
   DestructivelyIntersect(node_infos, other.node_infos,
-                         [](NodeInfo& lhs, const NodeInfo& rhs) {
-                           lhs.MergeWith(rhs);
-                           return !lhs.is_empty();
+                         [&](NodeInfo& lhs, const NodeInfo& rhs) {
+                           lhs.MergeWith(rhs, zone, any_merged_map_is_unstable);
+                           return !lhs.no_info_available();
                          });
 
-  bool any_merged_map_is_unstable = false;
-  auto merge_known_maps = [&](PossibleMaps& lhs, const PossibleMaps& rhs) {
-    // Map sets are the set of _possible_ maps, so on a merge we need to _union_
-    // them together (i.e. intersect the set of impossible maps).
-    lhs.possible_maps.Union(rhs.possible_maps, zone);
-    lhs.any_map_is_unstable =
-        lhs.any_map_is_unstable || rhs.any_map_is_unstable;
-    // Remember whether _any_ of these merges observed unstable maps.
-    any_merged_map_is_unstable =
-        any_merged_map_is_unstable || lhs.any_map_is_unstable;
-    // We should always add the value even if the set is empty.
-    return true;
-  };
-  DestructivelyIntersect(possible_maps, other.possible_maps, merge_known_maps);
   this->any_map_for_any_node_is_unstable = any_merged_map_is_unstable;
 
   auto merge_loaded_properties =
@@ -195,26 +182,22 @@ void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
             << PrintNodeLabel(compilation_unit.graph_labeller(), current_value)
             << "<";
   if (kna) {
-    auto cur_type = kna->node_infos.find(current_value);
-    auto cur_map = kna->possible_maps.find(current_value);
-    if (cur_type != kna->node_infos.end()) {
-      std::cout << cur_type->second.type;
-    }
-    if (cur_map != kna->possible_maps.end()) {
-      std::cout << " " << cur_map->second.possible_maps.size();
+    if (auto cur_info = kna->TryGetInfoFor(current_value)) {
+      std::cout << cur_info->type();
+      if (cur_info->possible_maps_are_known()) {
+        std::cout << " " << cur_info->possible_maps().size();
+      }
     }
   }
   std::cout << "> <- "
             << PrintNodeLabel(compilation_unit.graph_labeller(), unmerged_value)
             << "<";
   if (kna) {
-    auto in_type = kna->node_infos.find(unmerged_value);
-    auto in_map = kna->possible_maps.find(unmerged_value);
-    if (in_type != kna->node_infos.end()) {
-      std::cout << in_type->second.type;
-    }
-    if (in_map != kna->possible_maps.end()) {
-      std::cout << " " << in_map->second.possible_maps.size();
+    if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
+      std::cout << in_info->type();
+      if (in_info->possible_maps_are_known()) {
+        std::cout << " " << in_info->possible_maps().size();
+      }
     }
   }
   std::cout << ">";
@@ -229,13 +212,11 @@ void PrintAfterMerge(const MaglevCompilationUnit& compilation_unit,
             << "<";
 
   if (kna) {
-    auto type = kna->node_infos.find(merged_value);
-    auto map = kna->possible_maps.find(merged_value);
-    if (type != kna->node_infos.end()) {
-      std::cout << type->second.type;
-    }
-    if (map != kna->possible_maps.end()) {
-      std::cout << " " << map->second.possible_maps.size();
+    if (auto out_info = kna->TryGetInfoFor(merged_value)) {
+      std::cout << out_info->type();
+      if (out_info->possible_maps_are_known()) {
+        std::cout << " " << out_info->possible_maps().size();
+      }
     }
   }
 
@@ -484,10 +465,12 @@ ValueNode* EnsureTagged(MaglevGraphBuilder* builder,
   auto info_it = known_node_aspects.FindInfo(value);
   const NodeInfo* info =
       known_node_aspects.IsValid(info_it) ? &info_it->second : nullptr;
-  if (info && info->tagged_alternative) {
-    return info->tagged_alternative;
+  if (info) {
+    if (auto alt = info->alternative().tagged()) {
+      return alt;
+    }
   }
-  return NonTaggedToTagged(builder, info ? info->type : NodeType::kUnknown,
+  return NonTaggedToTagged(builder, info ? info->type() : NodeType::kUnknown,
                            value, predecessor);
 }
 
@@ -495,10 +478,9 @@ NodeType GetNodeType(compiler::JSHeapBroker* broker, LocalIsolate* isolate,
                      const KnownNodeAspects& aspects, ValueNode* node) {
   // We first check the KnownNodeAspects in order to return the most precise
   // type possible.
-  if (const NodeInfo* info = aspects.TryGetInfoFor(node)) {
-    if (info->type != NodeType::kUnknown) {
-      return info->type;
-    }
+  NodeType type = aspects.NodeTypeFor(node);
+  if (type != NodeType::kUnknown) {
+    return type;
   }
   // If this node has no NodeInfo (or not known type in its NodeInfo), we fall
   // back to its static type.
