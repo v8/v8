@@ -386,10 +386,6 @@ declare_args() {
   # This is only used by nodejs.
   v8_scriptormodule_legacy_lifetime = false
 
-  # Change code emission and runtime features to be CET shadow-stack compliant
-  # (incomplete and experimental).
-  v8_enable_cet_shadow_stack = false
-
   # Enables pointer compression for 8GB heaps.
   # Sets -DV8_COMPRESS_POINTERS_8GB.
   v8_enable_pointer_compression_8gb = ""
@@ -7213,10 +7209,6 @@ if (want_v8_shell) {
       # you can't have both applied to the same target.
       ":internal_config_base",
     ]
-
-    if (is_win && !v8_enable_cet_shadow_stack) {
-      v8_remove_configs += [ "//build/config/compiler:cet_shadow_stack" ]
-    }
 
     deps = [
       ":v8",

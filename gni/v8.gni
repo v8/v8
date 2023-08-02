@@ -141,6 +141,10 @@ declare_args() {
 
   # Location of zlib.
   v8_zlib_path = "//third_party/zlib"
+
+  # Change code emission and runtime features to be CET shadow-stack compliant
+  # (incomplete and experimental).
+  v8_enable_cet_shadow_stack = false
 }
 
 if (v8_use_external_startup_data == "") {
@@ -344,6 +348,10 @@ template("v8_executable") {
         ldflags = [ "-pie" ]
       }
       deps += [ v8_path_prefix + ":v8_dump_build_config" ]
+
+      if (is_win && !v8_enable_cet_shadow_stack) {
+        configs -= [ "//build/config/compiler:cet_shadow_stack" ]
+      }
     }
   }
 }
