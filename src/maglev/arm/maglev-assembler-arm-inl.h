@@ -238,8 +238,6 @@ inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
-  static_assert(!SmiValuesAre32Bits());
-
   ScratchRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
     scratch = temps.Acquire();

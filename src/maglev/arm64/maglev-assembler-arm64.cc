@@ -257,8 +257,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   }
   Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  Add(table, table, Operand(char_code, LSL, kTaggedSizeLog2));
+  DecompressTagged(result, FieldMemOperand(table, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -369,7 +369,9 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 
   // Get instance type.
-  LoadInstanceType(instance_type, string);
+  LoadMap(instance_type, string);
+  Ldr(instance_type.W(),
+      FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
 
   {
     ScratchRegisterScope temps(this);
@@ -391,7 +393,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   // Is a thin string.
   {
-    LoadTaggedField(string, string, ThinString::kActualOffset);
+    DecompressTagged(string,
+                     FieldMemOperand(string, ThinString::kActualOffset));
     B(&loop);
   }
 
@@ -400,8 +403,10 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     ScratchRegisterScope temps(this);
     Register offset = temps.Acquire();
 
-    LoadAndUntagTaggedSignedField(offset, string, SlicedString::kOffsetOffset);
-    LoadTaggedField(string, string, SlicedString::kParentOffset);
+    Ldr(offset.W(), FieldMemOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    DecompressTagged(string,
+                     FieldMemOperand(string, SlicedString::kParentOffset));
     Add(index, index, offset);
     B(&loop);
   }
@@ -414,7 +419,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     Ldr(second_string.W(), FieldMemOperand(string, ConsString::kSecondOffset));
     CompareRoot(second_string, RootIndex::kempty_string);
     B(deferred_runtime_call, ne);
-    LoadTaggedField(string, string, ConsString::kFirstOffset);
+    DecompressTagged(string, FieldMemOperand(string, ConsString::kFirstOffset));
     B(&loop);  // Try again with first string.
   }
 

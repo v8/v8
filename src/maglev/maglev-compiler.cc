@@ -73,9 +73,7 @@ class DecompressedUseMarkingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-#ifdef V8_COMPRESS_POINTERS
     node->MarkTaggedInputsAsDecompressing();
-#endif
     return ProcessResult::kContinue;
   }
 };

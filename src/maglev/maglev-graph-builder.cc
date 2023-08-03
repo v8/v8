@@ -2986,9 +2986,8 @@ void MaglevGraphBuilder::VisitLdaLookupSlot() {
 void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
   // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
       BuildCallBuiltin<Builtin::kLookupContextTrampoline>({name, depth, slot}));
 }
@@ -2996,9 +2995,8 @@ void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
 void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
   // LdaLookupGlobalSlot <name_index> <feedback_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   ValueNode* result;
   if (parent_) {
     ValueNode* vector = GetConstant(feedback());
@@ -3021,9 +3019,8 @@ void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
 void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
   // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
       BuildCallBuiltin<Builtin::kLookupContextInsideTypeofTrampoline>(
           {name, depth, slot}));
@@ -3032,9 +3029,8 @@ void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
 void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   // LdaLookupGlobalSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   ValueNode* result;
   if (parent_) {
     ValueNode* vector = GetConstant(feedback());
@@ -5193,7 +5189,7 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   ValueNode* name = LoadRegisterTagged(1);
   ValueNode* value = GetAccumulatorTagged();
   ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
-  ValueNode* slot = GetTaggedIndexConstant(GetSlotOperand(3).ToInt());
+  ValueNode* slot = GetSmiConstant(GetSlotOperand(3).ToInt());
   ValueNode* feedback_vector = GetConstant(feedback());
   BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
                    {object, name, value, flags, feedback_vector, slot});

@@ -87,8 +87,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   DCHECK_NE(char_code, scratch);
   Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  DecompressTagged(result, FieldOperand(table, char_code, times_tagged_size,
+                                        FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -187,7 +187,9 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 
   // Get instance type.
-  LoadInstanceType(instance_type, string);
+  LoadMap(instance_type, string);
+  mov_tagged(instance_type,
+             FieldOperand(instance_type, Map::kInstanceTypeOffset));
 
   {
     // TODO(victorgomes): Add fast path for external strings.
@@ -207,15 +209,16 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   // Is a thin string.
   {
-    LoadTaggedField(string, string, ThinString::kActualOffset);
+    DecompressTagged(string, FieldOperand(string, ThinString::kActualOffset));
     jmp(&loop, Label::kNear);
   }
 
   bind(&sliced_string);
   {
     Register offset = scratch;
-    LoadAndUntagTaggedSignedField(offset, string, SlicedString::kOffsetOffset);
-    LoadTaggedField(string, string, SlicedString::kParentOffset);
+    movl(offset, FieldOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    DecompressTagged(string, FieldOperand(string, SlicedString::kParentOffset));
     addl(index, offset);
     jmp(&loop, Label::kNear);
   }
@@ -225,7 +228,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                 RootIndex::kempty_string);
     j(not_equal, deferred_runtime_call);
-    LoadTaggedField(string, string, ConsString::kFirstOffset);
+    DecompressTagged(string, FieldOperand(string, ConsString::kFirstOffset));
     jmp(&loop, Label::kNear);  // Try again with first string.
   }
 

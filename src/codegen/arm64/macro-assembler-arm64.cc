@@ -1695,7 +1695,6 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertSmiOrHeapObjectInCompressionCage(Register object) {
-  DCHECK(PointerCompressionIsEnabled());
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   Label is_smi;

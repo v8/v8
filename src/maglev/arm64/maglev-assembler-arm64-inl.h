@@ -94,11 +94,7 @@ inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
                               size_t map_count)
     : masm_(masm), object_(object), map_count_(map_count) {
   map_ = masm_->scratch_register_scope()->Acquire();
-  if (PointerCompressionIsEnabled()) {
-    masm_->LoadCompressedMap(map_, object_);
-  } else {
-    masm_->LoadMap(map_, object_);
-  }
+  masm_->LoadCompressedMap(map_, object_);
   USE(map_count_);
 }
 
@@ -110,11 +106,9 @@ void MapCompare::Generate(Handle<Map> map) {
 }
 
 Register MapCompare::GetMap() {
-  if (PointerCompressionIsEnabled()) {
-    // Decompression is idempotent (UXTW operand is used), so this would return
-    // a valid pointer even if called multiple times in a row.
-    masm_->DecompressTagged(map_, map_);
-  }
+  // Decompression is idempotent (UXTW operand is used), so this would return a
+  // valid pointer even if called multiple times in a row.
+  masm_->DecompressTagged(map_, map_);
   return map_;
 }
 
@@ -371,17 +365,11 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 
 inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
                                                     Register src) {
-  if (SmiValuesAre31Bits()) {
-    Adds(dst.W(), src.W(), src.W());
-  } else {
-    SmiTag(dst, src);
-  }
+  Adds(dst.W(), src.W(), src.W());
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
-  DCHECK(!SmiValuesAre32Bits());
-
   Adds(wzr, obj.W(), obj.W());
   JumpIf(kOverflow, fail);
 }
@@ -432,11 +420,7 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   ScratchRegisterScope scope(this);
   Register base = scope.Acquire();
-  if (COMPRESS_POINTERS_BOOL) {
-    Ldr(base.W(), FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
-  } else {
-    Ldr(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
-  }
+  Ldr(base.W(), FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
   Add(data_pointer, data_pointer, base);
 }
 
@@ -456,7 +440,11 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
-  Add(result, object, Operand(index, LSL, ShiftFromScale(scale)));
+  if (scale == 1) {
+    Add(result, object, index);
+  } else {
+    Add(result, object, Operand(index, LSL, ShiftFromScale(scale / 2)));
+  }
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
 }
 
@@ -487,8 +475,8 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
     CompareInt32(index, 0);
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
-  LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  Add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  DecompressTagged(result, FieldMemOperand(result, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
