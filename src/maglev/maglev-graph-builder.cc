@@ -2773,7 +2773,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
   if (!property_cell.Cache(broker())) return ReduceResult::Fail();
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsTheHole()) {
+  if (property_cell_value.IsPropertyCellHole()) {
     // The property cell is no longer valid.
     return EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -2881,7 +2881,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
   if (!property_cell.Cache(broker())) return ReduceResult::Fail();
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsTheHole()) {
+  if (property_cell_value.IsPropertyCellHole()) {
     // The property cell is no longer valid.
     return EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);

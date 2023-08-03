@@ -366,6 +366,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsUndefined() const;
   enum HoleType HoleType() const;
   bool IsTheHole() const;
+  bool IsPropertyCellHole() const;
   bool IsNullOrUndefined() const;
 
   base::Optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;

@@ -1089,7 +1089,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   }
 
   ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsTheHole()) {
+  if (property_cell_value.IsPropertyCellHole()) {
     // The property cell is no longer valid.
     return NoChange();
   }
@@ -1172,7 +1172,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
                     ? jsgraph()->TrueConstant()
                     : jsgraph()->Constant(property_cell_value, broker());
         DCHECK(!property_cell_value.IsHeapObject() ||
-               !property_cell_value.IsTheHole());
+               !property_cell_value.IsPropertyCellHole());
       } else {
         DCHECK_NE(AccessMode::kHas, access_mode);
 
