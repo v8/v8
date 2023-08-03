@@ -1286,8 +1286,43 @@ transitioning builtin WasmStringViewWtf16Slice(
   const length = Unsigned(string.length);
   if (start >= length) return kEmptyString;
   if (end <= start) return kEmptyString;
-  const clampedEnd = Convert<uintptr>(end <= length ? end : length);
-  return string::SubString(string, Convert<uintptr>(start), clampedEnd);
+
+  // On a high level, the intended logic is:
+  // (1) If start == 0 && end == string.length, return string.
+  // (2) If clampedLength == 1, use a cached single-character string.
+  // (3) If clampedLength < SlicedString::kMinLength, make a copy.
+  // (4) If clampedLength < string.length / 2, make a copy.
+  // (5) Else, create a slice.
+  // The reason for having case (4) is that case (5) has the risk of keeping
+  // huge parent strings alive unnecessarily, and Wasm currently doesn't have a
+  // way to control that behavior, so we have to be careful.
+  // The reason for having case (5) is that case (4) would lead to quadratic
+  // overall behavior if code repeatedly chops off a few characters of a long
+  // string, which we want to avoid.
+  // The string::SubString implementation can handle cases (1), (2), (3),
+  // and (5). The inline code here handles case (4), and doesn't mind if it
+  // also catches some of case (3).
+  const clampedEnd = end <= length ? end : length;
+  const clampedLength = clampedEnd - start;
+  if (clampedLength > 1 && clampedLength < length / 2) {
+    try {
+      StringToSlice(string) otherwise OneByte, TwoByte;
+    } label OneByte(slice: ConstSlice<char8>) {
+      let subslice = Subslice(
+          slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
+          otherwise unreachable;
+      return AllocateNonEmptySeqOneByteString(
+          clampedLength, subslice.Iterator());
+    } label TwoByte(slice: ConstSlice<char16>) {
+      let subslice = Subslice(
+          slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
+          otherwise unreachable;
+      return AllocateNonEmptySeqTwoByteString(
+          clampedLength, subslice.Iterator());
+    }
+  }
+  return string::SubString(
+      string, Convert<uintptr>(start), Convert<uintptr>(clampedEnd));
 }
 builtin WasmStringAsIter(string: String): WasmStringViewIter {
   return new WasmStringViewIter{string: string, offset: 0, optional_padding: 0};
