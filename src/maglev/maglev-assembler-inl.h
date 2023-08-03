@@ -317,6 +317,12 @@ inline void MaglevAssembler::LoadTaggedSignedField(Register result,
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::LoadAndUntagTaggedSignedField(Register result,
+                                                           Register object,
+                                                           int offset) {
+  MacroAssembler::SmiUntagField(result, FieldMemOperand(object, offset));
+}
+
 namespace detail {
 
 #ifdef DEBUG
@@ -658,7 +664,9 @@ inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
 inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
     Register dst, Register src, Label* fail, Label::Distance distance) {
   SmiTagInt32AndSetFlags(dst, src);
-  JumpIf(kOverflow, fail, distance);
+  if (!SmiValuesAre32Bits()) {
+    JumpIf(kOverflow, fail, distance);
+  }
 }
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
@@ -669,7 +677,11 @@ inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
 inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
     Register dst, Register src, Label* success, Label::Distance distance) {
   SmiTagInt32AndSetFlags(dst, src);
-  JumpIf(kNoOverflow, success, distance);
+  if (!SmiValuesAre32Bits()) {
+    JumpIf(kNoOverflow, success, distance);
+  } else {
+    jmp(success);
+  }
 }
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(

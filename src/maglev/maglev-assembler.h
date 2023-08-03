@@ -142,6 +142,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void LoadTaggedSignedField(Register result, MemOperand operand);
   inline void LoadTaggedSignedField(Register result, Register object,
                                     int offset);
+  inline void LoadAndUntagTaggedSignedField(Register result, Register object,
+                                            int offset);
   inline void LoadTaggedFieldByIndex(Register result, Register object,
                                      Register index, int scale, int offset);
   inline void LoadBoundedSizeFromObject(Register result, Register object,

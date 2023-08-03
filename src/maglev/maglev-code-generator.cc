@@ -95,6 +95,7 @@ class ParallelMoveResolver {
   static constexpr auto kAllocatableRegistersT =
       RegisterTHelper<RegisterT>::kAllocatableRegisters;
   static_assert(!DecompressIfNeeded || std::is_same_v<Register, RegisterT>);
+  static_assert(!DecompressIfNeeded || COMPRESS_POINTERS_BOOL);
 
  public:
   explicit ParallelMoveResolver(MaglevAssembler* masm)
@@ -418,6 +419,7 @@ class ParallelMoveResolver {
   void EmitMovesFromSource(RegisterT source_reg, GapMoveTargets&& targets) {
     DCHECK(moves_from_register_[source_reg.code()].is_empty());
     if constexpr (DecompressIfNeeded) {
+      static_assert(COMPRESS_POINTERS_BOOL);
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(source_reg, source_reg);
       }
@@ -460,6 +462,7 @@ class ParallelMoveResolver {
     // Decompress after the first move, subsequent moves reuse this register so
     // they're guaranteed to be decompressed.
     if constexpr (DecompressIfNeeded) {
+      static_assert(COMPRESS_POINTERS_BOOL);
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(register_with_slot_value, register_with_slot_value);
         targets.needs_decompression = kDoesNotNeedDecompression;
@@ -556,7 +559,7 @@ class ExceptionHandlerTrampolineBuilder {
     const InterpretedDeoptFrame& lazy_frame = bottom_frame->as_interpreted();
 
     // TODO(v8:7700): Handle inlining.
-    ParallelMoveResolver<Register, true> direct_moves(masm_);
+    ParallelMoveResolver<Register, COMPRESS_POINTERS_BOOL> direct_moves(masm_);
     MoveVector materialising_moves;
     bool save_accumulator = false;
     RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
@@ -576,10 +579,11 @@ class ExceptionHandlerTrampolineBuilder {
 
   MaglevAssembler* masm() const { return masm_; }
 
-  void RecordMoves(const MaglevCompilationUnit& unit, BasicBlock* catch_block,
-                   const CompactInterpreterFrameState* register_frame,
-                   ParallelMoveResolver<Register, true>* direct_moves,
-                   MoveVector* materialising_moves, bool* save_accumulator) {
+  void RecordMoves(
+      const MaglevCompilationUnit& unit, BasicBlock* catch_block,
+      const CompactInterpreterFrameState* register_frame,
+      ParallelMoveResolver<Register, COMPRESS_POINTERS_BOOL>* direct_moves,
+      MoveVector* materialising_moves, bool* save_accumulator) {
     if (!catch_block->has_phi()) return;
     for (Phi* phi : *catch_block->phis()) {
       DCHECK(phi->is_exception_phi());

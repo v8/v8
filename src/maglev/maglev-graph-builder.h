@@ -329,6 +329,19 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  TaggedIndexConstant* GetTaggedIndexConstant(int constant) {
+    DCHECK(TaggedIndex::IsValid(constant));
+    auto it = graph_->tagged_index().find(constant);
+    if (it == graph_->tagged_index().end()) {
+      TaggedIndexConstant* node = CreateNewConstantNode<TaggedIndexConstant>(
+          0, TaggedIndex::FromIntptr(constant));
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->tagged_index().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   Int32Constant* GetInt32Constant(int constant) {
     // The constant must fit in a Smi, since it could be later tagged in a Phi.
     DCHECK(Smi::IsValid(constant));

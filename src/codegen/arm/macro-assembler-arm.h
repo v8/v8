@@ -638,6 +638,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     LoadTaggedField(destination, field_operand);
   }
 
+  void SmiUntagField(Register dst, const MemOperand& src) {
+    LoadTaggedField(dst, src);
+    SmiUntag(dst);
+  }
+
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand) {
     str(value, dst_field_operand);
