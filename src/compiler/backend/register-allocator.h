@@ -255,7 +255,7 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
     ZoneVector<InstructionOperand*> incoming_operands_;
     int assigned_register_;
   };
-  using PhiMap = ZoneUnorderedMap<int, PhiMapValue*>;
+  using PhiMap = ZoneMap<int, PhiMapValue*>;
 
   struct DelayedReference {
     ReferenceMap* map;
@@ -364,8 +364,7 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
 
   TickCounter* tick_counter() { return tick_counter_; }
 
-  ZoneUnorderedMap<TopLevelLiveRange*, AllocatedOperand*>&
-  slot_for_const_range() {
+  ZoneMap<TopLevelLiveRange*, AllocatedOperand*>& slot_for_const_range() {
     return slot_for_const_range_;
   }
 
@@ -399,7 +398,7 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
   RegisterAllocationFlags flags_;
   TickCounter* const tick_counter_;
-  ZoneUnorderedMap<TopLevelLiveRange*, AllocatedOperand*> slot_for_const_range_;
+  ZoneMap<TopLevelLiveRange*, AllocatedOperand*> slot_for_const_range_;
 };
 
 // Representation of the non-empty interval [start,end[.
@@ -1481,7 +1480,7 @@ class LiveRangeBuilder final : public ZoneObject {
                                : SpillMode::kSpillAtDefinition;
   }
   TopTierRegisterAllocationData* const data_;
-  ZoneUnorderedMap<InstructionOperand*, UsePosition*> phi_hints_;
+  ZoneMap<InstructionOperand*, UsePosition*> phi_hints_;
 };
 
 class BundleBuilder final : public ZoneObject {
