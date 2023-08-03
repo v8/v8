@@ -1377,6 +1377,9 @@ class AssemblerOpInterface {
     return WordConstant(static_cast<uint64_t>(value),
                         WordRepresentation::PointerSized());
   }
+  V<Object> SmiConstant(Smi value) {
+    return V<Smi>::Cast(UintPtrConstant(value.value()));
+  }
   V<Float32> Float32Constant(float value) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
