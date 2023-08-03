@@ -761,8 +761,8 @@ class MachineOptimizationReducer : public Next {
           }
           // left * 2^k  =>  left << k
           if (base::bits::IsPowerOfTwo(right_value)) {
-            OpIndex shift_amount = Asm().WordConstant(
-                base::bits::WhichPowerOfTwo(right_value), rep);
+            OpIndex shift_amount =
+                Asm().Word32Constant(base::bits::WhichPowerOfTwo(right_value));
             return Asm().ShiftLeft(left, shift_amount, rep);
           }
           break;

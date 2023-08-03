@@ -189,6 +189,10 @@ class Int64LoweringReducer : public Next {
           return ReduceCtz(input);
         case WordUnaryOp::Kind::kPopCount:
           return ReducePopCount(input);
+        case WordUnaryOp::Kind::kSignExtend8:
+          return ReduceSignExtend(__ Word32SignExtend8(Unpack(input).first));
+        case WordUnaryOp::Kind::kSignExtend16:
+          return ReduceSignExtend(__ Word32SignExtend16(Unpack(input).first));
         default:
           UNIMPLEMENTED();
       }
@@ -213,8 +217,7 @@ class Int64LoweringReducer : public Next {
         return __ Tuple(input, __ Word32Constant(0));
       }
       if (kind == Kind::kSignExtend) {
-        // We use SAR to preserve the sign in the high word.
-        return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
+        return ReduceSignExtend(input);
       }
     }
     if (from == float64 && to == word64) {
@@ -377,6 +380,11 @@ class Int64LoweringReducer : public Next {
     DCHECK_EQ(__ Get(input).outputs_rep(), base::VectorOf({word32, word32}));
     return __ Tuple(__ Projection(input, 0, word32),
                     __ Projection(input, 1, word32));
+  }
+
+  OpIndex ReduceSignExtend(V<Word32> input) {
+    // We use SAR to preserve the sign in the high word.
+    return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
   }
 
   OpIndex ReduceClz(OpIndex input) {

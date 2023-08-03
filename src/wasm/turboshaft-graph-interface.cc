@@ -1830,6 +1830,26 @@ class TurboshaftGraphBuildingInterface {
                    result_representation);
   }
 
+  OpIndex BuildDiv64Call(OpIndex lhs, OpIndex rhs, ExternalReference ccall_ref,
+                         wasm::TrapId trap_zero) {
+    MemoryRepresentation int64_rep = MemoryRepresentation::Int64();
+    V<WordPtr> stack_slot =
+        asm_.StackSlot(2 * int64_rep.SizeInBytes(), int64_rep.SizeInBytes());
+    asm_.Store(stack_slot, lhs, StoreOp::Kind::RawAligned(), int64_rep,
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+    asm_.Store(stack_slot, rhs, StoreOp::Kind::RawAligned(), int64_rep,
+               compiler::WriteBarrierKind::kNoWriteBarrier,
+               int64_rep.SizeInBytes());
+
+    MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
+    MachineSignature sig(1, 1, sig_types);
+    OpIndex rc = CallC(&sig, ccall_ref, &stack_slot);
+    __ TrapIf(__ Word32Equal(rc, 0), OpIndex::Invalid(), trap_zero);
+    __ TrapIf(__ Word32Equal(rc, -1), OpIndex::Invalid(),
+              TrapId::kTrapDivUnrepresentable);
+    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64_rep);
+  }
+
   // TODO(14108): Remove the decoder argument once we have no bailouts.
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
                    ValueType input_type /* for ref.is_null only*/) {
@@ -2434,7 +2454,7 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Word64SignExtend16(arg);
       case kExprI64SExtendI32:
         // TODO(14108): Is this correct?
-        return asm_.ChangeInt32ToInt64(arg);
+        return asm_.ChangeInt32ToInt64(asm_.TruncateWord64ToWord32(arg));
       case kExprRefIsNull:
         return asm_.IsNull(arg, input_type);
       case kExprI32AsmjsLoadMem8S:
@@ -2562,6 +2582,10 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Mul:
         return asm_.Word64Mul(lhs, rhs);
       case kExprI64DivS: {
+        if (!Is64()) {
+          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
+                                wasm::TrapId::kTrapDivByZero);
+        }
         asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
                     TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = asm_.Word32BitwiseAnd(
@@ -2572,10 +2596,18 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Int64Div(lhs, rhs);
       }
       case kExprI64DivU:
+        if (!Is64()) {
+          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
+                                wasm::TrapId::kTrapDivByZero);
+        }
         asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
                     TrapId::kTrapDivByZero);
         return asm_.Uint64Div(lhs, rhs);
       case kExprI64RemS: {
+        if (!Is64()) {
+          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
+                                wasm::TrapId::kTrapRemByZero);
+        }
         asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
                     TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
@@ -2591,6 +2623,10 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64RemU:
+        if (!Is64()) {
+          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
+                                wasm::TrapId::kTrapRemByZero);
+        }
         asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
                     TrapId::kTrapRemByZero);
         return asm_.Uint64Mod(lhs, rhs);
