@@ -1124,6 +1124,7 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
+  WriteByte(object->is_memory64() ? 1 : 0);
   return WriteJSReceiver(Handle<JSReceiver>(object->array_buffer(), isolate_));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2331,6 +2332,10 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
+  uint8_t memory64_byte;
+  if (!ReadByte(&memory64_byte)) return {};
+  if (memory64_byte > 1) return {};
+  bool is_memory64 = memory64_byte;
 
   Handle<Object> buffer_object;
   if (!ReadObject().ToHandle(&buffer_object)) return {};
@@ -2339,9 +2344,10 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  // TODO(14075): Fix postmessaging of memory64 memories.
-  Handle<WasmMemoryObject> result = WasmMemoryObject::New(
-      isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
+  Handle<WasmMemoryObject> result =
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages,
+                            is_memory64 ? WasmMemoryFlag::kWasmMemory64
+                                        : WasmMemoryFlag::kWasmMemory32);
 
   AddObjectWithID(id, result);
   return result;

@@ -2205,6 +2205,15 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t imported_cur_pages =
         static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
     const WasmMemory* memory = &module_->memories[memory_index];
+    if (memory->is_memory64 != memory_object->is_memory64()) {
+      // For now, we forbid importing memory32 as memory64 and vice versa.
+      // TODO(13780): Check if the final spec says anything about this or has
+      // any tests. Adapt if needed.
+      thrower_->LinkError("cannot import memory%d as memory%d",
+                          memory_object->is_memory64() ? 64 : 32,
+                          memory->is_memory64 ? 64 : 32);
+      return false;
+    }
     if (imported_cur_pages < memory->initial_pages) {
       // TODO(clemensb): Unify {ReportLinkError} and {ErrorThrower::LinkError}
       // to support both import index and names and format strings.

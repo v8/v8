@@ -271,6 +271,9 @@ class WasmMemoryObject
                                               int memory_index_in_instance);
   inline bool has_maximum_pages();
 
+  // Overwrite the Torque-generated method that returns an int.
+  inline bool is_memory64() const;
+
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
       WasmMemoryFlag memory_type);

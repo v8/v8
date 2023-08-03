@@ -349,6 +349,15 @@ wasm::ValueType WasmTableObject::type() {
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
+bool WasmMemoryObject::is_memory64() const {
+  int memory64_smi_value =
+      TorqueGeneratedWasmMemoryObject<WasmMemoryObject,
+                                      JSObject>::is_memory64();
+  DCHECK_LE(0, memory64_smi_value);
+  DCHECK_GE(1, memory64_smi_value);
+  return memory64_smi_value != 0;
+}
+
 // static
 Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
                                        wasm::ValueType type, uint32_t offset) {
