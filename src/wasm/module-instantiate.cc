@@ -765,9 +765,6 @@ class InstanceBuilder {
 
   void SanitizeImports();
 
-  // Find the imported memory if there is one.
-  MaybeHandle<WasmMemoryObject> FindImportedMemory(uint32_t memory_index);
-
   // Allocate the memory.
   MaybeHandle<WasmMemoryObject> AllocateMemory(uint32_t memory_index);
 
@@ -788,12 +785,6 @@ class InstanceBuilder {
                             int import_index, int table_index,
                             Handle<String> module_name,
                             Handle<String> import_name, Handle<Object> value);
-
-  // Process a single imported memory.
-  bool ProcessImportedMemory(Handle<WasmInstanceObject> instance,
-                             int import_index, int memory_index,
-                             Handle<String> module_name,
-                             Handle<String> import_name, Handle<Object> value);
 
   // Process a single imported global.
   bool ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
@@ -817,6 +808,10 @@ class InstanceBuilder {
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions, or {-1} on error.
   int ProcessImports(Handle<WasmInstanceObject> instance);
+
+  // Process all imported memories, placing the WasmMemoryObjects in the
+  // supplied {FixedArray}.
+  bool ProcessImportedMemories(Handle<FixedArray> imported_memory_objects);
 
   template <typename T>
   T* GetRawUntaggedGlobalPtr(const WasmGlobal& global);
@@ -1057,21 +1052,27 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->memory_objects()->set(kMemoryIndexZero, *memory_object);
   } else {
     CHECK(asmjs_memory_buffer_.is_null());
+    Handle<FixedArray> memory_objects{instance->memory_objects(), isolate_};
+    // First process all imported memories, then allocate non-imported ones.
+    if (!ProcessImportedMemories(memory_objects)) return {};
     // Actual Wasm modules can have multiple memories.
     static_assert(kV8MaxWasmMemories <= kMaxUInt32);
     uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
     for (uint32_t memory_index = 0; memory_index < num_memories;
          ++memory_index) {
-      // Actual wasm module must have either imported or created memory.
       Handle<WasmMemoryObject> memory_object;
-      if (!FindImportedMemory(memory_index).ToHandle(&memory_object) &&
-          !AllocateMemory(memory_index).ToHandle(&memory_object)) {
+      if (!IsUndefined(memory_objects->get(memory_index))) {
+        memory_object =
+            handle(WasmMemoryObject::cast(memory_objects->get(memory_index)),
+                   isolate_);
+      } else if (AllocateMemory(memory_index).ToHandle(&memory_object)) {
+        memory_objects->set(memory_index, *memory_object);
+      } else {
         DCHECK(isolate_->has_pending_exception() || thrower_->error());
         return {};
       }
       WasmMemoryObject::UseInInstance(isolate_, memory_object, instance,
                                       memory_index);
-      instance->memory_objects()->set(memory_index, *memory_object);
     }
   }
 
@@ -1581,21 +1582,6 @@ void InstanceBuilder::SanitizeImports() {
   }
 }
 
-MaybeHandle<WasmMemoryObject> InstanceBuilder::FindImportedMemory(
-    uint32_t memory_index) {
-  DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
-  for (size_t index = 0; index < module_->import_table.size(); index++) {
-    const WasmImport& import = module_->import_table[index];
-    if (import.kind != kExternalMemory) continue;
-    if (import.index != memory_index) continue;
-
-    auto& value = sanitized_imports_[index].value;
-    if (!IsWasmMemoryObject(*value)) return {};
-    return Handle<WasmMemoryObject>::cast(value);
-  }
-  return {};
-}
-
 bool InstanceBuilder::ProcessImportedFunction(
     Handle<WasmInstanceObject> instance, int import_index, int func_index,
     Handle<String> module_name, Handle<String> import_name,
@@ -1854,58 +1840,6 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
 
   instance->tables()->set(table_index, *value);
-  return true;
-}
-
-bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
-                                            int import_index, int memory_index,
-                                            Handle<String> module_name,
-                                            Handle<String> import_name,
-                                            Handle<Object> value) {
-  if (!IsWasmMemoryObject(*value)) {
-    ReportLinkError("memory import must be a WebAssembly.Memory object",
-                    import_index, module_name, import_name);
-    return false;
-  }
-  auto memory_object = Handle<WasmMemoryObject>::cast(value);
-
-  // The imported memory should have been already set up early.
-  CHECK_LT(memory_index, instance->memory_objects()->length());
-  CHECK_EQ(instance->memory_object(memory_index), *memory_object);
-
-  Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate_);
-  uint32_t imported_cur_pages =
-      static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
-  const WasmMemory* memory = &module_->memories[memory_index];
-  if (imported_cur_pages < memory->initial_pages) {
-    thrower_->LinkError("memory import %d is smaller than initial %u, got %u",
-                        import_index, memory->initial_pages,
-                        imported_cur_pages);
-    return false;
-  }
-  int32_t imported_maximum_pages = memory_object->maximum_pages();
-  if (memory->has_maximum_pages) {
-    if (imported_maximum_pages < 0) {
-      thrower_->LinkError(
-          "memory import %d has no maximum limit, expected at most %u",
-          import_index, imported_maximum_pages);
-      return false;
-    }
-    if (static_cast<uint32_t>(imported_maximum_pages) > memory->maximum_pages) {
-      thrower_->LinkError(
-          "memory import %d has a larger maximum size %u than the "
-          "module's declared maximum %u",
-          import_index, imported_maximum_pages, memory->maximum_pages);
-      return false;
-    }
-  }
-  if (memory->is_shared != buffer->is_shared()) {
-    thrower_->LinkError(
-        "mismatch in shared state of memory, declared = %d, imported = %d",
-        memory->is_shared, buffer->is_shared());
-    return false;
-  }
-
   return true;
 }
 
@@ -2198,14 +2132,10 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         USE(num_imported_tables);
         break;
       }
-      case kExternalMemory: {
-        uint32_t memory_index = import.index;
-        if (!ProcessImportedMemory(instance, index, memory_index, module_name,
-                                   import_name, value)) {
-          return -1;
-        }
+      case kExternalMemory:
+        // Imported memories are already handled earlier via
+        // {ProcessImportedMemories}.
         break;
-      }
       case kExternalGlobal: {
         if (!ProcessImportedGlobal(instance, index, import.index, module_name,
                                    import_name, value)) {
@@ -2247,6 +2177,71 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
     }
   }
   return num_imported_functions;
+}
+
+bool InstanceBuilder::ProcessImportedMemories(
+    Handle<FixedArray> imported_memory_objects) {
+  DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
+
+  int num_imports = static_cast<int>(module_->import_table.size());
+  for (int import_index = 0; import_index < num_imports; ++import_index) {
+    const WasmImport& import = module_->import_table[import_index];
+
+    if (import.kind != kExternalMemory) continue;
+
+    Handle<String> module_name = sanitized_imports_[import_index].module_name;
+    Handle<String> import_name = sanitized_imports_[import_index].import_name;
+    Handle<Object> value = sanitized_imports_[import_index].value;
+
+    if (!IsWasmMemoryObject(*value)) {
+      ReportLinkError("memory import must be a WebAssembly.Memory object",
+                      import_index, module_name, import_name);
+      return false;
+    }
+    uint32_t memory_index = import.index;
+    auto memory_object = Handle<WasmMemoryObject>::cast(value);
+
+    Handle<JSArrayBuffer> buffer{memory_object->array_buffer(), isolate_};
+    uint32_t imported_cur_pages =
+        static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
+    const WasmMemory* memory = &module_->memories[memory_index];
+    if (imported_cur_pages < memory->initial_pages) {
+      // TODO(clemensb): Unify {ReportLinkError} and {ErrorThrower::LinkError}
+      // to support both import index and names and format strings.
+      thrower_->LinkError("memory import %d is smaller than initial %u, got %u",
+                          import_index, memory->initial_pages,
+                          imported_cur_pages);
+      return false;
+    }
+    int32_t imported_maximum_pages = memory_object->maximum_pages();
+    if (memory->has_maximum_pages) {
+      if (imported_maximum_pages < 0) {
+        thrower_->LinkError(
+            "memory import %d has no maximum limit, expected at most %u",
+            import_index, imported_maximum_pages);
+        return false;
+      }
+      if (static_cast<uint32_t>(imported_maximum_pages) >
+          memory->maximum_pages) {
+        thrower_->LinkError(
+            "memory import %d has a larger maximum size %u than the "
+            "module's declared maximum %u",
+            import_index, imported_maximum_pages, memory->maximum_pages);
+        return false;
+      }
+    }
+    if (memory->is_shared != buffer->is_shared()) {
+      thrower_->LinkError(
+          "mismatch in shared state of memory, declared = %d, imported = %d",
+          memory->is_shared, buffer->is_shared());
+      return false;
+    }
+
+    DCHECK_EQ(ReadOnlyRoots{isolate_}.undefined_value(),
+              imported_memory_objects->get(memory_index));
+    imported_memory_objects->set(memory_index, *memory_object);
+  }
+  return true;
 }
 
 template <typename T>
