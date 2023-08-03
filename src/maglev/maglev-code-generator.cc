@@ -703,10 +703,6 @@ class MaglevCodeGeneratingNodeProcessor {
     // these fields between graph and code_gen_state.
     code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
-    if (graph->is_osr() &&
-        graph->min_maglev_stackslots_for_unoptimized_frame_size() >=
-            static_cast<uint32_t>(code_gen_state()->stack_slots())) {
-    }
     code_gen_state()->set_max_deopted_stack_size(
         graph->max_deopted_stack_size());
     code_gen_state()->set_max_call_stack_args_(graph->max_call_stack_args());
