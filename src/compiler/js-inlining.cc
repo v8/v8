@@ -469,7 +469,8 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // Try "full" inlining of very simple wasm functions (mainly getters / setters
   // for wasm gc objects).
   WasmInlineResult inline_result;
-  if (inline_wasm_fct_if_supported_ && fct_index != -1 && native_module) {
+  if (inline_wasm_fct_if_supported_ && fct_index != -1 && native_module &&
+      native_module->enabled_features().has_gc()) {
     inline_result = TryWasmInlining(call_node);
   }
 
