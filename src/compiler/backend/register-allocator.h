@@ -1216,6 +1216,8 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // if no such range exists. Uses a binary search.
   LiveRange* GetChildCovers(LifetimePosition pos);
 
+  const ZoneVector<LiveRange*>& Children() const { return children_; }
+
   int GetNextChildId() { return ++last_child_id_; }
 
   bool IsSpilledOnlyInDeferredBlocks(

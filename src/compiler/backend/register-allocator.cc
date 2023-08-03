@@ -4710,15 +4710,9 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
   const ReferenceMaps* reference_maps = data()->code()->reference_maps();
   ReferenceMaps::const_iterator first_it = reference_maps->begin();
   const size_t live_ranges_size = data()->live_ranges().size();
-  // We break the invariant that live ranges are indexed by their vregs here.
-  // This is ok because we don't use that invariant here, and this is the last
-  // phase.
-  std::sort(data()->live_ranges().begin(), data()->live_ranges().end(),
-            [](TopLevelLiveRange* a, TopLevelLiveRange* b) {
-              if (!a || a->IsEmpty()) return false;
-              if (!b || b->IsEmpty()) return true;
-              return a->Start() < b->Start();
-            });
+  // Select subset of `TopLevelLiveRange`s to process, sort them by their start.
+  ZoneVector<TopLevelLiveRange*> candidate_ranges(data()->allocation_zone());
+  candidate_ranges.reserve(data()->live_ranges().size());
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
@@ -4728,16 +4722,14 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
     // Skip empty live ranges.
     if (range->IsEmpty()) continue;
     if (range->has_preassigned_slot()) continue;
-
+    candidate_ranges.push_back(range);
+  }
+  std::sort(candidate_ranges.begin(), candidate_ranges.end(),
+            LiveRangeOrdering());
+  for (TopLevelLiveRange* range : candidate_ranges) {
     // Find the extent of the range and its children.
     int start = range->Start().ToInstructionIndex();
-    int end = 0;
-    for (LiveRange* cur = range; cur != nullptr; cur = cur->next()) {
-      LifetimePosition this_end = cur->End();
-      if (this_end.ToInstructionIndex() > end)
-        end = this_end.ToInstructionIndex();
-      DCHECK(cur->Start().ToInstructionIndex() >= start);
-    }
+    int end = range->Children().back()->End().ToInstructionIndex();
 
     // Ranges should be sorted, so that the first reference map in the current
     // live range has to be after {first_it}.
@@ -4766,7 +4758,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
           AllocatedOperand::cast(spill_operand).representation()));
     }
 
-    LiveRange* cur = range;
+    LiveRange* cur = nullptr;
     // Step through the safe points to see whether they are in the range.
     for (auto it = first_it; it != reference_maps->end(); ++it) {
       ReferenceMap* map = *it;
@@ -4786,18 +4778,22 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
       // This may happen if cur has more than one interval, and the current
       // safe_point_pos is in between intervals.
       // For that reason, cur may be at most the last child.
-      DCHECK_NOT_NULL(cur);
-      DCHECK(safe_point_pos >= cur->Start() || range == cur);
+      // Use binary search for the first iteration, then linear search after.
       bool found = false;
-      while (!found) {
-        if (cur->Covers(safe_point_pos)) {
-          found = true;
-        } else {
-          LiveRange* next = cur->next();
-          if (next == nullptr || next->Start() > safe_point_pos) {
-            break;
+      if (cur == nullptr) {
+        cur = range->GetChildCovers(safe_point_pos);
+        found = cur != nullptr;
+      } else {
+        while (!found) {
+          if (cur->Covers(safe_point_pos)) {
+            found = true;
+          } else {
+            LiveRange* next = cur->next();
+            if (next == nullptr || next->Start() > safe_point_pos) {
+              break;
+            }
+            cur = next;
           }
-          cur = next;
         }
       }
 
