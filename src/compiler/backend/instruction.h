@@ -1713,7 +1713,7 @@ using ConstantDeque = ZoneDeque<Constant>;
 using ConstantMap = std::map<int, Constant, std::less<int>,
                              ZoneAllocator<std::pair<const int, Constant> > >;
 
-using InstructionDeque = ZoneDeque<Instruction*>;
+using Instructions = ZoneVector<Instruction*>;
 using ReferenceMaps = ZoneVector<ReferenceMap*>;
 using InstructionBlocks = ZoneVector<InstructionBlock*>;
 
@@ -1757,7 +1757,9 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     return instruction_blocks_->at(rpo_number.ToSize());
   }
 
-  InstructionBlock* GetInstructionBlock(int instruction_index) const;
+  InstructionBlock* GetInstructionBlock(int instruction_index) const {
+    return instructions()[instruction_index]->block();
+  }
 
   static MachineRepresentation DefaultRepresentation() {
     return MachineType::PointerRepresentation();
@@ -1789,10 +1791,10 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
 
-  using const_iterator = InstructionDeque::const_iterator;
+  using const_iterator = Instructions::const_iterator;
   const_iterator begin() const { return instructions_.begin(); }
   const_iterator end() const { return instructions_.end(); }
-  const InstructionDeque& instructions() const { return instructions_; }
+  const Instructions& instructions() const { return instructions_; }
   int LastInstructionIndex() const {
     return static_cast<int>(instructions().size()) - 1;
   }
@@ -1945,7 +1947,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   ConstantMap constants_;
   Immediates immediates_;
   RpoImmediates rpo_immediates_;
-  InstructionDeque instructions_;
+  Instructions instructions_;
   int next_virtual_register_;
   ReferenceMaps reference_maps_;
   ZoneVector<MachineRepresentation> representations_;

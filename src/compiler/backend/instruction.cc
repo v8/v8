@@ -1008,11 +1008,6 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   return index;
 }
 
-InstructionBlock* InstructionSequence::GetInstructionBlock(
-    int instruction_index) const {
-  return instructions()[instruction_index]->block();
-}
-
 static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kBit:
