@@ -99,10 +99,10 @@ class HeapObject : public Object {
   V8_INLINE bool InReadOnlySpace() const;
 
   // Converts an address to a HeapObject pointer.
-  // TODO(leszeks): Move to Tagged<HeapObject>
-  static inline HeapObject FromAddress(Address address) {
+  static inline Tagged<HeapObject> FromAddress(Address address) {
     DCHECK_TAG_ALIGNED(address);
-    return HeapObject::unchecked_cast(Object(address + kHeapObjectTag));
+    return Tagged<HeapObject>::unchecked_cast(
+        Tagged<Object>(address + kHeapObjectTag));
   }
 
   // Returns the address of this HeapObject.

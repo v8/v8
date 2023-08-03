@@ -444,7 +444,7 @@ void MacroAssembler::Mov(const Register& rd, const Operand& operand,
   }
 }
 
-void MacroAssembler::Mov(const Register& rd, Smi smi) {
+void MacroAssembler::Mov(const Register& rd, Tagged<Smi> smi) {
   return Mov(rd, Operand(smi));
 }
 
@@ -1937,7 +1937,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   Push(tmp);
 }
 
-void MacroAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
+void MacroAssembler::Move(Register dst, Tagged<Smi> src) { Mov(dst, src); }
 void MacroAssembler::Move(Register dst, MemOperand src) { Ldr(dst, src); }
 void MacroAssembler::Move(Register dst, Register src) {
   if (dst == src) return;

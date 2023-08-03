@@ -6984,7 +6984,8 @@ AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
   return AccessCheckInfo::cast(data_obj);
 }
 
-Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
+Address Smi::LexicographicCompare(Isolate* isolate, Tagged<Smi> x,
+                                  Tagged<Smi> y) {
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
 

@@ -56,7 +56,7 @@ Tagged<HeapObject> LocalFactory::AllocateRaw(int size,
                                              AllocationAlignment alignment) {
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld);
-  return Tagged<HeapObject>::FromAddress(isolate()->heap()->AllocateRawOrFail(
+  return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
       size, allocation, AllocationOrigin::kRuntime, alignment));
 }
 

@@ -3739,7 +3739,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   Tagged<Smi> uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
   Tagged<Smi> ticks_until_tier_up =
       v8_flags.regexp_tier_up ? Smi::FromInt(v8_flags.regexp_tier_up_ticks)
-                              : *uninitialized;
+                              : uninitialized;
   store->set(JSRegExp::kTagIndex, Smi::FromInt(JSRegExp::IRREGEXP));
   store->set(JSRegExp::kSourceIndex, *source, SKIP_WRITE_BARRIER);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));

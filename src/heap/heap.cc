@@ -876,7 +876,7 @@ class Heap::AllocationTrackerForDebugging final
       // Advance synthetic time by making a time request.
       heap_->MonotonicallyIncreasingTimeInMs();
 
-      UpdateAllocationsHash(Tagged<HeapObject>::FromAddress(addr));
+      UpdateAllocationsHash(HeapObject::FromAddress(addr));
       UpdateAllocationsHash(size);
 
       if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
@@ -898,8 +898,8 @@ class Heap::AllocationTrackerForDebugging final
       // Advance synthetic time by making a time request.
       heap_->MonotonicallyIncreasingTimeInMs();
 
-      UpdateAllocationsHash(Tagged<HeapObject>::FromAddress(source));
-      UpdateAllocationsHash(Tagged<HeapObject>::FromAddress(target));
+      UpdateAllocationsHash(HeapObject::FromAddress(source));
+      UpdateAllocationsHash(HeapObject::FromAddress(target));
       UpdateAllocationsHash(size);
 
       if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
@@ -3126,13 +3126,13 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
 Tagged<HeapObject> Heap::PrecedeWithFiller(Tagged<HeapObject> object,
                                            int filler_size) {
   CreateFillerObjectAt(object.address(), filler_size);
-  return Tagged<HeapObject>::FromAddress(object.address() + filler_size);
+  return HeapObject::FromAddress(object.address() + filler_size);
 }
 
 Tagged<HeapObject> Heap::PrecedeWithFillerBackground(Tagged<HeapObject> object,
                                                      int filler_size) {
   CreateFillerObjectAtBackground(object.address(), filler_size);
-  return Tagged<HeapObject>::FromAddress(object.address() + filler_size);
+  return HeapObject::FromAddress(object.address() + filler_size);
 }
 
 Tagged<HeapObject> Heap::AlignWithFillerBackground(
@@ -3233,7 +3233,7 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
 
   // TODO(v8:13070): Filler sizes are irrelevant for 8GB+ heaps. Adding them
   // should be avoided in this mode.
-  Tagged<HeapObject> filler = Tagged<HeapObject>::FromAddress(addr);
+  Tagged<HeapObject> filler = HeapObject::FromAddress(addr);
   ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
     filler->set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
@@ -3493,7 +3493,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
                       Smi::FromInt(len - elements_to_trim));
 
   Tagged<FixedArrayBase> new_object =
-      Tagged<FixedArrayBase>::cast(Tagged<HeapObject>::FromAddress(new_start));
+      Tagged<FixedArrayBase>::cast(HeapObject::FromAddress(new_start));
 
   if (isolate()->log_object_relocation()) {
     // Notify the heap profiler of change in object layout.
@@ -3586,7 +3586,7 @@ void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-    Tagged<HeapObject> filler = Tagged<HeapObject>::FromAddress(new_end);
+    Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
@@ -6853,15 +6853,13 @@ base::Optional<InstructionStream>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
-    return InstructionStream::unchecked_cast(
-        Tagged<HeapObject>::FromAddress(start));
+    return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
   }
 
   base::Optional<Address> start =
       ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
   if (start.has_value()) {
-    return InstructionStream::unchecked_cast(
-        Tagged<HeapObject>::FromAddress(*start));
+    return InstructionStream::unchecked_cast(HeapObject::FromAddress(*start));
   }
 
   return {};

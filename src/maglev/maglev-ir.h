@@ -4090,10 +4090,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit SmiConstant(uint64_t bitfield, Smi value)
+  explicit SmiConstant(uint64_t bitfield, Tagged<Smi> value)
       : Base(bitfield), value_(value) {}
 
-  Smi value() const { return value_; }
+  Tagged<Smi> value() const { return value_; }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
     return value_ != Smi::FromInt(0);
@@ -4107,7 +4107,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
-  const Smi value_;
+  const Tagged<Smi> value_;
 };
 
 class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {

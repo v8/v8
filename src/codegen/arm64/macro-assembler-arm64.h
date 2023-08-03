@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DCHECK(allow_macro_instructions());
     mov(vd, vd_index, vn, vn_index);
   }
-  void Mov(const Register& rd, Smi smi);
+  void Mov(const Register& rd, Tagged<Smi> smi);
   void Mov(const VRegister& vd, const VRegister& vn, int index) {
     DCHECK(allow_macro_instructions());
     mov(vd, vn, index);
@@ -249,7 +249,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // These are required for compatibility with architecture independent code.
   // Remove if not needed.
-  void Move(Register dst, Smi src);
+  void Move(Register dst, Tagged<Smi> src);
   void Move(Register dst, MemOperand src);
   void Move(Register dst, Register src);
 

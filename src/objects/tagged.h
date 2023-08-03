@@ -188,6 +188,7 @@ class Tagged<Object> : public TaggedBase {
   inline constexpr operator U();
 
  private:
+  friend class Object;
   inline constexpr Object ToRawPtr() const;
 };
 
@@ -229,6 +230,7 @@ class Tagged<Smi> : public TaggedBase {
   inline constexpr detail::TaggedOperatorArrowRef<Smi> operator->();
 
  private:
+  friend class Smi;
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<Smi>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -245,11 +247,6 @@ class Tagged<HeapObject> : public TaggedBase {
   using Base = TaggedBase;
 
  public:
-  // Converts an address to a Tagged<HeapObject> pointer.
-  static inline Tagged<HeapObject> FromAddress(Address address) {
-    return Tagged<HeapObject>(address + kHeapObjectTag);
-  }
-
   // Explicit cast for sub- and superclasses.
   template <typename U>
   static constexpr Tagged<HeapObject> cast(Tagged<U> other) {
@@ -319,6 +316,7 @@ class Tagged<HeapObject> : public TaggedBase {
   Address address() const { return this->ptr() - kHeapObjectTag; }
 
  private:
+  friend class HeapObject;
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<HeapObject>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
