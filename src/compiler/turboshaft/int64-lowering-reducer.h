@@ -295,10 +295,46 @@ class Int64LoweringReducer : public Next {
 
   OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
     if (rep == RegisterRepresentation::Word64()) {
-      // TODO(mliedtke): This needs to be mapped somehow.
-      UNIMPLEMENTED();
+      V<Word32> low =
+          __ PendingLoopPhi(__ template Projection<Word32>(first, 0));
+      V<Word32> high =
+          __ PendingLoopPhi(__ template Projection<Word32>(first, 1));
+      return __ Tuple(low, high);
     }
     return Next::ReducePendingLoopPhi(first, rep);
+  }
+
+  void FixLoopPhi(const PhiOp& input_phi, OpIndex output_index,
+                  Block* output_graph_loop) {
+    if (input_phi.rep == RegisterRepresentation::Word64()) {
+      const TupleOp& tuple = __ Get(output_index).template Cast<TupleOp>();
+      DCHECK_EQ(tuple.input_count, 2);
+      OpIndex new_inputs[2] = {Asm().MapToNewGraph(input_phi.input(0)),
+                               Asm().MapToNewGraph(input_phi.input(1))};
+      for (size_t i = 0; i < 2; ++i) {
+        OpIndex phi_index = tuple.input(i);
+        if (!output_graph_loop->Contains(phi_index)) {
+          continue;
+        }
+#ifdef DEBUG
+        const PendingLoopPhiOp& pending_phi =
+            __ Get(phi_index).template Cast<PendingLoopPhiOp>();
+        DCHECK_EQ(pending_phi.rep, RegisterRepresentation::Word32());
+        DCHECK_EQ(
+            pending_phi.first(),
+            __ Projection(new_inputs[0], i, RegisterRepresentation::Word32()));
+#endif
+        __ output_graph().template Replace<PhiOp>(
+            phi_index,
+            base::VectorOf({__ Projection(new_inputs[0], i,
+                                          RegisterRepresentation::Word32()),
+                            __ Projection(new_inputs[1], i,
+                                          RegisterRepresentation::Word32())}),
+            RegisterRepresentation::Word32());
+      }
+      return;
+    }
+    return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
   }
 
  private:

@@ -600,6 +600,24 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     Asm().output_graph().RemoveLast();
   }
 
+  void FixLoopPhi(const PhiOp& input_phi, OpIndex output_index,
+                  Block* output_graph_loop) {
+#ifdef DEBUG
+    DCHECK(output_graph_loop->Contains(output_index));
+    auto& pending_phi = Asm()
+                            .output_graph()
+                            .Get(output_index)
+                            .template Cast<PendingLoopPhiOp>();
+    DCHECK_EQ(pending_phi.rep, input_phi.rep);
+    DCHECK_EQ(pending_phi.first(), Asm().MapToNewGraph(input_phi.input(0)));
+#endif
+    Asm().output_graph().template Replace<PhiOp>(
+        output_index,
+        base::VectorOf({Asm().MapToNewGraph(input_phi.input(0)),
+                        Asm().MapToNewGraph(input_phi.input(1))}),
+        input_phi.rep);
+  }
+
   OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
                     RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsMerge() &&

@@ -1063,19 +1063,7 @@ class GraphVisitor {
           // header to take care of.
           continue;
         }
-#ifdef DEBUG
-        auto& pending_phi = assembler()
-                                .output_graph()
-                                .Get(phi_index)
-                                .template Cast<PendingLoopPhiOp>();
-        DCHECK_EQ(pending_phi.rep, input_phi->rep);
-        DCHECK_EQ(pending_phi.first(), MapToNewGraph(input_phi->input(0)));
-#endif
-        assembler().output_graph().template Replace<PhiOp>(
-            phi_index,
-            base::VectorOf({MapToNewGraph(input_phi->input(0)),
-                            MapToNewGraph(input_phi->input(1))}),
-            input_phi->rep);
+        assembler().FixLoopPhi(*input_phi, phi_index, output_graph_loop);
       }
     }
   }
