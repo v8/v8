@@ -876,6 +876,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   // and the on_hold worklist.
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
   DCHECK(!v8_flags.concurrent_marking);
+  IgnoreLocalGCRequests ignore_gc_requests(heap());
   safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
 #endif
 
