@@ -175,11 +175,22 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
         *NativeContextSlot(
         nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
-    // If resolve and reject handlers close over values to keep track of whether
-    // an input promise is already settled, mark the values array as COW before
-    // letting it escape to user code.
-    if (hasResolveAndRejectClosures) MakeFixedArrayCOW(values);
-
+    // After this point, values escapes to user code.
+    //
+    // If resolve and reject handlers close over values to keep track of
+    // whether an input promise is already settled, mark the values array as
+    // COW. The original values array is still needed to guard against resolve
+    // or reject being called multiple times for an element.
+    //
+    // Otherwise, clear the slot.
+    if (hasResolveAndRejectClosures) {
+      MakeFixedArrayCOW(values);
+    } else {
+      *ContextSlot(
+          promiseContext,
+          PromiseAllResolveElementContextSlots::
+              kPromiseAllResolveElementValuesSlot) = kEmptyFixedArray;
+    }
     const valuesArray = NewJSArray(arrayMap, values);
     Call(promiseContext, resolve, Undefined, valuesArray);
   }
