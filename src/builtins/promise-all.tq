@@ -278,15 +278,16 @@ Reject(JSAny) {
 
   check(remainingElementsCount >= 0);
 
+  const valuesRef:&FixedArray = ContextSlot(
+      resolveElementContext,
+      PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementValuesSlot);
+  const values = *valuesRef;
+
   if (remainingElementsCount > 0) {
     // Pre-allocate the backing store for the {values} to the desired
     // capacity. We may already have elements in "values" - this happens
     // when the Thenable calls the resolve callback immediately.
-    const valuesRef:&FixedArray = ContextSlot(
-        resolveElementContext,
-        PromiseAllResolveElementContextSlots::
-            kPromiseAllResolveElementValuesSlot);
-    const values = *valuesRef;
     // 'index' is a 1-based index and incremented after every Promise. Later we
     // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
     const newCapacity = SmiUntag(index) - 1;
@@ -301,19 +302,23 @@ Reject(JSAny) {
       //     Let valuesArray be CreateArrayFromList(values).
       //     Perform ? Call(resultCapability.[[Resolve]], undefined,
       //                    « valuesArray »).
-
-      const values: FixedArray = *ContextSlot(
-          resolveElementContext,
-          PromiseAllResolveElementContextSlots::
-              kPromiseAllResolveElementValuesSlot);
       const arrayMap =
           *NativeContextSlot(
           nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
+      // After this point, values escapes to user code.
+      //
       // If resolve and reject handlers close over values to keep track of
       // whether an input promise is already settled, mark the values array as
-      // COW before letting it escape to user code.
-      if (hasResolveAndRejectClosures) MakeFixedArrayCOW(values);
+      // COW. The original values array is still needed to guard against resolve
+      // or reject being called multiple times for an element.
+      //
+      // Otherwise, clear the slot.
+      if (hasResolveAndRejectClosures) {
+        MakeFixedArrayCOW(values);
+      } else {
+        *valuesRef = kEmptyFixedArray;
+      }
 
       const valuesArray = NewJSArray(arrayMap, values);
       Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
