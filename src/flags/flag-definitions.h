@@ -1212,10 +1212,6 @@ DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
                             "enable TurboFan's Turboshaft phases for wasm")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_wasm_32,
-    "enable Turboshaft graph generation for wasm on 32 bit platforms")
-DEFINE_WEAK_IMPLICATION(turboshaft_wasm_32, turboshaft_wasm)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
