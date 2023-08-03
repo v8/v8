@@ -165,8 +165,7 @@ int64_t GetConstantValue(const Node* node) {
 }
 
 int64_t GetMemoryOffsetValue(const Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kProtectedLoad ||
-         node->opcode() == IrOpcode::kStore ||
+  DCHECK(IsSupportedLoad(node) || node->opcode() == IrOpcode::kStore ||
          node->opcode() == IrOpcode::kProtectedStore);
 
   Node* offset = node->InputAt(0);
@@ -205,8 +204,17 @@ bool IsContinuousAccess(const ZoneVector<Node*>& node_group) {
   for (size_t i = 1; i < node_group.size(); ++i) {
     int64_t current_offset = GetMemoryOffsetValue(node_group[i]);
     int64_t diff = current_offset - previous_offset;
-    if (diff != kSimd128Size) {
-      TRACE("Non-continuous store!\n");
+    if (diff == 8 && node_group[0]->opcode() == IrOpcode::kLoadTransform) {
+      LoadTransformParameters params =
+          LoadTransformParametersOf(node_group[0]->op());
+      if (params.transformation < LoadTransformation::kFirst128Extend ||
+          params.transformation > LoadTransformation::kLast128Extend) {
+        TRACE("Non-continuous access!\n");
+        return false;
+      }
+      TRACE("Continuous access with load extend offset!\n");
+    } else if (diff != kSimd128Size) {
+      TRACE("Non-continuous access!\n");
       return false;
     }
     previous_offset = current_offset;
@@ -657,14 +665,24 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     TRACE("Load leaf node\n");
     if (!AllSameAddress(node_group)) {
       TRACE("Failed due to different load addr!\n");
+      PopStack();
       return nullptr;
     }
-    if (node0->opcode() == IrOpcode::kProtectedLoad) {
-      MachineRepresentation rep =
-          LoadRepresentationOf(node0->op()).representation();
-      if (rep != MachineRepresentation::kSimd128) {
+
+    if (!IsSplat(node_group)) {
+      if (node0->opcode() == IrOpcode::kProtectedLoad &&
+          LoadRepresentationOf(node0->op()).representation() !=
+              MachineRepresentation::kSimd128) {
+        PopStack();
         return nullptr;
       }
+
+      if (!IsSideEffectFreeLoad(node_group)) {
+        TRACE("Failed due to dependency check\n");
+        PopStack();
+        return nullptr;
+      }
+
       // Sort loads by offset
       ZoneVector<Node*> sorted_node_group(node_group.size(), zone_);
       std::partial_sort_copy(node_group.begin(), node_group.end(),
@@ -672,29 +690,24 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                              MemoryOffsetComparer());
       if (!IsContinuousAccess(sorted_node_group)) {
         TRACE("Failed due to non-continuous load!\n");
+        PopStack();
         return nullptr;
       }
-    }
-
-    if (node0->opcode() == IrOpcode::kLoadTransform) {
-      if (!IsSplat(node_group)) {
-        TRACE("LoadTransform Failed due to IsSplat!\n");
-        return nullptr;
-      }
+    } else if (node0->opcode() == IrOpcode::kLoadTransform) {
       LoadTransformParameters params = LoadTransformParametersOf(node0->op());
-      // TODO(jiepan): Support more LoadTransformation types
       if (params.transformation > LoadTransformation::kLast128Splat) {
         TRACE("LoadTransform failed due to unsupported type #%d!\n",
               node0->id());
+        PopStack();
         return nullptr;
       }
       DCHECK_GE(params.transformation, LoadTransformation::kFirst128Splat);
-    }
-
-    if (!IsSideEffectFreeLoad(node_group)) {
-      TRACE("Failed due to dependency check\n");
+    } else {
+      TRACE("Failed due to unsupported splat!\n");
+      PopStack();
       return nullptr;
     }
+
     PackNode* p = NewPackNode(node_group);
     PopStack();
     return p;
@@ -1085,6 +1098,24 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
           break;
         case LoadTransformation::kS128Load64Splat:
           new_transformation = LoadTransformation::kS256Load64Splat;
+          break;
+        case LoadTransformation::kS128Load8x8S:
+          new_transformation = LoadTransformation::kS256Load8x16S;
+          break;
+        case LoadTransformation::kS128Load8x8U:
+          new_transformation = LoadTransformation::kS256Load8x16U;
+          break;
+        case LoadTransformation::kS128Load16x4S:
+          new_transformation = LoadTransformation::kS256Load16x8S;
+          break;
+        case LoadTransformation::kS128Load16x4U:
+          new_transformation = LoadTransformation::kS256Load16x8U;
+          break;
+        case LoadTransformation::kS128Load32x2S:
+          new_transformation = LoadTransformation::kS256Load32x4S;
+          break;
+        case LoadTransformation::kS128Load32x2U:
+          new_transformation = LoadTransformation::kS256Load32x4U;
           break;
         default:
           UNREACHABLE();

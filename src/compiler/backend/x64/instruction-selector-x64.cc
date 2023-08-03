@@ -877,6 +877,24 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
     case LoadTransformation::kS256Load64Splat:
       opcode = kX64S256Load64Splat;
       break;
+    case LoadTransformation::kS256Load8x16S:
+      opcode = kX64S256Load8x16S;
+      break;
+    case LoadTransformation::kS256Load8x16U:
+      opcode = kX64S256Load8x16U;
+      break;
+    case LoadTransformation::kS256Load16x8S:
+      opcode = kX64S256Load16x8S;
+      break;
+    case LoadTransformation::kS256Load16x8U:
+      opcode = kX64S256Load16x8U;
+      break;
+    case LoadTransformation::kS256Load32x4S:
+      opcode = kX64S256Load32x4S;
+      break;
+    case LoadTransformation::kS256Load32x4U:
+      opcode = kX64S256Load32x4U;
+      break;
     default:
       UNREACHABLE();
   }

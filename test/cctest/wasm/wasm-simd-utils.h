@@ -62,8 +62,12 @@ class ObserveSIMD256Scope {
       wasm_runner.zone()->New<SIMD256NodeObserver>(                       \
           [&](const compiler::Node* node) {                               \
             if (node->opcode() == expected_simd256_op) {                  \
+              if (expected_simd256_op == compiler::IrOpcode::kStore &&    \
+                  StoreRepresentationOf(node->op()).representation() !=   \
+                      MachineRepresentation::kSimd256) {                  \
+                return;                                                   \
+              }                                                           \
               find_expected_node = true;                                  \
-              return;                                                     \
             }                                                             \
           });                                                             \
   ObserveSIMD256Scope scope(CcTest::InitIsolateOnce(), observer);         \

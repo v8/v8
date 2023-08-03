@@ -128,6 +128,8 @@ enum class LoadTransformation {
   kS128Load16x4U,
   kS128Load32x2S,
   kS128Load32x2U,
+  kFirst128Extend = kS128Load8x8S,
+  kLast128Extend = kS128Load32x2U,
   kS128Load32Zero,
   kS128Load64Zero,
   // 256-bit transformations must be last.
@@ -135,6 +137,12 @@ enum class LoadTransformation {
   kS256Load16Splat,
   kS256Load32Splat,
   kS256Load64Splat,
+  kS256Load8x16S,
+  kS256Load8x16U,
+  kS256Load16x8S,
+  kS256Load16x8U,
+  kS256Load32x4S,
+  kS256Load32x4U,
   kFirst256Transform = kS256Load8Splat
 };
 

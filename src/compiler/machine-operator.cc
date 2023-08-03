@@ -135,6 +135,18 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS256Load32Splat";
     case LoadTransformation::kS256Load64Splat:
       return os << "kS256Load64Splat";
+    case LoadTransformation::kS256Load8x16S:
+      return os << "kS256Load8x16S";
+    case LoadTransformation::kS256Load8x16U:
+      return os << "kS256Load8x16U";
+    case LoadTransformation::kS256Load16x8S:
+      return os << "kS256Load16x8S";
+    case LoadTransformation::kS256Load16x8U:
+      return os << "kS256Load16x8U";
+    case LoadTransformation::kS256Load32x4S:
+      return os << "kS256Load32x4S";
+    case LoadTransformation::kS256Load32x4U:
+      return os << "kS256Load32x4U";
   }
   UNREACHABLE();
 }
@@ -959,7 +971,13 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(S256Load8Splat)            \
   V(S256Load16Splat)           \
   V(S256Load32Splat)           \
-  V(S256Load64Splat)
+  V(S256Load64Splat)           \
+  V(S256Load8x16S)             \
+  V(S256Load8x16U)             \
+  V(S256Load16x8S)             \
+  V(S256Load16x8U)             \
+  V(S256Load32x4S)             \
+  V(S256Load32x4U)
 
 #if TAGGED_SIZE_8_BYTES
 

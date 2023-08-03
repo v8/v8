@@ -6526,6 +6526,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       /*is_signed=*/false);
       break;
     }
+    case kX64S256Load8x16S: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovsxbw(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load8x16U: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovzxbw(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load16x8S: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovsxwd(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load16x8U: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovzxwd(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load32x4S: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovsxdq(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load32x4U: {
+      CpuFeatureScope avx_scope(masm(), AVX2);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ vpmovzxdq(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
   }
   return kSuccess;
 }  // NOLadability/fn_size)
