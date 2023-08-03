@@ -726,26 +726,20 @@ class InstanceBuilder {
   // performance a bit over allocating a new {Zone} each time.
   Zone init_expr_zone_;
 
-// Helper routines to print out errors with imports.
-#define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
-  void Report##TYPE(const char* error, uint32_t index,                        \
-                    Handle<String> module_name, Handle<String> import_name) { \
-    thrower_->TYPE("Import #%d module=\"%s\" function=\"%s\" error: %s",      \
-                   index, module_name->ToCString().get(),                     \
-                   import_name->ToCString().get(), error);                    \
-  }                                                                           \
-                                                                              \
-  MaybeHandle<Object> Report##TYPE(const char* error, uint32_t index,         \
-                                   Handle<String> module_name) {              \
-    thrower_->TYPE("Import #%d module=\"%s\" error: %s", index,               \
-                   module_name->ToCString().get(), error);                    \
-    return MaybeHandle<Object>();                                             \
+  std::string ImportName(uint32_t index, Handle<String> module_name,
+                         Handle<String> import_name) {
+    std::ostringstream oss;
+    oss << "Import #" << index << " module=\"" << module_name->ToCString().get()
+        << "\" function=\"" << import_name->ToCString().get() << "\"";
+    return oss.str();
   }
 
-  ERROR_THROWER_WITH_MESSAGE(LinkError)
-  ERROR_THROWER_WITH_MESSAGE(TypeError)
-
-#undef ERROR_THROWER_WITH_MESSAGE
+  std::string ImportName(uint32_t index, Handle<String> module_name) {
+    std::ostringstream oss;
+    oss << "Import #" << index << " module=\"" << module_name->ToCString().get()
+        << "\"";
+    return oss.str();
+  }
 
   // Look up an import value in the {ffi_} object.
   MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
@@ -1381,27 +1375,28 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   // a JSObject, if the module has imports.
   DCHECK(!ffi_.is_null());
   // Look up the module first.
-  MaybeHandle<Object> result = Object::GetPropertyOrElement(
-      isolate_, ffi_.ToHandleChecked(), module_name);
-  if (result.is_null()) {
-    return ReportTypeError("module not found", index, module_name);
+  Handle<Object> module;
+  if (!Object::GetPropertyOrElement(isolate_, ffi_.ToHandleChecked(),
+                                    module_name)
+           .ToHandle(&module) ||
+      !IsJSReceiver(*module)) {
+    const char* error = module.is_null()
+                            ? "module not found"
+                            : "module is not an object or function";
+    thrower_->TypeError("%s: %s", ImportName(index, module_name).c_str(),
+                        error);
+    return {};
   }
 
-  Handle<Object> module = result.ToHandleChecked();
-
-  // Look up the value in the module.
-  if (!IsJSReceiver(*module)) {
-    return ReportTypeError("module is not an object or function", index,
-                           module_name);
+  MaybeHandle<Object> value =
+      Object::GetPropertyOrElement(isolate_, module, import_name);
+  if (value.is_null()) {
+    thrower_->LinkError("%s: import not found",
+                        ImportName(index, module_name, import_name).c_str());
+    return {};
   }
 
-  result = Object::GetPropertyOrElement(isolate_, module, import_name);
-  if (result.is_null()) {
-    ReportLinkError("import not found", index, module_name, import_name);
-    return MaybeHandle<JSFunction>();
-  }
-
-  return result;
+  return value;
 }
 
 namespace {
@@ -1454,7 +1449,9 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
     uint32_t index, Handle<String> import_name) {
   // Check that a foreign function interface object was provided.
   if (ffi_.is_null()) {
-    return ReportLinkError("missing imports object", index, import_name);
+    thrower_->LinkError("%s: missing imports object",
+                        ImportName(index, import_name).c_str());
+    return {};
   }
 
   // Perform lookup of the given {import_name} without causing any observable
@@ -1470,7 +1467,9 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
     case LookupIterator::WASM_OBJECT:
     case LookupIterator::ACCESSOR:
     case LookupIterator::TRANSITION:
-      return ReportLinkError("not a data property", index, import_name);
+      thrower_->LinkError("%s: not a data property",
+                          ImportName(index, import_name).c_str());
+      return {};
     case LookupIterator::NOT_FOUND:
       // Accepting missing properties as undefined does not cause any
       // observable difference from JavaScript semantics, we are lenient.
@@ -1485,8 +1484,9 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
           module_->import_table[index].kind == kExternalGlobal &&
           !HasDefaultToNumberBehaviour(isolate_,
                                        Handle<JSFunction>::cast(value))) {
-        return ReportLinkError("function has special ToNumber behaviour", index,
-                               import_name);
+        thrower_->LinkError("%s: function has special ToNumber behaviour",
+                            ImportName(index, import_name).c_str());
+        return {};
       }
       return value;
     }
@@ -1588,8 +1588,9 @@ bool InstanceBuilder::ProcessImportedFunction(
     Handle<Object> value) {
   // Function imports must be callable.
   if (!IsCallable(*value)) {
-    ReportLinkError("function import requires a callable", import_index,
-                    module_name, import_name);
+    thrower_->LinkError(
+        "%s: function import requires a callable",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
   // Store any {WasmExternalFunction} callable in the instance before the call
@@ -1619,8 +1620,9 @@ bool InstanceBuilder::ProcessImportedFunction(
   js_receiver = resolved.callable();
   switch (kind) {
     case ImportCallKind::kLinkError:
-      ReportLinkError("imported function does not match the expected type",
-                      import_index, module_name, import_name);
+      thrower_->LinkError(
+          "%s: imported function does not match the expected type",
+          ImportName(import_index, module_name, import_name).c_str());
       return false;
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
@@ -1783,8 +1785,9 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
                                            Handle<String> import_name,
                                            Handle<Object> value) {
   if (!IsWasmTableObject(*value)) {
-    ReportLinkError("table import requires a WebAssembly.Table", import_index,
-                    module_name, import_name);
+    thrower_->LinkError(
+        "%s: table import requires a WebAssembly.Table",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
   const WasmTable& table = module_->tables[table_index];
@@ -1828,8 +1831,9 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
 
   if (!EquivalentTypes(table.type, table_object->type(), module_,
                        table_type_module)) {
-    ReportLinkError("imported table does not match the expected type",
-                    import_index, module_name, import_name);
+    thrower_->LinkError(
+        "%s: imported table does not match the expected type",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
 
@@ -1848,8 +1852,9 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     Handle<String> module_name, Handle<String> import_name,
     const WasmGlobal& global, Handle<WasmGlobalObject> global_object) {
   if (static_cast<bool>(global_object->is_mutable()) != global.mutability) {
-    ReportLinkError("imported global does not match the expected mutability",
-                    import_index, module_name, import_name);
+    thrower_->LinkError(
+        "%s: imported global does not match the expected mutability",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
 
@@ -1866,8 +1871,9 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
                         instance->module());
 
   if (!valid_type) {
-    ReportLinkError("imported global does not match the expected type",
-                    import_index, module_name, import_name);
+    thrower_->LinkError(
+        "%s: imported global does not match the expected type",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
   if (global.mutability) {
@@ -1948,8 +1954,9 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   // We *should* never hit this case in the JS API, but the module should should
   // be allowed to declare such a global (no validation error).
   if (global.type == kWasmS128 && !IsWasmGlobalObject(*value)) {
-    ReportLinkError("global import of type v128 must be a WebAssembly.Global",
-                    import_index, module_name, import_name);
+    thrower_->LinkError(
+        "%s: global import of type v128 must be a WebAssembly.Global",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
 
@@ -1967,8 +1974,9 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
                                           : Object::ToNumber(isolate_, value);
       if (!converted.ToHandle(&value)) {
         // Conversion is known to fail for Symbols and BigInts.
-        ReportLinkError("global import must be a number", import_index,
-                        module_name, import_name);
+        thrower_->LinkError(
+            "%s: global import must be a number",
+            ImportName(import_index, module_name, import_name).c_str());
         return false;
       }
     }
@@ -1981,9 +1989,9 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   }
 
   if (global.mutability) {
-    ReportLinkError(
-        "imported mutable global must be a WebAssembly.Global object",
-        import_index, module_name, import_name);
+    thrower_->LinkError(
+        "%s: imported mutable global must be a WebAssembly.Global object",
+        ImportName(import_index, module_name, import_name).c_str());
     return false;
   }
 
@@ -1993,7 +2001,9 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     if (!wasm::JSToWasmObject(isolate_, module_, value, global.type,
                               &error_message)
              .ToHandle(&wasm_value)) {
-      ReportLinkError(error_message, global_index, module_name, import_name);
+      thrower_->LinkError(
+          "%s: %s", ImportName(global_index, module_name, import_name).c_str(),
+          error_message);
       return false;
     }
     WriteGlobalValue(global, WasmValue(wasm_value, global.type));
@@ -2019,10 +2029,10 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  ReportLinkError(
-      "global import must be a number, valid Wasm reference, or "
+  thrower_->LinkError(
+      "%s: global import must be a number, valid Wasm reference, or "
       "WebAssembly.Global object",
-      import_index, module_name, import_name);
+      ImportName(import_index, module_name, import_name).c_str());
   return false;
 }
 
@@ -2145,16 +2155,18 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalTag: {
         if (!IsWasmTagObject(*value)) {
-          ReportLinkError("tag import requires a WebAssembly.Tag", index,
-                          module_name, import_name);
+          thrower_->LinkError(
+              "%s: tag import requires a WebAssembly.Tag",
+              ImportName(index, module_name, import_name).c_str());
           return -1;
         }
         Handle<WasmTagObject> imported_tag = Handle<WasmTagObject>::cast(value);
         if (!imported_tag->MatchesSignature(
                 module_->isorecursive_canonical_type_ids
                     [module_->tags[import.index].sig_index])) {
-          ReportLinkError("imported tag does not match the expected type",
-                          index, module_name, import_name);
+          thrower_->LinkError(
+              "%s: imported tag does not match the expected type",
+              ImportName(index, module_name, import_name).c_str());
           return -1;
         }
         Object tag = imported_tag->tag();
@@ -2194,8 +2206,9 @@ bool InstanceBuilder::ProcessImportedMemories(
     Handle<Object> value = sanitized_imports_[import_index].value;
 
     if (!IsWasmMemoryObject(*value)) {
-      ReportLinkError("memory import must be a WebAssembly.Memory object",
-                      import_index, module_name, import_name);
+      thrower_->LinkError(
+          "%s: memory import must be a WebAssembly.Memory object",
+          ImportName(import_index, module_name, import_name).c_str());
       return false;
     }
     uint32_t memory_index = import.index;
@@ -2215,33 +2228,37 @@ bool InstanceBuilder::ProcessImportedMemories(
       return false;
     }
     if (imported_cur_pages < memory->initial_pages) {
-      // TODO(clemensb): Unify {ReportLinkError} and {ErrorThrower::LinkError}
-      // to support both import index and names and format strings.
-      thrower_->LinkError("memory import %d is smaller than initial %u, got %u",
-                          import_index, memory->initial_pages,
-                          imported_cur_pages);
+      thrower_->LinkError(
+          "%s: memory import has %u pages which is smaller than the declared "
+          "initial of %u",
+          ImportName(import_index, module_name, import_name).c_str(),
+          imported_cur_pages, memory->initial_pages);
       return false;
     }
     int32_t imported_maximum_pages = memory_object->maximum_pages();
     if (memory->has_maximum_pages) {
       if (imported_maximum_pages < 0) {
         thrower_->LinkError(
-            "memory import %d has no maximum limit, expected at most %u",
-            import_index, imported_maximum_pages);
+            "%s: memory import has no maximum limit, expected at most %u",
+            ImportName(import_index, module_name, import_name).c_str(),
+            imported_maximum_pages);
         return false;
       }
       if (static_cast<uint32_t>(imported_maximum_pages) >
           memory->maximum_pages) {
         thrower_->LinkError(
-            "memory import %d has a larger maximum size %u than the "
+            "%s: memory import has a larger maximum size %u than the "
             "module's declared maximum %u",
-            import_index, imported_maximum_pages, memory->maximum_pages);
+            ImportName(import_index, module_name, import_name).c_str(),
+            imported_maximum_pages, memory->maximum_pages);
         return false;
       }
     }
     if (memory->is_shared != buffer->is_shared()) {
       thrower_->LinkError(
-          "mismatch in shared state of memory, declared = %d, imported = %d",
+          "%s: mismatch in shared state of memory, declared = %d, imported = "
+          "%d",
+          ImportName(import_index, module_name, import_name).c_str(),
           memory->is_shared, buffer->is_shared());
       return false;
     }

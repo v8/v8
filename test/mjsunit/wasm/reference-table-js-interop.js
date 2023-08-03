@@ -29,7 +29,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
       builder.instantiate({ imports: { table } });
     } else {
       let err = 'WebAssembly.Instance(): Import #0 module="imports" ' +
-                'function="table" error: imported table does not match the ' +
+                'function="table": imported table does not match the ' +
                 'expected type';
       assertThrows(() => builder.instantiate({ imports: { table } }),
                    WebAssembly.LinkError,

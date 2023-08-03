@@ -88,7 +88,7 @@ function assertConversionError(bytes, imports, msg) {
 function import_error(index, module, func, msg) {
   let full_msg = 'Import #' + index + ' module=\"' + module + '\"';
   if (func !== undefined) full_msg += ' function=\"' + func + '\"';
-  return full_msg + ' error: ' + msg;
+  return full_msg + ': ' + msg;
 }
 
 (function TestTypeError() {
