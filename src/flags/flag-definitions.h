@@ -255,8 +255,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_array_from_async, "harmony Array.fromAsync")                       \
-  V(harmony_set_methods, "harmony Set Methods")
+  V(harmony_array_from_async, "harmony Array.fromAsync")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 
@@ -278,7 +277,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)
+#define HARMONY_STAGED_BASE(V)                  \
+  V(harmony_set_methods, "harmony Set Methods")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
   V(js_promise_withresolvers, "Promise.withResolvers")
