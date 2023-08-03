@@ -1729,7 +1729,7 @@ TEST(jump_tables3) {
         Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
-    result->Print(std::cout);
+    Print(*result, std::cout);
     ::printf("\n");
 #endif
     CHECK(values[i].is_identical_to(result));
