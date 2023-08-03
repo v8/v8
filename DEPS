@@ -113,9 +113,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1ee3f31d11821d3f8109171e660173c41da41f6e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5885d3c24833ad72845a52a1b913a2b8bc651b56',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b394b5928646adf0f6015712ba94097043b60689',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '79ab87fa54614258c4c95891e873223371194525',
   'buildtools/linux64': {
     'packages': [
       {
@@ -136,12 +136,6 @@ deps = {
     'dep_type': 'cipd',
     'condition': 'host_os == "mac"',
   },
-  'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '84fb809dd6dae36d556dc0bb702c6cc2ce9d4b80',
-  'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd4760c0af99ccc9bce077960d5ddde4d66146c05',
-  'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e5a9c50e5e0b620a8886df1c4677b12404620fb6',
   'buildtools/win': {
     'packages': [
       {
@@ -271,6 +265,12 @@ deps = {
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '515dd10de9bf63040045902a4a310d2ba25213a0',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
+  'third_party/libc++/src':
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '84fb809dd6dae36d556dc0bb702c6cc2ce9d4b80',
+  'third_party/libc++abi/src':
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd4760c0af99ccc9bce077960d5ddde4d66146c05',
+  'third_party/libunwind/src':
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e5a9c50e5e0b620a8886df1c4677b12404620fb6',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
