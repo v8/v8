@@ -128,7 +128,7 @@ class IdentityMap : public IdentityMapBase {
   IdentityMapFindResult<V> FindOrInsert(Handle<Object> key) {
     return FindOrInsert(*key);
   }
-  IdentityMapFindResult<V> FindOrInsert(Object key) {
+  IdentityMapFindResult<V> FindOrInsert(Tagged<Object> key) {
     auto raw = FindOrInsertEntry(key.ptr());
     return {reinterpret_cast<V*>(raw.entry), raw.already_exists};
   }
@@ -138,21 +138,21 @@ class IdentityMap : public IdentityMapBase {
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
   V* Find(Handle<Object> key) const { return Find(*key); }
-  V* Find(Object key) const {
+  V* Find(Tagged<Object> key) const {
     return reinterpret_cast<V*>(FindEntry(key.ptr()));
   }
 
   // Insert the value for the given key. The key must not have previously
   // existed.
   void Insert(Handle<Object> key, V v) { Insert(*key, v); }
-  void Insert(Object key, V v) {
+  void Insert(Tagged<Object> key, V v) {
     *reinterpret_cast<V*>(InsertEntry(key.ptr())) = v;
   }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
     return Delete(*key, deleted_value);
   }
-  bool Delete(Object key, V* deleted_value) {
+  bool Delete(Tagged<Object> key, V* deleted_value) {
     uintptr_t v;
     bool deleted_something = DeleteEntry(key.ptr(), &v);
     if (deleted_value != nullptr && deleted_something) {
@@ -173,7 +173,9 @@ class IdentityMap : public IdentityMapBase {
       return *this;
     }
 
-    Object key() const { return Object(map_->KeyAtIndex(index_)); }
+    Tagged<Object> key() const {
+      return Tagged<Object>(map_->KeyAtIndex(index_));
+    }
     V* entry() const {
       return reinterpret_cast<V*>(map_->EntryAtIndex(index_));
     }

@@ -331,6 +331,26 @@ class HeapObject : public Object {
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
 CAST_ACCESSOR(HeapObject)
 
+// Define Tagged<HeapObject> now that HeapObject exists.
+constexpr HeapObject Tagged<HeapObject>::operator*() const {
+  return ToRawPtr();
+}
+constexpr detail::TaggedOperatorArrowRef<HeapObject>
+Tagged<HeapObject>::operator->() const {
+  return detail::TaggedOperatorArrowRef<HeapObject>{ToRawPtr()};
+}
+// Implicit conversions and explicit casts to/from raw pointers
+// TODO(leszeks): Remove once we're using Tagged everywhere.
+// NOLINTNEXTLINE
+constexpr Tagged<HeapObject>::operator HeapObject() {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return ToRawPtr();
+}
+constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
+  return HeapObject::unchecked_cast(Object(this->ptr()));
+}
+
+// Overload Is* predicates for HeapObject.
 #define IS_TYPE_FUNCTION_DECL(Type)                                            \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \

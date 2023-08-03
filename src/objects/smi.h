@@ -116,6 +116,26 @@ class Smi : public Object {
 
 CAST_ACCESSOR(Smi)
 
+// Defined Tagged<Smi> now that Smi exists.
+
+// Implicit conversions to/from raw pointers
+// TODO(leszeks): Remove once we're using Tagged everywhere.
+// NOLINTNEXTLINE
+constexpr Tagged<Smi>::Tagged(Smi raw) : TaggedBase(raw.ptr()) {
+  static_assert(kTaggedCanConvertToRawObjects);
+}
+// NOLINTNEXTLINE
+constexpr Tagged<Smi>::operator Smi() {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return Smi(ptr_);
+}
+
+// Access via ->, remove once Smi doesn't have its own address.
+constexpr Smi Tagged<Smi>::operator*() const { return Smi(ptr_); }
+constexpr detail::TaggedOperatorArrowRef<Smi> Tagged<Smi>::operator->() {
+  return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr_));
+}
+
 }  // namespace internal
 }  // namespace v8
 

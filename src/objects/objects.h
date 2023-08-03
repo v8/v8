@@ -28,6 +28,7 @@
 #include "src/objects/objects-definitions.h"
 #include "src/objects/property-details.h"
 #include "src/objects/tagged-impl.h"
+#include "src/objects/tagged.h"
 #include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -736,6 +737,52 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   ConvertToIndex(Isolate* isolate, Handle<Object> input,
                  MessageTemplate error_index);
 };
+
+// Implicit comparisons with raw pointers
+// TODO(leszeks): Remove once we're using Tagged everywhere.
+inline constexpr bool operator==(TaggedBase tagged_ptr, Object obj) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return static_cast<Tagged_t>(tagged_ptr.ptr()) ==
+         static_cast<Tagged_t>(obj.ptr());
+}
+inline constexpr bool operator==(Object obj, TaggedBase tagged_ptr) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return static_cast<Tagged_t>(obj.ptr()) ==
+         static_cast<Tagged_t>(tagged_ptr.ptr());
+}
+inline constexpr bool operator!=(TaggedBase tagged_ptr, Object obj) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return static_cast<Tagged_t>(tagged_ptr.ptr()) !=
+         static_cast<Tagged_t>(obj.ptr());
+}
+inline constexpr bool operator!=(Object obj, TaggedBase tagged_ptr) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return static_cast<Tagged_t>(obj.ptr()) !=
+         static_cast<Tagged_t>(tagged_ptr.ptr());
+}
+
+// TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
+// have an operator* or operator->. Remove once all Object member functions
+// are free/static functions.
+constexpr Object Tagged<Object>::operator*() const { return ToRawPtr(); }
+constexpr detail::TaggedOperatorArrowRef<Object> Tagged<Object>::operator->() {
+  return detail::TaggedOperatorArrowRef<Object>{ToRawPtr()};
+}
+
+// Implicit conversions to/from raw pointers
+// TODO(leszeks): Remove once we're using Tagged everywhere.
+// NOLINTNEXTLINE
+constexpr Tagged<Object>::Tagged(Object raw) : TaggedBase(raw.ptr()) {
+  static_assert(kTaggedCanConvertToRawObjects);
+}
+template <typename U, typename>
+// NOLINTNEXTLINE
+constexpr Tagged<Object>::operator U() {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return ToRawPtr();
+}
+
+constexpr Object Tagged<Object>::ToRawPtr() const { return Object(ptr()); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Object& obj);
 

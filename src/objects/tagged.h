@@ -7,11 +7,8 @@
 
 #include <type_traits>
 
+#include "src/common/checks.h"
 #include "src/common/globals.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/object-list-macros.h"
-#include "src/objects/objects.h"
-#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -20,6 +17,7 @@ class Object;
 class Smi;
 class HeapObject;
 class TaggedIndex;
+class FieldType;
 
 // Tagged<T> represents an uncompressed V8 tagged pointer.
 //
@@ -60,6 +58,13 @@ class Tagged;
 // Tagged<Foo> and Foo.
 static constexpr bool kTaggedCanConvertToRawObjects = true;
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+// When V8_EXTERNAL_CODE_SPACE is enabled comparing InstructionStream and
+// non-InstructionStream objects by looking only at compressed values it not
+// correct. Full pointers must be compared instead.
+bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
+#endif
+
 // Base class for all Tagged<T> classes.
 class TaggedBase {
  public:
@@ -89,29 +94,6 @@ class TaggedBase {
   // TODO(leszeks): Consider a different default value, e.g. a tagged null.
   Address ptr_ = kNullAddress;
 };
-
-// Implicit comparisons with raw pointers
-// TODO(leszeks): Remove once we're using Tagged everywhere.
-inline constexpr bool operator==(TaggedBase tagged_ptr, Object obj) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(tagged_ptr.ptr()) ==
-         static_cast<Tagged_t>(obj.ptr());
-}
-inline constexpr bool operator==(Object obj, TaggedBase tagged_ptr) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(obj.ptr()) ==
-         static_cast<Tagged_t>(tagged_ptr.ptr());
-}
-inline constexpr bool operator!=(TaggedBase tagged_ptr, Object obj) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(tagged_ptr.ptr()) !=
-         static_cast<Tagged_t>(obj.ptr());
-}
-inline constexpr bool operator!=(Object obj, TaggedBase tagged_ptr) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(obj.ptr()) !=
-         static_cast<Tagged_t>(tagged_ptr.ptr());
-}
 
 namespace detail {
 
@@ -189,10 +171,8 @@ class Tagged<Object> : public TaggedBase {
   // TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
   // have an operator* or operator->. Remove once all Object member functions
   // are free/static functions.
-  constexpr Object operator*() const { return ToRawPtr(); }
-  constexpr detail::TaggedOperatorArrowRef<Object> operator->() {
-    return detail::TaggedOperatorArrowRef<Object>{ToRawPtr()};
-  }
+  inline constexpr Object operator*() const;
+  inline constexpr detail::TaggedOperatorArrowRef<Object> operator->();
 
   inline bool IsHeapObject() const { return !IsSmi(); }
   inline bool IsSmi() const { return HAS_SMI_TAG(ptr()); }
@@ -200,20 +180,15 @@ class Tagged<Object> : public TaggedBase {
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
-  constexpr Tagged(Object raw) : TaggedBase(raw.ptr()) {
-    static_assert(kTaggedCanConvertToRawObjects);
-  }
+  inline constexpr Tagged(Object raw);
   template <typename U,
             typename = std::enable_if_t<std::is_base_of_v<U, Object> ||
                                         std::is_convertible_v<Object*, U*>>>
   // NOLINTNEXTLINE
-  constexpr operator U() {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return ToRawPtr();
-  }
+  inline constexpr operator U();
 
  private:
-  constexpr Object ToRawPtr() const { return Object(ptr()); }
+  inline constexpr Object ToRawPtr() const;
 };
 
 // Specialization for Smi disallowing any implicit creation or access via ->,
@@ -228,7 +203,8 @@ class Tagged<Smi> : public TaggedBase {
     static_assert(std::is_base_of_v<Smi, U> ||
                   std::is_convertible_v<U*, Smi*> ||
                   std::is_base_of_v<U, Smi> || std::is_convertible_v<Smi*, U*>);
-    return Tagged<Smi>(Smi::cast(*other).ptr());
+    DCHECK(other.IsSmi());
+    return Tagged<Smi>(other.ptr());
   }
   static constexpr Tagged<Smi> unchecked_cast(TaggedBase other) {
     return Tagged<Smi>(other.ptr());
@@ -239,25 +215,18 @@ class Tagged<Smi> : public TaggedBase {
   constexpr bool IsHeapObject() const { return false; }
   constexpr bool IsSmi() const { return true; }
 
-  constexpr int32_t value() const { return Smi(ptr_).value(); }
+  constexpr int32_t value() const { return Internals::SmiValue(ptr_); }
 
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
-  constexpr Tagged(Smi raw) : TaggedBase(raw.ptr()) {
-    static_assert(kTaggedCanConvertToRawObjects);
-  }
+  inline constexpr Tagged(Smi raw);
   // NOLINTNEXTLINE
-  constexpr operator Smi() {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return Smi(ptr_);
-  }
+  inline constexpr operator Smi();
 
   // Access via ->, remove once Smi doesn't have its own address.
-  constexpr Smi operator*() const { return Smi(ptr_); }
-  constexpr detail::TaggedOperatorArrowRef<Smi> operator->() {
-    return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr_));
-  }
+  inline constexpr Smi operator*() const;
+  inline constexpr detail::TaggedOperatorArrowRef<Smi> operator->();
 
  private:
   // Handles of the same type are allowed to access the Address constructor.
@@ -278,7 +247,7 @@ class Tagged<HeapObject> : public TaggedBase {
  public:
   // Converts an address to a Tagged<HeapObject> pointer.
   static inline Tagged<HeapObject> FromAddress(Address address) {
-    return Tagged<HeapObject>(HeapObject::FromAddress(address));
+    return Tagged<HeapObject>(address + kHeapObjectTag);
   }
 
   // Explicit cast for sub- and superclasses.
@@ -288,7 +257,8 @@ class Tagged<HeapObject> : public TaggedBase {
                   std::is_convertible_v<U*, HeapObject*> ||
                   std::is_base_of_v<U, HeapObject> ||
                   std::is_convertible_v<HeapObject*, U*>);
-    return Tagged<HeapObject>(HeapObject::cast(*other).ptr());
+    DCHECK(other.IsHeapObject());
+    return Tagged<HeapObject>(other.ptr());
   }
   static constexpr Tagged<HeapObject> unchecked_cast(TaggedBase other) {
     // Don't check incoming type for unchecked casts, in case the object
@@ -314,10 +284,8 @@ class Tagged<HeapObject> : public TaggedBase {
   // NOLINTNEXTLINE
   constexpr Tagged(Tagged<U> other) : Base(other) {}
 
-  constexpr HeapObject operator*() const { return ToRawPtr(); }
-  constexpr detail::TaggedOperatorArrowRef<HeapObject> operator->() const {
-    return detail::TaggedOperatorArrowRef<HeapObject>{ToRawPtr()};
-  }
+  constexpr HeapObject operator*() const;
+  constexpr detail::TaggedOperatorArrowRef<HeapObject> operator->() const;
 
   constexpr bool is_null() const {
     return static_cast<Tagged_t>(this->ptr()) ==
@@ -341,10 +309,7 @@ class Tagged<HeapObject> : public TaggedBase {
     static_assert(kTaggedCanConvertToRawObjects);
   }
   // NOLINTNEXTLINE
-  constexpr operator HeapObject() {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return ToRawPtr();
-  }
+  constexpr operator HeapObject();
   template <typename U>
   static constexpr Tagged<HeapObject> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -361,9 +326,7 @@ class Tagged<HeapObject> : public TaggedBase {
 #endif
 
   using Base::Base;
-  constexpr HeapObject ToRawPtr() const {
-    return HeapObject::unchecked_cast(Object(this->ptr()));
-  }
+  constexpr HeapObject ToRawPtr() const;
 };
 
 static_assert(Tagged<HeapObject>().is_null());
