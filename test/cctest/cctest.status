@@ -1157,4 +1157,9 @@
   'test-heap/ObjectsInOptimizedCodeAreWeak': [FAIL],
   'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
+['conservative_stack_scanning', {
+  # Needs --predictable.
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
+}],  # conservative_stack_scanning
 ]

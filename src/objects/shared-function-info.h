@@ -424,6 +424,7 @@ class SharedFunctionInfo
   // explicitly.
   inline HeapObject script() const;
   inline HeapObject script(PtrComprCageBase cage_base) const;
+  inline bool has_script(AcquireLoadTag tag) const;
 
   // True if the underlying script was parsed and compiled in REPL mode.
   inline bool is_repl_mode() const;

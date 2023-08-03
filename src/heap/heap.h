@@ -2588,21 +2588,30 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
 
   explicit HeapObjectIterator(Heap* heap,
                               HeapObjectsFiltering filtering = kNoFiltering);
+  // .. when already in a SafepointScope:
+  HeapObjectIterator(Heap* heap, const SafepointScope& safepoint_scope,
+                     HeapObjectsFiltering filtering = kNoFiltering);
   ~HeapObjectIterator();
 
   Tagged<HeapObject> Next();
 
  private:
+  HeapObjectIterator(Heap* heap, SafepointScope* safepoint_scope_or_nullptr,
+                     HeapObjectsFiltering filtering);
+
   Tagged<HeapObject> NextObject();
 
   Heap* heap_;
-  std::unique_ptr<SafepointScope> safepoint_scope_;
+  // The safepoint scope pointer is null if a scope already existed when the
+  // iterator was created (i.e. when using the constructor that passes a
+  // safepoint_scope reference).
+  std::unique_ptr<SafepointScope> safepoint_scope_;  // nullable
   HeapObjectsFiltering filtering_;
-  HeapObjectsFilter* filter_;
+  HeapObjectsFilter* filter_ = nullptr;
   // Space iterator for iterating all the spaces.
-  SpaceIterator* space_iterator_;
+  SpaceIterator* space_iterator_ = nullptr;
   // Object iterator for the space currently being iterated.
-  std::unique_ptr<ObjectIterator> object_iterator_;
+  std::unique_ptr<ObjectIterator> object_iterator_ = nullptr;
 
   DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
 };

@@ -2272,6 +2272,13 @@ DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
             "to experimental engine if "
             "enable_experimental_regexp_engine_on_excessive_backtracks is set")
 
+DEFINE_BOOL(trace_read_only_promotion, false,
+            "trace the read-only promotion pass")
+DEFINE_BOOL(trace_read_only_promotion_verbose, false,
+            "trace the read-only promotion pass")
+DEFINE_WEAK_IMPLICATION(trace_read_only_promotion_verbose,
+                        trace_read_only_promotion)
+
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")
