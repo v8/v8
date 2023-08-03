@@ -4700,8 +4700,8 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
   // Iterate over all safe point positions and record a pointer
   // for all spilled live ranges at this point.
   int last_range_start = 0;
-  const ReferenceMapDeque* reference_maps = data()->code()->reference_maps();
-  ReferenceMapDeque::const_iterator first_it = reference_maps->begin();
+  const ReferenceMaps* reference_maps = data()->code()->reference_maps();
+  ReferenceMaps::const_iterator first_it = reference_maps->begin();
   const size_t live_ranges_size = data()->live_ranges().size();
   // We break the invariant that live ranges are indexed by their vregs here.
   // This is ok because we don't use that invariant here, and this is the last

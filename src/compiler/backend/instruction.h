@@ -1714,7 +1714,7 @@ using ConstantMap = std::map<int, Constant, std::less<int>,
                              ZoneAllocator<std::pair<const int, Constant> > >;
 
 using InstructionDeque = ZoneDeque<Instruction*>;
-using ReferenceMapDeque = ZoneDeque<ReferenceMap*>;
+using ReferenceMaps = ZoneVector<ReferenceMap*>;
 using InstructionBlocks = ZoneVector<InstructionBlock*>;
 
 // Represents architecture-specific generated code before, during, and after
@@ -1804,7 +1804,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   Isolate* isolate() const { return isolate_; }
-  const ReferenceMapDeque* reference_maps() const { return &reference_maps_; }
+  const ReferenceMaps* reference_maps() const { return &reference_maps_; }
   Zone* zone() const { return zone_; }
 
   // Used by the instruction selector while adding instructions.
@@ -1947,7 +1947,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   RpoImmediates rpo_immediates_;
   InstructionDeque instructions_;
   int next_virtual_register_;
-  ReferenceMapDeque reference_maps_;
+  ReferenceMaps reference_maps_;
   ZoneVector<MachineRepresentation> representations_;
   int representation_mask_;
   DeoptimizationVector deoptimization_entries_;
