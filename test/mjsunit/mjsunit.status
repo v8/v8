@@ -1256,6 +1256,7 @@
   'd8/enable-tracing': [SKIP],
 
   # Intentionally non-deterministic using shared arraybuffers between workers.
+  'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/atomics-memory64': [SKIP],
