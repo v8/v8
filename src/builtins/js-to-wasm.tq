@@ -633,7 +633,7 @@ JSToWasmWrapper(
 }
 
 macro WasmToJSObject(
-    instance: WasmInstanceObject, value: Object, retType: int32): JSAny {
+    context: NativeContext, value: Object, retType: int32): JSAny {
   const paramKind = retType & kValueTypeKindBitsMask;
   const heapType = (retType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
   if (paramKind == ValueKind::kRef) {
@@ -648,8 +648,7 @@ macro WasmToJSObject(
     // array types can be passed to JS as-is as well; and for function types we
     // could at least support the fast path where the WasmExternalFunction has
     // already been created.
-    return runtime::WasmGenericWasmToJSObject(
-        LoadContextFromInstance(instance), value);
+    return runtime::WasmGenericWasmToJSObject(context, value);
   } else {
     dcheck(paramKind == ValueKind::kRefNull);
     if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern) {
@@ -667,8 +666,7 @@ macro WasmToJSObject(
     // array types can be passed to JS as-is as well; and for function types we
     // could at least support the fast path where the WasmExternalFunction has
     // already been created.
-    return runtime::WasmGenericWasmToJSObject(
-        LoadContextFromInstance(instance), value);
+    return runtime::WasmGenericWasmToJSObject(context, value);
   }
 }
 
@@ -714,7 +712,7 @@ builtin JSToWasmHandleReturns(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
       const value = BitcastWordToTagged(rawRef);
-      return WasmToJSObject(instance, value, retType);
+      return WasmToJSObject(LoadContextFromInstance(instance), value, retType);
     }
   }
 
@@ -799,7 +797,8 @@ builtin JSToWasmHandleReturns(
     } else {
       locationAllocator.GetGPSlot();
       const value = fixedArray.objects[k];
-      fixedArray.objects[k] = WasmToJSObject(instance, value, retType);
+      fixedArray.objects[k] =
+          WasmToJSObject(LoadContextFromInstance(instance), value, retType);
     }
   }
 

@@ -12,7 +12,6 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -720,8 +719,7 @@ class LiftoffCompiler {
     bool needs_gp_pair_;
     ValueKind reg_kind_;
     RegClass rc_;
-    compiler::LinkageLocation location_{
-        compiler::LinkageLocation::ForAnyRegister()};
+    LinkageLocation location_{LinkageLocation::ForAnyRegister()};
     LiftoffRegList param_regs_;
   };
 

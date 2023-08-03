@@ -37,6 +37,11 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     runtime::TierUpWasmToJSWrapper(kNoContext, ref);
   }
 
+  // Caller FP + return address.
+  const sigSlot = LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
+  // Spill the signature on the stack so that it can be read by the GC.
+  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
+
   const signaturePod = &ref.sig.bytes;
   const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
       signaturePod.object, signaturePod.offset,
@@ -57,8 +62,9 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // builtin takes care of it automatically
   outParams.objects[nextIndex++] = Undefined;
 
+  // Caller FP + return address + signature.
   const stackParamStart =
-      LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
+      LoadFramePointer() + 3 * torque_internal::SizeOf<intptr>();
   const inParams = torque_internal::unsafe::NewOffHeapReference(
       %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
@@ -66,6 +72,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   let paramIt = paramTypes.Iterator();
 
+  let hasTaggedParams: bool = false;
   while (!paramIt.Empty()) {
     const paramType = paramIt.NextNotEmpty();
     if (paramType == kWasmI32Type) {
@@ -93,8 +100,26 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       const val = *RefCast<float64>(slot);
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
-      // Not implemented yet.
-      unreachable;
+      nextIndex++;
+      hasTaggedParams = true;
+    }
+  }
+
+  // Second loop for tagged parameters.
+  if (hasTaggedParams) {
+    nextIndex = 1;
+    paramIt = paramTypes.Iterator();
+    while (!paramIt.Empty()) {
+      const paramType = paramIt.NextNotEmpty();
+      const paramKind = paramType & kValueTypeKindBitsMask;
+      if (paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull) {
+        const slot = locationAllocator.GetGPSlot();
+        const rawRef = *slot;
+        const value = BitcastWordToTagged(rawRef);
+        outParams.objects[nextIndex] =
+            WasmToJSObject(ref.native_context, value, paramType);
+      }
+      nextIndex++;
     }
   }
   const target = ref.callable;
@@ -170,7 +195,9 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   const popCount =
       (Convert<intptr>(stackSlots) - Convert<intptr>(stackParamStart)) /
-      torque_internal::SizeOf<intptr>();
+          torque_internal::SizeOf<intptr>() +
+      // The additional slot for the signature.
+      1;
 
   ModifyThreadInWasmFlag(1);
   ModifyWasmToJSCounter(-1);

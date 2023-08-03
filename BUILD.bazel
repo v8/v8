@@ -1263,6 +1263,7 @@ filegroup(
         "src/codegen/interface-descriptors.h",
         "src/codegen/interface-descriptors-inl.h",
         "src/codegen/label.h",
+        "src/codegen/linkage-location.h",
         "src/codegen/machine-type.cc",
         "src/codegen/machine-type.h",
         "src/codegen/macro-assembler.h",

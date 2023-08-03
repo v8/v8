@@ -10,7 +10,6 @@
 #include "src/base/platform/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -1096,7 +1095,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
       const RegPairHalf half =
           is_gp_pair && lowered_idx == 0 ? kHighWord : kLowWord;
       --call_desc_input_idx;
-      compiler::LinkageLocation loc =
+      LinkageLocation loc =
           call_descriptor->GetInputLocation(call_desc_input_idx);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
@@ -1238,7 +1237,7 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
                                    kGpCacheRegList.GetFirstRegSet()};
     LiftoffRegList pinned;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
-      compiler::LinkageLocation loc =
+      LinkageLocation loc =
           call_descriptor->GetReturnLocation(call_desc_return_idx++);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
@@ -1353,7 +1352,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
     bool needs_gp_pair = needs_gp_reg_pair(return_kind);
     int num_lowered_params = 1 + needs_gp_pair;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
-      compiler::LinkageLocation loc =
+      LinkageLocation loc =
           descriptor->GetReturnLocation(call_desc_return_idx++);
       if (loc.IsCallerFrameSlot()) {
         RegPairHalf half = pair_idx == 0 ? kLowWord : kHighWord;
@@ -1374,7 +1373,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
     int num_lowered_params = 1 + needs_gp_pair;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
       RegPairHalf half = pair_idx == 0 ? kLowWord : kHighWord;
-      compiler::LinkageLocation loc =
+      LinkageLocation loc =
           descriptor->GetReturnLocation(call_desc_return_idx++);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());

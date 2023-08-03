@@ -27,7 +27,7 @@ console.log("This test is a fuzzer, it tests the generic wasm-to-js wrapper");
 console.log("with random signatures. If this test fails, then it may not fail");
 console.log("for the CL that actually introduced the issue, but for a");
 console.log("later CL in the CQ. You may want to use flako to identify that");
-console.log("actual culprit");
+console.log("actual culprit.");
 
 const kPossibleTypes = [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmExternRef];
 

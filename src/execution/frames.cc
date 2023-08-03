@@ -12,6 +12,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/linkage-location.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/codegen/register-configuration.h"
@@ -34,9 +35,11 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1502,6 +1505,87 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base,
                        frame_header_limit);
 }
+
+void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
+  // Load the signature, considering forward pointers.
+  FullObjectSlot sig_slot(fp() + 2 * kSystemPointerSize);
+  VisitSpillSlot(isolate(), v, sig_slot);
+  PtrComprCageBase cage_base(isolate());
+  HeapObject raw = HeapObject::cast(Object(*sig_slot.location()));
+  MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
+  HeapObject forwarded =
+      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress(raw) : raw;
+  PodArray<wasm::ValueType> sig = PodArray<wasm::ValueType>::cast(forwarded);
+
+  size_t parameter_count = wasm::SerializedSignatureHelper::ParamCount(sig);
+  wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
+                                           wasm::kFpParamRegisters, 0);
+  // The first parameter is the instance, which we don't have to scan. We have
+  // to tell the LinkageLocationAllocator about it though.
+  allocator.Next(MachineRepresentation::kTaggedPointer);
+
+  // Parameters are separated into two groups (first all untagged, then all
+  // tagged parameters). Therefore we first have to iterate over the signature
+  // first to process all untagged parameters, and afterwards we can scan the
+  // tagged parameters.
+  bool has_tagged_param = false;
+  for (size_t i = 0; i < parameter_count; i++) {
+    wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
+    MachineRepresentation param = type.machine_representation();
+    // Skip tagged parameters (e.g. any-ref).
+    if (IsAnyTagged(param)) {
+      has_tagged_param = true;
+      continue;
+    }
+    allocator.Next(param);
+  }
+
+  // End the untagged area, so tagged slots come after. This means, especially,
+  // that tagged parameters should not fill holes in the untagged area.
+  allocator.EndSlotArea();
+
+  if (!has_tagged_param) return;
+
+  for (size_t i = 0; i < parameter_count; i++) {
+    wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
+    MachineRepresentation param = type.machine_representation();
+    // Skip untagged parameters.
+    if (!IsAnyTagged(param)) continue;
+    LinkageLocation l = allocator.Next(param);
+    if (l.IsRegister()) {
+      // Calculate the slot offset.
+      int slot_offset = 0;
+      // We have to do a reverse lookup in the kGPParamRegisters array. This
+      // can be optimized if necessary.
+      for (size_t i = 1; i < arraysize(wasm::kGpParamRegisters); ++i) {
+        if (wasm::kGpParamRegisters[i].code() == l.AsRegister()) {
+          // The first register (the instance) does not get spilled.
+          slot_offset = static_cast<int>(i) - 1;
+          break;
+        }
+      }
+      // First offset is 3 because of caller FP + return address + signature.
+      size_t param_start_offset = 3;
+      FullObjectSlot param_start(fp() +
+                                 param_start_offset * kSystemPointerSize);
+      FullObjectSlot tagged_slot = param_start + slot_offset;
+      VisitSpillSlot(isolate(), v, tagged_slot);
+    } else {
+      // Caller frame slots have negative indices and start at -1. Flip it
+      // back to a positive offset (to be added to the frame's FP to find the
+      // slot).
+      int slot_offset = -l.GetLocation() - 1;
+      // Caller FP + return address + signature + spilled registers (without
+      // the instance register).
+      size_t param_start_offset = arraysize(wasm::kGpParamRegisters) - 1 +
+                                  arraysize(wasm::kFpParamRegisters) + 3;
+      FullObjectSlot param_start(fp() +
+                                 param_start_offset * kSystemPointerSize);
+      FullObjectSlot tagged_slot = param_start + slot_offset;
+      VisitSpillSlot(isolate(), v, tagged_slot);
+    }
+  }
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TypedFrame::Iterate(RootVisitor* v) const {
@@ -1532,6 +1616,12 @@ void TypedFrame::Iterate(RootVisitor* v) const {
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   GcSafeCode code = entry->code.value();
+#if V8_ENABLE_WEBASSEMBLY
+  if (code->is_builtin() &&
+      code->builtin_id() == Builtin::kWasmToJsWrapperCSA) {
+    IterateParamsOfWasmToJSWrapper(v);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
   SafepointEntry safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);

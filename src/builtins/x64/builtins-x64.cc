@@ -4471,6 +4471,10 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
     __ pushq(wasm::kGpParamRegisters[i]);
   }
+  // Decrement the stack to allocate a stack slot. The signature gets written
+  // into the slot in Torque.
+  __ pushq(rax);
+  // Push the return address again.
   __ pushq(kScratchRegister);
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }

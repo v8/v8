@@ -24,8 +24,6 @@ namespace v8::internal::wasm {
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
 using compiler::CallDescriptor;
-using compiler::LinkageLocation;
-using compiler::LocationSignature;
 using compiler::MemoryAccessKind;
 using compiler::TrapId;
 using compiler::turboshaft::ConditionWithHint;

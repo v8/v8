@@ -3113,6 +3113,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/interface-descriptors-inl.h",
     "src/codegen/interface-descriptors.h",
     "src/codegen/label.h",
+    "src/codegen/linkage-location.h",
     "src/codegen/machine-type.h",
     "src/codegen/macro-assembler-base.h",
     "src/codegen/macro-assembler-inl.h",

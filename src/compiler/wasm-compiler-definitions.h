@@ -21,6 +21,7 @@
 
 namespace v8 {
 namespace internal {
+class LinkageLocation;
 
 namespace wasm {
 struct WasmModule;
@@ -30,7 +31,6 @@ struct ModuleWireBytes;
 
 namespace compiler {
 class CallDescriptor;
-class LinkageLocation;
 
 // If {to} is nullable, it means that null passes the check.
 // {from} may change in compiler optimization passes as the object's type gets
@@ -91,44 +91,6 @@ MachineRepresentation GetMachineRepresentation(wasm::ValueType type);
 
 MachineRepresentation GetMachineRepresentation(MachineType type);
 
-namespace {
-// Helper for allocating either an GP or FP reg, or the next stack slot.
-class LinkageLocationAllocator {
- public:
-  template <size_t kNumGpRegs, size_t kNumFpRegs>
-  constexpr LinkageLocationAllocator(const Register (&gp)[kNumGpRegs],
-                                     const DoubleRegister (&fp)[kNumFpRegs],
-                                     int slot_offset)
-      : allocator_(wasm::LinkageAllocator(gp, fp)), slot_offset_(slot_offset) {}
-
-  LinkageLocation Next(MachineRepresentation rep) {
-    MachineType type = MachineType::TypeForRepresentation(rep);
-    if (IsFloatingPoint(rep)) {
-      if (allocator_.CanAllocateFP(rep)) {
-        int reg_code = allocator_.NextFpReg(rep);
-        return LinkageLocation::ForRegister(reg_code, type);
-      }
-    } else if (allocator_.CanAllocateGP()) {
-      int reg_code = allocator_.NextGpReg();
-      return LinkageLocation::ForRegister(reg_code, type);
-    }
-    // Cannot use register; use stack slot.
-    int index = -1 - (slot_offset_ + allocator_.NextStackSlot(rep));
-    return LinkageLocation::ForCallerFrameSlot(index, type);
-  }
-
-  int NumStackSlots() const { return allocator_.NumStackSlots(); }
-  void EndSlotArea() { allocator_.EndSlotArea(); }
-
- private:
-  wasm::LinkageAllocator allocator_;
-  // Since params and returns are in different stack frames, we must allocate
-  // them separately. Parameter slots don't need an offset, but return slots
-  // must be offset to just before the param slots, using this |slot_offset_|.
-  int slot_offset_;
-};
-}  // namespace
-
 template <typename T>
 LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
                                   bool extra_callable_param,
@@ -138,7 +100,7 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
                                        sig->parameter_count() + extra_params);
 
   // Add register and/or stack parameter(s).
-  LinkageLocationAllocator params(
+  wasm::LinkageLocationAllocator params(
       wasm::kGpParamRegisters, wasm::kFpParamRegisters, 0 /* no slot offset */);
 
   // The instance object.
@@ -184,8 +146,8 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
   *parameter_slots = AddArgumentPaddingSlots(params.NumStackSlots());
 
   // Add return location(s).
-  LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
-                                wasm::kFpReturnRegisters, *parameter_slots);
+  wasm::LinkageLocationAllocator rets(
+      wasm::kGpReturnRegisters, wasm::kFpReturnRegisters, *parameter_slots);
 
   const size_t return_count = locations.return_count_;
   for (size_t i = 0; i < return_count; i++) {
