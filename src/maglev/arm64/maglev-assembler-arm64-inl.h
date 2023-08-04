@@ -7,12 +7,10 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
-#include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
@@ -96,11 +94,7 @@ inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
                               size_t map_count)
     : masm_(masm), object_(object), map_count_(map_count) {
   map_ = masm_->scratch_register_scope()->Acquire();
-  if (PointerCompressionIsEnabled()) {
-    masm_->LoadCompressedMap(map_, object_);
-  } else {
-    masm_->LoadMap(map_, object_);
-  }
+  masm_->LoadCompressedMap(map_, object_);
   USE(map_count_);
 }
 
@@ -112,11 +106,9 @@ void MapCompare::Generate(Handle<Map> map) {
 }
 
 Register MapCompare::GetMap() {
-  if (PointerCompressionIsEnabled()) {
-    // Decompression is idempotent (UXTW operand is used), so this would return
-    // a valid pointer even if called multiple times in a row.
-    masm_->DecompressTagged(map_, map_);
-  }
+  // Decompression is idempotent (UXTW operand is used), so this would return a
+  // valid pointer even if called multiple times in a row.
+  masm_->DecompressTagged(map_, map_);
   return map_;
 }
 
@@ -373,17 +365,11 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 
 inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
                                                     Register src) {
-  if (SmiValuesAre31Bits()) {
-    Adds(dst.W(), src.W(), src.W());
-  } else {
-    SmiTag(dst, src);
-  }
+  Adds(dst.W(), src.W(), src.W());
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
-  DCHECK(!SmiValuesAre32Bits());
-
   Adds(wzr, obj.W(), obj.W());
   JumpIf(kOverflow, fail);
 }
@@ -434,11 +420,7 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   ScratchRegisterScope scope(this);
   Register base = scope.Acquire();
-  if (COMPRESS_POINTERS_BOOL) {
-    Ldr(base.W(), FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
-  } else {
-    Ldr(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
-  }
+  Ldr(base.W(), FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
   Add(data_pointer, data_pointer, base);
 }
 
@@ -458,7 +440,11 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
-  Add(result, object, Operand(index, LSL, ShiftFromScale(scale)));
+  if (scale == 1) {
+    Add(result, object, index);
+  } else {
+    Add(result, object, Operand(index, LSL, ShiftFromScale(scale / 2)));
+  }
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
 }
 
@@ -489,8 +475,8 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
     CompareInt32(index, 0);
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
-  LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  Add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  DecompressTagged(result, FieldMemOperand(result, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
@@ -503,8 +489,7 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
   Add(result, array, Operand(index, LSL, kTaggedSizeLog2));
-  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result, FieldMemOperand(result, FixedArray::kHeaderSize));
+  Ldr(result.W(), FieldMemOperand(result, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
@@ -577,8 +562,7 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Add(scratch, array, Operand(index, LSL, kTaggedSizeLog2));
-  MacroAssembler::StoreTaggedField(
-      value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
@@ -847,7 +831,7 @@ inline void MaglevAssembler::CompareMapWithRoot(Register object,
                                                 RootIndex index,
                                                 Register scratch) {
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    LoadCompressedMap(scratch, object);
+    Ldr(scratch.W(), FieldMemOperand(object, HeapObject::kMapOffset));
     CmpTagged(scratch, Immediate(ReadOnlyRootPtr(index)));
     return;
   }

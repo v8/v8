@@ -10,7 +10,6 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/common/globals.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/isolate-inl.h"
@@ -512,13 +511,11 @@ void Call::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void Call::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallWithArrayLike::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
@@ -527,13 +524,11 @@ void CallWithArrayLike::VerifyInputs(
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallWithArrayLike::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -541,13 +536,11 @@ void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallWithSpread::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallSelf::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -555,13 +548,11 @@ void CallSelf::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallSelf::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallKnownJSFunction::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
@@ -570,13 +561,11 @@ void CallKnownJSFunction::VerifyInputs(
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallKnownJSFunction::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallKnownApiFunction::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
@@ -585,13 +574,11 @@ void CallKnownApiFunction::VerifyInputs(
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallKnownApiFunction::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -599,13 +586,11 @@ void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void Construct::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void ConstructWithSpread::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
@@ -614,13 +599,11 @@ void ConstructWithSpread::VerifyInputs(
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void ConstructWithSpread::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
@@ -651,7 +634,6 @@ void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallBuiltin::MarkTaggedInputsAsDecompressing() {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   int count = input_count();
@@ -671,7 +653,6 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
     }
   }
 }
-#endif
 
 void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -679,13 +660,11 @@ void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   }
 }
 
-#ifdef V8_COMPRESS_POINTERS
 void CallRuntime::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
-#endif
 
 void FoldedAllocation::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   Base::VerifyInputs(graph_labeller);
@@ -714,10 +693,6 @@ Handle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) const {
 
 Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) const {
   return handle(value_, isolate);
-}
-
-Handle<Object> TaggedIndexConstant::DoReify(LocalIsolate* isolate) const {
-  UNREACHABLE();
 }
 
 Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) const {
@@ -808,11 +783,6 @@ void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
 
-void TaggedIndexConstant::DoLoadToRegister(MaglevAssembler* masm,
-                                           Register reg) {
-  __ Move(reg, value());
-}
-
 void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
@@ -841,12 +811,6 @@ void ExternalConstant::GenerateCode(MaglevAssembler* masm,
 void SmiConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void SmiConstant::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {}
-
-void TaggedIndexConstant::SetValueLocationConstraints() {
-  DefineAsConstant(this);
-}
-void TaggedIndexConstant::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {}
 
 void Int32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Int32Constant::GenerateCode(MaglevAssembler* masm,
@@ -1168,9 +1132,6 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
 void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  // We shouldn't be emitting this node for 32-bit Smis.
-  DCHECK(!SmiValuesAre32Bits());
-
   // TODO(leszeks): This basically does a SmiTag and throws the result away.
   // Don't throw the result away if we want to actually use it.
   Register reg = ToRegister(input());
@@ -1200,9 +1161,7 @@ void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
   __ TryTruncateDoubleToInt32(scratch, value, fail);
-  if (!SmiValuesAre32Bits()) {
-    __ CheckInt32IsSmi(scratch, fail, scratch);
-  }
+  __ CheckInt32IsSmi(scratch, fail, scratch);
 }
 
 void CheckedSmiTagInt32::SetValueLocationConstraints() {
@@ -1483,7 +1442,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
 
   // Exprimentally figured out map limit (with slack) which allows us to use
   // near jumps in the code below
-  constexpr int kMapCountForNearJumps = kTaggedSize == 4 ? 10 : 5;
+  constexpr int kMapCountForNearJumps = 10;
   Label::Distance jump_distance = maps().size() <= kMapCountForNearJumps
                                       ? Label::Distance::kNear
                                       : Label::Distance::kFar;
@@ -1843,7 +1802,7 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
   Register tmp = temps.Acquire();
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
-  __ LoadTaggedField(tmp, object, offset());
+  __ DecompressTagged(tmp, FieldMemOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ LoadHeapNumberValue(ToDoubleRegister(result()), tmp);
 }
@@ -1874,132 +1833,91 @@ void LoadTaggedFieldByFieldIndex::SetValueLocationConstraints() {
 void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
   Register object = ToRegister(object_input());
-  Register field_index = ToRegister(index_input());
+  Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
   __ AssertNotSmi(object);
-  __ AssertSmi(field_index);
+  __ AssertSmi(index);
 
   ZoneLabelRef done(masm);
 
-  // For in-object properties, the field_index is encoded as:
+  // For in-object properties, the index is encoded as:
   //
-  //      field_index = array_index | is_double_bit | smi_tag
-  //                  = array_index << (1+kSmiTagBits)
-  //                        + is_double_bit << kSmiTagBits
+  //      index = actual_index | is_double_bit | smi_tag_bit
+  //            = actual_index << 2 | is_double_bit << 1
   //
   // The value we want is at the field offset:
   //
-  //      (array_index << kTaggedSizeLog2) + JSObject::kHeaderSize
+  //      (actual_index << kTaggedSizeLog2) + JSObject::kHeaderSize
   //
-  // We could get field_index from array_index by shifting away the double bit
-  // and smi tag, followed by shifting back up again, but this means shifting
-  // twice:
+  // We could get index from actual_index by shifting away the double and smi
+  // bits. But, note that `kTaggedSizeLog2 == 2` and `index` encodes
+  // `actual_index` with a two bit shift. So, we can do some rearranging
+  // to get the offset without shifting:
   //
-  //      ((field_index >> kSmiTagBits >> 1) << kTaggedSizeLog2
-  //          + JSObject::kHeaderSize
+  //      ((index >> 2) << kTaggedSizeLog2 + JSObject::kHeaderSize
   //
-  // Instead, we can do some rearranging to get the offset with either a single
-  // small shift, or no shift at all:
+  //    [Expand definitions of index and kTaggedSizeLog2]
+  //    = (((actual_index << 2 | is_double_bit << 1) >> 2) << 2)
+  //           + JSObject::kHeaderSize
   //
-  //      (array_index << kTaggedSizeLog2) + JSObject::kHeaderSize
+  //    [Cancel out shift down and shift up, clear is_double bit by subtracting]
+  //    = (actual_index << 2 | is_double_bit << 1) - (is_double_bit << 1)
+  //           + JSObject::kHeaderSize
   //
-  //    [Split shift to match array_index component of field_index]
-  //    = (
-  //        (array_index << 1+kSmiTagBits)) << (kTaggedSizeLog2-1-kSmiTagBits)
-  //      ) + JSObject::kHeaderSize
+  //    [Fold together the constants, and collapse definition of index]
+  //    = index + (JSObject::kHeaderSize - (is_double_bit << 1))
   //
-  //    [Substitute in field_index]
-  //    = (
-  //        (field_index - is_double_bit << kSmiTagBits)
-  //           << (kTaggedSizeLog2-1-kSmiTagBits)
-  //      ) + JSObject::kHeaderSize
-  //
-  //    [Fold together the constants]
-  //    = (field_index << (kTaggedSizeLog2-1-kSmiTagBits)
-  //          + (JSObject::kHeaderSize - (is_double_bit << (kTaggedSizeLog2-1)))
-  //
-  // Note that this results in:
-  //
-  //     * No shift when kSmiTagBits == kTaggedSizeLog2 - 1, which is the case
-  //       when pointer compression is on.
-  //     * A shift of 1 when kSmiTagBits == 1 and kTaggedSizeLog2 == 3, which
-  //       is the case when pointer compression is off but Smis are 31 bit.
-  //     * A shift of 2 when kSmiTagBits == 0 and kTaggedSizeLog2 == 3, which
-  //       is the case when pointer compression is off, Smis are 32 bit, and
-  //       the Smi was untagged to int32 already.
-  //
-  // These shifts are small enough to encode in the load operand.
   //
   // For out-of-object properties, the encoding is:
   //
-  //     field_index = (-1 - array_index) | is_double_bit | smi_tag
-  //                 = (-1 - array_index) << (1+kSmiTagBits)
-  //                       + is_double_bit << kSmiTagBits
-  //                 = -array_index << (1+kSmiTagBits)
-  //                       - 1 << (1+kSmiTagBits) + is_double_bit << kSmiTagBits
-  //                 = -array_index << (1+kSmiTagBits)
-  //                       - 2 << kSmiTagBits + is_double_bit << kSmiTagBits
-  //                 = -array_index << (1+kSmiTagBits)
-  //                       (is_double_bit - 2) << kSmiTagBits
+  //     index = (-1 - actual_index) | is_double_bit | smi_tag_bit
+  //           = (-1 - actual_index) << 2 | is_double_bit << 1
+  //           = (-1 - actual_index) * 4 + (is_double_bit ? 2 : 0)
+  //           = -(actual_index * 4) + (is_double_bit ? 2 : 0) - 4
+  //           = -(actual_index << 2) + (is_double_bit ? 2 : 0) - 4
   //
   // The value we want is in the property array at offset:
   //
-  //      (array_index << kTaggedSizeLog2) + FixedArray::kHeaderSize
+  //      (actual_index << kTaggedSizeLog2) + FixedArray::kHeaderSize
   //
-  //    [Split shift to match array_index component of field_index]
-  //    = (array_index << (1+kSmiTagBits)) << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
+  //    [Expand definition of kTaggedSizeLog2]
+  //    = (actual_index << 2) + FixedArray::kHeaderSize
   //
-  //    [Substitute in field_index]
-  //    = (-field_index - (is_double_bit - 2) << kSmiTagBits)
-  //        << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
+  //    [Substitute in index]
+  //    = (-index + (is_double_bit ? 2 : 0) - 4) + FixedArray::kHeaderSize
   //
   //    [Fold together the constants]
-  //    = -field_index << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
-  //        - (is_double_bit - 2) << (kTaggedSizeLog2-1))
+  //    = -index + (FixedArray::kHeaderSize + (is_double_bit ? 2 : 0) - 4))
   //
-  // This allows us to simply negate the field_index register and do a load with
-  // otherwise constant offset and the same scale factor as for in-object
-  // properties.
-
-  static constexpr int kSmiTagBitsInValue = SmiValuesAre32Bits() ? 0 : 1;
-  static_assert(kSmiTagBitsInValue == 32 - kSmiValueSize);
-  if (SmiValuesAre32Bits()) {
-    __ SmiUntag(field_index);
-  }
-
-  static constexpr int scale = 1 << (kTaggedSizeLog2 - 1 - kSmiTagBitsInValue);
+  // This allows us to simply negate the index register and do a load with
+  // otherwise constant offset.
 
   // Check if field is a mutable double field.
-  static constexpr int32_t kIsDoubleBitMask = 1 << kSmiTagBitsInValue;
+  static constexpr int32_t kIsDoubleBitMask = 1 << kSmiTagSize;
   __ TestInt32AndJumpIfAnySet(
-      field_index, kIsDoubleBitMask,
+      index, kIsDoubleBitMask,
       __ MakeDeferredCode(
-          [](MaglevAssembler* masm, Register object, Register field_index,
+          [](MaglevAssembler* masm, Register object, Register index,
              Register result_reg, RegisterSnapshot register_snapshot,
              ZoneLabelRef done) {
             // The field is a Double field, a.k.a. a mutable HeapNumber.
-            static constexpr int kIsDoubleBit = 1;
+            static const int kIsDoubleBit = 1;
 
             // Check if field is in-object or out-of-object. The is_double bit
             // value doesn't matter, since negative values will stay negative.
             Label if_outofobject, loaded_field;
-            __ CompareInt32AndJumpIf(field_index, 0, kLessThan,
-                                     &if_outofobject);
+            __ CompareInt32AndJumpIf(index, 0, kLessThan, &if_outofobject);
 
             // The field is located in the {object} itself.
             {
               // See giant comment above.
-              if (SmiValuesAre31Bits() && kTaggedSize != kSystemPointerSize) {
-                // We haven't untagged, so we need to sign extend.
-                __ SignExtend32To64Bits(field_index, field_index);
-              }
+              static_assert(kTaggedSizeLog2 == 2);
+              static_assert(kSmiTagSize == 1);
+              // We haven't untagged, so we need to sign extend.
+              __ SignExtend32To64Bits(index, index);
               __ LoadTaggedFieldByIndex(
-                  result_reg, object, field_index, scale,
-                  JSObject::kHeaderSize -
-                      (kIsDoubleBit << (kTaggedSizeLog2 - 1)));
+                  result_reg, object, index, 1,
+                  JSObject::kHeaderSize - (kIsDoubleBit << kSmiTagSize));
               __ Jump(&loaded_field);
             }
 
@@ -2012,13 +1930,12 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
                   property_array,
                   FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
 
-              // See giant comment above. No need to sign extend, negate will
-              // handle it.
-              __ NegateInt32(field_index);
+              // See giant comment above.
+              static_assert(kSmiTagSize == 1);
+              __ NegateInt32(index);
               __ LoadTaggedFieldByIndex(
-                  result_reg, property_array, field_index, scale,
-                  FixedArray::kHeaderSize +
-                      ((kIsDoubleBit - 2) << (kTaggedSizeLog2 - 1)));
+                  result_reg, property_array, index, 1,
+                  FixedArray::kHeaderSize + (kIsDoubleBit << kSmiTagSize) - 4);
               __ Jump(&loaded_field);
             }
 
@@ -2030,13 +1947,13 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
             MaglevAssembler::ScratchRegisterScope temps(masm);
             Register map = temps.Acquire();
             // Hack: The temporary allocated for `map` might alias the result
-            // register. If it does, use the field_index register as a temporary
+            // register. If it does, use the index register as a temporary
             // instead (since it's clobbered anyway).
             // TODO(leszeks): Extend the result register's lifetime to overlap
             // the temporaries, so that this alias isn't possible.
             if (map == result_reg) {
-              DCHECK_NE(map, field_index);
-              map = field_index;
+              DCHECK_NE(map, index);
+              map = index;
             }
             __ LoadMap(map, result_reg);
             __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, *done);
@@ -2045,29 +1962,28 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
             __ AllocateHeapNumber(register_snapshot, result_reg, double_value);
             __ Jump(*done);
           },
-          object, field_index, result_reg, register_snapshot(), done));
+          object, index, result_reg, register_snapshot(), done));
 
-  // The field is a proper Tagged field on {object}. The {field_index} is
-  // shifted to the left by one in the code below.
+  // The field is a proper Tagged field on {object}. The {index} is shifted
+  // to the left by one in the code below.
   {
-    static constexpr int kIsDoubleBit = 0;
+    static const int kIsDoubleBit = 0;
 
     // Check if field is in-object or out-of-object. The is_double bit value
     // doesn't matter, since negative values will stay negative.
     Label if_outofobject;
-    __ CompareInt32AndJumpIf(field_index, 0, kLessThan, &if_outofobject);
+    __ CompareInt32AndJumpIf(index, 0, kLessThan, &if_outofobject);
 
     // The field is located in the {object} itself.
     {
       // See giant comment above.
-      if (SmiValuesAre31Bits() && kTaggedSize != kSystemPointerSize) {
-        // We haven't untagged, so we need to sign extend.
-        __ SignExtend32To64Bits(field_index, field_index);
-      }
-      __ SignExtend32To64Bits(field_index, field_index);
+      static_assert(kTaggedSizeLog2 == 2);
+      static_assert(kSmiTagSize == 1);
+      // We haven't untagged, so we need to sign extend.
+      __ SignExtend32To64Bits(index, index);
       __ LoadTaggedFieldByIndex(
-          result_reg, object, field_index, scale,
-          JSObject::kHeaderSize - (kIsDoubleBit << (kTaggedSizeLog2 - 1)));
+          result_reg, object, index, 1,
+          JSObject::kHeaderSize - (kIsDoubleBit << kSmiTagSize));
       __ Jump(*done);
     }
 
@@ -2080,12 +1996,12 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
           property_array,
           FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
 
-      // See giant comment above. No need to sign extend, negate will handle it.
-      __ NegateInt32(field_index);
+      // See giant comment above.
+      static_assert(kSmiTagSize == 1);
+      __ NegateInt32(index);
       __ LoadTaggedFieldByIndex(
-          result_reg, property_array, field_index, scale,
-          FixedArray::kHeaderSize +
-              ((kIsDoubleBit - 2) << (kTaggedSizeLog2 - 1)));
+          result_reg, property_array, index, 1,
+          FixedArray::kHeaderSize + (kIsDoubleBit << kSmiTagSize) - 4);
       // Fallthrough to `done`.
     }
   }
@@ -2543,7 +2459,8 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
             Register cell = map;  // Reuse scratch.
             __ Move(cell, access_info.cell());
             __ AssertNotSmi(cell);
-            __ LoadTaggedField(result, cell, Cell::kValueOffset);
+            __ DecompressTagged(result,
+                                FieldMemOperand(cell, Cell::kValueOffset));
             break;
           }
           case PolymorphicAccessInfo::kDataLoad: {
@@ -3669,7 +3586,8 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   Register value = (array == result_reg ? temp : result_reg);
 
   // Loads the current value in the generator register file.
-  __ LoadTaggedField(value, array, FixedArray::OffsetOfElementAt(index()));
+  __ DecompressTagged(
+      value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
 
   // And trashs it with StaleRegisterConstant.
   DCHECK(stale_input().node()->Is<RootConstant>());
@@ -4013,10 +3931,7 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
   Register right_length = D::GetRegisterParameter(D::kLength);
 
   __ CmpTagged(left, right);
-  __ JumpIf(kEqual, &if_equal,
-            // Debug checks in StringLength can make this jump too long for a
-            // near jump.
-            v8_flags.debug_code ? Label::kFar : Label::kNear);
+  __ JumpIf(kEqual, &if_equal, Label::Distance::kNear);
 
   __ StringLength(left_length, left);
   __ StringLength(right_length, right);
@@ -5221,7 +5136,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   Register tmp = temps.GetDefaultScratchRegister();
 
   __ AssertNotSmi(object);
-  __ LoadTaggedField(tmp, object, offset());
+  __ DecompressTagged(tmp, FieldMemOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ StoreFloat64(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
 }
@@ -5851,11 +5766,6 @@ void ExternalConstant::PrintParams(std::ostream& os,
 
 void SmiConstant::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
-}
-
-void TaggedIndexConstant::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
 }
 

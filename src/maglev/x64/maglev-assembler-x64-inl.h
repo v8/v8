@@ -13,10 +13,9 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -238,17 +237,11 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
                                                     Register src) {
   Move(dst, src);
-  if (SmiValuesAre31Bits()) {
-    addl(dst, dst);
-  } else {
-    SmiTag(dst);
-  }
+  addl(dst, dst);
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
-  DCHECK(!SmiValuesAre32Bits());
-
   if (scratch == Register::no_reg()) {
     scratch = kScratchRegister;
   }
@@ -294,11 +287,7 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
 
   Register base = kScratchRegister;
-  if (COMPRESS_POINTERS_BOOL) {
-    movl(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
-  } else {
-    movq(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
-  }
+  movl(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
   addq(data_pointer, base);
 }
 
@@ -347,8 +336,8 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
     CompareInt32(index, 0);
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
-  LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  DecompressTagged(result, FieldOperand(array, index, times_tagged_size,
+                                        FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
@@ -360,9 +349,8 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     CompareInt32(index, 0);
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
-  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result,
-      FieldOperand(array, index, times_tagged_size, FixedArray::kHeaderSize));
+  mov_tagged(result, FieldOperand(array, index, times_tagged_size,
+                                  FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
@@ -428,7 +416,7 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
 
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
-  MacroAssembler::StoreTaggedField(
+  mov_tagged(
       FieldOperand(array, index, times_tagged_size, FixedArray::kHeaderSize),
       value);
 }
@@ -436,7 +424,7 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
                                                     Register value) {
   AssertSmi(value);
-  MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
+  mov_tagged(FieldOperand(object, offset), value);
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,

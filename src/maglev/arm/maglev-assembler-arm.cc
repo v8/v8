@@ -338,7 +338,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 
   // Get instance type.
-  LoadInstanceType(instance_type, string);
+  LoadMap(instance_type, string);
+  ldr(instance_type, FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
 
   {
     ScratchRegisterScope temps(this);
@@ -368,8 +369,9 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     ScratchRegisterScope temps(this);
     Register offset = temps.Acquire();
 
-    LoadAndUntagTaggedSignedField(offset, string, SlicedString::kOffsetOffset);
-    LoadTaggedField(string, string, SlicedString::kParentOffset);
+    ldr(offset, FieldMemOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
     add(index, index, offset);
     b(&loop);
   }

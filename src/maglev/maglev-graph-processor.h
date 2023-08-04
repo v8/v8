@@ -97,10 +97,6 @@ class GraphProcessor {
       node_processor_.Process(constant, GetCurrentState());
       USE(index);
     }
-    for (const auto& [index, constant] : graph->tagged_index()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(index);
-    }
     for (const auto& [index, constant] : graph->int32()) {
       node_processor_.Process(constant, GetCurrentState());
       USE(index);

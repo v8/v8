@@ -238,8 +238,6 @@ inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
-  static_assert(!SmiValuesAre32Bits());
-
   ScratchRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
     scratch = temps.Acquire();
@@ -313,7 +311,11 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
-  add(result, object, Operand(index, LSL, ShiftFromScale(scale)));
+  if (scale == 1) {
+    add(result, object, index);
+  } else {
+    add(result, object, Operand(index, LSL, ShiftFromScale(scale / 2)));
+  }
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
 }
 
@@ -337,8 +339,8 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
     CompareInt32(index, 0);
     Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
   }
-  LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
@@ -417,8 +419,7 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   add(scratch, array, Operand(index, LSL, kTaggedSizeLog2));
-  MacroAssembler::StoreTaggedField(
-      value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  str(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,

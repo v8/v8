@@ -29,7 +29,7 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
                                             Register result, int length) {
   int size = SeqTwoByteString::SizeFor(length);
   Allocate(register_snapshot, result, size);
-  StoreTaggedSignedField(result, size - kObjectAlignment, Smi::zero());
+  StoreInt32Field(result, size - kObjectAlignment, 0);
   SetMapAsRoot(result, RootIndex::kSeqTwoByteStringMap);
   StoreInt32Field(result, Name::kRawHashFieldOffset, Name::kEmptyHashField);
   StoreInt32Field(result, String::kLengthOffset, length);
@@ -58,8 +58,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   DCHECK_LT(char_code, String::kMaxOneByteCharCode);
   Register table = result;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedField(result, table,
-                  FixedArray::kHeaderSize + char_code * kTaggedSize);
+  DecompressTagged(result, FieldMemOperand(table, FixedArray::kHeaderSize +
+                                                      char_code * kTaggedSize));
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
@@ -79,11 +79,12 @@ void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
     }
     // The field is in the property array, first load it from there.
     AssertNotSmi(load_source_object);
-    LoadTaggedField(load_source, load_source_object,
-                    JSReceiver::kPropertiesOrHashOffset);
+    DecompressTagged(load_source,
+                     FieldMemOperand(load_source_object,
+                                     JSReceiver::kPropertiesOrHashOffset));
   }
   AssertNotSmi(load_source);
-  LoadTaggedField(result, load_source, field_index.offset());
+  DecompressTagged(result, FieldMemOperand(load_source, field_index.offset()));
 }
 
 void MaglevAssembler::JumpIfNotUndetectable(Register object, Register scratch,
@@ -393,7 +394,7 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
          OffsetTypeFor<store_mode> offset, Register value,
          RegisterSnapshot register_snapshot, ValueIsCompressed value_type) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
-        if (PointerCompressionIsEnabled() && value_type == kValueIsCompressed) {
+        if (value_type == kValueIsCompressed) {
           __ DecompressTagged(value, value);
         }
 
