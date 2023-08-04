@@ -795,7 +795,7 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
     case Kind::kTruncate:
       if (op.from == WordRepresentation::Word64() &&
           op.to == WordRepresentation::Word32()) {
-        return GetNode(op.input());
+        o = machine.TruncateInt64ToInt32();
       } else {
         UNIMPLEMENTED();
       }
