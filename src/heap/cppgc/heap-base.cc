@@ -108,7 +108,7 @@ HeapBase::HeapBase(
       lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(
           platform_->GetPageAllocator())),
 #endif  // LEAK_SANITIZER
-      page_backend_(InitializePageBackend(*page_allocator(), *oom_handler_)),
+      page_backend_(InitializePageBackend(*page_allocator())),
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
@@ -148,13 +148,13 @@ size_t HeapBase::ObjectPayloadSize() const {
 
 // static
 std::unique_ptr<PageBackend> HeapBase::InitializePageBackend(
-    PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler) {
+    PageAllocator& allocator) {
 #if defined(CPPGC_CAGED_HEAP)
   auto& caged_heap = CagedHeap::Instance();
-  return std::make_unique<PageBackend>(
-      caged_heap.page_allocator(), caged_heap.page_allocator(), oom_handler);
+  return std::make_unique<PageBackend>(caged_heap.page_allocator(),
+                                       caged_heap.page_allocator());
 #else   // !CPPGC_CAGED_HEAP
-  return std::make_unique<PageBackend>(allocator, allocator, oom_handler);
+  return std::make_unique<PageBackend>(allocator, allocator);
 #endif  // !CPPGC_CAGED_HEAP
 }
 
