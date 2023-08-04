@@ -63,23 +63,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
   FinishBlock(&block);
 }
 
-namespace {
-
-// Returns true if replacing an operation of type {expected} by an operation of
-// type {got} is valid. (for instance, replacing a operation that returns a
-// Float64 by one that returns a Word64 is not valid)
-bool RepIsCompatible(RegisterRepresentation expected,
-                     RegisterRepresentation actual) {
-  if (expected == actual) return true;
-  if (expected == RegisterRepresentation::Tagged()) {
-    return actual == any_of(RegisterRepresentation::Word32(),
-                            RegisterRepresentation::Word64());
-  }
-  return false;
-}
-
-}  // namespace
-
 void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& load) {
   if (OpIndex existing = memory_content_.Find(load); existing.valid()) {
@@ -90,7 +73,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     // Tagged and the other one Float64).
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    if (RepIsCompatible(load.outputs_rep()[0], replacement.outputs_rep()[0])) {
+    if (load.outputs_rep()[0] == replacement.outputs_rep()[0]) {
       replacements_[op_idx] = existing;
       return;
     }
