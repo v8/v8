@@ -117,11 +117,7 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
     bool condition_value = branch_condition.is_true;
 
     if (semantics == BranchSemantics::kJS) {
-      if (condition_value) {
-        phi_inputs.emplace_back(jsgraph()->TrueConstant());
-      } else {
-        phi_inputs.emplace_back(jsgraph()->FalseConstant());
-      }
+      phi_inputs.emplace_back(jsgraph()->BooleanConstant(condition_value));
     } else {
       DCHECK_EQ(semantics, BranchSemantics::kMachine);
       phi_inputs.emplace_back(
