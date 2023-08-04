@@ -1859,33 +1859,37 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Node* value = node->InputAt(0);
-  if (CanCover(node, value)) {
-    switch (value->opcode()) {
-      case IrOpcode::kWord64Sar: {
-        if (CanCover(value, value->InputAt(0)) &&
-            TryEmitExtendingLoad(this, value, node)) {
-          return;
-        } else {
-          Int64BinopMatcher m(value);
-          if (m.right().IsInRange(32, 63)) {
-            // After smi untagging no need for truncate. Combine sequence.
-            Emit(kMips64Dsar, g.DefineAsRegister(node),
-                 g.UseRegister(m.left().node()),
-                 g.UseImmediate(m.right().node()));
+void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Node* value = node->InputAt(0);
+    if (CanCover(node, value)) {
+      switch (value->opcode()) {
+        case IrOpcode::kWord64Sar: {
+          if (CanCover(value, value->InputAt(0)) &&
+              TryEmitExtendingLoad(this, value, node)) {
             return;
+          } else {
+            Int64BinopMatcher m(value);
+            if (m.right().IsInRange(32, 63)) {
+              // After smi untagging no need for truncate. Combine sequence.
+              Emit(kMips64Dsar, g.DefineAsRegister(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseImmediate(m.right().node()));
+              return;
+            }
           }
+          break;
         }
-        break;
+        default:
+          break;
       }
-      default:
-        break;
     }
+    Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.TempImmediate(0));
   }
-  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.TempImmediate(0));
 }
 
 template <typename Adapter>
