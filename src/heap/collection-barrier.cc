@@ -108,22 +108,23 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
         std::make_unique<BackgroundCollectionInterruptTask>(heap_));
   }
 
-  bool return_false = false;
-  local_heap->BlockWhileParked([this, &return_false]() {
+  bool collection_performed = false;
+  local_heap->BlockWhileParked([this, &collection_performed]() {
     base::MutexGuard guard(&mutex_);
 
     while (block_for_collection_) {
       if (shutdown_requested_) {
-        return_false = true;
+        collection_performed = false;
         return;
       }
       cv_wakeup_.Wait(&mutex_);
     }
-  });
-  if (return_false) return false;
 
-  // Collection may have been cancelled while blocking for it.
-  return collection_performed_;
+    // Collection may have been cancelled while blocking for it.
+    collection_performed = collection_performed_;
+  });
+
+  return collection_performed;
 }
 
 void CollectionBarrier::StopTimeToCollectionTimer() {
