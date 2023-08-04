@@ -984,13 +984,18 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
 InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK_NULL(parent_);
+  int osr_jump_loop_pos;
+  if (graph_->is_osr()) {
+    osr_jump_loop_pos = bytecode_analysis_.osr_bailout_id().ToInt();
+  }
   return InterpretedDeoptFrame(
       *compilation_unit_,
-      zone()->New<CompactInterpreterFrameState>(*compilation_unit_,
-                                                GetInLivenessFor(entrypoint_),
-                                                current_interpreter_frame_),
+      zone()->New<CompactInterpreterFrameState>(
+          *compilation_unit_,
+          GetInLivenessFor(graph_->is_osr() ? osr_jump_loop_pos : 0),
+          current_interpreter_frame_),
       GetClosure(),
-      BytecodeOffset(graph_->is_osr() ? entrypoint_
+      BytecodeOffset(graph_->is_osr() ? osr_jump_loop_pos
                                       : kFunctionEntryBytecodeOffset),
       current_source_position_, nullptr);
 }
