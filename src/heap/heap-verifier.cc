@@ -287,7 +287,6 @@ class HeapVerification final : public SpaceVerificationVisitor {
 void HeapVerification::Verify() {
   CHECK(heap()->HasBeenSetUp());
   AllowGarbageCollection allow_gc;
-  IgnoreLocalGCRequests ignore_gc_requests(heap());
   SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                      ? SafepointKind::kGlobal
                                      : SafepointKind::kIsolate;

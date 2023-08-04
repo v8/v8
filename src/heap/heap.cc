@@ -1979,8 +1979,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   {
     AllowGarbageCollection allow_shared_gc;
-    IgnoreLocalGCRequests ignore_gc_requests(this);
-
     SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                        ? SafepointKind::kGlobal
                                        : SafepointKind::kIsolate;
@@ -2325,7 +2323,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   base::Optional<SafepointScope> safepoint_scope;
   {
     AllowGarbageCollection allow_shared_gc;
-    IgnoreLocalGCRequests ignore_gc_requests(this);
 
     SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
                                        ? SafepointKind::kGlobal
@@ -3508,7 +3505,6 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
 
     {
       AllowGarbageCollection allow_gc;
-      IgnoreLocalGCRequests ignore_gc_requests(this);
       safepoint_scope.emplace(this);
     }
 
@@ -4304,7 +4300,6 @@ std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
 
 void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
-  IgnoreLocalGCRequests ignore_gc_requests(this);
   IsolateSafepointScope safepoint_scope(this);
   MakeHeapIterable();
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());

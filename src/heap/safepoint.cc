@@ -72,7 +72,6 @@ class PerClientSafepointData final {
 void IsolateSafepoint::InitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
   shared_space_isolate()->global_safepoint()->AssertActive();
-  IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
   LockMutex(initiator->main_thread_local_heap());
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
 }
@@ -155,6 +154,9 @@ size_t IsolateSafepoint::SetSafepointRequestedFlags(
 
 void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
   if (!local_heaps_mutex_.TryLock()) {
+    // Safepoints are only used for GCs, so GC requests should be ignored by
+    // default when parking for a safepoint.
+    IgnoreLocalGCRequests ignore_gc_requests(local_heap->heap());
     local_heap->BlockWhileParked([this]() { local_heaps_mutex_.Lock(); });
   }
 }
