@@ -127,6 +127,11 @@ assertThrows(function() { JSON.stringify(tojson_ex, null, 0); });
 var obj = { toJSON: function(key) { return this.a + key; }, a: "x" };
 TestStringify('{"y":"xy"}', {y: obj});
 
+// Test invalid string length exception.
+assertThrows(function() {
+  JSON.stringify('a'.repeat(%StringMaxLength() - 1));
+});
+
 // Test holes in arrays.
 var fast_smi = [1, 2, 3, 4];
 fast_smi.__proto__ = [7, 7, 7, 7];

@@ -395,13 +395,14 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
-    if (overflowed_) {
+    if (overflowed_ || current_index_ > String::kMaxLength) {
       THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
     }
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      one_byte_ptr_[current_index_++] = '\0';
-      return isolate_->factory()->NewStringFromAsciiChecked(
-          (char*)one_byte_ptr_);
+      return isolate_->factory()
+          ->NewStringFromOneByte(
+              base::OneByteVector((char*)one_byte_ptr_, current_index_))
+          .ToHandleChecked();
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
           base::Vector<const base::uc16>(two_byte_ptr_, current_index_));
@@ -1333,7 +1334,12 @@ void JsonStringifier::SerializeString(Handle<String> object) {
 }
 
 void JsonStringifier::Extend() {
-  if (part_length_ >= String::kMaxLength) overflowed_ = true;
+  if (part_length_ >= String::kMaxLength) {
+    // Set the flag and carry on. Delay throwing the exception till the end.
+    current_index_ = 0;
+    overflowed_ = true;
+    return;
+  }
   part_length_ *= kPartLengthGrowthFactor;
   if (encoding_ == String::ONE_BYTE_ENCODING) {
     uint8_t* tmp_ptr = new uint8_t[part_length_];
