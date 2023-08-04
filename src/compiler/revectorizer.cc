@@ -28,6 +28,114 @@ namespace compiler {
 
 namespace {
 
+#define SIMPLE_SIMD_OP(V)                   \
+  V(F64x2Add, F64x4Add)                     \
+  V(F32x4Add, F32x8Add)                     \
+  V(I64x2Add, I64x4Add)                     \
+  V(I32x4Add, I32x8Add)                     \
+  V(I16x8Add, I16x16Add)                    \
+  V(I8x16Add, I8x32Add)                     \
+  V(F64x2Sub, F64x4Sub)                     \
+  V(F32x4Sub, F32x8Sub)                     \
+  V(I64x2Sub, I64x4Sub)                     \
+  V(I32x4Sub, I32x8Sub)                     \
+  V(I16x8Sub, I16x16Sub)                    \
+  V(I8x16Sub, I8x32Sub)                     \
+  V(F64x2Mul, F64x4Mul)                     \
+  V(F32x4Mul, F32x8Mul)                     \
+  V(I64x2Mul, I64x4Mul)                     \
+  V(I32x4Mul, I32x8Mul)                     \
+  V(I16x8Mul, I16x16Mul)                    \
+  V(F64x2Div, F64x4Div)                     \
+  V(F32x4Div, F32x8Div)                     \
+  V(F64x2Eq, F64x4Eq)                       \
+  V(F32x4Eq, F32x8Eq)                       \
+  V(I64x2Eq, I64x4Eq)                       \
+  V(I32x4Eq, I32x8Eq)                       \
+  V(I16x8Eq, I16x16Eq)                      \
+  V(I8x16Eq, I8x32Eq)                       \
+  V(F64x2Ne, F64x4Ne)                       \
+  V(F32x4Ne, F32x8Ne)                       \
+  V(I64x2GtS, I64x4GtS)                     \
+  V(I32x4GtS, I32x8GtS)                     \
+  V(I16x8GtS, I16x16GtS)                    \
+  V(I8x16GtS, I8x32GtS)                     \
+  V(F64x2Lt, F64x4Lt)                       \
+  V(F32x4Lt, F32x8Lt)                       \
+  V(F64x2Le, F64x4Le)                       \
+  V(F32x4Le, F32x8Le)                       \
+  V(I32x4MinS, I32x8MinS)                   \
+  V(I16x8MinS, I16x16MinS)                  \
+  V(I8x16MinS, I8x32MinS)                   \
+  V(I32x4MinU, I32x8MinU)                   \
+  V(I16x8MinU, I16x16MinU)                  \
+  V(I8x16MinU, I8x32MinU)                   \
+  V(I32x4MaxS, I32x8MaxS)                   \
+  V(I16x8MaxS, I16x16MaxS)                  \
+  V(I8x16MaxS, I8x32MaxS)                   \
+  V(I32x4MaxU, I32x8MaxU)                   \
+  V(I16x8MaxU, I16x16MaxU)                  \
+  V(I8x16MaxU, I8x32MaxU)                   \
+  V(F32x4Abs, F32x8Abs)                     \
+  V(I32x4Abs, I32x8Abs)                     \
+  V(I16x8Abs, I16x16Abs)                    \
+  V(I8x16Abs, I8x32Abs)                     \
+  V(F32x4Neg, F32x8Neg)                     \
+  V(I32x4Neg, I32x8Neg)                     \
+  V(I16x8Neg, I16x16Neg)                    \
+  V(I8x16Neg, I8x32Neg)                     \
+  V(F64x2Sqrt, F64x4Sqrt)                   \
+  V(F32x4Sqrt, F32x8Sqrt)                   \
+  V(F64x2Min, F64x4Min)                     \
+  V(F32x4Min, F32x8Min)                     \
+  V(F64x2Max, F64x4Max)                     \
+  V(F32x4Max, F32x8Max)                     \
+  V(I64x2Ne, I64x4Ne)                       \
+  V(I32x4Ne, I32x8Ne)                       \
+  V(I16x8Ne, I16x16Ne)                      \
+  V(I8x16Ne, I8x32Ne)                       \
+  V(I32x4GtU, I32x8GtU)                     \
+  V(I16x8GtU, I16x16GtU)                    \
+  V(I8x16GtU, I8x32GtU)                     \
+  V(I64x2GeS, I64x4GeS)                     \
+  V(I32x4GeS, I32x8GeS)                     \
+  V(I16x8GeS, I16x16GeS)                    \
+  V(I8x16GeS, I8x32GeS)                     \
+  V(I32x4GeU, I32x8GeU)                     \
+  V(I16x8GeU, I16x16GeU)                    \
+  V(I8x16GeU, I8x32GeU)                     \
+  V(F32x4Pmin, F32x8Pmin)                   \
+  V(F32x4Pmax, F32x8Pmax)                   \
+  V(F64x2Pmin, F64x4Pmin)                   \
+  V(F64x2Pmax, F64x4Pmax)                   \
+  V(F32x4SConvertI32x4, F32x8SConvertI32x8) \
+  V(F32x4UConvertI32x4, F32x8UConvertI32x8) \
+  V(I32x4UConvertF32x4, I32x8UConvertF32x8)
+
+#define SIMD_SHIFT_OP(V)   \
+  V(I64x2Shl, I64x4Shl)    \
+  V(I32x4Shl, I32x8Shl)    \
+  V(I16x8Shl, I16x16Shl)   \
+  V(I32x4ShrS, I32x8ShrS)  \
+  V(I16x8ShrS, I16x16ShrS) \
+  V(I64x2ShrU, I64x4ShrU)  \
+  V(I32x4ShrU, I32x8ShrU)  \
+  V(I16x8ShrU, I16x16ShrU)
+
+#define SIMD_SIGN_EXTENSION_CONVERT_OP(V)                               \
+  V(I64x2SConvertI32x4Low, I64x2SConvertI32x4High, I64x4SConvertI32x4)  \
+  V(I64x2UConvertI32x4Low, I64x2UConvertI32x4High, I64x4UConvertI32x4)  \
+  V(I32x4SConvertI16x8Low, I32x4SConvertI16x8High, I32x8SConvertI16x8)  \
+  V(I32x4UConvertI16x8Low, I32x4UConvertI16x8High, I32x8UConvertI16x8)  \
+  V(I16x8SConvertI8x16Low, I16x8SConvertI8x16High, I16x16SConvertI8x16) \
+  V(I16x8UConvertI8x16Low, I16x8UConvertI8x16High, I16x16UConvertI8x16)
+
+#define SIMD_SPLAT_OP(V)     \
+  V(I8x16Splat, I8x32Splat)  \
+  V(I16x8Splat, I16x16Splat) \
+  V(I32x4Splat, I32x8Splat)  \
+  V(I64x2Splat, I64x4Splat)
+
 // Currently, only Load/ProtectedLoad/LoadTransfrom are supported.
 // TODO(jiepan): add support for UnalignedLoad, LoadLane, LoadTrapOnNull
 bool IsSupportedLoad(const Node* node) {
@@ -164,21 +272,37 @@ bool ShiftBySameScalar(const ZoneVector<Node*>& node_group) {
   return true;
 }
 
-bool IsConvertCase(const ZoneVector<Node*>& node_group) {
-#define CHECK_CONVERT_CASE(low, high)                           \
-  if (node_group[0]->opcode() == IrOpcode::k##low &&            \
-      node_group[1]->opcode() == IrOpcode::k##high &&           \
-      node_group[0]->InputAt(0) == node_group[1]->InputAt(0)) { \
-    return true;                                                \
+bool IsSignExtensionOperation(IrOpcode::Value op) {
+#define CASE(op_low, op_high, not_used) \
+  case IrOpcode::k##op_low:             \
+  case IrOpcode::k##op_high:
+  switch (op) {
+    SIMD_SIGN_EXTENSION_CONVERT_OP(CASE)
+    return true;
+    default:
+      return false;
   }
-  CHECK_CONVERT_CASE(I64x2SConvertI32x4Low, I64x2SConvertI32x4High);
-  CHECK_CONVERT_CASE(I64x2UConvertI32x4Low, I64x2UConvertI32x4High);
-  CHECK_CONVERT_CASE(I32x4SConvertI16x8Low, I32x4SConvertI16x8High);
-  CHECK_CONVERT_CASE(I32x4UConvertI16x8Low, I32x4UConvertI16x8High);
-  CHECK_CONVERT_CASE(I16x8SConvertI8x16Low, I16x8SConvertI8x16High);
-  CHECK_CONVERT_CASE(I16x8UConvertI8x16Low, I16x8UConvertI8x16High);
-#undef CHECK_CONVERT_CASE
-  return false;
+#undef CASE
+  UNREACHABLE();
+}
+
+bool MaybePackSignExtensionOp(const ZoneVector<Node*>& node_group) {
+#define CHECK_SIGN_EXTENSION_CASE(op_low, op_high, not_used)      \
+  case IrOpcode::k##op_low: {                                     \
+    if (node_group[1]->opcode() == IrOpcode::k##op_high &&        \
+        node_group[0]->InputAt(0) == node_group[1]->InputAt(0)) { \
+      return true;                                                \
+    }                                                             \
+    return false;                                                 \
+  }
+  switch (node_group[0]->opcode()) {
+    SIMD_SIGN_EXTENSION_CONVERT_OP(CHECK_SIGN_EXTENSION_CASE)
+    default: {
+      return false;
+    }
+  }
+#undef CHECK_SIGN_EXTENSION_CASE
+  UNREACHABLE();
 }
 
 class EffectChainIterator {
@@ -253,18 +377,19 @@ void PackNode::Print() const {
 
 bool SLPTree::CanBePacked(const ZoneVector<Node*>& node_group) {
   DCHECK_EQ(node_group.size(), 2);
-  if (!SameBasicBlock(node_group[0], node_group[1])) {
-    TRACE("%s(#%d, #%d) not in same BB!\n", node_group[0]->op()->mnemonic(),
-          node_group[0]->id(), node_group[1]->id());
+  // Only Support simd128 operators or common operators with simd128
+  // MachineRepresentation. The MachineRepresentation of root had been checked,
+  // and the leaf node will be checked later. here we omit the check of
+  // MachineRepresentation, only check the opcode itself.
+  IrOpcode::Value op = node_group[0]->opcode();
+  if (!NodeProperties::IsSimd128Operation(node_group[0]) &&
+      (op != IrOpcode::kStore) && (op != IrOpcode::kProtectedStore) &&
+      (op != IrOpcode::kLoad) && (op != IrOpcode::kProtectedLoad) &&
+      (op != IrOpcode::kPhi) && (op != IrOpcode::kLoopExitValue) &&
+      (op != IrOpcode::kExtractF128)) {
     return false;
   }
-  if (!AllSameOperator(node_group) && !IsConvertCase(node_group)) {
-    TRACE(
-        "%s(#%d, #%d) have different op, and are not sign extension operator\n",
-        node_group[0]->op()->mnemonic(), node_group[0]->id(),
-        node_group[1]->id());
-    return false;
-  }
+
   // TODO(jiepan): add support for Constant
   if (AllConstant(node_group)) {
     TRACE("%s(#%d, #%d) are constantant, not supported yet!\n",
@@ -272,20 +397,24 @@ bool SLPTree::CanBePacked(const ZoneVector<Node*>& node_group) {
           node_group[1]->id());
     return false;
   }
-
-  // Only Support simd128 operators or common operators with simd128
-  // MachineRepresentation. The MachineRepresentation of root had been checked,
-  // and the leaf node will be checked later. here we omit the check of
-  // MachineRepresentation, only check the opcode itself.
-  IrOpcode::Value op = node_group[0]->opcode();
-  if (NodeProperties::IsSimd128Operation(node_group[0]) ||
-      (op == IrOpcode::kStore) || (op == IrOpcode::kProtectedStore) ||
-      (op == IrOpcode::kLoad) || (op == IrOpcode::kProtectedLoad) ||
-      (op == IrOpcode::kPhi) || (op == IrOpcode::kLoopExitValue) ||
-      (op == IrOpcode::kExtractF128)) {
-    return true;
+  if (IsSignExtensionOperation(op)) {
+    if (MaybePackSignExtensionOp(node_group)) {
+      return true;
+    } else {
+      TRACE("%s(#%d, #%d) are not (low, high) sign extension pair\n",
+            node_group[0]->op()->mnemonic(), node_group[0]->id(),
+            node_group[1]->id());
+      return false;
+    }
   }
-  return false;
+  if (!AllSameOperator(node_group)) {
+    TRACE(
+        "%s(#%d, #%d) have different op, and are not sign extension operator\n",
+        node_group[0]->op()->mnemonic(), node_group[0]->id(),
+        node_group[1]->id());
+    return false;
+  }
+  return true;
 }
 
 PackNode* SLPTree::NewPackNode(const ZoneVector<Node*>& node_group) {
@@ -459,114 +588,6 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   return root_;
 }
 
-#define SIMPLE_SIMD_OP(V)                   \
-  V(F64x2Add, F64x4Add)                     \
-  V(F32x4Add, F32x8Add)                     \
-  V(I64x2Add, I64x4Add)                     \
-  V(I32x4Add, I32x8Add)                     \
-  V(I16x8Add, I16x16Add)                    \
-  V(I8x16Add, I8x32Add)                     \
-  V(F64x2Sub, F64x4Sub)                     \
-  V(F32x4Sub, F32x8Sub)                     \
-  V(I64x2Sub, I64x4Sub)                     \
-  V(I32x4Sub, I32x8Sub)                     \
-  V(I16x8Sub, I16x16Sub)                    \
-  V(I8x16Sub, I8x32Sub)                     \
-  V(F64x2Mul, F64x4Mul)                     \
-  V(F32x4Mul, F32x8Mul)                     \
-  V(I64x2Mul, I64x4Mul)                     \
-  V(I32x4Mul, I32x8Mul)                     \
-  V(I16x8Mul, I16x16Mul)                    \
-  V(F64x2Div, F64x4Div)                     \
-  V(F32x4Div, F32x8Div)                     \
-  V(F64x2Eq, F64x4Eq)                       \
-  V(F32x4Eq, F32x8Eq)                       \
-  V(I64x2Eq, I64x4Eq)                       \
-  V(I32x4Eq, I32x8Eq)                       \
-  V(I16x8Eq, I16x16Eq)                      \
-  V(I8x16Eq, I8x32Eq)                       \
-  V(F64x2Ne, F64x4Ne)                       \
-  V(F32x4Ne, F32x8Ne)                       \
-  V(I64x2GtS, I64x4GtS)                     \
-  V(I32x4GtS, I32x8GtS)                     \
-  V(I16x8GtS, I16x16GtS)                    \
-  V(I8x16GtS, I8x32GtS)                     \
-  V(F64x2Lt, F64x4Lt)                       \
-  V(F32x4Lt, F32x8Lt)                       \
-  V(F64x2Le, F64x4Le)                       \
-  V(F32x4Le, F32x8Le)                       \
-  V(I32x4MinS, I32x8MinS)                   \
-  V(I16x8MinS, I16x16MinS)                  \
-  V(I8x16MinS, I8x32MinS)                   \
-  V(I32x4MinU, I32x8MinU)                   \
-  V(I16x8MinU, I16x16MinU)                  \
-  V(I8x16MinU, I8x32MinU)                   \
-  V(I32x4MaxS, I32x8MaxS)                   \
-  V(I16x8MaxS, I16x16MaxS)                  \
-  V(I8x16MaxS, I8x32MaxS)                   \
-  V(I32x4MaxU, I32x8MaxU)                   \
-  V(I16x8MaxU, I16x16MaxU)                  \
-  V(I8x16MaxU, I8x32MaxU)                   \
-  V(F32x4Abs, F32x8Abs)                     \
-  V(I32x4Abs, I32x8Abs)                     \
-  V(I16x8Abs, I16x16Abs)                    \
-  V(I8x16Abs, I8x32Abs)                     \
-  V(F32x4Neg, F32x8Neg)                     \
-  V(I32x4Neg, I32x8Neg)                     \
-  V(I16x8Neg, I16x16Neg)                    \
-  V(I8x16Neg, I8x32Neg)                     \
-  V(F64x2Sqrt, F64x4Sqrt)                   \
-  V(F32x4Sqrt, F32x8Sqrt)                   \
-  V(F64x2Min, F64x4Min)                     \
-  V(F32x4Min, F32x8Min)                     \
-  V(F64x2Max, F64x4Max)                     \
-  V(F32x4Max, F32x8Max)                     \
-  V(I64x2Ne, I64x4Ne)                       \
-  V(I32x4Ne, I32x8Ne)                       \
-  V(I16x8Ne, I16x16Ne)                      \
-  V(I8x16Ne, I8x32Ne)                       \
-  V(I32x4GtU, I32x8GtU)                     \
-  V(I16x8GtU, I16x16GtU)                    \
-  V(I8x16GtU, I8x32GtU)                     \
-  V(I64x2GeS, I64x4GeS)                     \
-  V(I32x4GeS, I32x8GeS)                     \
-  V(I16x8GeS, I16x16GeS)                    \
-  V(I8x16GeS, I8x32GeS)                     \
-  V(I32x4GeU, I32x8GeU)                     \
-  V(I16x8GeU, I16x16GeU)                    \
-  V(I8x16GeU, I8x32GeU)                     \
-  V(F32x4Pmin, F32x8Pmin)                   \
-  V(F32x4Pmax, F32x8Pmax)                   \
-  V(F64x2Pmin, F64x4Pmin)                   \
-  V(F64x2Pmax, F64x4Pmax)                   \
-  V(F32x4SConvertI32x4, F32x8SConvertI32x8) \
-  V(F32x4UConvertI32x4, F32x8UConvertI32x8) \
-  V(I32x4UConvertF32x4, I32x8UConvertF32x8)
-
-#define SIMD_SHIFT_OP(V)   \
-  V(I64x2Shl, I64x4Shl)    \
-  V(I32x4Shl, I32x8Shl)    \
-  V(I16x8Shl, I16x16Shl)   \
-  V(I32x4ShrS, I32x8ShrS)  \
-  V(I16x8ShrS, I16x16ShrS) \
-  V(I64x2ShrU, I64x4ShrU)  \
-  V(I32x4ShrU, I32x8ShrU)  \
-  V(I16x8ShrU, I16x16ShrU)
-
-#define SIGN_EXTENSION_SIMD_UNOP(V)             \
-  V(I64x2SConvertI32x4Low, I64x4SConvertI32x4)  \
-  V(I64x2UConvertI32x4Low, I64x4UConvertI32x4)  \
-  V(I32x4SConvertI16x8Low, I32x8SConvertI16x8)  \
-  V(I32x4UConvertI16x8Low, I32x8UConvertI16x8)  \
-  V(I16x8SConvertI8x16Low, I16x16SConvertI8x16) \
-  V(I16x8UConvertI8x16Low, I16x16UConvertI8x16)
-
-#define SIMD_SPLAT_OP(V)     \
-  V(I8x16Splat, I8x32Splat)  \
-  V(I16x8Splat, I16x16Splat) \
-  V(I32x4Splat, I32x8Splat)  \
-  V(I64x2Splat, I64x4Splat)
-
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -594,7 +615,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
   }
 
   DCHECK(AllConstant(node_group) || AllSameOperator(node_group) ||
-         IsConvertCase(node_group));
+         MaybePackSignExtensionOp(node_group));
 
   // Check if this is a duplicate of another entry.
   for (Node* node : node_group) {
@@ -682,6 +703,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
   int value_in_count = node0->op()->ValueInputCount();
 
 #define CASE(op128, op256) case IrOpcode::k##op128:
+#define SIGN_EXTENSION_CASE(op_low, not_used1, not_used2) \
+  case IrOpcode::k##op_low:
   switch (node0->opcode()) {
     case IrOpcode::kPhi: {
       TRACE("Added a vector of PHI nodes.\n");
@@ -741,8 +764,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       TRACE("Failed due to shift with different scalar!\n");
       return nullptr;
     }
-    SIGN_EXTENSION_SIMD_UNOP(CASE) {
-      TRACE("add a vector of sign extension un op and stop building tree\n");
+    SIMD_SIGN_EXTENSION_CONVERT_OP(SIGN_EXTENSION_CASE) {
+      TRACE("add a vector of sign extension op and stop building tree\n");
       PackNode* pnode = NewPackNode(node_group);
       PopStack();
       return pnode;
@@ -776,6 +799,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       break;
   }
 #undef CASE
+#undef SIGN_EXTENSION_CASE
   return nullptr;
 }
 
@@ -955,16 +979,16 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 #undef SHIFT_CASE
 #undef SIMD_SHIFT_OP
 
-#define SIGN_EXTENSION_CONVERT_CASE(from, to)                    \
+#define SIGN_EXTENSION_CONVERT_CASE(from, not_used, to)          \
   case IrOpcode::k##from: {                                      \
     DCHECK_EQ(node0->InputAt(0), pnode->Nodes()[1]->InputAt(0)); \
     new_op = mcgraph_->machine()->to();                          \
     inputs[0] = node0->InputAt(0);                               \
     break;                                                       \
   }
-      SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
+      SIMD_SIGN_EXTENSION_CONVERT_OP(SIGN_EXTENSION_CONVERT_CASE)
 #undef SIGN_EXTENSION_CONVERT_CASE
-#undef SIGN_EXTENSION_SIMD_UNOP
+#undef SIMD_SIGN_EXTENSION_CONVERT_OP
 
 #define SPLAT_CASE(from, to)            \
   case IrOpcode::k##from:               \
