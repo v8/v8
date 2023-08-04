@@ -28,6 +28,12 @@ extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  // Spill the signature on the stack so that it can be read by the GC. This is
+  // done in the very beginning before a GC could be triggered.
+  // Caller FP + return address.
+  const sigSlot = LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
+  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
+
   ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
@@ -36,11 +42,6 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   if (ref.wrapper_budget == 0) {
     runtime::TierUpWasmToJSWrapper(kNoContext, ref);
   }
-
-  // Caller FP + return address.
-  const sigSlot = LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
-  // Spill the signature on the stack so that it can be read by the GC.
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
 
   const signaturePod = &ref.sig.bytes;
   const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
