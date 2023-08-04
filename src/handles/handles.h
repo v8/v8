@@ -98,11 +98,7 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  V8_INLINE Handle() : HandleBase(nullptr) {
-    // Skip static type check in order to allow Handle<XXX>::null() as default
-    // parameter values in non-inl header files without requiring full
-    // definition of type XXX.
-  }
+  V8_INLINE Handle() : HandleBase(nullptr) {}
 
   V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
@@ -328,11 +324,7 @@ static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 template <typename T>
 class DirectHandle final {
  public:
-  V8_INLINE explicit DirectHandle() : DirectHandle(kTaggedNullAddress) {
-    // Skip static type check in order to allow DirectHandle<XXX>::null() as
-    // default parameter values in non-inl header files without requiring full
-    // definition of type XXX.
-  }
+  V8_INLINE explicit DirectHandle() : DirectHandle(kTaggedNullAddress) {}
 
   V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
 
@@ -340,9 +332,6 @@ class DirectHandle final {
 #ifdef DEBUG
     VerifyOnStackAndMainThread();
 #endif
-    // This static type check also fails for forward class declarations.
-    static_assert(std::is_convertible<T*, Object*>::value,
-                  "static type violation");
   }
 
   V8_INLINE explicit DirectHandle(Tagged<T> object);
@@ -379,6 +368,12 @@ class DirectHandle final {
   V8_INLINE Tagged<T> operator->() const { return **this; }
 
   V8_INLINE Tagged<T> operator*() const {
+    // This static type check also fails for forward class declarations. We
+    // check on access instead of on construction to allow DirectHandles to
+    // forward declared types.
+    static_assert(
+        std::is_base_of_v<T, Object> || std::is_convertible_v<T*, Object*>,
+        "static type violation");
     // Direct construction of Tagged from address, without a type check, because
     // we rather trust Handle<T> to contain a T than include all the respective
     // -inl.h headers for SLOW_DCHECKs.
