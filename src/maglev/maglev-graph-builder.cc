@@ -1101,7 +1101,10 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
   ValueNode* node = GetTaggedValue(reg);
   NodeType old_type;
   if (CheckType(node, NodeType::kInternalizedString, &old_type)) return node;
-  if (old_type != NodeType::kString) SetKnownType(node, NodeType::kString);
+  if (!NodeTypeIs(old_type, NodeType::kString)) {
+    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+    known_info->CombineType(NodeType::kString);
+  }
   node = AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type));
   current_interpreter_frame_.set(reg, node);
   return node;
@@ -3211,23 +3214,12 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
-void MaglevGraphBuilder::SetKnownType(ValueNode* node, NodeType type) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  // TODO(verwaest): The following would be nice; but currently isn't the case
-  // yet. If there's a conflict in types, we'll unconditionally deopt on a
-  // condition currently. It would be nicer to emit the unconditional deopt
-  // directly when we detect type conflicts. Setting the type isn't problematic
-  // though, since starting from this point the assumption is that the type is
-  // the set type.
-  // DCHECK(NodeTypeIs(type, known_info->type));
-  known_info->set_type(type);
-}
 void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
                                        compiler::ObjectRef ref) {
   DCHECK(!node->Is<Constant>());
   DCHECK(!node->Is<RootConstant>());
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  known_info->set_type(StaticTypeForConstant(broker(), ref));
+  known_info->CombineType(StaticTypeForConstant(broker(), ref));
   known_info->alternative().set_constant(GetConstant(ref));
 }
 
@@ -3365,7 +3357,8 @@ class KnownMapsMerger {
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
     auto node_info = known_node_aspects.GetOrCreateInfoFor(object);
-    node_info->set_possible_maps(intersect_set_, any_map_is_unstable_);
+    node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_,
+                               node_type_);
     // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
     // in case any_map_is_unstable changed to true for this object -- this can
     // happen if this was an intersection with the universal set which added new
@@ -3490,8 +3483,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
-  merger.UpdateKnownNodeAspects(object, known_node_aspects());
-
   // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
   // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
 
@@ -3503,7 +3494,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     AddNewNode<CheckMaps>({object}, merger.intersect_set(),
                           GetCheckType(known_info->type()));
   }
-  known_info->set_type(merger.node_type());
+
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
   return ReduceResult::Done();
 }
 
@@ -3527,10 +3519,10 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       {object}, transition_sources, transition_target,
       GetCheckType(known_info->type()));
   // After this operation, object's map is transition_target (or we deopted).
-  known_info->set_possible_maps(PossibleMaps{transition_target},
-                                !transition_target.is_stable());
+  known_info->SetPossibleMaps(PossibleMaps{transition_target},
+                              !transition_target.is_stable(),
+                              NodeType::kJSReceiver);
   DCHECK(transition_target.IsJSReceiverMap());
-  known_info->set_type(NodeType::kJSReceiver);
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
@@ -3748,18 +3740,18 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
-    known_info->set_type(NodeType::kSmi);
+    known_info->CombineType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
     NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
-      known_info->set_type(NodeType::kJSReceiver);
       auto map = access_info.field_map().value();
-      known_info->set_possible_maps(PossibleMaps{map}, false);
+      known_info->SetPossibleMaps(PossibleMaps{map}, false,
+                                  NodeType::kJSReceiver);
       broker()->dependencies()->DependOnStableMap(map);
     } else {
-      known_info->set_type(NodeType::kAnyHeapObject);
+      known_info->CombineType(NodeType::kAnyHeapObject);
     }
   }
   return value;
@@ -3773,7 +3765,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
 
   ValueNode* length =
       AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
-  known_node_aspects().GetOrCreateInfoFor(length)->set_type(NodeType::kSmi);
+  known_node_aspects().GetOrCreateInfoFor(length)->CombineType(NodeType::kSmi);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -3784,12 +3776,11 @@ void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
   AddNewNode<StoreMap>({receiver}, map);
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
   DCHECK(map.IsJSReceiverMap());
-  node_info->set_type(NodeType::kJSReceiver);
   if (map.is_stable()) {
-    node_info->set_possible_maps(PossibleMaps{map}, false);
+    node_info->SetPossibleMaps(PossibleMaps{map}, false, NodeType::kJSReceiver);
     broker()->dependencies()->DependOnStableMap(map);
   } else {
-    node_info->set_possible_maps(PossibleMaps{map}, true);
+    node_info->SetPossibleMaps(PossibleMaps{map}, true, NodeType::kJSReceiver);
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   }
 }
@@ -5762,6 +5753,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // Remember the receiver map set before entering the loop the call.
   bool receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
   PossibleMaps receiver_maps_before_loop(node_info->possible_maps());
+  NodeType receiver_type_before_loop = node_info->type();
 
   // Create a sub graph builder with one variable (for the index)
   MaglevSubGraphBuilder sub_builder(this, 1);
@@ -5782,8 +5774,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
   // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
-    node_info->set_possible_maps(receiver_maps_before_loop,
-                                 receiver_maps_were_unstable);
+    node_info->SetPossibleMaps(receiver_maps_before_loop,
+                               receiver_maps_were_unstable,
+                               receiver_type_before_loop);
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
     DCHECK_EQ(node_info->possible_maps().size(),

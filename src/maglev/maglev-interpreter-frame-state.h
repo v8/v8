@@ -83,7 +83,6 @@ class NodeInfo {
   }
 
   NodeType type() const { return type_; }
-  NodeType set_type(NodeType new_type) { return type_ = new_type; }
   NodeType CombineType(NodeType other) {
     return type_ = maglev::CombineType(type_, other);
   }
@@ -205,11 +204,25 @@ class NodeInfo {
     return possible_maps_;
   }
 
-  void set_possible_maps(const PossibleMaps& possible_maps,
-                         bool any_map_is_unstable) {
+  void SetPossibleMaps(const PossibleMaps& possible_maps,
+                       bool any_map_is_unstable, NodeType possible_type) {
     possible_maps_ = possible_maps;
     possible_maps_are_known_ = true;
     any_map_is_unstable_ = any_map_is_unstable;
+#ifdef DEBUG
+    if (possible_maps.size()) {
+      NodeType expected = StaticTypeForMap(*possible_maps.begin());
+      for (auto map : possible_maps) {
+        expected = maglev::IntersectType(StaticTypeForMap(map), expected);
+      }
+      // Ensure the claimed type is not narrower than what can be learned from
+      // the map checks.
+      DCHECK(NodeTypeIs(expected, possible_type));
+    } else {
+      DCHECK_EQ(possible_type, NodeType::kUnknown);
+    }
+#endif
+    CombineType(possible_type);
   }
 
   bool any_map_is_unstable() const { return any_map_is_unstable_; }
