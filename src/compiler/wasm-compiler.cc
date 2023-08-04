@@ -481,19 +481,19 @@ void WasmGraphBuilder::StackCheck(
   // them in contexts where load elimination would eliminate the reload.
   // Therefore, we use plain Load nodes which are not subject to load
   // elimination.
-  Node* new_memory0_size = shared_memory_instance_cache == nullptr
-                               ? nullptr
-                               : LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-                                     Memory0Size, MachineType::UintPtr());
+  DCHECK_IMPLIES(shared_memory_instance_cache, has_cached_memory());
+  Node* new_memory_size = shared_memory_instance_cache == nullptr
+                              ? nullptr
+                              : LoadMemSize(cached_memory_index_);
 
   Node* merge = Merge(if_true, control());
   Node* ephi_inputs[] = {check, effect(), merge};
   Node* ephi = EffectPhi(2, ephi_inputs);
 
   if (shared_memory_instance_cache != nullptr) {
-    shared_memory_instance_cache->mem0_size = CreateOrMergeIntoPhi(
+    shared_memory_instance_cache->mem_size = CreateOrMergeIntoPhi(
         MachineType::PointerRepresentation(), merge,
-        shared_memory_instance_cache->mem0_size, new_memory0_size);
+        shared_memory_instance_cache->mem_size, new_memory_size);
   }
 
   SetEffectControl(ephi, merge);
@@ -3232,24 +3232,17 @@ void WasmGraphBuilder::InitInstanceCache(
 
   // Only cache memory start and size if there is a memory (the nodes would be
   // dead otherwise, but we can avoid creating them in the first place).
-  if (env_->module->memories.empty()) return;
+  if (!has_cached_memory()) return;
 
-  // Load the memory start.
-  instance_cache->mem0_start =
-      LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Start, kMaybeSandboxedPointer);
+  instance_cache->mem_start = LoadMemStart(cached_memory_index_);
 
-  // Load the memory size.
   // TODO(13957): Clamp the loaded memory size to a safe value.
-  instance_cache->mem0_size =
-      LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Size, MachineType::UintPtr());
-  wasm::ValueType mem0_size_type =
-      env_->module->memories[0].is_memory64 ? wasm::kWasmI64 : wasm::kWasmI32;
-  SetType(instance_cache->mem0_size, mem0_size_type);
+  instance_cache->mem_size = LoadMemSize(cached_memory_index_);
 }
 
 void WasmGraphBuilder::PrepareInstanceCacheForLoop(
     WasmInstanceCacheNodes* instance_cache, Node* control) {
-  if (env_->module->memories.empty()) return;
+  if (!has_cached_memory()) return;
   for (auto field : WasmInstanceCacheNodes::kFields) {
     instance_cache->*field = graph()->NewNode(
         mcgraph()->common()->Phi(MachineType::PointerRepresentation(), 1),
@@ -3272,10 +3265,10 @@ void WasmGraphBuilder::NewInstanceCacheMerge(WasmInstanceCacheNodes* to,
 void WasmGraphBuilder::MergeInstanceCacheInto(WasmInstanceCacheNodes* to,
                                               WasmInstanceCacheNodes* from,
                                               Node* merge) {
-  if (env_->module->memories.empty()) {
+  if (!has_cached_memory()) {
     // Instance cache nodes should be nullptr then.
-    DCHECK(to->mem0_start == nullptr && to->mem0_size == nullptr &&
-           from->mem0_start == nullptr && from->mem0_size == nullptr);
+    DCHECK(to->mem_start == nullptr && to->mem_size == nullptr &&
+           from->mem_start == nullptr && from->mem_size == nullptr);
     return;
   }
 
@@ -3344,19 +3337,59 @@ void WasmGraphBuilder::SetEffectControl(Node* effect, Node* control) {
   gasm_->InitializeEffectControl(effect, control);
 }
 
-Node* WasmGraphBuilder::MemBuffer(uint32_t mem_index, uintptr_t offset) {
+Node* WasmGraphBuilder::MemStart(uint32_t mem_index) {
   DCHECK_NOT_NULL(instance_cache_);
-  Node* mem_start;
-  if (mem_index == 0) {
-    mem_start = instance_cache_->mem0_start;
-    DCHECK_NOT_NULL(mem_start);
-  } else {
-    Node* memory_bases_and_sizes =
-        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
-    mem_start = gasm_->LoadByteArrayElement(
-        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * mem_index),
-        kMaybeSandboxedPointer);
+  V8_ASSUME(cached_memory_index_ == kNoCachedMemoryIndex ||
+            cached_memory_index_ >= 0);
+  if (mem_index == static_cast<uint8_t>(cached_memory_index_)) {
+    return instance_cache_->mem_start;
   }
+  return LoadMemStart(mem_index);
+}
+
+Node* WasmGraphBuilder::MemSize(uint32_t mem_index) {
+  DCHECK_NOT_NULL(instance_cache_);
+  V8_ASSUME(cached_memory_index_ == kNoCachedMemoryIndex ||
+            cached_memory_index_ >= 0);
+  if (mem_index == static_cast<uint8_t>(cached_memory_index_)) {
+    return instance_cache_->mem_size;
+  }
+
+  return LoadMemSize(mem_index);
+}
+
+Node* WasmGraphBuilder::LoadMemStart(uint32_t mem_index) {
+  if (mem_index == 0) {
+    return LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Start,
+                                              kMaybeSandboxedPointer);
+  }
+  Node* memory_bases_and_sizes =
+      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+  return gasm_->LoadByteArrayElement(memory_bases_and_sizes,
+                                     gasm_->IntPtrConstant(2 * mem_index),
+                                     kMaybeSandboxedPointer);
+}
+
+Node* WasmGraphBuilder::LoadMemSize(uint32_t mem_index) {
+  wasm::ValueType mem_type = env_->module->memories[mem_index].is_memory64
+                                 ? wasm::kWasmI64
+                                 : wasm::kWasmI32;
+  if (mem_index == 0) {
+    return SetType(
+        LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Size, MachineType::UintPtr()),
+        mem_type);
+  }
+  Node* memory_bases_and_sizes =
+      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+  return SetType(
+      gasm_->LoadByteArrayElement(memory_bases_and_sizes,
+                                  gasm_->IntPtrConstant(2 * mem_index + 1),
+                                  MachineType::UintPtr()),
+      mem_type);
+}
+
+Node* WasmGraphBuilder::MemBuffer(uint32_t mem_index, uintptr_t offset) {
+  Node* mem_start = MemStart(mem_index);
   if (offset == 0) return mem_start;
   return gasm_->IntAdd(mem_start, gasm_->UintPtrConstant(offset));
 }
@@ -3364,18 +3397,8 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t mem_index, uintptr_t offset) {
 Node* WasmGraphBuilder::CurrentMemoryPages(const wasm::WasmMemory* memory) {
   // CurrentMemoryPages can not be called from asm.js.
   DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin);
-  Node* mem_size;
-  if (memory->index == 0) {
-    mem_size = instance_cache_->mem0_size;
-  } else {
-    Node* memory_bases_and_sizes =
-        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
-    mem_size = gasm_->LoadByteArrayElement(
-        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * memory->index + 1),
-        MachineType::Pointer());
-  }
 
-  DCHECK_NOT_NULL(mem_size);
+  Node* mem_size = MemSize(memory->index);
   Node* result =
       gasm_->WordShr(mem_size, gasm_->IntPtrConstant(wasm::kWasmPageSizeLog2));
   result = env_->module->memories[0].is_memory64
@@ -3610,16 +3633,7 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
     return {index, BoundsCheckResult::kTrapHandler};
   }
 
-  Node* mem_size;
-  if (memory->index == 0) {
-    mem_size = instance_cache_->mem0_size;
-  } else {
-    Node* memory_bases_and_sizes =
-        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
-    mem_size = gasm_->LoadByteArrayElement(
-        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * memory->index + 1),
-        MachineType::Pointer());
-  }
+  Node* mem_size = MemSize(memory->index);
 
   Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
   if (end_offset > memory->min_memory_size) {
@@ -3984,10 +3998,8 @@ void WasmGraphBuilder::StoreMem(const wasm::WasmMemory* memory,
 Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   DCHECK_NOT_NULL(instance_cache_);
   DCHECK_EQ(1, env_->module->memories.size());
-  Node* mem_start = instance_cache_->mem0_start;
-  Node* mem_size = instance_cache_->mem0_size;
-  DCHECK_NOT_NULL(mem_start);
-  DCHECK_NOT_NULL(mem_size);
+  Node* mem_start = MemStart(0);
+  Node* mem_size = MemSize(0);
 
   // Asm.js semantics are defined in terms of typed arrays, hence OOB
   // reads return {undefined} coerced to the result type (0 for integers, NaN
@@ -4031,10 +4043,8 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
                                            Node* val) {
   DCHECK_NOT_NULL(instance_cache_);
   DCHECK_EQ(1, env_->module->memories.size());
-  Node* mem_start = instance_cache_->mem0_start;
-  Node* mem_size = instance_cache_->mem0_size;
-  DCHECK_NOT_NULL(mem_start);
-  DCHECK_NOT_NULL(mem_size);
+  Node* mem_start = MemStart(0);
+  Node* mem_size = MemSize(0);
 
   // Asm.js semantics are to ignore OOB writes.
   // Note that we check against the memory size ignoring the size of the

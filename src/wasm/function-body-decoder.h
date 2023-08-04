@@ -155,12 +155,12 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   BytecodeIterator(const uint8_t* start, const uint8_t* end,
                    BodyLocalDecls* decls, Zone* zone);
 
-  base::iterator_range<opcode_iterator> opcodes() {
+  base::iterator_range<opcode_iterator> opcodes() const {
     return base::iterator_range<opcode_iterator>(opcode_iterator(pc_, end_),
                                                  opcode_iterator(end_, end_));
   }
 
-  base::iterator_range<offset_iterator> offsets() {
+  base::iterator_range<offset_iterator> offsets() const {
     return base::iterator_range<offset_iterator>(
         offset_iterator(start_, pc_, end_),
         offset_iterator(start_, end_, end_));
@@ -178,12 +178,14 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
     }
   }
 
-  bool has_next() { return pc_ < end_; }
+  bool has_next() const { return pc_ < end_; }
 
   WasmOpcode prefixed_opcode() {
     auto [opcode, length] = read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
     return opcode;
   }
+
+  const uint8_t* pc() const { return pc_; }
 };
 
 }  // namespace v8::internal::wasm

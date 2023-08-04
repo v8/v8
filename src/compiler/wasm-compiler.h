@@ -120,19 +120,18 @@ V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(
 // and manipulated in wasm-compiler.{h,cc} instead of inside the Wasm decoder.
 // (Note that currently, the globals base is immutable, so not cached here.)
 struct WasmInstanceCacheNodes {
-  // Cache the memory start and size of the first memory.
-  // TODO(clemensb): Reconsider this for better performance of additional
-  // memories.
-  Node* mem0_start = nullptr;
-  Node* mem0_size = nullptr;
+  // Cache the memory start and size of one fixed memory per function. Which one
+  // is determined by {WasmGraphBuilder::cached_memory_index}.
+  Node* mem_start = nullptr;
+  Node* mem_size = nullptr;
 
   // For iteration support. Defined outside the class for MSVC compatibility.
   using FieldPtr = Node* WasmInstanceCacheNodes::*;
   static const FieldPtr kFields[2];
 };
 inline constexpr WasmInstanceCacheNodes::FieldPtr
-    WasmInstanceCacheNodes::kFields[] = {&WasmInstanceCacheNodes::mem0_start,
-                                         &WasmInstanceCacheNodes::mem0_size};
+    WasmInstanceCacheNodes::kFields[] = {&WasmInstanceCacheNodes::mem_start,
+                                         &WasmInstanceCacheNodes::mem_size};
 
 struct WasmLoopInfo {
   Node* header;
@@ -617,12 +616,33 @@ class WasmGraphBuilder {
     inlining_id_ = inlining_id;
   }
 
+  bool has_cached_memory() const {
+    return cached_memory_index_ != kNoCachedMemoryIndex;
+  }
+  int cached_memory_index() const {
+    DCHECK(has_cached_memory());
+    return cached_memory_index_;
+  }
+  void set_cached_memory_index(int cached_memory_index) {
+    DCHECK_LE(0, cached_memory_index);
+    DCHECK(!has_cached_memory());
+    cached_memory_index_ = cached_memory_index;
+  }
+
  protected:
   Node* NoContextConstant();
 
   Node* GetInstance();
   Node* BuildLoadIsolateRoot();
   Node* UndefinedValue();
+
+  // Get a memory start or size, using the cached SSA value if available.
+  Node* MemStart(uint32_t mem_index);
+  Node* MemSize(uint32_t mem_index);
+
+  // Load a memory start or size (without using the cache).
+  Node* LoadMemStart(uint32_t mem_index);
+  Node* LoadMemSize(uint32_t mem_index);
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
   // offset fits in a platform-dependent uintptr_t.
@@ -869,6 +889,8 @@ class WasmGraphBuilder {
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;
   NullCheckStrategy null_check_strategy_;
+  static constexpr int kNoCachedMemoryIndex = -1;
+  int cached_memory_index_ = kNoCachedMemoryIndex;
 };
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
