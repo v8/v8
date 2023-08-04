@@ -186,7 +186,7 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
 
 base::Optional<int> InspectorIsolateData::ConnectSession(
     int context_group_id, const v8_inspector::StringView& state,
-    std::unique_ptr<FrontendChannelImpl> channel) {
+    std::unique_ptr<FrontendChannelImpl> channel, bool is_fully_trusted) {
   if (contexts_.find(context_group_id) == contexts_.end()) return base::nullopt;
 
   v8::SealHandleScope seal_handle_scope(isolate());
@@ -196,7 +196,9 @@ base::Optional<int> InspectorIsolateData::ConnectSession(
   auto* c = channel.get();
   ChannelHolder::AddChannel(session_id, std::move(channel));
   sessions_[session_id] = inspector_->connect(
-      context_group_id, c, state, v8_inspector::V8Inspector::kFullyTrusted,
+      context_group_id, c, state,
+      is_fully_trusted ? v8_inspector::V8Inspector::kFullyTrusted
+                       : v8_inspector::V8Inspector::kUntrusted,
       waiting_for_debugger_
           ? v8_inspector::V8Inspector::kWaitingForDebugger
           : v8_inspector::V8Inspector::kNotWaitingForDebugger);
