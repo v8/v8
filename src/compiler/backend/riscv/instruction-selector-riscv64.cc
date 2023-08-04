@@ -341,6 +341,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
         break;
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -431,6 +432,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -1460,37 +1462,41 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Node* value = node->InputAt(0);
-  if (CanCover(node, value)) {
-    switch (value->opcode()) {
-      case IrOpcode::kWord64Sar: {
-        if (CanCover(value, value->InputAt(0)) &&
-            TryEmitExtendingLoad(this, value, node)) {
-          return;
-        } else {
-          Int64BinopMatcher m(value);
-          if (m.right().IsInRange(32, 63)) {
-            // After smi untagging no need for truncate. Combine sequence.
-            Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-                 g.UseRegister(m.left().node()),
-                 g.UseImmediate(m.right().node()));
+void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Node* value = node->InputAt(0);
+    if (CanCover(node, value)) {
+      switch (value->opcode()) {
+        case IrOpcode::kWord64Sar: {
+          if (CanCover(value, value->InputAt(0)) &&
+              TryEmitExtendingLoad(this, value, node)) {
             return;
+          } else {
+            Int64BinopMatcher m(value);
+            if (m.right().IsInRange(32, 63)) {
+              // After smi untagging no need for truncate. Combine sequence.
+              Emit(kRiscvSar64, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseImmediate(m.right().node()));
+              return;
+            }
           }
+          break;
         }
-        break;
+        default:
+          break;
       }
-      default:
-        break;
     }
+    // Semantics of this machine IR is not clear. For example, x86 zero-extend
+    // the truncated value; arm treats it as nop thus the upper 32-bit as
+    // undefined; Riscv emits ext instruction which zero-extend the 32-bit
+    // value; for riscv, we do sign-extension of the truncated value
+    Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.TempImmediate(0));
   }
-  // Semantics of this machine IR is not clear. For example, x86 zero-extend the
-  // truncated value; arm treats it as nop thus the upper 32-bit as undefined;
-  // Riscv emits ext instruction which zero-extend the 32-bit value; for riscv,
-  // we do sign-extension of the truncated value
-  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.TempImmediate(0));
 }
 
 template <typename Adapter>
@@ -1761,6 +1767,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1818,6 +1825,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }

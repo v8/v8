@@ -735,9 +735,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                   Operand(kScratchReg));
       }
-      static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-      __ LoadTaggedField(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ CallCodeObject(a2);
+      __ CallJSFunction(func);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -910,6 +908,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreIndirectWithWriteBarrier:
+      UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
@@ -1539,12 +1539,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvFloat64SilenceNaN:
       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kRiscvCvtSD:
-      __ fcvt_s_d(i.OutputSingleRegister(), i.InputDoubleRegister(0));
+    case kRiscvCvtSD: {
+      Label done;
+      __ feq_d(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
+      __ fcvt_s_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Branch(&done, eq, kScratchReg, Operand(1));
+      __ And(kScratchReg2, kScratchReg2, Operand(0x8000000000000000));
+      __ srai(kScratchReg2, kScratchReg2, 32);
+      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+      __ fsgnj_s(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+                 kScratchDoubleReg);
+      __ bind(&done);
       break;
-    case kRiscvCvtDS:
+    }
+    case kRiscvCvtDS: {
+      Label done;
+      __ feq_s(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
+      __ Branch(&done, eq, kScratchReg, Operand(1));
+      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
+      __ slli(kScratchReg2, kScratchReg2, 32);
+      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+      __ fsgnj_d(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+                 kScratchDoubleReg);
+      __ bind(&done);
       break;
+    }
     case kRiscvCvtDW: {
       __ fcvt_d_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
@@ -2416,12 +2438,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI64x2Mul: {
       (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
       __ vmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI64x2Add: {
-      (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
-      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
@@ -3759,7 +3775,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_RVV_BINOP_INTEGER(MinU, vminu_vv)
       ASSEMBLE_RVV_BINOP_INTEGER(MinS, vmin_vv)
       ASSEMBLE_RVV_UNOP_INTEGER_VR(Splat, vmv_vx)
-      ASSEMBLE_RVV_BINOP_INTEGER(Add, vadd_vv)
       ASSEMBLE_RVV_BINOP_INTEGER(Sub, vsub_vv)
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvI64x2Splat: {
@@ -3826,7 +3841,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kRiscvVaddVv: {
+    case kRiscvVadd: {
       __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));

@@ -127,7 +127,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI64x2ExtractLane:
     case kRiscvI64x2ReplaceLane:
     case kRiscvI64x2ReplaceLaneI32Pair:
-    case kRiscvI64x2Add:
     case kRiscvI64x2Sub:
     case kRiscvI64x2Mul:
     case kRiscvI64x2Neg:
@@ -191,7 +190,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI64x2SConvertI32x4High:
     case kRiscvI64x2UConvertI32x4Low:
     case kRiscvI64x2UConvertI32x4High:
-    case kRiscvI16x8Add:
     case kRiscvI16x8AddSatS:
     case kRiscvI16x8AddSatU:
     case kRiscvI16x8Eq:
@@ -230,7 +228,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI16x8Q15MulRSatS:
     case kRiscvI16x8Abs:
     case kRiscvI16x8BitMask:
-    case kRiscvI32x4Add:
     case kRiscvI32x4Eq:
     case kRiscvI32x4ExtractLane:
     case kRiscvI32x4GeS:
@@ -258,7 +255,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI32x4UConvertI16x8Low:
     case kRiscvI32x4Abs:
     case kRiscvI32x4BitMask:
-    case kRiscvI8x16Add:
     case kRiscvI8x16AddSatS:
     case kRiscvI8x16AddSatU:
     case kRiscvI8x16Eq:
@@ -354,7 +350,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVwmulu:
     case kRiscvVmvSx:
     case kRiscvVcompress:
-    case kRiscvVaddVv:
+    case kRiscvVadd:
     case kRiscvVwadd:
     case kRiscvVwaddu:
     case kRiscvVrgather:
