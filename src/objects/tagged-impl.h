@@ -51,7 +51,7 @@ class TaggedImpl {
   explicit constexpr TaggedImpl(StorageType ptr) : ptr_(ptr) {}
 
   // Make clang on Linux catch what MSVC complains about on Windows:
-  operator bool() const = delete;
+  explicit operator bool() const = delete;
 
   // Don't use this operator for comparing with stale or invalid pointers
   // because CheckObjectComparisonAllowed() might crash when trying to access

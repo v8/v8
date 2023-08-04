@@ -129,13 +129,13 @@ constexpr Tagged<Smi>::Tagged(Smi raw) : TaggedBase(raw.ptr()) {
 // NOLINTNEXTLINE
 constexpr Tagged<Smi>::operator Smi() {
   static_assert(kTaggedCanConvertToRawObjects);
-  return Smi(ptr_);
+  return Smi(ptr());
 }
 
 // Access via ->, remove once Smi doesn't have its own address.
-constexpr Smi Tagged<Smi>::operator*() const { return Smi(ptr_); }
+constexpr Smi Tagged<Smi>::operator*() const { return Smi(ptr()); }
 constexpr detail::TaggedOperatorArrowRef<Smi> Tagged<Smi>::operator->() {
-  return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr_));
+  return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr()));
 }
 
 }  // namespace internal

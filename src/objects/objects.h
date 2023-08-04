@@ -738,29 +738,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                  MessageTemplate error_index);
 };
 
-// Implicit comparisons with raw pointers
-// TODO(leszeks): Remove once we're using Tagged everywhere.
-inline constexpr bool operator==(TaggedBase tagged_ptr, Object obj) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(tagged_ptr.ptr()) ==
-         static_cast<Tagged_t>(obj.ptr());
-}
-inline constexpr bool operator==(Object obj, TaggedBase tagged_ptr) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(obj.ptr()) ==
-         static_cast<Tagged_t>(tagged_ptr.ptr());
-}
-inline constexpr bool operator!=(TaggedBase tagged_ptr, Object obj) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(tagged_ptr.ptr()) !=
-         static_cast<Tagged_t>(obj.ptr());
-}
-inline constexpr bool operator!=(Object obj, TaggedBase tagged_ptr) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return static_cast<Tagged_t>(obj.ptr()) !=
-         static_cast<Tagged_t>(tagged_ptr.ptr());
-}
-
 // TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
 // have an operator* or operator->. Remove once all Object member functions
 // are free/static functions.
@@ -919,12 +896,34 @@ V8_EXPORT_PRIVATE void ShortPrint(Object obj, StringStream* accumulator);
 
 V8_EXPORT_PRIVATE void ShortPrint(Object obj, std::ostream& os);
 
+inline void ShortPrint(TaggedBase obj, FILE* out = stdout) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return ShortPrint(Object(obj.ptr()), out);
+}
+inline void ShortPrint(TaggedBase obj, StringStream* accumulator) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return ShortPrint(Object(obj.ptr()), accumulator);
+}
+inline void ShortPrint(TaggedBase obj, std::ostream& os) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return ShortPrint(Object(obj.ptr()), os);
+}
+
 #ifdef OBJECT_PRINT
 // For our gdb macros, we should perhaps change these in the future.
 V8_EXPORT_PRIVATE void Print(Object obj);
 
 // Prints this object with details.
 V8_EXPORT_PRIVATE void Print(Object obj, std::ostream& os);
+
+inline void Print(TaggedBase obj) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return Print(Object(obj.ptr()));
+}
+inline void Print(TaggedBase obj, std::ostream& os) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return Print(Object(obj.ptr()), os);
+}
 
 #else
 inline void Print(Object obj) { ShortPrint(obj); }

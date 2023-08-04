@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 class Object;
-class TaggedBase;
+using TaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 
 template <typename Subclass, typename Data,
           size_t SlotDataAlignment = sizeof(Data)>

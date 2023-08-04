@@ -9,6 +9,7 @@
 
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-impl.h"
 
 namespace v8 {
 namespace internal {
@@ -58,42 +59,9 @@ class Tagged;
 // Tagged<Foo> and Foo.
 static constexpr bool kTaggedCanConvertToRawObjects = true;
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-// When V8_EXTERNAL_CODE_SPACE is enabled comparing InstructionStream and
-// non-InstructionStream objects by looking only at compressed values it not
-// correct. Full pointers must be compared instead.
-bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
-#endif
-
 // Base class for all Tagged<T> classes.
-class TaggedBase {
- public:
-  constexpr TaggedBase() = default;
-
-  constexpr Address ptr() const { return ptr_; }
-
-  constexpr bool operator==(TaggedBase other) const {
-    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(other.ptr());
-  }
-  constexpr bool operator!=(TaggedBase other) const {
-    return static_cast<Tagged_t>(ptr()) != static_cast<Tagged_t>(other.ptr());
-  }
-
-  // For using in std::set and std::map.
-  constexpr bool operator<(TaggedBase other) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
-#endif  // V8_EXTERNAL_CODE_SPACE
-    return static_cast<Tagged_t>(ptr_) < static_cast<Tagged_t>(other.ptr());
-  }
-
- protected:
-  friend class FullObjectSlot;
-
-  constexpr explicit TaggedBase(Address ptr) : ptr_(ptr) {}
-  // TODO(leszeks): Consider a different default value, e.g. a tagged null.
-  Address ptr_ = kNullAddress;
-};
+// TODO(leszeks): Merge with TaggedImpl.
+using TaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 
 namespace detail {
 
@@ -164,8 +132,7 @@ class Tagged<Object> : public TaggedBase {
   // NOLINTNEXTLINE
   constexpr Tagged(TaggedBase other) : TaggedBase(other.ptr()) {}
   constexpr Tagged& operator=(TaggedBase other) {
-    ptr_ = other.ptr();
-    return *this;
+    return *this = Tagged(other);
   }
 
   // TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
@@ -173,9 +140,6 @@ class Tagged<Object> : public TaggedBase {
   // are free/static functions.
   inline constexpr Object operator*() const;
   inline constexpr detail::TaggedOperatorArrowRef<Object> operator->();
-
-  inline bool IsHeapObject() const { return !IsSmi(); }
-  inline bool IsSmi() const { return HAS_SMI_TAG(ptr()); }
 
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
@@ -216,7 +180,7 @@ class Tagged<Smi> : public TaggedBase {
   constexpr bool IsHeapObject() const { return false; }
   constexpr bool IsSmi() const { return true; }
 
-  constexpr int32_t value() const { return Internals::SmiValue(ptr_); }
+  constexpr int32_t value() const { return Internals::SmiValue(ptr()); }
 
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
@@ -270,8 +234,7 @@ class Tagged<HeapObject> : public TaggedBase {
             typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
                                         std::is_convertible_v<U*, HeapObject*>>>
   constexpr Tagged& operator=(Tagged<U> other) {
-    this->ptr_ = other.ptr();
-    return *this;
+    return *this = Tagged(other);
   }
 
   // Implicit conversion for subclasses.
@@ -357,7 +320,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
             typename = std::enable_if_t<std::is_base_of_v<T, U> ||
                                         std::is_convertible_v<U*, T*>>>
   constexpr Tagged& operator=(Tagged<U> other) {
-    this->ptr_ = other.ptr();
+    *this = Tagged(other);
     return *this;
   }
 
