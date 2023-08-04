@@ -547,8 +547,12 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kInt32:
-      node->OverwriteWith<CheckInt32IsSmi>();
-      return ProcessResult::kContinue;
+      if (!SmiValuesAre32Bits()) {
+        node->OverwriteWith<CheckInt32IsSmi>();
+        return ProcessResult::kContinue;
+      } else {
+        return ProcessResult::kRemove;
+      }
 
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:

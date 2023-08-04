@@ -257,8 +257,8 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   }
   Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  Add(table, table, Operand(char_code, LSL, kTaggedSizeLog2));
-  DecompressTagged(result, FieldMemOperand(table, FixedArray::kHeaderSize));
+  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
+                         FixedArray::kHeaderSize);
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -369,9 +369,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 
   // Get instance type.
-  LoadMap(instance_type, string);
-  Ldr(instance_type.W(),
-      FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+  LoadInstanceType(instance_type, string);
 
   {
     ScratchRegisterScope temps(this);
@@ -393,8 +391,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   // Is a thin string.
   {
-    DecompressTagged(string,
-                     FieldMemOperand(string, ThinString::kActualOffset));
+    LoadTaggedField(string, string, ThinString::kActualOffset);
     B(&loop);
   }
 
@@ -403,10 +400,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     ScratchRegisterScope temps(this);
     Register offset = temps.Acquire();
 
-    Ldr(offset.W(), FieldMemOperand(string, SlicedString::kOffsetOffset));
-    SmiUntag(offset);
-    DecompressTagged(string,
-                     FieldMemOperand(string, SlicedString::kParentOffset));
+    LoadAndUntagTaggedSignedField(offset, string, SlicedString::kOffsetOffset);
+    LoadTaggedField(string, string, SlicedString::kParentOffset);
     Add(index, index, offset);
     B(&loop);
   }
@@ -416,10 +411,11 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // Reuse {instance_type} register here, since CompareRoot requires a scratch
     // register as well.
     Register second_string = instance_type;
-    Ldr(second_string.W(), FieldMemOperand(string, ConsString::kSecondOffset));
+    LoadTaggedFieldWithoutDecompressing(second_string, string,
+                                        ConsString::kSecondOffset);
     CompareRoot(second_string, RootIndex::kempty_string);
     B(deferred_runtime_call, ne);
-    DecompressTagged(string, FieldMemOperand(string, ConsString::kFirstOffset));
+    LoadTaggedField(string, string, ConsString::kFirstOffset);
     B(&loop);  // Try again with first string.
   }
 
