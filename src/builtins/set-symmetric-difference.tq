@@ -26,10 +26,14 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
       GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
 
   // 5. Let resultSetData be a copy of O.[[SetData]].
-  let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
+  const resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
       table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
+  let resultAndNumberOfElements = OrderedHashSetAndNumberOfElements{
+    setData: resultSetData,
+    numberOfElements: UnsafeCast<Smi>(
+        resultSetData.objects[kOrderedHashSetNumberOfElementsIndex])
+  };
 
-  let numberOfElements: Smi = 0;
   try {
     typeswitch (other) {
       case (otherSet: JSSetWithNoCustomIteration): {
@@ -44,8 +48,8 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
         while (true) {
           const nextValue = otherIterator.Next() otherwise Done;
 
-          numberOfElements = FastSymmetricDifference(
-              nextValue, table, resultSetData, numberOfElements, methodName);
+          resultAndNumberOfElements = FastSymmetricDifference(
+              nextValue, table, resultAndNumberOfElements, methodName);
         }
       }
       case (otherMap: JSMapWithNoCustomIteration): {
@@ -60,9 +64,8 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
         while (true) {
           const nextValue = otherIterator.Next() otherwise Done;
 
-          numberOfElements = FastSymmetricDifference(
-              nextValue.key, table, resultSetData, numberOfElements,
-              methodName);
+          resultAndNumberOfElements = FastSymmetricDifference(
+              nextValue.key, table, resultAndNumberOfElements, methodName);
         }
       }
       case (JSAny): {
@@ -87,46 +90,55 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
       nextValue = collections::NormalizeNumberKey(nextValue);
 
       //      iii. Let inResult be SetDataHas(resultSetData, nextValue).
-      const inResult = TableHasKey(resultSetData, nextValue);
+      const inResult =
+          TableHasKey(resultAndNumberOfElements.setData, nextValue);
 
       //      iv. If SetDataHas(O.[[SetData]], nextValue) is true, then
       if (TableHasKey(table, nextValue)) {
         //  1. If inResult is true, remove nextValue from resultSetData.
         if (inResult) {
-          numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+          resultAndNumberOfElements.numberOfElements =
+              DeleteFromSetTable(resultAndNumberOfElements.setData, nextValue)
               otherwise unreachable;
         }
       } else {
         // v. Else,
         //    1. If inResult is false, append nextValue to resultSetData.
         if (!inResult) {
-          resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
-          numberOfElements++;
+          resultAndNumberOfElements.setData = AddToSetTable(
+              resultAndNumberOfElements.setData, nextValue, methodName);
+          resultAndNumberOfElements.numberOfElements++;
         }
       }
     }
   } label Done {
-    resultSetData =
-        ShrinkOrderedHashSetIfNeeded(numberOfElements, resultSetData);
+    const shrunk = ShrinkOrderedHashSetIfNeeded(
+        resultAndNumberOfElements.numberOfElements,
+        resultAndNumberOfElements.setData);
     return new JSSet{
       map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
       properties_or_hash: kEmptyFixedArray,
       elements: kEmptyFixedArray,
-      table: resultSetData
+      table: shrunk
     };
   }
   unreachable;
 }
 
 // This macro gets the nextValue in other table and normalize it. If the
-// nextValue exists in the reciever table, it will be removed. Otherwise
+// nextValue exists in the receiver table, it will be removed. Otherwise
 // it will be added to the resultSetData.
+struct OrderedHashSetAndNumberOfElements {
+  setData: OrderedHashSet;
+  numberOfElements: Smi;
+}
 macro FastSymmetricDifference(implicit context: Context)(
-    nextValue: JSAny, table: OrderedHashSet, resultSetData: OrderedHashSet,
-    numberOfElements: Smi, methodName: constexpr string): Smi {
+    nextValue: JSAny, table: OrderedHashSet,
+    resultSetDataAndNumberOfElements: OrderedHashSetAndNumberOfElements,
+    methodName: constexpr string): OrderedHashSetAndNumberOfElements {
   let key = nextValue;
-  let result = resultSetData;
-  let numberOfElementsModifiable = numberOfElements;
+  let resultSetData = resultSetDataAndNumberOfElements.setData;
+  let numberOfElements = resultSetDataAndNumberOfElements.numberOfElements;
 
   // ii. If nextValue is -0𝔽, set nextValue to +0𝔽.
   key = collections::NormalizeNumberKey(key);
@@ -138,14 +150,17 @@ macro FastSymmetricDifference(implicit context: Context)(
   dcheck(inResult == TableHasKey(table, key));
   //  1. If inResult is true, remove nextValue from resultSetData.
   if (inResult) {
-    numberOfElementsModifiable = DeleteFromSetTable(resultSetData, key)
+    numberOfElements = DeleteFromSetTable(resultSetData, key)
         otherwise unreachable;
   } else {
     // v. Else,
     //  1. If inResult is false, append nextValue to resultSetData.
-    result = AddToSetTable(resultSetData, key, methodName);
-    numberOfElementsModifiable++;
+    resultSetData = AddToSetTable(resultSetData, key, methodName);
+    numberOfElements++;
   }
-  return numberOfElementsModifiable;
+  return OrderedHashSetAndNumberOfElements{
+    setData: resultSetData,
+    numberOfElements: numberOfElements
+  };
 }
 }

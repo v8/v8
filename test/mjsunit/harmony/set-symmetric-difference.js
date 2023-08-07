@@ -200,3 +200,19 @@
 
   assertEquals(resultArray, symmetricDifferenceArray);
 })();
+
+(function TestSymmetricDifferenceGrowFastPath() {
+  const s1 = new Set([1, 2, 3]).symmetricDifference(new Set([4, 5, 6]));
+  assertEquals([1, 2, 3, 4, 5, 6], Array.from(s1));
+
+  const s2 = new Set([1, 2, 3]).symmetricDifference(new Set([3, 4, 5, 6]));
+  assertEquals([1, 2, 4, 5, 6], Array.from(s2));
+
+  const s3 =
+      new Set([1, 2, 3]).symmetricDifference(new Map([[4, 4], [5, 5], [6, 6]]));
+  assertEquals([1, 2, 3, 4, 5, 6], Array.from(s3));
+
+  const s4 = new Set([1, 2, 3]).symmetricDifference(
+      new Map([[3, 3], [4, 4], [5, 5], [6, 6]]));
+  assertEquals([1, 2, 4, 5, 6], Array.from(s4));
+})();
