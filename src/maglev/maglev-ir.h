@@ -101,12 +101,7 @@ class MergePointInterpreterFrameState;
   V(Int32NegateWithOverflow)          \
   V(Int32IncrementWithOverflow)       \
   V(Int32DecrementWithOverflow)       \
-  V(Int32Equal)                       \
-  V(Int32StrictEqual)                 \
-  V(Int32LessThan)                    \
-  V(Int32LessThanOrEqual)             \
-  V(Int32GreaterThan)                 \
-  V(Int32GreaterThanOrEqual)
+  V(Int32Compare)
 
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
   V(Float64Add)                         \
@@ -117,12 +112,7 @@ class MergePointInterpreterFrameState;
   V(Float64Modulus)                     \
   V(Float64Negate)                      \
   V(Float64Round)                       \
-  V(Float64Equal)                       \
-  V(Float64StrictEqual)                 \
-  V(Float64LessThan)                    \
-  V(Float64LessThanOrEqual)             \
-  V(Float64GreaterThan)                 \
-  V(Float64GreaterThanOrEqual)          \
+  V(Float64Compare)                     \
   V(Float64Ieee754Unary)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
@@ -322,7 +312,7 @@ class MergePointInterpreterFrameState;
   V(BranchIfInt32ToBooleanTrue)     \
   V(BranchIfFloat64ToBooleanTrue)   \
   V(BranchIfFloat64IsHole)          \
-  V(BranchIfReferenceCompare)       \
+  V(BranchIfReferenceEqual)         \
   V(BranchIfInt32Compare)           \
   V(BranchIfFloat64Compare)         \
   V(BranchIfUndefinedOrNull)        \
@@ -2567,36 +2557,32 @@ class Int32ShiftRightLogical
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-template <class Derived, Operation kOperation>
-class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
-  using Base = FixedInputValueNodeT<2, Derived>;
+class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
+  using Base = FixedInputValueNodeT<2, Int32Compare>;
 
  public:
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+  explicit Int32Compare(uint64_t bitfield, Operation operation)
+      : Base(OperationBitField::update(bitfield, operation)) {}
+
+  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kInt32,
+                                                ValueRepresentation::kInt32};
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
- protected:
-  explicit Int32CompareNode(uint64_t bitfield) : Base(bitfield) {}
+  constexpr Operation operation() const {
+    return OperationBitField::decode(bitfield());
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-#define DEF_INT32_COMPARE_NODE(Name) \
-  DEF_OPERATION_NODE(Int32##Name, Int32CompareNode, Name)
-DEF_INT32_COMPARE_NODE(Equal)
-DEF_INT32_COMPARE_NODE(StrictEqual)
-DEF_INT32_COMPARE_NODE(LessThan)
-DEF_INT32_COMPARE_NODE(LessThanOrEqual)
-DEF_INT32_COMPARE_NODE(GreaterThan)
-DEF_INT32_COMPARE_NODE(GreaterThanOrEqual)
-#undef DEF_INT32_COMPARE_NODE
+ private:
+  using OperationBitField = NextBitField<Operation, 5>;
+};
 
 template <class Derived, Operation kOperation>
 class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
@@ -2670,39 +2656,35 @@ DEF_FLOAT64_BINARY_NODE_WITH_CALL(Exponentiate)
 #undef DEF_FLOAT64_BINARY_NODE
 #undef DEF_FLOAT64_BINARY_NODE_WITH_CALL
 
-template <class Derived, Operation kOperation>
-class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
-  using Base = FixedInputValueNodeT<2, Derived>;
+#undef DEF_OPERATION_NODE
+#undef DEF_OPERATION_NODE_WITH_CALL
+
+class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
+  using Base = FixedInputValueNodeT<2, Float64Compare>;
 
  public:
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
+  explicit Float64Compare(uint64_t bitfield, Operation operation)
+      : Base(OperationBitField::update(bitfield, operation)) {}
+
+  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kFloat64,
+                                                ValueRepresentation::kFloat64};
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
- protected:
-  explicit Float64CompareNode(uint64_t bitfield) : Base(bitfield) {}
+  constexpr Operation operation() const {
+    return OperationBitField::decode(bitfield());
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  using OperationBitField = NextBitField<Operation, 5>;
 };
-
-#define DEF_FLOAT64_COMPARE_NODE(Name) \
-  DEF_OPERATION_NODE(Float64##Name, Float64CompareNode, Name)
-DEF_FLOAT64_COMPARE_NODE(Equal)
-DEF_FLOAT64_COMPARE_NODE(StrictEqual)
-DEF_FLOAT64_COMPARE_NODE(LessThan)
-DEF_FLOAT64_COMPARE_NODE(LessThanOrEqual)
-DEF_FLOAT64_COMPARE_NODE(GreaterThan)
-DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
-#undef DEF_FLOAT64_COMPARE_NODE
-
-#undef DEF_OPERATION_NODE
-#undef DEF_OPERATION_NODE_WITH_CALL
 
 class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
   using Base = FixedInputValueNodeT<1, Float64Negate>;
@@ -8112,9 +8094,9 @@ class BranchIfFloat64Compare
   Operation operation_;
 };
 
-class BranchIfReferenceCompare
-    : public BranchControlNodeT<2, BranchIfReferenceCompare> {
-  using Base = BranchControlNodeT<2, BranchIfReferenceCompare>;
+class BranchIfReferenceEqual
+    : public BranchControlNodeT<2, BranchIfReferenceEqual> {
+  using Base = BranchControlNodeT<2, BranchIfReferenceEqual>;
 
  public:
   static constexpr int kLeftIndex = 0;
@@ -8122,10 +8104,10 @@ class BranchIfReferenceCompare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfReferenceCompare(uint64_t bitfield, Operation operation,
-                                    BasicBlockRef* if_true_refs,
-                                    BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
+  explicit BranchIfReferenceEqual(uint64_t bitfield,
+                                  BasicBlockRef* if_true_refs,
+                                  BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
@@ -8135,10 +8117,7 @@ class BranchIfReferenceCompare
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  Operation operation_;
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {

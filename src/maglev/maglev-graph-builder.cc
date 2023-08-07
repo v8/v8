@@ -1519,14 +1519,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
   V(Decrement, Int32DecrementWithOverflow)   \
   V(Negate, Int32NegateWithOverflow)
 
-#define MAP_COMPARE_OPERATION_TO_INT32_NODE(V) \
-  V(Equal, Int32Equal)                         \
-  V(StrictEqual, Int32StrictEqual)             \
-  V(LessThan, Int32LessThan)                   \
-  V(LessThanOrEqual, Int32LessThanOrEqual)     \
-  V(GreaterThan, Int32GreaterThan)             \
-  V(GreaterThanOrEqual, Int32GreaterThanOrEqual)
-
 // MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
 // (Operation name, Float64 operation node).
 #define MAP_OPERATION_TO_FLOAT64_NODE(V) \
@@ -1537,14 +1529,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
   V(Modulus, Float64Modulus)             \
   V(Negate, Float64Negate)               \
   V(Exponentiate, Float64Exponentiate)
-
-#define MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(V) \
-  V(Equal, Float64Equal)                         \
-  V(StrictEqual, Float64StrictEqual)             \
-  V(LessThan, Float64LessThan)                   \
-  V(LessThanOrEqual, Float64LessThanOrEqual)     \
-  V(GreaterThan, Float64GreaterThan)             \
-  V(GreaterThanOrEqual, Float64GreaterThanOrEqual)
 
 template <Operation kOperation>
 static constexpr base::Optional<int> Int32Identity() {
@@ -1569,7 +1553,6 @@ struct Int32NodeForHelper;
   };
 MAP_UNARY_OPERATION_TO_INT32_NODE(SPECIALIZATION)
 MAP_BINARY_OPERATION_TO_INT32_NODE(SPECIALIZATION)
-MAP_COMPARE_OPERATION_TO_INT32_NODE(SPECIALIZATION)
 #undef SPECIALIZATION
 
 template <Operation kOperation>
@@ -1583,7 +1566,6 @@ struct Float64NodeForHelper;
     using type = OpNode;                          \
   };
 MAP_OPERATION_TO_FLOAT64_NODE(SPECIALIZATION)
-MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(SPECIALIZATION)
 #undef SPECIALIZATION
 
 template <Operation kOperation>
@@ -2270,8 +2252,7 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
     SetAccumulator(GetBooleanConstant(false));
   } else if (left == right) {
     SetAccumulator(GetBooleanConstant(true));
-  } else if (!TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
-                                                          kOperation)) {
+  } else if (!TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
     SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
   }
   return true;
@@ -2306,7 +2287,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       if (TryBuildBranchFor<BranchIfInt32Compare>({left, right}, kOperation)) {
         return;
       }
-      SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
+      SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
       return;
     }
     case CompareOperationHint::kNumber: {
@@ -2327,7 +2308,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
                                                     kOperation)) {
         return;
       }
-      SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
+      SetAccumulator(AddNewNode<Float64Compare>({left, right}, kOperation));
       return;
     }
     case CompareOperationHint::kInternalizedString: {
@@ -2346,8 +2327,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         SetAccumulator(GetBooleanConstant(true));
         return;
       }
-      if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
-                                                      kOperation)) {
+      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -2365,8 +2345,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         SetAccumulator(GetBooleanConstant(true));
         return;
       }
-      if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
-                                                      kOperation)) {
+      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -2434,8 +2413,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         SetAccumulator(GetBooleanConstant(true));
         return;
       }
-      if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
-                                                      kOperation)) {
+      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -2679,8 +2657,7 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
     SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
     return;
   }
-  if (TryBuildBranchFor<BranchIfReferenceCompare>({lhs, rhs},
-                                                  Operation::kStrictEqual)) {
+  if (TryBuildBranchFor<BranchIfReferenceEqual>({lhs, rhs})) {
     return;
   }
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
@@ -3158,18 +3135,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kFastCreateClosure:
     case Opcode::kCreateClosure:
       return NodeType::kCallable;
-    case Opcode::kFloat64Equal:
-    case Opcode::kFloat64GreaterThan:
-    case Opcode::kFloat64GreaterThanOrEqual:
-    case Opcode::kFloat64LessThan:
-    case Opcode::kFloat64LessThanOrEqual:
-    case Opcode::kFloat64StrictEqual:
-    case Opcode::kInt32Equal:
-    case Opcode::kInt32GreaterThan:
-    case Opcode::kInt32GreaterThanOrEqual:
-    case Opcode::kInt32LessThan:
-    case Opcode::kInt32LessThanOrEqual:
-    case Opcode::kInt32StrictEqual:
+    case Opcode::kInt32Compare:
+    case Opcode::kFloat64Compare:
     case Opcode::kGenericEqual:
     case Opcode::kGenericStrictEqual:
     case Opcode::kGenericLessThan:
@@ -7821,8 +7788,8 @@ void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   }
   if (falsy_value != nullptr) {
     // Negate flip because we're comparing with a falsy value.
-    if (!TryBuildBranchFor<BranchIfReferenceCompare, !flip>(
-            {value, falsy_value}, Operation::kStrictEqual)) {
+    if (!TryBuildBranchFor<BranchIfReferenceEqual, !flip>(
+            {value, falsy_value})) {
       SetAccumulator(
           AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
               {value, falsy_value}));
@@ -9029,9 +8996,8 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
                                                  true_target, false_target);
       }
       if (CheckType(node, NodeType::kSmi)) {
-        return FinishBlock<BranchIfReferenceCompare>({node, GetSmiConstant(0)},
-                                                     Operation::kStrictEqual,
-                                                     false_target, true_target);
+        return FinishBlock<BranchIfReferenceEqual>({node, GetSmiConstant(0)},
+                                                   false_target, true_target);
       }
       if (CheckType(node, NodeType::kString)) {
         return FinishBlock<BranchIfRootConstant>(
@@ -9235,7 +9201,7 @@ void MaglevGraphBuilder::VisitForInContinue() {
     return;
   }
   SetAccumulator(
-      AddNewNode<Int32NodeFor<Operation::kLessThan>>({index, cache_length}));
+      AddNewNode<Int32Compare>({index, cache_length}, Operation::kLessThan));
 }
 
 void MaglevGraphBuilder::VisitForInNext() {

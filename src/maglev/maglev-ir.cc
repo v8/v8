@@ -1687,20 +1687,18 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+void Int32Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
   DefineAsRegister(this);
 }
 
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void Int32Compare::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
   Register result = ToRegister(this->result());
   Label is_true, end;
   __ CompareInt32AndJumpIf(ToRegister(left_input()), ToRegister(right_input()),
-                           ConditionFor(kOperation), &is_true,
+                           ConditionFor(operation()), &is_true,
                            Label::Distance::kNear);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
@@ -1713,32 +1711,14 @@ void Int32CompareNode<Derived, kOperation>::GenerateCode(
   __ bind(&end);
 }
 
-#define DEF_OPERATION(Name)                               \
-  void Name::SetValueLocationConstraints() {              \
-    Base::SetValueLocationConstraints();                  \
-  }                                                       \
-  void Name::GenerateCode(MaglevAssembler* masm,          \
-                          const ProcessingState& state) { \
-    Base::GenerateCode(masm, state);                      \
-  }
-DEF_OPERATION(Int32Equal)
-DEF_OPERATION(Int32StrictEqual)
-DEF_OPERATION(Int32LessThan)
-DEF_OPERATION(Int32LessThanOrEqual)
-DEF_OPERATION(Int32GreaterThan)
-DEF_OPERATION(Int32GreaterThanOrEqual)
-#undef DEF_OPERATION
-
-template <class Derived, Operation kOperation>
-void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+void Float64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
   DefineAsRegister(this);
 }
 
-template <class Derived, Operation kOperation>
-void Float64CompareNode<Derived, kOperation>::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void Float64Compare::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
   DoubleRegister left = ToDoubleRegister(left_input());
   DoubleRegister right = ToDoubleRegister(right_input());
   Register result = ToRegister(this->result());
@@ -1751,7 +1731,7 @@ void Float64CompareNode<Derived, kOperation>::GenerateCode(
   //   EQUAL: ZF,PF,CF := 100;
   // Since ZF can be set by NaN or EQUAL, we check for NaN first.
   __ JumpIf(ConditionForNaN(), &is_false);
-  __ JumpIf(NegateCondition(ConditionForFloat64(kOperation)), &is_false);
+  __ JumpIf(NegateCondition(ConditionForFloat64(operation())), &is_false);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, RootIndex::kTrueValue);
@@ -1762,22 +1742,6 @@ void Float64CompareNode<Derived, kOperation>::GenerateCode(
   }
   __ bind(&end);
 }
-
-#define DEF_OPERATION(Name)                               \
-  void Name::SetValueLocationConstraints() {              \
-    Base::SetValueLocationConstraints();                  \
-  }                                                       \
-  void Name::GenerateCode(MaglevAssembler* masm,          \
-                          const ProcessingState& state) { \
-    Base::GenerateCode(masm, state);                      \
-  }
-DEF_OPERATION(Float64Equal)
-DEF_OPERATION(Float64StrictEqual)
-DEF_OPERATION(Float64LessThan)
-DEF_OPERATION(Float64LessThanOrEqual)
-DEF_OPERATION(Float64GreaterThan)
-DEF_OPERATION(Float64GreaterThanOrEqual)
-#undef DEF_OPERATION
 
 void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
   UseRegister(input());
@@ -5618,17 +5582,16 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
             state.next_block());
 }
 
-void BranchIfReferenceCompare::SetValueLocationConstraints() {
+void BranchIfReferenceEqual::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
-void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
+void BranchIfReferenceEqual::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ CmpTagged(left, right);
-  __ Branch(ConditionFor(operation_), if_true(), if_false(),
-            state.next_block());
+  __ Branch(kEqual, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfInt32Compare::SetValueLocationConstraints() {
@@ -6059,6 +6022,16 @@ void ConstantGapMove::PrintParams(std::ostream& os,
   os << " → " << target() << ")";
 }
 
+void Float64Compare::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation() << ")";
+}
+
+void Int32Compare::PrintParams(std::ostream& os,
+                               MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation() << ")";
+}
+
 void Float64Ieee754Unary::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "("
@@ -6171,11 +6144,6 @@ void BranchIfFloat64Compare::PrintParams(
 }
 
 void BranchIfInt32Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << operation_ << ")";
-}
-
-void BranchIfReferenceCompare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << operation_ << ")";
 }
