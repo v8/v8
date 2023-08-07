@@ -3641,7 +3641,7 @@ static const char* simple_sampling_heap_profiler_script =
     "function bar(size) { return new Array(size); }\n"
     "%NeverOptimizeFunction(bar);\n"
     "var foo = function() {\n"
-    "  for (var i = 0; i < 1024; ++i) {\n"
+    "  for (var i = 0; i < 2048; ++i) {\n"
     "    A[i] = bar(1024);\n"
     "  }\n"
     "}\n"
