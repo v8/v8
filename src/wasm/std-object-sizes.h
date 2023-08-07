@@ -64,7 +64,7 @@ inline size_t ContentSize(std::unordered_set<T> set) {
 // function accordingly, and then update the check's expected size.
 #if V8_TARGET_ARCH_X64 && defined(__clang__) && V8_TARGET_OS_LINUX &&          \
     !V8_USE_ADDRESS_SANITIZER && !V8_USE_MEMORY_SANITIZER && defined(DEBUG) && \
-    V8_COMPRESS_POINTERS && !defined(V8_GC_MOLE)
+    V8_COMPRESS_POINTERS && !defined(V8_GC_MOLE) && defined(_LIBCPP_VERSION)
 #define UPDATE_WHEN_CLASS_CHANGES(classname, size)                       \
   static_assert(sizeof(classname) == size,                               \
                 "Update {EstimateCurrentMemoryConsumption} when adding " \
