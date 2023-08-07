@@ -2822,6 +2822,9 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 // call below. We don't have any callee-saved registers in wasm, so no need to
 // store anything else.
 constexpr RegList kSavedGpRegs = ([]() constexpr {
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs ==
+                    arraysize(wasm::kGpParamRegisters) - 1,
+                "frame size mismatch");
   RegList saved_gp_regs;
   for (Register gp_param_reg : wasm::kGpParamRegisters) {
     saved_gp_regs.set(gp_param_reg);
@@ -2837,6 +2840,9 @@ constexpr RegList kSavedGpRegs = ([]() constexpr {
 })();
 
 constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs ==
+                    arraysize(wasm::kFpParamRegisters),
+                "frame size mismatch");
   DoubleRegList saved_fp_regs;
   for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
     saved_fp_regs.set(fp_param_reg);
