@@ -51,7 +51,6 @@ presubmit_builder("crossbench", timeout = 900)
 try_builder(
     name = "v8_android_arm_compile_rel",
     bucket = "try",
-    execution_timeout = 3600,
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
