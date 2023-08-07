@@ -7,6 +7,8 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const debug = false;
+// Use consecutive values as parameters for easier debugging.
+const easyValues = false;
 
 // This test tests the wasm-to-js wrapper with random signatures and random
 // values. The test creates a WebAssembly function with the random signature.
@@ -161,9 +163,26 @@ interestingParams[kWasmExternRef] = [
 
 function GenerateValueArray(params) {
   let result = [];
+  let nextValue = 1;
   for (let param of params) {
-    result.push(interestingParams[param][getRandomInt(
+    if (easyValues) {
+      switch (param) {
+        case kWasmI32:
+        case kWasmF32:
+        case kWasmF64:
+          result.push(nextValue++);
+          break;
+        case kWasmI64:
+          result.push(BigInt(nextValue++));
+          break;
+        case kWasmExternRef:
+          const val = nextValue++;
+          result.push({ val: val });
+      }
+    } else {
+      result.push(interestingParams[param][getRandomInt(
         interestingParams[param].length)]);
+    }
   }
   return result;
 }
@@ -199,7 +218,7 @@ function RunTest(params, returns) {
       }
     }
     testcase += ']);';
-    print(testcase);
+    console.log(testcase);
   }
 
   const builder = new WasmModuleBuilder();

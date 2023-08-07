@@ -141,16 +141,16 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
 RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
-                                      isolate);
   Handle<Object> value(args[1], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(2);
 
-  const wasm::WasmModule* module = instance->module();
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
   if (type.has_index()) {
+    Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
+                                        isolate);
+    const wasm::WasmModule* module = instance->module();
     DCHECK_NOT_NULL(module);
     uint32_t canonical_index =
         module->isorecursive_canonical_type_ids[type.ref_index()];

@@ -6,7 +6,7 @@
 
 namespace runtime {
 extern runtime WasmGenericJSToWasmObject(
-    Context, WasmInstanceObject, JSAny, Smi): JSAny;
+    Context, WasmInstanceObject | Undefined, JSAny, Smi): JSAny;
 extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
 extern runtime WasmCompileWrapper(NoContext, WasmExportedFunctionData): JSAny;
 }  // namespace runtime
@@ -379,6 +379,38 @@ macro LocationAllocatorForReturns(
   return result;
 }
 
+macro JSToWasmObject(
+    context: NativeContext, instanceOrUndefined: WasmInstanceObject|Undefined,
+    targetType: int32, value: JSAny): Object {
+  const heapType = (targetType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
+  const kind = targetType & kValueTypeKindBitsMask;
+  if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern) {
+    if (kind == ValueKind::kRef && value == Null) {
+      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+    }
+    return value;
+  }
+  if (heapType == HeapType::kString) {
+    if (TaggedIsSmi(value)) {
+      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+    }
+    if (IsString(UnsafeCast<HeapObject>(value))) {
+      return value;
+    }
+    if (value == Null) {
+      if (kind == ValueKind::kRef) {
+        ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+      } else {
+        return kWasmNull;
+      }
+    }
+
+    ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+  }
+  return runtime::WasmGenericJSToWasmObject(
+      context, instanceOrUndefined, value, Convert<Smi>(targetType));
+}
+
 transitioning javascript builtin
 JSToWasmWrapper(
     js-implicit context: NativeContext, receiver: JSAny,
@@ -550,37 +582,11 @@ JSToWasmWrapper(
         k++;
         continue;
       }
-      let toRef = locationAllocator.GetGPSlot();
-
       const param = items[Convert<intptr>(k)];
-      const heapType =
-          (paramType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
-      if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern) {
-        if (paramKind == ValueKind::kRef && param == Null) {
-          ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-        }
-        *toRef = BitcastTaggedToWord(UnsafeCast<Object>(param));
-      } else if (heapType == HeapType::kString) {
-        if (TaggedIsSmi(param)) {
-          ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-        } else if (param == Null) {
-          if (paramKind == ValueKind::kRef) {
-            ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-          } else {
-            *toRef = BitcastTaggedToWord(kWasmNull);
-          }
-        } else {
-          if (IsString(UnsafeCast<HeapObject>(param))) {
-            *toRef = BitcastTaggedToWord(UnsafeCast<Object>(param));
-          } else {
-            ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-          }
-        }
-      } else {
-        const convertedParam = runtime::WasmGenericJSToWasmObject(
-            context, functionData.instance, param, Convert<Smi>(paramType));
-        *toRef = BitcastTaggedToWord(UnsafeCast<Object>(convertedParam));
-      }
+      const convertedParam =
+          JSToWasmObject(context, functionData.instance, paramType, param);
+      let toRef = locationAllocator.GetGPSlot();
+      *toRef = BitcastTaggedToWord(convertedParam);
       k++;
     }
   }

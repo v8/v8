@@ -1973,11 +1973,7 @@ bool UseGenericWasmToJSWrapper(const wasm::FunctionSig* sig,
 #if !V8_TARGET_ARCH_X64
   return false;
 #else
-  for (auto type : sig->returns()) {
-    if (type.is_reference()) return false;
-  }
   if (suspend == wasm::kSuspend) return false;
-  if (sig->return_count() > 2) return false;
 
   return v8_flags.wasm_to_js_generic_wrapper;
 #endif

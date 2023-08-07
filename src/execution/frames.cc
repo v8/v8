@@ -1509,6 +1509,10 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
   // Load the signature, considering forward pointers.
   FullObjectSlot sig_slot(fp() + 2 * kSystemPointerSize);
+  if (!*sig_slot.location()) {
+    // There is no signature in the signature slot, so there is nothing to do.
+    return;
+  }
   VisitSpillSlot(isolate(), v, sig_slot);
   PtrComprCageBase cage_base(isolate());
   HeapObject raw = HeapObject::cast(Object(*sig_slot.location()));
