@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '85f67e53a2f370871af8e6b72717462fd9d0cfc1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd80b6bfa269d08b8743be6c00a2955ca83b782df',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9a6f0c49d0e8fa0cda37337430b4736ab3dc944',
   'buildtools/linux64': {
@@ -204,7 +204,7 @@ deps = {
       'condition': 'checkout_android',
       'dep_type': 'cipd',
   },
-  'third_party/android_toolchain': {
+  'third_party/android_toolchain/ndk': {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
@@ -296,7 +296,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '526382e41c9c5275dc329db4328b54e4f344a204',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '02d5529a3fa5eb658949c576d5cc1f8348a9b515',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'c8e1084f0960755e2b21a290ff757c58d596621d',
   'tools/luci-go': {
       'packages': [
         {
