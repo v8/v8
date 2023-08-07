@@ -1931,261 +1931,6 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
-base::Optional<int> MaglevGraphBuilder::TryFindNextBranch(int* inline_level) {
-  DisallowGarbageCollection no_gc;
-  // Copy the iterator so we can search for the next branch without changing
-  // current iterator state.
-  interpreter::BytecodeArrayIterator it(iterator_.bytecode_array(),
-                                        iterator_.current_offset(), no_gc);
-
-  // Skip the current bytecode.
-  it.Advance();
-
-  for (; !it.done(); it.Advance()) {
-    // Bail out if there is a merge point before the next branch.
-    if (IsOffsetAMergePoint(it.current_offset())) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout
-            << "  ! Bailing out of test->branch fusion because merge point"
-            << std::endl;
-      }
-      return {};
-    }
-    switch (it.current_bytecode()) {
-      case interpreter::Bytecode::kMov:
-      case interpreter::Bytecode::kToBoolean:
-      case interpreter::Bytecode::kLogicalNot:
-      case interpreter::Bytecode::kToBooleanLogicalNot:
-        // No register moves, and only affecting the accumulator in a way that
-        // can be emulated with swapping branch targets.
-        continue;
-
-      case interpreter::Bytecode::kStar: {
-        interpreter::Register store_reg = it.GetRegisterOperand(0);
-        // If the Star stores the accumulator to a live register, the
-        // accumulator boolean value is observable and must be materialized.
-        if (store_reg.is_parameter() ||
-            GetOutLivenessFor(it.current_offset())
-                ->RegisterIsLive(store_reg.index())) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout << "  ! Bailing out of test->branch fusion because "
-                         "accumulator stored to live register"
-                      << std::endl;
-          }
-          return {};
-        }
-        continue;
-      }
-
-#define STAR_CASE(name, ...) case interpreter::Bytecode::k##name:
-        SHORT_STAR_BYTECODE_LIST(STAR_CASE)
-#undef STAR_CASE
-        {
-          interpreter::Register store_reg =
-              interpreter::Register::FromShortStar(it.current_bytecode());
-          if (store_reg.is_parameter() ||
-              GetOutLivenessFor(it.current_offset())
-                  ->RegisterIsLive(store_reg.index())) {
-            if (v8_flags.trace_maglev_graph_building) {
-              std::cout << "  ! Bailing out of test->branch fusion because "
-                           "accumulator stored to live register"
-                        << std::endl;
-            }
-            return {};
-          }
-          continue;
-        }
-
-      case interpreter::Bytecode::kReturn:
-        if (!is_inline()) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout << "  ! Bailing out of test->branch fusion because no "
-                         "branch found"
-                      << std::endl;
-          }
-          return {};
-        }
-        // The inlined new.target is the root constant iff we are not inlining
-        // a constructor. Bail out for constructors.
-        // TODO(leszeks): Since we know we are returning a primitive true/false,
-        // which will then be replaced with a new.target that ToBooleans to
-        // true, we could treat this as an unconditional "true" for branch
-        // fusion.
-        if (!inlined_new_target_->Is<RootConstant>()) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout << "  ! Bailing out of test->branch fusion because "
-                         "returning from a constructor"
-                      << std::endl;
-          }
-          return {};
-        }
-        DCHECK_EQ(inlined_new_target_->Cast<RootConstant>()->index(),
-                  RootIndex::kUndefinedValue);
-        // Check that the return is the last bytecode in the inlined function,
-        // without any other returns. Otherwise we would skip a required merge
-        // point.
-        if (it.next_bytecode() != interpreter::Bytecode::kIllegal ||
-            IsOffsetAMergePoint(inline_exit_offset())) {
-          if (v8_flags.trace_maglev_graph_building) {
-            std::cout
-                << "  ! Bailing out of test->branch fusion because returning "
-                   "from inlined function with merge points"
-                << std::endl;
-          }
-          return {};
-        }
-        DCHECK_NOT_NULL(parent_);
-        (*inline_level)++;
-        return parent_->TryFindNextBranch(inline_level);
-
-      case interpreter::Bytecode::kJumpIfFalse:
-      case interpreter::Bytecode::kJumpIfFalseConstant:
-      case interpreter::Bytecode::kJumpIfToBooleanFalse:
-      case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
-      case interpreter::Bytecode::kJumpIfTrue:
-      case interpreter::Bytecode::kJumpIfTrueConstant:
-      case interpreter::Bytecode::kJumpIfToBooleanTrue:
-      case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
-        return {it.current_offset()};
-
-      default:
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  ! Bailing out of test->branch fusion because of "
-                       "unsupported bytecode: "
-                    << it.current_bytecode() << std::endl;
-        }
-        return {};
-    }
-  }
-
-  return {};
-}
-
-template <typename BranchControlNodeT, typename... Args>
-void MaglevGraphBuilder::BuildFusedBranch(
-    int branch_offset, int inline_level, bool init_flip,
-    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  // Advance past the test.
-  iterator_.Advance();
-
-  // Evaluate Movs and LogicalNots between test and jump.
-  bool flip = init_flip;
-  for (;; iterator_.Advance()) {
-    DCHECK_IMPLIES(inline_level == 0,
-                   iterator_.current_offset() <= branch_offset);
-    UpdateSourceAndBytecodePosition(iterator_.current_offset());
-    switch (iterator_.current_bytecode()) {
-      case interpreter::Bytecode::kMov: {
-        interpreter::Register src = iterator_.GetRegisterOperand(0);
-        interpreter::Register dst = iterator_.GetRegisterOperand(1);
-        DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
-        current_interpreter_frame_.set(dst,
-                                       current_interpreter_frame_.get(src));
-
-        continue;
-      }
-      case interpreter::Bytecode::kToBoolean:
-        continue;
-
-      case interpreter::Bytecode::kLogicalNot:
-      case interpreter::Bytecode::kToBooleanLogicalNot:
-        flip = !flip;
-        continue;
-
-      case interpreter::Bytecode::kStar:
-#define STAR_CASE(name, ...) case interpreter::Bytecode::k##name:
-        SHORT_STAR_BYTECODE_LIST(STAR_CASE)
-#undef STAR_CASE
-        // We don't need to perform the Star, since the target register is
-        // already known to be dead.
-        continue;
-
-      case interpreter::Bytecode::kReturn: {
-        DCHECK_GT(inline_level, 0);
-        terminated_with_fused_branch_ = true;
-        parent_->current_block_ = current_block_;
-        current_block_ = nullptr;
-        parent_->BuildFusedBranch<BranchControlNodeT>(
-            branch_offset, inline_level - 1, flip, control_inputs,
-            std::forward<Args>(args)...);
-        return;
-      }
-      default:
-        // Otherwise, we've reached the jump, so abort the iteration.
-        DCHECK_EQ(inline_level, 0);
-        DCHECK_EQ(iterator_.current_offset(), branch_offset);
-        break;
-    }
-    break;
-  }
-
-  JumpType jump_type;
-  switch (iterator_.current_bytecode()) {
-    case interpreter::Bytecode::kJumpIfFalse:
-    case interpreter::Bytecode::kJumpIfFalseConstant:
-    case interpreter::Bytecode::kJumpIfToBooleanFalse:
-    case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
-      jump_type = flip ? JumpType::kJumpIfTrue : JumpType::kJumpIfFalse;
-      break;
-    case interpreter::Bytecode::kJumpIfTrue:
-    case interpreter::Bytecode::kJumpIfTrueConstant:
-    case interpreter::Bytecode::kJumpIfToBooleanTrue:
-    case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
-      jump_type = flip ? JumpType::kJumpIfFalse : JumpType::kJumpIfTrue;
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  int true_offset, false_offset;
-  if (jump_type == kJumpIfFalse) {
-    true_offset = next_offset();
-    false_offset = iterator_.GetJumpTargetOffset();
-  } else {
-    true_offset = iterator_.GetJumpTargetOffset();
-    false_offset = next_offset();
-  }
-
-  BasicBlock* block = FinishBlock<BranchControlNodeT>(
-      control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
-      &jump_targets_[false_offset]);
-
-  SetAccumulatorInBranch(GetBooleanConstant((jump_type == kJumpIfTrue) ^ flip));
-  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
-  SetAccumulatorInBranch(
-      GetBooleanConstant((jump_type == kJumpIfFalse) ^ flip));
-  StartFallthroughBlock(next_offset(), block);
-}
-
-template <typename BranchControlNodeT, bool init_flip, typename... Args>
-bool MaglevGraphBuilder::TryBuildBranchFor(
-    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  int inline_level = 0;
-  base::Optional<int> maybe_next_branch_offset =
-      TryFindNextBranch(&inline_level);
-
-  // If we didn't find a branch, bail out.
-  if (!maybe_next_branch_offset) {
-    return false;
-  }
-
-  int next_branch_offset = *maybe_next_branch_offset;
-
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  * Fusing test @" << iterator_.current_offset()
-              << " and branch @" << next_branch_offset;
-    if (inline_level > 0) {
-      std::cout << " (in caller " << inline_level << " level(s) out)";
-    }
-    std::cout << std::endl;
-  }
-
-  BuildFusedBranch<BranchControlNodeT>(next_branch_offset, inline_level,
-                                       init_flip, control_inputs,
-                                       std::forward<Args>(args)...);
-  return true;
-}
-
 template <Operation kOperation, typename type>
 bool OperationValue(type left, type right) {
   switch (kOperation) {
@@ -2252,7 +1997,7 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
     SetAccumulator(GetBooleanConstant(false));
   } else if (left == right) {
     SetAccumulator(GetBooleanConstant(true));
-  } else if (!TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
+  } else {
     SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
   }
   return true;
@@ -2284,9 +2029,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
             OperationValue<kOperation>(left_value, right_value)));
         return;
       }
-      if (TryBuildBranchFor<BranchIfInt32Compare>({left, right}, kOperation)) {
-        return;
-      }
       SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
       return;
     }
@@ -2302,10 +2044,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
             right->Cast<Float64Constant>()->value().get_scalar();
         SetAccumulator(GetBooleanConstant(
             OperationValue<kOperation>(left_value, right_value)));
-        return;
-      }
-      if (TryBuildBranchFor<BranchIfFloat64Compare>({left, right},
-                                                    kOperation)) {
         return;
       }
       SetAccumulator(AddNewNode<Float64Compare>({left, right}, kOperation));
@@ -2327,9 +2065,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         SetAccumulator(GetBooleanConstant(true));
         return;
       }
-      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
-        return;
-      }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
       return;
     }
@@ -2343,9 +2078,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       BuildCheckSymbol(right);
       if (left == right) {
         SetAccumulator(GetBooleanConstant(true));
-        return;
-      }
-      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -2411,9 +2143,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       BuildCheckJSReceiver(right);
       if (left == right) {
         SetAccumulator(GetBooleanConstant(true));
-        return;
-      }
-      if (TryBuildBranchFor<BranchIfReferenceEqual>({left, right})) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -2657,9 +2386,6 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
     SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
     return;
   }
-  if (TryBuildBranchFor<BranchIfReferenceEqual>({lhs, rhs})) {
-    return;
-  }
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
 }
 
@@ -2681,7 +2407,6 @@ void MaglevGraphBuilder::VisitTestUndetectable() {
   }
 
   enum CheckType type = GetCheckType(old_type);
-  if (TryBuildBranchFor<BranchIfUndetectable>({value}, type)) return;
   SetAccumulator(AddNewNode<TestUndetectable>({value}, type));
 }
 
@@ -2689,9 +2414,6 @@ void MaglevGraphBuilder::VisitTestNull() {
   ValueNode* value = GetAccumulatorTagged();
   if (IsConstantNode(value->opcode())) {
     SetAccumulator(GetBooleanConstant(IsNullValue(value)));
-    return;
-  }
-  if (TryBuildBranchFor<BranchIfRootConstant>({value}, RootIndex::kNullValue)) {
     return;
   }
   ValueNode* null_constant = GetRootConstant(RootIndex::kNullValue);
@@ -2702,10 +2424,6 @@ void MaglevGraphBuilder::VisitTestUndefined() {
   ValueNode* value = GetAccumulatorTagged();
   if (IsConstantNode(value->opcode())) {
     SetAccumulator(GetBooleanConstant(IsUndefinedValue(value)));
-    return;
-  }
-  if (TryBuildBranchFor<BranchIfRootConstant>({value},
-                                              RootIndex::kUndefinedValue)) {
     return;
   }
   ValueNode* undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
@@ -2723,9 +2441,6 @@ void MaglevGraphBuilder::VisitTestTypeOf() {
     return;
   }
   ValueNode* value = GetAccumulatorTagged();
-  if (TryBuildBranchFor<BranchIfTypeOf>({value}, literal)) {
-    return;
-  }
   SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
 }
 
@@ -5422,15 +5137,6 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   // Build the inlined function body.
   BuildBody();
 
-  if (terminated_with_fused_branch_) {
-    // If we fused a test in the inlined function with a branch in the caller,
-    // the basic blocks are already wired correctly and there is no merge point
-    // to handle.
-    DCHECK_NULL(current_block_);
-    DCHECK_NULL(merge_states_[inline_exit_offset()]);
-    return ReduceResult::Done();
-  }
-
   // All returns in the inlined body jump to a merge point one past the bytecode
   // length (i.e. at offset bytecode.length()). If there isn't one already,
   // create a block at this fake offset and have it jump out of the inlined
@@ -5597,33 +5303,6 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   // Propagate KnownNodeAspects back to the caller.
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
-
-  if (result.IsDoneWithoutValue()) {
-    DCHECK(inner_graph_builder.terminated_with_fused_branch_);
-    // If we terminated inlining with a fused branch, we are skipping the
-    // creation of a new block.
-    // There are 3 possible states:
-    //   1) There is already a valid `current_block_` created by the fused
-    //   branch fallthrough.
-    //   2) The next offset is a merge point, in which case a new block will be
-    //   created for the next bytecode automatically in `VisitSingleBytecode()`.
-    //   3) The test condition was inlined into the current function and fused
-    //   into a branch in a parent of the current function. That means that we
-    //   fully processed the current function.
-    DCHECK(
-        /* (1) */ current_block_ != nullptr ||
-        /* (2) */
-        (iterator_.next_bytecode() != interpreter::Bytecode::kIllegal &&
-         IsOffsetAMergePoint(iterator_.next_offset())) ||
-        /* (3) */
-        (iterator_.current_bytecode() == interpreter::Bytecode::kReturn &&
-         iterator_.next_bytecode() == interpreter::Bytecode::kIllegal));
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "== Finished inlining (fused branch) " << shared.object()
-                << std::endl;
-    }
-    return result;
-  }
 
   DCHECK(result.IsDoneWithValue());
   // Resume execution using the final block of the inner builder.
@@ -7791,31 +7470,21 @@ void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     falsy_value = GetSmiConstant(0);
   }
   if (falsy_value != nullptr) {
-    // Negate flip because we're comparing with a falsy value.
-    if (!TryBuildBranchFor<BranchIfReferenceEqual, !flip>(
-            {value, falsy_value})) {
-      SetAccumulator(
-          AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
-              {value, falsy_value}));
-    }
+    SetAccumulator(
+        AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
+            {value, falsy_value}));
     return;
   }
   if (CheckType(value, NodeType::kBoolean)) {
-    if (!TryBuildBranchFor<BranchIfRootConstant>(
-            {value}, flip ? RootIndex::kFalseValue : RootIndex::kTrueValue)) {
-      if (flip) {
-        value = AddNewNode<LogicalNot>({value});
-      }
-      SetAccumulator(value);
+    if (flip) {
+      value = AddNewNode<LogicalNot>({value});
     }
+    SetAccumulator(value);
     return;
   }
-  if (!TryBuildBranchFor<BranchIfToBooleanTrue, flip>(
-          {value}, GetCheckType(value_type))) {
-    SetAccumulator(
-        AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-            {value}, GetCheckType(value_type)));
-  }
+  SetAccumulator(
+      AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
+          {value}, GetCheckType(value_type)));
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
@@ -8834,6 +8503,22 @@ MaglevGraphBuilder::JumpType MaglevGraphBuilder::NegateJumpType(
   }
 }
 
+BasicBlock* MaglevGraphBuilder::BuildBranchIfReferenceEqual(
+    ValueNode* lhs, ValueNode* rhs, BasicBlockRef* true_target,
+    BasicBlockRef* false_target) {
+  if (RootConstant* root_constant = rhs->TryCast<RootConstant>()) {
+    return FinishBlock<BranchIfRootConstant>({lhs}, root_constant->index(),
+                                             true_target, false_target);
+  }
+  if (RootConstant* root_constant = lhs->TryCast<RootConstant>()) {
+    return FinishBlock<BranchIfRootConstant>({rhs}, root_constant->index(),
+                                             true_target, false_target);
+  }
+
+  return FinishBlock<BranchIfReferenceEqual>({lhs, rhs}, true_target,
+                                             false_target);
+}
+
 void MaglevGraphBuilder::BuildBranchIfRootConstant(
     ValueNode* node, JumpType jump_type, RootIndex root_index,
     BranchSpecializationMode mode) {
@@ -8887,8 +8572,57 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
     return;
   }
 
-  BasicBlock* block = FinishBlock<BranchIfRootConstant>(
-      {node}, root_index, true_target, false_target);
+  BasicBlock* block;
+  if (root_index == RootIndex::kTrueValue ||
+      root_index == RootIndex::kFalseValue) {
+    if (root_index == RootIndex::kFalseValue) {
+      std::swap(true_target, false_target);
+    }
+    switch (node->opcode()) {
+      case Opcode::kTaggedEqual: {
+        block = BuildBranchIfReferenceEqual(
+            node->Cast<TaggedEqual>()->lhs().node(),
+            node->Cast<TaggedEqual>()->rhs().node(), true_target, false_target);
+        break;
+      }
+      case Opcode::kTaggedNotEqual:
+        block = BuildBranchIfReferenceEqual(
+            node->Cast<TaggedNotEqual>()->lhs().node(),
+            node->Cast<TaggedNotEqual>()->rhs().node(),
+            // Swapped true and false targets.
+            false_target, true_target);
+        break;
+      case Opcode::kInt32Compare:
+        block = FinishBlock<BranchIfInt32Compare>(
+            {node->Cast<Int32Compare>()->left_input().node(),
+             node->Cast<Int32Compare>()->right_input().node()},
+            node->Cast<Int32Compare>()->operation(), true_target, false_target);
+        break;
+      case Opcode::kFloat64Compare:
+        block = FinishBlock<BranchIfFloat64Compare>(
+            {node->Cast<Float64Compare>()->left_input().node(),
+             node->Cast<Float64Compare>()->right_input().node()},
+            node->Cast<Float64Compare>()->operation(), true_target,
+            false_target);
+        break;
+      case Opcode::kTestUndetectable:
+        block = FinishBlock<BranchIfUndetectable>(
+            {node->Cast<TestUndetectable>()->value().node()},
+            // TODO(leszeks): Could we use the current known_node_info of the
+            // value node instead of the check_type of TestUndetectable?
+            node->Cast<TestUndetectable>()->check_type(), true_target,
+            false_target);
+        break;
+
+      default:
+        block = FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
+                                                  true_target, false_target);
+        break;
+    }
+  } else {
+    block = FinishBlock<BranchIfRootConstant>({node}, root_index, true_target,
+                                              false_target);
+  }
 
   // If the node we're checking is in the accumulator, swap it in the branch
   // with the checked value. Cache whether we want to swap, since after we've
@@ -9016,6 +8750,12 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
 
 void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
                                                     JumpType jump_type) {
+  // If this is a known boolean, use the non-ToBoolean version.
+  if (CheckType(node, NodeType::kBoolean)) {
+    BuildBranchIfTrue(node, jump_type);
+    return;
+  }
+
   int fallthrough_offset = next_offset();
   int jump_offset = iterator_.GetJumpTargetOffset();
 
@@ -9028,13 +8768,10 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     false_target = &jump_targets_[jump_offset];
   }
 
-  while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
-    // Bypassing logical not(s) on the input and swapping true/false
-    // destinations.
-    node = logical_not->value().node();
-    std::swap(true_target, false_target);
-    jump_type = NegateJumpType(jump_type);
-  }
+  // There shouldn't be any LogicalNots here, for swapping true/false, since
+  // these are known to be boolean and should have gone throught the
+  // non-ToBoolean path.
+  DCHECK(!node->Is<LogicalNot>());
 
   bool known_to_boolean_value = false;
   bool direction_is_true = true;
@@ -9200,10 +8937,6 @@ void MaglevGraphBuilder::VisitForInContinue() {
   // ForInContinue <index> <cache_length>
   ValueNode* index = LoadRegisterInt32(0);
   ValueNode* cache_length = LoadRegisterInt32(1);
-  if (TryBuildBranchFor<BranchIfInt32Compare>({index, cache_length},
-                                              Operation::kLessThan)) {
-    return;
-  }
   SetAccumulator(
       AddNewNode<Int32Compare>({index, cache_length}, Operation::kLessThan));
 }

@@ -1877,16 +1877,6 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   void VisitBinarySmiOperation();
 
-  base::Optional<int> TryFindNextBranch(int* inline_level);
-  template <typename BranchControlNodeT, typename... Args>
-  void BuildFusedBranch(int branch_offset, int inline_level, bool init_flip,
-                        std::initializer_list<ValueNode*> control_inputs,
-                        Args&&... args);
-  template <typename BranchControlNodeT, bool init_flip = false,
-            typename... Args>
-  bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
-                         Args&&... args);
-
   template <Operation kOperation>
   void VisitCompareOperation();
 
@@ -1897,6 +1887,10 @@ class MaglevGraphBuilder {
 
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
+
+  BasicBlock* BuildBranchIfReferenceEqual(ValueNode* lhs, ValueNode* rhs,
+                                          BasicBlockRef* true_target,
+                                          BasicBlockRef* false_target);
 
   enum JumpType { kJumpIfTrue, kJumpIfFalse };
   enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
@@ -2049,9 +2043,6 @@ class MaglevGraphBuilder {
 
   bool in_peeled_iteration_ = false;
   bool allow_loop_peeling_;
-
-  // True if a test in an inlined function is fused into a branch in the caller.
-  bool terminated_with_fused_branch_ = false;
 
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the
