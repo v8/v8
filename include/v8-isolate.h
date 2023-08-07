@@ -414,6 +414,9 @@ class V8_EXPORT Isolate {
    * Features reported via the SetUseCounterCallback callback. Do not change
    * assigned numbers of existing items; add new features to the end of this
    * list.
+   * Dead features can be marked `V8_DEPRECATE_SOON`, then `V8_DEPRECATED`, and
+   * then finally be renamed to `kOBSOLETE_...` to stop embedders from using
+   * them.
    */
   enum UseCounterFeature {
     kUseAsm = 0,
@@ -525,8 +528,10 @@ class V8_EXPORT Isolate {
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
-    kWasmBulkMemory = 109,  // Unused.
-    kWasmMultiValue = 110,  // Unused.
+    kWasmBulkMemory V8_DEPRECATE_SOON(
+        "Unused since 2021 (https://crrev.com/c/2622913)") = 109,
+    kWasmMultiValue V8_DEPRECATE_SOON(
+        "Unused since 2021 (https://crrev.com/c/2817790)") = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
     kFunctionPrototypeArguments = 113,
