@@ -3014,20 +3014,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
-  // TODO(7748): These built-ins should not be shipped with wasm GC.
-  // Either a new flag will be needed or the built-ins have to be deleted prior
-  // to shipping.
-  // TODO(13810): We should install these later, when we can query the
-  // isolate's wasm_gc_enabled_callback, to take the Origin Trial into account.
-  if (v8_flags.experimental_wasm_gc) {
-    SimpleInstallFunction(
-        isolate, webassembly, "experimentalConvertArrayToString",
-        Builtin::kExperimentalWasmConvertArrayToString, 0, true);
-    SimpleInstallFunction(
-        isolate, webassembly, "experimentalConvertStringToArray",
-        Builtin::kExperimentalWasmConvertStringToArray, 0, true);
-  }
-
   if (v8_flags.wasm_test_streaming) {
     isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
   }
