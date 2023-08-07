@@ -9,6 +9,14 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+// TODO(nicohartmann@): We might want to move this into its own file once we
+// know whether and how we keep this phase.
+struct SpecialRPOSchedulingPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(SpecialRPOScheduling)
+
+  void Run(Zone* temp_zone);
+};
+
 struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
 

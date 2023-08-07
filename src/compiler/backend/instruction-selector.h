@@ -871,6 +871,8 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(SignExtendWord8ToInt64)
   DECLARE_GENERATOR_T(SignExtendWord16ToInt64)
   DECLARE_GENERATOR_T(TruncateInt64ToInt32)
+  DECLARE_GENERATOR_T(StackSlot)
+  DECLARE_GENERATOR_T(LoadRootRegister)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -908,7 +910,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Comment)
   DECLARE_GENERATOR(LoadImmutable)
   DECLARE_GENERATOR(StorePair)
-  DECLARE_GENERATOR(StackSlot)
   DECLARE_GENERATOR(Word64ClzLowerable)
   DECLARE_GENERATOR(Word64CtzLowerable)
   DECLARE_GENERATOR(Word64ReverseBits)
@@ -932,7 +933,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(LoadStackCheckOffset)
   DECLARE_GENERATOR(LoadFramePointer)
   DECLARE_GENERATOR(LoadParentFramePointer)
-  DECLARE_GENERATOR(LoadRootRegister)
   DECLARE_GENERATOR(UnalignedLoad)
   DECLARE_GENERATOR(UnalignedStore)
   DECLARE_GENERATOR(Int32PairAdd)

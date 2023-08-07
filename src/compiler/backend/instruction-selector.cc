@@ -919,8 +919,8 @@ size_t AddOperandToStateValueDescriptor(
       const Operation& op = selector->Get(input);
       if (op.outputs_rep()[0] == RegisterRepresentation::Word64() &&
           type.representation() == MachineRepresentation::kWord32) {
-        // 64 to 32-bit conversion is implicit in turboshaft, but explicit in
-        // turbofan, so we insert this conversion.
+        // 64 to 32-bit conversion is implicit in turboshaft.
+        // TODO(nicohartmann@): Fix this once we have explicit truncations.
         UNIMPLEMENTED();
       }
       InstructionOperand instr_op = OperandForDeopt(
@@ -1021,6 +1021,11 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
     entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
         this, values_descriptor, inputs, g, deduplicator, &it,
         FrameStateInputKind::kStackSlot, zone);
+  } else {
+    // Advance the iterator either way.
+    MachineType unused_type;
+    turboshaft::OpIndex unused_input;
+    it.ConsumeInput(&unused_type, &unused_input);
   }
 
   // Parameters
@@ -1034,6 +1039,11 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
     entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
         this, values_descriptor, inputs, g, deduplicator, &it,
         FrameStateInputKind::kStackSlot, zone);
+  } else {
+    // Advance the iterator either way.
+    MachineType unused_type;
+    turboshaft::OpIndex unused_input;
+    it.ConsumeInput(&unused_type, &unused_input);
   }
 
   // Locals
@@ -1103,6 +1113,7 @@ size_t InstructionSelectorT<TurbofanAdapter>::AddInputsToFrameStateDescriptor(
 
   entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
                                              deduplicator, locals, kind, zone);
+
   entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
                                              deduplicator, stack, kind, zone);
   DCHECK_EQ(initial_size + entries, inputs->size());
@@ -1282,12 +1293,19 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
         buffer->output_nodes[i] = PushParameter({}, location);
       }
       if constexpr (Adapter::IsTurboshaft) {
-        for (turboshaft::OpIndex use : turboshaft_uses(call)) {
-          DCHECK(this->is_projection(use));
-          size_t index = this->projection_index_of(use);
-          DCHECK_LT(index, buffer->output_nodes.size());
-          DCHECK(!Adapter::valid(buffer->output_nodes[index].node));
-          buffer->output_nodes[index].node = use;
+        for (turboshaft::OpIndex call_use : turboshaft_uses(call)) {
+          const turboshaft::Operation& use_op = this->Get(call_use);
+          if (use_op.Is<turboshaft::DidntThrowOp>()) {
+            for (turboshaft::OpIndex use : turboshaft_uses(call_use)) {
+              DCHECK(this->is_projection(use));
+              size_t index = this->projection_index_of(use);
+              DCHECK_LT(index, buffer->output_nodes.size());
+              DCHECK(!Adapter::valid(buffer->output_nodes[index].node));
+              buffer->output_nodes[index].node = use;
+            }
+          } else {
+            DCHECK(use_op.Is<turboshaft::CheckExceptionOp>());
+          }
         }
       } else {
         for (Edge const edge : ((node_t)call)->use_edges()) {
@@ -1642,9 +1660,10 @@ void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadRootRegister(Node* node) {
+void InstructionSelectorT<Adapter>::VisitLoadRootRegister(node_t node) {
   // Do nothing. Following loads/stores from this operator will use kMode_Root
   // to load/store from an offset of the root register.
+  UNREACHABLE();
 }
 
 template <typename Adapter>
@@ -2156,8 +2175,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
       DCHECK_EQ(1u, projection.index);
       MarkAsUsed(projection.input());
     }
+  } else if (value_op.Is<turboshaft::DidntThrowOp>()) {
+    // Nothing to do here?
   } else if (value_op.Is<turboshaft::CallOp>()) {
-    // Nothing to do for calls.
+    // Call projections need to be behind the call's DidntThrow.
+    UNREACHABLE();
   } else {
     UNIMPLEMENTED();
   }
@@ -4207,7 +4229,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     turboshaft::OpIndex node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   tick_counter_->TickAndMaybeEnterSafepoint();
-  const turboshaft::Operation& op = schedule()->Get(node);
+  const turboshaft::Operation& op = this->Get(node);
   using Opcode = turboshaft::Opcode;
   using Rep = turboshaft::RegisterRepresentation;
   switch (op.opcode) {
@@ -4217,6 +4239,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kUnreachable:
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
+    case Opcode::kCheckException:
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;
@@ -4701,7 +4724,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       // or not.
       break;
     case Opcode::kDidntThrow:
-      VisitCall(op.Cast<DidntThrowOp>().throwing_operation());
+      if (current_block_->begin() == node) {
+        DCHECK_EQ(current_block_->PredecessorCount(), 1);
+        DCHECK(current_block_->LastPredecessor()
+                   ->LastOperation(*this->turboshaft_graph())
+                   .Is<CheckExceptionOp>());
+        // In this case, the Call has been generated at the `CheckException`
+        // already.
+      } else {
+        VisitCall(op.Cast<DidntThrowOp>().throwing_operation());
+      }
       EmitIdentity(node);
       break;
     case Opcode::kFrameConstant: {
@@ -4824,7 +4856,50 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kOsrValue:
       MarkAsTagged(node);
       return VisitOsrValue(node);
-    default: {
+    case Opcode::kStackSlot:
+      return VisitStackSlot(node);
+    case Opcode::kFrameState:
+      // FrameState is covered as part of calls.
+      UNREACHABLE();
+    case Opcode::kLoadRootRegister:
+      return VisitLoadRootRegister(node);
+    case Opcode::kAssumeMap:
+      // AssumeMap is used as a hint for optimization phases but does not
+      // produce any code.
+      return;
+    case Opcode::kStaticAssert: {
+      // Static asserts should be (statically asserted and) removed by
+      // turboshaft.
+      const turboshaft::StaticAssertOp& assert =
+          op.Cast<turboshaft::StaticAssertOp>();
+      UnparkedScopeIfNeeded scope(broker_);
+      AllowHandleDereference allow_handle_dereference;
+      std::cout << this->Get(assert.condition());
+      FATAL(
+          "Expected Turbofan static assert to hold, but got non-true input:\n  "
+          "%s",
+          assert.source);
+    }
+
+#define UNREACHABLE_CASE(op) case Opcode::k##op:
+      TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
+      TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
+      TURBOSHAFT_WASM_OPERATION_LIST(UNREACHABLE_CASE)
+      TURBOSHAFT_SIMD_OPERATION_LIST(UNREACHABLE_CASE)
+      UNREACHABLE_CASE(Tuple)
+      UNREACHABLE_CASE(PendingLoopPhi)
+      UNREACHABLE();
+#undef UNREACHABLE_CASE
+
+    case Opcode::kTailCall:
+    case Opcode::kTryChange:
+    case Opcode::kWord32PairBinop:
+    case Opcode::kBitcastWord32PairToFloat64:
+    case Opcode::kSelect:
+    case Opcode::kTrapIf:
+    case Opcode::kDebugBreak:
+    case Opcode::kDebugPrint:
+    case Opcode::kCheckTurboshaftTypeOf: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
       FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());

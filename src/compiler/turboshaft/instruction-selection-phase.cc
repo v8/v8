@@ -300,16 +300,18 @@ class TurboshaftSpecialRPONumberer {
   Zone* zone_;
 };
 
-base::Optional<BailoutReason> InstructionSelectionPhase::Run(
-    Zone* temp_zone, const CallDescriptor* call_descriptor, Linkage* linkage) {
-  PipelineData* data = &PipelineData::Get();
+void SpecialRPOSchedulingPhase::Run(Zone* temp_zone) {
   Graph& graph = PipelineData::Get().graph();
 
   TurboshaftSpecialRPONumberer numberer(graph, temp_zone);
   auto schedule = numberer.ComputeSpecialRPO();
   graph.ReorderBlocks(base::VectorOf(schedule));
+}
 
-  data->InitializeInstructionSequence(call_descriptor);
+base::Optional<BailoutReason> InstructionSelectionPhase::Run(
+    Zone* temp_zone, const CallDescriptor* call_descriptor, Linkage* linkage) {
+  PipelineData* data = &PipelineData::Get();
+  Graph& graph = PipelineData::Get().graph();
 
   InstructionSelector selector = InstructionSelector::ForTurboshaft(
       temp_zone, graph.op_id_count(), linkage, data->sequence(), &graph,

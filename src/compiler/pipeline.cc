@@ -4100,6 +4100,12 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
   if (!turbofan_data->frame()) {
     turbofan_data->InitializeFrameData(call_descriptor);
   }
+
+  // Produce special RPO numbering.
+  Run<turboshaft::SpecialRPOSchedulingPhase>();
+
+  turboshaft_scope->Value().InitializeInstructionSequence(call_descriptor);
+
   // Select and schedule instructions covering the scheduled graph.
   if (base::Optional<BailoutReason> bailout =
           Run<turboshaft::InstructionSelectionPhase>(call_descriptor,

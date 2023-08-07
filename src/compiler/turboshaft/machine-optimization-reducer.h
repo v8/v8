@@ -1131,8 +1131,9 @@ class MachineOptimizationReducer : public Next {
             break;
           }
           case RegisterRepresentation::Tagged(): {
-            if (Handle<Object> o1, o2; Asm().MatchTaggedConstant(left, &o1) &&
-                                       Asm().MatchTaggedConstant(right, &o2)) {
+            if (Handle<HeapObject> o1, o2;
+                Asm().MatchTaggedConstant(left, &o1) &&
+                Asm().MatchTaggedConstant(right, &o2)) {
               return Asm().Word32Constant(o1.address() == o2.address());
             }
             break;

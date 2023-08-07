@@ -12,6 +12,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -23,6 +24,8 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/roots/roots-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -32,8 +35,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-#define __ TurboshaftAdapter::Pattern::
 
 namespace {
 
@@ -107,17 +108,71 @@ base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex64(
                                                 allow_power_of_two_plus_one);
 }
 
+bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
+                      turboshaft::OpIndex node, turboshaft::OpIndex* index,
+                      int* scale, bool* power_of_two_plus_one) {
+  DCHECK_NOT_NULL(index);
+  DCHECK_NOT_NULL(scale);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  auto MatchScaleConstant = [=](const Operation& op, int& scale,
+                                bool* plus_one) {
+    const ConstantOp* constant = op.TryCast<ConstantOp>();
+    if (constant == nullptr) return false;
+    if (constant->kind != ConstantOp::Kind::kWord32 &&
+        constant->kind != ConstantOp::Kind::kWord64) {
+      return false;
+    }
+    uint64_t value = constant->integral();
+    if (plus_one) *plus_one = false;
+    if (value == 1) return (scale = 0), true;
+    if (value == 2) return (scale = 1), true;
+    if (value == 4) return (scale = 2), true;
+    if (value == 8) return (scale = 3), true;
+    if (plus_one == nullptr) return false;
+    *plus_one = true;
+    if (value == 3) return (scale = 1), true;
+    if (value == 5) return (scale = 2), true;
+    if (value == 9) return (scale = 3), true;
+    return false;
+  };
+
+  const Operation& op = selector->Get(node);
+  if (const WordBinopOp* binop = op.TryCast<WordBinopOp>()) {
+    if (binop->kind != WordBinopOp::Kind::kMul) return false;
+    if (MatchScaleConstant(selector->Get(binop->right()), *scale,
+                           power_of_two_plus_one)) {
+      *index = binop->left();
+      return true;
+    }
+    if (MatchScaleConstant(selector->Get(binop->left()), *scale,
+                           power_of_two_plus_one)) {
+      *index = binop->right();
+      return true;
+    }
+    return false;
+  } else if (const ShiftOp* shift = op.TryCast<ShiftOp>()) {
+    if (shift->kind != ShiftOp::Kind::kShiftLeft) return false;
+    int64_t scale_value;
+    if (selector->MatchSignedIntegralConstant(shift->right(), &scale_value)) {
+      if (scale_value > 3) return false;
+      *index = shift->left();
+      *scale = static_cast<int>(scale_value);
+      if (power_of_two_plus_one) *power_of_two_plus_one = false;
+      return true;
+    }
+  }
+  return false;
+}
+
 base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   ScaledIndexMatch<TurboshaftAdapter> match;
-  bool power_of_two_plus_one;
-  if (__ ScaledIndex(&match.index, &match.scale, &power_of_two_plus_one)
-          .MatchesWith(selector->turboshaft_graph(), node)) {
-    if (power_of_two_plus_one && !allow_power_of_two_plus_one) {
-      return base::nullopt;
-    }
-    match.base = power_of_two_plus_one ? match.index : turboshaft::OpIndex{};
+  bool plus_one = false;
+  if (MatchScaledIndex(selector, node, &match.index, &match.scale,
+                       allow_power_of_two_plus_one ? &plus_one : nullptr)) {
+    match.base = plus_one ? match.index : turboshaft::OpIndex{};
     return match;
   }
   return base::nullopt;
@@ -141,9 +196,9 @@ struct BaseWithScaledIndexAndDisplacementMatch {
 
   node_t base;
   node_t index;
-  int scale;
-  int64_t displacement;
-  DisplacementMode displacement_mode;
+  int scale = 0;
+  int64_t displacement = 0;
+  DisplacementMode displacement_mode = kPositiveDisplacement;
 };
 
 template <typename BaseWithIndexAndDisplacementMatcher>
@@ -190,21 +245,150 @@ base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
-  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+  using namespace turboshaft;  // NOLINT(build/namespaces)
 
-  base::Optional<turboshaft::OpIndex> base;
-  base::Optional<turboshaft::OpIndex> index;
-  int displacement_mode;
-  if (TurboshaftAdapter::Pattern::BaseWithScaledIndexAndDisplacement(
-          &base, &index, &result.scale, &result.displacement,
-          &displacement_mode)
-          .MatchesWith(selector->turboshaft_graph(), node)) {
-    result.base = base ? *base : turboshaft::OpIndex{};
-    result.index = index ? *index : turboshaft::OpIndex{};
-    result.displacement_mode = static_cast<DisplacementMode>(displacement_mode);
+  // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
+  // displacements and scale factors that are used as inputs, so instead of
+  // enumerating all possible patterns by brute force, checking for node
+  // clusters using the following templates in the following order suffices
+  // to find all of the interesting cases (S = index * scale, B = base
+  // input, D = displacement input):
+  //
+  // (S + (B + D))
+  // (S + (B + B))
+  // (S + D)
+  // (S + B)
+  // ((S + D) + B)
+  // ((S + B) + D)
+  // ((B + D) + B)
+  // ((B + B) + D)
+  // (B + D)
+  // (B + B)
+  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+  result.displacement_mode = kPositiveDisplacement;
+
+  const Operation& op = selector->Get(node);
+  if (const LoadOp* load = op.TryCast<LoadOp>()) {
+    result.base = load->base();
+    result.index = load->index();
+    result.scale = load->element_size_log2;
+    result.displacement = load->offset;
+    if (load->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+  } else if (const StoreOp* store = op.TryCast<StoreOp>()) {
+    BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+    result.base = store->base();
+    result.index = store->index();
+    result.scale = store->element_size_log2;
+    result.displacement = store->offset;
+    if (store->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+  } else if (!op.Is<WordBinopOp>()) {
+    return base::nullopt;
+  }
+
+  auto OwnedByAddressingOperand = [](OpIndex) {
+    // TODO(nicohartmann@): Consider providing this. For now we just allow
+    // everything to be covered regardless of other uses.
+    return true;
+  };
+
+  const WordBinopOp& binop = op.Cast<WordBinopOp>();
+  OpIndex left = binop.left();
+  OpIndex right = binop.right();
+
+  // Check (S + ...)
+  if (MatchScaledIndex(selector, left, &result.index, &result.scale, nullptr) &&
+      OwnedByAddressingOperand(left)) {
+    result.displacement_mode = kPositiveDisplacement;
+
+    // Check (S + (... binop ...))
+    if (const WordBinopOp* right_binop =
+            selector->Get(right).TryCast<WordBinopOp>()) {
+      // Check (S + (B - D))
+      if (right_binop->kind == WordBinopOp::Kind::kSub &&
+          OwnedByAddressingOperand(right)) {
+        if (!selector->MatchSignedIntegralConstant(right_binop->right(),
+                                                   &result.displacement)) {
+          return base::nullopt;
+        }
+        result.base = right_binop->left();
+        result.displacement_mode = kNegativeDisplacement;
+        return result;
+      }
+      // Check (S + (... + ...))
+      if (right_binop->kind == WordBinopOp::Kind::kAdd &&
+          OwnedByAddressingOperand(right)) {
+        if (selector->MatchSignedIntegralConstant(right_binop->right(),
+                                                  &result.displacement)) {
+          // (S + (B + D))
+          result.base = right_binop->left();
+        } else if (selector->MatchSignedIntegralConstant(
+                       right_binop->left(), &result.displacement)) {
+          // (S + (D + B))
+          result.base = right_binop->right();
+        } else {
+          // Treat it as (S + B)
+          result.base = right;
+          result.displacement = 0;
+        }
+        return result;
+      }
+    }
+
+    // Check (S + D)
+    if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
+      result.base = OpIndex{};
+      return result;
+    }
+
+    // Treat it as (S + B)
+    result.base = right;
+    result.displacement = 0;
     return result;
   }
-  return base::nullopt;
+
+  // Check ((... + ...) + ...)
+  if (const WordBinopOp* left_add = selector->Get(left).TryCast<WordBinopOp>();
+      left_add && left_add->kind == WordBinopOp::Kind::kAdd &&
+      OwnedByAddressingOperand(left)) {
+    // Check ((S + ...) + ...)
+    if (MatchScaledIndex(selector, left_add->left(), &result.index,
+                         &result.scale, nullptr)) {
+      result.displacement_mode = kPositiveDisplacement;
+      // Check ((S + D) + B)
+      if (selector->MatchSignedIntegralConstant(left_add->right(),
+                                                &result.displacement)) {
+        result.base = right;
+        return result;
+      }
+      // Check ((S + B) + D)
+      if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
+        result.base = left_add->right();
+        return result;
+      }
+      // Treat it as (B + D)
+      result.index = OpIndex{};
+      result.scale = 0;
+      result.base = left;
+      return result;
+    }
+  }
+
+  DCHECK_EQ(result.index, OpIndex{});
+  DCHECK_EQ(result.scale, 0);
+  result.displacement_mode = kPositiveDisplacement;
+
+  // Check (B + D)
+  if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
+    result.base = left;
+    return result;
+  }
+
+  // Treat as (B + B) and use index as left B.
+  result.index = left;
+  result.base = right;
+  return result;
 }
 
 base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
@@ -517,22 +701,22 @@ AddressingMode
 X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     turboshaft::OpIndex operand, InstructionOperand inputs[],
     size_t* input_count, RegisterUseKind reg_kind) {
-  using ConstKind = turboshaft::ConstantOp::Kind;
+  using namespace turboshaft;  // NOLINT(build/namespaces)
 
-  turboshaft::ConstantOp::Storage storage;
-  int32_t offset;
-
-  if (__ Load(__ Constant(ConstKind::kExternal, &storage), {}, {}, {}, {}, {},
-              &offset)
-          .MatchesWith(selector()->turboshaft_graph(), operand)) {
-    ExternalReference reference = storage.external;
-    if (selector()->CanAddressRelativeToRootsRegister(reference)) {
-      const ptrdiff_t delta =
-          offset + MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-                       selector()->isolate(), reference);
-      if (is_int32(delta)) {
-        inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
-        return kMode_Root;
+  const Operation& op = Get(operand);
+  if (const LoadOp* load = op.TryCast<LoadOp>()) {
+    if (ExternalReference reference;
+        MatchExternalConstant(load->base(), &reference) &&
+        !load->index().valid()) {
+      if (selector()->CanAddressRelativeToRootsRegister(reference)) {
+        const ptrdiff_t delta =
+            load->offset +
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+                selector()->isolate(), reference);
+        if (is_int32(delta)) {
+          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
+          return kMode_Root;
+        }
       }
     }
   }
@@ -549,7 +733,7 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     DCHECK(ValueFitsIntoImmediate(m->displacement));
     inputs[(*input_count)++] = UseImmediate(static_cast<int>(m->displacement));
     return kMode_Root;
-  } else if (m->displacement == 0 || ValueFitsIntoImmediate(m->displacement)) {
+  } else if (ValueFitsIntoImmediate(m->displacement)) {
     return GenerateMemoryOperandInputs(m->index, m->scale, m->base,
                                        m->displacement, m->displacement_mode,
                                        inputs, input_count, reg_kind);
@@ -767,8 +951,8 @@ void InstructionSelectorT<Adapter>::VisitTraceInstruction(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStackSlot(Node* node) {
-  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
+  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
   int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
   OperandGenerator g(this);
 
@@ -1304,15 +1488,12 @@ base::Optional<uint64_t> TryGetRightWordConstant(
 base::Optional<uint64_t> TryGetRightWordConstant(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
-  turboshaft::ConstantOp::Kind kind;
-  turboshaft::ConstantOp::Storage storage;
-  if (__ WordBinop({}, __ Constant(&kind, &storage), {}, {})
-          .MatchesWith(selector->turboshaft_graph(), node)) {
-    if (kind != turboshaft::ConstantOp::Kind::kWord32 &&
-        kind != turboshaft::ConstantOp::Kind::kWord64) {
-      return base::nullopt;
+  if (const turboshaft::WordBinopOp* binop =
+          selector->Get(node).TryCast<turboshaft::WordBinopOp>()) {
+    uint64_t value;
+    if (selector->MatchUnsignedIntegralConstant(binop->right(), &value)) {
+      return value;
     }
-    return storage.integral;
   }
   return base::nullopt;
 }
@@ -1582,12 +1763,11 @@ void EmitLea(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    bool power_of_two_plus_one;
+    bool plus_one;
     turboshaft::OpIndex index;
     int scale;
-    if (__ ScaledIndex(&index, &scale, &power_of_two_plus_one)
-            .MatchesWith(this->turboshaft_graph(), node)) {
-      node_t base = power_of_two_plus_one ? index : node_t{};
+    if (MatchScaledIndex(this, node, &index, &scale, &plus_one)) {
+      node_t base = plus_one ? index : node_t{};
       EmitLea(this, kX64Lea32, node, index, scale, base, 0,
               kPositiveDisplacement);
       return;
@@ -1921,8 +2101,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Sub(node_t node) {
     return;
   }
 
-  if (__ WordConstant(uint64_t{0})
-          .MatchesWith(this->turboshaft_graph(), left)) {
+  if (MatchIntegralZero(left)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(right));
     return;
   }
@@ -1975,26 +2154,23 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Sub(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Sub(node_t node) {
-  using namespace turboshaft;
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
-  const auto& binop = this->Get(node).Cast<turboshaft::WordBinopOp>();
-  DCHECK_EQ(binop.kind, turboshaft::WordBinopOp::Kind::kSub);
+  const WordBinopOp& binop = this->Get(node).Cast<WordBinopOp>();
+  DCHECK_EQ(binop.kind, WordBinopOp::Kind::kSub);
 
-  ConstantOp::Storage storage;
-  if (__ Constant(ConstantOp::Kind::kWord64, &storage)
-          .MatchesWith(this->turboshaft_graph(), binop.left())) {
-    if (storage.integral == 0) {
-      Emit(kX64Neg, g.DefineSameAsFirst(node), g.UseRegister(binop.right()));
-      return;
-    }
+  if (MatchIntegralZero(binop.left())) {
+    Emit(kX64Neg, g.DefineSameAsFirst(node), g.UseRegister(binop.right()));
+    return;
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
-    if (g.ValueFitsIntoImmediate(*constant)) {
+    int64_t immediate_value = -*constant;
+    if (g.ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
       Emit(kX64Lea | AddressingModeField::encode(kMode_MRI),
            g.DefineAsRegister(node), g.UseRegister(binop.left()),
-           g.TempImmediate(-static_cast<int32_t>(storage.integral)));
+           g.TempImmediate(static_cast<int32_t>(immediate_value)));
       return;
     }
   }
@@ -2775,9 +2951,9 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
   // have to satisfy that condition.
   X64OperandGeneratorT<Adapter> g(this);
 
+  node_t value = this->input_at(node, 0);
   // TODO(nicohartmann): Port this to Turboshaft.
   if constexpr (Adapter::IsTurbofan) {
-    Node* value = node->InputAt(0);
     bool can_cover = false;
     if (value->opcode() == IrOpcode::kBitcastTaggedToWordForTagAndSmiBits) {
       can_cover = CanCover(node, value) && CanCover(value, value->InputAt(0));
@@ -2810,8 +2986,8 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
           break;
       }
     }
-    Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
   }
+  Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 
 template <typename Adapter>
@@ -3393,15 +3569,12 @@ void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector,
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
     if constexpr (Adapter::IsTurboshaft) {
-      typename Adapter::node_t left;
-      turboshaft::ConstantOp::Storage storage;
-      if (selector->Matches(
-              node,
-              __ Equal(&left,
-                       __ Constant(turboshaft::ConstantOp::Kind::kHeapObject,
-                                   &storage),
-                       turboshaft::RegisterRepresentation::Tagged()))) {
-        if (roots_table.IsRootHandle(storage.handle, &root_index)) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const EqualOp& equal = selector->Get(node).template Cast<EqualOp>();
+      Handle<HeapObject> object;
+      if (equal.rep == RegisterRepresentation::Tagged() &&
+          selector->MatchTaggedConstant(equal.right(), &object)) {
+        if (roots_table.IsRootHandle(object, &root_index)) {
           InstructionCode opcode =
               kX64Cmp | AddressingModeField::encode(kMode_Root);
           return VisitCompare(
@@ -3409,7 +3582,7 @@ void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector,
               g.TempImmediate(
                   MacroAssemblerBase::RootRegisterOffsetForRootIndex(
                       root_index)),
-              g.UseRegister(left), cont);
+              g.UseRegister(equal.left()), cont);
         }
       }
     } else {
@@ -3429,39 +3602,32 @@ void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector,
   VisitWordCompare(selector, node, kX64Cmp, cont);
 }
 
-bool TryMatchHeapObjectEqual(InstructionSelectorT<TurbofanAdapter>* selector,
-                             Node* node, Node*& left,
-                             Handle<HeapObject>& right) {
+bool MatchHeapObjectEqual(InstructionSelectorT<TurbofanAdapter>* selector,
+                          Node* node, Node** left, Handle<HeapObject>* right) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWord32Equal);
   CompressedHeapObjectBinopMatcher m(node);
   if (m.right().HasResolvedValue()) {
-    left = m.left().node();
-    right = m.right().ResolvedValue();
+    *left = m.left().node();
+    *right = m.right().ResolvedValue();
     return true;
   }
   HeapObjectBinopMatcher m2(node);
   if (m2.right().HasResolvedValue()) {
-    left = m2.left().node();
-    right = m2.right().ResolvedValue();
+    *left = m2.left().node();
+    *right = m2.right().ResolvedValue();
     return true;
   }
   return false;
 }
 
-bool TryMatchHeapObjectEqual(InstructionSelectorT<TurboshaftAdapter>* selector,
-                             turboshaft::OpIndex node,
-                             turboshaft::OpIndex& left,
-                             Handle<HeapObject>& right) {
-  turboshaft::ConstantOp::Kind kind;
-  turboshaft::ConstantOp::Storage storage;
-  if (selector->Matches(
-          node, __ Equal(&left, __ Constant(&kind, &storage),
-                         turboshaft::RegisterRepresentation::Word32()))) {
-    if (kind == turboshaft::ConstantOp::Kind::kCompressedHeapObject ||
-        kind == turboshaft::ConstantOp::Kind::kHeapObject) {
-      right = storage.handle;
-      return true;
-    }
+bool MatchHeapObjectEqual(InstructionSelectorT<TurboshaftAdapter>* selector,
+                          turboshaft::OpIndex node, turboshaft::OpIndex* left,
+                          Handle<HeapObject>* right) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const EqualOp& equal = selector->Get(node).Cast<EqualOp>();
+  if (selector->MatchTaggedConstant(equal.right(), right)) {
+    *left = equal.left();
+    return true;
   }
   return false;
 }
@@ -3479,7 +3645,7 @@ void VisitWord32EqualImpl(InstructionSelectorT<Adapter>* selector,
     // HeapConstants and CompressedHeapConstants can be treated the same when
     // using them as an input to a 32-bit comparison. Check whether either is
     // present.
-    if (TryMatchHeapObjectEqual(selector, node, left, right)) {
+    if (MatchHeapObjectEqual(selector, node, &left, &right)) {
       if (roots_table.IsRootHandle(right, &root_index)) {
         DCHECK(Adapter::valid(left));
         if (RootsTable::IsReadOnly(root_index) &&
@@ -3954,15 +4120,13 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  node_t left;
-  turboshaft::ConstantOp::Storage storage;
-  turboshaft::ConstantOp::Kind kind;
-  if (this->Matches(node, __ Equal(&left, __ Constant(&kind, &storage), {})) &&
-      storage.integral == 0) {
-    DCHECK(kind == turboshaft::ConstantOp::Kind::kWord32 ||
-           kind == turboshaft::ConstantOp::Kind::kWord64);
-    return VisitWordCompareZero(node, left, &cont);
+  const EqualOp& equal = this->Get(node).Cast<EqualOp>();
+  DCHECK(equal.rep == RegisterRepresentation::Word32() ||
+         equal.rep == RegisterRepresentation::Tagged());
+  if (MatchIntegralZero(equal.right())) {
+    return VisitWordCompareZero(node, equal.left(), &cont);
   }
   VisitWord32EqualImpl(this, node, &cont);
 }
@@ -4005,20 +4169,21 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Equal(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  node_t value;
-  turboshaft::ConstantOp::Storage storage;
-  if (this->Matches(node, __ Equal(&value, __ Constant({}, &storage), {})) &&
-      storage.integral == 0) {
-    if (CanCover(node, value)) {
-      turboshaft::WordBinopOp::Kind kind;
-      if (this->Matches(
-              value, __ WordBinop({}, {}, &kind,
-                                  turboshaft::WordRepresentation::Word64()))) {
-        if (kind == turboshaft::WordBinopOp::Kind::kSub) {
-          return VisitWordCompare(this, value, kX64Cmp, &cont);
-        } else if (kind == turboshaft::WordBinopOp::Kind::kBitwiseAnd) {
-          return VisitWordCompare(this, value, kX64Test, &cont);
+  const EqualOp& equal = this->Get(node).Cast<EqualOp>();
+  DCHECK(equal.rep == RegisterRepresentation::Word64() ||
+         equal.rep == RegisterRepresentation::Tagged());
+  if (MatchIntegralZero(equal.right())) {
+    if (CanCover(node, equal.left())) {
+      if (const WordBinopOp* left_binop =
+              this->Get(equal.left()).TryCast<WordBinopOp>()) {
+        DCHECK_EQ(left_binop->rep, WordRepresentation::Word64());
+        if (left_binop->kind == turboshaft::WordBinopOp::Kind::kSub) {
+          return VisitWordCompare(this, equal.left(), kX64Cmp, &cont);
+        } else if (left_binop->kind ==
+                   turboshaft::WordBinopOp::Kind::kBitwiseAnd) {
+          return VisitWordCompare(this, equal.left(), kX64Test, &cont);
         }
       }
     }
@@ -4153,14 +4318,21 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
   // avoids the costly Float64Abs.
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
-    OpIndex x;
-    if (__ Float64LessThan(__ Float64Constant(0.0), __ Float64Abs(&x))
-            .MatchesWith(this->turboshaft_graph(), node)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
-      InstructionCode const opcode =
-          IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
-      return VisitCompare(this, opcode, this->input_at(node, 0), x, &cont,
-                          false);
+    const ComparisonOp& cmp = this->Get(node).template Cast<ComparisonOp>();
+    DCHECK_EQ(cmp.rep, RegisterRepresentation::Float64());
+    DCHECK_EQ(cmp.kind, ComparisonOp::Kind::kSignedLessThan);
+    if (this->MatchZero(cmp.left())) {
+      if (const FloatUnaryOp* right_op =
+              this->Get(cmp.right()).template TryCast<FloatUnaryOp>()) {
+        if (right_op->kind == FloatUnaryOp::Kind::kAbs) {
+          DCHECK_EQ(right_op->rep, FloatRepresentation::Float64());
+          FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
+          InstructionCode const opcode =
+              IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+          return VisitCompare(this, opcode, cmp.left(), right_op->input(),
+                              &cont, false);
+        }
+      }
     }
   } else {
     Float64BinopMatcher m(node);
@@ -6012,8 +6184,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
-
-#undef __
 
 }  // namespace compiler
 }  // namespace internal

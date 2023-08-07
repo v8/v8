@@ -834,6 +834,8 @@ class Graph {
     std::swap(block_permutation_, bound_blocks_);
 
     for (size_t i = 0; i < permutation.size(); ++i) {
+      DCHECK_LE(0, permutation[i]);
+      DCHECK_LT(permutation[i], block_permutation_.size());
       bound_blocks_[i] = block_permutation_[permutation[i]];
       bound_blocks_[i]->index_ = BlockIndex(static_cast<uint32_t>(i));
     }

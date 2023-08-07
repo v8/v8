@@ -445,6 +445,13 @@ struct TurbofanAdapter {
     return node->opcode() == IrOpcode::kTruncateInt64ToInt32;
   }
 
+  bool is_stack_slot(node_t node) const {
+    return node->opcode() == IrOpcode::kStackSlot;
+  }
+  StackSlotRepresentation stack_slot_representation_of(node_t node) const {
+    DCHECK(is_stack_slot(node));
+    return StackSlotRepresentationOf(node->op());
+  }
   bool is_integer_constant(node_t node) const {
     return node->opcode() == IrOpcode::kInt32Constant ||
            node->opcode() == IrOpcode::kInt64Constant;
@@ -896,12 +903,21 @@ struct TurboshaftAdapter
         DCHECK_EQ(change_op->from,
                   turboshaft::RegisterRepresentation::Word64());
         DCHECK_EQ(change_op->to, turboshaft::RegisterRepresentation::Word32());
+        return true;
       }
-      return change_op->kind == turboshaft::ChangeOp::Kind::kTruncate;
     }
     return false;
   }
 
+  bool is_stack_slot(node_t node) const {
+    return graph_->Get(node).Is<turboshaft::StackSlotOp>();
+  }
+  StackSlotRepresentation stack_slot_representation_of(node_t node) const {
+    DCHECK(is_stack_slot(node));
+    const turboshaft::StackSlotOp& stack_slot =
+        graph_->Get(node).Cast<turboshaft::StackSlotOp>();
+    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment);
+  }
   bool is_integer_constant(node_t node) const {
     if (const auto constant =
             graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {

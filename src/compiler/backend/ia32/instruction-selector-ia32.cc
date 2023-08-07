@@ -536,13 +536,17 @@ void VisitI8x16Shift(InstructionSelectorT<Adapter>* selector, Node* node,
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStackSlot(Node* node) {
-  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
-  OperandGenerator g(this);
+void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+    OperandGenerator g(this);
 
-  Emit(kArchStackSlot, g.DefineAsRegister(node),
-       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+    Emit(kArchStackSlot, g.DefineAsRegister(node),
+         sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+  }
 }
 
 template <typename Adapter>

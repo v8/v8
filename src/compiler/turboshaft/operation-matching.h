@@ -83,6 +83,11 @@ class OperationMatching {
     }
   }
 
+  bool MatchIntegralZero(OpIndex matched) {
+    int64_t constant;
+    return MatchSignedIntegralConstant(matched, &constant) && constant == 0;
+  }
+
   bool MatchFloat32Constant(OpIndex matched, float* constant) {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
@@ -124,7 +129,7 @@ class OperationMatching {
     return MatchFloat(matched, &k) && std::isnan(k);
   }
 
-  bool MatchTaggedConstant(OpIndex matched, Handle<Object>* tagged) {
+  bool MatchTaggedConstant(OpIndex matched, Handle<HeapObject>* tagged) {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (!(op->kind == any_of(ConstantOp::Kind::kHeapObject,
@@ -205,6 +210,36 @@ class OperationMatching {
       return true;
     }
     return false;
+  }
+
+  bool MatchSignedIntegralConstant(OpIndex matched, int64_t* constant) {
+    if (const ConstantOp* c = TryCast<ConstantOp>(matched)) {
+      if (c->kind == ConstantOp::Kind::kWord32 ||
+          c->kind == ConstantOp::Kind::kWord64) {
+        *constant = c->signed_integral();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool MatchUnsignedIntegralConstant(OpIndex matched, uint64_t* constant) {
+    if (const ConstantOp* c = TryCast<ConstantOp>(matched)) {
+      if (c->kind == ConstantOp::Kind::kWord32 ||
+          c->kind == ConstantOp::Kind::kWord64) {
+        *constant = c->integral();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool MatchExternalConstant(OpIndex matched, ExternalReference* reference) {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kExternal) return false;
+    *reference = op->storage.external;
+    return true;
   }
 
   bool MatchChange(OpIndex matched, OpIndex* input, ChangeOp::Kind kind,
