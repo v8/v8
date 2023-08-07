@@ -49,7 +49,7 @@ template <typename Adapter>
 InstructionSelectorT<Adapter>::InstructionSelectorT(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, schedule_t schedule,
-    SourcePositionTable* source_positions, Frame* frame,
+    source_position_table_t* source_positions, Frame* frame,
     InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table,
     TickCounter* tick_counter, JSHeapBroker* broker,
     size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
@@ -1510,15 +1510,35 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
 }
 
 template <typename Adapter>
-bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(Node* node) {
-  return (source_position_mode_ == InstructionSelector::kAllSourcePositions ||
-          node->opcode() == IrOpcode::kCall ||
-          node->opcode() == IrOpcode::kTrapIf ||
-          node->opcode() == IrOpcode::kTrapUnless ||
-          node->opcode() == IrOpcode::kProtectedLoad ||
-          node->opcode() == IrOpcode::kProtectedStore ||
-          node->opcode() == IrOpcode::kLoadTrapOnNull ||
-          node->opcode() == IrOpcode::kStoreTrapOnNull);
+bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
+  if (source_position_mode_ == InstructionSelector::kAllSourcePositions) {
+    return true;
+  }
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& operation = this->Get(node);
+    if (operation.Is<TrapIfOp>()) return true;
+    if (const LoadOp* load = operation.TryCast<LoadOp>()) {
+      return load->kind.with_trap_handler;
+    }
+    if (const StoreOp* store = operation.TryCast<StoreOp>()) {
+      return store->kind.with_trap_handler;
+    }
+    return false;
+  } else {
+    switch (node->opcode()) {
+      case IrOpcode::kCall:
+      case IrOpcode::kTrapIf:
+      case IrOpcode::kTrapUnless:
+      case IrOpcode::kProtectedLoad:
+      case IrOpcode::kProtectedStore:
+      case IrOpcode::kLoadTrapOnNull:
+      case IrOpcode::kStoreTrapOnNull:
+        return true;
+      default:
+        return false;
+    }
+  }
 }
 
 namespace {
@@ -1572,14 +1592,15 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
                  instructions_.end());
     if (!this->valid(node)) return true;
     if (!source_positions_) return true;
-    if constexpr (std::is_same_v<Adapter, TurbofanAdapter>) {
-      SourcePosition source_position =
-          source_positions_->GetSourcePosition(node);
-      if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
-        sequence()->SetSourcePosition(instructions_.back(), source_position);
-      }
+
+    SourcePosition source_position;
+    if constexpr (Adapter::IsTurboshaft) {
+      source_position = (*source_positions_)[node];
     } else {
-      // TODO(nicohartmann@): Reconsider this.
+      source_position = source_positions_->GetSourcePosition(node);
+    }
+    if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
+      sequence()->SetSourcePosition(instructions_.back(), source_position);
     }
     return true;
   };
@@ -5120,8 +5141,7 @@ InstructionSelector InstructionSelector::ForTurbofan(
 
 InstructionSelector InstructionSelector::ForTurboshaft(
     Zone* zone, size_t node_count, Linkage* linkage,
-    InstructionSequence* sequence, turboshaft::Graph* schedule,
-    SourcePositionTable* source_positions, Frame* frame,
+    InstructionSequence* sequence, turboshaft::Graph* graph, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
     JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
     size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
@@ -5131,11 +5151,11 @@ InstructionSelector InstructionSelector::ForTurboshaft(
   return InstructionSelector(
       nullptr,
       new InstructionSelectorT<TurboshaftAdapter>(
-          zone, node_count, linkage, sequence, schedule, source_positions,
-          frame, enable_switch_jump_table, tick_counter, broker,
-          max_unoptimized_frame_height, max_pushed_argument_count,
-          source_position_mode, features, enable_scheduling,
-          enable_roots_relative_addressing, trace_turbo));
+          zone, node_count, linkage, sequence, graph,
+          &graph->source_positions(), frame, enable_switch_jump_table,
+          tick_counter, broker, max_unoptimized_frame_height,
+          max_pushed_argument_count, source_position_mode, features,
+          enable_scheduling, enable_roots_relative_addressing, trace_turbo));
 }
 
 InstructionSelector::InstructionSelector(

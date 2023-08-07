@@ -62,6 +62,7 @@ struct TurbofanAdapter {
   using inputs_t = Node::Inputs;
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
+  using source_position_table_t = SourcePositionTable;
 
   class ConstantView {
    public:
@@ -485,6 +486,7 @@ struct TurboshaftAdapter
   using inputs_t = base::Vector<const node_t>;
   using opcode_t = turboshaft::Opcode;
   using id_t = uint32_t;
+  using source_position_table_t = turboshaft::GrowingSidetable<SourcePosition>;
 
   bool Matches(node_t node,
                const turboshaft::MatchOrBind<node_t>& pattern) const {

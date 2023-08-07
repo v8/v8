@@ -96,8 +96,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   static InstructionSelector ForTurboshaft(
       Zone* zone, size_t node_count, Linkage* linkage,
-      InstructionSequence* sequence, turboshaft::Graph* schedule,
-      SourcePositionTable* source_positions, Frame* frame,
+      InstructionSequence* sequence, turboshaft::Graph* schedule, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
@@ -381,13 +380,14 @@ class InstructionSelectorT final : public Adapter {
   using block_range_t = typename Adapter::block_range_t;
   using node_t = typename Adapter::node_t;
   using id_t = typename Adapter::id_t;
+  using source_position_table_t = typename Adapter::source_position_table_t;
 
   using Features = InstructionSelector::Features;
 
   InstructionSelectorT(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, schedule_t schedule,
-      SourcePositionTable* source_positions, Frame* frame,
+      source_position_table_t* source_positions, Frame* frame,
       InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table,
       TickCounter* tick_counter, JSHeapBroker* broker,
       size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
@@ -1041,7 +1041,7 @@ class InstructionSelectorT final : public Adapter {
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
   void MarkPairProjectionsAsWord32(Node* node);
-  bool IsSourcePositionUsed(Node* node);
+  bool IsSourcePositionUsed(node_t node);
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
                                           VisitWord32AtomicBinaryOperation)
   void VisitWord32AtomicBinaryOperation(node_t node, ArchOpcode int8_op,
@@ -1100,7 +1100,7 @@ class InstructionSelectorT final : public Adapter {
   Zone* const zone_;
   Linkage* const linkage_;
   InstructionSequence* const sequence_;
-  SourcePositionTable* const source_positions_;
+  source_position_table_t* const source_positions_;
   InstructionSelector::SourcePositionMode const source_position_mode_;
   Features features_;
   schedule_t const schedule_;

@@ -315,7 +315,7 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
 
   InstructionSelector selector = InstructionSelector::ForTurboshaft(
       temp_zone, graph.op_id_count(), linkage, data->sequence(), &graph,
-      data->source_positions(), data->frame(),
+      data->frame(),
       data->info()->switch_jump_table()
           ? InstructionSelector::kEnableSwitchJumpTable
           : InstructionSelector::kDisableSwitchJumpTable,
