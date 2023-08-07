@@ -31,6 +31,7 @@ class Graph final : public ZoneObject {
         root_(zone),
         osr_values_(zone),
         smi_(zone),
+        tagged_index_(zone),
         int_(zone),
         float_(zone),
         external_references_(zone),
@@ -89,6 +90,7 @@ class Graph final : public ZoneObject {
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
+  ZoneMap<int, TaggedIndexConstant*>& tagged_index() { return tagged_index_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float_; }
   ZoneMap<Address, ExternalConstant*>& external_references() {
@@ -124,6 +126,7 @@ class Graph final : public ZoneObject {
   ZoneMap<RootIndex, RootConstant*> root_;
   ZoneVector<InitialValue*> osr_values_;
   ZoneMap<int, SmiConstant*> smi_;
+  ZoneMap<int, TaggedIndexConstant*> tagged_index_;
   ZoneMap<int, Int32Constant*> int_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float_;
