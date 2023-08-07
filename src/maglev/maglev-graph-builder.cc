@@ -6214,8 +6214,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     BuildStoreFixedArrayElement(elements_array, old_array_length, value);
   }
 
-  SetAccumulator(new_array_length);
-  return ReduceResult::Done();
+  return new_array_length;
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
