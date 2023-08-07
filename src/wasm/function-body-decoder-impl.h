@@ -4161,7 +4161,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(mem_imm.memory, type.size(),
                                               mem_imm.offset))) {
-      // TODO(13918): Pass memory index for multi-memory support.
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, type, mem_imm, index, v128,
                                          lane_imm.lane);
     }
@@ -5671,7 +5670,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     auto [offset, size] = Pop(addr_type, kWasmI32);
     Value* result = Push(ValueType::RefMaybeNull(
         HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
-    // TODO(13918): Pass memory index for multi-memory support.
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, imm, variant, offset,
                                        size, result);
     return opcode_length + imm.length;
@@ -5694,7 +5692,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType addr_type = MemoryIndexType(imm.memory);
     auto [str, addr] = Pop(kWasmStringRef, addr_type);
     Value* result = Push(kWasmI32);
-    // TODO(13918): Pass memory index for multi-memory support.
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, imm, variant, str,
                                        addr, result);
     return opcode_length + imm.length;
@@ -5710,7 +5707,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Pop(kWasmStringViewWtf8, addr_type, kWasmI32, kWasmI32);
     Value* next_pos = Push(kWasmI32);
     Value* bytes_out = Push(kWasmI32);
-    // TODO(13918): Pass memory index for multi-memory support.
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf8Encode, imm, variant, view,
                                        addr, pos, bytes, next_pos, bytes_out);
     return opcode_length + imm.length;
@@ -5768,7 +5764,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType addr_type = MemoryIndexType(imm.memory);
         auto [offset, size] = Pop(addr_type, kWasmI32);
         Value* result = Push(kWasmRefString);
-        // TODO(13918): Pass memory index for multi-memory support.
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
                                            result);
         return opcode_length + imm.length;
@@ -5809,7 +5804,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType addr_type = MemoryIndexType(imm.memory);
         auto [str, addr] = Pop(kWasmStringRef, addr_type);
         Value* result = Push(kWasmI32);
-        // TODO(13918): Pass memory index for multi-memory support.
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16, imm, str, addr,
                                            result);
         return opcode_length + imm.length;
@@ -5897,7 +5891,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         auto [view, addr, pos, codeunits] =
             Pop(kWasmStringViewWtf16, addr_type, kWasmI32, kWasmI32);
         Value* result = Push(kWasmI32);
-        // TODO(13918): Pass memory index for multi-memory support.
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf16Encode, imm, view,
                                            addr, pos, codeunits, result);
         return opcode_length + imm.length;
