@@ -231,6 +231,12 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(0);
   }
 
+  if (signal == SIGTRAP) {
+    // Similarly, SIGTRAP probably indicates UNREACHABLE code.
+    PrintToStderr("Caught harmless signal (SIGTRAP). Exiting process...\n");
+    _exit(0);
+  }
+
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
@@ -255,13 +261,21 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   }
 
   if (faultaddr < 0x1000) {
-    printf("Faultaddr: 0x%lx\n", faultaddr);
     // Nullptr dereferences are harmless as nothing can be mapped there. We use
     // the typical page size (which is also the default value of mmap_min_addr
     // on Linux) to determine what counts as a nullptr dereference here.
     PrintToStderr(
         "Caught harmless memory access violaton (nullptr dereference). Exiting "
         "process...\n");
+    _exit(0);
+  }
+
+  if (faultaddr < 4ULL * GB) {
+    // Currently we also ignore access violations in the first 4GB of the
+    // virtual address space. See crbug.com/1470641 for more details.
+    PrintToStderr(
+        "Caught harmless memory access violaton (first 4GB of virtual address "
+        "space). Exiting process...\n");
     _exit(0);
   }
 
@@ -306,6 +320,7 @@ void SandboxTesting::InstallSandboxCrashFilter() {
 
   bool success = true;
   success &= (sigaction(SIGABRT, &action, nullptr) == 0);
+  success &= (sigaction(SIGTRAP, &action, nullptr) == 0);
   success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
