@@ -265,6 +265,9 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
         UNREACHABLE();
     }
   }
+
+  constexpr bool AllowImplicitRepresentationChangeTo(
+      RegisterRepresentation dst_rep) const;
 };
 
 V8_INLINE constexpr bool operator==(MaybeRegisterRepresentation a,
@@ -278,6 +281,55 @@ V8_INLINE constexpr bool operator!=(MaybeRegisterRepresentation a,
 
 V8_INLINE size_t hash_value(MaybeRegisterRepresentation rep) {
   return static_cast<size_t>(rep.value());
+}
+
+constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
+    RegisterRepresentation dst_rep) const {
+  if (*this == dst_rep) {
+    return true;
+  }
+  switch (dst_rep.value()) {
+    case RegisterRepresentation::Word32():
+      // TODO(mliedtke): Remove this once JS graph building and JS reducers
+      // always produce explicit truncations.
+      // We allow implicit 64- to 32-bit truncation.
+      if (*this == RegisterRepresentation::Word64()) {
+        return true;
+      }
+      // We allow implicit tagged -> untagged conversions.
+      // Even without pointer compression, we use `Word32And` for Smi-checks on
+      // tagged values.
+      if (*this == any_of(RegisterRepresentation::Tagged(),
+                          RegisterRepresentation::Compressed())) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Word64():
+      // We allow implicit tagged -> untagged conversions.
+      if (kTaggedSize == kInt64Size &&
+          *this == RegisterRepresentation::Tagged()) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Tagged():
+      // We allow implicit untagged -> tagged conversions. This is only safe for
+      // Smi values.
+      if (*this == RegisterRepresentation::PointerSized()) {
+        return true;
+      }
+      break;
+    case RegisterRepresentation::Compressed():
+      // Compression is a no-op.
+      if (*this == any_of(RegisterRepresentation::Tagged(),
+                          RegisterRepresentation::PointerSized(),
+                          RegisterRepresentation::Word32())) {
+        return true;
+      }
+      break;
+    default:
+      break;
+  }
+  return false;
 }
 
 std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep);

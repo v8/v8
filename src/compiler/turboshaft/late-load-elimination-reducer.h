@@ -717,8 +717,11 @@ class LateLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
-        DCHECK_EQ(load.outputs_rep()[0],
-                  Asm().output_graph().Get(replacement).outputs_rep()[0]);
+        DCHECK(Asm()
+                   .output_graph()
+                   .Get(replacement)
+                   .outputs_rep()[0]
+                   .AllowImplicitRepresentationChangeTo(load.outputs_rep()[0]));
         return replacement;
       }
     }

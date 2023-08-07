@@ -39,55 +39,6 @@ void Print(const Operation& op) { std::cout << op << "\n"; }
 
 Zone* get_zone(Graph* graph) { return graph->graph_zone(); }
 
-bool AllowImplicitRepresentationChange(RegisterRepresentation actual_rep,
-                                       RegisterRepresentation expected_rep) {
-  if (actual_rep == expected_rep) {
-    return true;
-  }
-  switch (expected_rep.value()) {
-    case RegisterRepresentation::Word32():
-      // TODO(mliedtke): Remove this once JS graph building and JS reducers
-      // always produce explicit truncations.
-      // We allow implicit 64- to 32-bit truncation.
-      if (actual_rep == RegisterRepresentation::Word64()) {
-        return true;
-      }
-      // We allow implicit tagged -> untagged conversions.
-      // Even without pointer compression, we use `Word32And` for Smi-checks on
-      // tagged values.
-      if (actual_rep == any_of(RegisterRepresentation::Tagged(),
-                               RegisterRepresentation::Compressed())) {
-        return true;
-      }
-      break;
-    case RegisterRepresentation::Word64():
-      // We allow implicit tagged -> untagged conversions.
-      if (kTaggedSize == kInt64Size &&
-          actual_rep == RegisterRepresentation::Tagged()) {
-        return true;
-      }
-      break;
-    case RegisterRepresentation::Tagged():
-      // We allow implicit untagged -> tagged conversions. This is only safe for
-      // Smi values.
-      if (actual_rep == RegisterRepresentation::PointerSized()) {
-        return true;
-      }
-      break;
-    case RegisterRepresentation::Compressed():
-      // Compression is a no-op.
-      if (actual_rep == any_of(RegisterRepresentation::Tagged(),
-                               RegisterRepresentation::PointerSized(),
-                               RegisterRepresentation::Word32())) {
-        return true;
-      }
-      break;
-    default:
-      break;
-  }
-  return false;
-}
-
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
@@ -116,7 +67,7 @@ bool ValidOpInputRep(
     return false;
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
-    if (AllowImplicitRepresentationChange(input_rep, expected_rep)) {
+    if (input_rep.AllowImplicitRepresentationChangeTo(expected_rep)) {
       return true;
     }
   }
