@@ -68,6 +68,8 @@
 // the wild. Staged features are not necessarily fully stabilized. They should
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
+// Consider adding a chromium-side use counter if you want to track usage in the
+// wild (also see {V8::UseCounterFeature}).
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
   /* Type reflection proposal. */                                              \
   /* https://github.com/webassembly/js-types */                                \

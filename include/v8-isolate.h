@@ -526,7 +526,7 @@ class V8_EXPORT Isolate {
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
     kWasmBulkMemory = 109,  // Unused.
-    kWasmMultiValue = 110,
+    kWasmMultiValue = 110,  // Unused.
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
     kFunctionPrototypeArguments = 113,
@@ -541,6 +541,9 @@ class V8_EXPORT Isolate {
     kLocaleInfoFunctions = 122,
     kCompileHintsMagicAll = 123,
     kInvalidatedNoProfilingProtector = 124,
+    kWasmMemory64 = 125,
+    kWasmMultiMemory = 126,
+    kWasmGC = 127,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
