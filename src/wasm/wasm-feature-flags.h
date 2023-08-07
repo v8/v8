@@ -53,12 +53,7 @@
   /* https://github.com/WebAssembly/design/issues/1480 */                      \
   /* Prototype spec: https://bit.ly/wasm-imported-strings */                   \
   /* V8 side owner: jkummerow */                                               \
-  V(imported_strings, "imported strings", false)                               \
-                                                                               \
-  /* Multi-memory Proposal. */                                                 \
-  /* https://github.com/WebAssembly/multi-memory */                            \
-  /* V8 side owner: clemensb */                                                \
-  V(multi_memory, "multi-memory", false)
+  V(imported_strings, "imported strings", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -101,7 +96,12 @@
   /* V8 side owner: manoskouk, clemensb */                                     \
   /* Staged in v11.3 */                                                        \
   /* Launch bug: https://crbug.com/1424350 */                                  \
-  V(inlining, "wasm-into-wasm inlining", false)
+  V(inlining, "wasm-into-wasm inlining", false)                                \
+                                                                               \
+  /* Multi-memory Proposal. */                                                 \
+  /* https://github.com/WebAssembly/multi-memory */                            \
+  /* V8 side owner: clemensb */                                                \
+  V(multi_memory, "multi-memory", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
