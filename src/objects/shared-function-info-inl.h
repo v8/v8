@@ -915,6 +915,7 @@ bool SharedFunctionInfo::IsUserJavaScript() const {
 bool SharedFunctionInfo::IsSubjectToDebugging() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasAsmWasmData()) return false;
+  if (HasWasmExportedFunctionData()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return IsUserJavaScript();
 }
