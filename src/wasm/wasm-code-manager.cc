@@ -850,7 +850,7 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   WasmCodeRefScope code_ref_scope;
-  DCHECK_LE(module_->num_declared_functions, max_functions);
+  CHECK_LE(module_->num_declared_functions, max_functions);
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
     memcpy(new_table.get(), code_table_.get(),
@@ -858,14 +858,22 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   }
   code_table_ = std::move(new_table);
 
-  base::AddressRegion single_code_space_region;
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   CHECK_EQ(1, code_space_data_.size());
-  single_code_space_region = code_space_data_[0].region;
-  // Re-allocate jump table.
+  base::AddressRegion single_code_space_region = code_space_data_[0].region;
+  // Re-allocate the near and far jump tables.
   main_jump_table_ = CreateEmptyJumpTableInRegionLocked(
       JumpTableAssembler::SizeForNumberOfSlots(max_functions),
       single_code_space_region);
+  CHECK(
+      single_code_space_region.contains(main_jump_table_->instruction_start()));
+  main_far_jump_table_ = CreateEmptyJumpTableInRegionLocked(
+      JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+          WasmCode::kRuntimeStubCount,
+          NumWasmFunctionsInFarJumpTable(max_functions)),
+      single_code_space_region);
+  CHECK(single_code_space_region.contains(
+      main_far_jump_table_->instruction_start()));
   code_space_data_[0].jump_table = main_jump_table_;
   InitializeJumpTableForLazyCompilation(max_functions);
 }
@@ -1002,7 +1010,7 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
   lazy_compile_table_ = CreateEmptyJumpTableLocked(
       JumpTableAssembler::SizeForNumberOfLazyFunctions(num_wasm_functions));
 
-  DCHECK_EQ(1, code_space_data_.size());
+  CHECK_EQ(1, code_space_data_.size());
   const CodeSpaceData& code_space_data = code_space_data_[0];
   DCHECK_NOT_NULL(code_space_data.jump_table);
   DCHECK_NOT_NULL(code_space_data.far_jump_table);
@@ -1510,18 +1518,28 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   const bool needs_jump_table = num_wasm_functions > 0 && needs_far_jump_table;
 
   if (needs_jump_table) {
-    jump_table = CreateEmptyJumpTableInRegionLocked(
-        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions), region);
+    // Allocate additional jump tables just as big as the first one.
+    // This is in particular needed in cctests which add functions to the module
+    // after the jump tables are already created (see https://crbug.com/v8/14213
+    // and {NativeModule::ReserveCodeTableForTesting}.
+    int jump_table_size =
+        is_first_code_space
+            ? JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions)
+            : main_jump_table_->instructions_size_;
+    jump_table = CreateEmptyJumpTableInRegionLocked(jump_table_size, region);
     CHECK(region.contains(jump_table->instruction_start()));
   }
 
   if (needs_far_jump_table) {
     int num_function_slots = NumWasmFunctionsInFarJumpTable(num_wasm_functions);
-    far_jump_table = CreateEmptyJumpTableInRegionLocked(
-        JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-            WasmCode::kRuntimeStubCount,
-            NumWasmFunctionsInFarJumpTable(num_function_slots)),
-        region);
+    // See comment above for the size computation.
+    int far_jump_table_size =
+        is_first_code_space
+            ? JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+                  WasmCode::kRuntimeStubCount, num_function_slots)
+            : main_far_jump_table_->instructions_size_;
+    far_jump_table =
+        CreateEmptyJumpTableInRegionLocked(far_jump_table_size, region);
     CHECK(region.contains(far_jump_table->instruction_start()));
     EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtin::k##Name,

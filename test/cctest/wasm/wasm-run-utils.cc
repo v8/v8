@@ -376,9 +376,12 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   const bool kUsesLiftoff = true;
+  // Compute the estimate based on {kMaxFunctions} because we might still add
+  // functions later. Assume 1k of code per function.
+  int estimated_code_section_length = kMaxFunctions * 1024;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          test_module_.get(), kUsesLiftoff,
+          kMaxFunctions, 0, estimated_code_section_length, kUsesLiftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
