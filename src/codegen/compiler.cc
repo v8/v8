@@ -642,12 +642,14 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 }
 #endif
 
-void InstallInterpreterTrampolineCopy(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared_info,
-                                      LogEventListener::CodeTag log_tag) {
+}  // namespace
+
+void Compiler::InstallInterpreterTrampolineCopy(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    LogEventListener::CodeTag log_tag) {
   DCHECK(v8_flags.interpreted_frames_native_stack);
   if (!IsBytecodeArray(shared_info->function_data(kAcquireLoad))) {
-    DCHECK(!shared_info->HasBytecodeArray());
+    DCHECK(!shared_info->HasInterpreterData());
     return;
   }
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
@@ -663,7 +665,13 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   interpreter_data->set_bytecode_array(*bytecode_array);
   interpreter_data->set_interpreter_trampoline(*code);
 
-  shared_info->set_interpreter_data(*interpreter_data);
+  if (shared_info->HasBaselineCode()) {
+    shared_info->baseline_code(kAcquireLoad)
+        .set_bytecode_or_interpreter_data(*interpreter_data);
+  } else {
+    // IsBytecodeArray
+    shared_info->set_interpreter_data(*interpreter_data);
+  }
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
@@ -678,6 +686,8 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,
                                    script_name, line_num, column_num));
 }
+
+namespace {
 
 template <typename IsolateT>
 void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
@@ -1455,8 +1465,9 @@ void FinalizeUnoptimizedCompilation(
       log_tag = LogEventListener::CodeTag::kFunction;
     }
     log_tag = V8FileLogger::ToNativeByScript(log_tag, *script);
-    if (v8_flags.interpreted_frames_native_stack) {
-      InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
+    if (v8_flags.interpreted_frames_native_stack &&
+        isolate->logger()->is_listening_to_code_events()) {
+      Compiler::InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }
     Handle<CoverageInfo> coverage_info;
     if (finalize_data.coverage_info().ToHandle(&coverage_info)) {

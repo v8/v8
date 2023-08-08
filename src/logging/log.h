@@ -101,6 +101,10 @@ class ExistingCodeLogger {
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
   void LogCodeObject(AbstractCode object);
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  void LogInterpretedFunctions();
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
  private:
   Isolate* isolate_;
   LogEventListener* listener_;
@@ -291,6 +295,10 @@ class V8FileLogger : public LogEventListener {
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   V8_INLINE static CodeTag ToNativeByScript(CodeTag tag, Script script);
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  void LogInterpretedFunctions();
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
  private:
   void UpdateIsLogging(bool value);

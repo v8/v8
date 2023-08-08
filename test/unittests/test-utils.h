@@ -21,6 +21,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/handles/handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
@@ -576,6 +577,27 @@ template <typename Spec>
 Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   return FeedbackVector::NewForTesting(isolate, spec);
 }
+
+class FakeCodeEventLogger : public i::CodeEventLogger {
+ public:
+  explicit FakeCodeEventLogger(i::Isolate* isolate)
+      : CodeEventLogger(isolate) {}
+
+  void CodeMoveEvent(i::InstructionStream from,
+                     i::InstructionStream to) override {}
+  void BytecodeMoveEvent(i::BytecodeArray from, i::BytecodeArray to) override {}
+  void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
+                           i::Handle<i::SharedFunctionInfo> shared) override {}
+
+ private:
+  void LogRecordedBuffer(i::AbstractCode code,
+                         i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
+                         const char* name, int length) override {}
+#if V8_ENABLE_WEBASSEMBLY
+  void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
+                         int length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
+};
 
 #ifdef V8_CC_GNU
 

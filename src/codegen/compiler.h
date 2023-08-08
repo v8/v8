@@ -258,6 +258,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                      Handle<FeedbackVector> vector,
                                      Handle<AbstractCode> abstract_code,
                                      CodeKind kind, double time_taken_ms);
+
+  static void InstallInterpreterTrampolineCopy(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+      LogEventListener::CodeTag log_tag);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main
