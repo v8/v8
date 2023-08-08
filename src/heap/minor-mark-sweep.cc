@@ -5,6 +5,7 @@
 #include "src/heap/minor-mark-sweep.h"
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -143,142 +144,6 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
 // MinorMarkSweepCollector
 // =============================================================================
 
-class YoungGenerationMarkingTask final {
- public:
-  YoungGenerationMarkingTask(Heap* heap);
-  ~YoungGenerationMarkingTask();
-
-  YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
-  YoungGenerationMarkingTask& operator=(const YoungGenerationMarkingTask&) =
-      delete;
-
-  void DrainMarkingWorklist();
-
-  YoungGenerationMainMarkingVisitor* visitor() { return &visitor_; }
-
- private:
-  Heap* const heap_;
-  PretenuringHandler::PretenuringFeedbackMap pretenuring_feedback_{
-      PretenuringHandler::kInitialFeedbackCapacity};
-  YoungGenerationMainMarkingVisitor visitor_;
-};
-
-YoungGenerationMarkingTask::YoungGenerationMarkingTask(Heap* heap)
-    : heap_(heap), visitor_(heap, &pretenuring_feedback_) {}
-
-YoungGenerationMarkingTask::~YoungGenerationMarkingTask() {
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-      pretenuring_feedback_);
-}
-
-void YoungGenerationMarkingTask::DrainMarkingWorklist() {
-  HeapObject heap_object;
-  auto& marking_worklists_local = visitor_.marking_worklists_local();
-  while (marking_worklists_local.Pop(&heap_object)) {
-    // Maps won't change in the atomic pause, so the map can be read without
-    // atomics.
-    Map map = Map::cast(*heap_object->map_slot());
-    // kDataOnly objects are filtered on push.
-    DCHECK_EQ(Map::ObjectFieldsFrom(map->visitor_id()),
-              ObjectFields::kMaybePointers);
-    const auto visited_size = visitor_.Visit(map, heap_object);
-    if (visited_size) {
-      visitor_.IncrementLiveBytesCached(
-          MemoryChunk::FromHeapObject(heap_object),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    }
-  }
-  // Publish wrapper objects to the cppgc marking state, if registered.
-  marking_worklists_local.PublishWrapper();
-}
-
-class YoungGenerationMarkingJob : public v8::JobTask {
- public:
-  YoungGenerationMarkingJob(
-      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-      const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks);
-
-  void Run(JobDelegate* delegate) override;
-  size_t GetMaxConcurrency(size_t worker_count) const override;
-
-  uint64_t trace_id() const { return trace_id_; }
-
- private:
-  void ProcessItems(JobDelegate* delegate);
-
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkingWorklists* global_worklists_;
-  const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
-  YoungGenerationRememberedSetsMarkingWorklist* const
-      remembered_sets_marking_handler_;
-  const uint64_t trace_id_;
-};
-
-YoungGenerationMarkingJob::YoungGenerationMarkingJob(
-    Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-    const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks)
-    : isolate_(isolate),
-      heap_(heap),
-      global_worklists_(global_worklists),
-      tasks_(tasks),
-      remembered_sets_marking_handler_(heap_->minor_mark_sweep_collector()
-                                           ->remembered_sets_marking_handler()),
-      trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(
-                    GCTracer::Scope::MINOR_MS_MARK_PARALLEL)) {}
-
-void YoungGenerationMarkingJob::Run(JobDelegate* delegate) {
-  if (delegate->IsJoiningThread()) {
-    TRACE_GC_WITH_FLOW(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_PARALLEL,
-                       trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
-    ProcessItems(delegate);
-  } else {
-    TRACE_GC_EPOCH_WITH_FLOW(
-        heap_->tracer(), GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
-        ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
-    ProcessItems(delegate);
-  }
-}
-
-size_t YoungGenerationMarkingJob::GetMaxConcurrency(size_t worker_count) const {
-  // Pages are not private to markers but we can still use them to estimate
-  // the amount of marking that is required.
-  const int kPagesPerTask = 2;
-  size_t items =
-      remembered_sets_marking_handler_->RemainingRememberedSetsMarkingIteams();
-  size_t num_tasks = std::max((items + 1) / kPagesPerTask,
-                              global_worklists_->shared()->Size() +
-                                  global_worklists_->on_hold()->Size());
-
-  if (!v8_flags.parallel_marking) {
-    num_tasks = std::min<size_t>(1, num_tasks);
-  }
-  return std::min<size_t>(num_tasks,
-                          MinorMarkSweepCollector::kMaxParallelTasks);
-}
-
-void YoungGenerationMarkingJob::ProcessItems(JobDelegate* delegate) {
-  double marking_time = 0.0;
-  {
-    TimedScope scope(&marking_time);
-    const int task_id = delegate->GetTaskId();
-    DCHECK_LT(task_id, tasks_.size());
-    YoungGenerationMarkingTask* task = tasks_[task_id].get();
-    YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
-        remembered_sets_marking_handler_);
-    while (remembered_sets.ProcessNextItem(task->visitor())) {
-      task->DrainMarkingWorklist();
-    }
-    task->DrainMarkingWorklist();
-  }
-  if (v8_flags.trace_minor_ms_parallel_marking) {
-    PrintIsolate(isolate_, "marking[%p]: time=%f\n", static_cast<void*>(this),
-                 marking_time);
-  }
-}
-
 namespace {
 int EstimateMaxNumberOfRemeberedSets(Heap* heap) {
   return 2 * (heap->old_space()->CountTotalPages() +
@@ -395,6 +260,7 @@ void MinorMarkSweepCollector::PerformWrapperTracing() {
   if (!cpp_heap) return;
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_TRACING);
+  local_marking_worklists()->PublishWrapper();
   cpp_heap->AdvanceTracing(v8::base::TimeDelta::Max());
 }
 
@@ -413,15 +279,12 @@ void MinorMarkSweepCollector::TearDown() {
 }
 
 void MinorMarkSweepCollector::FinishConcurrentMarking() {
-  if (v8_flags.concurrent_minor_ms_marking) {
+  if (v8_flags.concurrent_minor_ms_marking || v8_flags.parallel_marking) {
     DCHECK_IMPLIES(!heap_->concurrent_marking()->IsStopped(),
                    heap_->concurrent_marking()->garbage_collector() ==
                        GarbageCollector::MINOR_MARK_SWEEPER);
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushPretenuringFeedback();
-    // Concurrent marking may have pushed a few objects to OnHold after the last
-    // time it was merged.
-    local_marking_worklists()->MergeOnHold();
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
@@ -501,6 +364,8 @@ void MinorMarkSweepCollector::CollectGarbage() {
   heap_->new_space()->FreeLinearAllocationArea();
   heap_->new_lo_space()->ResetPendingObject();
 
+  is_in_atomic_pause_.store(true, std::memory_order_relaxed);
+
   MarkLiveObjects();
   ClearNonLiveReferences();
 #ifdef VERIFY_HEAP
@@ -517,6 +382,8 @@ void MinorMarkSweepCollector::CollectGarbage() {
   auto* isolate = heap_->isolate();
   isolate->global_handles()->UpdateListOfYoungNodes();
   isolate->traced_handles()->UpdateListOfYoungNodes();
+
+  is_in_atomic_pause_.store(false, std::memory_order_relaxed);
 }
 
 namespace {
@@ -722,30 +589,6 @@ void MinorMarkSweepCollector::MarkRoots(
   }
 }
 
-void MinorMarkSweepCollector::DoParallelMarking() {
-  DCHECK(!v8_flags.concurrent_minor_ms_marking);
-
-  // Add tasks and run in parallel.
-  std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
-  for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
-       ++i) {
-    tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(heap_));
-  }
-
-  auto job = std::make_unique<YoungGenerationMarkingJob>(
-      heap_->isolate(), heap_, marking_worklists_.get(), tasks);
-  TRACE_GC_NOTE_WITH_FLOW("Minor parallel marking started", job->trace_id(),
-                          TRACE_EVENT_FLAG_FLOW_OUT);
-  V8::GetCurrentPlatform()
-      ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
-      ->Join();
-
-  // If unified young generation is in progress, the parallel marker may add
-  // more entries into local_marking_worklists_.
-  DCHECK_IMPLIES(!v8_flags.cppgc_young_generation,
-                 local_marking_worklists()->IsEmpty());
-}
-
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
     YoungGenerationRootMarkingVisitor& root_visitor) {
   heap_->IterateConservativeStackRoots(&root_visitor,
@@ -788,25 +631,17 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     // Mark the transitive closure in parallel.
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL);
     local_marking_worklists()->Publish();
-    if (!v8_flags.concurrent_minor_ms_marking) {
-      DoParallelMarking();
-    } else {
-      if (v8_flags.parallel_marking) {
-        heap_->concurrent_marking()->RescheduleJobIfNeeded(
-            GarbageCollector::MINOR_MARK_SWEEPER, TaskPriority::kUserBlocking);
-      }
+    if (v8_flags.parallel_marking) {
+      heap_->concurrent_marking()->RescheduleJobIfNeeded(
+          GarbageCollector::MINOR_MARK_SWEEPER, TaskPriority::kUserBlocking);
     }
+    DrainMarkingWorklist();
     FinishConcurrentMarking();
   }
 
   {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MINOR_MS_MARK_CONSERVATIVE_STACK);
-    if (!v8_flags.parallel_marking && !v8_flags.concurrent_marking) {
-      // Drain the worklist to populate the markbits before conservatively
-      // scanning the stack.
-      DrainMarkingWorklist();
-    }
     MarkRootsFromConservativeStack(root_visitor);
   }
 
@@ -814,6 +649,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE);
     DrainMarkingWorklist();
   }
+  CHECK(local_marking_worklists()->IsEmpty());
 
   if (was_marked_incrementally) {
     // Disable the marking barrier after concurrent/parallel marking has
@@ -842,6 +678,8 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       remembered_sets_marking_handler_.get());
   auto* marking_worklists_local = local_marking_worklists();
   do {
+    marking_worklists_local->MergeOnHold();
+
     PerformWrapperTracing();
 
     HeapObject heap_object;
@@ -854,10 +692,6 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       // atomics.
       Map map = Map::cast(*heap_object->map_slot());
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
-      // kDataOnly objects are filtered on push.
-      DCHECK_IMPLIES(!v8_flags.concurrent_minor_ms_marking,
-                     Map::ObjectFieldsFrom(map->visitor_id()) ==
-                         ObjectFields::kMaybePointers);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(
             MemoryChunk::FromHeapObject(heap_object),
@@ -866,7 +700,6 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
     }
   } while (remembered_sets.ProcessNextItem(main_marking_visitor_.get()) ||
            !IsCppHeapMarkingFinished(heap_, marking_worklists_local));
-  DCHECK(marking_worklists_local->IsEmpty());
 }
 
 void MinorMarkSweepCollector::TraceFragmentation() {

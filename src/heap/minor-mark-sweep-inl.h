@@ -207,8 +207,8 @@ YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::CheckAndMarkObject(
       std::is_same<TSlot, FullMaybeObjectSlot>::value ||
           std::is_same<TSlot, MaybeObjectSlot>::value,
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
-  return visitor->VisitObjectViaSlotInRemeberedSet(slot) ? KEEP_SLOT
-                                                         : REMOVE_SLOT;
+  return visitor->VisitObjectViaSlotInRememberedSet(slot) ? KEEP_SLOT
+                                                          : REMOVE_SLOT;
 }
 
 }  // namespace internal
