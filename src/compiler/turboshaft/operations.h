@@ -59,8 +59,7 @@ struct FrameStateOp;
 // This belongs to `VariableReducer` in `variable-reducer.h`. It is defined here
 // because of cyclic header dependencies.
 struct VariableData {
-  // TODO(mliedtke): Change to MaybeRegisterRepresentation.
-  base::Optional<RegisterRepresentation> rep;
+  MaybeRegisterRepresentation rep;
   bool loop_invariant;
   IntrusiveSetIndex active_loop_variables_index = {};
 };

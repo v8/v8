@@ -125,7 +125,10 @@ class VariableReducer : public Next {
     current_block_ = new_block;
     if (new_block->IsLoop()) {
       for (Variable var : table_.active_loop_variables) {
-        table_.Set(var, __ PendingLoopPhi(table_.Get(var), *var.data().rep));
+        MaybeRegisterRepresentation rep = var.data().rep;
+        DCHECK_NE(rep, MaybeRegisterRepresentation::None());
+        table_.Set(var, __ PendingLoopPhi(table_.Get(var),
+                                          RegisterRepresentation(rep)));
       }
       Snapshot loop_header_snapshot = table_.Seal();
       block_to_snapshot_mapping_[new_block->LastPredecessor()->index()] =
@@ -187,15 +190,14 @@ class VariableReducer : public Next {
   template <typename Rep>
   void Set(Variable var, V<Rep> value) {
     if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
-    DCHECK(Rep::allows_representation(*var.data().rep));
+    DCHECK(Rep::allows_representation(RegisterRepresentation(var.data().rep)));
     table_.Set(var, value);
   }
 
-  Variable NewLoopInvariantVariable(
-      base::Optional<RegisterRepresentation> rep) {
+  Variable NewLoopInvariantVariable(MaybeRegisterRepresentation rep) {
     return table_.NewKey(VariableData{rep, true}, OpIndex::Invalid());
   }
-  Variable NewVariable(base::Optional<RegisterRepresentation> rep) {
+  Variable NewVariable(MaybeRegisterRepresentation rep) {
     return table_.NewKey(VariableData{rep, false}, OpIndex::Invalid());
   }
 
@@ -214,11 +216,11 @@ class VariableReducer : public Next {
   }
 
   OpIndex MergeOpIndices(base::Vector<const OpIndex> inputs,
-                         base::Optional<RegisterRepresentation> maybe_rep) {
-    if (maybe_rep.has_value()) {
+                         MaybeRegisterRepresentation maybe_rep) {
+    if (maybe_rep != MaybeRegisterRepresentation::None()) {
       // Every Operation that has a RegisterRepresentation can be merged with a
       // simple Phi.
-      return __ Phi(base::VectorOf(inputs), maybe_rep.value());
+      return __ Phi(base::VectorOf(inputs), RegisterRepresentation(maybe_rep));
     } else if (__ output_graph().Get(inputs[0]).template Is<FrameStateOp>()) {
       // Frame states need be be merged recursively, because they represent
       // multiple scalar values that will lead to multiple phi nodes.
