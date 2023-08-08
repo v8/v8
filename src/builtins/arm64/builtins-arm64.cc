@@ -2510,7 +2510,7 @@ namespace {
 // one slot up or one slot down, as needed.
 void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
                                        Register len) {
-  Label exit, even;
+  Label exit, even, init;
   Register slots_to_copy = x10;
   Register slots_to_claim = x12;
 
@@ -2532,6 +2532,7 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
   __ Bind(&even);
   __ Cbz(slots_to_claim, &exit);
   __ Claim(slots_to_claim);
+  __ Cbz(slots_to_copy, &init);
 
   // Move the arguments already in the stack including the receiver.
   {
@@ -2540,6 +2541,22 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
     __ SlotAddress(src, slots_to_claim);
     __ SlotAddress(dst, 0);
     __ CopyDoubleWords(dst, src, slots_to_copy);
+    __ jmp(&exit);
+  }
+  // Initialize the alignment slot with a meaningful value. This is only
+  // necessary if slots_to_copy is 0, because otherwise the alignment slot
+  // already contains a valid value. In case slots_to_copy is even, then the
+  // alignment slot contains the last parameter passed over the stack. In case
+  // slots_to_copy is odd, then the alignment slot is that alignment slot when
+  // CallVarArgs (or similar) was called, and already got initialized for that
+  // call.
+  {
+    __ Bind(&init);
+    // Unconditionally initialize the last parameter slot. If `len` is odd, then
+    // it is an alignment slot that we have to initialize to avoid issues in the
+    // GC. If `len` is even, then the write is unnecessary, but faster than a
+    // check + jump.
+    __ Str(xzr, MemOperand(sp, len, LSL, kSystemPointerSizeLog2));
   }
   __ Bind(&exit);
 }
