@@ -2343,7 +2343,7 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
     feq_d(scratch, src, src);  // rd <- !isNan(src)
   }
   not_(scratch, scratch);
-  StoreWord(scratch, MemOperand(dst));
+  Sw(scratch, MemOperand(dst));
 }
 
 void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
