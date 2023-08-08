@@ -53,6 +53,7 @@ int FixedArrayLenFromSize(int size) {
 void FillPageInPagedSpace(Page* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = page->heap();
+  ManualGCScope manual_gc_scope(heap->isolate());
   DCHECK(page->SweepingDone());
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
   // Make sure the LAB is empty to guarantee that all free space is accounted
