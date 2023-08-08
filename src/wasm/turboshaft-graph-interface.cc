@@ -1771,45 +1771,15 @@ class TurboshaftGraphBuildingInterface {
                                     MemoryRepresentation float_type,
                                     ExternalReference ccall_ref,
                                     bool is_signed) {
-    auto [stack_slot, overflow] =
-        BuildCCallForFloatConversion(arg, float_type, ccall_ref);
-    // TODO(mliedtke): This is quite complicated code for handling exceptional
-    // cases. Wouldn't it be better to call the corresponding [...]_sat C
-    // function and let it be handled there?
-    Label<Word64> done(&asm_);
-    IF (UNLIKELY(__ Word32Equal(overflow, 0))) {
-      OpIndex is_not_nan = float_type == MemoryRepresentation::Float32()
-                               ? __ Float32Equal(arg, arg)
-                               : __ Float64Equal(arg, arg);
-      OpIndex is_nan = __ Word32Equal(is_not_nan, 0);
-      IF (UNLIKELY(is_nan)) {
-        GOTO(done, __ Word64Constant(uint64_t{0}));
-      }
-      ELSE {
-        OpIndex less_than_zero = float_type == MemoryRepresentation::Float32()
-                                     ? __ Float32LessThan(arg, 0)
-                                     : __ Float64LessThan(arg, 0);
-        IF (less_than_zero) {
-          GOTO(done, __ Word64Constant(
-                         is_signed ? std::numeric_limits<int64_t>::min()
-                                   : std::numeric_limits<uint64_t>::min()));
-        }
-        ELSE {
-          GOTO(done, __ Word64Constant(
-                         is_signed ? std::numeric_limits<int64_t>::max()
-                                   : std::numeric_limits<uint64_t>::max()));
-        }
-        END_IF
-      }
-      END_IF
-    }
-    ELSE {
-      MemoryRepresentation int64 = MemoryRepresentation::Int64();
-      GOTO(done, __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64));
-    }
-    END_IF
-    BIND(done, result);
-    return result;
+    MemoryRepresentation int64 = MemoryRepresentation::Int64();
+    uint8_t slot_size = int64.SizeInBytes();
+    V<WordPtr> stack_slot = __ StackSlot(slot_size, slot_size);
+    __ Store(stack_slot, arg, StoreOp::Kind::RawAligned(), float_type,
+             compiler::WriteBarrierKind::kNoWriteBarrier);
+    MachineType reps[]{MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
+    CallC(&sig, ccall_ref, &stack_slot);
+    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
   }
 
   OpIndex BuildIntToFloatConversionInstruction(
@@ -2090,7 +2060,7 @@ class TurboshaftGraphBuildingInterface {
           bool is_signed = true;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float32(),
-              ExternalReference::wasm_float32_to_int64(), is_signed);
+              ExternalReference::wasm_float32_to_int64_sat(), is_signed);
         }
         V<Word64> converted = asm_.TryTruncateFloat32ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
@@ -2136,7 +2106,7 @@ class TurboshaftGraphBuildingInterface {
           bool is_signed = false;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float32(),
-              ExternalReference::wasm_float32_to_uint64(), is_signed);
+              ExternalReference::wasm_float32_to_uint64_sat(), is_signed);
         }
         V<Word64> converted = asm_.TryTruncateFloat32ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
@@ -2182,7 +2152,7 @@ class TurboshaftGraphBuildingInterface {
           bool is_signed = true;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float64(),
-              ExternalReference::wasm_float64_to_int64(), is_signed);
+              ExternalReference::wasm_float64_to_int64_sat(), is_signed);
         }
         V<Word64> converted = asm_.TryTruncateFloat64ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
@@ -2229,7 +2199,7 @@ class TurboshaftGraphBuildingInterface {
           bool is_signed = false;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float64(),
-              ExternalReference::wasm_float64_to_uint64(), is_signed);
+              ExternalReference::wasm_float64_to_uint64_sat(), is_signed);
         }
         V<Word64> converted = asm_.TryTruncateFloat64ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
