@@ -4963,7 +4963,7 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
-  SetAccumulator(BuildToBoolean</* flip */ true>(GetAccumulatorTagged()));
+  SetAccumulator(BuildToBoolean</* flip */ true>(GetRawAccumulator()));
 }
 
 void MaglevGraphBuilder::VisitLogicalNot() {
@@ -7444,7 +7444,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
       // TODO(victorgomes): Propagate the case if we need to soft deopt.
     }
 
-    return BuildToBoolean(GetTaggedValue(call_result));
+    return BuildToBoolean(call_result);
   }
 
   return ReduceResult::Fail();
@@ -7456,6 +7456,39 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
                               flip);
   }
+
+  switch (value->value_representation()) {
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      // The ToBoolean of both the_hole and NaN is false, so we can use the
+      // same operation for HoleyFloat64 and Float64.
+      return AddNewNode<Float64ToBoolean>({value}, flip);
+
+    case ValueRepresentation::kUint32:
+      // Uint32 has the same logic as Int32 when converting ToBoolean, namely
+      // comparison against zero, so we can cast it and ignore the signedness.
+      value = AddNewNode<TruncateUint32ToInt32>({value});
+      V8_FALLTHROUGH;
+    case ValueRepresentation::kInt32:
+      return AddNewNode<Int32ToBoolean>({value}, flip);
+
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+
+    case ValueRepresentation::kTagged:
+      break;
+  }
+
+  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
+  if (node_info) {
+    if (ValueNode* as_int32 = node_info->alternative().int32()) {
+      return AddNewNode<Int32ToBoolean>({as_int32}, flip);
+    }
+    if (ValueNode* as_float64 = node_info->alternative().float64()) {
+      return AddNewNode<Float64ToBoolean>({as_float64}, flip);
+    }
+  }
+
   NodeType value_type;
   if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
     return GetBooleanConstant(!flip);
@@ -7637,7 +7670,7 @@ void MaglevGraphBuilder::VisitToString() {
 }
 
 void MaglevGraphBuilder::VisitToBoolean() {
-  SetAccumulator(BuildToBoolean(GetAccumulatorTagged()));
+  SetAccumulator(BuildToBoolean(GetRawAccumulator()));
 }
 
 void FastObject::ClearFields() {
@@ -8596,6 +8629,22 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
             {node->Cast<Float64Compare>()->left_input().node(),
              node->Cast<Float64Compare>()->right_input().node()},
             node->Cast<Float64Compare>()->operation(), true_target,
+            false_target);
+        break;
+      case Opcode::kInt32ToBoolean:
+        if (node->Cast<Int32ToBoolean>()->flip()) {
+          std::swap(true_target, false_target);
+        }
+        block = FinishBlock<BranchIfInt32ToBooleanTrue>(
+            {node->Cast<Int32ToBoolean>()->value().node()}, true_target,
+            false_target);
+        break;
+      case Opcode::kFloat64ToBoolean:
+        if (node->Cast<Float64ToBoolean>()->flip()) {
+          std::swap(true_target, false_target);
+        }
+        block = FinishBlock<BranchIfFloat64ToBooleanTrue>(
+            {node->Cast<Float64ToBoolean>()->value().node()}, true_target,
             false_target);
         break;
       case Opcode::kTestUndetectable:

@@ -102,7 +102,8 @@ class MergePointInterpreterFrameState;
   V(Int32NegateWithOverflow)          \
   V(Int32IncrementWithOverflow)       \
   V(Int32DecrementWithOverflow)       \
-  V(Int32Compare)
+  V(Int32Compare)                     \
+  V(Int32ToBoolean)
 
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
   V(Float64Add)                         \
@@ -114,6 +115,7 @@ class MergePointInterpreterFrameState;
   V(Float64Negate)                      \
   V(Float64Round)                       \
   V(Float64Compare)                     \
+  V(Float64ToBoolean)                   \
   V(Float64Ieee754Unary)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
@@ -2597,6 +2599,27 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
   using OperationBitField = NextBitField<Operation, 5>;
 };
 
+class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
+  using Base = FixedInputValueNodeT<1, Int32ToBoolean>;
+
+ public:
+  explicit Int32ToBoolean(uint64_t bitfield, bool flip)
+      : Base(FlipBitField::update(bitfield, flip)) {}
+
+  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& value() { return Node::input(0); }
+
+  constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  using FlipBitField = NextBitField<bool, 1>;
+};
+
 template <class Derived, Operation kOperation>
 class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
@@ -2697,6 +2720,28 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
 
  private:
   using OperationBitField = NextBitField<Operation, 5>;
+};
+
+class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {
+  using Base = FixedInputValueNodeT<1, Float64ToBoolean>;
+
+ public:
+  explicit Float64ToBoolean(uint64_t bitfield, bool flip)
+      : Base(FlipBitField::update(bitfield, flip)) {}
+
+  static constexpr Base::InputTypes kInputTypes{
+      ValueRepresentation::kHoleyFloat64};
+
+  Input& value() { return Node::input(0); }
+
+  constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  using FlipBitField = NextBitField<bool, 1>;
 };
 
 class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {

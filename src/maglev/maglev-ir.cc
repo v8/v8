@@ -1752,6 +1752,29 @@ void Int32Compare::GenerateCode(MaglevAssembler* masm,
   __ bind(&end);
 }
 
+void Int32ToBoolean::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+
+void Int32ToBoolean::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  __ CompareInt32AndJumpIf(ToRegister(value()), 0, kNotEqual, &is_true,
+                           Label::Distance::kNear);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
+  __ jmp(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result,
+                flip() ? RootIndex::kFalseValue : RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
 void Float64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -1780,6 +1803,33 @@ void Float64Compare::GenerateCode(MaglevAssembler* masm,
   {
     __ bind(&is_false);
     __ LoadRoot(result, RootIndex::kFalseValue);
+  }
+  __ bind(&end);
+}
+
+void Float64ToBoolean::SetValueLocationConstraints() {
+  UseRegister(value());
+  set_double_temporaries_needed(1);
+  DefineAsRegister(this);
+}
+void Float64ToBoolean::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  DoubleRegister double_scratch = temps.AcquireDouble();
+  Register result = ToRegister(this->result());
+  Label is_false, end;
+
+  __ Move(double_scratch, 0.0);
+  __ CompareFloat64(ToDoubleRegister(value()), double_scratch);
+  __ JumpIf(ConditionForNaN(), &is_false);
+  __ JumpIf(kEqual, &is_false);
+
+  __ LoadRoot(result, flip() ? RootIndex::kFalseValue : RootIndex::kTrueValue);
+  __ Jump(&end);
+  {
+    __ bind(&is_false);
+    __ LoadRoot(result,
+                flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
   }
   __ bind(&end);
 }
@@ -6117,9 +6167,23 @@ void Float64Compare::PrintParams(std::ostream& os,
   os << "(" << operation() << ")";
 }
 
+void Float64ToBoolean::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  if (flip()) {
+    os << "(flipped)";
+  }
+}
+
 void Int32Compare::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
   os << "(" << operation() << ")";
+}
+
+void Int32ToBoolean::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  if (flip()) {
+    os << "(flipped)";
+  }
 }
 
 void Float64Ieee754Unary::PrintParams(
