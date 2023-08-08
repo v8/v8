@@ -99,7 +99,6 @@ Debug::Debug(Isolate* isolate)
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
       debug_infos_(isolate),
-      feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
 }
@@ -376,14 +375,6 @@ BreakLocation BreakIterator::GetBreakLocation() {
 }
 
 Isolate* BreakIterator::isolate() { return debug_info_->GetIsolate(); }
-
-void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
-  uint32_t mask = 1 << feature;
-  // Only count one sample per feature and isolate.
-  if (bitfield_ & mask) return;
-  isolate_->counters()->debug_feature_usage()->AddSample(feature);
-  bitfield_ |= mask;
-}
 
 // Threading support.
 void Debug::ThreadInit() {
@@ -870,8 +861,6 @@ bool Debug::SetBreakpoint(Handle<SharedFunctionInfo> shared,
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
-
-  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
   return true;
 }
 
@@ -1313,8 +1302,6 @@ void Debug::PrepareStep(StepAction step_action) {
   StackFrameId frame_id = break_frame_id();
   // If there is no JavaScript stack don't do anything.
   if (frame_id == StackFrameId::NO_ID) return;
-
-  feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
 
@@ -2558,7 +2545,6 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                             debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
-  feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
   running_live_edit_ = true;
   LiveEdit::PatchScript(isolate_, script, source, preview,
                         allow_top_frame_live_editing, result);
@@ -2628,7 +2614,6 @@ void Debug::UpdateState() {
     isolate_->compilation_cache()->DisableScriptAndEval();
     isolate_->CollectSourcePositionsForAllBytecodeArrays();
     is_active = true;
-    feature_tracker()->Track(DebugFeatureTracker::kActive);
   } else {
     isolate_->compilation_cache()->EnableScriptAndEval();
     Unload();

@@ -239,27 +239,6 @@ class DebugInfoCollection final {
   std::unordered_map<SFIUniqueId, HandleLocation> map_;
 };
 
-class DebugFeatureTracker {
- public:
-  enum Feature {
-    kActive = 1,
-    kBreakPoint = 2,
-    kStepping = 3,
-    kHeapSnapshot = 4,
-    kAllocationTracking = 5,
-    kProfiler = 6,
-    kLiveEdit = 7,
-  };
-
-  explicit DebugFeatureTracker(Isolate* isolate)
-      : isolate_(isolate), bitfield_(0) {}
-  void Track(Feature feature);
-
- private:
-  Isolate* isolate_;
-  uint32_t bitfield_;
-};
-
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -487,8 +466,6 @@ class V8_EXPORT_PRIVATE Debug {
 
   inline bool break_disabled() const { return break_disabled_; }
 
-  DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
-
   // For functions in which we cannot set a break point, use a canonical
   // source position for break points.
   static const int kBreakAtEntryPosition = 0;
@@ -614,9 +591,6 @@ class V8_EXPORT_PRIVATE Debug {
   std::unique_ptr<TemporaryObjectsTracker> temporary_objects_;
 
   Handle<RegExpMatchInfo> regexp_match_info_;
-
-  // Used to collect histogram data on debugger feature usage.
-  DebugFeatureTracker feature_tracker_;
 
   // Per-thread data.
   class ThreadLocal {

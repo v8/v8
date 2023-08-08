@@ -109,9 +109,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   heap()->isolate()->UpdateLogObjectRelocation();
   is_taking_snapshot_ = false;
 
-  heap()->isolate()->debug()->feature_tracker()->Track(
-      DebugFeatureTracker::kHeapSnapshot);
-
   return result;
 }
 
@@ -153,8 +150,6 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   if (track_allocations) {
     allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->AddHeapObjectAllocationTracker(this);
-    heap()->isolate()->debug()->feature_tracker()->Track(
-        DebugFeatureTracker::kAllocationTracking);
   }
 }
 
