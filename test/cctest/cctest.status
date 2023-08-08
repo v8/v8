@@ -1115,6 +1115,14 @@
   'test-run-wasm-simd/RunWasmTurbofan_I32x8Abs': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_I8x32Neg': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_I8x32Abs': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16AddSatS': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16AddSatU': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16SubSatS': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16SubSatU': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32AddSatS': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32AddSatU': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatS': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatU': [FAIL],
 }],  # variant == turboshaft
 
 ##############################################################################

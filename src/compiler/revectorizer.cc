@@ -48,6 +48,14 @@ namespace {
   V(I16x8Mul, I16x16Mul)                    \
   V(F64x2Div, F64x4Div)                     \
   V(F32x4Div, F32x8Div)                     \
+  V(I16x8AddSatS, I16x16AddSatS)            \
+  V(I16x8SubSatS, I16x16SubSatS)            \
+  V(I16x8AddSatU, I16x16AddSatU)            \
+  V(I16x8SubSatU, I16x16SubSatU)            \
+  V(I8x16AddSatS, I8x32AddSatS)             \
+  V(I8x16SubSatS, I8x32SubSatS)             \
+  V(I8x16AddSatU, I8x32AddSatU)             \
+  V(I8x16SubSatU, I8x32SubSatU)             \
   V(F64x2Eq, F64x4Eq)                       \
   V(F32x4Eq, F32x8Eq)                       \
   V(I64x2Eq, I64x4Eq)                       \
