@@ -8664,81 +8664,58 @@ void MaglevGraphBuilder::BuildBranchIfUndefined(ValueNode* node,
 
 BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
     ValueNode* node, BasicBlockRef* true_target, BasicBlockRef* false_target) {
-  auto make_specialized_branch_if_compare = [&](ValueRepresentation repr,
-                                                ValueNode* cond) {
-    // Note that this function (BuildBranchIfToBooleanTrue) generates either a
-    // BranchIfToBooleanTrue, or a BranchIfFloat64Compare/BranchIfInt32Compare
-    // comparing the {node} with 0. In the former case, the jump is taken if
-    // {node} is non-zero, while in the latter cases, the jump is taken if
-    // {node} is zero. The {true_target} and {false_target} are thus swapped
-    // when we generate a BranchIfFloat64Compare or a BranchIfInt32Compare
-    // below.
-    switch (repr) {
-      case ValueRepresentation::kFloat64:
-      case ValueRepresentation::kHoleyFloat64:
-        DCHECK(cond->value_representation() == ValueRepresentation::kFloat64 ||
-               cond->value_representation() ==
-                   ValueRepresentation::kHoleyFloat64);
-        // The ToBoolean of both the_hole and NaN is false, so we can use the
-        // same operation for HoleyFloat64 and Float64.
-        return FinishBlock<BranchIfFloat64ToBooleanTrue>({cond}, true_target,
-                                                         false_target);
-
-      case ValueRepresentation::kInt32:
-        DCHECK_EQ(cond->value_representation(), ValueRepresentation::kInt32);
-        return FinishBlock<BranchIfInt32ToBooleanTrue>({cond}, true_target,
+  switch (node->value_representation()) {
+    // The ToBoolean of both the_hole and NaN is false, so we can use the
+    // same operation for HoleyFloat64 and Float64.
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      return FinishBlock<BranchIfFloat64ToBooleanTrue>({node}, true_target,
                                                        false_target);
-      default:
-        UNREACHABLE();
-    }
-  };
 
-  if (node->value_representation() == ValueRepresentation::kInt32) {
-    return make_specialized_branch_if_compare(ValueRepresentation::kInt32,
-                                              node);
-  } else if (node->value_representation() == ValueRepresentation::kFloat64 ||
-             node->value_representation() ==
-                 ValueRepresentation::kHoleyFloat64) {
-    return make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
-                                              node);
-  } else {
-    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(node);
-    if (auto as_int32 = node_info->alternative().int32()) {
-      return make_specialized_branch_if_compare(ValueRepresentation::kInt32,
-                                                as_int32);
-    } else if (auto as_float64 = node_info->alternative().float64()) {
-      return make_specialized_branch_if_compare(ValueRepresentation::kFloat64,
-                                                as_float64);
-    } else {
-      DCHECK(node->value_representation() == ValueRepresentation::kTagged ||
-             node->value_representation() == ValueRepresentation::kUint32);
-      // Uint32 should be rare enough that tagging them shouldn't be too
-      // expensive (we don't have a `BranchIfUint32Compare` node, and adding
-      // one doesn't seem worth it at this point).
-      // We do not record a Tagged use hint here, because Tagged hints prevent
-      // Phi untagging. A BranchIfToBooleanTrue should never prevent Phi
-      // untagging: if we untag a Phi that is used in such a node, then we can
-      // convert the node to BranchIfFloat64ToBooleanTrue or
-      // BranchIfInt32ToBooleanTrue.
-      node = GetTaggedValue(node, UseReprHintRecording::kDoNotRecord);
-      NodeType old_type;
-      if (CheckType(node, NodeType::kBoolean, &old_type)) {
-        return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
-                                                 true_target, false_target);
-      }
-      if (CheckType(node, NodeType::kSmi)) {
-        return FinishBlock<BranchIfReferenceEqual>({node, GetSmiConstant(0)},
-                                                   false_target, true_target);
-      }
-      if (CheckType(node, NodeType::kString)) {
-        return FinishBlock<BranchIfRootConstant>(
-            {node}, RootIndex::kempty_string, false_target, true_target);
-      }
-      // TODO(verwaest): Number or oddball.
-      return FinishBlock<BranchIfToBooleanTrue>({node}, GetCheckType(old_type),
-                                                true_target, false_target);
+    case ValueRepresentation::kUint32:
+      // Uint32 has the same logic as Int32 when converting ToBoolean, namely
+      // comparison against zero, so we can cast it and ignore the signedness.
+      node = AddNewNode<TruncateUint32ToInt32>({node});
+      V8_FALLTHROUGH;
+    case ValueRepresentation::kInt32:
+      return FinishBlock<BranchIfInt32ToBooleanTrue>({node}, true_target,
+                                                     false_target);
+
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+
+    case ValueRepresentation::kTagged:
+      break;
+  }
+
+  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
+  if (node_info) {
+    if (ValueNode* as_int32 = node_info->alternative().int32()) {
+      return FinishBlock<BranchIfInt32ToBooleanTrue>({as_int32}, true_target,
+                                                     false_target);
+    }
+    if (ValueNode* as_float64 = node_info->alternative().float64()) {
+      return FinishBlock<BranchIfFloat64ToBooleanTrue>(
+          {as_float64}, true_target, false_target);
     }
   }
+
+  NodeType old_type;
+  if (CheckType(node, NodeType::kBoolean, &old_type)) {
+    return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
+                                             true_target, false_target);
+  }
+  if (CheckType(node, NodeType::kSmi)) {
+    return FinishBlock<BranchIfReferenceEqual>({node, GetSmiConstant(0)},
+                                               false_target, true_target);
+  }
+  if (CheckType(node, NodeType::kString)) {
+    return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kempty_string,
+                                             false_target, true_target);
+  }
+  // TODO(verwaest): Number or oddball.
+  return FinishBlock<BranchIfToBooleanTrue>({node}, GetCheckType(old_type),
+                                            true_target, false_target);
 }
 
 void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
