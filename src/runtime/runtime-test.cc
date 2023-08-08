@@ -1857,7 +1857,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
 #else
   CHECK(IsObject(**object));
   if (IsHeapObject(*object)) {
-    CHECK(IsMap(HeapObject::cast(*object).map()));
+    CHECK(IsMap(HeapObject::cast(*object)->map()));
   } else {
     CHECK(IsSmi(*object));
   }

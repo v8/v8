@@ -403,9 +403,9 @@ class ObjectStatsCollectorImpl {
   bool RecordSimpleVirtualObjectStats(HeapObject parent, HeapObject obj,
                                       ObjectStats::VirtualInstanceType type);
   // For HashTable it is possible to compute over allocated memory.
-  template <typename Derived, typename Shape>
-  void RecordHashTableVirtualObjectStats(HeapObject parent,
-                                         HashTable<Derived, Shape> hash_table,
+  template <typename Dictionary>
+  void RecordHashTableVirtualObjectStats(Tagged<HeapObject> parent,
+                                         Tagged<Dictionary> hash_table,
                                          ObjectStats::VirtualInstanceType type);
 
   bool SameLiveness(HeapObject obj1, HeapObject obj2);
@@ -435,7 +435,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo fti);
-  void RecordVirtualJSGlobalObjectDetails(JSGlobalObject object);
+  void RecordVirtualJSGlobalObjectDetails(Tagged<JSGlobalObject> object);
   void RecordVirtualJSObjectDetails(JSObject object);
   void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script script);
@@ -480,15 +480,15 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
   return true;
 }
 
-template <typename Derived, typename Shape>
+template <typename Dictionary>
 void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
-    HeapObject parent, HashTable<Derived, Shape> hash_table,
+    Tagged<HeapObject> parent, Tagged<Dictionary> hash_table,
     ObjectStats::VirtualInstanceType type) {
   size_t over_allocated =
-      (hash_table.Capacity() -
-       (hash_table.NumberOfElements() + hash_table.NumberOfDeletedElements())) *
-      HashTable<Derived, Shape>::kEntrySize * kTaggedSize;
-  RecordVirtualObjectStats(parent, hash_table, type, hash_table.Size(),
+      (hash_table->Capacity() - (hash_table->NumberOfElements() +
+                                 hash_table->NumberOfDeletedElements())) *
+      Dictionary::kEntrySize * kTaggedSize;
+  RecordVirtualObjectStats(parent, hash_table, type, hash_table->Size(),
                            over_allocated);
 }
 
@@ -569,9 +569,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
-    JSGlobalObject object) {
+    Tagged<JSGlobalObject> object) {
   // Properties.
-  GlobalDictionary properties = object->global_dictionary(kAcquireLoad);
+  Tagged<GlobalDictionary> properties = object->global_dictionary(kAcquireLoad);
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
@@ -603,7 +603,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
                                properties->Size(), over_allocated);
     }
   } else {
-    NameDictionary properties = object->property_dictionary();
+    Tagged<NameDictionary> properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
         object, properties,
         object->map()->is_prototype_map()

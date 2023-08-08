@@ -567,8 +567,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.Push(*descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
-    NativeContext::cast(raw_obj).init_microtask_queue(main_thread_isolate(),
-                                                      nullptr);
+    NativeContext::cast(raw_obj)->init_microtask_queue(main_thread_isolate(),
+                                                       nullptr);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     LogScriptEvents(Script::cast(*obj));
   }

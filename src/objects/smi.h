@@ -33,9 +33,9 @@ class Smi : public Object {
 
   // Returns the integer value.
   inline constexpr int value() const { return Internals::SmiValue(ptr()); }
-  inline constexpr Tagged<Smi> ToUint32Smi() {
-    if (value() <= 0) return Smi::FromInt(0);
-    return Smi::FromInt(static_cast<uint32_t>(value()));
+  static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
+    if (smi.value() <= 0) return Smi::FromInt(0);
+    return Smi::FromInt(static_cast<uint32_t>(smi.value()));
   }
 
   // Convert a Smi object to an int.
@@ -91,7 +91,7 @@ class Smi : public Object {
   DECL_CAST(Smi)
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;
+  V8_EXPORT_PRIVATE static void SmiPrint(Tagged<Smi> smi, std::ostream& os);
   DECL_STATIC_VERIFIER(Smi)
 
   // Since this is a constexpr, "calling" it is just as efficient

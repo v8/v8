@@ -543,7 +543,7 @@ class WasmRunner : public WasmRunnerBase {
     if constexpr (std::is_integral_v<ReturnType> &&
                   sizeof(ReturnType) == sizeof(int64_t)) {
       CHECK(IsBigInt(*result));
-      return BigInt::cast(*result).AsInt64();
+      return BigInt::cast(*result)->AsInt64();
     }
 
     // Otherwise it must be a number (Smi or HeapNumber).

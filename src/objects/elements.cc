@@ -1612,7 +1612,7 @@ class DictionaryElementsAccessor
                                                  Object expected, Object value,
                                                  SeqCstAccessTag tag) {
     return NumberDictionary::cast(backing_store)
-        .ValueAtCompareAndSwap(entry, expected, value, tag);
+        ->ValueAtCompareAndSwap(entry, expected, value, tag);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,

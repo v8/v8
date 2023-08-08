@@ -366,7 +366,8 @@ MaybeHandle<Object> Object::ConvertToUint32(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, input,
       ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
-  if (IsSmi(*input)) return handle(Smi::cast(*input).ToUint32Smi(), isolate);
+  if (IsSmi(*input))
+    return handle(Smi::ToUint32Smi(Smi::cast(*input)), isolate);
   return isolate->factory()->NewNumberFromUint(
       DoubleToUint32(Object::Number(*input)));
 }
@@ -1849,7 +1850,7 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   Smi smi;
   HeapObject heap_object;
   if (maybe_object->ToSmi(&smi)) {
-    smi.SmiPrint(os);
+    Smi::SmiPrint(smi, os);
   } else if (maybe_object->IsCleared()) {
     os << "[cleared]";
   } else if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
@@ -1863,7 +1864,8 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   return os;
 }
 
-void Smi::SmiPrint(std::ostream& os) const { os << value(); }
+// static
+void Smi::SmiPrint(Tagged<Smi> smi, std::ostream& os) { os << smi.value(); }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
@@ -2445,25 +2447,25 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
     case NAME_DICTIONARY_TYPE:
-      NameDictionary::cast(*this).Rehash(isolate);
+      NameDictionary::cast(*this)->Rehash(isolate);
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
-      NameToIndexHashTable::cast(*this).Rehash(isolate);
+      NameToIndexHashTable::cast(*this)->Rehash(isolate);
       break;
     case REGISTERED_SYMBOL_TABLE_TYPE:
-      RegisteredSymbolTable::cast(*this).Rehash(isolate);
+      RegisteredSymbolTable::cast(*this)->Rehash(isolate);
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
-      SwissNameDictionary::cast(*this).Rehash(isolate);
+      SwissNameDictionary::cast(*this)->Rehash(isolate);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      GlobalDictionary::cast(*this).Rehash(isolate);
+      GlobalDictionary::cast(*this)->Rehash(isolate);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      NumberDictionary::cast(*this).Rehash(isolate);
+      NumberDictionary::cast(*this)->Rehash(isolate);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      SimpleNumberDictionary::cast(*this).Rehash(isolate);
+      SimpleNumberDictionary::cast(*this)->Rehash(isolate);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
     case STRONG_DESCRIPTOR_ARRAY_TYPE:
@@ -2483,11 +2485,11 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
     case ORDERED_HASH_SET_TYPE:
       UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
     case JS_MAP_TYPE: {
-      JSMap::cast(*this).Rehash(isolate->AsIsolate());
+      JSMap::cast(*this)->Rehash(isolate->AsIsolate());
       break;
     }
     case JS_SET_TYPE: {
-      JSSet::cast(*this).Rehash(isolate->AsIsolate());
+      JSSet::cast(*this)->Rehash(isolate->AsIsolate());
       break;
     }
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:

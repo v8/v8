@@ -30,6 +30,7 @@
  protected:                                                                    \
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
   friend class TaggedField;                                                    \
+  friend class Tagged<Type>;                                                   \
                                                                                \
   /* Special constructor for constexpr construction which allows skipping type \
    * checks. */                                                                \
@@ -172,14 +173,17 @@
   DECL_ACQUIRE_GETTER(name, MaybeObject)          \
   DECL_RELEASE_SETTER(name, MaybeObject)
 
-#define DECL_CAST(Type)                                           \
-  V8_INLINE static Type cast(Object object);                      \
-  V8_INLINE static constexpr Type unchecked_cast(Object object) { \
-    return Type(object.ptr(), SkipTypeCheckTag());                \
+#define DECL_CAST(Type)                                      \
+  V8_INLINE static Tagged<Type> cast(Tagged<Object> object); \
+  V8_INLINE static constexpr Tagged<Type> unchecked_cast(    \
+      Tagged<Object> object) {                               \
+    return Tagged<Type>(object.ptr());                       \
   }
 
-#define CAST_ACCESSOR(Type) \
-  Type Type::cast(Object object) { return Type(object.ptr()); }
+#define CAST_ACCESSOR(Type)                        \
+  Tagged<Type> Type::cast(Tagged<Object> object) { \
+    return Tagged<Type>(Type(object.ptr()).ptr()); \
+  }
 
 #define DEF_PRIMITIVE_ACCESSORS(holder, name, offset, type)     \
   type holder::name() const { return ReadField<type>(offset); } \

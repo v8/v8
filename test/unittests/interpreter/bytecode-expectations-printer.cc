@@ -297,7 +297,7 @@ void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream* stream, i::Handle<i::Object> constant) const {
   if (IsSmi(*constant)) {
     *stream << "Smi [";
-    i::Smi::cast(*constant).SmiPrint(*stream);
+    i::Smi::SmiPrint(i::Smi::cast(*constant), *stream);
     *stream << "]";
   } else {
     *stream << i::HeapObject::cast(*constant)->map()->instance_type();

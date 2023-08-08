@@ -190,7 +190,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(InternalIndex entry) {
   Object the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(*this).SetEntry(entry, the_hole, the_hole, details);
+  Derived::cast(*this)->SetEntry(entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
@@ -215,22 +215,22 @@ ObjectSlot Dictionary<Derived, Shape>::RawFieldOfValueAt(InternalIndex entry) {
 
 template <typename Key>
 template <typename Dictionary>
-PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Dictionary dict,
+PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Tagged<Dictionary> dict,
                                                     InternalIndex entry) {
   static_assert(Dictionary::kEntrySize == 3);
   DCHECK(entry.is_found());
-  return PropertyDetails(Smi::cast(dict.get(Dictionary::EntryToIndex(entry) +
-                                            Dictionary::kEntryDetailsIndex)));
+  return PropertyDetails(Smi::cast(dict->get(Dictionary::EntryToIndex(entry) +
+                                             Dictionary::kEntryDetailsIndex)));
 }
 
 template <typename Key>
 template <typename Dictionary>
-void BaseDictionaryShape<Key>::DetailsAtPut(Dictionary dict,
+void BaseDictionaryShape<Key>::DetailsAtPut(Tagged<Dictionary> dict,
                                             InternalIndex entry,
                                             PropertyDetails value) {
   static_assert(Dictionary::kEntrySize == 3);
-  dict.set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
-           value.AsSmi());
+  dict->set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
+            value.AsSmi());
 }
 
 Object GlobalDictionaryShape::Unwrap(Object object) {
@@ -390,17 +390,18 @@ Handle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
 }
 
 template <typename Dictionary>
-PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict,
+PropertyDetails GlobalDictionaryShape::DetailsAt(Tagged<Dictionary> dict,
                                                  InternalIndex entry) {
   DCHECK(entry.is_found());
-  return dict.CellAt(entry).property_details();
+  return dict->CellAt(entry)->property_details();
 }
 
 template <typename Dictionary>
-void GlobalDictionaryShape::DetailsAtPut(Dictionary dict, InternalIndex entry,
+void GlobalDictionaryShape::DetailsAtPut(Tagged<Dictionary> dict,
+                                         InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
-  dict.CellAt(entry).UpdatePropertyDetailsExceptCellType(value);
+  dict->CellAt(entry)->UpdatePropertyDetailsExceptCellType(value);
 }
 
 }  // namespace internal

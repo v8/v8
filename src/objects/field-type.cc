@@ -37,9 +37,9 @@ Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::cast(Object object) {
+Tagged<FieldType> FieldType::cast(Tagged<Object> object) {
   DCHECK(object == None() || object == Any() || IsMap(object));
-  return FieldType(object.ptr());
+  return Tagged<FieldType>(FieldType(object.ptr()).ptr());
 }
 
 bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }

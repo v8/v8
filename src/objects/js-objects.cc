@@ -38,6 +38,7 @@
 #include "src/objects/lookup.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/tagged.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
@@ -4153,16 +4154,16 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
 namespace {
 
 template <typename Dictionary>
-bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
+bool TestDictionaryPropertiesIntegrityLevel(Tagged<Dictionary> dict,
                                             ReadOnlyRoots roots,
                                             PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
 
-  for (InternalIndex i : dict.IterateEntries()) {
+  for (InternalIndex i : dict->IterateEntries()) {
     Object key;
-    if (!dict.ToKey(roots, i, &key)) continue;
+    if (!dict->ToKey(roots, i, &key)) continue;
     if (Object::FilterKey(key, ALL_PROPERTIES)) continue;
-    PropertyDetails details = dict.DetailsAt(i);
+    PropertyDetails details = dict->DetailsAt(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == PropertyKind::kData &&
         !details.IsReadOnly()) {
@@ -4170,6 +4171,15 @@ bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
     }
   }
   return true;
+}
+
+template <typename Dictionary>
+bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
+                                            ReadOnlyRoots roots,
+                                            PropertyAttributes level) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return TestDictionaryPropertiesIntegrityLevel(Tagged<Dictionary>(dict), roots,
+                                                level);
 }
 
 bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {

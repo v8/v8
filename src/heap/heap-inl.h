@@ -337,7 +337,7 @@ bool Heap::InFromPage(HeapObject heap_object) {
 template <typename T>
 inline bool Heap::InFromPage(Tagged<T> object) {
   static_assert(kTaggedCanConvertToRawObjects);
-  return InYoungGeneration(*object);
+  return InFromPage(*object);
 }
 
 // static
@@ -361,7 +361,7 @@ bool Heap::InToPage(HeapObject heap_object) {
 template <typename T>
 inline bool Heap::InToPage(Tagged<T> object) {
   static_assert(kTaggedCanConvertToRawObjects);
-  return InYoungGeneration(*object);
+  return InToPage(*object);
 }
 
 bool Heap::InOldSpace(Tagged<Object> object) {

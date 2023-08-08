@@ -204,6 +204,60 @@ class Tagged<Smi> : public TaggedBase {
   using TaggedBase::TaggedBase;
 };
 
+// Specialization for TaggedIndex disallowing any implicit creation or access
+// via ->, but offering instead a cast from Object and an intptr_t value()
+// method.
+template <>
+class Tagged<TaggedIndex> : public TaggedBase {
+ public:
+  // Explicit cast for sub- and superclasses (in practice, only Object will pass
+  // this static assert).
+  template <typename U>
+  static constexpr Tagged<TaggedIndex> cast(Tagged<U> other) {
+    static_assert(std::is_base_of_v<TaggedIndex, U> ||
+                  std::is_convertible_v<U*, TaggedIndex*> ||
+                  std::is_base_of_v<U, TaggedIndex> ||
+                  std::is_convertible_v<TaggedIndex*, U*>);
+    DCHECK(IsTaggedIndex(other));
+    return Tagged<TaggedIndex>(other.ptr());
+  }
+  static constexpr Tagged<TaggedIndex> unchecked_cast(TaggedBase other) {
+    return Tagged<TaggedIndex>(other.ptr());
+  }
+
+  // No implicit conversions from other tagged pointers.
+
+  constexpr bool IsHeapObject() const { return false; }
+  constexpr bool IsSmi() const { return true; }
+
+  // Returns the integer value.
+  constexpr intptr_t value() const {
+    // Truncate and shift down (requires >> to be sign extending).
+    return static_cast<intptr_t>(ptr()) >> kSmiTagSize;
+  }
+
+  // Implicit conversions to/from raw pointers
+  // TODO(leszeks): Remove once we're using Tagged everywhere.
+  // NOLINTNEXTLINE
+  inline constexpr Tagged(TaggedIndex raw);
+  // NOLINTNEXTLINE
+  inline constexpr operator TaggedIndex();
+
+  // Access via ->, remove once TaggedIndex doesn't have its own address.
+  inline constexpr TaggedIndex operator*() const;
+  inline constexpr detail::TaggedOperatorArrowRef<TaggedIndex> operator->();
+
+ private:
+  friend class TaggedIndex;
+  // Handles of the same type are allowed to access the Address constructor.
+  friend class Handle<TaggedIndex>;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  friend class DirectHandle<TaggedIndex>;
+#endif
+
+  using TaggedBase::TaggedBase;
+};
+
 // Specialization for HeapObject, to group together functions shared between all
 // HeapObjects
 template <>
@@ -305,7 +359,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   static constexpr Tagged<T> cast(Tagged<U> other) {
     static_assert(std::is_base_of_v<T, U> || std::is_convertible_v<U*, T*> ||
                   std::is_base_of_v<U, T> || std::is_convertible_v<T*, U*>);
-    return Tagged<T>(T::cast(*other).ptr());
+    return T::cast(*other);
   }
   static constexpr Tagged<T> unchecked_cast(TaggedBase other) {
     // Don't check incoming type for unchecked casts, in case the object
@@ -368,7 +422,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
 
   using Base::Base;
   constexpr T ToRawPtr() const {
-    return T::unchecked_cast(Object(this->ptr()));
+    return T(this->ptr(), typename T::SkipTypeCheckTag{});
   }
 };
 

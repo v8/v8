@@ -138,10 +138,11 @@ class BaseDictionaryShape : public BaseShape<Key> {
  public:
   static const bool kHasDetails = true;
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
+  static inline PropertyDetails DetailsAt(Tagged<Dictionary> dict,
+                                          InternalIndex entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+  static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
                                   PropertyDetails value);
 };
 
@@ -271,10 +272,11 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public BaseNameDictionaryShape {
   static const int kEntrySize = 1;
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
+  static inline PropertyDetails DetailsAt(Tagged<Dictionary> dict,
+                                          InternalIndex entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+  static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
                                   PropertyDetails value);
 
   static inline Object Unwrap(Object key);
@@ -336,13 +338,13 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   static const int kEntrySize = 2;
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict,
+  static inline PropertyDetails DetailsAt(Tagged<Dictionary> dict,
                                           InternalIndex entry) {
     UNREACHABLE();
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+  static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
                                   PropertyDetails value) {
     UNREACHABLE();
   }
@@ -436,15 +438,15 @@ class NumberDictionary
 // enumeration order.
 template <typename Dictionary>
 struct EnumIndexComparator {
-  explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
+  explicit EnumIndexComparator(Tagged<Dictionary> dict) : dict(dict) {}
   bool operator()(Tagged_t a, Tagged_t b) {
     PropertyDetails da(
-        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
+        dict->DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
     PropertyDetails db(
-        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
+        dict->DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
     return da.dictionary_index() < db.dictionary_index();
   }
-  Dictionary dict;
+  Tagged<Dictionary> dict;
 };
 
 }  // namespace internal

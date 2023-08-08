@@ -709,7 +709,9 @@ MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
 
 // static
 MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
-  if (IsSmi(*input)) return handle(Smi::cast(*input).ToUint32Smi(), isolate);
+  if (IsSmi(*input)) {
+    return handle(Smi::ToUint32Smi(Smi::cast(*input)), isolate);
+  }
   return ConvertToUint32(isolate, input);
 }
 

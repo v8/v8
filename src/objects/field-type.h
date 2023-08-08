@@ -24,9 +24,9 @@ class FieldType : public Object {
   V8_EXPORT_PRIVATE static FieldType Class(Map map);
   V8_EXPORT_PRIVATE static Handle<FieldType> Class(Handle<Map> map,
                                                    Isolate* isolate);
-  V8_EXPORT_PRIVATE static FieldType cast(Object object);
-  static FieldType unchecked_cast(Object object) {
-    return FieldType(object.ptr());
+  V8_EXPORT_PRIVATE static Tagged<FieldType> cast(Tagged<Object> object);
+  static constexpr Tagged<FieldType> unchecked_cast(Tagged<Object> object) {
+    return Tagged<FieldType>(object.ptr());
   }
 
   bool NowContains(Object value) const;
@@ -42,7 +42,12 @@ class FieldType : public Object {
   V8_EXPORT_PRIVATE void PrintTo(std::ostream& os) const;
 
  private:
-  explicit constexpr FieldType(Address ptr) : Object(ptr) {}
+  friend class Tagged<FieldType>;
+
+  explicit constexpr FieldType(Address ptr) : Object(ptr) {
+    // TODO(leszeks): Typecheck that this is Map or Smi.
+  }
+  explicit constexpr FieldType(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
 };
 
 bool IsClass(Tagged<FieldType> obj);

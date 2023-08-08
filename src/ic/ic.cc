@@ -2645,9 +2645,9 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> receiver = args.at(0);
   Handle<Name> key = args.at<Name>(1);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(2);
+  int slot = args.tagged_index_value_at(2);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
@@ -2712,11 +2712,11 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<String> name = args.at<String>(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   int typeof_value = args.smi_value_at(3);
   TypeofMode typeof_mode = static_cast<TypeofMode>(typeof_value);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
@@ -2740,9 +2740,9 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   DCHECK_EQ(3, args.length());
   Handle<String> name = args.at<String>(0);
 
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
 
   LoadGlobalIC ic(isolate, vector, vector_slot, kind);
@@ -2758,9 +2758,9 @@ RUNTIME_FUNCTION(Runtime_LoadWithReceiverIC_Miss) {
   Handle<Object> receiver = args.at(0);
   Handle<Object> object = args.at(1);
   Handle<Name> key = args.at<Name>(2);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(3);
+  int slot = args.tagged_index_value_at(3);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   DCHECK(IsLoadICKind(vector->GetKind(vector_slot)));
   LoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kLoadProperty);
@@ -2774,7 +2774,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> receiver = args.at(0);
   Handle<Object> key = args.at(1);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(2);
+  int slot = args.tagged_index_value_at(2);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
@@ -2782,7 +2782,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   KeyedLoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kLoadKeyed);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
@@ -2793,12 +2793,12 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
 
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   // When there is no feedback vector it is OK to use the SetNamedStrict as
   // the feedback slot kind. We only reuse this for DefineNamedOwnIC when
@@ -2823,12 +2823,12 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
 
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   // When there is no feedback vector it is OK to use the DefineNamedOwn
   // feedback kind. There _should_ be a vector, though.
@@ -2876,11 +2876,11 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Name> key = args.at<Name>(3);
 
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
   StoreGlobalIC ic(isolate, vector, vector_slot, kind);
   Handle<JSGlobalObject> global = isolate->global_object();
@@ -2912,9 +2912,9 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
 #ifdef DEBUG
   {
-    Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+    int slot = args.tagged_index_value_at(1);
     Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-    FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+    FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
     FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
     DCHECK(IsStoreGlobalICKind(slot_kind));
     Handle<Object> receiver = args.at(3);
@@ -2959,11 +2959,11 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   // When the feedback vector is not valid the slot can only be of type
   // StoreKeyed. Storing in array literals falls back to
@@ -3003,11 +3003,11 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   FeedbackSlotKind kind = FeedbackSlotKind::kDefineKeyedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
@@ -3030,7 +3030,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
@@ -3041,7 +3041,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   }
   DCHECK(IsJSArray(*receiver));
   DCHECK(IsNumber(*key));
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
@@ -3090,9 +3090,9 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   Handle<Object> key = args.at(1);
   Handle<Object> value = args.at(2);
   Handle<Map> map = args.at<Map>(3);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(4);
+  int slot = args.tagged_index_value_at(4);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(5);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
 
   if (IsJSObject(*object)) {
@@ -3405,9 +3405,9 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   if (it.IsFound()) return *result;
 
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(3);
+  int slot = args.tagged_index_value_at(3);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
   // It could actually be any kind of load IC slot here but the predicate
   // handles all the cases properly.
@@ -3500,7 +3500,7 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> receiver = args.at(0);
   Handle<Object> key = args.at(1);
-  Handle<TaggedIndex> slot = args.at<TaggedIndex>(2);
+  int slot = args.tagged_index_value_at(2);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
@@ -3508,7 +3508,7 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   KeyedLoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kHasKeyed);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));

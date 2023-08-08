@@ -347,7 +347,7 @@ constexpr Tagged<HeapObject>::operator HeapObject() {
   return ToRawPtr();
 }
 constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
-  return HeapObject::unchecked_cast(Object(this->ptr()));
+  return HeapObject(this->ptr(), HeapObject::SkipTypeCheckTag{});
 }
 
 // Overload Is* predicates for HeapObject.
