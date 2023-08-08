@@ -1550,6 +1550,11 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
 
   if (!has_tagged_param) return;
 
+#if V8_TARGET_ARCH_ARM64
+  constexpr size_t size_of_sig = 2;
+#else
+  constexpr size_t size_of_sig = 1;
+#endif
   for (size_t i = 0; i < parameter_count; i++) {
     wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
     MachineRepresentation param = type.machine_representation();
@@ -1568,8 +1573,8 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
           break;
         }
       }
-      // First offset is 3 because of caller FP + return address + signature.
-      size_t param_start_offset = 3;
+      // Caller FP + return address + signature.
+      size_t param_start_offset = 2 + size_of_sig;
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;
@@ -1582,7 +1587,8 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
       // Caller FP + return address + signature + spilled registers (without
       // the instance register).
       size_t param_start_offset = arraysize(wasm::kGpParamRegisters) - 1 +
-                                  arraysize(wasm::kFpParamRegisters) + 3;
+                                  arraysize(wasm::kFpParamRegisters) + 2 +
+                                  size_of_sig;
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;

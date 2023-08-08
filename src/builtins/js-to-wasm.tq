@@ -319,12 +319,26 @@ struct LocationAllocator {
         this.object, offset);
   }
 
+  macro GetAlignedStackEnd(alignment: intptr): RawPtr {
+    let offset = this.nextStack;
+    if (this.smallSlotLast) {
+      offset -= torque_internal::SizeOf<intptr>();
+    }
+    const stackSize = offset - this.stackStart;
+    if (stackSize % alignment != 0) {
+      offset += alignment - (stackSize % alignment);
+    }
+    return torque_internal::unsafe::GCUnsafeReferenceToRawPtr(
+        this.object, offset);
+  }
+
   object: HeapObject|TaggedZeroPattern;
   remainingGPRegs: intptr;
   remainingFPRegs: intptr;
   nextGPReg: intptr;
   nextFPReg: intptr;
   nextStack: intptr;
+  stackStart: intptr;
   // Even on 32-bit platforms we always allocate 64-bit stack space at a time to
   // preserve alignment. If we allocate a 64-bit slot for a 32-bit type, then we
   // remember the second half of the 64-bit slot as `smallSlot` so that it can
@@ -360,6 +374,7 @@ macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
   result.nextStack = result.nextFPReg +
       result.remainingFPRegs * slotsPerFloat *
           torque_internal::SizeOf<intptr>();
+  result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
   return result;
@@ -374,6 +389,7 @@ macro LocationAllocatorForReturns(
   result.nextGPReg = Convert<intptr>(gpRegs) + kHeapObjectTag;
   result.nextFPReg = Convert<intptr>(fpRegs) + kHeapObjectTag;
   result.nextStack = Convert<intptr>(stack) + kHeapObjectTag;
+  result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
   return result;

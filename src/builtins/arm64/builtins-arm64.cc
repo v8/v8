@@ -2558,6 +2558,15 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
     // check + jump.
     __ Str(xzr, MemOperand(sp, len, LSL, kSystemPointerSizeLog2));
   }
+  // Fill a possible alignment slot with a meaningful value.
+  {
+    Register total_num_args = x10;
+    __ Add(total_num_args, argc, len);
+    // If the sum is even, then there are no alignment slots that need
+    // initialization.
+    __ Tbz(total_num_args, 0, &exit);
+    __ Str(xzr, MemOperand(sp, total_num_args, LSL, kSystemPointerSizeLog2));
+  }
   __ Bind(&exit);
 }
 
@@ -4802,7 +4811,22 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   GenericJSToWasmWrapperHelper(masm, true);
 }
 
-void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  // Push registers in reverse order so that they are on the stack like
+  // in an array, with the first item being at the lowest address.
+  __ Push(wasm::kFpParamRegisters[7], wasm::kFpParamRegisters[6],
+          wasm::kFpParamRegisters[5], wasm::kFpParamRegisters[4]);
+  __ Push(wasm::kFpParamRegisters[3], wasm::kFpParamRegisters[2],
+          wasm::kFpParamRegisters[1], wasm::kFpParamRegisters[0]);
+
+  __ Push(wasm::kGpParamRegisters[6], wasm::kGpParamRegisters[5],
+          wasm::kGpParamRegisters[4], wasm::kGpParamRegisters[3]);
+  __ Push(wasm::kGpParamRegisters[2], wasm::kGpParamRegisters[1],
+          // Spill two more slots, one to allocate space for the signature,
+          // which will get spilled in Torque, and one for stack alignment.
+          xzr, xzr);
+  __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
+}
 
 void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();

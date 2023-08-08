@@ -26,6 +26,8 @@ extern builtin CallVarargs(
 
 extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
+extern macro StackAlignmentInBytes(): intptr;
+
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // Spill the signature on the stack so that it can be read by the GC. This is
@@ -33,6 +35,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // Caller FP + return address.
   const sigSlot = LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
   *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
+  const sizeOfSig = StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
 
   ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
@@ -65,7 +68,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   // Caller FP + return address + signature.
   const stackParamStart =
-      LoadFramePointer() + 3 * torque_internal::SizeOf<intptr>();
+      LoadFramePointer() + (2 + sizeOfSig) * torque_internal::SizeOf<intptr>();
   const inParams = torque_internal::unsafe::NewOffHeapReference(
       %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
@@ -149,7 +152,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       2 * torque_internal::SizeOf<float64>(),
       torque_internal::SizeOf<float64>()));
   // The return area on the stack starts right after the stack area.
-  const stackSlots = locationAllocator.GetStackEnd();
+  const stackSlots =
+      locationAllocator.GetAlignedStackEnd(StackAlignmentInBytes());
   locationAllocator =
       LocationAllocatorForReturns(gpRegSlots, fpRegSlots, stackSlots);
 
@@ -242,8 +246,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const popCount =
       (Convert<intptr>(stackSlots) - Convert<intptr>(stackParamStart)) /
           torque_internal::SizeOf<intptr>() +
-      // The additional slot for the signature.
-      1;
+      sizeOfSig;
 
   ModifyThreadInWasmFlag(1);
   ModifyWasmToJSCounter(-1);

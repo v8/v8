@@ -566,6 +566,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Smi> NoContextConstant();
 
+  TNode<IntPtrT> StackAlignmentInBytes() {
+    // This node makes the graph platform-specific. To make sure that the graph
+    // structure is still platform independent, UniqueIntPtrConstants are used
+    // here.
+#if V8_TARGET_ARCH_ARM64
+    return UniqueIntPtrConstant(16);
+#else
+    return UniqueIntPtrConstant(kSystemPointerSize);
+#endif
+  }
+
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)    \
   TNode<RemoveTagged<                                                    \
       decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type> \
