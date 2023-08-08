@@ -1680,7 +1680,8 @@ int AddImportWrapperUnits(NativeModule* native_module,
     const WasmFunction& function =
         native_module->module()->functions[func_index];
     if (!IsJSCompatibleSignature(function.sig)) continue;
-    if (UseGenericWasmToJSWrapper(function.sig, kNoSuspend)) {
+    if (UseGenericWasmToJSWrapper(kDefaultImportCallKind, function.sig,
+                                  kNoSuspend)) {
       continue;
     }
     uint32_t canonical_type_index =

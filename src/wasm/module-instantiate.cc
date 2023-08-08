@@ -1681,7 +1681,7 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     default: {
       // The imported function is a callable.
-      if (UseGenericWasmToJSWrapper(expected_sig, resolved.suspend()) &&
+      if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend()) &&
           (kind == ImportCallKind::kJSFunctionArityMatch ||
            kind == ImportCallKind::kJSFunctionArityMismatch)) {
         ImportedFunctionEntry entry(instance, func_index);
@@ -2065,7 +2065,7 @@ void InstanceBuilder::CompileImportWrappers(
         module_->isorecursive_canonical_type_ids[sig_index];
     WasmImportData resolved({}, func_index, js_receiver, sig,
                             canonical_type_index);
-    if (UseGenericWasmToJSWrapper(sig, resolved.suspend())) {
+    if (UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend())) {
       continue;
     }
     ImportCallKind kind = resolved.kind();

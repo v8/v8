@@ -1064,7 +1064,7 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
                                         Handle<JSReceiver> callable,
                                         wasm::Suspend suspend,
                                         const wasm::FunctionSig* sig) {
-  DCHECK(UseGenericWasmToJSWrapper(sig, suspend));
+  DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
   Address wrapper = isolate->builtins()
                         ->code(Builtin::kWasmToJsWrapperAsm)
                         ->instruction_start();
@@ -1649,7 +1649,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     Address call_target;
     if (wasm_code) {
       call_target = wasm_code->instruction_start();
-    } else if (UseGenericWasmToJSWrapper(sig, resolved.suspend())) {
+    } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
       call_target = isolate->builtins()
                         ->code(Builtin::kWasmToJsWrapperAsm)
                         .instruction_start();
@@ -1970,8 +1970,13 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   return result;
 }
 
-bool UseGenericWasmToJSWrapper(const wasm::FunctionSig* sig,
+bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
+                               const wasm::FunctionSig* sig,
                                wasm::Suspend suspend) {
+  if (kind != wasm::ImportCallKind::kJSFunctionArityMatch &&
+      kind != wasm::ImportCallKind::kJSFunctionArityMismatch) {
+    return false;
+  }
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
     !V8_TARGET_ARCH_IA32
   return false;
@@ -2328,7 +2333,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     Handle<Code> wasm_to_js_wrapper_code;
-    if (UseGenericWasmToJSWrapper(sig, suspend)) {
+    if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend)) {
       wasm_to_js_wrapper_code =
           isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
     } else {

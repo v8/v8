@@ -639,7 +639,8 @@ void V8_EXPORT_PRIVATE
 DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
                         uint32_t* encoded_index, uint64_t* value);
 
-bool UseGenericWasmToJSWrapper(const wasm::FunctionSig* sig,
+bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
+                               const wasm::FunctionSig* sig,
                                wasm::Suspend suspend);
 
 // A Wasm function that is wrapped and exported to JavaScript.
