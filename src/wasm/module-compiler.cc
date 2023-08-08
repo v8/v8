@@ -3612,11 +3612,11 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
     // Note: The code is either the compiled signature-specific wrapper or the
     // generic wrapper built-in.
     Handle<Code> code = unit->Finalize();
-    uint32_t index =
-        GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
-    isolate->heap()->js_to_wasm_wrappers()->Set(index,
-                                                MaybeObject::FromObject(*code));
     if (!code->is_builtin()) {
+      uint32_t index =
+          GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
+      isolate->heap()->js_to_wasm_wrappers()->Set(
+          index, MaybeObject::FromObject(*code));
       // Do not increase code stats for non-jitted wrappers.
       RecordStats(*code, isolate->counters());
       isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
@@ -4024,10 +4024,10 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
     Handle<Code> code = unit->Finalize();
-    int wrapper_index = GetExportWrapperIndex(key.second, key.first);
-    isolate->heap()->js_to_wasm_wrappers()->Set(
-        wrapper_index, HeapObjectReference::Strong(*code));
     if (!code->is_builtin()) {
+      int wrapper_index = GetExportWrapperIndex(key.second, key.first);
+      isolate->heap()->js_to_wasm_wrappers()->Set(
+          wrapper_index, HeapObjectReference::Strong(*code));
       // Do not increase code stats for non-jitted wrappers.
       RecordStats(*code, isolate->counters());
       isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);

@@ -1535,10 +1535,12 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
         isolate, function.sig, canonical_sig_index, instance->module(),
         function.imported);
   }
-  // Store the wrapper in the isolate, or make its reference weak now that we
-  // have a function referencing it.
-  isolate->heap()->js_to_wasm_wrappers()->Set(
-      wrapper_index, HeapObjectReference::Weak(*wrapper));
+  if (!wrapper->is_builtin()) {
+    // Store the wrapper in the isolate, or make its reference weak now that we
+    // have a function referencing it.
+    isolate->heap()->js_to_wasm_wrappers()->Set(
+        wrapper_index, HeapObjectReference::Weak(*wrapper));
+  }
   auto result = WasmExportedFunction::New(
       isolate, instance, internal, internal->function_index(),
       static_cast<int>(function.sig->parameter_count()), wrapper);
