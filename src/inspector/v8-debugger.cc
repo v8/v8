@@ -531,7 +531,9 @@ void V8Debugger::handleProgramBreak(
 
     m_inspector->forEachSession(
         contextGroupId, [](V8InspectorSessionImpl* session) {
-          session->heapProfilerAgent()->takePendingHeapSnapshots();
+          if (session->heapProfilerAgent()) {
+            session->heapProfilerAgent()->takePendingHeapSnapshots();
+          }
         });
 
     m_inspector->client()->runMessageLoopOnPause(contextGroupId);
