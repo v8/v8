@@ -3235,6 +3235,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
   struct Vote {
     size_t count;
     int used_registers[RegisterConfiguration::kMaxRegisters];
+    Vote(int reg) : count(1), used_registers{0} { used_registers[reg] = 1; }
   };
   struct TopLevelLiveRangeComparator {
     bool operator()(const TopLevelLiveRange* lhs,
@@ -3257,14 +3258,11 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
       // stored might have lost its register. Ignore those.
       if (!range->HasRegisterAssigned()) continue;
       TopLevelLiveRange* toplevel = range->TopLevel();
-      auto previous = counts.find(toplevel);
-      if (previous == counts.end()) {
-        auto result = counts.emplace(std::make_pair(toplevel, Vote{1, {0}}));
-        CHECK(result.second);
-        result.first->second.used_registers[range->assigned_register()]++;
-      } else {
-        previous->second.count++;
-        previous->second.used_registers[range->assigned_register()]++;
+      auto [it, inserted] =
+          counts.try_emplace(toplevel, range->assigned_register());
+      if (!inserted) {
+        it->second.count++;
+        it->second.used_registers[range->assigned_register()]++;
       }
     }
   }
@@ -3309,9 +3307,8 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
           taken_registers[reg] = true;
         }
         to_be_live->emplace(val.first, reg);
-        TRACE("Reset %d as live due vote %zu in %s\n",
-              val.first->TopLevel()->vreg(), val.second.count,
-              RegisterName(reg));
+        TRACE("Reset %d as live due vote %zu in %s\n", val.first->vreg(),
+              val.second.count, RegisterName(reg));
       }
     }
   };
