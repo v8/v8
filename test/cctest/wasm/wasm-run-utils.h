@@ -289,7 +289,6 @@ class TestingModuleBuilder {
   std::vector<uint8_t> data_segment_data_;
   std::vector<Address> data_segment_starts_;
   std::vector<uint32_t> data_segment_sizes_;
-  std::vector<uint8_t> dropped_elem_segments_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
