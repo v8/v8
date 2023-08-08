@@ -1227,6 +1227,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
+#endif
 
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
