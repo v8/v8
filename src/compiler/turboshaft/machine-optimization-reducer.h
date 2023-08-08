@@ -1610,7 +1610,7 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceStaticAssert(condition, source);
     }
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
-      if (decision) {
+      if (*decision) {
         // Drop the assert, the condition holds true.
         return OpIndex::Invalid();
       } else {

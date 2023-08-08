@@ -2126,6 +2126,16 @@ class AssemblerOpInterface {
         typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(isolate,
                                                                      {object});
   }
+  void CallBuiltin_DebugPrintFloat64(Isolate* isolate, V<Context> context,
+                                     V<Float64> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat64>(
+        isolate, context, {value});
+  }
+  void CallBuiltin_DebugPrintWordPtr(Isolate* isolate, V<Context> context,
+                                     V<WordPtr> value) {
+    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWordPtr>(
+        isolate, context, {value});
+  }
   V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
                                              V<Context> context,
                                              V<Object> table, V<Smi> key) {
@@ -2447,6 +2457,7 @@ class AssemblerOpInterface {
   }
 
   void StaticAssert(OpIndex condition, const char* source) {
+    CHECK(v8_flags.turboshaft_enable_debug_features);
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
@@ -2508,6 +2519,7 @@ class AssemblerOpInterface {
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
+    CHECK(v8_flags.turboshaft_enable_debug_features);
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -2619,8 +2631,7 @@ class AssemblerOpInterface {
   }
 
   void DebugPrint(OpIndex input, RegisterRepresentation rep) {
-    // TODO(nicohartmann@): Relax this.
-    DCHECK_EQ(rep, RegisterRepresentation::PointerSized());
+    CHECK(v8_flags.turboshaft_enable_debug_features);
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
@@ -2628,6 +2639,9 @@ class AssemblerOpInterface {
   }
   void DebugPrint(V<WordPtr> input) {
     return DebugPrint(input, RegisterRepresentation::PointerSized());
+  }
+  void DebugPrint(V<Float64> input) {
+    return DebugPrint(input, RegisterRepresentation::Float64());
   }
 
   V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,

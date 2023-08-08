@@ -1135,28 +1135,10 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {
   return AddNode(common.Projection(op.index), {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
-  // Static asserts should be (statically asserted and) removed by turboshaft.
-  UnparkedScopeIfNeeded scope(broker);
-  AllowHandleDereference allow_handle_dereference;
-  std::cout << input_graph.Get(op.condition());
-  FATAL(
-      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
-      op.source);
-}
 Node* ScheduleBuilder::ProcessOperation(const AssumeMapOp&) {
   // AssumeMapOp is just a hint that optimization phases can use, but has no
   // Turbofan equivalent and is thus not used past this point.
   return nullptr;
-}
-Node* ScheduleBuilder::ProcessOperation(const CheckTurboshaftTypeOfOp& op) {
-  if (op.successful) return GetNode(op.input());
-
-  UnparkedScopeIfNeeded scope(broker);
-  AllowHandleDereference allow_handle_dereference;
-  FATAL("Checking type %s of operation %d:%s failed!",
-        op.type.ToString().c_str(), op.input().id(),
-        input_graph.Get(op.input()).ToString().c_str());
 }
 
 std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
@@ -1410,37 +1392,6 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 
 Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
   return AddNode(machine.DebugBreak(), {});
-}
-
-Node* ScheduleBuilder::ProcessOperation(const DebugPrintOp& op) {
-  Node* input = GetNode(op.input());
-
-  base::Optional<Callable> callable;
-  switch (op.rep.value()) {
-    case RegisterRepresentation::PointerSized():
-      callable.emplace(Builtins::CallableFor(PipelineData::Get().isolate(),
-                                             Builtin::kDebugPrintWordPtr));
-      break;
-    case RegisterRepresentation::Float64():
-      callable.emplace(Builtins::CallableFor(PipelineData::Get().isolate(),
-                                             Builtin::kDebugPrintFloat64));
-      break;
-    default:
-      // TODO(nicohartmann@): Support other representations.
-      UNIMPLEMENTED();
-  }
-
-  const CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      graph_zone, callable->descriptor(),
-      callable->descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kNoThrow | Operator::kNoDeopt);
-
-  base::SmallVector<Node*, 8> inputs;
-  inputs.push_back(AddNode(common.HeapConstant(callable->code()), {}));
-  inputs.push_back(input);
-  inputs.push_back(AddNode(common.Int32Constant(Context::kNoContext), {}));
-
-  return AddNode(common.Call(call_descriptor), base::VectorOf(inputs));
 }
 
 Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {

@@ -1210,6 +1210,9 @@ DEFINE_WEAK_IMPLICATION(future, turboshaft)
 
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
+DEFINE_BOOL(turboshaft_enable_debug_features, false,
+            "enables Turboshaft's DebugPrint, StaticAssert and "
+            "CheckTurboshaftTypeOf operations")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
                             "enable TurboFan's Turboshaft phases for wasm")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,

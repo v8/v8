@@ -102,6 +102,21 @@ struct BuiltinCallDescriptor {
         base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
   };
 
+  template <Builtin B, typename Input>
+  struct DebugPrint : public Descriptor<DebugPrint<B, Input>> {
+    static constexpr auto Function = B;
+    using arguments_t = std::tuple<V<Input>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = true;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoThrow | Operator::kNoDeopt;
+    static constexpr OpEffects Effects = base_effects.RequiredWhenUnused();
+  };
+  using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
+  using DebugPrintWordPtr = DebugPrint<Builtin::kDebugPrintWordPtr, WordPtr>;
+
   template <Builtin B>
   struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
     static constexpr auto Function = B;

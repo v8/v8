@@ -165,6 +165,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(NewArgumentsElements)                       \
   V(NewArray)                                   \
   V(RuntimeAbort)                               \
+  V(StaticAssert)                               \
   V(StringAt)                                   \
   V(StringComparison)                           \
   V(StringConcat)                               \
@@ -175,7 +176,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringSubstring)                            \
   V(NewConsString)                              \
   V(TransitionAndStoreArrayElement)             \
-  V(TransitionElementsKind)
+  V(TransitionElementsKind)                     \
+  V(DebugPrint)                                 \
+  V(CheckTurboshaftTypeOf)
 
 // These Operations are the lowest level handled by Turboshaft, and are
 // supported by the InstructionSelector.
@@ -214,10 +217,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(DidntThrow)                              \
   V(Tuple)                                   \
   V(Projection)                              \
-  V(StaticAssert)                            \
   V(DebugBreak)                              \
-  V(DebugPrint)                              \
-  V(CheckTurboshaftTypeOf)                   \
   V(AssumeMap)
 
 // These are operations that are not Machine operations and need to be lowered

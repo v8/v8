@@ -873,6 +873,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(TruncateInt64ToInt32)
   DECLARE_GENERATOR_T(StackSlot)
   DECLARE_GENERATOR_T(LoadRootRegister)
+  DECLARE_GENERATOR_T(DebugBreak)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -906,7 +907,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word64AtomicExchange)
   DECLARE_GENERATOR(Word64AtomicCompareExchange)
   DECLARE_GENERATOR(AbortCSADcheck)
-  DECLARE_GENERATOR(DebugBreak)
   DECLARE_GENERATOR(Comment)
   DECLARE_GENERATOR(LoadImmutable)
   DECLARE_GENERATOR(StorePair)

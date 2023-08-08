@@ -1344,12 +1344,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kStaticAssert: {
-      // We currently ignore StaticAsserts in turboshaft (because some of them
-      // need specific unported optimizations to be evaluated).
-      // TODO(turboshaft): once CommonOperatorReducer and MachineOperatorReducer
-      // have been ported, re-enable StaticAsserts.
-      // return __ ReduceStaticAssert(Map(node->InputAt(0)),
-      //                                     StaticAssertSourceOf(node->op()));
+      __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();
     }
 

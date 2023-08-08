@@ -83,6 +83,7 @@
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-phase.h"
+#include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
@@ -3114,6 +3115,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     }
 
     Run<turboshaft::DeadCodeEliminationPhase>();
+
+    if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
+      // This phase has to run very late to allow all previous phases to use
+      // debug features.
+      Run<turboshaft::DebugFeatureLoweringPhase>();
+    }
+
     Run<turboshaft::DecompressionOptimizationPhase>();
 
     if (v8_flags.turboshaft_instruction_selection) {

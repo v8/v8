@@ -748,7 +748,8 @@ class GraphVisitor {
     return assembler().ReduceUnreachable();
   }
   OpIndex AssembleOutputGraphStaticAssert(const StaticAssertOp& op) {
-    return assembler().ReduceStaticAssert(op.condition(), op.source);
+    return assembler().ReduceStaticAssert(MapToNewGraph(op.condition()),
+                                          op.source);
   }
   OpIndex AssembleOutputGraphCheckTurboshaftTypeOf(
       const CheckTurboshaftTypeOfOp& op) {

@@ -2702,7 +2702,7 @@ void InstructionSelectorT<Adapter>::VisitThrow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitDebugBreak(Node* node) {
+void InstructionSelectorT<Adapter>::VisitDebugBreak(node_t node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }
@@ -4885,27 +4885,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       // AssumeMap is used as a hint for optimization phases but does not
       // produce any code.
       return;
-    case Opcode::kStaticAssert: {
-      // Static asserts should be (statically asserted and) removed by
-      // turboshaft.
-      const turboshaft::StaticAssertOp& assert =
-          op.Cast<turboshaft::StaticAssertOp>();
-      UnparkedScopeIfNeeded scope(broker_);
-      AllowHandleDereference allow_handle_dereference;
-      std::cout << this->Get(assert.condition());
-      FATAL(
-          "Expected Turbofan static assert to hold, but got non-true input:\n  "
-          "%s",
-          assert.source);
-    }
+    case Opcode::kDebugBreak:
+      return VisitDebugBreak(node);
 
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_WASM_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_SIMD_OPERATION_LIST(UNREACHABLE_CASE)
-      UNREACHABLE_CASE(Tuple)
       UNREACHABLE_CASE(PendingLoopPhi)
+      UNREACHABLE_CASE(Tuple)
       UNREACHABLE();
 #undef UNREACHABLE_CASE
 
@@ -4914,10 +4903,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kWord32PairBinop:
     case Opcode::kBitcastWord32PairToFloat64:
     case Opcode::kSelect:
-    case Opcode::kTrapIf:
-    case Opcode::kDebugBreak:
-    case Opcode::kDebugPrint:
-    case Opcode::kCheckTurboshaftTypeOf: {
+    case Opcode::kTrapIf: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
       FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
