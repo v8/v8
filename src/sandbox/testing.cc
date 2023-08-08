@@ -260,6 +260,18 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(0);
   }
 
+  if (faultaddr >= 0x8000'0000'0000'0000ULL) {
+    // On Linux, it appears that the kernel will still report valid (i.e.
+    // canonical) kernel space addresses via the si_addr field, so we need to
+    // handle these separately. We've already filtered out non-canonical
+    // addresses above, so here we can just test if the most-significant bit of
+    // the address is set, and if so assume that it's a kernel address.
+    PrintToStderr(
+        "Caught harmless memory access violatation (kernel space address). "
+        "Exiting process...\n");
+    _exit(0);
+  }
+
   if (faultaddr < 0x1000) {
     // Nullptr dereferences are harmless as nothing can be mapped there. We use
     // the typical page size (which is also the default value of mmap_min_addr
