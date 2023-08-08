@@ -249,6 +249,27 @@ constexpr std::underlying_type_t<Opcode> OpcodeIndex(Opcode x) {
   return static_cast<std::underlying_type_t<Opcode>>(x);
 }
 
+template <class Op>
+struct operation_to_opcode_map {};
+
+#define FORWARD_DECLARE(Name) struct Name##Op;
+TURBOSHAFT_OPERATION_LIST(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
+
+#define OPERATION_OPCODE_MAP_CASE(Name)    \
+  template <>                              \
+  struct operation_to_opcode_map<Name##Op> \
+      : std::integral_constant<Opcode, Opcode::k##Name> {};
+TURBOSHAFT_OPERATION_LIST(OPERATION_OPCODE_MAP_CASE)
+#undef OPERATION_OPCODE_MAP_CASE
+
+template <typename Op, uint64_t Mask, uint64_t Value>
+struct OpMaskT {
+  using operation = Op;
+  static constexpr uint64_t mask = Mask;
+  static constexpr uint64_t value = Value;
+};
+
 #define COUNT_OPCODES(Name) +1
 constexpr uint16_t kNumberOfBlockTerminatorOpcodes =
     0 TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(COUNT_OPCODES);
@@ -278,6 +299,10 @@ inline constexpr bool MayThrow(Opcode opcode) {
   }
 #undef CASE
 }
+
+#define FIELD(op, field_name)                                       \
+  OpMaskField<UnwrapRepresentation<decltype(op::field_name)>::type, \
+              OFFSET_OF(op, field_name)>
 
 template <typename T>
 inline base::Vector<T> InitVectorOf(
@@ -690,6 +715,19 @@ class SaturatedUint8 {
   static constexpr uint8_t kMax = std::numeric_limits<uint8_t>::max();
 };
 
+// underlying_operation<> is used to extract the operation type from OpMaskT
+// classes used in Operation::Is<> and Operation::TryCast<>.
+template <typename T>
+struct underlying_operation {
+  using type = T;
+};
+template <typename T, uint64_t M, uint64_t V>
+struct underlying_operation<OpMaskT<T, M, V>> {
+  using type = T;
+};
+template <typename T>
+using underlying_operation_t = typename underlying_operation<T>::type;
+
 // Baseclass for all Turboshaft operations.
 // The `alignas(OpIndex)` is necessary because it is followed by an array of
 // `OpIndex` inputs.
@@ -722,27 +760,40 @@ struct alignas(OpIndex) Operation {
 
   template <class Op>
   bool Is() const {
-    return opcode == Op::opcode;
+    if constexpr (std::is_base_of_v<Operation, Op>) {
+      return opcode == Op::opcode;
+    } else {
+      // Otherwise this must be OpMaskT.
+      static_assert(
+          std::is_same_v<underlying_operation_t<Op>,
+                         typename OpMaskT<typename Op::operation, Op::mask,
+                                          Op::value>::operation>);
+      // We check with the given mask.
+      uint64_t b;
+      memcpy(&b, this, sizeof(uint64_t));
+      b &= Op::mask;
+      return b == Op::value;
+    }
   }
   template <class Op>
-  Op& Cast() {
+  underlying_operation_t<Op>& Cast() {
     DCHECK(Is<Op>());
-    return *static_cast<Op*>(this);
+    return *static_cast<underlying_operation_t<Op>*>(this);
   }
   template <class Op>
-  const Op& Cast() const {
+  const underlying_operation_t<Op>& Cast() const {
     DCHECK(Is<Op>());
-    return *static_cast<const Op*>(this);
+    return *static_cast<const underlying_operation_t<Op>*>(this);
   }
   template <class Op>
-  const Op* TryCast() const {
+  const underlying_operation_t<Op>* TryCast() const {
     if (!Is<Op>()) return nullptr;
-    return static_cast<const Op*>(this);
+    return static_cast<const underlying_operation_t<Op>*>(this);
   }
   template <class Op>
-  Op* TryCast() {
+  underlying_operation_t<Op>* TryCast() {
     if (!Is<Op>()) return nullptr;
-    return static_cast<Op*>(this);
+    return static_cast<underlying_operation_t<Op>*>(this);
   }
   OpEffects Effects() const;
   bool IsBlockTerminator() const {
@@ -793,6 +844,80 @@ struct HasStaticEffects : std::bool_constant<false> {};
 template <class Op>
 struct HasStaticEffects<Op, std::void_t<decltype(Op::effects)>>
     : std::bool_constant<true> {};
+
+template <typename T, size_t Offset>
+struct OpMaskField {
+  using type = T;
+  static constexpr size_t offset = Offset;
+  static constexpr size_t size = sizeof(T);
+
+  static_assert(offset + size <= sizeof(uint64_t));
+};
+
+template <typename T>
+constexpr uint64_t encode_for_mask(T value) {
+  return static_cast<uint64_t>(value);
+}
+
+template <typename T>
+struct UnwrapRepresentation {
+  using type = T;
+};
+template <>
+struct UnwrapRepresentation<WordRepresentation> {
+  using type = WordRepresentation::Enum;
+};
+template <>
+struct UnwrapRepresentation<FloatRepresentation> {
+  using type = FloatRepresentation::Enum;
+};
+template <>
+struct UnwrapRepresentation<RegisterRepresentation> {
+  using type = RegisterRepresentation::Enum;
+};
+
+template <typename Op, typename... Fields>
+struct MaskBuilder {
+  static constexpr uint64_t BuildBaseMask() {
+    static_assert(OFFSET_OF(Operation, opcode) == 0);
+    static_assert(sizeof(Operation::opcode) == sizeof(uint8_t));
+    static_assert(sizeof(Operation) == 4);
+    return static_cast<uint64_t>(0xFF);
+  }
+
+  static constexpr uint64_t EncodeBaseValue(Opcode opcode) {
+    static_assert(OFFSET_OF(Operation, opcode) == 0);
+    return static_cast<uint64_t>(opcode);
+  }
+
+  static constexpr uint64_t BuildMask() {
+    constexpr uint64_t base_mask = BuildBaseMask();
+    return (base_mask | ... | BuildFieldMask<Fields>());
+  }
+
+  static constexpr uint64_t EncodeValue(typename Fields::type... args) {
+    constexpr uint64_t base_mask =
+        EncodeBaseValue(operation_to_opcode_map<Op>::value);
+    return (base_mask | ... | EncodeFieldValue<Fields>(args));
+  }
+
+  template <typename F>
+  static constexpr uint64_t BuildFieldMask() {
+    static_assert(F::size < sizeof(uint64_t));
+    static_assert(F::offset + F::size <= sizeof(uint64_t));
+    constexpr uint64_t ones = static_cast<uint64_t>(-1) >>
+                              ((sizeof(uint64_t) - F::size) * kBitsPerByte);
+    return ones << (F::offset * kBitsPerByte);
+  }
+
+  template <typename F>
+  static constexpr uint64_t EncodeFieldValue(typename F::type value) {
+    return encode_for_mask(value) << (F::offset * kBitsPerByte);
+  }
+
+  template <typename Fields::type... Args>
+  using For = OpMaskT<Op, BuildMask(), EncodeValue(Args...)>;
+};
 
 // This template knows the complete type of the operation and is plugged into
 // the inheritance hierarchy. It removes boilerplate from the concrete
@@ -1182,6 +1307,16 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+using WordBinopMask =
+    MaskBuilder<WordBinopOp, FIELD(WordBinopOp, kind), FIELD(WordBinopOp, rep)>;
+
+namespace Opmask {
+using kWord64Sub =
+    WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word64()>;
+using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
+                                             WordRepresentation::Word64()>;
+}  // namespace Opmask
+
 struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -1396,8 +1531,10 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
     kAtan,
     kAtanh,
   };
+
   Kind kind;
   FloatRepresentation rep;
+
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
@@ -1421,6 +1558,14 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   auto options() const { return std::tuple{kind, rep}; }
 };
 std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind);
+
+using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
+                                   FIELD(FloatUnaryOp, rep)>;
+
+namespace Opmask {
+using kFloat64Abs = FloatUnaryMask::For<FloatUnaryOp::Kind::kAbs,
+                                        FloatRepresentation::Float64()>;
+}
 
 struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   enum class Kind : uint8_t {
@@ -2277,6 +2422,13 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     }
   }
 };
+
+using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
+
+namespace Opmask {
+using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
+using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
+}  // namespace Opmask
 
 // Load `loaded_rep` from: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
@@ -5963,16 +6115,6 @@ static constexpr base::Optional<OpEffects>
 #undef OPERATION_EFFECTS_CASE
 
 template <class Op>
-struct operation_to_opcode_map {};
-
-#define OPERATION_OPCODE_MAP_CASE(Name)    \
-  template <>                              \
-  struct operation_to_opcode_map<Name##Op> \
-      : std::integral_constant<Opcode, Opcode::k##Name> {};
-TURBOSHAFT_OPERATION_LIST(OPERATION_OPCODE_MAP_CASE)
-#undef OPERATION_OPCODE_MAP_CASE
-
-template <class Op>
 const Opcode OperationT<Op>::opcode = operation_to_opcode_map<Op>::value;
 
 template <Opcode opcode>
@@ -6072,6 +6214,8 @@ inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
 #undef CASE
   }
 }
+
+#undef FIELD
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -4176,15 +4176,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Equal(node_t node) {
          equal.rep == RegisterRepresentation::Tagged());
   if (MatchIntegralZero(equal.right())) {
     if (CanCover(node, equal.left())) {
-      if (const WordBinopOp* left_binop =
-              this->Get(equal.left()).TryCast<WordBinopOp>()) {
-        DCHECK_EQ(left_binop->rep, WordRepresentation::Word64());
-        if (left_binop->kind == turboshaft::WordBinopOp::Kind::kSub) {
-          return VisitWordCompare(this, equal.left(), kX64Cmp, &cont);
-        } else if (left_binop->kind ==
-                   turboshaft::WordBinopOp::Kind::kBitwiseAnd) {
-          return VisitWordCompare(this, equal.left(), kX64Test, &cont);
-        }
+      const Operation& left_op = this->Get(equal.left());
+      if (left_op.Is<Opmask::kWord64Sub>()) {
+        return VisitWordCompare(this, equal.left(), kX64Cmp, &cont);
+      } else if (left_op.Is<Opmask::kWord64BitwiseAnd>()) {
+        return VisitWordCompare(this, equal.left(), kX64Test, &cont);
       }
     }
   }
@@ -4323,15 +4319,12 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
     DCHECK_EQ(cmp.kind, ComparisonOp::Kind::kSignedLessThan);
     if (this->MatchZero(cmp.left())) {
       if (const FloatUnaryOp* right_op =
-              this->Get(cmp.right()).template TryCast<FloatUnaryOp>()) {
-        if (right_op->kind == FloatUnaryOp::Kind::kAbs) {
-          DCHECK_EQ(right_op->rep, FloatRepresentation::Float64());
-          FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
-          InstructionCode const opcode =
-              IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
-          return VisitCompare(this, opcode, cmp.left(), right_op->input(),
-                              &cont, false);
-        }
+              this->Get(cmp.right()).template TryCast<Opmask::kFloat64Abs>()) {
+        FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
+        InstructionCode const opcode =
+            IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+        return VisitCompare(this, opcode, cmp.left(), right_op->input(), &cont,
+                            false);
       }
     }
   } else {

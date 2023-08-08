@@ -2446,8 +2446,8 @@ void InstructionSelectorT<Adapter>::VisitGoto(block_t target) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
-  const turboshaft::ReturnOp& ret =
-      schedule()->Get(node).Cast<turboshaft::ReturnOp>();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const ReturnOp& ret = schedule()->Get(node).Cast<ReturnOp>();
 
   OperandGenerator g(this);
   const int input_count =
@@ -2458,12 +2458,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
 
   auto value_locations =
       zone()->template AllocateArray<InstructionOperand>(input_count);
-  const turboshaft::Operation& pop_count = schedule()->Get(ret.pop_count());
-  if (const turboshaft::ConstantOp* constant =
-          pop_count.TryCast<turboshaft::ConstantOp>();
-      constant != nullptr &&
-      (constant->kind == turboshaft::ConstantOp::Kind::kWord32 ||
-       constant->kind == turboshaft::ConstantOp::Kind::kWord64)) {
+  const Operation& pop_count = schedule()->Get(ret.pop_count());
+  if (pop_count.Is<Opmask::kWord32Constant>() ||
+      pop_count.Is<Opmask::kWord64Constant>()) {
     value_locations[0] = g.UseImmediate(ret.pop_count());
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
