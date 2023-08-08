@@ -1540,31 +1540,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvCvtSD: {
-      Label done;
-      __ feq_d(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
-      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
       __ fcvt_s_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      __ Branch(&done, eq, kScratchReg, Operand(1));
-      __ And(kScratchReg2, kScratchReg2, Operand(0x8000000000000000));
-      __ srai(kScratchReg2, kScratchReg2, 32);
-      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
-      __ fsgnj_s(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
-                 kScratchDoubleReg);
-      __ bind(&done);
       break;
     }
     case kRiscvCvtDS: {
-      Label done;
-      __ feq_s(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
-      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
-      __ Branch(&done, eq, kScratchReg, Operand(1));
-      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
-      __ slli(kScratchReg2, kScratchReg2, 32);
-      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
-      __ fsgnj_d(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
-                 kScratchDoubleReg);
-      __ bind(&done);
       break;
     }
     case kRiscvCvtDW: {

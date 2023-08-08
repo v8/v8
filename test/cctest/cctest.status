@@ -384,6 +384,15 @@
   # riscv64 sign extend on uint32.
   'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
   'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
+
+  # On riscv, if the result of a floating-point operation is NaN, it is the canonical
+  # NaN. So skip thes cases.
+  'test-run-wasm/RunWasmLiftoff_F32CopySign': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Neg': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_F32CopySign': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Float32Neg': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################
