@@ -4963,7 +4963,7 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
-  BuildToBoolean</* flip */ true>(GetAccumulatorTagged());
+  SetAccumulator(BuildToBoolean</* flip */ true>(GetAccumulatorTagged()));
 }
 
 void MaglevGraphBuilder::VisitLogicalNot() {
@@ -7444,24 +7444,21 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
       // TODO(victorgomes): Propagate the case if we need to soft deopt.
     }
 
-    BuildToBoolean(GetTaggedValue(call_result));
-    return ReduceResult::Done();
+    return BuildToBoolean(GetTaggedValue(call_result));
   }
 
   return ReduceResult::Fail();
 }
 
 template <bool flip>
-void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
+ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   if (IsConstantNode(value->opcode())) {
-    SetAccumulator(
-        GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^ flip));
-    return;
+    return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
+                              flip);
   }
   NodeType value_type;
   if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
-    SetAccumulator(GetBooleanConstant(!flip));
-    return;
+    return GetBooleanConstant(!flip);
   }
   ValueNode* falsy_value = nullptr;
   if (CheckType(value, NodeType::kString)) {
@@ -7470,21 +7467,17 @@ void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     falsy_value = GetSmiConstant(0);
   }
   if (falsy_value != nullptr) {
-    SetAccumulator(
-        AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
-            {value, falsy_value}));
-    return;
+    return AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
+        {value, falsy_value});
   }
   if (CheckType(value, NodeType::kBoolean)) {
     if (flip) {
       value = AddNewNode<LogicalNot>({value});
     }
-    SetAccumulator(value);
-    return;
+    return value;
   }
-  SetAccumulator(
-      AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-          {value}, GetCheckType(value_type)));
+  return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
+      {value}, GetCheckType(value_type));
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
@@ -7644,7 +7637,7 @@ void MaglevGraphBuilder::VisitToString() {
 }
 
 void MaglevGraphBuilder::VisitToBoolean() {
-  BuildToBoolean(GetAccumulatorTagged());
+  SetAccumulator(BuildToBoolean(GetAccumulatorTagged()));
 }
 
 void FastObject::ClearFields() {

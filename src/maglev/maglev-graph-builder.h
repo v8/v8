@@ -1903,7 +1903,7 @@ class MaglevGraphBuilder {
   void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
   void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
   template <bool flip = false>
-  void BuildToBoolean(ValueNode* node);
+  ValueNode* BuildToBoolean(ValueNode* node);
   BasicBlock* BuildSpecializedBranchIfCompareNode(ValueNode* node,
                                                   BasicBlockRef* true_target,
                                                   BasicBlockRef* false_target);
