@@ -171,10 +171,11 @@ class InjectedScript::ProtocolPromiseHandler {
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
             ->promiseHandlerTracker();
-    // We currently store the handlers with the inspector so the micro task
-    // queue should never run after the inspector dies.
+    // We currently store the handlers with the inspector. In rare cases the
+    // inspector dies (discarding the handler) with the micro task queue
+    // running after. Don't do anything in that case.
     ProtocolPromiseHandler* handler = handlerTracker.get(handlerId);
-    CHECK(handler);
+    if (!handler) return;
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
@@ -191,10 +192,11 @@ class InjectedScript::ProtocolPromiseHandler {
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
             ->promiseHandlerTracker();
-    // We currently store the handlers with the inspector so the micro task
-    // queue should never run after the inspector dies.
+    // We currently store the handlers with the inspector. In rare cases the
+    // inspector dies (discarding the handler) with the micro task queue
+    // running after. Don't do anything in that case.
     ProtocolPromiseHandler* handler = handlerTracker.get(handlerId);
-    CHECK(handler);
+    if (!handler) return;
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
