@@ -395,6 +395,9 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
       __ sync();
       break;
     case StoreType::kI64Store32:
+      __ lr_w(true, false, result_reg, actual_addr);
+      __ ZeroExtendWord(result_reg, result_reg);
+      break;
     case StoreType::kI32Store:
       __ lr_w(true, false, result_reg, actual_addr);
       break;

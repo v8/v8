@@ -979,10 +979,6 @@
 'regress/wasm/regress-14171':[SKIP],
 }], # 'arch == riscv32'
 
-[ 'arch == riscv64' , {
-'regress/wasm/regress-14113':[SKIP],
-}], # 'arch == riscv64'
-
 ##############################################################################
 ['system == macos', {
   # TODO(machenbach): These tests are x25 slower on 4-core Mac Minis. They can
