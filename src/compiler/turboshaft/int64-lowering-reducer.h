@@ -96,8 +96,8 @@ class Int64LoweringReducer : public Next {
 
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    OpIndex high_comparison;
-    OpIndex low_comparison;
+    V<Word32> high_comparison;
+    V<Word32> low_comparison;
     switch (kind) {
       case ComparisonOp::Kind::kSignedLessThan:
         high_comparison = __ Int32LessThan(left_high, right_high);
@@ -363,9 +363,7 @@ class Int64LoweringReducer : public Next {
     return true;
   }
 
-  // TODO(mliedtke): Return std::pair<V<Word32>, V<Word32>> instead and make use
-  // of typed nodes in the different reduce functions?
-  std::pair<OpIndex, OpIndex> Unpack(OpIndex input) {
+  std::pair<V<Word32>, V<Word32>> Unpack(V<Word64> input) {
     DCHECK(CheckPairOrPairOp(input));
     return {__ Projection(input, 0, RegisterRepresentation::Word32()),
             __ Projection(input, 1, RegisterRepresentation::Word32())};
@@ -387,7 +385,7 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
   }
 
-  OpIndex ReduceClz(OpIndex input) {
+  OpIndex ReduceClz(V<Word64> input) {
     auto [low, high] = Unpack(input);
     ScopedVar<Word32> result(Asm());
     IF (__ Word32Equal(high, 0)) {
@@ -400,7 +398,7 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(*result, __ Word32Constant(0));
   }
 
-  OpIndex ReduceCtz(OpIndex input) {
+  OpIndex ReduceCtz(V<Word64> input) {
     DCHECK(SupportedOperations::word32_ctz());
     auto [low, high] = Unpack(input);
     ScopedVar<Word32> result(Asm());
@@ -414,7 +412,7 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(*result, __ Word32Constant(0));
   }
 
-  OpIndex ReducePopCount(OpIndex input) {
+  OpIndex ReducePopCount(V<Word64> input) {
     DCHECK(SupportedOperations::word32_popcnt());
     auto [low, high] = Unpack(input);
     return __ Tuple(
@@ -422,7 +420,7 @@ class Int64LoweringReducer : public Next {
         __ Word32Constant(0));
   }
 
-  OpIndex ReducePairBinOp(OpIndex left, OpIndex right,
+  OpIndex ReducePairBinOp(V<Word64> left, V<Word64> right,
                           Word32PairBinopOp::Kind kind) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
@@ -430,44 +428,44 @@ class Int64LoweringReducer : public Next {
         __ Word32PairBinop(left_low, left_high, right_low, right_high, kind));
   }
 
-  OpIndex ReducePairShiftOp(OpIndex left, OpIndex right,
+  OpIndex ReducePairShiftOp(V<Word64> left, V<Word32> right,
                             Word32PairBinopOp::Kind kind) {
     auto [left_low, left_high] = Unpack(left);
     // Note: The rhs of a 64 bit shift is a 32 bit value in turboshaft.
-    OpIndex right_high = __ Word32Constant(0);
+    V<Word32> right_high = __ Word32Constant(0);
     return ProjectionTuple(
         __ Word32PairBinop(left_low, left_high, right, right_high, kind));
   }
 
-  OpIndex ReduceBitwiseAnd(OpIndex left, OpIndex right) {
+  OpIndex ReduceBitwiseAnd(V<Word64> left, V<Word64> right) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    OpIndex low_result = __ Word32BitwiseAnd(left_low, right_low);
-    OpIndex high_result = __ Word32BitwiseAnd(left_high, right_high);
+    V<Word32> low_result = __ Word32BitwiseAnd(left_low, right_low);
+    V<Word32> high_result = __ Word32BitwiseAnd(left_high, right_high);
     return __ Tuple(low_result, high_result);
   }
 
-  OpIndex ReduceBitwiseOr(OpIndex left, OpIndex right) {
+  OpIndex ReduceBitwiseOr(V<Word64> left, V<Word64> right) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    OpIndex low_result = __ Word32BitwiseOr(left_low, right_low);
-    OpIndex high_result = __ Word32BitwiseOr(left_high, right_high);
+    V<Word32> low_result = __ Word32BitwiseOr(left_low, right_low);
+    V<Word32> high_result = __ Word32BitwiseOr(left_high, right_high);
     return __ Tuple(low_result, high_result);
   }
 
-  OpIndex ReduceBitwiseXor(OpIndex left, OpIndex right) {
+  OpIndex ReduceBitwiseXor(V<Word64> left, V<Word64> right) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    OpIndex low_result = __ Word32BitwiseXor(left_low, right_low);
-    OpIndex high_result = __ Word32BitwiseXor(left_high, right_high);
+    V<Word32> low_result = __ Word32BitwiseXor(left_low, right_low);
+    V<Word32> high_result = __ Word32BitwiseXor(left_high, right_high);
     return __ Tuple(low_result, high_result);
   }
 
-  OpIndex ReduceRotateRight(OpIndex left, OpIndex right) {
+  OpIndex ReduceRotateRight(V<Word64> left, V<Word32> right) {
     // This reducer assumes that all rotates are mapped to rotate right.
     DCHECK(!SupportedOperations::word64_rol());
     auto [left_low, left_high] = Unpack(left);
-    OpIndex shift = right;
+    V<Word32> shift = right;
     uint32_t constant_shift = 0;
 
     if (Asm().MatchWord32Constant(shift, &constant_shift)) {
@@ -482,37 +480,37 @@ class Int64LoweringReducer : public Next {
         return __ Tuple(left_high, left_low);
       }
 
-      OpIndex low_input = left_high;
-      OpIndex high_input = left_low;
+      V<Word32> low_input = left_high;
+      V<Word32> high_input = left_low;
       if (shift_value < 32) {
         low_input = left_low;
         high_input = left_high;
       }
 
       uint32_t masked_shift_value = shift_value & 0x1F;
-      OpIndex masked_shift = __ Word32Constant(masked_shift_value);
-      OpIndex inv_shift = __ Word32Constant(32 - masked_shift_value);
+      V<Word32> masked_shift = __ Word32Constant(masked_shift_value);
+      V<Word32> inv_shift = __ Word32Constant(32 - masked_shift_value);
 
-      OpIndex low_node = __ Word32BitwiseOr(
+      V<Word32> low_node = __ Word32BitwiseOr(
           __ Word32ShiftRightLogical(low_input, masked_shift),
           __ Word32ShiftLeft(high_input, inv_shift));
-      OpIndex high_node = __ Word32BitwiseOr(
+      V<Word32> high_node = __ Word32BitwiseOr(
           __ Word32ShiftRightLogical(high_input, masked_shift),
           __ Word32ShiftLeft(low_input, inv_shift));
       return __ Tuple(low_node, high_node);
     }
 
-    OpIndex safe_shift = shift;
+    V<Word32> safe_shift = shift;
     if (!SupportedOperations::word32_shift_is_safe()) {
       // safe_shift = shift % 32
       safe_shift = __ Word32BitwiseAnd(shift, 0x1F);
     }
-    OpIndex all_bits_set = __ Word32Constant(-1);
-    OpIndex inv_mask = __ Word32BitwiseXor(
+    V<Word32> all_bits_set = __ Word32Constant(-1);
+    V<Word32> inv_mask = __ Word32BitwiseXor(
         __ Word32ShiftRightLogical(all_bits_set, safe_shift), all_bits_set);
-    OpIndex bit_mask = __ Word32BitwiseXor(inv_mask, all_bits_set);
+    V<Word32> bit_mask = __ Word32BitwiseXor(inv_mask, all_bits_set);
 
-    OpIndex less_than_32 = __ Int32LessThan(shift, 32);
+    V<Word32> less_than_32 = __ Int32LessThan(shift, 32);
     // The low word and the high word can be swapped either at the input or
     // at the output. We swap the inputs so that shift does not have to be
     // kept for so long in a register.
@@ -524,13 +522,13 @@ class Int64LoweringReducer : public Next {
     }
     END_IF
 
-    OpIndex rotate_low = __ Word32RotateRight(*var_low, safe_shift);
-    OpIndex rotate_high = __ Word32RotateRight(*var_high, safe_shift);
+    V<Word32> rotate_low = __ Word32RotateRight(*var_low, safe_shift);
+    V<Word32> rotate_high = __ Word32RotateRight(*var_high, safe_shift);
 
-    OpIndex low_node =
+    V<Word32> low_node =
         __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_low, bit_mask),
                            __ Word32BitwiseAnd(rotate_high, inv_mask));
-    OpIndex high_node =
+    V<Word32> high_node =
         __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_high, bit_mask),
                            __ Word32BitwiseAnd(rotate_low, inv_mask));
     return __ Tuple(low_node, high_node);

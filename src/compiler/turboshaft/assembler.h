@@ -2687,8 +2687,8 @@ class AssemblerOpInterface {
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
-  OpIndex Word32PairBinop(OpIndex left_low, OpIndex left_high,
-                          OpIndex right_low, OpIndex right_high,
+  OpIndex Word32PairBinop(V<Word32> left_low, V<Word32> left_high,
+                          V<Word32> right_low, V<Word32> right_high,
                           Word32PairBinopOp::Kind kind) {
     return stack().ReduceWord32PairBinop(left_low, left_high, right_low,
                                          right_high, kind);
