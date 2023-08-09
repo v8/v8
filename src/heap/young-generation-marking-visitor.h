@@ -16,9 +16,9 @@
 namespace v8 {
 namespace internal {
 
-enum class YoungGenerationMarkingVisitationMode { kParallel, kConcurrent };
+enum class YoungGenerationMarkingVisitorMode { kParallel, kConcurrent };
 
-template <YoungGenerationMarkingVisitationMode marking_mode>
+template <YoungGenerationMarkingVisitorMode marking_mode>
 class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor<marking_mode>> {
  public:
@@ -43,7 +43,7 @@ class YoungGenerationMarkingVisitor final
       const YoungGenerationMarkingVisitor&) = delete;
 
   static constexpr bool EnableConcurrentVisitation() {
-    return marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent;
+    return marking_mode == YoungGenerationMarkingVisitorMode::kConcurrent;
   }
 
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
@@ -81,7 +81,7 @@ class YoungGenerationMarkingVisitor final
   V8_INLINE bool VisitObjectViaSlot(TSlot slot);
 
   template <typename TSlot>
-  V8_INLINE bool VisitObjectViaSlotInRememberedSet(TSlot slot);
+  V8_INLINE bool VisitObjectViaSlotInRemeberedSet(TSlot slot);
 
   MarkingWorklists::Local& marking_worklists_local() {
     return marking_worklists_local_;

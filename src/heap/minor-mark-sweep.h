@@ -23,8 +23,8 @@
 namespace v8 {
 namespace internal {
 
-using YoungGenerationMainMarkingVisitor = YoungGenerationMarkingVisitor<
-    YoungGenerationMarkingVisitationMode::kParallel>;
+using YoungGenerationMainMarkingVisitor =
+    YoungGenerationMarkingVisitor<YoungGenerationMarkingVisitorMode::kParallel>;
 
 class YoungGenerationRememberedSetsMarkingWorklist {
  private:
@@ -174,10 +174,6 @@ class MinorMarkSweepCollector final {
     return main_marking_visitor_.get();
   }
 
-  bool is_in_atomic_pause() const {
-    return is_in_atomic_pause_.load(std::memory_order_relaxed);
-  }
-
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -188,6 +184,7 @@ class MinorMarkSweepCollector final {
   void MarkLiveObjects();
   void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor,
                  bool was_marked_incrementally);
+  void DoParallelMarking();
   void DrainMarkingWorklist();
   void MarkRootsFromTracedHandles(
       YoungGenerationRootMarkingVisitor& root_visitor);
@@ -226,8 +223,6 @@ class MinorMarkSweepCollector final {
       remembered_sets_marking_handler_;
 
   ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
-
-  std::atomic<bool> is_in_atomic_pause_{false};
 
   friend class IncrementalMarking;
 };
