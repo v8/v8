@@ -533,9 +533,8 @@ JSToWasmWrapper(
   let locationAllocator = LocationAllocatorForParams(paramBuffer);
   let hasRefParam: bool = false;
 
-  const items: Arguments = arguments;
   for (let k: int32 = 0; k < paramCount; k++) {
-    const param = items[Convert<intptr>(k)];
+    const param = arguments[Convert<intptr>(k)];
     const paramType = *paramTypes.UncheckedAtIndex(Convert<intptr>(k));
     if (paramType == kWasmI32Type) {
       let toRef = locationAllocator.GetGPSlot();
@@ -573,13 +572,15 @@ JSToWasmWrapper(
       // happen anymore. Any conversion of a primitive type can execute
       // arbitrary JavaScript code and therefore also trigger GC. Therefore
       // references get copied into the array only after all parameters of
-      // primitive types are finished.
+      // primitive types are finished. For now we write the converted parameter
+      // back to the stack.
       hasRefParam = true;
+      arguments[Convert<intptr>(k)] =
+          JSToWasmObject(context, functionData.instance, paramType, param);
     }
   }
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
-    const items: Arguments = arguments;
     let k: int32 = 0;
     locationAllocator.StartRefs();
     // We are not using a `for` loop here because Torque does not support
@@ -591,11 +592,9 @@ JSToWasmWrapper(
         k++;
         continue;
       }
-      const param = items[Convert<intptr>(k)];
-      const convertedParam =
-          JSToWasmObject(context, functionData.instance, paramType, param);
+      const param = arguments[Convert<intptr>(k)];
       let toRef = locationAllocator.GetGPSlot();
-      *toRef = BitcastTaggedToWord(convertedParam);
+      *toRef = BitcastTaggedToWord(param);
       k++;
     }
   }

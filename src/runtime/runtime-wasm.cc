@@ -158,10 +158,6 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   }
   const char* error_message;
   {
-    // TODO(ahaas): Make the wrapper GC-safe, and enable it for 32-bit Smis. For
-    // 32-bit Smis, allocations happen at the moment due to smi
-    // canonicalization.
-    DisallowHeapAllocation no_gc;
     Handle<Object> result;
     if (JSToWasmObject(isolate, value, type, &error_message)
             .ToHandle(&result)) {

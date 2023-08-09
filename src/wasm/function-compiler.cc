@@ -197,17 +197,6 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 
 namespace {
 bool UseGenericWrapper(const WasmModule* module, const FunctionSig* sig) {
-  if constexpr (!SmiValuesAre31Bits()) {
-    // The generic wrapper does not work without pointer compression at the
-    // moment because without pointer compression, a JavaScript Smi does not fit
-    // into a WebAssembly I31. The JSToWasm wrapper then has to canonicalize Smi
-    // and allocate a HeapNumber for Smis that don't fit into an I31. This
-    // HeapNumber allocation may cause a GC, and the wrapper cannot handle this
-    // GC yet.
-    // TODO(ahaas): Support the generic wrapper in the no-pointer-compression
-    // build.
-    return false;
-  }
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
      V8_TARGET_ARCH_ARM)
   // We don't use the generic wrapper for asm.js, because it creates invalid
