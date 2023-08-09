@@ -131,6 +131,7 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
   des.DeserializeIntoIsolate();
   OnCreateRootsComplete(isolate);
 
+#ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
   if (isolate->serializer_enabled()) {
     // If this isolate will be serialized, leave RO space unfinalized and
     // allocatable s.t. it can be extended (e.g. by future Context::New calls).
@@ -140,6 +141,9 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
   } else {
     InitFromIsolate(isolate);
   }
+#else
+  InitFromIsolate(isolate);
+#endif  // V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 }
 
 void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {

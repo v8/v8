@@ -50,6 +50,8 @@ class V8_EXPORT_PRIVATE AlignedCachedData {
 };
 
 enum class SerializedCodeSanityCheckResult {
+  // Don't change order/existing values of this enum since it keys into the
+  // `code_cache_reject_reason` histogram. Append-only!
   kSuccess = 0,
   kMagicNumberMismatch = 1,
   kVersionMismatch = 2,
@@ -57,8 +59,15 @@ enum class SerializedCodeSanityCheckResult {
   kFlagsMismatch = 5,
   kChecksumMismatch = 6,
   kInvalidHeader = 7,
-  kLengthMismatch = 8
+  kLengthMismatch = 8,
+  kReadOnlySnapshotChecksumMismatch = 9,
+
+  // This should always point at the last real enum value.
+  kLast = kReadOnlySnapshotChecksumMismatch
 };
+// If this fails, update the static_assert AND the code_cache_reject_reason
+// histogram definition.
+static_assert(static_cast<int>(SerializedCodeSanityCheckResult::kLast) == 9);
 
 class CodeSerializer : public Serializer {
  public:
@@ -118,29 +127,26 @@ class CodeSerializer : public Serializer {
 class SerializedCodeData : public SerializedData {
  public:
   // The data header consists of uint32_t-sized entries:
-  // [0] magic number and (internally provided) external reference count
-  // [1] version hash
-  // [2] source hash
-  // [3] flag hash
-  // [4] payload length
-  // [5] payload checksum
-  // ...  serialized payload
   static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
   static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
   static const uint32_t kFlagHashOffset = kSourceHashOffset + kUInt32Size;
-  static const uint32_t kPayloadLengthOffset = kFlagHashOffset + kUInt32Size;
+  static const uint32_t kReadOnlySnapshotChecksumOffset =
+      kFlagHashOffset + kUInt32Size;
+  static const uint32_t kPayloadLengthOffset =
+      kReadOnlySnapshotChecksumOffset + kUInt32Size;
   static const uint32_t kChecksumOffset = kPayloadLengthOffset + kUInt32Size;
   static const uint32_t kUnalignedHeaderSize = kChecksumOffset + kUInt32Size;
   static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
   static SerializedCodeData FromCachedData(
-      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      Isolate* isolate, AlignedCachedData* cached_data,
+      uint32_t expected_source_hash,
       SerializedCodeSanityCheckResult* rejection_result);
   // For cached data which is consumed before the source is available (e.g.
   // off-thread).
   static SerializedCodeData FromCachedDataWithoutSource(
-      AlignedCachedData* cached_data,
+      LocalIsolate* local_isolate, AlignedCachedData* cached_data,
       SerializedCodeSanityCheckResult* rejection_result);
   // For cached data which was previously already sanity checked by
   // FromCachedDataWithoutSource. The rejection result from that call should be
@@ -172,10 +178,12 @@ class SerializedCodeData : public SerializedData {
   }
 
   SerializedCodeSanityCheckResult SanityCheck(
+      uint32_t expected_ro_snapshot_checksum,
       uint32_t expected_source_hash) const;
   SerializedCodeSanityCheckResult SanityCheckJustSource(
       uint32_t expected_source_hash) const;
-  SerializedCodeSanityCheckResult SanityCheckWithoutSource() const;
+  SerializedCodeSanityCheckResult SanityCheckWithoutSource(
+      uint32_t expected_ro_snapshot_checksum) const;
 };
 
 }  // namespace internal

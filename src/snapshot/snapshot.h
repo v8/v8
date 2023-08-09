@@ -105,6 +105,8 @@ class Snapshot : public AllStatic {
       const v8::StartupData* data);
   V8_EXPORT_PRIVATE static bool VerifyChecksum(const v8::StartupData* data);
   static bool ExtractRehashability(const v8::StartupData* data);
+  V8_EXPORT_PRIVATE static uint32_t ExtractReadOnlySnapshotChecksum(
+      const v8::StartupData* data);
   static bool VersionIsValid(const v8::StartupData* data);
 
   // To be implemented by the snapshot source.

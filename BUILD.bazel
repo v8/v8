@@ -233,6 +233,11 @@ v8_flag(
     default = True,
 )
 
+v8_flag(
+    name = "v8_enable_extensible_ro_snapshot",
+    default = True,
+)
+
 # Enable shared cage if v8_enable_pointer_compression
 # and v8_enable_pointer_compression_shared_cage.
 selects.config_setting_group(
@@ -428,6 +433,10 @@ v8_config(
     }) + select({
         ":is_v8_enable_shared_ro_heap": [
             "V8_SHARED_RO_HEAP",
+        ],
+    }) + select({
+        ":is_v8_enable_extensible_ro_snapshot": [
+            "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
         ],
     }) + select({
         ":is_v8_enable_short_builtin_calls": [

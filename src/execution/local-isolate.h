@@ -146,6 +146,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   // only constructor.
   Isolate* GetMainThreadIsolateUnsafe() const { return isolate_; }
 
+  const v8::StartupData* snapshot_blob() const {
+    return isolate_->snapshot_blob();
+  }
   Object* pending_message_address() {
     return isolate_->pending_message_address();
   }

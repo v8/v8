@@ -57,6 +57,8 @@ class SnapshotImpl : public AllStatic {
       const v8::StartupData* data, uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
+    DCHECK_NOT_NULL(data);
+    DCHECK_LT(offset, static_cast<uint32_t>(data->raw_size));
     return base::ReadLittleEndianValue<uint32_t>(
         reinterpret_cast<Address>(data->data) + offset);
   }
@@ -71,11 +73,12 @@ class SnapshotImpl : public AllStatic {
   // [0] number of contexts N
   // [1] rehashability
   // [2] checksum
-  // [3] (64 bytes) version string
-  // [4] offset to readonly
-  // [5] offset to shared heap
-  // [6] offset to context 0
-  // [7] offset to context 1
+  // [3] read-only snapshot checksum
+  // [4] (64 bytes) version string
+  // [5] offset to readonly
+  // [6] offset to shared heap
+  // [7] offset to context 0
+  // [8] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
@@ -89,7 +92,10 @@ class SnapshotImpl : public AllStatic {
   static const uint32_t kRehashabilityOffset =
       kNumberOfContextsOffset + kUInt32Size;
   static const uint32_t kChecksumOffset = kRehashabilityOffset + kUInt32Size;
-  static const uint32_t kVersionStringOffset = kChecksumOffset + kUInt32Size;
+  static const uint32_t kReadOnlySnapshotChecksumOffset =
+      kChecksumOffset + kUInt32Size;
+  static const uint32_t kVersionStringOffset =
+      kReadOnlySnapshotChecksumOffset + kUInt32Size;
   static const uint32_t kVersionStringLength = 64;
   static const uint32_t kReadOnlyOffsetOffset =
       kVersionStringOffset + kVersionStringLength;
@@ -100,8 +106,14 @@ class SnapshotImpl : public AllStatic {
 
   static base::Vector<const uint8_t> ChecksummedContent(
       const v8::StartupData* data) {
-    static_assert(kVersionStringOffset == kChecksumOffset + kUInt32Size);
-    const uint32_t kChecksumStart = kVersionStringOffset;
+    // The hashed region is everything but the header slots up-to-and-including
+    // the checksum slot itself.
+    // TODO(jgruber): We currently exclude #contexts and rehashability. This
+    // seems arbitrary and I think we could shuffle header slot order around to
+    // include them, just for consistency.
+    static_assert(kReadOnlySnapshotChecksumOffset ==
+                  kChecksumOffset + kUInt32Size);
+    const uint32_t kChecksumStart = kReadOnlySnapshotChecksumOffset;
     return base::Vector<const uint8_t>(
         reinterpret_cast<const uint8_t*>(data->data + kChecksumStart),
         data->raw_size - kChecksumStart);
@@ -562,6 +574,11 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       data + payload_offset,
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
+  SnapshotImpl::SetHeaderValue(
+      data, SnapshotImpl::kReadOnlySnapshotChecksumOffset,
+      Checksum(base::VectorOf(
+          reinterpret_cast<const uint8_t*>(data + payload_offset),
+          payload_length)));
   if (v8_flags.serialization_statistics) {
     // These prints must match the regexp in test/memory/Memory.json
     PrintF("%10d bytes for read-only\n", payload_length);
@@ -611,9 +628,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
 }
 
 uint32_t SnapshotImpl::ExtractNumContexts(const v8::StartupData* data) {
-  CHECK_LT(kNumberOfContextsOffset, data->raw_size);
-  uint32_t num_contexts = GetHeaderValue(data, kNumberOfContextsOffset);
-  return num_contexts;
+  return GetHeaderValue(data, kNumberOfContextsOffset);
 }
 
 uint32_t Snapshot::GetExpectedChecksum(const v8::StartupData* data) {
@@ -646,12 +661,17 @@ uint32_t SnapshotImpl::ExtractContextOffset(const v8::StartupData* data,
 }
 
 bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
-  CHECK_LT(SnapshotImpl::kRehashabilityOffset,
-           static_cast<uint32_t>(data->raw_size));
   uint32_t rehashability =
       SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kRehashabilityOffset);
   CHECK_IMPLIES(rehashability != 0, rehashability == 1);
   return rehashability != 0;
+}
+
+// static
+uint32_t Snapshot::ExtractReadOnlySnapshotChecksum(
+    const v8::StartupData* data) {
+  return SnapshotImpl::GetHeaderValue(
+      data, SnapshotImpl::kReadOnlySnapshotChecksumOffset);
 }
 
 namespace {
@@ -845,7 +865,7 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
 }
 
 SnapshotCreatorImpl::~SnapshotCreatorImpl() {
-  if (!created()) {
+  if (isolate_->heap()->read_only_space()->writable()) {
     // Finalize the RO heap in order to leave the Isolate in a consistent state.
     isolate_->read_only_heap()->OnCreateHeapObjectsComplete(isolate_);
   }
@@ -1024,9 +1044,6 @@ StartupData SnapshotCreatorImpl::CreateBlob(
     // space after the Isolate has been initialized, for example as part of
     // Context creation.
     isolate_->read_only_heap()->OnCreateHeapObjectsComplete(isolate_);
-  } else {
-    // All exceptions to the above rule should explicitly pass this flag:
-    DCHECK_NE(serializer_flags & Snapshot::kAllowActiveIsolateForTesting, 0);
   }
 
   // Create a vector with all contexts and destroy associated global handles.

@@ -413,6 +413,10 @@ declare_args() {
   v8_enable_builtin_jump_table_switch = v8_current_cpu == "x64"
 
   v8_shortcut_strings_in_minor_ms = false
+
+  # Whether custom embedder snapshots may extend (= allocate new objects in)
+  # ReadOnlySpace.
+  v8_enable_extensible_ro_snapshot = true
 }
 
 # Derived defaults.
@@ -1206,6 +1210,9 @@ config("features") {
   }
   if (v8_enable_direct_handle) {
     defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
+  }
+  if (v8_enable_extensible_ro_snapshot) {
+    defines += [ "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT" ]
   }
 }
 

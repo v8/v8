@@ -13,7 +13,7 @@ namespace internal {
 // Generic range histograms.
 // HR(name, caption, min, max, num_buckets)
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 9, 9)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
      kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \

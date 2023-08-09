@@ -416,7 +416,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   SerializedCodeSanityCheckResult sanity_check_result =
       SerializedCodeSanityCheckResult::kSuccess;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      cached_data, SerializedCodeData::SourceHash(source, origin_options),
+      isolate, cached_data,
+      SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
@@ -495,7 +496,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 
   const SerializedCodeData scd =
       SerializedCodeData::FromCachedDataWithoutSource(
-          cached_data, &result.sanity_check_result);
+          local_isolate, cached_data, &result.sanity_check_result);
   if (result.sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // Exit early but don't report yet, we'll re-check this when finishing on
     // the main thread
@@ -632,6 +633,9 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
+  SetHeaderValue(kReadOnlySnapshotChecksumOffset,
+                 Snapshot::ExtractReadOnlySnapshotChecksum(
+                     cs->isolate()->snapshot_blob()));
   SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
@@ -646,8 +650,10 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
 }
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
+    uint32_t expected_ro_snapshot_checksum,
     uint32_t expected_source_hash) const {
-  SerializedCodeSanityCheckResult result = SanityCheckWithoutSource();
+  SerializedCodeSanityCheckResult result =
+      SanityCheckWithoutSource(expected_ro_snapshot_checksum);
   if (result != SerializedCodeSanityCheckResult::kSuccess) return result;
   return SanityCheckJustSource(expected_source_hash);
 }
@@ -661,9 +667,9 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
   return SerializedCodeSanityCheckResult::kSuccess;
 }
 
-SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
-    const {
-  if (this->size_ < kHeaderSize) {
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
+    uint32_t expected_ro_snapshot_checksum) const {
+  if (size_ < kHeaderSize) {
     return SerializedCodeSanityCheckResult::kInvalidHeader;
   }
   uint32_t magic_number = GetMagicNumber();
@@ -678,8 +684,13 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
   if (flags_hash != FlagList::Hash()) {
     return SerializedCodeSanityCheckResult::kFlagsMismatch;
   }
+  uint32_t ro_snapshot_checksum =
+      GetHeaderValue(kReadOnlySnapshotChecksumOffset);
+  if (ro_snapshot_checksum != expected_ro_snapshot_checksum) {
+    return SerializedCodeSanityCheckResult::kReadOnlySnapshotChecksumMismatch;
+  }
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t max_payload_length = this->size_ - kHeaderSize;
+  uint32_t max_payload_length = size_ - kHeaderSize;
   if (payload_length > max_payload_length) {
     return SerializedCodeSanityCheckResult::kLengthMismatch;
   }
@@ -725,11 +736,14 @@ SerializedCodeData::SerializedCodeData(AlignedCachedData* data)
     : SerializedData(const_cast<uint8_t*>(data->data()), data->length()) {}
 
 SerializedCodeData SerializedCodeData::FromCachedData(
-    AlignedCachedData* cached_data, uint32_t expected_source_hash,
+    Isolate* isolate, AlignedCachedData* cached_data,
+    uint32_t expected_source_hash,
     SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
-  *rejection_result = scd.SanityCheck(expected_source_hash);
+  *rejection_result = scd.SanityCheck(
+      Snapshot::ExtractReadOnlySnapshotChecksum(isolate->snapshot_blob()),
+      expected_source_hash);
   if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);
@@ -738,11 +752,13 @@ SerializedCodeData SerializedCodeData::FromCachedData(
 }
 
 SerializedCodeData SerializedCodeData::FromCachedDataWithoutSource(
-    AlignedCachedData* cached_data,
+    LocalIsolate* local_isolate, AlignedCachedData* cached_data,
     SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
-  *rejection_result = scd.SanityCheckWithoutSource();
+  *rejection_result =
+      scd.SanityCheckWithoutSource(Snapshot::ExtractReadOnlySnapshotChecksum(
+          local_isolate->snapshot_blob()));
   if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);
