@@ -3310,7 +3310,37 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ Trap();
 }
 
-void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  // Pop the return address into a scratch register and push it later again. The
+  // return address has to be on top of the stack after all registers have been
+  // pushed, so that the return instruction can find it.
+  Register scratch = edi;
+  __ pop(scratch);
+
+  int required_stack_space = arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+  __ sub(esp, Immediate(required_stack_space));
+  for (int i = 0; i < static_cast<int>(arraysize(wasm::kFpParamRegisters));
+       ++i) {
+    __ Movsd(MemOperand(esp, i * kDoubleSize), wasm::kFpParamRegisters[i]);
+  }
+  // eax is pushed for alignment, so that the pushed register parameters and
+  // stack parameters look the same as the layout produced by the js-to-wasm
+  // wrapper for out-going parameters. Having the same layout allows to share
+  // code in Torque, especially the `LocationAllocator`. eax has been picked
+  // arbitrarily.
+  __ push(eax);
+  // Push the GP registers in reverse order so that they are on the stack like
+  // in an array, with the first item being at the lowest address.
+  for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
+    __ push(wasm::kGpParamRegisters[i]);
+  }
+  // Decrement the stack to allocate a stack slot. The signature gets written
+  // into the slot in Torque.
+  __ push(eax);
+  // Push the return address again.
+  __ push(scratch);
+  __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
+}
 
 void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // TODO(v8:12191): Implement for this platform.

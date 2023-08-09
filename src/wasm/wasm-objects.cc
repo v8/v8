@@ -1972,7 +1972,8 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 
 bool UseGenericWasmToJSWrapper(const wasm::FunctionSig* sig,
                                wasm::Suspend suspend) {
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
+    !V8_TARGET_ARCH_IA32
   return false;
 #else
   if (suspend == wasm::kSuspend) return false;
