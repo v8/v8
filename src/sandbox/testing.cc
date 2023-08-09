@@ -117,7 +117,7 @@ void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  int size = HeapObject::cast(*arg).Size();
+  int size = HeapObject::cast(*arg)->Size();
   info.GetReturnValue().Set(v8::Integer::New(isolate, size));
 }
 
