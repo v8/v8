@@ -3134,7 +3134,7 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   }
   b(&done);
   bind(&return_nan);
-  StoreF32LE(src, MemOperand(dst), r0);
+  StoreF32(src, MemOperand(dst));
   bind(&done);
 }
 
@@ -3155,7 +3155,8 @@ void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
   }
   b(&done);
   bind(&return_nan);
-  StoreF32LE(src.fp(), MemOperand(dst), r0);
+  mov(r0, Operand(1));
+  StoreU32(r0, MemOperand(dst));
   bind(&done);
 }
 
