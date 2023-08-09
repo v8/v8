@@ -849,7 +849,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       DCHECK(!IsFreeSpaceOrFiller(heap_object, cage_base));
       DCHECK(IsHeapObject(heap_object));
       DCHECK(heap_->Contains(heap_object));
-      DCHECK(!non_atomic_marking_state_->IsUnmarked(heap_object));
+      DCHECK(!marking_state_->IsUnmarked(heap_object));
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
       Map map = Map::cast(*heap_object->map_slot());
