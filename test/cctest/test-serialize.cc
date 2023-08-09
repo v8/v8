@@ -3237,6 +3237,7 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
   FreeCurrentEmbeddedBlob();
 }
 
+namespace {
 v8::StartupData CreateSnapshotWithDefaultAndCustom() {
   v8::SnapshotCreator creator(original_external_references);
   v8::Isolate* isolate = creator.GetIsolate();
@@ -3270,6 +3271,7 @@ v8::StartupData CreateSnapshotWithDefaultAndCustom() {
   }
   return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
+}  // namespace
 
 UNINITIALIZED_TEST(SnapshotCreatorNoExternalReferencesDefault) {
   DisableAlwaysOpt();

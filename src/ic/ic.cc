@@ -1045,7 +1045,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       }
 
-      if (!info->has_getter() || !holder->HasFastProperties() ||
+      if (!info->has_getter(isolate()) || !holder->HasFastProperties() ||
           (info->is_sloppy() && !IsJSReceiver(*receiver))) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
         return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
@@ -1963,7 +1963,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<Object> accessors = lookup->GetAccessors();
       if (IsAccessorInfo(*accessors)) {
         Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-        if (!info->has_setter()) {
+        if (!info->has_setter(isolate())) {
           set_slow_stub_reason("setter == kNullAddress");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));

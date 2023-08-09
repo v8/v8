@@ -83,6 +83,7 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
+  inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void SetInstructionStreamAndInstructionStart(
       Isolate* isolate_for_sandbox, InstructionStream code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -385,7 +386,6 @@ class Code : public HeapObject {
   static const int kMaxArguments = (1 << kArgumentsBits) - 2;
 
  private:
-  inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void set_instruction_start(Isolate* isolate, Address value);
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
@@ -406,7 +406,6 @@ class Code : public HeapObject {
 
   template <typename IsolateT>
   friend class Deserializer;
-  friend class ReadOnlyDeserializer;  // For init_instruction_start.
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;

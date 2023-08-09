@@ -4486,6 +4486,15 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // embedded blob.
     MaybeRemapEmbeddedBuiltinsIntoCodeRange();
   }
+  {
+    // Must be done before deserializing RO space since the deserialization
+    // process refers to these data structures.
+    isolate_data_.external_reference_table()->InitIsolateIndependent();
+#ifdef V8_COMPRESS_POINTERS
+    external_pointer_table().Initialize();
+    external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+#endif  // V8_COMPRESS_POINTERS
+  }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
                     isolate_data_.old_allocation_info_);
@@ -4540,8 +4549,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data_.external_reference_table()->Init(this);
 
 #ifdef V8_COMPRESS_POINTERS
-  external_pointer_table().Initialize();
-  external_pointer_table().InitializeSpace(heap()->external_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_space_ = new ExternalPointerTable::Space();
@@ -4556,7 +4563,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         shared_space_isolate()->shared_external_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
-        //
+
 #ifdef V8_CODE_POINTER_SANDBOXING
   GetProcessWideCodePointerTable()->InitializeSpace(
       heap()->code_pointer_space());

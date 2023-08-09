@@ -239,6 +239,26 @@ void ExternalPointerSlot::RestoreContentAfterSerialization(
 #endif
 }
 
+void ExternalPointerSlot::ReplaceContentWithIndexForSerialization(
+    const DisallowGarbageCollection& no_gc, uint32_t index) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(sizeof(ExternalPointerHandle) == sizeof(uint32_t));
+  Relaxed_StoreHandle(index);
+#else
+  WriteMaybeUnalignedValue<Address>(address(), static_cast<Address>(index));
+#endif
+}
+
+uint32_t ExternalPointerSlot::GetContentAsIndexAfterDeserialization(
+    const DisallowGarbageCollection& no_gc) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(sizeof(ExternalPointerHandle) == sizeof(uint32_t));
+  return Relaxed_LoadHandle();
+#else
+  return static_cast<uint32_t>(ReadMaybeUnalignedValue<Address>(address()));
+#endif
+}
+
 #ifdef V8_ENABLE_SANDBOX
 const ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
     const Isolate* isolate, ExternalPointerTag tag) {

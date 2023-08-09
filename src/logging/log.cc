@@ -2122,7 +2122,7 @@ void V8FileLogger::LogAccessorCallbacks() {
     if (!IsAccessorInfo(obj)) continue;
     AccessorInfo ai = AccessorInfo::cast(obj);
     if (!IsName(ai->name())) continue;
-    Address getter_entry = ai->getter();
+    Address getter_entry = ai->getter(isolate_);
     HandleScope scope(isolate_);
     Handle<Name> name(Name::cast(ai->name()), isolate_);
     if (getter_entry != kNullAddress) {
@@ -2131,7 +2131,7 @@ void V8FileLogger::LogAccessorCallbacks() {
 #endif
       PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
-    Address setter_entry = ai->setter();
+    Address setter_entry = ai->setter(isolate_);
     if (setter_entry != kNullAddress) {
 #if USES_FUNCTION_DESCRIPTORS
       setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(setter_entry);
@@ -2564,7 +2564,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
     Object raw_call_data = fun_data->call_code(kAcquireLoad);
     if (!IsUndefined(raw_call_data, isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
-      Address entry_point = call_data->callback();
+      Address entry_point = call_data->callback(isolate_);
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif

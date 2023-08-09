@@ -1746,7 +1746,9 @@ bool StringRef::IsExternalString() const {
   return i::IsExternalString(*object());
 }
 
-Address CallHandlerInfoRef::callback() const { return object()->callback(); }
+Address CallHandlerInfoRef::callback(JSHeapBroker* broker) const {
+  return object()->callback(broker->isolate());
+}
 
 ZoneVector<Address> FunctionTemplateInfoRef::c_functions(
     JSHeapBroker* broker) const {

@@ -231,10 +231,10 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
   ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACCESSOR, /* not used */)
 #undef IS_BUILTIN_ACCESSOR
   Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
-  if (accessor_info->has_getter()) {
+  if (accessor_info->has_getter(isolate)) {
     result |= debug::NativeAccessorType::HasGetter;
   }
-  if (accessor_info->has_setter()) {
+  if (accessor_info->has_setter(isolate)) {
     result |= debug::NativeAccessorType::HasSetter;
   }
   return result;

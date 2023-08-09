@@ -101,23 +101,51 @@ class BitSet final {
 //
 // Note this encoding works for all remaining build configs, in particular for
 // all supported kTaggedSize values.
-struct EncodedTagged_t {
+struct EncodedTagged {
   static constexpr int kPageIndexBits = 5;  // Max 32 RO pages.
   static constexpr int kOffsetBits = 27;
   static constexpr int kSize = kUInt32Size;
 
-  uint32_t ToUint32() const { return *reinterpret_cast<const uint32_t*>(this); }
-  static EncodedTagged_t FromUint32(uint32_t v) {
+  uint32_t ToUint32() const {
+    static_assert(kSize == kUInt32Size);
+    return *reinterpret_cast<const uint32_t*>(this);
+  }
+  static EncodedTagged FromUint32(uint32_t v) {
     return FromAddress(reinterpret_cast<Address>(&v));
   }
-  static EncodedTagged_t FromAddress(Address address) {
-    return *reinterpret_cast<EncodedTagged_t*>(address);
+  static EncodedTagged FromAddress(Address address) {
+    return *reinterpret_cast<EncodedTagged*>(address);
   }
 
   int page_index : kPageIndexBits;
   int offset : kOffsetBits;  // Shifted by kTaggedSizeLog2.
 };
-static_assert(EncodedTagged_t::kSize == sizeof(EncodedTagged_t));
+static_assert(EncodedTagged::kSize == sizeof(EncodedTagged));
+
+struct EncodedExternalReference {
+  static constexpr int kIsApiReferenceBits = 1;
+  static constexpr int kIndexBits = 31;
+  static constexpr int kSize = kUInt32Size;
+
+  uint32_t ToUint32() const {
+    static_assert(kSize == kUInt32Size);
+    return *reinterpret_cast<const uint32_t*>(this);
+  }
+  static EncodedExternalReference FromUint32(uint32_t v) {
+    return *reinterpret_cast<EncodedExternalReference*>(&v);
+  }
+
+  // This ctor is needed to convert parameter types. We can't use bool/uint32_t
+  // as underlying member types since that messes with field packing on
+  // windows.
+  EncodedExternalReference(bool is_api_reference, uint32_t index)
+      : is_api_reference(is_api_reference), index(index) {}
+
+  int is_api_reference : kIsApiReferenceBits;
+  int index : kIndexBits;
+};
+static_assert(EncodedExternalReference::kSize ==
+              sizeof(EncodedExternalReference));
 
 }  // namespace ro
 }  // namespace internal

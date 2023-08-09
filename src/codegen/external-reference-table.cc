@@ -94,18 +94,27 @@ static Address ref_addr_isolate_independent_
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
-void ExternalReferenceTable::Init(Isolate* isolate) {
+void ExternalReferenceTable::InitIsolateIndependent() {
+  DCHECK_EQ(is_initialized_, kUninitialized);
+
   int index = 0;
-
   CopyIsolateIndependentReferences(&index);
+  CHECK_EQ(kSizeIsolateIndependent, index);
 
+  is_initialized_ = kInitializedIsolateIndependent;
+}
+
+void ExternalReferenceTable::Init(Isolate* isolate) {
+  DCHECK_EQ(is_initialized_, kInitializedIsolateIndependent);
+
+  int index = kSizeIsolateIndependent;
   AddIsolateDependentReferences(isolate, &index);
   AddIsolateAddresses(isolate, &index);
   AddStubCache(isolate, &index);
   AddNativeCodeStatsCounters(isolate, &index);
-  is_initialized_ = static_cast<uint32_t>(true);
-
   CHECK_EQ(kSize, index);
+
+  is_initialized_ = kInitialized;
 }
 
 const char* ExternalReferenceTable::ResolveSymbol(void* address) {

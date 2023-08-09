@@ -33,14 +33,14 @@ class AccessorInfo
   // This is a wrapper around |maybe_redirected_getter| accessor which
   // returns/accepts C function and converts the value from and to redirected
   // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS(getter, Address)
-  inline void init_getter_redirection(i::Isolate* isolate);
-  inline void remove_getter_redirection(i::Isolate* isolate);
-  inline bool has_getter();
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
+  inline void init_getter_redirection(Isolate* isolate);
+  inline void remove_getter_redirection(Isolate* isolate);
+  inline bool has_getter(Isolate* isolate);
 
   // The field contains the address of the C function.
-  DECL_EXTERNAL_POINTER_ACCESSORS(setter, Address)
-  inline bool has_setter();
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(setter, Address)
+  inline bool has_setter(Isolate* isolate);
 
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(all_can_write)
@@ -131,7 +131,7 @@ class CallHandlerInfo
   // This is a wrapper around |maybe_redirected_callback| accessor which
   // returns/accepts C function and converts the value from and to redirected
   // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS(callback, Address)
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(callback, Address)
   inline void init_callback_redirection(i::Isolate* isolate);
   inline void remove_callback_redirection(i::Isolate* isolate);
 
@@ -145,7 +145,8 @@ class CallHandlerInfo
   // For native builds the field contains the address of the C function.
   // This field is initialized implicitly via respective |callback|-related
   // methods.
-  DECL_EXTERNAL_POINTER_ACCESSORS(maybe_redirected_callback, Address)
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(
+      maybe_redirected_callback, Address)
 
   TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };

@@ -11231,7 +11231,7 @@ void InvokeAccessorGetterCallback(
     DCHECK(IsAccessorInfo(Object(arg)));
     AccessorInfo accessor_info = AccessorInfo::cast(Object(arg));
     getter = reinterpret_cast<v8::AccessorNameGetterCallback>(
-        accessor_info->getter());
+        accessor_info->getter(i_isolate));
 
     if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
       i::Handle<Object> receiver_check_unsupported;

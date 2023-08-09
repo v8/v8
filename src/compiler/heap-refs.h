@@ -769,7 +769,7 @@ class CallHandlerInfoRef : public HeapObjectRef {
 
   Handle<CallHandlerInfo> object() const;
 
-  Address callback() const;
+  Address callback(JSHeapBroker* broker) const;
   ObjectRef data(JSHeapBroker* broker) const;
 };
 

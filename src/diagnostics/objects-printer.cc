@@ -19,6 +19,7 @@
 #include "src/objects/instance-type.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -30,6 +31,10 @@
 
 namespace v8 {
 namespace internal {
+
+namespace {
+constexpr char kUnavailableString[] = "unavailable";
+}  // namespace
 
 #ifdef OBJECT_PRINT
 
@@ -685,7 +690,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
         os << ", line " << info.line + 1;
         os << ", column " << info.column + 1;
       } else {
-        os << "unavailable";
+        os << kUnavailableString;
       }
       os << ")";
     }
@@ -849,12 +854,19 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   os << "\n - setter_side_effect_type: "
      << SideEffectType2String(setter_side_effect_type());
   os << "\n - initial_attributes: " << initial_property_attributes();
-  os << "\n - getter: " << reinterpret_cast<void*>(getter());
-  if (USE_SIMULATOR_BOOL) {
-    os << "\n - maybe_redirected_getter: "
-       << reinterpret_cast<void*>(maybe_redirected_getter());
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << "\n - getter: " << reinterpret_cast<void*>(getter(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - maybe_redirected_getter: "
+         << reinterpret_cast<void*>(maybe_redirected_getter(isolate));
+    }
+    os << "\n - setter: " << reinterpret_cast<void*>(setter(isolate));
+  } else {
+    os << "\n - getter: " << kUnavailableString;
+    os << "\n - maybe_redirected_getter: " << kUnavailableString;
+    os << "\n - setter: " << kUnavailableString;
   }
-  os << "\n - setter: " << reinterpret_cast<void*>(setter());
   os << '\n';
 }
 
@@ -1852,7 +1864,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   if (GetIsolateFromHeapObject(*this, &isolate)) {
     os << Brief(GetCode(isolate));
   } else {
-    os << "<unavailable>";
+    os << kUnavailableString;
   }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
@@ -2414,10 +2426,16 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
   PrintHeader(os, "CallHandlerInfo");
-  os << "\n - callback: " << reinterpret_cast<void*>(callback());
-  if (USE_SIMULATOR_BOOL) {
-    os << "\n - maybe_redirected_callback: "
-       << reinterpret_cast<void*>(maybe_redirected_callback());
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << "\n - callback: " << reinterpret_cast<void*>(callback(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - maybe_redirected_callback: "
+         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
+    }
+  } else {
+    os << "\n - callback: " << kUnavailableString;
+    os << "\n - maybe_redirected_callback: " << kUnavailableString;
   }
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
@@ -2772,6 +2790,346 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {
 
 #endif  // OBJECT_PRINT
 
+void HeapObject::HeapObjectShortPrint(std::ostream& os) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
+  os << AsHex::Address(this->ptr()) << " ";
+
+  if (IsString(*this, cage_base)) {
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    String::cast(*this)->StringShortPrint(&accumulator);
+    os << accumulator.ToCString().get();
+    return;
+  }
+  if (IsJSObject(*this, cage_base)) {
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    JSObject::cast(*this)->JSObjectShortPrint(&accumulator);
+    os << accumulator.ToCString().get();
+    return;
+  }
+  switch (map(cage_base)->instance_type()) {
+    case MAP_TYPE: {
+      os << "<Map";
+      Map mapInstance = Map::cast(*this);
+      if (mapInstance->instance_size() != kVariableSizeSentinel) {
+        os << "[" << mapInstance->instance_size() << "]";
+      }
+      os << "(";
+      if (IsJSObjectMap(mapInstance)) {
+        os << ElementsKindToString(mapInstance->elements_kind());
+      } else {
+        os << mapInstance->instance_type();
+      }
+      os << ")>";
+    } break;
+    case AWAIT_CONTEXT_TYPE: {
+      os << "<AwaitContext generator= ";
+      HeapStringAllocator allocator;
+      StringStream accumulator(&allocator);
+      ShortPrint(Context::cast(*this)->extension(), &accumulator);
+      os << accumulator.ToCString().get();
+      os << '>';
+      break;
+    }
+    case BLOCK_CONTEXT_TYPE:
+      os << "<BlockContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case CATCH_CONTEXT_TYPE:
+      os << "<CatchContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case DEBUG_EVALUATE_CONTEXT_TYPE:
+      os << "<DebugEvaluateContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case EVAL_CONTEXT_TYPE:
+      os << "<EvalContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case FUNCTION_CONTEXT_TYPE:
+      os << "<FunctionContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case MODULE_CONTEXT_TYPE:
+      os << "<ModuleContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case NATIVE_CONTEXT_TYPE:
+      os << "<NativeContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case SCRIPT_CONTEXT_TYPE:
+      os << "<ScriptContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case WITH_CONTEXT_TYPE:
+      os << "<WithContext[" << Context::cast(*this)->length() << "]>";
+      break;
+    case SCRIPT_CONTEXT_TABLE_TYPE:
+      os << "<ScriptContextTable[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case HASH_TABLE_TYPE:
+      os << "<HashTable[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case ORDERED_HASH_MAP_TYPE:
+      os << "<OrderedHashMap[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case ORDERED_HASH_SET_TYPE:
+      os << "<OrderedHashSet[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case ORDERED_NAME_DICTIONARY_TYPE:
+      os << "<OrderedNameDictionary[" << FixedArray::cast(*this)->length()
+         << "]>";
+      break;
+    case NAME_DICTIONARY_TYPE:
+      os << "<NameDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case SWISS_NAME_DICTIONARY_TYPE:
+      os << "<SwissNameDictionary["
+         << SwissNameDictionary::cast(*this)->Capacity() << "]>";
+      break;
+    case GLOBAL_DICTIONARY_TYPE:
+      os << "<GlobalDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case NUMBER_DICTIONARY_TYPE:
+      os << "<NumberDictionary[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+      os << "<SimpleNumberDictionary[" << FixedArray::cast(*this)->length()
+         << "]>";
+      break;
+    case FIXED_ARRAY_TYPE:
+      os << "<FixedArray[" << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      os << "<ObjectBoilerplateDescription["
+         << FixedArray::cast(*this)->length() << "]>";
+      break;
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      os << "<FixedDoubleArray[" << FixedDoubleArray::cast(*this)->length()
+         << "]>";
+      break;
+    case BYTE_ARRAY_TYPE:
+      os << "<ByteArray[" << ByteArray::cast(*this)->length() << "]>";
+      break;
+    case BYTECODE_ARRAY_TYPE:
+      os << "<BytecodeArray[" << BytecodeArray::cast(*this)->length() << "]>";
+      break;
+    case EXTERNAL_POINTER_ARRAY_TYPE:
+      os << "<ExternalPointerArray["
+         << ExternalPointerArray::cast(*this)->length() << "]>";
+      break;
+    case DESCRIPTOR_ARRAY_TYPE:
+      os << "<DescriptorArray["
+         << DescriptorArray::cast(*this)->number_of_descriptors() << "]>";
+      break;
+    case TRANSITION_ARRAY_TYPE:
+      os << "<TransitionArray[" << TransitionArray::cast(*this)->length()
+         << "]>";
+      break;
+    case PROPERTY_ARRAY_TYPE:
+      os << "<PropertyArray[" << PropertyArray::cast(*this)->length() << "]>";
+      break;
+    case FEEDBACK_CELL_TYPE: {
+      {
+        ReadOnlyRoots roots = GetReadOnlyRoots();
+        os << "<FeedbackCell[";
+        if (map() == roots.no_closures_cell_map()) {
+          os << "no feedback";
+        } else if (map() == roots.one_closure_cell_map()) {
+          os << "one closure";
+        } else if (map() == roots.many_closures_cell_map()) {
+          os << "many closures";
+        } else {
+          os << "!!!INVALID MAP!!!";
+        }
+        os << "]>";
+      }
+      break;
+    }
+    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
+      os << "<ClosureFeedbackCellArray["
+         << ClosureFeedbackCellArray::cast(*this)->length() << "]>";
+      break;
+    case FEEDBACK_VECTOR_TYPE:
+      os << "<FeedbackVector[" << FeedbackVector::cast(*this)->length() << "]>";
+      break;
+    case FREE_SPACE_TYPE:
+      os << "<FreeSpace[" << FreeSpace::cast(*this)->size(kRelaxedLoad) << "]>";
+      break;
+
+    case PREPARSE_DATA_TYPE: {
+      PreparseData data = PreparseData::cast(*this);
+      os << "<PreparseData[data=" << data->data_length()
+         << " children=" << data->children_length() << "]>";
+      break;
+    }
+
+    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
+      UncompiledDataWithoutPreparseData data =
+          UncompiledDataWithoutPreparseData::cast(*this);
+      os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
+         << ", " << data->end_position() << ")]>";
+      break;
+    }
+
+    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
+      UncompiledDataWithPreparseData data =
+          UncompiledDataWithPreparseData::cast(*this);
+      os << "<UncompiledDataWithPreparseData (" << data->start_position()
+         << ", " << data->end_position()
+         << ") preparsed=" << Brief(data->preparse_data()) << ">";
+      break;
+    }
+
+    case SHARED_FUNCTION_INFO_TYPE: {
+      SharedFunctionInfo shared = SharedFunctionInfo::cast(*this);
+      std::unique_ptr<char[]> debug_name = shared->DebugNameCStr();
+      if (debug_name[0] != '\0') {
+        os << "<SharedFunctionInfo " << debug_name.get() << ">";
+      } else {
+        os << "<SharedFunctionInfo>";
+      }
+      break;
+    }
+    case JS_MESSAGE_OBJECT_TYPE:
+      os << "<JSMessageObject>";
+      break;
+#define MAKE_STRUCT_CASE(TYPE, Name, name)    \
+  case TYPE:                                  \
+    os << "<" #Name;                          \
+    Name::cast(*this)->BriefPrintDetails(os); \
+    os << ">";                                \
+    break;
+      STRUCT_LIST(MAKE_STRUCT_CASE)
+#undef MAKE_STRUCT_CASE
+    case ALLOCATION_SITE_TYPE: {
+      os << "<AllocationSite";
+      AllocationSite::cast(*this)->BriefPrintDetails(os);
+      os << ">";
+      break;
+    }
+    case SCOPE_INFO_TYPE: {
+      ScopeInfo scope = ScopeInfo::cast(*this);
+      os << "<ScopeInfo";
+      if (!scope->IsEmpty()) os << " " << scope->scope_type();
+      os << ">";
+      break;
+    }
+    case CODE_TYPE: {
+      Code code = Code::cast(*this);
+      os << "<Code " << CodeKindToString(code->kind());
+      if (code->is_builtin()) {
+        os << " " << Builtins::name(code->builtin_id());
+      }
+      os << ">";
+      break;
+    }
+    case HOLE_TYPE: {
+#define PRINT_HOLE(Type, Value, _) \
+  if (Is##Type(*this)) {           \
+    os << "<" #Value ">";          \
+    break;                         \
+  }
+      HOLE_LIST(PRINT_HOLE)
+#undef PRINT_HOLE
+      UNREACHABLE();
+    }
+    case INSTRUCTION_STREAM_TYPE: {
+      InstructionStream istream = InstructionStream::cast(*this);
+      Code code = istream->code(kAcquireLoad);
+      os << "<InstructionStream " << CodeKindToString(code->kind());
+      if (code->is_builtin()) {
+        os << " " << Builtins::name(code->builtin_id());
+      }
+      os << ">";
+      break;
+    }
+    case ODDBALL_TYPE: {
+      if (IsUndefined(*this)) {
+        os << "<undefined>";
+      } else if (IsNull(*this)) {
+        os << "<null>";
+      } else if (IsTrue(*this)) {
+        os << "<true>";
+      } else if (IsFalse(*this)) {
+        os << "<false>";
+      } else {
+        os << "<Odd Oddball: ";
+        os << Oddball::cast(*this)->to_string()->ToCString().get();
+        os << ">";
+      }
+      break;
+    }
+    case SYMBOL_TYPE: {
+      Symbol symbol = Symbol::cast(*this);
+      symbol->SymbolShortPrint(os);
+      break;
+    }
+    case HEAP_NUMBER_TYPE: {
+      os << "<HeapNumber ";
+      HeapNumber::cast(*this)->HeapNumberShortPrint(os);
+      os << ">";
+      break;
+    }
+    case BIGINT_TYPE: {
+      os << "<BigInt ";
+      BigInt::cast(*this)->BigIntShortPrint(os);
+      os << ">";
+      break;
+    }
+    case JS_PROXY_TYPE:
+      os << "<JSProxy>";
+      break;
+    case FOREIGN_TYPE:
+      os << "<Foreign>";
+      break;
+    case CELL_TYPE: {
+      os << "<Cell value= ";
+      HeapStringAllocator allocator;
+      StringStream accumulator(&allocator);
+      ShortPrint(Cell::cast(*this)->value(), &accumulator);
+      os << accumulator.ToCString().get();
+      os << '>';
+      break;
+    }
+    case PROPERTY_CELL_TYPE: {
+      PropertyCell cell = PropertyCell::cast(*this);
+      os << "<PropertyCell name=";
+      ShortPrint(cell->name(), os);
+      os << " value=";
+      HeapStringAllocator allocator;
+      StringStream accumulator(&allocator);
+      ShortPrint(cell->value(kAcquireLoad), &accumulator);
+      os << accumulator.ToCString().get();
+      os << '>';
+      break;
+    }
+    case ACCESSOR_INFO_TYPE: {
+      AccessorInfo info = AccessorInfo::cast(*this);
+      os << "<AccessorInfo ";
+      os << "name= " << Brief(info->name());
+      os << ", data= " << Brief(info->data());
+      os << ">";
+      break;
+    }
+    case CALL_HANDLER_INFO_TYPE: {
+      CallHandlerInfo info = CallHandlerInfo::cast(*this);
+      os << "<CallHandlerInfo ";
+      Isolate* isolate;
+      if (GetIsolateFromHeapObject(*this, &isolate)) {
+        os << "callback= " << reinterpret_cast<void*>(info->callback(isolate));
+      } else {
+        os << "callback= " << kUnavailableString;
+      }
+      os << ", data= " << Brief(info->data());
+      if (info->IsSideEffectFreeCallHandlerInfo()) {
+        os << ", side_effect_free= true>";
+      } else {
+        os << ", side_effect_free= false>";
+      }
+      break;
+    }
+    default:
+      os << "<Other heap object (" << map()->instance_type() << ")>";
+      break;
+  }
+}
+
 void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
   static constexpr uint64_t kUint64AllBitsSet =
       static_cast<uint64_t>(int64_t{-1});
@@ -2824,6 +3182,18 @@ int Name::NameShortPrint(base::Vector<char> str) {
                       String::cast(s->description())->ToCString().get());
     }
   }
+}
+
+void Symbol::SymbolShortPrint(std::ostream& os) {
+  os << "<Symbol:";
+  if (!IsUndefined(description())) {
+    os << " ";
+    String description_as_string = String::cast(description());
+    description_as_string->PrintUC16(os, 0, description_as_string->length());
+  } else {
+    os << " (" << PrivateSymbolToName() << ")";
+  }
+  os << ">";
 }
 
 void Map::PrintMapDetails(std::ostream& os) {

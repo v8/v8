@@ -2779,7 +2779,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
       CallDescriptor::kNeedsFrameState);
 
   Node* data = jsgraph()->Constant(call_handler_info.data(broker()), broker());
-  ApiFunction function(call_handler_info.callback());
+  ApiFunction function(call_handler_info.callback(broker()));
   Node* function_reference =
       graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
           &function, ExternalReference::DIRECT_API_CALL)));

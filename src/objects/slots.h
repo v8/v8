@@ -325,6 +325,11 @@ class ExternalPointerSlot
       const DisallowGarbageCollection& no_gc);
   inline void RestoreContentAfterSerialization(
       RawContent content, const DisallowGarbageCollection& no_gc);
+  // The ReadOnlySerializer replaces the RawContent in-place.
+  inline void ReplaceContentWithIndexForSerialization(
+      const DisallowGarbageCollection& no_gc, uint32_t index);
+  inline uint32_t GetContentAsIndexAfterDeserialization(
+      const DisallowGarbageCollection& no_gc);
 
  private:
 #ifdef V8_ENABLE_SANDBOX

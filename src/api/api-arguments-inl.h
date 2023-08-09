@@ -88,7 +88,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
-      reinterpret_cast<v8::FunctionCallback>(handler->callback());
+      reinterpret_cast<v8::FunctionCallback>(handler->callback(isolate));
   Handle<Object> receiver_check_unsupported;
   if (isolate->should_check_side_effects() &&
       !isolate->debug()->PerformSideEffectCheckForCallback(
@@ -310,7 +310,7 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
   AcceptSideEffects();
 
   AccessorNameGetterCallback f =
-      reinterpret_cast<AccessorNameGetterCallback>(info->getter());
+      reinterpret_cast<AccessorNameGetterCallback>(info->getter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, info,
                                  handle(receiver(), isolate), ACCESSOR_GETTER);
   f(v8::Utils::ToLocal(name), callback_info);
@@ -326,8 +326,8 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
   // the callback is allowed to have side effects.
   AcceptSideEffects();
 
-  AccessorNameSetterCallback f =
-      reinterpret_cast<AccessorNameSetterCallback>(accessor_info->setter());
+  AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
+      accessor_info->setter(isolate));
   PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info,
                                  handle(receiver(), isolate), ACCESSOR_SETTER);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);

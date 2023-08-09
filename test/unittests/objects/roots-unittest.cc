@@ -74,6 +74,10 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 #undef INITIALLY_READ_ONLY_ROOT_LIST
 
   // May be promoted to RO space, see read-only-promotion.h.
+  if (IsAccessorInfo(*object)) return true;
+  if (IsCallHandlerInfo(*object)) return true;
+  if (IsFunctionTemplateInfo(*object)) return true;
+  if (IsFunctionTemplateRareData(*object)) return true;
   if (IsSharedFunctionInfo(*object)) return true;
 
   return false;

@@ -105,7 +105,11 @@ class Committee final {
   }
 
 #define PROMO_CANDIDATE_TYPE_LIST(V) \
+  V(AccessorInfo)                    \
+  V(CallHandlerInfo)                 \
   V(Code)                            \
+  V(FunctionTemplateInfo)            \
+  V(FunctionTemplateRareData)        \
   V(ScopeInfo)                       \
   V(SharedFunctionInfo)
   // TODO(jgruber): Don't forget to extend ReadOnlyPromotionImpl::Verify when
@@ -127,6 +131,17 @@ class Committee final {
   }
 #undef PROMO_CANDIDATE_TYPE_LIST
 
+  // TODO(jgruber): The ExternalPointerTable doesn't support host objects in RO
+  // space yet. Design and implement support.
+  static constexpr bool kSupportsReadOnlyExternalPointers =
+      !V8_ENABLE_SANDBOX_BOOL;
+  static bool IsPromoCandidateAccessorInfo(Isolate* isolate, AccessorInfo o) {
+    return kSupportsReadOnlyExternalPointers;
+  }
+  static bool IsPromoCandidateCallHandlerInfo(Isolate* isolate,
+                                              CallHandlerInfo o) {
+    return kSupportsReadOnlyExternalPointers;
+  }
   static bool IsPromoCandidateCode(Isolate* isolate, Code o) {
 #if !defined(V8_SHORT_BUILTIN_CALLS) || \
     defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
@@ -142,6 +157,16 @@ class Committee final {
     static_assert(!Builtins::kCodeObjectsAreInROSpace);
     return false;
 #endif
+  }
+  static bool IsPromoCandidateFunctionTemplateInfo(Isolate* isolate,
+                                                   FunctionTemplateInfo o) {
+    // TODO(jgruber): Enable once we have a solution for the mutable
+    // shared_function_info field.
+    return false;
+  }
+  static bool IsPromoCandidateFunctionTemplateRareData(
+      Isolate* isolate, FunctionTemplateRareData o) {
+    return true;
   }
   static bool IsPromoCandidateScopeInfo(Isolate* isolate, ScopeInfo o) {
     return true;

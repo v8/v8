@@ -698,7 +698,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
-    ApiFunction api_function(call_handler_info.callback());
+    ApiFunction api_function(call_handler_info.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
         function_template_info_.c_functions(broker()).data(),
@@ -4059,7 +4059,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   auto call_descriptor =
       Linkage::GetStubCallDescriptor(graph()->zone(), cid, argc + 1 /*
      implicit receiver */, CallDescriptor::kNeedsFrameState);
-  ApiFunction api_function(call_handler_info.callback());
+  ApiFunction api_function(call_handler_info.callback(broker()));
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
 

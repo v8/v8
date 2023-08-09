@@ -88,7 +88,7 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  Address Decode(ro::EncodedTagged_t encoded) const {
+  Address Decode(ro::EncodedTagged encoded) const {
     DCHECK_LT(encoded.page_index, static_cast<int>(ro_space()->pages().size()));
     ReadOnlyPage* page = ro_space()->pages()[encoded.page_index];
     return page->OffsetToAddress(encoded.offset * kTaggedSize);
@@ -102,7 +102,7 @@ class ReadOnlyHeapImageDeserializer final {
       // could be more efficient.
       if (!tagged_slots.contains(static_cast<int>(i))) continue;
       Address slot_addr = segment_start + i * kTaggedSize;
-      Address obj_addr = Decode(ro::EncodedTagged_t::FromAddress(slot_addr));
+      Address obj_addr = Decode(ro::EncodedTagged::FromAddress(slot_addr));
       Address obj_ptr = obj_addr + kHeapObjectTag;
 
       Tagged_t* dst = reinterpret_cast<Tagged_t*>(slot_addr);
@@ -119,8 +119,7 @@ class ReadOnlyHeapImageDeserializer final {
     } else {
       for (size_t i = 0; i < ReadOnlyRoots::kEntriesCount; i++) {
         uint32_t encoded_as_int = source_->GetUint32();
-        Address rudolf =
-            Decode(ro::EncodedTagged_t::FromUint32(encoded_as_int));
+        Address rudolf = Decode(ro::EncodedTagged::FromUint32(encoded_as_int));
         roots.read_only_roots_[i] = rudolf + kHeapObjectTag;
       }
     }
@@ -162,17 +161,106 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   }
 }
 
+void NoExternalReferencesCallback() {
+  // The following check will trigger if a function or object template with
+  // references to native functions have been deserialized from snapshot, but
+  // no actual external references were provided when the isolate was created.
+  FATAL("No external references provided via API");
+}
+
+class ObjectPostProcessor final {
+ public:
+  explicit ObjectPostProcessor(Isolate* isolate) : isolate_(isolate) {}
+
+#define POST_PROCESS_TYPE_LIST(V) \
+  V(AccessorInfo)                 \
+  V(CallHandlerInfo)              \
+  V(Code)                         \
+  V(SharedFunctionInfo)
+
+  void PostProcessIfNeeded(HeapObject o) {
+    const InstanceType itype = o.map(isolate_).instance_type();
+#define V(TYPE)                               \
+  if (InstanceTypeChecker::Is##TYPE(itype)) { \
+    return PostProcess##TYPE(TYPE::cast(o));  \
+  }
+    POST_PROCESS_TYPE_LIST(V)
+#undef V
+    // If we reach here, no postprocessing is needed for this object.
+  }
+#undef POST_PROCESS_TYPE_LIST
+
+ private:
+  void DecodeExternalPointerSlot(ExternalPointerSlot slot,
+                                 ExternalPointerTag tag) {
+    // Constructing no_gc here is not the intended use pattern (instead we
+    // should pass it along the entire callchain); but there's little point of
+    // doing that here - all of the code in this file relies on GC being
+    // disabled, and that's guarded at entry points.
+    DisallowGarbageCollection no_gc;
+    auto encoded = ro::EncodedExternalReference::FromUint32(
+        slot.GetContentAsIndexAfterDeserialization(no_gc));
+    if (encoded.is_api_reference) {
+      Address address =
+          isolate_->api_external_references() == nullptr
+              ? reinterpret_cast<Address>(NoExternalReferencesCallback)
+              : static_cast<Address>(
+                    isolate_->api_external_references()[encoded.index]);
+      DCHECK_NE(address, kNullAddress);
+      slot.init(isolate_, address, tag);
+    } else {
+      Address address =
+          isolate_->external_reference_table_unsafe()->address(encoded.index);
+      // Note we allow `address` to be kNullAddress since some of our tests
+      // rely on this (e.g. when testing an incompletely initialized ER table).
+      slot.init(isolate_, address, tag);
+    }
+  }
+  void PostProcessAccessorInfo(AccessorInfo o) {
+    DecodeExternalPointerSlot(
+        o.RawExternalPointerField(AccessorInfo::kSetterOffset),
+        kAccessorInfoSetterTag);
+    DecodeExternalPointerSlot(
+        o.RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
+        kAccessorInfoGetterTag);
+    if (USE_SIMULATOR_BOOL) o.init_getter_redirection(isolate_);
+  }
+  void PostProcessCallHandlerInfo(CallHandlerInfo o) {
+    DecodeExternalPointerSlot(
+        o.RawExternalPointerField(
+            CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+        kCallHandlerInfoCallbackTag);
+    if (USE_SIMULATOR_BOOL) o.init_callback_redirection(isolate_);
+  }
+  void PostProcessCode(Code o) {
+    o->init_instruction_start(isolate_, kNullAddress);
+    // RO space only contains builtin Code objects which don't have an
+    // attached InstructionStream.
+    DCHECK(o->is_builtin());
+    DCHECK(!o->has_instruction_stream());
+    o->SetInstructionStartForOffHeapBuiltin(
+        isolate_,
+        EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
+  }
+  void PostProcessSharedFunctionInfo(SharedFunctionInfo o) {
+    // Reset the id to avoid collisions - it must be unique in this isolate.
+    o.set_unique_id(isolate_->GetAndIncNextUniqueSfiId());
+  }
+
+  Isolate* const isolate_;
+};
+
 void ReadOnlyDeserializer::PostProcessNewObjects() {
   // Since we are not deserializing individual objects we need to scan the
   // heap and search for objects that need post-processing.
   //
   // See also Deserializer<IsolateT>::PostProcessNewObject.
   PtrComprCageBase cage_base(isolate());
+  ObjectPostProcessor post_processor(isolate());
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
   for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-    const InstanceType instance_type = o->map(cage_base)->instance_type();
-
     if (should_rehash()) {
+      const InstanceType instance_type = o->map(cage_base)->instance_type();
       if (InstanceTypeChecker::IsString(instance_type)) {
         String str = String::cast(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
@@ -182,21 +270,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       }
     }
 
-    if (InstanceTypeChecker::IsCode(instance_type)) {
-      Code code = Code::cast(o);
-      code->init_instruction_start(main_thread_isolate(), kNullAddress);
-      // RO space only contains builtin Code objects which don't have an
-      // attached InstructionStream.
-      DCHECK(code->is_builtin());
-      DCHECK(!code->has_instruction_stream());
-      code->SetInstructionStartForOffHeapBuiltin(
-          main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
-                                     .InstructionStartOf(code->builtin_id()));
-    } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(o);
-      // Reset the id to avoid collisions - it must be unique in this isolate.
-      sfi->set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
-    }
+    post_processor.PostProcessIfNeeded(o);
   }
 }
 

@@ -4935,7 +4935,8 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
     __ Move(CallApiCallbackOptimizedDescriptor::CallDataRegister(),
             Handle<HeapObject>::cast(data_.object()));
   }
-  ApiFunction function(call_handler_info_.callback());
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
+  ApiFunction function(call_handler_info_.callback(broker));
   ExternalReference reference =
       ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
   __ Move(CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister(),
