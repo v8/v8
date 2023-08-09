@@ -304,11 +304,13 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   ClearThreadInWasmScope wasm_flag(isolate);
-  DisallowHeapAllocation no_gc;
-  HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
   int func_index = args.smi_value_at(1);
+
+  TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
+  DisallowHeapAllocation no_gc;
+  HandleScope scope(isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
