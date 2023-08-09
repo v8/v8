@@ -78,47 +78,142 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
-// Sandbox.getAddressOf(object) -> Number
-void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
+// The methods below either take a HeapObject or the address of a HeapObject as
+// argument. These helper functions can be used to extract the argument object
+// in both cases.
+using ArgumentObjectExtractorFunction = std::function<bool(
+    const v8::FunctionCallbackInfo<v8::Value>&, Tagged<HeapObject>* out)>;
+
+static bool GetArgumentObjectPassedAsReference(
+    const v8::FunctionCallbackInfo<v8::Value>& info, Tagged<HeapObject>* out) {
   v8::Isolate* isolate = info.GetIsolate();
 
   if (info.Length() == 0) {
     isolate->ThrowError("First argument must be provided");
-    return;
+    return false;
   }
 
   Handle<Object> arg = Utils::OpenHandle(*info[0]);
   if (!IsHeapObject(*arg)) {
     isolate->ThrowError("First argument must be a HeapObject");
+    return false;
+  }
+
+  *out = HeapObject::cast(*arg);
+  return true;
+}
+
+static bool GetArgumentObjectPassedAsAddress(
+    const v8::FunctionCallbackInfo<v8::Value>& info, Tagged<HeapObject>* out) {
+  Sandbox* sandbox = GetProcessWideSandbox();
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  if (info.Length() == 0) {
+    isolate->ThrowError("First argument must be provided");
+    return false;
+  }
+
+  Local<v8::Uint32> arg1;
+  if (!info[0]->ToUint32(context).ToLocal(&arg1)) {
+    isolate->ThrowError("First argument must be the address of a HeapObject");
+    return false;
+  }
+
+  uint32_t address = arg1->Value();
+  // Allow tagged addresses by removing the kHeapObjectTag and
+  // kWeakHeapObjectTag. This allows clients to just read tagged pointers from
+  // the heap and use them for these APIs.
+  address &= ~kHeapObjectTagMask;
+  *out = HeapObject::FromAddress(sandbox->base() + address);
+  return true;
+}
+
+// Sandbox.getAddressOf(Object) -> Number
+void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  Tagged<HeapObject> obj;
+  if (!GetArgumentObjectPassedAsReference(info, &obj)) {
     return;
   }
 
   // HeapObjects must be allocated inside the pointer compression cage so their
   // address relative to the start of the sandbox can be obtained simply by
   // taking the lowest 32 bits of the absolute address.
-  uint32_t address = static_cast<uint32_t>(HeapObject::cast(*arg).address());
+  uint32_t address = static_cast<uint32_t>(obj->address());
   info.GetReturnValue().Set(v8::Integer::NewFromUnsigned(isolate, address));
 }
 
-// Sandbox.getSizeOf(object) -> Number
-void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+// Sandbox.getObjectAt(Number) -> Object
+void SandboxGetObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
 
-  if (info.Length() == 0) {
-    isolate->ThrowError("First argument must be provided");
+  Tagged<HeapObject> obj;
+  if (!GetArgumentObjectPassedAsAddress(info, &obj)) {
     return;
   }
 
-  Handle<Object> arg = Utils::OpenHandle(*info[0]);
-  if (!IsHeapObject(*arg)) {
-    isolate->ThrowError("First argument must be a HeapObject");
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Handle<Object> handle(obj, i_isolate);
+  info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
+}
+
+static void SandboxGetSizeOfImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info,
+    ArgumentObjectExtractorFunction getArgumentObject) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  Tagged<HeapObject> obj;
+  if (!getArgumentObject(info, &obj)) {
     return;
   }
 
-  int size = HeapObject::cast(*arg)->Size();
+  int size = obj->Size();
   info.GetReturnValue().Set(v8::Integer::New(isolate, size));
+}
+
+// Sandbox.getSizeOf(Object) -> Number
+void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetSizeOfImpl(info, &GetArgumentObjectPassedAsReference);
+}
+
+// Sandbox.getSizeOfObjectAt(Number) -> Number
+void SandboxGetSizeOfObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetSizeOfImpl(info, &GetArgumentObjectPassedAsAddress);
+}
+
+static void SandboxGetInstanceTypeOfImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info,
+    ArgumentObjectExtractorFunction getArgumentObject) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  Tagged<HeapObject> obj;
+  if (!getArgumentObject(info, &obj)) {
+    return;
+  }
+
+  InstanceType type = obj->map()->instance_type();
+  std::stringstream out;
+  out << type;
+  MaybeLocal<v8::String> result =
+      v8::String::NewFromUtf8(isolate, out.str().c_str());
+  info.GetReturnValue().Set(result.ToLocalChecked());
+}
+
+// Sandbox.getInstanceTypeOfObjectAt(Object) -> String
+void SandboxGetInstanceTypeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetInstanceTypeOfImpl(info, &GetArgumentObjectPassedAsReference);
+}
+
+// Sandbox.getInstanceTypeOfObjectAt(Number) -> String
+void SandboxGetInstanceTypeOfObjectAt(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetInstanceTypeOfImpl(info, &GetArgumentObjectPassedAsAddress);
 }
 
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
@@ -196,7 +291,14 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
   InstallFunction(isolate, sandbox, SandboxGetAddressOf, "getAddressOf", 1);
+  InstallFunction(isolate, sandbox, SandboxGetObjectAt, "getObjectAt", 1);
   InstallFunction(isolate, sandbox, SandboxGetSizeOf, "getSizeOf", 1);
+  InstallFunction(isolate, sandbox, SandboxGetSizeOfObjectAt,
+                  "getSizeOfObjectAt", 1);
+  InstallFunction(isolate, sandbox, SandboxGetInstanceTypeOf,
+                  "getInstanceTypeOf", 1);
+  InstallFunction(isolate, sandbox, SandboxGetInstanceTypeOfObjectAt,
+                  "getInstanceTypeOfObjectAt", 1);
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
