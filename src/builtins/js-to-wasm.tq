@@ -353,12 +353,6 @@ struct LocationAllocator {
 }
 
 macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
-  let slotsPerFloat: intptr;
-  if constexpr (Is64()) {
-    slotsPerFloat = 1;
-  } else {
-    slotsPerFloat = 2;
-  }
   let result: LocationAllocator;
   result.object = paramBuffer.object;
   result.remainingGPRegs = UniqueIntPtrConstant(kNumGPRegisterParameters);
@@ -372,8 +366,7 @@ macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
   dcheck(result.nextFPReg % 8 == 0);
   result.nextFPReg += paramBuffer.offset;
   result.nextStack = result.nextFPReg +
-      result.remainingFPRegs * slotsPerFloat *
-          torque_internal::SizeOf<intptr>();
+      result.remainingFPRegs * torque_internal::SizeOf<float64>();
   result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;

@@ -785,7 +785,6 @@ macro ModifyThreadInWasmFlag(newValue: int32): void {
   const threadInWasmFlagAddress =
       LoadPointerFromRootRegister(kThreadInWasmFlagAddressOffset);
   const threadInWasmFlagRef = GetRefAt<int32>(threadInWasmFlagAddress, 0);
-  dcheck(*threadInWasmFlagRef != newValue);
   *threadInWasmFlagRef = newValue;
 }
 

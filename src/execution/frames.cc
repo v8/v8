@@ -1541,7 +1541,12 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
       has_tagged_param = true;
       continue;
     }
-    allocator.Next(param);
+    if (kSystemPointerSize == 8 || param != MachineRepresentation::kWord64) {
+      allocator.Next(param);
+    } else {
+      allocator.Next(MachineRepresentation::kWord32);
+      allocator.Next(MachineRepresentation::kWord32);
+    }
   }
 
   // End the untagged area, so tagged slots come after. This means, especially,
@@ -1555,6 +1560,7 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
 #else
   constexpr size_t size_of_sig = 1;
 #endif
+
   for (size_t i = 0; i < parameter_count; i++) {
     wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
     MachineRepresentation param = type.machine_representation();
@@ -1586,9 +1592,22 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
       int slot_offset = -l.GetLocation() - 1;
       // Caller FP + return address + signature + spilled registers (without
       // the instance register).
-      size_t param_start_offset = arraysize(wasm::kGpParamRegisters) - 1 +
-                                  arraysize(wasm::kFpParamRegisters) + 2 +
-                                  size_of_sig;
+      size_t slots_per_float64 = kDoubleSize / kSystemPointerSize;
+      size_t param_start_offset =
+          arraysize(wasm::kGpParamRegisters) - 1 +
+          (arraysize(wasm::kFpParamRegisters) * slots_per_float64) + 2 +
+          size_of_sig;
+
+      // The wasm-to-js wrapper pushes all but the first gp parameter register
+      // on the stack, so if the number of gp parameter registers is even, this
+      // means that the wrapper pushed an odd number. In that case, and when the
+      // size of a double on the stack is two words, then there is an alignment
+      // word between the pushed gp registers and the pushed fp registers, so
+      // that the whole spill area is double-size aligned.
+      if (arraysize(wasm::kGpParamRegisters) % 2 == (0) &&
+          kSystemPointerSize != kDoubleSize) {
+        param_start_offset++;
+      }
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;

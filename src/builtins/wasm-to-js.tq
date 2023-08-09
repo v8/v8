@@ -111,6 +111,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   // Second loop for tagged parameters.
   if (hasTaggedParams) {
+    locationAllocator.StartRefs();
     nextIndex = 1;
     paramIt = paramTypes.Iterator();
     while (!paramIt.Empty()) {
