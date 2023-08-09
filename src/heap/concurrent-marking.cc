@@ -306,6 +306,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           local_marking_worklists.PushOnHold(object);
         } else {
           Map map = object->map(isolate, kAcquireLoad);
+          // The marking worklist should never contain filler objects.
+          CHECK(!IsFreeSpaceOrFillerMap(map));
           if (is_per_context_mode) {
             Address context;
             if (native_context_inferrer.Infer(isolate, map, object, &context)) {
