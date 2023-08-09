@@ -9,24 +9,6 @@ Enabling Runtime Domain.
                 className : SyntaxError
                 description : SyntaxError: Unexpected token ';'
                 objectId : <objectId>
-                preview : {
-                    description : SyntaxError: Unexpected token ';'
-                    overflow : false
-                    properties : [
-                        [0] : {
-                            name : stack
-                            type : string
-                            value : SyntaxError: Unexpected token ';'
-                        }
-                        [1] : {
-                            name : message
-                            type : string
-                            value : Unexpected token ';'
-                        }
-                    ]
-                    subtype : error
-                    type : object
-                }
                 subtype : error
                 type : object
             }
@@ -49,24 +31,6 @@ Enabling Runtime Domain.
                 className : ReferenceError
                 description : ReferenceError: y is not defined     at referenceError.js:2:13
                 objectId : <objectId>
-                preview : {
-                    description : ReferenceError: y is not defined     at referenceError.js:2:13
-                    overflow : false
-                    properties : [
-                        [0] : {
-                            name : stack
-                            type : string
-                            value : ReferenceError: y is not defined     at referenceError.js:2:13
-                        }
-                        [1] : {
-                            name : message
-                            type : string
-                            value : y is not defined
-                        }
-                    ]
-                    subtype : error
-                    type : object
-                }
                 subtype : error
                 type : object
             }

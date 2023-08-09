@@ -1083,7 +1083,7 @@ Response V8RuntimeAgentImpl::enable() {
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
   for (const auto& message : storage->messages()) {
-    if (!reportMessage(message.get(), true)) break;
+    if (!reportMessage(message.get(), false)) break;
   }
   return Response::Success();
 }

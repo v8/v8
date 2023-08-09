@@ -261,7 +261,6 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   v8::Isolate* isolate = inspectedContext->isolate();
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
-  v8::Context::Scope contextScope(context);
 
   auto args =
       std::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
