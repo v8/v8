@@ -310,7 +310,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   DisallowHeapAllocation no_gc;
-  HandleScope scope(isolate);
+  SealHandleScope scope(isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
