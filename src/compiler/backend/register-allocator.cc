@@ -19,12 +19,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE_COND(cond, ...)      \
-  do {                             \
-    if (cond) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                       \
+  do {                                                   \
+    if (v8_flags.trace_turbo_alloc) PrintF(__VA_ARGS__); \
   } while (false)
-
-#define TRACE(...) TRACE_COND(data()->is_trace_alloc(), __VA_ARGS__)
 
 namespace {
 
@@ -813,9 +811,8 @@ void TopLevelLiveRange::VerifyChildrenInOrder() const {
 }
 #endif
 
-void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
-  TRACE_COND(trace_alloc, "Shorten live range %d to [%d\n", vreg(),
-             start.value());
+void TopLevelLiveRange::ShortenTo(LifetimePosition start) {
+  TRACE("Shorten live range %d to [%d\n", vreg(), start.value());
   DCHECK(!IsEmpty());
   DCHECK_LE(intervals_.front().start(), start);
   intervals_.front().set_start(start);
@@ -823,10 +820,9 @@ void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
 }
 
 void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
-                                       LifetimePosition end, Zone* zone,
-                                       bool trace_alloc) {
-  TRACE_COND(trace_alloc, "Ensure live range %d in interval [%d %d[\n", vreg(),
-             start.value(), end.value());
+                                       LifetimePosition end, Zone* zone) {
+  TRACE("Ensure live range %d in interval [%d %d[\n", vreg(), start.value(),
+        end.value());
   DCHECK(!IsEmpty());
 
   // Drop front intervals until intervals_.front().start() > end.
@@ -848,10 +844,9 @@ void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
 }
 
 void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
-                                       LifetimePosition end, Zone* zone,
-                                       bool trace_alloc) {
-  TRACE_COND(trace_alloc, "Add to live range %d interval [%d %d[\n", vreg(),
-             start.value(), end.value());
+                                       LifetimePosition end, Zone* zone) {
+  TRACE("Add to live range %d interval [%d %d[\n", vreg(), start.value(),
+        end.value());
   if (intervals_.empty()) {
     intervals_.push_front(zone, UseInterval(start, end));
     start_ = start;
@@ -883,10 +878,9 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
   current_interval_ = intervals_.begin();
 }
 
-void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, Zone* zone,
-                                       bool trace_alloc) {
-  TRACE_COND(trace_alloc, "Add to live range %d use position %d\n", vreg(),
-             use_pos->pos().value());
+void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, Zone* zone) {
+  TRACE("Add to live range %d use position %d\n", vreg(),
+        use_pos->pos().value());
   // Since we `ProcessInstructions` in reverse, the `use_pos` is almost always
   // inserted at the front of `positions_`, hence (i) use linear instead of
   // binary search and (ii) grow towards the `kFront` exclusively on `insert`.
@@ -1162,8 +1156,8 @@ void TopTierRegisterAllocationData::PhiMapValue::CommitAssignment(
 
 TopTierRegisterAllocationData::TopTierRegisterAllocationData(
     const RegisterConfiguration* config, Zone* zone, Frame* frame,
-    InstructionSequence* code, RegisterAllocationFlags flags,
-    TickCounter* tick_counter, const char* debug_name)
+    InstructionSequence* code, TickCounter* tick_counter,
+    const char* debug_name)
     : RegisterAllocationData(Type::kTopTier),
       allocation_zone_(zone),
       frame_(frame),
@@ -1189,7 +1183,6 @@ TopTierRegisterAllocationData::TopTierRegisterAllocationData(
       preassigned_slot_ranges_(zone),
       spill_state_(code->InstructionBlockCount(), ZoneVector<LiveRange*>(zone),
                    zone),
-      flags_(flags),
       tick_counter_(tick_counter),
       slot_for_const_range_(zone) {
   if (kFPAliasing == AliasingKind::kCombine) {
@@ -1799,8 +1792,7 @@ void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
                              .NextStart();
   for (int operand_index : *live_out) {
     TopLevelLiveRange* range = data()->GetLiveRangeFor(operand_index);
-    range->AddUseInterval(start, end, allocation_zone(),
-                          data()->is_trace_alloc());
+    range->AddUseInterval(start, end, allocation_zone());
   }
 }
 
@@ -1954,18 +1946,17 @@ UsePosition* LiveRangeBuilder::Define(LifetimePosition position,
 
   if (range->IsEmpty() || range->Start() > position) {
     // Can happen if there is a definition without use.
-    range->AddUseInterval(position, position.NextStart(), allocation_zone(),
-                          data()->is_trace_alloc());
+    range->AddUseInterval(position, position.NextStart(), allocation_zone());
     range->AddUsePosition(NewUsePosition(position.NextStart()),
-                          allocation_zone(), data()->is_trace_alloc());
+                          allocation_zone());
   } else {
-    range->ShortenTo(position, data()->is_trace_alloc());
+    range->ShortenTo(position);
   }
   if (!operand->IsUnallocated()) return nullptr;
   UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
   UsePosition* use_pos =
       NewUsePosition(position, unalloc_operand, hint, hint_type);
-  range->AddUsePosition(use_pos, allocation_zone(), data()->is_trace_alloc());
+  range->AddUsePosition(use_pos, allocation_zone());
   return use_pos;
 }
 
@@ -1980,10 +1971,9 @@ UsePosition* LiveRangeBuilder::Use(LifetimePosition block_start,
   if (operand->IsUnallocated()) {
     UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
     use_pos = NewUsePosition(position, unalloc_operand, hint, hint_type);
-    range->AddUsePosition(use_pos, allocation_zone(), data()->is_trace_alloc());
+    range->AddUsePosition(use_pos, allocation_zone());
   }
-  range->AddUseInterval(block_start, position, allocation_zone(),
-                        data()->is_trace_alloc());
+  range->AddUseInterval(block_start, position, allocation_zone());
   return use_pos;
 }
 
@@ -2047,7 +2037,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         int code = config()->GetAllocatableGeneralCode(i);
         TopLevelLiveRange* range = FixedLiveRangeFor(code, spill_mode);
         range->AddUseInterval(curr_position, curr_position.End(),
-                              allocation_zone(), data()->is_trace_alloc());
+                              allocation_zone());
       }
     }
 
@@ -2059,7 +2049,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         TopLevelLiveRange* range = FixedFPLiveRangeFor(
             code, MachineRepresentation::kFloat64, spill_mode);
         range->AddUseInterval(curr_position, curr_position.End(),
-                              allocation_zone(), data()->is_trace_alloc());
+                              allocation_zone());
       }
       // Clobber fixed float registers on archs with non-simple aliasing.
       if (kFPAliasing == AliasingKind::kCombine) {
@@ -2072,7 +2062,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             TopLevelLiveRange* range = FixedFPLiveRangeFor(
                 code, MachineRepresentation::kFloat32, spill_mode);
             range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone(), data()->is_trace_alloc());
+                                  allocation_zone());
           }
         }
         if (fixed_simd128_live_ranges) {
@@ -2082,7 +2072,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             TopLevelLiveRange* range = FixedFPLiveRangeFor(
                 code, MachineRepresentation::kSimd128, spill_mode);
             range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone(), data()->is_trace_alloc());
+                                  allocation_zone());
           }
         }
       } else if (kFPAliasing == AliasingKind::kIndependent) {
@@ -2093,7 +2083,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             TopLevelLiveRange* range =
                 FixedSIMD128LiveRangeFor(code, spill_mode);
             range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone(), data()->is_trace_alloc());
+                                  allocation_zone());
           }
         }
       }
@@ -2354,8 +2344,7 @@ void LiveRangeBuilder::ProcessLoopHeader(const InstructionBlock* block,
                              .NextFullStart();
   for (int operand_index : *live) {
     TopLevelLiveRange* range = data()->GetLiveRangeFor(operand_index);
-    range->EnsureInterval(start, end, allocation_zone(),
-                          data()->is_trace_alloc());
+    range->EnsureInterval(start, end, allocation_zone());
   }
   // Insert all values into the live in sets of all blocks in the loop.
   for (int i = block->rpo_number().ToInt() + 1; i < block->loop_end().ToInt();
@@ -2563,8 +2552,8 @@ void BundleBuilder::BuildBundles() {
         LiveRangeBundle* input_bundle = input_range->get_bundle();
         if (input_bundle != nullptr) {
           TRACE("Merge\n");
-          LiveRangeBundle* merged = LiveRangeBundle::TryMerge(
-              out, input_bundle, data()->is_trace_alloc());
+          LiveRangeBundle* merged =
+              LiveRangeBundle::TryMerge(out, input_bundle);
           if (merged != nullptr) {
             DCHECK_EQ(out_range->get_bundle(), merged);
             DCHECK_EQ(input_range->get_bundle(), merged);
@@ -2632,16 +2621,15 @@ void LiveRangeBundle::AddRange(TopLevelLiveRange* range) {
 }
 
 LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
-                                           LiveRangeBundle* rhs,
-                                           bool trace_alloc) {
+                                           LiveRangeBundle* rhs) {
   if (rhs == lhs) return lhs;
 
   if (auto found =
           AreUseIntervalsIntersecting(lhs->intervals_, rhs->intervals_)) {
     auto [interval1, interval2] = *found;
-    TRACE_COND(trace_alloc, "No merge %d:%d %d:%d\n", interval1.start().value(),
-               interval1.end().value(), interval2.start().value(),
-               interval2.end().value());
+    TRACE("No merge %d:%d %d:%d\n", interval1.start().value(),
+          interval1.end().value(), interval2.start().value(),
+          interval2.end().value());
     return nullptr;
   }
   // Uses are disjoint, merging is possible.
@@ -3495,7 +3483,7 @@ void LinearScanAllocator::AllocateRegisters() {
   SplitAndSpillRangesDefinedByMemoryOperand();
   data()->ResetSpillState();
 
-  if (data()->is_trace_alloc()) {
+  if (v8_flags.trace_turbo_alloc) {
     PrintRangeOverview();
   }
 
@@ -3750,7 +3738,7 @@ void LinearScanAllocator::AllocateRegisters() {
     ProcessCurrentRange(current, spill_mode);
   }
 
-  if (data()->is_trace_alloc()) {
+  if (v8_flags.trace_turbo_alloc) {
     PrintRangeOverview();
   }
 }
@@ -5146,7 +5134,6 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
 }
 
 #undef TRACE
-#undef TRACE_COND
 
 }  // namespace compiler
 }  // namespace internal

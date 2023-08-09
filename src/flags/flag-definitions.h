@@ -1036,13 +1036,24 @@ DEFINE_STRING(trace_turbo_cfg_file, nullptr,
 DEFINE_BOOL(trace_turbo_types, true, "trace TurboFan's types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace TurboFan's scheduler")
 DEFINE_BOOL(trace_turbo_reduction, false, "trace TurboFan's various reducers")
-DEFINE_BOOL(trace_turbo_trimming, false, "trace TurboFan's graph trimmer")
-DEFINE_BOOL(trace_turbo_jt, false, "trace TurboFan's jump threading")
-DEFINE_BOOL(trace_turbo_ceq, false, "trace TurboFan's control equivalence")
-DEFINE_BOOL(trace_turbo_loop, false, "trace TurboFan's loop optimizations")
-DEFINE_BOOL(trace_turbo_alloc, false, "trace TurboFan's register allocator")
-DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
-DEFINE_BOOL(trace_representation, false, "trace representation types")
+#ifdef V8_ENABLE_SLOW_TRACING
+#define DEFINE_SLOW_TRACING_BOOL DEFINE_BOOL
+#else
+#define DEFINE_SLOW_TRACING_BOOL DEFINE_BOOL_READONLY
+#endif  // V8_ENABLE_SLOW_TRACING
+DEFINE_SLOW_TRACING_BOOL(trace_turbo_trimming, false,
+                         "trace TurboFan's graph trimmer")
+DEFINE_SLOW_TRACING_BOOL(trace_turbo_jt, false,
+                         "trace TurboFan's jump threading")
+DEFINE_SLOW_TRACING_BOOL(trace_turbo_ceq, false,
+                         "trace TurboFan's control equivalence")
+DEFINE_SLOW_TRACING_BOOL(trace_turbo_loop, false,
+                         "trace TurboFan's loop optimizations")
+DEFINE_SLOW_TRACING_BOOL(trace_turbo_alloc, false,
+                         "trace TurboFan's register allocator")
+DEFINE_SLOW_TRACING_BOOL(trace_all_uses, false, "trace all use positions")
+DEFINE_SLOW_TRACING_BOOL(trace_representation, false,
+                         "trace representation types")
 DEFINE_BOOL(
     trace_turbo_stack_accesses, false,
     "trace stack load/store counters for optimized code in run-time (x64 only)")

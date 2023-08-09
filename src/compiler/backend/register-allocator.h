@@ -190,10 +190,6 @@ inline std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   return os;
 }
 
-enum class RegisterAllocationFlag : unsigned { kTraceAllocation = 1 << 0 };
-
-using RegisterAllocationFlags = base::Flags<RegisterAllocationFlag>;
-
 class SpillRange;
 class LiveRange;
 class TopLevelLiveRange;
@@ -224,10 +220,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   // Encodes whether a spill happens in deferred code (kSpillDeferred) or
   // regular code (kSpillAtDefinition).
   enum SpillMode { kSpillAtDefinition, kSpillDeferred };
-
-  bool is_trace_alloc() {
-    return flags_ & RegisterAllocationFlag::kTraceAllocation;
-  }
 
   static constexpr int kNumberOfFixedRangesPerRegister = 2;
 
@@ -268,7 +260,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   TopTierRegisterAllocationData(const RegisterConfiguration* config,
                                 Zone* allocation_zone, Frame* frame,
                                 InstructionSequence* code,
-                                RegisterAllocationFlags flags,
                                 TickCounter* tick_counter,
                                 const char* debug_name = nullptr);
 
@@ -396,7 +387,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   int virtual_register_count_;
   RangesWithPreassignedSlots preassigned_slot_ranges_;
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
-  RegisterAllocationFlags flags_;
   TickCounter* const tick_counter_;
   ZoneMap<TopLevelLiveRange*, AllocatedOperand*> slot_for_const_range_;
 };
@@ -1029,8 +1019,7 @@ class LiveRangeBundle : public ZoneObject {
   bool TryAddRange(TopLevelLiveRange* range);
   // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
   // {lhs}, clear the source and return the result. Otherwise return nullptr.
-  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
-                                   bool trace_alloc);
+  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs);
 
  private:
   void AddRange(TopLevelLiveRange* range);
@@ -1094,14 +1083,12 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   SlotUseKind slot_use_kind() const { return HasSlotUseField::decode(bits_); }
 
   // Add a new interval or a new use position to this live range.
-  void EnsureInterval(LifetimePosition start, LifetimePosition end, Zone* zone,
-                      bool trace_alloc);
-  void AddUseInterval(LifetimePosition start, LifetimePosition end, Zone* zone,
-                      bool trace_alloc);
-  void AddUsePosition(UsePosition* pos, Zone* zone, bool trace_alloc);
+  void EnsureInterval(LifetimePosition start, LifetimePosition end, Zone* zone);
+  void AddUseInterval(LifetimePosition start, LifetimePosition end, Zone* zone);
+  void AddUsePosition(UsePosition* pos, Zone* zone);
 
   // Shorten the most recently added interval by setting a new start.
-  void ShortenTo(LifetimePosition start, bool trace_alloc);
+  void ShortenTo(LifetimePosition start);
 
   // Spill range management.
   void SetSpillRange(SpillRange* spill_range);

@@ -406,8 +406,12 @@ declare_args() {
   v8_jitless = v8_enable_lite_mode || target_is_ios_device
 
   # Enable Maglev's graph printer.
-  # Sets -DV8_MAGLEV_GRAPH_PRINTER.
+  # Sets -DV8_ENABLE_MAGLEV_GRAPH_PRINTER.
   v8_enable_maglev_graph_printer = !build_with_chromium
+
+  # Enable slow tracing, e.g., tracing on every instruction or Turbofan node.
+  # Sets -DV8_ENABLE_SLOW_TRACING.
+  v8_enable_slow_tracing = is_debug
 
   # Enable jump table switch for built-in.
   v8_enable_builtin_jump_table_switch = v8_current_cpu == "x64"
@@ -1204,6 +1208,9 @@ config("features") {
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]
+  }
+  if (v8_enable_slow_tracing) {
+    defines += [ "V8_ENABLE_SLOW_TRACING" ]
   }
   if (v8_enable_builtin_jump_table_switch) {
     defines += [ "V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH" ]

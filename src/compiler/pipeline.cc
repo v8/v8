@@ -574,12 +574,11 @@ class PipelineData {
   }
 
   void InitializeTopTierRegisterAllocationData(
-      const RegisterConfiguration* config, CallDescriptor* call_descriptor,
-      RegisterAllocationFlags flags) {
+      const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
     DCHECK_NULL(register_allocation_data_);
     register_allocation_data_ =
         register_allocation_zone()->New<TopTierRegisterAllocationData>(
-            config, register_allocation_zone(), frame(), sequence(), flags,
+            config, register_allocation_zone(), frame(), sequence(),
             &info()->tick_counter(), debug_name());
   }
 
@@ -4447,11 +4446,7 @@ void PipelineImpl::AllocateRegistersForTopTier(
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  RegisterAllocationFlags flags;
-  if (data->info()->trace_turbo_allocation()) {
-    flags |= RegisterAllocationFlag::kTraceAllocation;
-  }
-  data->InitializeTopTierRegisterAllocationData(config, call_descriptor, flags);
+  data->InitializeTopTierRegisterAllocationData(config, call_descriptor);
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();

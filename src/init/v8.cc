@@ -216,6 +216,9 @@ void V8::Initialize() {
     DISABLE_FLAG(trace_turbo_graph);
     DISABLE_FLAG(trace_turbo_scheduled);
     DISABLE_FLAG(trace_turbo_reduction);
+#ifdef V8_ENABLE_SLOW_TRACING
+    // If expensive tracing is disabled via a build flag, the following flags
+    // cannot be disabled (because they are already).
     DISABLE_FLAG(trace_turbo_trimming);
     DISABLE_FLAG(trace_turbo_jt);
     DISABLE_FLAG(trace_turbo_ceq);
@@ -223,6 +226,7 @@ void V8::Initialize() {
     DISABLE_FLAG(trace_turbo_alloc);
     DISABLE_FLAG(trace_all_uses);
     DISABLE_FLAG(trace_representation);
+#endif
     DISABLE_FLAG(trace_turbo_stack_accesses);
   }
 
