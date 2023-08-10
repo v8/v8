@@ -1471,17 +1471,28 @@ void MacroAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 
 void MacroAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
                                       Condition cond, Label* label) {
-  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
-      ((cond == eq) || (cond == ne) || (cond == hi) || (cond == ls))) {
-    if ((cond == eq) || (cond == ls)) {
-      Cbz(lhs, label);
-    } else {
-      Cbnz(lhs, label);
+  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0)) {
+    switch (cond) {
+      case eq:
+      case ls:
+        Cbz(lhs, label);
+        return;
+      case lt:
+        Tbnz(lhs, lhs.SizeInBits() - 1, label);
+        return;
+      case ge:
+        Tbz(lhs, lhs.SizeInBits() - 1, label);
+        return;
+      case ne:
+      case hi:
+        Cbnz(lhs, label);
+        return;
+      default:
+        break;
     }
-  } else {
-    Cmp(lhs, rhs);
-    B(cond, label);
   }
+  Cmp(lhs, rhs);
+  B(cond, label);
 }
 
 void MacroAssembler::CompareTaggedAndBranch(const Register& lhs,

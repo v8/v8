@@ -103,8 +103,9 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
         Label start, lab;
         __ Bind(&start);
         __ CompareAndBranch(x0, Immediate(imm), cond, &lab);
-        if (imm == 0 && ((cond == eq) || (cond == ne) || (cond == hi) ||
-                         (cond == ls))) {  // One instruction generated
+        if (imm == 0 &&
+            ((cond == eq) || (cond == ne) || (cond == hi) || (cond == ls) ||
+             (cond == lt) || (cond == ge))) {  // One instruction generated
           ASSERT_EQ(kInstrSize, __ SizeOfCodeGeneratedSince(&start));
         } else {  // Two instructions generated
           ASSERT_EQ(static_cast<uint8_t>(2 * kInstrSize),
