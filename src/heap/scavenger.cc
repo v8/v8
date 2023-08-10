@@ -374,6 +374,9 @@ void ScavengerCollector::CollectGarbage() {
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
+      TRACE_GC_ARG1(
+          heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
+          "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
       auto job =
           std::make_unique<JobTask>(this, &scavengers, std::move(memory_chunks),
                                     &copied_list, &promotion_list);

@@ -2357,7 +2357,8 @@ void MarkCompactCollector::RetainMaps() {
 }
 
 void MarkCompactCollector::MarkLiveObjects() {
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK);
+  TRACE_GC_ARG1(heap_->tracer(), GCTracer::Scope::MC_MARK,
+                "UseBackgroundThreads", UseBackgroundThreadsInCycle());
 
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();

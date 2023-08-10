@@ -35,6 +35,15 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   TRACE_EVENT0(TRACE_GC_CATEGORIES,                                   \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
 
+#define TRACE_GC_ARG1(tracer, scope_id, arg0_name, arg0_value)            \
+  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                         \
+  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);           \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
+      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);     \
+  TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
+               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
+               arg0_name, arg0_value)
+
 #define TRACE_GC_WITH_FLOW(tracer, scope_id, bind_id, flow_flags)         \
   DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                         \
   DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);           \
