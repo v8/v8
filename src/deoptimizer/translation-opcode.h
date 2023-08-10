@@ -100,6 +100,21 @@ inline bool IsTranslationJsFrameOpcode(TranslationOpcode o) {
   return static_cast<int>(o) < kNumTranslationJsFrameOpcodes;
 }
 
+inline std::ostream& operator<<(std::ostream& out, TranslationOpcode opcode) {
+  switch (opcode) {
+#define CASE(name, _)           \
+  case TranslationOpcode::name: \
+    out << #name;               \
+    break;
+    TRANSLATION_OPCODE_LIST(CASE)
+#undef CASE
+    default:
+      out << "BROKEN_OPCODE_" << static_cast<uint8_t>(opcode);
+      break;
+  }
+  return out;
+}
+
 #undef TRANSLATION_OPCODE_LIST
 #undef TRANSLATION_FRAME_OPCODE_LIST
 

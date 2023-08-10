@@ -210,6 +210,13 @@ class TranslationArrayBuilder {
   // Whether the builder can use MATCH_PREVIOUS_TRANSLATION in the current
   // translation.
   bool match_previous_allowed_ = true;
+
+  // Ensure that the frame counts are correct
+  void MarkFrameVisited(TranslationOpcode opcode);
+#ifdef DEBUG
+  int expected_frame_count_ = 0;
+  int expected_jsframe_count_ = 0;
+#endif
 };
 
 }  // namespace internal
