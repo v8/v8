@@ -378,14 +378,14 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // TODO(victorgomes): Add fast path for external strings.
     And(representation, instance_type.W(),
         Immediate(kStringRepresentationMask));
-    Cmp(representation, Immediate(kSeqStringTag));
-    B(&seq_string, eq);
-    Cmp(representation, Immediate(kConsStringTag));
-    B(&cons_string, eq);
-    Cmp(representation, Immediate(kSlicedStringTag));
-    B(&sliced_string, eq);
-    Cmp(representation, Immediate(kThinStringTag));
-    B(deferred_runtime_call, ne);
+    CompareAndBranch(representation, Immediate(kSeqStringTag), kEqual,
+                     &seq_string);
+    CompareAndBranch(representation, Immediate(kConsStringTag), kEqual,
+                     &cons_string);
+    CompareAndBranch(representation, Immediate(kSlicedStringTag), kEqual,
+                     &sliced_string);
+    CompareAndBranch(representation, Immediate(kThinStringTag), kNotEqual,
+                     deferred_runtime_call);
     // Fallthrough to thin string.
   }
 

@@ -311,6 +311,12 @@ class MaglevAssembler : public MacroAssembler {
                                NodeT* node);
   template <typename NodeT>
   inline void EmitEagerDeoptIfNotEqual(DeoptimizeReason reason, NodeT* node);
+  template <typename NodeT>
+  inline void EmitEagerDeoptIfSmi(NodeT* node, Register object,
+                                  DeoptimizeReason reason);
+  template <typename NodeT>
+  inline void EmitEagerDeoptIfNotSmi(NodeT* node, Register object,
+                                     DeoptimizeReason reason);
 
   void MaterialiseValueNode(Register dst, ValueNode* value);
 
@@ -650,6 +656,20 @@ inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
                                               NodeT* node) {
   RecordComment("-- Jump to eager deopt");
   JumpIf(cond, GetDeoptLabel(node, reason));
+}
+
+template <typename NodeT>
+void MaglevAssembler::EmitEagerDeoptIfSmi(NodeT* node, Register object,
+                                          DeoptimizeReason reason) {
+  RecordComment("-- Jump to eager deopt");
+  JumpIfSmi(object, GetDeoptLabel(node, reason));
+}
+
+template <typename NodeT>
+void MaglevAssembler::EmitEagerDeoptIfNotSmi(NodeT* node, Register object,
+                                             DeoptimizeReason reason) {
+  RecordComment("-- Jump to eager deopt");
+  JumpIfNotSmi(object, GetDeoptLabel(node, reason));
 }
 
 inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {

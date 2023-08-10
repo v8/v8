@@ -224,12 +224,13 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
     MaglevAssembler::ScratchRegisterScope temps(masm);
     Register temp = temps.Acquire().W();
     __ Orr(temp, left, right);
-    __ Cmp(temp, Immediate(0));
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
     // reasons. Otherwise, the reason has to match the above.
-    __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOverflow, this);
+    __ RecordComment("-- Jump to eager deopt if the result is negative zero");
+    __ Tbnz(temp, temp.SizeInBits() - 1,
+            __ GetDeoptLabel(this, DeoptimizeReason::kOverflow));
   }
   __ Bind(&end);
   if (out_alias_input) {

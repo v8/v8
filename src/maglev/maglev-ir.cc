@@ -1147,9 +1147,7 @@ void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
   // TODO(leszeks): Consider optimizing away this test and using the carry bit
   // of the `sarl` for cases where the deopt uses the value from a different
   // register.
-  Condition is_smi = __ CheckSmi(value);
-  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
-                      this);
+  __ EmitEagerDeoptIfNotSmi(this, value, DeoptimizeReason::kNotASmi);
   __ SmiToInt32(value);
 }
 
@@ -1492,12 +1490,11 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ JumpIf(is_smi, &done, jump_distance);
+      __ JumpIfSmi(object, &done, jump_distance);
     } else {
-      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+      __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
     }
   }
 
@@ -1540,12 +1537,11 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ JumpIf(is_smi, *done);
+      __ JumpIfSmi(object, *done);
     } else {
-      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+      __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
     }
   }
 
@@ -2465,8 +2461,7 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
   Label done;
   Label is_number;
 
-  Condition is_smi = __ CheckSmi(object);
-  __ JumpIf(is_smi, &is_number);
+  __ JumpIfSmi(object, &is_number);
   __ LoadMap(object_map, object);
 
   for (const PolymorphicAccessInfo& access_info : node->access_infos()) {
@@ -2752,7 +2747,7 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
   __ CompareTagged(target, value().object());
   __ JumpIf(kEqual, *end, Label::kNear);
 
-  __ EmitEagerDeoptIf(__ CheckSmi(target), DeoptimizeReason::kWrongValue, this);
+  __ EmitEagerDeoptIfSmi(this, target, DeoptimizeReason::kWrongValue);
   __ CompareObjectTypeRange(target, FIRST_STRING_TYPE, LAST_STRING_TYPE);
 
   __ JumpToDeferredIf(
@@ -2804,9 +2799,7 @@ void CheckSmi::SetValueLocationConstraints() { UseRegister(receiver_input()); }
 void CheckSmi::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  Condition is_smi = __ CheckSmi(object);
-  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
-                      this);
+  __ EmitEagerDeoptIfNotSmi(this, object, DeoptimizeReason::kNotASmi);
 }
 
 void CheckHeapObject::SetValueLocationConstraints() {
@@ -2815,8 +2808,7 @@ void CheckHeapObject::SetValueLocationConstraints() {
 void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  Condition is_smi = __ CheckSmi(object);
-  __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
+  __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kSmi);
 }
 
 void CheckSymbol::SetValueLocationConstraints() {
@@ -2828,8 +2820,7 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
+    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kNotASymbol);
   }
   __ IsObjectType(object, SYMBOL_TYPE);
   __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotASymbol, this);
@@ -2847,8 +2838,7 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
+    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongInstanceType);
   }
   if (first_instance_type_ == last_instance_type_) {
     __ IsObjectType(object, first_instance_type_);
@@ -2909,8 +2899,7 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotAString, this);
+    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kNotAString);
   }
   __ CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
   __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotAString,
@@ -3570,9 +3559,8 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
           save_register_state.DefineSafepoint();
           __ Move(result_reg, kReturnRegister0);
         }
-        Condition is_smi = __ CheckSmi(result_reg);
-        __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kCouldNotGrowElements,
-                            node);
+        __ EmitEagerDeoptIfSmi(node, result_reg,
+                        DeoptimizeReason::kCouldNotGrowElements);
         __ Jump(*done);
       },
       done, object, index, elements, this);
@@ -4613,8 +4601,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
   }
   __ LoadInstanceType(instance_type, object);
   __ RecordComment("Test IsInternalizedString");
@@ -5263,8 +5250,7 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
   }
 
   Register map = temps.Acquire();

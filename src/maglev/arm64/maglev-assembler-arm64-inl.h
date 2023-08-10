@@ -1000,8 +1000,7 @@ inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
                                                   Label* target,
                                                   Label::Distance distance) {
   LoadByte(scratch.W(), left);
-  Cmp(scratch.W(), right);
-  JumpIf(cond, target, distance);
+  CompareAndBranch(scratch.W(), Immediate(right), cond, target);
 }
 
 inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
