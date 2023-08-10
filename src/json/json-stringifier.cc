@@ -131,21 +131,11 @@ class JsonStringifier {
     return CurrentPartCanFit(length << 3);
   }
 
-  // Short strings can be copied directly to {current_part_}.
-  // Requires the IncrementalStringBuilder to either have two byte encoding or
-  // the incoming string to have one byte representation "underneath" (The
-  // one byte check requires the string to be flat).
-  bool CanAppendByCopy(Handle<String> string) {
-    const bool representation_ok =
-        encoding_ == String::TWO_BYTE_ENCODING ||
-        (string->IsFlat() &&
-         String::IsOneByteRepresentationUnderneath(*string));
-
-    return representation_ok && CurrentPartCanFit(string->length());
-  }
-
   void AppendStringByCopy(Handle<String> string) {
-    DCHECK(CanAppendByCopy(string));
+    DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
+           (string->IsFlat() &&
+            String::IsOneByteRepresentationUnderneath(*string)));
+    DCHECK(CurrentPartCanFit(string->length()));
 
     {
       DisallowGarbageCollection no_gc;
@@ -178,8 +168,16 @@ class JsonStringifier {
   }
 
   V8_NOINLINE void AppendString(Handle<String> string) {
-    while (!CanAppendByCopy(string)) Extend();
-    AppendStringByCopy(string);
+    const bool representation_ok =
+        encoding_ == String::TWO_BYTE_ENCODING ||
+        (string->IsFlat() &&
+         String::IsOneByteRepresentationUnderneath(*string));
+    if (representation_ok) {
+      while (!CurrentPartCanFit(string->length())) Extend();
+      AppendStringByCopy(string);
+      return;
+    }
+    SerializeString(string, true);
   }
 
   bool HasValidCurrentIndex() const { return current_index_ < part_length_; }
@@ -209,7 +207,7 @@ class JsonStringifier {
   Result SerializeArrayLikeSlow(Handle<JSReceiver> object, uint32_t start,
                                 uint32_t length);
 
-  void SerializeString(Handle<String> object);
+  void SerializeString(Handle<String> object, bool is_raw_json = false);
 
   template <typename DestChar>
   class NoExtendBuilder {
@@ -234,10 +232,12 @@ class JsonStringifier {
 
   template <typename SrcChar, typename DestChar>
   V8_INLINE static void SerializeStringUnchecked_(
-      base::Vector<const SrcChar> src, NoExtendBuilder<DestChar>* dest);
+      base::Vector<const SrcChar> src, NoExtendBuilder<DestChar>* dest,
+      bool is_raw_json);
 
   template <typename SrcChar, typename DestChar>
-  V8_INLINE void SerializeString_(Handle<String> string);
+  V8_INLINE void SerializeString_(Handle<String> string,
+                                  bool is_raw_json = false);
 
   template <typename Char>
   V8_INLINE static bool DoNotEscape(Char c);
@@ -1153,14 +1153,15 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
 }
 
 template <typename SrcChar, typename DestChar>
-void JsonStringifier::SerializeStringUnchecked_(
-    base::Vector<const SrcChar> src, NoExtendBuilder<DestChar>* dest) {
+void JsonStringifier::SerializeStringUnchecked_(base::Vector<const SrcChar> src,
+                                                NoExtendBuilder<DestChar>* dest,
+                                                bool is_raw_json) {
   // Assert that base::uc16 character is not truncated down to 8 bit.
   // The <base::uc16, char> version of this method must not be called.
   DCHECK(sizeof(DestChar) >= sizeof(SrcChar));
   for (int i = 0; i < src.length(); i++) {
     SrcChar c = src[i];
-    if (DoNotEscape(c)) {
+    if V8_LIKELY (is_raw_json || DoNotEscape(c)) {
       dest->Append(c);
     } else if (sizeof(SrcChar) != 1 &&
                base::IsInRange(c, static_cast<SrcChar>(0xD800),
@@ -1211,9 +1212,10 @@ void JsonStringifier::SerializeStringUnchecked_(
 }
 
 template <typename SrcChar, typename DestChar>
-void JsonStringifier::SerializeString_(Handle<String> string) {
+void JsonStringifier::SerializeString_(Handle<String> string,
+                                       bool is_raw_json) {
   int length = string->length();
-  Append<uint8_t, DestChar>('"');
+  if V8_LIKELY (!is_raw_json) Append<uint8_t, DestChar>('"');
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   if V8_LIKELY (EscapedLengthIfCurrentPartFits(length)) {
@@ -1222,12 +1224,12 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
     NoExtendBuilder<DestChar> no_extend(
         reinterpret_cast<DestChar*>(part_ptr_) + current_index_,
         &current_index_);
-    SerializeStringUnchecked_(vector, &no_extend);
+    SerializeStringUnchecked_(vector, &no_extend, is_raw_json);
   } else {
     FlatStringReader reader(isolate_, string);
     for (int i = 0; i < reader.length(); i++) {
       SrcChar c = reader.Get<SrcChar>(i);
-      if (DoNotEscape(c)) {
+      if V8_LIKELY (is_raw_json || DoNotEscape(c)) {
         Append<SrcChar, DestChar>(c);
       } else if (sizeof(SrcChar) != 1 &&
                  base::IsInRange(c, static_cast<SrcChar>(0xD800),
@@ -1276,7 +1278,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
       }
     }
   }
-  Append<uint8_t, DestChar>('"');
+  if V8_LIKELY (!is_raw_json) Append<uint8_t, DestChar>('"');
 }
 
 template <>
@@ -1315,20 +1317,20 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
   if (gap_ != nullptr) AppendCharacter(' ');
 }
 
-void JsonStringifier::SerializeString(Handle<String> object) {
+void JsonStringifier::SerializeString(Handle<String> object, bool is_raw_json) {
   object = String::Flatten(isolate_, object);
   if (encoding_ == String::ONE_BYTE_ENCODING) {
     if (String::IsOneByteRepresentationUnderneath(*object)) {
-      SerializeString_<uint8_t, uint8_t>(object);
+      SerializeString_<uint8_t, uint8_t>(object, is_raw_json);
     } else {
       ChangeEncoding();
-      SerializeString(object);
+      SerializeString(object, is_raw_json);
     }
   } else {
     if (String::IsOneByteRepresentationUnderneath(*object)) {
-      SerializeString_<uint8_t, base::uc16>(object);
+      SerializeString_<uint8_t, base::uc16>(object, is_raw_json);
     } else {
-      SerializeString_<base::uc16, base::uc16>(object);
+      SerializeString_<base::uc16, base::uc16>(object, is_raw_json);
     }
   }
 }
