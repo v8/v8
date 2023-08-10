@@ -29,7 +29,8 @@ transitioning javascript builtin SetPrototypeDifference(
   const thisSize =
       LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
 
-  let numberOfElements: Smi = 0;
+  let numberOfElements = Convert<Smi>(thisSize);
+
   try {
     typeswitch (other) {
       case (otherSet: JSSetWithNoCustomIteration): {
@@ -168,7 +169,8 @@ macro FastDifference<T : type extends FixedArray>(implicit context: Context)(
   let iter =
       collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
 
-  let numberOfElements: Smi = 0;
+  let numberOfElements = UnsafeCast<Smi>(
+      resultSetData.objects[kOrderedHashSetNumberOfElementsIndex]);
   try {
     while (true) {
       const nextValue = iter.Next() otherwise Done;
