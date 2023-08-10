@@ -970,15 +970,15 @@ struct FrameCount {
 };
 
 FrameCount GetFrameCount(const DeoptFrame* deopt_frame) {
-  int total = 1;
-  int js_frame = 1;
-  while (deopt_frame->parent()) {
-    deopt_frame = deopt_frame->parent();
+  int total = 0;
+  int js_frame = 0;
+  do {
     if (deopt_frame->IsJsFrame()) {
       js_frame++;
     }
     total++;
-  }
+    deopt_frame = deopt_frame->parent();
+  } while (deopt_frame);
   return FrameCount{total, js_frame};
 }
 

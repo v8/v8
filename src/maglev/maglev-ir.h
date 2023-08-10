@@ -1121,16 +1121,7 @@ class DeoptFrame {
   inline InlinedArgumentsDeoptFrame& as_inlined_arguments();
   inline ConstructInvokeStubDeoptFrame& as_construct_stub();
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
-  bool IsJsFrame() const {
-    switch (data_.tag()) {
-      case FrameType::kInterpretedFrame:
-      case FrameType::kBuiltinContinuationFrame:
-        return true;
-      case FrameType::kConstructInvokeStubFrame:
-      case FrameType::kInlinedArgumentsFrame:
-        return false;
-    }
-  }
+  inline bool IsJsFrame() const;
 
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
@@ -1303,6 +1294,20 @@ DeoptFrame::as_builtin_continuation() const {
 inline BuiltinContinuationDeoptFrame& DeoptFrame::as_builtin_continuation() {
   DCHECK_EQ(type(), FrameType::kBuiltinContinuationFrame);
   return static_cast<BuiltinContinuationDeoptFrame&>(*this);
+}
+
+inline bool DeoptFrame::IsJsFrame() const {
+  // This must be in sync with TRANSLATION_JS_FRAME_OPCODE_LIST in
+  // translation-opcode.h or bad things happen.
+  switch (data_.tag()) {
+    case FrameType::kInterpretedFrame:
+      return true;
+    case FrameType::kBuiltinContinuationFrame:
+      return as_builtin_continuation().is_javascript();
+    case FrameType::kConstructInvokeStubFrame:
+    case FrameType::kInlinedArgumentsFrame:
+      return false;
+  }
 }
 
 class DeoptInfo {

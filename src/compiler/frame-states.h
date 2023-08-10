@@ -102,6 +102,8 @@ class FrameStateFunctionInfo {
   FrameStateType type() const { return type_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
+    // This must be in sync with TRANSLATION_JS_FRAME_OPCODE_LIST in
+    // translation-opcode.h or bad things happen.
     return type == FrameStateType::kUnoptimizedFunction ||
            type == FrameStateType::kJavaScriptBuiltinContinuation ||
            type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
