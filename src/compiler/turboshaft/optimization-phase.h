@@ -418,9 +418,10 @@ class GraphVisitor {
     DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
 
     if (new_pred != nullptr) {
-      // If {new_pred} is nullptr, then the order of the predecessors changed.
-      // This should only happen with blocks that were introduced in the
-      // previous graph. For instance, consider this (partial) dominator tree:
+      // If {new_pred} is not nullptr, then the order of the predecessors
+      // changed. This should only happen with blocks that were introduced in
+      // the previous graph. For instance, consider this (partial) dominator
+      // tree:
       //
       //     ╠ 7
       //     ║ ╠ 8

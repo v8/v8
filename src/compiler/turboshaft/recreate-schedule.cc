@@ -1124,10 +1124,45 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
     loop_phis.emplace_back(node, op.input(1));
     return node;
   } else {
-    base::SmallVector<Node*, 8> inputs;
-    for (OpIndex i : op.inputs()) {
-      inputs.push_back(GetNode(i));
+    // Predecessors of {current_input_block} and the TF's matching block might
+    // not be in the same order, so Phi inputs might need to be reordered to
+    // match the new order.
+    // This is similar to what AssembleOutputGraphPhi in OptimizationPhase does,
+    // except that OptimizationPhase has a new->old block mapping, which we
+    // don't have here in RecreateSchedule, so the implementation is slightly
+    // different (relying on std::lower_bound rather than looking up the
+    // old->new mapping).
+    ZoneVector<BasicBlock*> new_predecessors = current_block->predecessors();
+    // Since RecreateSchedule visits the blocks in increasing ID order,
+    // predecessors should be sorted (we rely on this property to binary search
+    // new predecessors corresponding to old ones).
+    auto cmp_basic_block = [](BasicBlock* a, BasicBlock* b) {
+      return a->id().ToInt() < b->id().ToInt();
+    };
+    DCHECK(std::is_sorted(new_predecessors.begin(), new_predecessors.end(),
+                          cmp_basic_block));
+    size_t predecessor_count = new_predecessors.size();
+    base::SmallVector<Node*, 8> inputs(predecessor_count);
+#ifdef DEBUG
+    std::fill(inputs.begin(), inputs.end(), nullptr);
+#endif
+
+    int current_index = 0;
+    for (Block* pred = current_input_block->LastPredecessor(); pred != nullptr;
+         pred = pred->NeighboringPredecessor()) {
+      size_t pred_index = predecessor_count - current_index - 1;
+      auto lower =
+          std::lower_bound(new_predecessors.begin(), new_predecessors.end(),
+                           GetBlock(*pred), cmp_basic_block);
+      DCHECK_NE(lower, new_predecessors.end());
+      size_t new_pred_index = std::distance(new_predecessors.begin(), lower);
+      // Block {pred_index} became predecessor {new_pred_index} in the TF graph.
+      // We thus put the input {pred_index} in position {new_pred_index}.
+      inputs[new_pred_index] = GetNode(op.input(pred_index));
+      ++current_index;
     }
+    DCHECK(!base::contains(inputs, nullptr));
+
     return AddNode(common.Phi(op.rep.machine_representation(), op.input_count),
                    base::VectorOf(inputs));
   }
