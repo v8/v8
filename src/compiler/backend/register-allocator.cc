@@ -2961,15 +2961,15 @@ void LinearScanAllocator::MaybeUndoPreviousSplit(LiveRange* range, Zone* zone) {
   }
 }
 
-void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
+void LinearScanAllocator::SpillNotLiveRanges(RangeRegisterSmallMap& to_be_live,
                                              LifetimePosition position,
                                              SpillMode spill_mode) {
   for (auto it = active_live_ranges().begin();
        it != active_live_ranges().end();) {
     LiveRange* active_range = *it;
     TopLevelLiveRange* toplevel = (*it)->TopLevel();
-    auto found = to_be_live->find({toplevel, kUnassignedRegister});
-    if (found == to_be_live->end()) {
+    auto found = to_be_live.find(toplevel);
+    if (found == to_be_live.end()) {
       // Is not contained in {to_be_live}, spill it.
       // Fixed registers are exempt from this. They might have been
       // added from inactive at the block boundary but we know that
@@ -3024,8 +3024,8 @@ void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
       }
     } else {
       // This range is contained in {to_be_live}, so we can keep it.
-      int expected_register = (*found).expected_register;
-      to_be_live->erase(found);
+      int expected_register = found->second;
+      to_be_live.erase(found);
       if (expected_register == active_range->assigned_register()) {
         // Was life and in correct register, simply pass through.
         TRACE("Keeping %d:%d in %s\n", toplevel->vreg(),
@@ -3089,14 +3089,12 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
 }
 
 void LinearScanAllocator::ReloadLiveRanges(
-    RangeWithRegisterSet const& to_be_live, LifetimePosition position) {
+    RangeRegisterSmallMap const& to_be_live, LifetimePosition position) {
   // Assumption: All ranges in {to_be_live} are currently spilled and there are
   // no conflicting registers in the active ranges.
   // The former is ensured by SpillNotLiveRanges, the latter is by construction
   // of the to_be_live set.
-  for (RangeWithRegister range_with_register : to_be_live) {
-    TopLevelLiveRange* range = range_with_register.range;
-    int reg = range_with_register.expected_register;
+  for (auto [range, reg] : to_be_live) {
     LiveRange* to_resurrect = range->GetChildCovers(position);
     if (to_resurrect == nullptr) {
       // While the range was life until the end of the predecessor block, it is
@@ -3218,11 +3216,11 @@ RpoNumber LinearScanAllocator::ChooseOneOfTwoPredecessorStates(
              : current_block->predecessors()[1];
 }
 
-bool LinearScanAllocator::CheckConflict(MachineRepresentation rep, int reg,
-                                        RangeWithRegisterSet* to_be_live) {
-  for (RangeWithRegister range_with_reg : *to_be_live) {
-    if (data()->config()->AreAliases(range_with_reg.range->representation(),
-                                     range_with_reg.expected_register, rep,
+bool LinearScanAllocator::CheckConflict(
+    MachineRepresentation rep, int reg,
+    const RangeRegisterSmallMap& to_be_live) {
+  for (auto [range, expected_reg] : to_be_live) {
+    if (data()->config()->AreAliases(range->representation(), expected_reg, rep,
                                      reg)) {
       return true;
     }
@@ -3231,7 +3229,7 @@ bool LinearScanAllocator::CheckConflict(MachineRepresentation rep, int reg,
 }
 
 void LinearScanAllocator::ComputeStateFromManyPredecessors(
-    InstructionBlock* current_block, RangeWithRegisterSet* to_be_live) {
+    InstructionBlock* current_block, RangeRegisterSmallMap& to_be_live) {
   struct Vote {
     size_t count;
     int used_registers[RegisterConfiguration::kMaxRegisters];
@@ -3273,7 +3271,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
   bool taken_registers[RegisterConfiguration::kMaxRegisters] = {false};
   auto assign_to_live = [this, counts, majority](
                             std::function<bool(TopLevelLiveRange*)> filter,
-                            RangeWithRegisterSet* to_be_live,
+                            RangeRegisterSmallMap& to_be_live,
                             bool* taken_registers) {
     bool check_aliasing =
         kFPAliasing == AliasingKind::kCombine && check_fp_aliasing();
@@ -3306,7 +3304,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
         } else if (!check_aliasing) {
           taken_registers[reg] = true;
         }
-        to_be_live->emplace(val.first, reg);
+        to_be_live.insert(val.first, reg);
         TRACE("Reset %d as live due vote %zu in %s\n", val.first->vreg(),
               val.second.count, RegisterName(reg));
       }
@@ -3564,6 +3562,9 @@ void LinearScanAllocator::AllocateRegisters() {
           .NextFullStart();
   SpillMode spill_mode = SpillMode::kSpillAtDefinition;
 
+  // Allocate once to save memory, reuse across iterations in the loop below.
+  RangeRegisterSmallMap to_be_live(allocation_zone());
+
   // Process all ranges. We also need to ensure that we have seen all block
   // boundaries. Linear scan might have assigned and spilled ranges before
   // reaching the last block and hence we would ignore control flow effects for
@@ -3641,8 +3642,7 @@ void LinearScanAllocator::AllocateRegisters() {
         // allocation if they were not live at the predecessors.
         ForwardStateTo(next_block_boundary);
 
-        constexpr size_t small_prime = 7;
-        RangeWithRegisterSet to_be_live(data()->allocation_zone(), small_prime);
+        to_be_live.clear();
 
         // If we end up deciding to use the state of the immediate
         // predecessor, it is better not to perform a change. It would lead to
@@ -3654,7 +3654,7 @@ void LinearScanAllocator::AllocateRegisters() {
 
         auto pick_state_from = [this, current_block](
                                    RpoNumber pred,
-                                   RangeWithRegisterSet* to_be_live) -> bool {
+                                   RangeRegisterSmallMap& to_be_live) -> bool {
           TRACE("Using information from B%d\n", pred.ToInt());
           // If this is a fall-through that is not across a deferred
           // boundary, there is nothing to do.
@@ -3672,7 +3672,7 @@ void LinearScanAllocator::AllocateRegisters() {
               // been spilled after the fact, so ignore them.
               if (range->End() < pred_end || !range->HasRegisterAssigned())
                 continue;
-              to_be_live->emplace(range);
+              to_be_live.insert(range->TopLevel(), range->assigned_register());
             }
           }
           return is_noop;
@@ -3690,7 +3690,7 @@ void LinearScanAllocator::AllocateRegisters() {
           TRACE("Single predecessor for B%d\n",
                 current_block->rpo_number().ToInt());
           no_change_required =
-              pick_state_from(current_block->predecessors()[0], &to_be_live);
+              pick_state_from(current_block->predecessors()[0], to_be_live);
         } else if (current_block->PredecessorCount() == 2) {
           TRACE("Two predecessors for B%d\n",
                 current_block->rpo_number().ToInt());
@@ -3708,15 +3708,15 @@ void LinearScanAllocator::AllocateRegisters() {
             chosen_predecessor = ChooseOneOfTwoPredecessorStates(
                 current_block, next_block_boundary);
           }
-          no_change_required = pick_state_from(chosen_predecessor, &to_be_live);
+          no_change_required = pick_state_from(chosen_predecessor, to_be_live);
 
         } else {
           // Merge at the end of, e.g., a switch.
-          ComputeStateFromManyPredecessors(current_block, &to_be_live);
+          ComputeStateFromManyPredecessors(current_block, to_be_live);
         }
 
         if (!no_change_required) {
-          SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
+          SpillNotLiveRanges(to_be_live, next_block_boundary, spill_mode);
           ReloadLiveRanges(to_be_live, next_block_boundary);
         }
       }

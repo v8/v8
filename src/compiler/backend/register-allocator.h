@@ -1573,6 +1573,49 @@ class RegisterAllocator : public ZoneObject {
   bool no_combining_;
 };
 
+// A map from `TopLevelLiveRange`s to their expected physical register.
+// Typically this is very small, e.g., on JetStream2 it has 3 elements or less
+// >50% of the times it is queried, 8 elements or less >90% of the times,
+// and never more than 15 elements.
+// Hence this is backed by a simple array and lookup is just linear search.
+class RangeRegisterSmallMap {
+ public:
+  using value_type = std::pair<TopLevelLiveRange*, /* expected_register */ int>;
+  using iterator = const value_type*;
+
+  explicit RangeRegisterSmallMap(Zone* zone) : elements_(zone) {
+    elements_.reserve(8);
+  }
+
+  iterator begin() const { return elements_.begin(); }
+  iterator end() const { return elements_.end(); }
+  iterator find(TopLevelLiveRange* range) const {
+    return std::find_if(begin(), end(), [=](const value_type& elem) {
+      return elem.first == range;
+    });
+  }
+
+  void insert(TopLevelLiveRange* range, int expected_register) {
+    auto it = std::find_if(
+        elements_.begin(), elements_.end(),
+        [=](const value_type& elem) { return elem.first == range; });
+    if (it == elements_.end()) {
+      elements_.push_back(std::make_pair(range, expected_register));
+    } else {
+      // We may only update an unassigned register to an assigned one,
+      // but not the reverse.
+      DCHECK(it->second == kUnassignedRegister ||
+             it->second == expected_register);
+      it->second = expected_register;
+    }
+  }
+  void erase(iterator it) { elements_.erase(it); }
+  void clear() { elements_.clear(); }
+
+ private:
+  ZoneVector<value_type> elements_;
+};
+
 class LinearScanAllocator final : public RegisterAllocator {
  public:
   LinearScanAllocator(TopTierRegisterAllocationData* data, RegisterKind kind,
@@ -1584,42 +1627,14 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  struct RangeWithRegister {
-    TopLevelLiveRange* range;
-    int expected_register;
-    struct Hash {
-      size_t operator()(const RangeWithRegister item) const {
-        return item.range->vreg();
-      }
-    };
-    struct Equals {
-      bool operator()(const RangeWithRegister one,
-                      const RangeWithRegister two) const {
-        return one.range == two.range;
-      }
-    };
-
-    explicit RangeWithRegister(LiveRange* a_range)
-        : range(a_range->TopLevel()),
-          expected_register(a_range->assigned_register()) {}
-    RangeWithRegister(TopLevelLiveRange* toplevel, int reg)
-        : range(toplevel), expected_register(reg) {}
-  };
-
-  // TODO(dlehmann): Try replacing with a
-  // `ZoneVector<std::pair<TLLR, /* expected_register */int>>` or similar.
-  using RangeWithRegisterSet =
-      ZoneUnorderedSet<RangeWithRegister, RangeWithRegister::Hash,
-                       RangeWithRegister::Equals>;
-
   void MaybeSpillPreviousRanges(LiveRange* begin_range,
                                 LifetimePosition begin_pos,
                                 LiveRange* end_range);
   void MaybeUndoPreviousSplit(LiveRange* range, Zone* zone);
-  void SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
+  void SpillNotLiveRanges(RangeRegisterSmallMap& to_be_live,
                           LifetimePosition position, SpillMode spill_mode);
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
-  void ReloadLiveRanges(RangeWithRegisterSet const& to_be_live,
+  void ReloadLiveRanges(RangeRegisterSmallMap const& to_be_live,
                         LifetimePosition position);
 
   void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
@@ -1693,9 +1708,9 @@ class LinearScanAllocator final : public RegisterAllocator {
   RpoNumber ChooseOneOfTwoPredecessorStates(InstructionBlock* current_block,
                                             LifetimePosition boundary);
   bool CheckConflict(MachineRepresentation rep, int reg,
-                     RangeWithRegisterSet* to_be_live);
+                     const RangeRegisterSmallMap& to_be_live);
   void ComputeStateFromManyPredecessors(InstructionBlock* current_block,
-                                        RangeWithRegisterSet* to_be_live);
+                                        RangeRegisterSmallMap& to_be_live);
 
   // Helper methods for allocating registers.
 
