@@ -117,6 +117,7 @@ class YoungGenerationMarkingVisitor final
   // the global counters on collision.
   std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
 
+  Isolate* const isolate_;
   MarkingWorklists::Local marking_worklists_local_;
   EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
   PretenuringHandler* const pretenuring_handler_;

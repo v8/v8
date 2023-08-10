@@ -22,6 +22,7 @@ YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
     Heap* heap,
     PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
     : Parent(heap->isolate()),
+      isolate_(heap->isolate()),
       marking_worklists_local_(
           heap->minor_mark_sweep_collector()->marking_worklists(),
           heap->cpp_heap()
@@ -143,7 +144,8 @@ template <typename TSlot>
 void YoungGenerationMarkingVisitor<marking_mode>::VisitPointersImpl(
     HeapObject host, TSlot start, TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    if constexpr (EnableConcurrentVisitation()) {
+    if constexpr (marking_mode ==
+                  YoungGenerationMarkingVisitationMode::kConcurrent) {
       VisitObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
                          SlotTreatmentMode::kReadOnly>(slot);
     } else {
@@ -158,7 +160,8 @@ template <typename TSlot>
 V8_INLINE bool
 YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlotInRememberedSet(
     TSlot slot) {
-  if constexpr (EnableConcurrentVisitation()) {
+  if constexpr (marking_mode ==
+                YoungGenerationMarkingVisitationMode::kConcurrent) {
     return VisitObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
                               SlotTreatmentMode::kReadOnly>(slot);
   } else {
@@ -175,12 +178,9 @@ template <typename YoungGenerationMarkingVisitor<
           typename TSlot>
 V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     TSlot slot) {
-  typename TSlot::TObject target;
-  if constexpr (EnableConcurrentVisitation()) {
-    target = slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
-  } else {
-    target = *slot;
-  }
+  typename TSlot::TObject target =
+      slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+
   HeapObject heap_object;
   // Treat weak references as strong.
   if (!target.GetHeapObject(&heap_object)) {
@@ -188,9 +188,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   }
 
 #ifdef THREAD_SANITIZER
-  if constexpr (EnableConcurrentVisitation()) {
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
-  }
+  BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
 
   if (!Heap::InYoungGeneration(heap_object)) {
@@ -206,28 +204,10 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
 
   if (!TryMark(heap_object)) return true;
 
-  if constexpr (EnableConcurrentVisitation()) {
-    static_assert(visitation_mode != ObjectVisitationMode::kVisitDirectly);
-    marking_worklists_local_.Push(heap_object);
-    return true;
-  }
-
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.
-  Map map;
-  map = Map::cast(*heap_object->map_slot());
-  const VisitorId visitor_id = map->visitor_id();
-  // Data-only objects don't require any body descriptor visitation at all and
-  // are always visited directly.
-  if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
-    const int visited_size = heap_object->SizeFromMap(map);
-    IncrementLiveBytesCached(
-        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-        ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    return true;
-  }
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
-    // TODO(omerkatz): Why do I need `Parent::` here?
+    Map map = heap_object->map(isolate_);
     const int visited_size = Parent::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
