@@ -310,10 +310,6 @@ class MemoryContentTable
   }
 
   void Invalidate(OpIndex base, OpIndex index, int32_t offset) {
-    // Note that MemoryAddresses cannot overlap in a way that would break this
-    // LoadElimination. The only case of overlapping will be in the case of
-    // 0-padding of String, but it is guaranteed that a following character
-    // Store (1 or 2 bytes) will invalidated the padding Store.
     base = ResolveBase(base);
 
     if (non_aliasing_objects_.Get(base)) {
@@ -365,30 +361,7 @@ class MemoryContentTable
         Set(key, OpIndex::Invalid());
       }
 
-      MapMaskAndOr base_maps = object_maps_.Get(base);
-      auto offset_keys = offset_keys_.find(offset);
-      if (offset_keys == offset_keys_.end()) return;
-      for (auto it = offset_keys->second.begin();
-           it != offset_keys->second.end();) {
-        Key key = *it;
-        DCHECK_EQ(offset, key.data().mem.offset);
-        // It can overwrite previous stores to any base (except non-aliasing
-        // ones).
-        if (non_aliasing_objects_.Get(key.data().mem.base)) {
-          ++it;
-          continue;
-        }
-        MapMaskAndOr this_maps = key.data().mem.base == base
-                                     ? base_maps
-                                     : object_maps_.Get(key.data().mem.base);
-        if (!is_empty(base_maps) && !is_empty(this_maps) &&
-            !CouldHaveSameMap(base_maps, this_maps)) {
-          ++it;
-          continue;
-        }
-        it = offset_keys->second.RemoveAt(it);
-        Set(key, OpIndex::Invalid());
-      }
+      InvalidateAtOffset(offset, base);
     }
   }
 
@@ -491,6 +464,33 @@ class MemoryContentTable
     Set(key, value);
   }
 
+  void InvalidateAtOffset(int32_t offset, OpIndex base) {
+    MapMaskAndOr base_maps = object_maps_.Get(base);
+    auto offset_keys = offset_keys_.find(offset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(offset, key.data().mem.offset);
+      // It can overwrite previous stores to any base (except non-aliasing
+      // ones).
+      if (non_aliasing_objects_.Get(key.data().mem.base)) {
+        ++it;
+        continue;
+      }
+      MapMaskAndOr this_maps = key.data().mem.base == base
+                                   ? base_maps
+                                   : object_maps_.Get(key.data().mem.base);
+      if (!is_empty(base_maps) && !is_empty(this_maps) &&
+          !CouldHaveSameMap(base_maps, this_maps)) {
+        ++it;
+        continue;
+      }
+      it = offset_keys->second.RemoveAt(it);
+      Set(key, OpIndex::Invalid());
+    }
+  }
+
   OpIndex ResolveBase(OpIndex base) {
     while (replacements_[base] != OpIndex::Invalid()) {
       base = replacements_[base];
@@ -580,9 +580,7 @@ class LateLoadEliminationAnalyzer {
         replacements_(graph.op_id_count(), phase_zone),
         non_aliasing_objects_(graph, phase_zone),
         object_maps_(graph, phase_zone),
-        memory_content_(phase_zone, non_aliasing_objects_, object_maps_,
-                        replacements_),
-        opindex_to_memory_key_(graph.op_id_count(), phase_zone),
+        memory_(phase_zone, non_aliasing_objects_, object_maps_, replacements_),
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
@@ -623,9 +621,9 @@ class LateLoadEliminationAnalyzer {
             auto pred_snapshots =
                 block_to_snapshot_mapping_[loop_1st_pred->index()];
             non_aliasing_objects_.StartNewSnapshot(
-                std::get<0>(*pred_snapshots));
-            object_maps_.StartNewSnapshot(std::get<1>(*pred_snapshots));
-            memory_content_.StartNewSnapshot(std::get<2>(*pred_snapshots));
+                pred_snapshots->alias_snapshot);
+            object_maps_.StartNewSnapshot(pred_snapshots->maps_snapshot);
+            memory_.StartNewSnapshot(pred_snapshots->memory_snapshot);
 
             block_index = loop_header->index().id() - 1;
             compute_start_snapshot = false;
@@ -685,12 +683,16 @@ class LateLoadEliminationAnalyzer {
   // should be reasonably not-too-hard to track.
   AliasTable non_aliasing_objects_;
   MapTable object_maps_;
-  MemoryContentTable memory_content_;
-  FixedSidetable<base::Optional<MemoryKey>> opindex_to_memory_key_;
-  FixedSidetable<
-      base::Optional<std::tuple<AliasSnapshot, MapSnapshot, MemorySnapshot>>,
-      BlockIndex>
+  MemoryContentTable memory_;
+
+  struct Snapshot {
+    AliasSnapshot alias_snapshot;
+    MapSnapshot maps_snapshot;
+    MemorySnapshot memory_snapshot;
+  };
+  FixedSidetable<base::Optional<Snapshot>, BlockIndex>
       block_to_snapshot_mapping_;
+
   // {predecessor_alias_napshots_}, {predecessor_maps_snapshots_} and
   // {predecessor_memory_snapshots_} are used as temporary vectors when starting
   // to process a block. We store them as members to avoid reallocation.

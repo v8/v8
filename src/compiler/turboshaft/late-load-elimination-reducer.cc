@@ -96,7 +96,13 @@ bool RepIsCompatible(RegisterRepresentation actual,
 
 void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& load) {
-  if (OpIndex existing = memory_content_.Find(load); existing.valid()) {
+  if (!load.kind.always_canonically_accessed) {
+    // We don't optimize Loads/Stores to addresses that could be accessed
+    // non-canonically.
+    return;
+  }
+
+  if (OpIndex existing = memory_.Find(load); existing.valid()) {
     const Operation& replacement = graph_.Get(existing);
     // We need to make sure that {load} and {replacement} have the same output
     // representation. In particular, in unreachable code, it's possible that
@@ -127,16 +133,22 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     return;
   }
 
-  memory_content_.Insert(load, op_idx);
+  memory_.Insert(load, op_idx);
 }
 
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
+  if (!store.kind.always_canonically_accessed) {
+    // We don't optimize Loads/Stores to addresses that could be accessed
+    // non-canonically.
+    return;
+  }
+
   OpIndex value = store.value();
 
   // Updating the known stored values
-  memory_content_.Invalidate(store);
-  memory_content_.Insert(store);
+  memory_.Invalidate(store);
+  memory_.Insert(store);
 
   // Updating aliases if the value stored was known as non-aliasing.
   if (non_aliasing_objects_.HasKeyFor(value)) {
@@ -172,9 +184,8 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
-  if (!op.Effects().can_write()) {
-    return;
-  }
+  if (!op.Effects().can_write()) return;
+
   if (auto builtin_id = TryGetBuiltinId(
           graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {
     switch (*builtin_id) {
@@ -183,8 +194,8 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
         // This function just replaces the Elements array of an object.
         // It doesn't invalidate any alias or any other memory than this
         // Elements array.
-        memory_content_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
-                                   JSObject::kElementsOffset);
+        memory_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
+                           JSObject::kElementsOffset);
         return;
       case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit: {
         DCHECK_GE(op.input_count, 3);
@@ -213,7 +224,7 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
-  memory_content_.InvalidateMaybeAliasing();
+  memory_.InvalidateMaybeAliasing();
 }
 
 void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
@@ -251,15 +262,14 @@ void LateLoadEliminationAnalyzer::ProcessAssumeMap(
 }
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {
-  block_to_snapshot_mapping_[block->index()] =
-      std::tuple{non_aliasing_objects_.Seal(), object_maps_.Seal(),
-                 memory_content_.Seal()};
+  block_to_snapshot_mapping_[block->index()] = Snapshot{
+      non_aliasing_objects_.Seal(), object_maps_.Seal(), memory_.Seal()};
 }
 
 void LateLoadEliminationAnalyzer::SealAndDiscard() {
   non_aliasing_objects_.Seal();
   object_maps_.Seal();
-  memory_content_.Seal();
+  memory_.Seal();
 }
 
 template <bool for_loop_revisit>
@@ -292,14 +302,14 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
       // is, then it's fine: if the backedge of the outer-loop was more
       // restrictive than its forward incoming edge, then the forward incoming
       // edge of the inner loop should reflect this restriction.
-      predecessor_alias_snapshots_.push_back(std::get<0>(*pred_snapshots));
-      predecessor_memory_snapshots_.push_back(std::get<2>(*pred_snapshots));
+      predecessor_alias_snapshots_.push_back(pred_snapshots->alias_snapshot);
+      predecessor_memory_snapshots_.push_back(pred_snapshots->memory_snapshot);
       if (p->NeighboringPredecessor() != nullptr || !block->IsLoop() ||
           block->LastPredecessor() != p) {
         // We only add a MapSnapshot predecessor for non-backedge predecessor.
         // This is because maps coming from inside of the loop may be wrong
         // until a specific check has been executed.
-        predecessor_maps_snapshots_.push_back(std::get<1>(*pred_snapshots));
+        predecessor_maps_snapshots_.push_back(pred_snapshots->maps_snapshot);
       }
     }
   }
@@ -342,7 +352,7 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
   object_maps_.StartNewSnapshot(base::VectorOf(predecessor_maps_snapshots_),
                                 merge_maps);
 
-  // Merging for {memory_content_} means setting values to Invalid unless all
+  // Merging for {memory_} means setting values to Invalid unless all
   // predecessors have the same value.
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
@@ -359,8 +369,8 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
     }
     return base::all_equal(predecessors) ? predecessors[0] : OpIndex::Invalid();
   };
-  memory_content_.StartNewSnapshot(
-      base::VectorOf(predecessor_memory_snapshots_), merge_memory);
+  memory_.StartNewSnapshot(base::VectorOf(predecessor_memory_snapshots_),
+                           merge_memory);
 
   if (block->IsLoop()) return loop_needs_revisit;
   return false;

@@ -1836,35 +1836,25 @@ class AssemblerOpInterface {
   }
 
   template <typename T = Any, typename Base>
-  V<T> LoadElement(V<Base> object, const ElementAccess& access,
-                   V<WordPtr> index) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
-    } else {
-      static_assert(std::is_same_v<Base, WordPtr>);
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
-    }
-    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
-    MemoryRepresentation rep =
-        MemoryRepresentation::FromMachineType(access.machine_type);
-    return Load(object, index, kind, rep, access.header_size,
-                rep.SizeInBytesLog2());
+  V<T> LoadArrayBufferElement(V<Base> object, const ElementAccess& access,
+                              V<WordPtr> index) {
+    return LoadElement<T>(object, access, index, true);
+  }
+  template <typename T = Any, typename Base>
+  V<T> LoadNonArrayBufferElement(V<Base> object, const ElementAccess& access,
+                                 V<WordPtr> index) {
+    return LoadElement<T>(object, access, index, false);
   }
 
   template <typename Base>
-  void StoreElement(V<Base> object, const ElementAccess& access,
-                    V<WordPtr> index, V<Any> value) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
-    } else {
-      static_assert(std::is_same_v<Base, WordPtr>);
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
-    }
-    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
-    MemoryRepresentation rep =
-        MemoryRepresentation::FromMachineType(access.machine_type);
-    Store(object, index, value, kind, rep, access.write_barrier_kind,
-          access.header_size, rep.SizeInBytesLog2());
+  void StoreArrayBufferElement(V<Base> object, const ElementAccess& access,
+                               V<WordPtr> index, V<Any> value) {
+    return StoreElement(object, access, index, value, true);
+  }
+  template <typename Base>
+  void StoreNonArrayBufferElement(V<Base> object, const ElementAccess& access,
+                                  V<WordPtr> index, V<Any> value) {
+    return StoreElement(object, access, index, value, false);
   }
 
   template <typename T = HeapObject>
@@ -3209,6 +3199,44 @@ class AssemblerOpInterface {
   }
 
  private:
+  // LoadArrayBufferElement and LoadNonArrayBufferElement should be called
+  // instead of LoadElement.
+  template <typename T = Any, typename Base>
+  V<T> LoadElement(V<Base> object, const ElementAccess& access,
+                   V<WordPtr> index, bool is_array_buffer) {
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    if (is_array_buffer) kind = kind.NotAlwaysCanonicallyAccessed();
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(access.machine_type);
+    return Load(object, index, kind, rep, access.header_size,
+                rep.SizeInBytesLog2());
+  }
+
+  // StoreArrayBufferElement and StoreNonArrayBufferElement should be called
+  // instead of StoreElement.
+  template <typename Base>
+  void StoreElement(V<Base> object, const ElementAccess& access,
+                    V<WordPtr> index, V<Any> value, bool is_array_buffer) {
+    if constexpr (std::is_base_of_v<Object, Base>) {
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    } else {
+      static_assert(std::is_same_v<Base, WordPtr>);
+      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    }
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    if (is_array_buffer) kind = kind.NotAlwaysCanonicallyAccessed();
+    MemoryRepresentation rep =
+        MemoryRepresentation::FromMachineType(access.machine_type);
+    Store(object, index, value, kind, rep, access.write_barrier_kind,
+          access.header_size, rep.SizeInBytesLog2());
+  }
+
   // BranchAndBind should be called from GotoIf/GotoIfNot. It will insert a
   // Branch, bind {to_bind} (which should correspond to the implicit new block
   // following the GotoIf/GotoIfNot) and return a ConditionalGotoStatus
