@@ -156,16 +156,70 @@ void SandboxGetObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Handle<Object> handle(obj, i_isolate);
   info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
+}
+
+// Sandbox.isValidObjectAt(Address) -> Bool
+void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  Tagged<HeapObject> obj;
+  if (!GetArgumentObjectPassedAsAddress(info, &obj)) {
+    return;
+  }
+
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  auto IsLocatedInMappedMemory = [&](HeapObject obj) {
+    // Note that IsOutsideAllocatedSpace is imprecise and may return false for
+    // some addresses outside the allocated space. However, it's probably good
+    // enough for our purposes.
+    return !heap->memory_allocator()->IsOutsideAllocatedSpace(obj.address());
+  };
+
+  bool is_valid = false;
+  if (IsLocatedInMappedMemory(obj)) {
+    Map map = obj->map();
+    if (IsLocatedInMappedMemory(map)) {
+      is_valid = IsMap(map);
+    }
+  }
+
+  info.GetReturnValue().Set(is_valid);
+}
+
+static void SandboxIsWritableImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info,
+    ArgumentObjectExtractorFunction getArgumentObject) {
+  DCHECK(ValidateCallbackInfo(info));
+
+  Tagged<HeapObject> obj;
+  if (!getArgumentObject(info, &obj)) {
+    return;
+  }
+
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
+  bool is_writable = chunk->IsWritable();
+  info.GetReturnValue().Set(is_writable);
+}
+
+// Sandbox.isWritable(Object) -> Bool
+void SandboxIsWritable(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxIsWritableImpl(info, &GetArgumentObjectPassedAsReference);
+}
+
+// Sandbox.isWritableObjectAt(Number) -> Bool
+void SandboxIsWritableObjectAt(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxIsWritableImpl(info, &GetArgumentObjectPassedAsAddress);
 }
 
 static void SandboxGetSizeOfImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info,
     ArgumentObjectExtractorFunction getArgumentObject) {
   DCHECK(ValidateCallbackInfo(info));
-  v8::Isolate* isolate = info.GetIsolate();
 
   Tagged<HeapObject> obj;
   if (!getArgumentObject(info, &obj)) {
@@ -173,7 +227,7 @@ static void SandboxGetSizeOfImpl(
   }
 
   int size = obj->Size();
-  info.GetReturnValue().Set(v8::Integer::New(isolate, size));
+  info.GetReturnValue().Set(size);
 }
 
 // Sandbox.getSizeOf(Object) -> Number
@@ -205,7 +259,7 @@ static void SandboxGetInstanceTypeOfImpl(
   info.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-// Sandbox.getInstanceTypeOfObjectAt(Object) -> String
+// Sandbox.getInstanceTypeOf(Object) -> String
 void SandboxGetInstanceTypeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
   SandboxGetInstanceTypeOfImpl(info, &GetArgumentObjectPassedAsReference);
 }
@@ -292,6 +346,11 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
   InstallFunction(isolate, sandbox, SandboxGetAddressOf, "getAddressOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetObjectAt, "getObjectAt", 1);
+  InstallFunction(isolate, sandbox, SandboxIsValidObjectAt, "isValidObjectAt",
+                  1);
+  InstallFunction(isolate, sandbox, SandboxIsWritable, "isWritable", 1);
+  InstallFunction(isolate, sandbox, SandboxIsWritableObjectAt,
+                  "isWritableObjectAt", 1);
   InstallFunction(isolate, sandbox, SandboxGetSizeOf, "getSizeOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetSizeOfObjectAt,
                   "getSizeOfObjectAt", 1);
