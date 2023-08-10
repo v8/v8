@@ -4067,7 +4067,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
 
   base::Vector<const compiler::MapRef> maps =
       base::VectorOf(access_info.lookup_start_object_maps());
-  if (IsHoleyElementsKind(elements_kind) && !CanTreatHoleAsUndefined(maps)) {
+  // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
+  // values).
+  if (load_mode != STANDARD_LOAD) {
     return ReduceResult::Fail();
   }
 
@@ -4089,22 +4091,27 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
                                   AssertCondition::kUnsignedLessThan,
                                   DeoptimizeReason::kOutOfBounds);
 
-  // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
-  // values).
-  DCHECK_EQ(load_mode, STANDARD_LOAD);
-
   // 3. Do the load.
   ValueNode* result;
   if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    result =
-        AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements_array, index});
+    if (CanTreatHoleAsUndefined(maps)) {
+      result =
+          AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements_array, index});
+    } else {
+      result = AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
+          {elements_array, index});
+    }
   } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
     result = AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
   } else {
     DCHECK(!IsDoubleElementsKind(elements_kind));
     result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
     if (IsHoleyElementsKind(elements_kind)) {
-      result = AddNewNode<ConvertHoleToUndefined>({result});
+      if (CanTreatHoleAsUndefined(maps)) {
+        result = AddNewNode<ConvertHoleToUndefined>({result});
+      } else {
+        result = AddNewNode<CheckNotHole>({result});
+      }
     }
   }
   return result;
@@ -4606,7 +4613,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       break;
   }
 
-  // Create a generic store in the fallthrough.
+  // Create a generic load in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* key = GetAccumulatorTagged();
   SetAccumulator(

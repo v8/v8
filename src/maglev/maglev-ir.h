@@ -131,126 +131,128 @@ class MergePointInterpreterFrameState;
   V(BuiltinStringFromCharCode)      \
   V(BuiltinStringPrototypeCharCodeOrCodePointAt)
 
-#define VALUE_NODE_LIST(V)                   \
-  V(Identity)                                \
-  V(AllocateRaw)                             \
-  V(Call)                                    \
-  V(CallBuiltin)                             \
-  V(CallRuntime)                             \
-  V(CallWithArrayLike)                       \
-  V(CallWithSpread)                          \
-  V(CallKnownApiFunction)                    \
-  V(CallKnownJSFunction)                     \
-  V(CallSelf)                                \
-  V(Construct)                               \
-  V(CheckConstructResult)                    \
-  V(CheckDerivedConstructResult)             \
-  V(ConstructWithSpread)                     \
-  V(ConvertReceiver)                         \
-  V(ConvertHoleToUndefined)                  \
-  V(CreateArrayLiteral)                      \
-  V(CreateShallowArrayLiteral)               \
-  V(CreateObjectLiteral)                     \
-  V(CreateShallowObjectLiteral)              \
-  V(CreateFunctionContext)                   \
-  V(CreateClosure)                           \
-  V(FastCreateClosure)                       \
-  V(CreateRegExpLiteral)                     \
-  V(DeleteProperty)                          \
-  V(EnsureWritableFastElements)              \
-  V(FoldedAllocation)                        \
-  V(ForInPrepare)                            \
-  V(ForInNext)                               \
-  V(GeneratorRestoreRegister)                \
-  V(GetIterator)                             \
-  V(GetSecondReturnedValue)                  \
-  V(GetTemplateObject)                       \
-  V(HasInPrototypeChain)                     \
-  V(InitialValue)                            \
-  V(LoadPolymorphicDoubleField)              \
-  V(LoadPolymorphicTaggedField)              \
-  V(LoadTaggedField)                         \
-  V(LoadDoubleField)                         \
-  V(LoadTaggedFieldByFieldIndex)             \
-  V(LoadFixedArrayElement)                   \
-  V(LoadFixedDoubleArrayElement)             \
-  V(LoadHoleyFixedDoubleArrayElement)        \
-  V(LoadSignedIntDataViewElement)            \
-  V(LoadDoubleDataViewElement)               \
-  V(LoadSignedIntTypedArrayElement)          \
-  V(LoadSignedIntTypedArrayElementNoDeopt)   \
-  V(LoadUnsignedIntTypedArrayElement)        \
-  V(LoadUnsignedIntTypedArrayElementNoDeopt) \
-  V(LoadDoubleTypedArrayElement)             \
-  V(LoadDoubleTypedArrayElementNoDeopt)      \
-  V(LoadEnumCacheLength)                     \
-  V(LoadGlobal)                              \
-  V(LoadNamedGeneric)                        \
-  V(LoadNamedFromSuperGeneric)               \
-  V(MaybeGrowAndEnsureWritableFastElements)  \
-  V(SetNamedGeneric)                         \
-  V(DefineNamedOwnGeneric)                   \
-  V(StoreInArrayLiteralGeneric)              \
-  V(StoreGlobal)                             \
-  V(GetKeyedGeneric)                         \
-  V(SetKeyedGeneric)                         \
-  V(DefineKeyedOwnGeneric)                   \
-  V(Phi)                                     \
-  V(RegisterInput)                           \
-  V(CheckedSmiTagInt32)                      \
-  V(CheckedSmiTagUint32)                     \
-  V(UnsafeSmiTag)                            \
-  V(CheckedSmiUntag)                         \
-  V(UnsafeSmiUntag)                          \
-  V(CheckedInternalizedString)               \
-  V(CheckedObjectToIndex)                    \
-  V(CheckedTruncateNumberOrOddballToInt32)   \
-  V(CheckedInt32ToUint32)                    \
-  V(CheckedUint32ToInt32)                    \
-  V(ChangeInt32ToFloat64)                    \
-  V(ChangeUint32ToFloat64)                   \
-  V(CheckedTruncateFloat64ToInt32)           \
-  V(CheckedTruncateFloat64ToUint32)          \
-  V(TruncateNumberOrOddballToInt32)          \
-  V(TruncateUint32ToInt32)                   \
-  V(TruncateFloat64ToInt32)                  \
-  V(UnsafeTruncateUint32ToInt32)             \
-  V(UnsafeTruncateFloat64ToInt32)            \
-  V(Int32ToUint8Clamped)                     \
-  V(Uint32ToUint8Clamped)                    \
-  V(Float64ToUint8Clamped)                   \
-  V(CheckedNumberToUint8Clamped)             \
-  V(Int32ToNumber)                           \
-  V(Uint32ToNumber)                          \
-  V(Float64ToTagged)                         \
-  V(HoleyFloat64ToTagged)                    \
-  V(CheckedSmiTagFloat64)                    \
-  V(CheckedNumberOrOddballToFloat64)         \
-  V(UncheckedNumberOrOddballToFloat64)       \
-  V(CheckedHoleyFloat64ToFloat64)            \
-  V(HoleyFloat64ToMaybeNanFloat64)           \
-  V(LogicalNot)                              \
-  V(SetPendingMessage)                       \
-  V(StringAt)                                \
-  V(StringEqual)                             \
-  V(StringLength)                            \
-  V(StringConcat)                            \
-  V(ToBoolean)                               \
-  V(ToBooleanLogicalNot)                     \
-  V(TaggedEqual)                             \
-  V(TaggedNotEqual)                          \
-  V(TestInstanceOf)                          \
-  V(TestUndetectable)                        \
-  V(TestTypeOf)                              \
-  V(ToName)                                  \
-  V(ToNumberOrNumeric)                       \
-  V(ToObject)                                \
-  V(ToString)                                \
-  V(NumberToString)                          \
-  CONSTANT_VALUE_NODE_LIST(V)                \
-  INT32_OPERATIONS_NODE_LIST(V)              \
-  FLOAT64_OPERATIONS_NODE_LIST(V)            \
-  GENERIC_OPERATIONS_NODE_LIST(V)            \
+#define VALUE_NODE_LIST(V)                          \
+  V(Identity)                                       \
+  V(AllocateRaw)                                    \
+  V(Call)                                           \
+  V(CallBuiltin)                                    \
+  V(CallRuntime)                                    \
+  V(CallWithArrayLike)                              \
+  V(CallWithSpread)                                 \
+  V(CallKnownApiFunction)                           \
+  V(CallKnownJSFunction)                            \
+  V(CallSelf)                                       \
+  V(Construct)                                      \
+  V(CheckConstructResult)                           \
+  V(CheckDerivedConstructResult)                    \
+  V(CheckNotHole)                                   \
+  V(ConstructWithSpread)                            \
+  V(ConvertReceiver)                                \
+  V(ConvertHoleToUndefined)                         \
+  V(CreateArrayLiteral)                             \
+  V(CreateShallowArrayLiteral)                      \
+  V(CreateObjectLiteral)                            \
+  V(CreateShallowObjectLiteral)                     \
+  V(CreateFunctionContext)                          \
+  V(CreateClosure)                                  \
+  V(FastCreateClosure)                              \
+  V(CreateRegExpLiteral)                            \
+  V(DeleteProperty)                                 \
+  V(EnsureWritableFastElements)                     \
+  V(FoldedAllocation)                               \
+  V(ForInPrepare)                                   \
+  V(ForInNext)                                      \
+  V(GeneratorRestoreRegister)                       \
+  V(GetIterator)                                    \
+  V(GetSecondReturnedValue)                         \
+  V(GetTemplateObject)                              \
+  V(HasInPrototypeChain)                            \
+  V(InitialValue)                                   \
+  V(LoadPolymorphicDoubleField)                     \
+  V(LoadPolymorphicTaggedField)                     \
+  V(LoadTaggedField)                                \
+  V(LoadDoubleField)                                \
+  V(LoadTaggedFieldByFieldIndex)                    \
+  V(LoadFixedArrayElement)                          \
+  V(LoadFixedDoubleArrayElement)                    \
+  V(LoadHoleyFixedDoubleArrayElement)               \
+  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole) \
+  V(LoadSignedIntDataViewElement)                   \
+  V(LoadDoubleDataViewElement)                      \
+  V(LoadSignedIntTypedArrayElement)                 \
+  V(LoadSignedIntTypedArrayElementNoDeopt)          \
+  V(LoadUnsignedIntTypedArrayElement)               \
+  V(LoadUnsignedIntTypedArrayElementNoDeopt)        \
+  V(LoadDoubleTypedArrayElement)                    \
+  V(LoadDoubleTypedArrayElementNoDeopt)             \
+  V(LoadEnumCacheLength)                            \
+  V(LoadGlobal)                                     \
+  V(LoadNamedGeneric)                               \
+  V(LoadNamedFromSuperGeneric)                      \
+  V(MaybeGrowAndEnsureWritableFastElements)         \
+  V(SetNamedGeneric)                                \
+  V(DefineNamedOwnGeneric)                          \
+  V(StoreInArrayLiteralGeneric)                     \
+  V(StoreGlobal)                                    \
+  V(GetKeyedGeneric)                                \
+  V(SetKeyedGeneric)                                \
+  V(DefineKeyedOwnGeneric)                          \
+  V(Phi)                                            \
+  V(RegisterInput)                                  \
+  V(CheckedSmiTagInt32)                             \
+  V(CheckedSmiTagUint32)                            \
+  V(UnsafeSmiTag)                                   \
+  V(CheckedSmiUntag)                                \
+  V(UnsafeSmiUntag)                                 \
+  V(CheckedInternalizedString)                      \
+  V(CheckedObjectToIndex)                           \
+  V(CheckedTruncateNumberOrOddballToInt32)          \
+  V(CheckedInt32ToUint32)                           \
+  V(CheckedUint32ToInt32)                           \
+  V(ChangeInt32ToFloat64)                           \
+  V(ChangeUint32ToFloat64)                          \
+  V(CheckedTruncateFloat64ToInt32)                  \
+  V(CheckedTruncateFloat64ToUint32)                 \
+  V(TruncateNumberOrOddballToInt32)                 \
+  V(TruncateUint32ToInt32)                          \
+  V(TruncateFloat64ToInt32)                         \
+  V(UnsafeTruncateUint32ToInt32)                    \
+  V(UnsafeTruncateFloat64ToInt32)                   \
+  V(Int32ToUint8Clamped)                            \
+  V(Uint32ToUint8Clamped)                           \
+  V(Float64ToUint8Clamped)                          \
+  V(CheckedNumberToUint8Clamped)                    \
+  V(Int32ToNumber)                                  \
+  V(Uint32ToNumber)                                 \
+  V(Float64ToTagged)                                \
+  V(HoleyFloat64ToTagged)                           \
+  V(CheckedSmiTagFloat64)                           \
+  V(CheckedNumberOrOddballToFloat64)                \
+  V(UncheckedNumberOrOddballToFloat64)              \
+  V(CheckedHoleyFloat64ToFloat64)                   \
+  V(HoleyFloat64ToMaybeNanFloat64)                  \
+  V(LogicalNot)                                     \
+  V(SetPendingMessage)                              \
+  V(StringAt)                                       \
+  V(StringEqual)                                    \
+  V(StringLength)                                   \
+  V(StringConcat)                                   \
+  V(ToBoolean)                                      \
+  V(ToBooleanLogicalNot)                            \
+  V(TaggedEqual)                                    \
+  V(TaggedNotEqual)                                 \
+  V(TestInstanceOf)                                 \
+  V(TestUndetectable)                               \
+  V(TestTypeOf)                                     \
+  V(ToName)                                         \
+  V(ToNumberOrNumeric)                              \
+  V(ToObject)                                       \
+  V(ToString)                                       \
+  V(NumberToString)                                 \
+  CONSTANT_VALUE_NODE_LIST(V)                       \
+  INT32_OPERATIONS_NODE_LIST(V)                     \
+  FLOAT64_OPERATIONS_NODE_LIST(V)                   \
+  GENERIC_OPERATIONS_NODE_LIST(V)                   \
   INLINE_BUILTIN_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -5767,6 +5769,32 @@ class LoadHoleyFixedDoubleArrayElement
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class LoadHoleyFixedDoubleArrayElementCheckedNotHole
+    : public FixedInputValueNodeT<
+          2, LoadHoleyFixedDoubleArrayElementCheckedNotHole> {
+  using Base =
+      FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElementCheckedNotHole>;
+
+ public:
+  explicit LoadHoleyFixedDoubleArrayElementCheckedNotHole(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::Float64() |
+                                              OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kElementsIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& elements_input() { return input(kElementsIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class StoreFixedDoubleArrayElement
     : public FixedInputNodeT<3, StoreFixedDoubleArrayElement> {
   using Base = FixedInputNodeT<3, StoreFixedDoubleArrayElement>;
@@ -7541,6 +7569,23 @@ class CheckDerivedConstructResult
   bool for_derived_constructor();
 
   int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckNotHole : public FixedInputValueNodeT<1, CheckNotHole> {
+  using Base = FixedInputValueNodeT<1, CheckNotHole>;
+
+ public:
+  explicit CheckNotHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& object_input() { return input(0); }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

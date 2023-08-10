@@ -2146,6 +2146,24 @@ void LoadHoleyFixedDoubleArrayElement::GenerateCode(
   __ LoadFixedDoubleArrayElement(result_reg, elements, index);
 }
 
+void LoadHoleyFixedDoubleArrayElementCheckedNotHole::
+    SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadHoleyFixedDoubleArrayElementCheckedNotHole::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
+  __ JumpIfHoleNan(result_reg, temps.Acquire(),
+                   __ GetDeoptLabel(this, DeoptimizeReason::kHole));
+}
+
 void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(index_input());
@@ -2904,6 +2922,18 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
   __ CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
   __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotAString,
                       this);
+}
+
+void CheckNotHole::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineSameAsFirst(this);
+}
+void CheckNotHole::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  DCHECK_EQ(ToRegister(object_input()), ToRegister(result()));
+  Register reg = ToRegister(object_input());
+  __ CompareRoot(reg, RootIndex::kTheHoleValue);
+  __ EmitEagerDeoptIf(kEqual, DeoptimizeReason::kHole, this);
 }
 
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
