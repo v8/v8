@@ -155,7 +155,7 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
     if (shift->kind != ShiftOp::Kind::kShiftLeft) return false;
     int64_t scale_value;
     if (selector->MatchSignedIntegralConstant(shift->right(), &scale_value)) {
-      if (scale_value > 3) return false;
+      if (scale_value < 0 || scale_value > 3) return false;
       *index = shift->left();
       *scale = static_cast<int>(scale_value);
       if (power_of_two_plus_one) *power_of_two_plus_one = false;
