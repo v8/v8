@@ -1896,40 +1896,12 @@ VISIT_UNSUPPORTED_OP(ChangeFloat64ToInt64)
 VISIT_UNSUPPORTED_OP(ChangeFloat64ToUint64)
 VISIT_UNSUPPORTED_OP(TruncateFloat64ToInt64)
 VISIT_UNSUPPORTED_OP(TruncateInt64ToInt32)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(TryTruncateFloat32ToInt64)
+VISIT_UNSUPPORTED_OP(TryTruncateFloat64ToInt64)
+VISIT_UNSUPPORTED_OP(TryTruncateFloat32ToUint64)
+VISIT_UNSUPPORTED_OP(TryTruncateFloat64ToUint64)
+VISIT_UNSUPPORTED_OP(TryTruncateFloat64ToInt32)
+VISIT_UNSUPPORTED_OP(TryTruncateFloat64ToUint32)
 VISIT_UNSUPPORTED_OP(RoundInt64ToFloat32)
 VISIT_UNSUPPORTED_OP(RoundInt64ToFloat64)
 VISIT_UNSUPPORTED_OP(RoundUint64ToFloat32)
@@ -2186,19 +2158,19 @@ void InstructionSelectorT<Adapter>::VisitPhi(node_t node) {
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
     turboshaft::OpIndex node) {
-  const turboshaft::ProjectionOp& projection =
-      this->Get(node).Cast<turboshaft::ProjectionOp>();
-  const turboshaft::Operation& value_op = this->Get(projection.input());
-  if (value_op.Is<turboshaft::OverflowCheckedBinopOp>()) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const ProjectionOp& projection = this->Get(node).Cast<ProjectionOp>();
+  const Operation& value_op = this->Get(projection.input());
+  if (value_op.Is<OverflowCheckedBinopOp>() || value_op.Is<TryChangeOp>()) {
     if (projection.index == 0u) {
       EmitIdentity(node);
     } else {
       DCHECK_EQ(1u, projection.index);
       MarkAsUsed(projection.input());
     }
-  } else if (value_op.Is<turboshaft::DidntThrowOp>()) {
+  } else if (value_op.Is<DidntThrowOp>()) {
     // Nothing to do here?
-  } else if (value_op.Is<turboshaft::CallOp>()) {
+  } else if (value_op.Is<CallOp>()) {
     // Call projections need to be behind the call's DidntThrow.
     UNREACHABLE();
   } else {
@@ -4393,6 +4365,34 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       UNREACHABLE();
     }
+    case Opcode::kTryChange: {
+      const TryChangeOp& try_change = op.Cast<TryChangeOp>();
+      MarkAsRepresentation(try_change.to.machine_representation(), node);
+      DCHECK(try_change.kind ==
+                 TryChangeOp::Kind::kSignedFloatTruncateOverflowUndefined ||
+             try_change.kind ==
+                 TryChangeOp::Kind::kUnsignedFloatTruncateOverflowUndefined);
+      const bool is_signed =
+          try_change.kind ==
+          TryChangeOp::Kind::kSignedFloatTruncateOverflowUndefined;
+      switch (multi(try_change.from, try_change.to, is_signed)) {
+        case multi(Rep::Float64(), Rep::Word64(), true):
+          return VisitTryTruncateFloat64ToInt64(node);
+        case multi(Rep::Float64(), Rep::Word64(), false):
+          return VisitTryTruncateFloat64ToUint64(node);
+        case multi(Rep::Float64(), Rep::Word32(), true):
+          return VisitTryTruncateFloat64ToInt32(node);
+        case multi(Rep::Float64(), Rep::Word32(), false):
+          return VisitTryTruncateFloat64ToUint32(node);
+        case multi(Rep::Float32(), Rep::Word64(), true):
+          return VisitTryTruncateFloat32ToInt64(node);
+        case multi(Rep::Float32(), Rep::Word64(), false):
+          return VisitTryTruncateFloat32ToUint64(node);
+        default:
+          UNREACHABLE();
+      }
+      UNREACHABLE();
+    }
     case Opcode::kConstant: {
       const ConstantOp& constant = op.Cast<ConstantOp>();
       switch (constant.kind) {
@@ -4899,7 +4899,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef UNREACHABLE_CASE
 
     case Opcode::kTailCall:
-    case Opcode::kTryChange:
     case Opcode::kWord32PairBinop:
     case Opcode::kBitcastWord32PairToFloat64:
     case Opcode::kSelect:

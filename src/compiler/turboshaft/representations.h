@@ -334,10 +334,11 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
 
 std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep);
 
-template <>
-struct MultiSwitch<RegisterRepresentation> {
+template <typename T>
+struct MultiSwitch<
+    T, std::enable_if_t<std::is_base_of_v<MaybeRegisterRepresentation, T>>> {
   static constexpr uint64_t max_value = 8;
-  static constexpr uint64_t encode(RegisterRepresentation rep) {
+  static constexpr uint64_t encode(T rep) {
     const uint64_t value = static_cast<uint64_t>(rep.value());
     DCHECK_LT(value, max_value);
     return value;

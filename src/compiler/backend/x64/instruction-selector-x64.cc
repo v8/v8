@@ -2383,17 +2383,19 @@ void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
 //    Else:
 //      Set Projection(1) := 0;   -- the value was out of range
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
   size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
     temps[temp_count++] = g.TempSimd128Register();
   }
@@ -2411,15 +2413,16 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
 // In all other cases we set Projection(1) := 0, denoting value out of range.
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
-    Node* node) {
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
   }
 
@@ -2428,15 +2431,16 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
-    Node* node) {
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
   }
 
@@ -2445,15 +2449,16 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
-    Node* node) {
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
   }
 
@@ -2461,17 +2466,19 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
   size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
     temps[temp_count++] = g.TempSimd128Register();
   }
@@ -2480,17 +2487,19 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
   size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = FindProjection(node, 1);
+  if (Adapter::valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
     temps[temp_count++] = g.TempSimd128Register();
   }

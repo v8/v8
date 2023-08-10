@@ -874,6 +874,12 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(StackSlot)
   DECLARE_GENERATOR_T(LoadRootRegister)
   DECLARE_GENERATOR_T(DebugBreak)
+  DECLARE_GENERATOR_T(TryTruncateFloat32ToInt64)
+  DECLARE_GENERATOR_T(TryTruncateFloat64ToInt64)
+  DECLARE_GENERATOR_T(TryTruncateFloat32ToUint64)
+  DECLARE_GENERATOR_T(TryTruncateFloat64ToUint64)
+  DECLARE_GENERATOR_T(TryTruncateFloat64ToInt32)
+  DECLARE_GENERATOR_T(TryTruncateFloat64ToUint32)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -918,12 +924,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
   DECLARE_GENERATOR(BitcastWordToTaggedSigned)
   DECLARE_GENERATOR(TruncateFloat64ToUint32)
-  DECLARE_GENERATOR(TryTruncateFloat32ToInt64)
-  DECLARE_GENERATOR(TryTruncateFloat64ToInt64)
-  DECLARE_GENERATOR(TryTruncateFloat32ToUint64)
-  DECLARE_GENERATOR(TryTruncateFloat64ToUint64)
-  DECLARE_GENERATOR(TryTruncateFloat64ToInt32)
-  DECLARE_GENERATOR(TryTruncateFloat64ToUint32)
   DECLARE_GENERATOR(Float64InsertLowWord32)
   DECLARE_GENERATOR(Float64InsertHighWord32)
   DECLARE_GENERATOR(Word32Select)

@@ -138,7 +138,7 @@ class ScopedModification {
 //
 //   DEFINE_MULTI_SWITCH_INTEGRAL(MyType, MaxValue)
 //
-template <typename T>
+template <typename T, typename Enable = void>
 struct MultiSwitch;
 
 template <typename T, uint64_t MaxValue>
