@@ -357,6 +357,7 @@ class JsonStringifier {
 
   static const int kJsonEscapeTableEntrySize = 8;
   static const char* const JsonEscapeTable;
+  static const bool JsonDoNotEscapeFlagTable[];
 };
 
 MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<Object> object,
@@ -432,6 +433,20 @@ const char* const JsonStringifier::JsonEscapeTable =
     "\xF4\0      \xF5\0      \xF6\0      \xF7\0      "
     "\xF8\0      \xF9\0      \xFA\0      \xFB\0      "
     "\xFC\0      \xFD\0      \xFE\0      \xFF\0      ";
+
+const bool JsonStringifier::JsonDoNotEscapeFlagTable[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+};
 
 JsonStringifier::JsonStringifier(Isolate* isolate)
     : isolate_(isolate),
@@ -1433,14 +1448,14 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
 template <>
 bool JsonStringifier::DoNotEscape(uint8_t c) {
   // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return (c >= 0x20 && c <= 0x21) || (c >= 0x23 && c <= 0x7E && c != 0x5C);
+  return JsonDoNotEscapeFlagTable[c];
 }
 
 template <>
 bool JsonStringifier::DoNotEscape(uint16_t c) {
   // https://tc39.github.io/ecma262/#table-json-single-character-escapes
   return (c >= 0x20 && c <= 0x21) ||
-         (c >= 0x23 && c != 0x5C && c != 0x7F && (c < 0xD800 || c > 0xDFFF));
+         (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
 }
 
 void JsonStringifier::NewLine() {
