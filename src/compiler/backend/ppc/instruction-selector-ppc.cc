@@ -1598,13 +1598,23 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
-  VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
-  VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
+  }
 }
 
 template <typename Adapter>
@@ -1618,24 +1628,33 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
-    Node* node) {
-  VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
+  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
-    Node* node) {
-  VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
+    node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
-    Node* node) {
+    node_t node) {
   UNIMPLEMENTED();
 }
 
