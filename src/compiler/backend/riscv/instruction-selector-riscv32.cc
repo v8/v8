@@ -1664,6 +1664,36 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
   Emit(code, output_count, outputs, arraysize(inputs), inputs, temp_count,
        temps);
 }
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Min(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp1 = g.TempFpRegister(v0);
+  InstructionOperand mask_reg = g.TempFpRegister(v0);
+  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
+  const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
+  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
+             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
+             g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
+             g.UseImmediate(m1));
+
+  InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg);
+  InstructionOperand temp4 = g.TempFpRegister(kSimd128ScratchReg);
+  InstructionOperand temp5 = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVmvVi, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVsllVx, temp4, temp3, g.UseImmediate(kNaNShift),
+             g.UseImmediate(E64), g.UseImmediate(m1));
+  this->Emit(kRiscvVfminVv, temp5, g.UseRegister(node->InputAt(1)),
+             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+             g.UseImmediate(m1), g.UseImmediate(Mask));
+  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
+             g.UseImmediate(m1));
+}
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

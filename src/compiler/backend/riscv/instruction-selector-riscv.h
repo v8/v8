@@ -1188,7 +1188,15 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(I16x8SubSatS, kRiscvVsubSatSVv, E16, m1) \
   V(I8x16SubSatS, kRiscvVsubSatSVv, E8, m1)  \
   V(I16x8SubSatU, kRiscvVsubSatUVv, E16, m1) \
-  V(I8x16SubSatU, kRiscvVsubSatUVv, E8, m1)
+  V(I8x16SubSatU, kRiscvVsubSatUVv, E8, m1)  \
+  V(F64x2Add, kRiscvVfaddVv, E64, m1)        \
+  V(F32x4Add, kRiscvVfaddVv, E32, m1)        \
+  V(F64x2Sub, kRiscvVfsubVv, E64, m1)        \
+  V(F32x4Sub, kRiscvVfsubVv, E32, m1)        \
+  V(F64x2Mul, kRiscvVfmulVv, E64, m1)        \
+  V(F32x4Mul, kRiscvVfmulVv, E32, m1)        \
+  V(F64x2Div, kRiscvVfdivVv, E64, m1)        \
+  V(F32x4Div, kRiscvVfdivVv, E32, m1)
 
 #define SIMD_UNOP_INT_LIST(V) \
   V(Neg, kRiscvVnegVv)        \
@@ -1199,29 +1207,17 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(Splat, kRiscvVfmvVf)
 
 #define SIMD_BINOP_LIST(V)                              \
-  V(F64x2Add, kRiscvF64x2Add)                           \
-  V(F64x2Sub, kRiscvF64x2Sub)                           \
-  V(F64x2Mul, kRiscvF64x2Mul)                           \
-  V(F64x2Div, kRiscvF64x2Div)                           \
-  V(F64x2Min, kRiscvF64x2Min)                           \
   V(F64x2Max, kRiscvF64x2Max)                           \
   V(F64x2Eq, kRiscvF64x2Eq)                             \
   V(F64x2Ne, kRiscvF64x2Ne)                             \
   V(F64x2Lt, kRiscvF64x2Lt)                             \
   V(F64x2Le, kRiscvF64x2Le)                             \
-  V(F32x4Add, kRiscvF32x4Add)                           \
-  V(F32x4Sub, kRiscvF32x4Sub)                           \
-  V(F32x4Mul, kRiscvF32x4Mul)                           \
-  V(F32x4Div, kRiscvF32x4Div)                           \
   V(F32x4Max, kRiscvF32x4Max)                           \
-  V(F32x4Min, kRiscvF32x4Min)                           \
   V(F32x4Eq, kRiscvF32x4Eq)                             \
   V(F32x4Ne, kRiscvF32x4Ne)                             \
   V(F32x4Lt, kRiscvF32x4Lt)                             \
   V(F32x4Le, kRiscvF32x4Le)                             \
-  V(F32x4RelaxedMin, kRiscvF32x4Min)                    \
   V(F32x4RelaxedMax, kRiscvF32x4Max)                    \
-  V(F64x2RelaxedMin, kRiscvF64x2Min)                    \
   V(F64x2RelaxedMax, kRiscvF64x2Max)                    \
   V(I16x8RoundingAverageU, kRiscvI16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kRiscvI16x8Q15MulRSatS)           \
@@ -1404,6 +1400,43 @@ VISIT_SIMD_QFMOP(F64x2Qfms, kRiscvF64x2Qfms)
 VISIT_SIMD_QFMOP(F32x4Qfma, kRiscvF32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms, kRiscvF32x4Qfms)
 #undef VISIT_SIMD_QFMOP
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Min(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp1 = g.TempFpRegister(v0);
+  InstructionOperand mask_reg = g.TempFpRegister(v0);
+  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
+
+  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
+             g.UseRegister(node->InputAt(0)), g.UseImmediate(E32),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
+             g.UseRegister(node->InputAt(1)), g.UseImmediate(E32),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E32),
+             g.UseImmediate(m1));
+
+  InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
+  InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVmvVi, NaN, g.UseImmediate(0x7FC00000), g.UseImmediate(E32),
+             g.UseImmediate(m1));
+  this->Emit(kRiscvVfminVv, result, g.UseRegister(node->InputAt(1)),
+             g.UseRegister(node->InputAt(0)), g.UseImmediate(E32),
+             g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
+  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), result, g.UseImmediate(E32),
+             g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMin(Node* node) {
+  VisitF32x4Min(node);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMin(Node* node) {
+  VisitF64x2Min(node);
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4DotI16x8S(Node* node) {
