@@ -16,6 +16,7 @@
 
 #ifdef V8_OS_LINUX
 #include <signal.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
@@ -485,9 +486,20 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
 void SandboxTesting::InstallSandboxCrashFilter() {
   CHECK(GetProcessWideSandbox()->is_initialized());
 #ifdef V8_OS_LINUX
+  // Register an alternate stack for signal delivery so that signal handlers
+  // can run properly even if for example the stack pointer has been corrupted.
+  void* alternate_stack = malloc(SIGSTKSZ);
+  CHECK_NE(alternate_stack, nullptr);
+  stack_t signalstack = {
+      .ss_sp = alternate_stack,
+      .ss_flags = 0,
+      .ss_size = SIGSTKSZ,
+  };
+  CHECK_EQ(sigaltstack(&signalstack, nullptr), 0);
+
   struct sigaction action;
   memset(&action, 0, sizeof(action));
-  action.sa_flags = SA_RESETHAND | SA_SIGINFO;
+  action.sa_flags = SA_RESETHAND | SA_SIGINFO | SA_ONSTACK;
   action.sa_sigaction = &SandboxSignalHandler;
   sigemptyset(&action.sa_mask);
 
