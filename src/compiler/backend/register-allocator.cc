@@ -3988,7 +3988,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
     SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       DCHECK_GT(cur_inactive->End(), range->Start());
-      CHECK_EQ(cur_inactive->assigned_register(), cur_reg);
+      DCHECK_EQ(cur_inactive->assigned_register(), cur_reg);
       // No need to carry out intersections, when this register won't be
       // interesting to this range anyway.
       // TODO(mtrofin): extend to aliased ranges, too.
