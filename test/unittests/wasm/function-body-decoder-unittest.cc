@@ -5379,7 +5379,7 @@ TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
   builder.InitializeMemory();
   // The memory index can be encoded in a separate field, after a 0x40
   // alignment. For now, only memory index 0 is allowed.
-  // TODO(13918): Extend this test once the {TestModuleBuilder} supports more
+  // TODO(clemensb): Extend this test once the {TestModuleBuilder} supports more
   // than one memory.
   Validate(is_multi_memory_enabled(), sigs.i_v(),
            {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,

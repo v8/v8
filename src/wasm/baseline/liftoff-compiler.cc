@@ -3116,7 +3116,7 @@ class LiftoffCompiler {
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // TODO(13918): Support multiple memories.
+    // TODO(14259): Support multiple memories.
     const WasmMemory* memory = env_->module->memories.data();
     if (memory->is_memory64 && !kNeedI64RegPair) {
       __ LoadConstant(effective_offset,
@@ -3279,6 +3279,8 @@ class LiftoffCompiler {
     }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -3320,6 +3322,8 @@ class LiftoffCompiler {
     __ PushRegister(kS128, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       // Again load extend is different.
       MachineRepresentation mem_rep =
           transform == LoadTransformationKind::kExtend
@@ -3363,6 +3367,8 @@ class LiftoffCompiler {
     __ PushRegister(kS128, result);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -3415,6 +3421,8 @@ class LiftoffCompiler {
     }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -3448,6 +3456,8 @@ class LiftoffCompiler {
                        protected_store_pc);
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4891,6 +4901,8 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
     __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4917,6 +4929,8 @@ class LiftoffCompiler {
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }

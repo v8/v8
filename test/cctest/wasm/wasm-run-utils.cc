@@ -107,7 +107,7 @@ TestingModuleBuilder::~TestingModuleBuilder() {
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
                                          TestingModuleMemoryType mem_type) {
-  // TODO(13918): Add support for multi-memory.
+  // The TestingModuleBuilder only supports one memory currently.
   CHECK_EQ(0, test_module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);

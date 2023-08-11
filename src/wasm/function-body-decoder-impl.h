@@ -6125,7 +6125,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (mem_type != MemoryIndexType(imm.memory_dst.memory)) {
           // Disallow copying between a 32-bit and a 64-bit memory, because it's
           // not clear what type to expect for the number of bytes.
-          // TODO(13918): Check if the spec says anything about copying between
+          // TODO(14258): Check if the spec says anything about copying between
           // memories of different type.
           this->DecodeError(this->pc_,
                             "copying between memories of different type");

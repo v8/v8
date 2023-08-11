@@ -584,6 +584,8 @@ class TurboshaftGraphBuildingInterface {
             : load;
 
     if (v8_flags.trace_wasm_memory) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(false, repr, final_index, imm.offset);
     }
 
@@ -633,6 +635,8 @@ class TurboshaftGraphBuildingInterface {
                store_kind, repr, compiler::kNoWriteBarrier, 0);
 
     if (v8_flags.trace_wasm_memory) {
+      // TODO(14259): Implement memory tracing for multiple memories.
+      CHECK_EQ(0, imm.memory->index);
       TraceMemoryOperation(true, repr, final_index, imm.offset);
     }
   }

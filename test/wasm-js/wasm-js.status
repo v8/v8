@@ -46,7 +46,7 @@
   'proposals/tail-call/limits': [SKIP],
 
   # Slow tests:
-  # TODO(13918): Switch back to [PASS, SLOW] once wasm-js tests allow more
+  # TODO(14258): Switch back to [PASS, SLOW] once wasm-js tests allow more
   # than one memory. Github issue:
   # https://github.com/WebAssembly/multi-memory/issues/49
   'limits': [FAIL],

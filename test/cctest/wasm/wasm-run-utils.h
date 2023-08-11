@@ -133,17 +133,19 @@ class TestingModuleBuilder {
     return static_cast<uint8_t>(size - 1);
   }
 
-  // TODO(13918): Fix the following APIs for multi-memory.
-  uint32_t mem_size() { return mem0_size_; }
+  uint32_t mem_size() const {
+    CHECK_EQ(1, test_module_->memories.size());
+    return mem0_size_;
+  }
 
   template <typename T>
-  T* raw_mem_start() {
+  T* raw_mem_start() const {
     DCHECK_NOT_NULL(mem0_start_);
     return reinterpret_cast<T*>(mem0_start_);
   }
 
   template <typename T>
-  T* raw_mem_end() {
+  T* raw_mem_end() const {
     DCHECK_NOT_NULL(mem0_start_);
     return reinterpret_cast<T*>(mem0_start_ + mem0_size_);
   }
@@ -185,8 +187,7 @@ class TestingModuleBuilder {
   }
 
   void SetMaxMemPages(uint32_t maximum_pages) {
-    // TODO(13918): Adapt this for multi-memory.
-    DCHECK_EQ(1, test_module_->memories.size());
+    CHECK_EQ(1, test_module_->memories.size());
     test_module_->memories[0].maximum_pages = maximum_pages;
     DCHECK_EQ(instance_object_->memory_objects()->length(),
               test_module_->memories.size());
@@ -194,8 +195,7 @@ class TestingModuleBuilder {
   }
 
   void SetMemoryShared() {
-    // TODO(13918): Adapt this for multi-memory.
-    DCHECK_EQ(1, test_module_->memories.size());
+    CHECK_EQ(1, test_module_->memories.size());
     test_module_->memories[0].is_shared = true;
   }
 
@@ -275,7 +275,7 @@ class TestingModuleBuilder {
   Isolate* isolate_;
   WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
-  // TODO(13918): Adapt for multi-memory.
+  // The TestingModuleBuilder only supports one memory currently.
   uint8_t* mem0_start_ = nullptr;
   uint32_t mem0_size_ = 0;
   uint8_t* globals_data_ = nullptr;

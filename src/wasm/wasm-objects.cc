@@ -866,8 +866,8 @@ void WasmMemoryObject::SetNewBuffer(JSArrayBuffer new_buffer) {
       if (elem->IsCleared()) continue;
       WasmInstanceObject instance =
           WasmInstanceObject::cast(elem->GetHeapObjectAssumeWeak());
-      // TODO(13918): Avoid the iteration if we ever see larger numbers of
-      // memories.
+      // TODO(clemens): Avoid the iteration by also remembering the memory index
+      // if we ever see larger numbers of memories.
       FixedArray memory_objects = instance->memory_objects();
       int num_memories = memory_objects->length();
       for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {

@@ -3822,6 +3822,8 @@ Node* WasmGraphBuilder::LoadLane(const wasm::WasmMemory* memory,
     SetSourcePosition(load, position);
   }
   if (v8_flags.trace_wasm_memory) {
+    // TODO(14259): Implement memory tracing for multiple memories.
+    CHECK_EQ(0, memory->index);
     TraceMemoryOperation(false, memtype.representation(), index, offset,
                          position);
   }
@@ -3862,6 +3864,8 @@ Node* WasmGraphBuilder::LoadTransform(const wasm::WasmMemory* memory,
   }
 
   if (v8_flags.trace_wasm_memory) {
+    // TODO(14259): Implement memory tracing for multiple memories.
+    CHECK_EQ(0, memory->index);
     TraceMemoryOperation(false, memtype.representation(), index, offset,
                          position);
   }
@@ -3913,6 +3917,8 @@ Node* WasmGraphBuilder::LoadMem(const wasm::WasmMemory* memory,
   }
 
   if (v8_flags.trace_wasm_memory) {
+    // TODO(14259): Implement memory tracing for multiple memories.
+    CHECK_EQ(0, memory->index);
     TraceMemoryOperation(false, memtype.representation(), index, offset,
                          position);
   }
@@ -3943,6 +3949,8 @@ void WasmGraphBuilder::StoreLane(const wasm::WasmMemory* memory,
     SetSourcePosition(store, position);
   }
   if (v8_flags.trace_wasm_memory) {
+    // TODO(14259): Implement memory tracing for multiple memories.
+    CHECK_EQ(0, memory->index);
     TraceMemoryOperation(true, mem_rep, index, offset, position);
   }
 }
@@ -3991,6 +3999,8 @@ void WasmGraphBuilder::StoreMem(const wasm::WasmMemory* memory,
   }
 
   if (v8_flags.trace_wasm_memory) {
+    // TODO(14259): Implement memory tracing for multiple memories.
+    CHECK_EQ(0, memory->index);
     TraceMemoryOperation(true, mem_rep, index, offset, position);
   }
 }
@@ -8180,7 +8190,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         },
         // Initialize wasm-specific callback options fields
         [this](Node* options_stack_slot) {
-          // TODO(13918): Do we need to support multiple memories for the fast
+          // TODO(14260): Do we need to support multiple memories for the fast
           // API?
           Node* mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
               Memory0Start, kMaybeSandboxedPointer);

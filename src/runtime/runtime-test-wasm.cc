@@ -499,7 +499,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
-  // TODO(13918): Fix for multi-memory.
+  // TODO(14259): Fix for multi-memory.
   auto memory_object = frame->wasm_instance()->memory_object(0);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->array_buffer()->backing_store());
