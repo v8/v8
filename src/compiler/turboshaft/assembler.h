@@ -1530,6 +1530,14 @@ class AssemblerOpInterface {
                 Float64, Word32)
   DECL_CHANGE_V(TruncateWord64ToWord32, kTruncate, kNoAssumption, Word64,
                 Word32)
+  V<Word32> TruncateWordPtrToWord32(ConstOrV<WordPtr> input) {
+    if constexpr (Is64()) {
+      return TruncateWord64ToWord32(input);
+    } else {
+      DCHECK_EQ(WordPtr::bits, Word32::bits);
+      return V<Word32>::Cast(resolve(input));
+    }
+  }
   V<WordPtr> ChangeInt32ToIntPtr(V<Word32> input) {
     if constexpr (Is64()) {
       return ChangeInt32ToInt64(input);
@@ -1662,23 +1670,24 @@ class AssemblerOpInterface {
       V<Word32> shifted = Word32ShiftLeft(resolve(input), kSmiShiftBits);
       // In pointer compression, we smi-corrupt. Then, the upper bits are not
       // important.
-      return V<Smi>::Cast(COMPRESS_POINTERS_BOOL
-                              ? BitcastWord32ToWord64(shifted)
-                              : ChangeInt32ToIntPtr(shifted));
-    } else {
       return V<Smi>::Cast(
-          WordPtrShiftLeft(ChangeInt32ToIntPtr(resolve(input)), kSmiShiftBits));
+          COMPRESS_POINTERS_BOOL
+              ? BitcastWord32ToTagged(shifted)
+              : BitcastWordPtrToTagged(ChangeInt32ToIntPtr(shifted)));
+    } else {
+      return V<Smi>::Cast(BitcastWordPtrToTagged(WordPtrShiftLeft(
+          ChangeInt32ToIntPtr(resolve(input)), kSmiShiftBits)));
     }
   }
 
   V<Word32> UntagSmi(V<Tagged> input) {
     constexpr int kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
     if constexpr (Is64() && SmiValuesAre31Bits()) {
-      return Word32ShiftRightArithmeticShiftOutZeros(V<Word32>::Cast(input),
-                                                     kSmiShiftBits);
+      return Word32ShiftRightArithmeticShiftOutZeros(
+          TruncateWordPtrToWord32(BitcastTaggedToWord(input)), kSmiShiftBits);
     }
-    return V<Word32>::Cast(WordPtrShiftRightArithmeticShiftOutZeros(
-        V<WordPtr>::Cast(input), kSmiShiftBits));
+    return TruncateWordPtrToWord32(WordPtrShiftRightArithmeticShiftOutZeros(
+        BitcastTaggedToWord(input), kSmiShiftBits));
   }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,

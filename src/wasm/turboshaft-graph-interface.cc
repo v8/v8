@@ -4,6 +4,7 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -652,9 +653,11 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> result_wordptr =
         asm_.WordPtrShiftRightArithmetic(MemSize(imm.index), kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
-    result->op = imm.memory->is_memory64
-                     ? asm_.ChangeIntPtrToInt64(result_wordptr)
-                     : result_wordptr;
+    if (imm.memory->is_memory64) {
+      result->op = asm_.ChangeIntPtrToInt64(result_wordptr);
+    } else {
+      result->op = asm_.TruncateWordPtrToWord32(result_wordptr);
+    }
   }
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -3366,19 +3369,23 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<Smi> ChangeUint31ToSmi(V<Word32> value) {
-    return V<Smi>::Cast(
-        COMPRESS_POINTERS_BOOL
-            ? asm_.Word32ShiftLeft(value, kSmiShiftSize + kSmiTagSize)
-            : asm_.WordPtrShiftLeft(asm_.ChangeUint32ToUintPtr(value),
-                                    kSmiShiftSize + kSmiTagSize));
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      return V<Smi>::Cast(
+          asm_.Word32ShiftLeft(value, kSmiShiftSize + kSmiTagSize));
+    } else {
+      return V<Smi>::Cast(asm_.WordPtrShiftLeft(
+          asm_.ChangeUint32ToUintPtr(value), kSmiShiftSize + kSmiTagSize));
+    }
   }
 
   V<Word32> ChangeSmiToUint32(V<Smi> value) {
-    return COMPRESS_POINTERS_BOOL
-               ? asm_.Word32ShiftRightLogical(V<Word32>::Cast(value),
-                                              kSmiShiftSize + kSmiTagSize)
-               : asm_.WordPtrShiftRightLogical(V<WordPtr>::Cast(value),
-                                               kSmiShiftSize + kSmiTagSize);
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      return asm_.Word32ShiftRightLogical(V<Word32>::Cast(value),
+                                          kSmiShiftSize + kSmiTagSize);
+    } else {
+      return asm_.TruncateWordPtrToWord32(asm_.WordPtrShiftRightLogical(
+          V<WordPtr>::Cast(value), kSmiShiftSize + kSmiTagSize));
+    }
   }
 
   V<WordPtr> BuildDecodeExternalPointer(V<Word32> handle,
@@ -3506,7 +3513,8 @@ class TurboshaftGraphBuildingInterface {
                      MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    IF (LIKELY(asm_.Uint32LessThan(index, MemSize(0)))) {
+    IF (LIKELY(asm_.Uint32LessThan(index,
+                                   asm_.TruncateWordPtrToWord32(MemSize(0))))) {
       asm_.Store(MemStart(0), asm_.ChangeUint32ToUintPtr(index), value,
                  StoreOp::Kind::RawAligned(), repr, compiler::kNoWriteBarrier,
                  0);
@@ -3521,9 +3529,11 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* out_of_bounds = asm_.NewBlock();
     TSBlock* done = asm_.NewBlock();
 
-    asm_.Branch(ConditionWithHint(asm_.Uint32LessThan(index, MemSize(0)),
-                                  BranchHint::kTrue),
-                in_bounds, out_of_bounds);
+    asm_.Branch(
+        ConditionWithHint(asm_.Uint32LessThan(
+                              index, asm_.TruncateWordPtrToWord32(MemSize(0))),
+                          BranchHint::kTrue),
+        in_bounds, out_of_bounds);
 
     asm_.Bind(in_bounds);
     OpIndex loaded_value =

@@ -191,8 +191,7 @@ struct v_traits<Word64> {
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Word64> ||
-                           std::is_same_v<U, Word32>> {};
+      : std::bool_constant<std::is_base_of_v<U, Word64>> {};
 };
 
 template <>
