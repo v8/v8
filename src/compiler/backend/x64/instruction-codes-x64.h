@@ -322,6 +322,7 @@ namespace compiler {
   V(X64I8x16UConvertI16x8)                           \
   V(X64I8x32UConvertI16x16)                          \
   V(X64S128Const)                                    \
+  V(X64S256Const)                                    \
   V(X64SZero)                                        \
   V(X64SAllOnes)                                     \
   V(X64SNot)                                         \

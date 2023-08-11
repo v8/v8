@@ -1121,6 +1121,7 @@
   'test-run-wasm-simd/RunWasmTurbofan_I8x32AddSatU': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatS': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatU': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_S256Const': [FAIL],
 }],  # variant == turboshaft
 
 ##############################################################################

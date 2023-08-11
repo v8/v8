@@ -442,6 +442,12 @@ class InstructionSelectorT final : public Adapter {
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, InstructionOperand f,
                     size_t temp_count = 0, InstructionOperand* temps = nullptr);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    InstructionOperand e, InstructionOperand f,
+                    InstructionOperand g, InstructionOperand h,
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
                     InstructionOperand* outputs, size_t input_count,
                     InstructionOperand* inputs, size_t temp_count = 0,

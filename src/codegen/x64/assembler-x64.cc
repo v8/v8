@@ -3590,6 +3590,16 @@ BROADCAST(ss, YMMRegister, L256, 18)
 BROADCAST(sd, YMMRegister, L256, 19)
 #undef BROADCAST
 
+void Assembler::vinserti128(YMMRegister dst, YMMRegister src1, XMMRegister src2,
+                            uint8_t imm8) {
+  DCHECK(IsEnabled(AVX2));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL256, k66, k0F3A, kW0);
+  emit(0x38);
+  emit_sse_operand(dst, src2);
+  emit(imm8);
+}
+
 void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                           XMMRegister src2, VectorLength l, SIMDPrefix pp,
                           LeadingOpcode m, VexW w) {

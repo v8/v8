@@ -288,6 +288,19 @@ Instruction* InstructionSelectorT<Adapter>::Emit(
 
 template <typename Adapter>
 Instruction* InstructionSelectorT<Adapter>::Emit(
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, InstructionOperand c, InstructionOperand d,
+    InstructionOperand e, InstructionOperand f, InstructionOperand g,
+    InstructionOperand h, size_t temp_count, InstructionOperand* temps) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b, c, d, e, f, g, h};
+  size_t input_count = arraysize(inputs);
+  return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
+              temps);
+}
+
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps) {
@@ -4101,6 +4114,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16RoundingAverageU(node);
     case IrOpcode::kI8x32RoundingAverageU:
       return MarkAsSimd256(node), VisitI8x32RoundingAverageU(node);
+    case IrOpcode::kS256Const:
+      return MarkAsSimd256(node), VisitS256Const(node);
     case IrOpcode::kS256Zero:
       return MarkAsSimd256(node), VisitS256Zero(node);
     case IrOpcode::kS256And:

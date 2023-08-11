@@ -1205,6 +1205,7 @@
   V(I16x16ExtAddPairwiseI8x32S)    \
   V(I16x16ExtAddPairwiseI8x32U)    \
   V(ExtractF128)                   \
+  V(S256Const)                     \
   V(S256Zero)                      \
   V(S256Not)                       \
   V(S256And)                       \

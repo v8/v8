@@ -267,6 +267,17 @@ bool IsSplat(const T& node_group) {
 
 // Returns true if all of the nodes in node_group have the same type.
 bool AllSameOperator(const ZoneVector<Node*>& node_group) {
+  // Two S128Const operators are equal only if they have same immediates,
+  // the revec algorithm can pack S128Const nodes with different immediates,
+  // so if all the nodes have S128Const opcode, ignore the immediates comparison
+  // and just return true.
+  bool all_consts = std::all_of(
+      node_group.cbegin(), node_group.cend(),
+      [](Node* node) { return node->opcode() == IrOpcode::kS128Const; });
+  if (all_consts) {
+    return true;
+  }
+
   auto op = node_group[0]->op();
   for (ZoneVector<Node*>::size_type i = 1; i < node_group.size(); i++) {
     if (node_group[i]->op() != op) {
@@ -650,6 +661,11 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     }
   }
 
+  if (node0->opcode() == IrOpcode::kS128Const) {
+    PackNode* p = NewPackNode(node_group);
+    PopStack();
+    return p;
+  }
   if (node0->opcode() == IrOpcode::kExtractF128) {
     Node* source = node0->InputAt(0);
     TRACE("Extract leaf node from #%d,%s!\n", source->id(),
@@ -947,6 +963,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
   TRACE("Enter %s with PackNode\n", __func__);
 
   Node* node0 = pnode->Nodes()[0];
+  Node* node1 = pnode->Nodes()[1];
   if (pnode->RevectorizedNode()) {
     TRACE("Diamond merged for #%d:%s\n", node0->id(), node0->op()->mnemonic());
     return pnode->RevectorizedNode();
@@ -1055,6 +1072,17 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[2] = source->InputAt(2);
       inputs[3] = source->InputAt(3);
       input_count = 4;
+      break;
+    }
+    case IrOpcode::kS128Const: {
+      uint8_t value[32];
+      const uint8_t* value0 = S128ImmediateParameterOf(node0->op()).data();
+      const uint8_t* value1 = S128ImmediateParameterOf(node1->op()).data();
+      for (int i = 0; i < kSimd128Size; ++i) {
+        value[i] = value0[i];
+        value[i + 16] = value1[i];
+      }
+      new_op = mcgraph_->machine()->S256Const(value);
       break;
     }
     case IrOpcode::kProtectedLoad: {

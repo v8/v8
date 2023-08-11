@@ -1218,6 +1218,16 @@ void SetupSimdImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
                   make_uint64(imms[1], imms[0]));
 }
 
+void SetupSimd256ImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
+                                     YMMRegister reg, XMMRegister scratch) {
+  assembler->Move(reg, make_uint64(imms[3], imms[2]),
+                  make_uint64(imms[1], imms[0]));
+  assembler->Move(scratch, make_uint64(imms[7], imms[6]),
+                  make_uint64(imms[5], imms[4]));
+  CpuFeatureScope avx_scope(assembler, AVX2);
+  assembler->vinserti128(reg, reg, scratch, uint8_t{1});
+}
+
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
@@ -6560,6 +6570,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX2);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovzxdq(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Const: {
+      // Emit code for generic constants as all zeros, or ones cases will be
+      // handled separately by the selector.
+      YMMRegister dst = i.OutputSimd256Register();
+      uint32_t imm[8] = {};
+      for (int j = 0; j < 8; j++) {
+        imm[j] = i.InputUint32(j);
+      }
+      SetupSimd256ImmediateInRegister(masm(), imm, dst, kScratchDoubleReg);
       break;
     }
   }

@@ -1507,6 +1507,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vbroadcastsd(YMMRegister dst, XMMRegister src);
   void vbroadcastsd(YMMRegister dst, Operand src);
 
+  void vinserti128(YMMRegister dst, YMMRegister src1, XMMRegister src2,
+                   uint8_t lane);
+
   void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                  XMMRegister src2, VectorLength l, SIMDPrefix pp,
                  LeadingOpcode m, VexW w);
