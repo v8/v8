@@ -307,7 +307,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   base::Optional<uint32_t> max_size,
-                                  bool shared) {
+                                  bool shared, bool is_memory64) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -315,6 +315,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
   Handle<String> shared_string = factory->InternalizeUtf8String("shared");
+  Handle<String> index_string = factory->InternalizeUtf8String("index");
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
@@ -323,6 +324,10 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   }
   JSObject::AddProperty(isolate, object, shared_string,
                         factory->ToBoolean(shared), NONE);
+
+  auto index = is_memory64 ? "u64" : "u32";
+  JSObject::AddProperty(isolate, object, index_string,
+                        factory->InternalizeUtf8String(index), NONE);
 
   return object;
 }
@@ -411,8 +416,9 @@ Handle<JSArray> GetImports(Isolate* isolate,
           if (memory.has_maximum_pages) {
             maximum_size.emplace(memory.maximum_pages);
           }
-          type_value = GetTypeForMemory(isolate, memory.initial_pages,
-                                        maximum_size, memory.is_shared);
+          type_value =
+              GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
+                               memory.is_shared, memory.is_memory64);
         }
         import_kind = memory_string;
         break;
@@ -508,8 +514,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
           if (memory.has_maximum_pages) {
             maximum_size.emplace(memory.maximum_pages);
           }
-          type_value = GetTypeForMemory(isolate, memory.initial_pages,
-                                        maximum_size, memory.is_shared);
+          type_value =
+              GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
+                               memory.is_shared, memory.is_memory64);
         }
         export_kind = memory_string;
         break;

@@ -891,7 +891,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   base::Optional<uint32_t> max_size,
-                                  bool shared);
+                                  bool shared, bool is_memory64);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size);

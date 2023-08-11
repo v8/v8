@@ -12,14 +12,19 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(false, type.shared);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({initial: 2, maximum: 15});
   type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
   assertEquals(false, type.shared);
-  assertEquals(3, Object.getOwnPropertyNames(type).length);
+  assertEquals("u32", type.index);
+  assertEquals(4, Object.getOwnPropertyNames(type).length);
+
+  mem = new WebAssembly.Memory({initial: 2, maximum: 15, index: "u64"});
+  type = mem.type();
+  assertEquals("u64", type.index);
 })();
 
 (function TestMemoryExports() {
@@ -235,7 +240,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(false, type.shared);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertEquals("u32", type.index);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({minimum: 1, maximum: 5, shared: false});
   assertTrue(mem instanceof WebAssembly.Memory);
@@ -243,7 +249,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals(false, type.shared);
-  assertEquals(3, Object.getOwnPropertyNames(type).length);
+  assertEquals("u32", type.index);
+  assertEquals(4, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
   assertTrue(mem instanceof WebAssembly.Memory);
@@ -251,7 +258,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals(true, type.shared);
-  assertEquals(3, Object.getOwnPropertyNames(type).length);
+  assertEquals("u32", type.index);
+  assertEquals(4, Object.getOwnPropertyNames(type).length);
 
   assertThrows(
       () => new WebAssembly.Memory({minimum: 1, initial: 2}), TypeError,

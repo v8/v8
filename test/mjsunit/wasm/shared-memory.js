@@ -137,6 +137,9 @@ function assertMemoryIsValid(memory, shared) {
       throw new Error(`Should not call [[HasProperty]] with ${x}`);
     },
     get(o, x) {
+      if (x === "index") {
+        return "u32";
+      }
       return 0;
     },
   });
