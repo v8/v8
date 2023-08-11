@@ -1565,6 +1565,16 @@ class AssemblerOpInterface {
     }
   }
 
+  V<Word32> IsSmi(V<Tagged> object) {
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      return Word32Equal(Word32BitwiseAnd(V<Word32>::Cast(object), kSmiTagMask),
+                         kSmiTag);
+    } else {
+      return WordPtrEqual(
+          WordPtrBitwiseAnd(V<WordPtr>::Cast(object), kSmiTagMask), kSmiTag);
+    }
+  }
+
 #define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
   DECL_CHANGE_V(                                                             \
       TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined,        \

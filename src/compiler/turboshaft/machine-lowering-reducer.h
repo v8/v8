@@ -188,7 +188,7 @@ class MachineLoweringReducer : public Next {
         if (input_assumptions != ObjectIsOp::InputAssumptions::kBigInt) {
           if (NeedsHeapObjectCheck(input_assumptions)) {
             // Check for Smi.
-            GOTO_IF(IsSmi(input), done, 0);
+            GOTO_IF(__ IsSmi(input), done, 0);
           }
 
           // Check for BigInt.
@@ -249,7 +249,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(UNLIKELY(IsSmi(input)), done, 0);
+          GOTO_IF(UNLIKELY(__ IsSmi(input)), done, 0);
         }
 
         // Load bitfield from map.
@@ -332,14 +332,14 @@ class MachineLoweringReducer : public Next {
         if (!NeedsHeapObjectCheck(input_assumptions)) {
           return __ Word32Constant(0);
         }
-        return IsSmi(input);
+        return __ IsSmi(input);
       }
       case ObjectIsOp::Kind::kNumber: {
         Label<Word32> done(this);
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, 1);
+          GOTO_IF(__ IsSmi(input), done, 1);
         }
 
         V<Map> map = __ LoadMapField(input);
@@ -356,7 +356,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, 0);
+          GOTO_IF(__ IsSmi(input), done, 0);
         }
 
         // Load instance type from map.
@@ -470,11 +470,11 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFinite:
       case NumericKind::kInteger:
       case NumericKind::kSafeInteger:
-        GOTO_IF(IsSmi(input), done, 1);
+        GOTO_IF(__ IsSmi(input), done, 1);
         break;
       case NumericKind::kMinusZero:
       case NumericKind::kNaN:
-        GOTO_IF(IsSmi(input), done, 0);
+        GOTO_IF(__ IsSmi(input), done, 0);
         break;
       case NumericKind::kFloat64Hole:
         // ObjectIsFloat64Hole is not used, but can be implemented when needed.
@@ -2869,15 +2869,6 @@ class MachineLoweringReducer : public Next {
           bigint, AccessBuilder::ForBigIntLeastSignificantDigit64(), digit);
     }
     return V<BigInt>::Cast(__ FinishInitialization(std::move(bigint)));
-  }
-
-  // TODO(nicohartmann@): Should also make this an operation and lower in
-  // TagUntagLoweringReducer.
-  V<Word32> IsSmi(V<Tagged> input) {
-    return __ Word32Equal(
-        __ Word32BitwiseAnd(V<Word32>::Cast(input),
-                            static_cast<uint32_t>(kSmiTagMask)),
-        static_cast<uint32_t>(kSmiTag));
   }
 
   void TagSmiOrOverflow(V<Word32> input, Label<>* overflow,

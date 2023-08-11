@@ -438,7 +438,7 @@ class TurboshaftGraphBuildingInterface {
     V<Tagged> maybe_function = LoadFixedArrayElement(functions, function_index);
 
     Label<WasmInternalFunction> done(&asm_);
-    IF (IsSmi(maybe_function)) {
+    IF (asm_.IsSmi(maybe_function)) {
       V<Word32> function_index_constant = asm_.Word32Constant(function_index);
       V<WasmInternalFunction> from_builtin = CallBuiltinFromRuntimeStub(
           decoder, wasm::WasmCode::kWasmRefFunc, {function_index_constant});
@@ -3359,17 +3359,6 @@ class TurboshaftGraphBuildingInterface {
         asm_.TruncateWord64ToWord32(asm_.Word64ShiftRightLogical(index, 32)),
         OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
     return OpIndex(asm_.TruncateWord64ToWord32(index));
-  }
-
-  V<Word32> IsSmi(V<Tagged> object) {
-    if constexpr (COMPRESS_POINTERS_BOOL) {
-      return asm_.Word32Equal(
-          asm_.Word32BitwiseAnd(V<Word32>::Cast(object), kSmiTagMask), kSmiTag);
-    } else {
-      return asm_.WordPtrEqual(
-          asm_.WordPtrBitwiseAnd(V<WordPtr>::Cast(object), kSmiTagMask),
-          kSmiTag);
-    }
   }
 
   V<Smi> ChangeUint31ToSmi(V<Word32> value) {
