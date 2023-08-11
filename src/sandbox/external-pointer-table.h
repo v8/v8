@@ -171,13 +171,9 @@ struct ExternalPointerTableEntry {
 #if defined(LEAK_SANITIZER)
 //  When LSan is active, we need "fat" entries, see above.
 static_assert(sizeof(ExternalPointerTableEntry) == 16);
-constexpr size_t kExternalPointerTableReservationSizeAfterAccountingForLSan =
-    kExternalPointerTableReservationSize * 2;
 #else
 //  We expect ExternalPointerTable entries to consist of a single 64-bit word.
 static_assert(sizeof(ExternalPointerTableEntry) == 8);
-constexpr size_t kExternalPointerTableReservationSizeAfterAccountingForLSan =
-    kExternalPointerTableReservationSize;
 #endif
 
 /**
@@ -282,10 +278,14 @@ constexpr size_t kExternalPointerTableReservationSizeAfterAccountingForLSan =
  * guarded by write barriers to avoid this scenario.
  */
 class V8_EXPORT_PRIVATE ExternalPointerTable
-    : public ExternalEntityTable<
-          ExternalPointerTableEntry,
-          kExternalPointerTableReservationSizeAfterAccountingForLSan> {
+    : public ExternalEntityTable<ExternalPointerTableEntry,
+                                 kExternalPointerTableReservationSize> {
+#if defined(LEAK_SANITIZER)
+  //  When LSan is active, we use "fat" entries, see above.
+  static_assert(kMaxExternalPointers == kMaxCapacity * 2);
+#else
   static_assert(kMaxExternalPointers == kMaxCapacity);
+#endif
 
  public:
   // Size of an ExternalPointerTable, for layout computation in IsolateData.
@@ -297,10 +297,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
   // The Spaces used by an ExternalPointerTable also contain the state related
   // to compaction.
-  struct Space
-      : public ExternalEntityTable<
-            ExternalPointerTableEntry,
-            kExternalPointerTableReservationSizeAfterAccountingForLSan>::Space {
+  struct Space : public ExternalEntityTable<
+                     ExternalPointerTableEntry,
+                     kExternalPointerTableReservationSize>::Space {
    public:
     Space() : start_of_evacuation_area_(kNotCompactingMarker) {}
 

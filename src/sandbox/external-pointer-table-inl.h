@@ -269,6 +269,7 @@ ExternalPointerHandle ExternalPointerTable::IndexToHandle(
 #if defined(LEAK_SANITIZER)
   handle *= 2;
 #endif  // LEAK_SANITIZER
+  DCHECK_NE(handle, kNullExternalPointerHandle);
   return handle;
 }
 
