@@ -493,7 +493,7 @@ void SandboxTesting::InstallSandboxCrashFilter() {
   stack_t signalstack = {
       .ss_sp = alternate_stack,
       .ss_flags = 0,
-      .ss_size = SIGSTKSZ,
+      .ss_size = static_cast<size_t>(SIGSTKSZ),
   };
   CHECK_EQ(sigaltstack(&signalstack, nullptr), 0);
 
