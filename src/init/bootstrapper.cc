@@ -608,15 +608,6 @@ V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
           .Build();
   constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
-  // Create a new {constructor, non-instance_prototype} tuple and store it
-  // in Map::constructor field.
-  Handle<Tuple2> non_instance_prototype_constructor_tuple =
-      isolate->factory()->NewTuple2(isolate->function_function(),
-                                    factory->null_value(),
-                                    AllocationType::kOld);
-  constructor->map()->set_has_non_instance_prototype(true);
-  constructor->map()->SetConstructor(*non_instance_prototype_constructor_tuple);
-
   JSObject::AddProperty(
       isolate, constructor, factory->has_instance_symbol(),
       handle(isolate->native_context()->shared_space_js_object_has_instance(),

@@ -203,15 +203,6 @@ BUILTIN(SharedStructTypeConstructor) {
   }
   constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
-  // Create a new {constructor, non-instance_prototype} tuple and store it
-  // in Map::constructor field.
-  Handle<Tuple2> non_instance_prototype_constructor_tuple =
-      isolate->factory()->NewTuple2(isolate->function_function(),
-                                    factory->null_value(),
-                                    AllocationType::kOld);
-  constructor->map()->set_has_non_instance_prototype(true);
-  constructor->map()->SetConstructor(*non_instance_prototype_constructor_tuple);
-
   int num_elements = num_properties - num_fields;
   if (num_elements != 0) {
     DCHECK(elements_template->InAnySharedSpace());
