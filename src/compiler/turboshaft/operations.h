@@ -2477,36 +2477,13 @@ struct LoadOp : OperationT<LoadOp> {
           return RawAligned();
       }
     }
-    static constexpr Kind TaggedBase() {
-      return {.tagged_base = true,
-              .maybe_unaligned = false,
-              .with_trap_handler = false,
-              .always_canonically_accessed = true};
-    }
-    static constexpr Kind RawAligned() {
-      return {.tagged_base = false,
-              .maybe_unaligned = false,
-              .with_trap_handler = false,
-              .always_canonically_accessed = true};
-    }
-    static constexpr Kind RawUnaligned() {
-      return {.tagged_base = false,
-              .maybe_unaligned = true,
-              .with_trap_handler = false,
-              .always_canonically_accessed = true};
-    }
-    static constexpr Kind Protected() {
-      return {.tagged_base = false,
-              .maybe_unaligned = false,
-              .with_trap_handler = true,
-              .always_canonically_accessed = true};
-    }
-    static constexpr Kind TrapOnNull() {
-      return {.tagged_base = true,
-              .maybe_unaligned = false,
-              .with_trap_handler = true,
-              .always_canonically_accessed = true};
-    }
+
+    // TODO(dmercadier): use designed initializers once we move to C++20.
+    static constexpr Kind TaggedBase() { return {true, false, false, true}; }
+    static constexpr Kind RawAligned() { return {false, false, false, true}; }
+    static constexpr Kind RawUnaligned() { return {false, true, false, true}; }
+    static constexpr Kind Protected() { return {false, false, true, true}; }
+    static constexpr Kind TrapOnNull() { return {true, false, true, true}; }
 
     constexpr Kind NotAlwaysCanonicallyAccessed() {
       Kind kind = *this;
