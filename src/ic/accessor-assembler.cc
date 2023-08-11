@@ -5176,12 +5176,14 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     TNode<IntPtrT> result_start =
         LoadMapInobjectPropertiesStartInWords(result_map.value());
     TNode<IntPtrT> result_size = LoadMapInstanceSizeInWords(result_map.value());
-#ifdef DEBUG
-    TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
-    CSA_DCHECK(this, IntPtrGreaterThanOrEqual(source_size, result_size));
-#endif
     TNode<IntPtrT> field_offset_difference =
         TimesTaggedSize(IntPtrSub(result_start, source_start));
+#ifdef DEBUG
+    TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
+    CSA_DCHECK(this, IntPtrGreaterThanOrEqual(
+                         IntPtrSub(source_size, field_offset_difference),
+                         result_size));
+#endif
 
     // Just copy the fields as raw data (pretending that there are no mutable
     // HeapNumbers). This doesn't need write barriers.
