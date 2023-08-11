@@ -2330,7 +2330,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
-  bool is_isolate_in_background_ = false;
+  std::atomic<bool> is_isolate_in_background_ = false;
 
   // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.
