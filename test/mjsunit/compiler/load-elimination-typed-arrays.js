@@ -4,6 +4,13 @@
 
 // Flags: --allow-natives-syntax --turboshaft-load-elimination
 
+function is_big_endian() {
+  const array = new Uint32Array(1);
+  array[0] = 5;
+  const view = new Uint8Array(array.buffer);
+  return view[0] != 5;
+}
+
 // Test with 2 arrays aliasing because of different kind sizes.
 function f(u32s, u8s) {
   u32s[0] = 0xffffffff;
@@ -17,10 +24,11 @@ function f(u32s, u8s) {
 const u32s = Uint32Array.of(3, 8);
 const u8s = new Uint8Array(u32s.buffer);
 
+const r = is_big_endian() ? 0xff00ffff : 0xffff00ff;
 %PrepareFunctionForOptimization(f);
-assertEquals(f(u32s, u8s), 0xffff00ff);
+assertEquals(f(u32s, u8s), r);
 %OptimizeFunctionOnNextCall(f);
-assertEquals(f(u32s, u8s), 0xffff00ff);
+assertEquals(f(u32s, u8s), r);
 
 
 // Test with 2 arrays aliasing because their bases have different offsets.
