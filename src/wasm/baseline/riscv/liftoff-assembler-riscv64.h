@@ -482,8 +482,11 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
       sync();
       return;
     case LoadType::kI32Load:
-    case LoadType::kI64Load32U:
       lw(dst.gp(), src_reg, 0);
+      sync();
+      return;
+    case LoadType::kI64Load32U:
+      lwu(dst.gp(), src_reg, 0);
       sync();
       return;
     case LoadType::kI64Load:

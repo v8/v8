@@ -371,8 +371,6 @@
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
   # Some wasm functionality is not implemented yet.
-  'test-run-wasm-atomics64/*': [SKIP],
-  'test-run-wasm-atomics/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],

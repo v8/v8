@@ -1942,6 +1942,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
     case kAtomicLoadWord32:
+#if V8_TARGET_ARCH_RISCV64
+      if (AtomicWidthField::decode(opcode) == AtomicWidth::kWord64) {
+        ASSEMBLE_ATOMIC_LOAD_INTEGER(Lwu);
+        break;
+      }
+#endif  // V8_TARGET_ARCH_RISCV64
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
 #if V8_TARGET_ARCH_RISCV64
