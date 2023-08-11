@@ -3190,12 +3190,18 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
   // the same binary layout.
   if (source_map->instance_type() != JS_OBJECT_TYPE ||
       target_map->instance_type() != JS_OBJECT_TYPE ||
-      source_map->instance_size() < target_map->instance_size() ||
       !source_map->OnlyHasSimpleProperties() ||
       !target_map->OnlyHasSimpleProperties()) {
     return false;
   }
-  if (target_map->instance_size() > source_map->instance_size()) {
+  // Check that the source inobject properties are big enough to initialize all
+  // target slots, but not too big to fit.
+  int source_inobj_properties = source_map->GetInObjectProperties();
+  int target_inobj_properties = target_map->GetInObjectProperties();
+  int source_used_inobj_properties =
+      source_inobj_properties - source_map->UnusedPropertyFields();
+  if (source_inobj_properties < target_inobj_properties ||
+      source_used_inobj_properties > target_inobj_properties) {
     return false;
   }
   // TODO(olivf, chrome:1204540) The clone ic blindly copies the bytes from
@@ -3314,6 +3320,11 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
             if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
                                                     isolate)) {
               DCHECK(result_map->OnlyHasSimpleProperties());
+              DCHECK_LE(source_map->GetInObjectProperties() -
+                            source_map->UnusedInObjectProperties(),
+                        result_map->GetInObjectProperties());
+              DCHECK_GE(source_map->GetInObjectProperties(),
+                        result_map->GetInObjectProperties());
               nexus.ConfigureCloneObject(source_map,
                                          MaybeObjectHandle(result_map));
             } else {
