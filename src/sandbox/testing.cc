@@ -382,7 +382,8 @@ void PrintToStderr(const char* output) {
 // outside of the sandbox address space. If inside, the signal is ignored and
 // the process terminated normally, in the latter case the original signal
 // handler is restored and the signal delivered again.
-struct sigaction g_old_sigbus_handler, g_old_sigsegv_handler;
+struct sigaction g_old_sigabrt_handler, g_old_sigtrap_handler,
+    g_old_sigbus_handler, g_old_sigsegv_handler;
 void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -469,13 +470,19 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   }
 
   // Otherwise it's a sandbox violation, so restore the original signal
-  // handler, then return from this handler. The faulting instruction will be
+  // handlers, then return from this handler. The faulting instruction will be
   // re-executed and will again trigger the access violation, but now the
   // signal will be handled by the original signal handler.
+  //
+  // It's important that we restore all signal handlers here. For example, if
+  // we forward a SIGSEGV to Asan's signal handler, that signal handler may
+  // terminate the process with SIGABRT, which we must then *not* ignore.
   //
   // Should any of the sigaction calls below ever fail, the default signal
   // handler will be invoked (due to SA_RESETHAND) and will terminate the
   // process, so there's no need to attempt to handle that condition.
+  sigaction(SIGABRT, &g_old_sigabrt_handler, nullptr);
+  sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
   sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
   sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
 }
@@ -488,6 +495,9 @@ void SandboxTesting::InstallSandboxCrashFilter() {
 #ifdef V8_OS_LINUX
   // Register an alternate stack for signal delivery so that signal handlers
   // can run properly even if for example the stack pointer has been corrupted.
+  // Note that the alternate stack is currently only registered for the main
+  // thread. Stack pointer corruption on background threads may therefore still
+  // cause the signal handler to crash.
   void* alternate_stack = malloc(SIGSTKSZ);
   CHECK_NE(alternate_stack, nullptr);
   stack_t signalstack = {
@@ -504,8 +514,8 @@ void SandboxTesting::InstallSandboxCrashFilter() {
   sigemptyset(&action.sa_mask);
 
   bool success = true;
-  success &= (sigaction(SIGABRT, &action, nullptr) == 0);
-  success &= (sigaction(SIGTRAP, &action, nullptr) == 0);
+  success &= (sigaction(SIGABRT, &action, &g_old_sigabrt_handler) == 0);
+  success &= (sigaction(SIGTRAP, &action, &g_old_sigtrap_handler) == 0);
   success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
