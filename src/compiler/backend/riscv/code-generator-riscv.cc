@@ -2381,34 +2381,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 kSimd128ScratchReg2);
       break;
     }
-    case kRiscvS128And: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvS128Or: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvS128Xor: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vxor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
     case kRiscvS128Not: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvS128AndNot: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vnot_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
-      __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 kSimd128ScratchReg);
       break;
     }
     case kRiscvS128Const: {
@@ -3028,40 +3003,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  kScratchReg, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Ne: {
-      __ VU.set(kScratchReg, E64, m1);
-      __ vmfne_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
-    case kRiscvF64x2Eq: {
-      __ VU.set(kScratchReg, E64, m1);
-      __ vmfeq_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
     case kRiscvF64x2ReplaceLane: {
       __ VU.set(kScratchReg, E64, m1);
       __ li(kScratchReg, 0x1 << i.InputInt8(1));
       __ vmv_sx(v0, kScratchReg);
       __ vfmerge_vf(i.OutputSimd128Register(), i.InputSingleRegister(2),
                     i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF64x2Lt: {
-      __ VU.set(kScratchReg, E64, m1);
-      __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
-    case kRiscvF64x2Le: {
-      __ VU.set(kScratchReg, E64, m1);
-      __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
       break;
     }
     case kRiscvF64x2Pmax: {
@@ -3078,39 +3025,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputSimd128Register(0));
       break;
     }
-#if V8_TARGET_ARCH_RISCV64
-    case kRiscvF64x2Max: {
-      __ VU.set(kScratchReg, E64, m1);
-      const int64_t kNaN = 0x7ff8000000000000L;
-      __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vmfeq_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(1));
-      __ vand_vv(v0, v0, kSimd128ScratchReg);
-      __ li(kScratchReg, kNaN);
-      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
-      __ vfmax_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(0), Mask);
-      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-#elif V8_TARGET_ARCH_RISCV32
-    case kRiscvF64x2Max: {
-      __ VU.set(kScratchReg, E64, m1);
-      const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-      __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vmfeq_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(1));
-      __ vand_vv(v0, v0, kSimd128ScratchReg);
-      __ li(kScratchReg, kNaN);
-      __ li(kScratchReg2, kNaNShift);
-      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
-      __ vsll_vx(kSimd128ScratchReg, kSimd128ScratchReg, kScratchReg2);
-      __ vfmax_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(0), Mask);
-      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-#endif
     case kRiscvF64x2ExtractLane: {
       __ VU.set(kScratchReg, E64, m1);
       if (is_uint5(i.InputInt8(1))) {
@@ -3224,20 +3138,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kRiscvF32x4Eq: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmfeq_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
-    case kRiscvF32x4Ne: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmfne_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
     case kRiscvF32x4ReplaceLane: {
       __ VU.set(kScratchReg, E32, m1);
       __ li(kScratchReg, 0x1 << i.InputInt8(1));
@@ -3245,20 +3145,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fmv_x_w(kScratchReg, i.InputSingleRegister(2));
       __ vmerge_vx(i.OutputSimd128Register(), kScratchReg,
                    i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4Lt: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
-      break;
-    }
-    case kRiscvF32x4Le: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmfle_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
-      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
       break;
     }
     case kRiscvF32x4Pmax: {
@@ -3278,20 +3164,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvF32x4Sqrt: {
       __ VU.set(kScratchReg, E32, m1);
       __ vfsqrt_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4Max: {
-      __ VU.set(kScratchReg, E32, m1);
-      const int32_t kNaN = 0x7FC00000;
-      __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vmfeq_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(1));
-      __ vand_vv(v0, v0, kSimd128ScratchReg);
-      __ li(kScratchReg, kNaN);
-      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
-      __ vfmax_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                  i.InputSimd128Register(0), Mask);
-      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     case kRiscvF32x4Qfma: {
@@ -3548,7 +3420,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvVmvVx: {
       __ VU.set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
-      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      } else {
+        __ vmv_vi(i.OutputSimd128Register(), i.InputInt8(0));
+      }
       break;
     }
     case kRiscvVmvVv: {
@@ -3702,9 +3578,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       break;
     }
+    case kRiscvVmfneVv: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vmfne_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvVmfltVv: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vmflt_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvVmfleVv: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vmfle_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
     case kRiscvVfminVv: {
       __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       __ vfmin_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), MaskType(i.InputInt8(4)));
+      break;
+    }
+    case kRiscvVfmaxVv: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vfmax_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), MaskType(i.InputInt8(4)));
       break;
     }
@@ -3712,6 +3612,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
       __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvVorVv: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvVxorVv: {
+      (__ VU).set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      __ vxor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvVnotVv: {
+      (__ VU).set(kScratchReg, i.InputInt8(1), i.InputInt8(2));
+      __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvVmergeVx: {
+      __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ vmerge_vx(i.OutputSimd128Register(), i.InputRegister(0),
+                     i.InputSimd128Register(1));
+      } else {
+        DCHECK(is_int5(i.InputInt32(0)));
+        __ vmerge_vi(i.OutputSimd128Register(), i.InputInt8(0),
+                     i.InputSimd128Register(1));
+      }
       break;
     }
     default:
