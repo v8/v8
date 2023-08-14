@@ -1040,7 +1040,8 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   split_map->ReplaceDescriptors(isolate_, *new_descriptors);
 
   // If the old descriptors had an enum cache, make sure the new ones do too.
-  if (old_descriptors_->enum_cache()->keys()->length() > 0) {
+  if (old_descriptors_->enum_cache()->keys()->length() > 0 &&
+      new_map->NumberOfEnumerableProperties() > 0) {
     FastKeyAccumulator::InitializeFastPropertyEnumCache(
         isolate_, new_map, new_map->NumberOfEnumerableProperties());
   }
