@@ -1635,105 +1635,132 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    this->Emit(kMips64TruncLS, output_count, outputs, 1, inputs);
   }
-
-  this->Emit(kMips64TruncLS, output_count, outputs, 1, inputs);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    Emit(kMips64TruncLD, output_count, outputs, 1, inputs);
   }
-
-  Emit(kMips64TruncLD, output_count, outputs, 1, inputs);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
-    Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    Emit(kMips64TruncUlS, output_count, outputs, 1, inputs);
   }
-
-  Emit(kMips64TruncUlS, output_count, outputs, 1, inputs);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
-    Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
 
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    Emit(kMips64TruncUlD, output_count, outputs, 1, inputs);
   }
-
-  Emit(kMips64TruncUlD, output_count, outputs, 1, inputs);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand temps[] = {g.TempDoubleRegister()};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    Emit(kMips64TruncWD, output_count, outputs, 1, inputs, 1, temps);
   }
-
-  Emit(kMips64TruncWD, output_count, outputs, 1, inputs, 1, temps);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
-    Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+    InstructionOperand temps[] = {g.TempDoubleRegister()};
+    InstructionOperand outputs[2];
+    size_t output_count = 0;
+    outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
+    Node* success_output = NodeProperties::FindProjection(node, 1);
+    if (success_output) {
+      outputs[output_count++] = g.DefineAsRegister(success_output);
+    }
+
+    Emit(kMips64TruncUwD, output_count, outputs, 1, inputs, 1, temps);
   }
-
-  Emit(kMips64TruncUwD, output_count, outputs, 1, inputs, 1, temps);
 }
 
 template <typename Adapter>
