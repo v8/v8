@@ -572,16 +572,21 @@ bool LiveRange::CanCover(LifetimePosition position) const {
 
 bool LiveRange::Covers(LifetimePosition position) {
   if (!CanCover(position)) return false;
-  for (UseIntervalVector::iterator interval =
-           FirstSearchIntervalForPosition(position);
-       interval != intervals().end(); ++interval) {
+  bool covers = false;
+  UseIntervalVector::iterator interval =
+      FirstSearchIntervalForPosition(position);
+  while (interval != intervals().end() && interval->start() <= position) {
+    // The list of `UseInterval`s shall be sorted.
     DCHECK(interval + 1 == intervals().end() ||
            interval[1].start() >= interval->start());
-    AdvanceLastProcessedMarker(interval, position);
-    if (interval->Contains(position)) return true;
-    if (interval->start() > position) return false;
+    if (interval->Contains(position)) {
+      covers = true;
+      break;
+    }
+    ++interval;
   }
-  return false;
+  AdvanceLastProcessedMarker(interval, position);
+  return covers;
 }
 
 LifetimePosition LiveRange::NextEndAfter(LifetimePosition position) {
@@ -3221,7 +3226,9 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
   struct Vote {
     size_t count;
     int used_registers[RegisterConfiguration::kMaxRegisters];
-    Vote(int reg) : count(1), used_registers{0} { used_registers[reg] = 1; }
+    explicit Vote(int reg) : count(1), used_registers{0} {
+      used_registers[reg] = 1;
+    }
   };
   struct TopLevelLiveRangeComparator {
     bool operator()(const TopLevelLiveRange* lhs,
