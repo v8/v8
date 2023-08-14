@@ -1229,6 +1229,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0,
                                    i::wasm::max_table_init_entries())) {
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
   // The descriptor's 'maximum'.
@@ -1238,6 +1239,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                   v8_str(isolate, "maximum"), &has_maximum,
                                   &maximum, initial,
                                   std::numeric_limits<uint32_t>::max())) {
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
 
@@ -1257,6 +1259,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, table_obj,
                          Utils::OpenHandle(*info.This()))) {
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
 
@@ -1318,12 +1321,19 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto memory_flag = i::WasmMemoryFlag::kWasmMemory32;
   auto max_pages = i::wasm::kSpecMaxMemory32Pages;
 
-  v8::MaybeLocal<v8::Value> index_maybe_value =
-      descriptor->Get(context, v8_str(isolate, "index"));
   v8::Local<v8::Value> index_value;
-  v8::Local<v8::String> index;
-  if (index_maybe_value.ToLocal(&index_value) && !index_value->IsUndefined() &&
-      index_value->ToString(context).ToLocal(&index)) {
+  if (!descriptor->Get(context, v8_str(isolate, "index"))
+           .ToLocal(&index_value)) {
+    DCHECK(i_isolate->has_pending_exception());
+    return;
+  }
+
+  if (!index_value->IsUndefined()) {
+    v8::Local<v8::String> index;
+    if (!index_value->ToString(context).ToLocal(&index)) {
+      DCHECK(i_isolate->has_scheduled_exception());
+      return;
+    }
     if (index->StringEquals(v8_str(isolate, "u64"))) {
       memory_flag = i::WasmMemoryFlag::kWasmMemory64;
       max_pages = i::wasm::kSpecMaxMemory64Pages;
@@ -1336,6 +1346,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0, max_pages)) {
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
   // The descriptor's 'maximum'.
@@ -1343,21 +1354,19 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
                                   initial, max_pages)) {
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
 
-  auto shared = i::SharedFlag::kNotShared;
-  // Shared property of descriptor
-  Local<String> shared_key = v8_str(isolate, "shared");
-  v8::MaybeLocal<v8::Value> maybe_value = descriptor->Get(context, shared_key);
+  // Shared property of descriptor.
   v8::Local<v8::Value> value;
-  if (maybe_value.ToLocal(&value)) {
-    shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
-                                          : i::SharedFlag::kNotShared;
-  } else {
+  if (!descriptor->Get(context, v8_str(isolate, "shared")).ToLocal(&value)) {
     DCHECK(i_isolate->has_scheduled_exception());
     return;
   }
+
+  auto shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
+                                             : i::SharedFlag::kNotShared;
 
   // Throw TypeError if shared is true, and the descriptor has no "maximum"
   if (shared == i::SharedFlag::kShared && maximum == -1) {
@@ -1382,6 +1391,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, memory_obj,
                          Utils::OpenHandle(*info.This()))) {
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
 
@@ -1743,6 +1753,7 @@ void WebAssemblySuspender(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, suspender,
                          Utils::OpenHandle(*info.This()))) {
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
   info.GetReturnValue().Set(Utils::ToLocal(suspender));
