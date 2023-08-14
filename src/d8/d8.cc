@@ -3045,10 +3045,21 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
         IMMEDIATE_CRASH();
         break;
       case 1:
-        CHECK(0);
+        CHECK(false);
+        break;
+      case 2:
+        DCHECK(false);
         break;
       default:
-        DCHECK(false);
+        // Access an invalid address.
+        // We want to use an "interesting" address for the access (instead of
+        // e.g. nullptr). In the (unlikely) case that the address is actually
+        // mapped, simply increment the pointer until it crashes.
+        char* ptr = reinterpret_cast<char*>(0x414141414141ull);
+        for (int i = 0; i < 1024; i++) {
+          *ptr = 'A';
+          ptr += 1 * i::GB;
+        }
         break;
     }
   } else if (strcmp(*operation, "FUZZILLI_PRINT") == 0) {
