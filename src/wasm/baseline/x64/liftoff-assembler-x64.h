@@ -4254,8 +4254,11 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
     if (arg.is_reg()) {
       liftoff::StoreToStack(this, dst, arg.reg(), arg.kind());
     } else if (arg.is_const()) {
-      DCHECK_EQ(kI32, arg.kind());
-      movl(dst, Immediate(arg.i32_const()));
+      if (arg.kind() == kI32) {
+        movl(dst, Immediate(arg.i32_const()));
+      } else {
+        MacroAssembler::Move(dst, static_cast<int64_t>(arg.i32_const()));
+      }
     } else if (value_kind_size(arg.kind()) == 4) {
       movl(kScratchRegister, liftoff::GetStackSlot(arg.offset()));
       movl(dst, kScratchRegister);

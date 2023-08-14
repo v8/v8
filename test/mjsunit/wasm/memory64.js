@@ -377,6 +377,52 @@ function allowOOM(fn) {
   assertTraps(kTrapMemOutOfBounds, () => fill(1n << 63n, 0, 1n));
 })();
 
+(function TestBulkMemoryConstOperations() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const kMemSizeInPages = 10;
+  builder.addMemory64(kMemSizeInPages, kMemSizeInPages);
+  const kSegmentSize = 1024;
+  // Build a data segment with values [0, kSegmentSize-1].
+  const segment = Array.from({length: kSegmentSize}, (_, idx) => idx)
+  builder.addPassiveDataSegment(segment);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction('fill', makeSig([kWasmI32, kWasmI64], []))
+      .addBody([
+        kExprI64Const, 15,                  // i64.const 15
+        kExprLocalGet, 0,                   // local.get 0 (value)
+        kExprLocalGet, 1,                   // local.get 1 (size)
+        kNumericPrefix, kExprMemoryFill, 0  // memory.fill mem=0
+      ])
+      .exportFunc();
+
+  builder.addFunction('init', makeSig([kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprI64Const, 5,                      // i64.const 5
+        kExprLocalGet, 0,                      // local.get 0 (offset)
+        kExprLocalGet, 1,                      // local.get 1 (size)
+        kNumericPrefix, kExprMemoryInit, 0, 0  // memory.init seg=0 mem=0
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+  let fill = instance.exports.fill;
+  let init = instance.exports.init;
+  // {memory(offset,size)} extracts the memory at [offset, offset+size)] into an
+  // Array.
+  let memory = (offset, size) => Array.from(new Uint8Array(
+      instance.exports.memory.buffer.slice(offset, offset + size)));
+
+  // Init memory[5..7] with [10..12].
+  init(10, 3);
+  assertEquals([0, 0, 10, 11, 12, 0, 0], memory(3, 7));
+
+  // Fill memory[15..17] with 3s.
+  fill(3, 3n);
+  assertEquals([0, 3, 3, 3, 0], memory(14, 5));
+})();
+
 (function TestMemory64SharedBasic() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

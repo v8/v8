@@ -3494,12 +3494,20 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
     if (arg.is_reg()) {
       src = liftoff::GetRegFromType(arg.reg(), arg.kind());
     } else if (arg.is_const()) {
-      DCHECK_EQ(kI32, arg.kind());
-      if (arg.i32_const() == 0) {
-        src = wzr;
+      if (arg.kind() == kI32) {
+        if (arg.i32_const() == 0) {
+          src = wzr;
+        } else {
+          src = temps.AcquireW();
+          Mov(src.W(), arg.i32_const());
+        }
       } else {
-        src = temps.AcquireW();
-        Mov(src.W(), arg.i32_const());
+        if (arg.i32_const() == 0) {
+          src = xzr;
+        } else {
+          src = temps.AcquireX();
+          Mov(src.X(), static_cast<int64_t>(arg.i32_const()));
+        }
       }
     } else {
       src = liftoff::AcquireByType(&temps, arg.kind());
