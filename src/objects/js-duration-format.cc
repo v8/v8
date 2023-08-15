@@ -716,11 +716,11 @@ UListFormatterWidth StyleToWidth(JSDurationFormat::Style style) {
   switch (style) {
     case JSDurationFormat::Style::kLong:
       return ULISTFMT_WIDTH_WIDE;
-    case JSDurationFormat::Style::kShort:
-      return ULISTFMT_WIDTH_SHORT;
     case JSDurationFormat::Style::kNarrow:
-    case JSDurationFormat::Style::kDigital:
       return ULISTFMT_WIDTH_NARROW;
+    case JSDurationFormat::Style::kShort:
+    case JSDurationFormat::Style::kDigital:
+      return ULISTFMT_WIDTH_SHORT;
   }
   UNREACHABLE();
 }
