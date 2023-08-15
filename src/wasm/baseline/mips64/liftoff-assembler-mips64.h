@@ -3665,14 +3665,23 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
     if (arg.is_reg()) {
       liftoff::Store(this, sp, arg_offset, arg.reg(), arg.kind());
     } else if (arg.is_const()) {
-      DCHECK_EQ(kI32, arg.kind());
-      if (arg.i32_const() == 0) {
-        Sw(zero_reg, MemOperand(sp, arg_offset));
+      if (arg.kind() == kI32) {
+        if (arg.i32_const() == 0) {
+          Sw(zero_reg, MemOperand(sp, arg_offset));
+        } else {
+          UseScratchRegisterScope temps(this);
+          Register src = temps.Acquire();
+          li(src, arg.i32_const());
+          Sw(src, MemOperand(sp, arg_offset));
+        }
       } else {
-        UseScratchRegisterScope temps(this);
-        Register src = temps.Acquire();
-        li(src, arg.i32_const());
-        Sw(src, MemOperand(sp, arg_offset));
+        if (arg.i32_const() == 0) {
+          Usd(zero_reg, MemOperand(sp, arg_offset));
+        } else {
+          Register src = kScratchReg;
+          li(src, static_cast<int64_t>(arg.i32_const()));
+          Usd(src, MemOperand(sp, arg_offset));
+        }
       }
     } else if (value_kind_size(arg.kind()) == 4) {
       // Stack to stack move.
