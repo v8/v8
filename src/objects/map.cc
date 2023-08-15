@@ -2333,13 +2333,31 @@ void Map::StartInobjectSlackTracking() {
 
 Handle<Map> Map::TransitionToPrototype(Isolate* isolate, Handle<Map> map,
                                        Handle<HeapObject> prototype) {
-  Handle<Map> new_map =
-      TransitionsAccessor::GetPrototypeTransition(isolate, map, prototype);
+  Handle<Map> new_map = TransitionsAccessor::GetPrototypeTransition(
+      isolate, map, prototype, map->new_target_is_base());
   if (new_map.is_null()) {
     new_map = Copy(isolate, map, "TransitionToPrototype");
     TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
                                                 new_map);
-    Map::SetPrototype(isolate, new_map, prototype);
+    if (*prototype != map->prototype()) {
+      Map::SetPrototype(isolate, new_map, prototype);
+    }
+  }
+  return new_map;
+}
+
+Handle<Map> Map::TransitionToDerivedMap(Isolate* isolate, Handle<Map> map,
+                                        Handle<HeapObject> prototype) {
+  Handle<Map> new_map = TransitionsAccessor::GetPrototypeTransition(
+      isolate, map, prototype, /* new_target_is_base */ false);
+  if (new_map.is_null()) {
+    new_map = CopyInitialMap(isolate, map);
+    TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
+                                                new_map);
+    if (*prototype != map->prototype()) {
+      Map::SetPrototype(isolate, new_map, prototype);
+    }
+    new_map->set_new_target_is_base(false);
   }
   return new_map;
 }

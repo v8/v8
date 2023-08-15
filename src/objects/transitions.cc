@@ -441,8 +441,10 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
 
 // static
 Handle<Map> TransitionsAccessor::GetPrototypeTransition(
-    Isolate* isolate, Handle<Map> map, Handle<Object> prototype) {
+    Isolate* isolate, Handle<Map> map, Handle<Object> prototype_handle,
+    bool new_target_is_base) {
   DisallowGarbageCollection no_gc;
+  Object prototype = *prototype_handle;
   WeakFixedArray cache = GetPrototypeTransitions(isolate, map);
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
@@ -452,7 +454,8 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
     HeapObject heap_object;
     if (target->GetHeapObjectIfWeak(&heap_object)) {
       Map target_map = Map::cast(heap_object);
-      if (target_map->prototype() == *prototype) {
+      if (target_map->prototype() == prototype &&
+          target_map->new_target_is_base() == new_target_is_base) {
         return handle(target_map, isolate);
       }
     }
