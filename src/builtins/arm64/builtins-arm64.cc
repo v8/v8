@@ -1889,11 +1889,6 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     __ bind(&okay);
   }
 
-  // Set up LR to point to code below, so we return there after we're done
-  // executing the function.
-  Label return_from_bytecode_dispatch;
-  __ Adr(lr, &return_from_bytecode_dispatch);
-
   // Dispatch to the target bytecode.
   __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
@@ -1905,10 +1900,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     temps.Exclude(x17);
     __ Mov(x17, kJavaScriptCallCodeStartRegister);
-    __ Jump(x17);
+    __ Call(x17);
   }
-
-  __ Bind(&return_from_bytecode_dispatch);
 
   // We return here after having executed the function in the interpreter.
   // Now jump to the correct point in the interpreter entry trampoline.
