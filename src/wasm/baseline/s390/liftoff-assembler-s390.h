@@ -3023,9 +3023,13 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
           UNREACHABLE();
       }
     } else if (arg.is_const()) {
-      DCHECK_EQ(kI32, arg.kind());
-      mov(r0, Operand(arg.i32_const()));
-      StoreU32(r0, dst);
+      if (arg.kind() == kI32) {
+        mov(r0, Operand(arg.i32_const()));
+        StoreU32(r0, dst);
+      } else {
+        mov(r0, Operand(static_cast<int64_t>(arg.i32_const())));
+        StoreU64(r0, dst);
+      }
     } else if (value_kind_size(arg.kind()) == 4) {
       MemOperand src = liftoff::GetStackSlot(arg.offset());
       LoadU32(r0, src);
