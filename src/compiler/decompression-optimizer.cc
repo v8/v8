@@ -177,15 +177,25 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // The deopt code knows how to handle Compressed inputs, both
     // MachineRepresentation kCompressed values and CompressedHeapConstants.
     case IrOpcode::kFrameState:  // Fall through.
-    // TODO(v8:7703): kStateValues doesn't appear in any test linked to Loads or
-    // HeapConstants. Do we care about this case?
-    case IrOpcode::kStateValues:  // Fall through.
-    case IrOpcode::kTypedStateValues:
+    case IrOpcode::kStateValues:
       for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+        // TODO(chromium:1470602): We assume that kStateValues has only tagged
+        // inputs so it is safe to mark them as kOnly32BitsObserved.
+        DCHECK(!IsWord64BitwiseOp(node->InputAt(i)));
         MaybeMarkAndQueueForRevisit(node->InputAt(i),
                                     State::kOnly32BitsObserved);
       }
       break;
+    case IrOpcode::kTypedStateValues: {
+      const ZoneVector<MachineType>* machine_types = MachineTypesOf(node->op());
+      for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+        State observed = IsAnyTagged(machine_types->at(i).representation())
+                             ? State::kOnly32BitsObserved
+                             : State::kEverythingObserved;
+        MaybeMarkAndQueueForRevisit(node->InputAt(i), observed);
+      }
+      break;
+    }
     case IrOpcode::kPhi: {
       // Replicate the phi's state for its inputs.
       State curr_state = states_.Get(node);
