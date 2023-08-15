@@ -161,7 +161,7 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
 
-#if V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
+#if V8_OS_LINUX && V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
   // This is advisory, so we ignore errors.
   madvise(result, size, MADV_DONTFORK);
 #endif
