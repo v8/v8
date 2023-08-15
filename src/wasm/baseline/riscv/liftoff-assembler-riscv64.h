@@ -1674,14 +1674,23 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
           UNREACHABLE();
       }
     } else if (arg.is_const()) {
-      DCHECK_EQ(kI32, arg.kind());
-      if (arg.i32_const() == 0) {
-        src = zero_reg;
+      if (arg.kind() == kI32) {
+        if (arg.i32_const() == 0) {
+          Sw(zero_reg, dst);
+        } else {
+          src = temps.Acquire();
+          li(src, arg.i32_const());
+          Sw(src, dst);
+        }
       } else {
-        src = temps.Acquire();
-        li(src, arg.i32_const());
+        if (arg.i32_const() == 0) {
+          StoreWord(zero_reg, dst);
+        } else {
+          src = temps.Acquire();
+          li(src, static_cast<int64_t>(arg.i32_const()));
+          StoreWord(src, dst);
+        }
       }
-      StoreWord(src, dst);
     } else if (value_kind_size(arg.kind()) == 4) {
       MemOperand src = liftoff::GetStackSlot(arg.offset());
       auto scratch = temps.Acquire();
