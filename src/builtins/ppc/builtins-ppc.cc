@@ -178,8 +178,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ LoadTaggedField(feedback_vector,
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset),
                      r0);
-  __ LoadTaggedField(feedback_vector,
-                     FieldMemOperand(feedback_vector, Cell::kValueOffset), r0);
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset), r0);
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -1205,8 +1206,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadTaggedField(feedback_vector,
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset),
                      r0);
-  __ LoadTaggedField(feedback_vector,
-                     FieldMemOperand(feedback_vector, Cell::kValueOffset), r0);
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset), r0);
   __ AssertFeedbackVector(feedback_vector, r11);
 
   // Check for an tiering state.
@@ -1391,8 +1393,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadTaggedField(feedback_vector,
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset),
                      r0);
-  __ LoadTaggedField(feedback_vector,
-                     FieldMemOperand(feedback_vector, Cell::kValueOffset), r0);
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset), r0);
 
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
@@ -1587,9 +1590,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ LoadTaggedField(
         feedback_vector,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset), r0);
-    __ LoadTaggedField(feedback_vector,
-                       FieldMemOperand(feedback_vector, Cell::kValueOffset),
-                       r0);
+    __ LoadTaggedField(
+        feedback_vector,
+        FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset), r0);
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to

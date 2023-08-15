@@ -1036,7 +1036,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, Cell::kValueOffset));
+                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
 
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
@@ -1219,7 +1219,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ LoadTaggedField(feedback_cell,
                        FieldOperand(closure, JSFunction::kFeedbackCellOffset));
     __ LoadTaggedField(feedback_vector,
-                       FieldOperand(feedback_cell, Cell::kValueOffset));
+                       FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -1728,7 +1728,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, Cell::kValueOffset));
+                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector);
 
   // Check the tiering state.
@@ -5687,7 +5687,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, Cell::kValueOffset));
+                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

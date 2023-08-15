@@ -911,7 +911,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // frame.
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ mov(feedback_vector,
+         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
   __ mov(eax, FieldOperand(feedback_vector, HeapObject::kMapOffset));
   __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
   __ j(not_equal, &push_stack_frame);
@@ -927,7 +928,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // TODO(jgruber): Don't clobber it above.
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ mov(feedback_vector,
+         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
 
   {
     static constexpr Register scratch = eax;
@@ -1126,7 +1128,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load the feedback vector from the closure.
     __ mov(feedback_vector,
            FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+    __ mov(feedback_vector,
+           FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -1753,7 +1756,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       BaselineOutOfLinePrologueDescriptor::kClosure);
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ mov(feedback_vector,
+         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector, scratch);
 
   // Load the optimization state from the feedback vector and re-use the
@@ -4566,7 +4570,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register feedback_vector = ecx;
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ mov(feedback_vector,
+         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

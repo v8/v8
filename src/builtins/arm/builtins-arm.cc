@@ -943,7 +943,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register feedback_vector = temps.Acquire();
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ ldr(feedback_vector,
+         FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector);
 
   // Check the tiering state.
@@ -1131,7 +1132,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Register feedback_vector = r2;
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ ldr(feedback_vector,
+         FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
 
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
@@ -1313,7 +1315,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ ldr(feedback_vector,
            FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
     __ ldr(feedback_vector,
-           FieldMemOperand(feedback_vector, Cell::kValueOffset));
+           FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -3964,7 +3966,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register feedback_vector = r2;
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ ldr(feedback_vector,
+         FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
