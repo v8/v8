@@ -590,7 +590,7 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("rmdir() takes one or two arguments");
+    info.GetIsolate()->ThrowError("rmdir() takes one arguments");
     return;
   }
   String::Utf8Value directory(info.GetIsolate(), info[0]);
