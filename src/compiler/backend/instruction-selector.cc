@@ -4868,6 +4868,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       return VisitDeoptimizeIf(node);
     case Opcode::kCatchBlockBegin:
+      MarkAsTagged(node);
       return VisitIfException(node);
     case Opcode::kRetain:
       return VisitRetain(node);
