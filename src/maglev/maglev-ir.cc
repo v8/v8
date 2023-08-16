@@ -1628,7 +1628,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
         save_registers, map_checks, map_compare, this);
     // If the jump to deferred code was not taken, the map was equal to the
     // last map.
-    __ Jump(*done);
   }  // End of the `has_migration_targets` case.
   __ bind(*done);
 }
@@ -3590,7 +3589,7 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
           __ Move(result_reg, kReturnRegister0);
         }
         __ EmitEagerDeoptIfSmi(node, result_reg,
-                        DeoptimizeReason::kCouldNotGrowElements);
+                               DeoptimizeReason::kCouldNotGrowElements);
         __ Jump(*done);
       },
       done, object, index, elements, this);
