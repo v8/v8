@@ -392,6 +392,28 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
   }
 }
 
+const char* ToString(SerializedCodeSanityCheckResult result) {
+  switch (result) {
+    case SerializedCodeSanityCheckResult::kSuccess:
+      return "success";
+    case SerializedCodeSanityCheckResult::kMagicNumberMismatch:
+      return "magic number mismatch";
+    case SerializedCodeSanityCheckResult::kVersionMismatch:
+      return "version mismatch";
+    case SerializedCodeSanityCheckResult::kSourceMismatch:
+      return "source mismatch";
+    case SerializedCodeSanityCheckResult::kFlagsMismatch:
+      return "flags mismatch";
+    case SerializedCodeSanityCheckResult::kChecksumMismatch:
+      return "checksum mismatch";
+    case SerializedCodeSanityCheckResult::kInvalidHeader:
+      return "invalid header";
+    case SerializedCodeSanityCheckResult::kLengthMismatch:
+      return "length mismatch";
+    case SerializedCodeSanityCheckResult::kReadOnlySnapshotChecksumMismatch:
+      return "read-only snapshot checksum mismatch";
+  }
+}
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
@@ -421,7 +443,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
-      PrintF("[Cached code failed check]\n");
+      PrintF("[Cached code failed check: %s]\n", ToString(sanity_check_result));
     }
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
@@ -549,7 +571,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
                    sanity_check_result ==
                        SerializedCodeSanityCheckResult::kSourceMismatch);
     if (v8_flags.profile_deserialization) {
-      PrintF("[Cached code failed check]\n");
+      PrintF("[Cached code failed check: %s]\n", ToString(sanity_check_result));
     }
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
