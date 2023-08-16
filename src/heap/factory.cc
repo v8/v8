@@ -157,15 +157,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     {
       DisallowGarbageCollection no_gc;
-      Tagged<InstructionStream> raw_istream = *istream;
-      CodePageMemoryModificationScope memory_modification_scope(raw_istream);
-      int body_size = code_desc_.body_size();
-      ThreadIsolation::RegisterInstructionStreamAllocation(
-          raw_istream.address(), InstructionStream::SizeFor(body_size));
-      raw_istream->set_body_size(body_size);
-      raw_istream->initialize_code_to_smi_zero(kReleaseStore);
-      raw_istream->set_relocation_info(*reloc_info);
-      raw_istream->clear_padding();
+      CHECK_GT(code_desc_.body_size(), 0);
+      istream->Initialize(code_desc_.body_size(), *reloc_info);
     }
 
     NewCodeOptions new_code_options = {

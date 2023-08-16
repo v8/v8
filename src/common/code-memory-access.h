@@ -71,6 +71,77 @@ class CodeSpaceWriteScope;
 
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
+// This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
+// ("Apple M1"/Apple Silicon) or Intel PKU (aka. memory protection keys)
+// with respective low-level semantics.
+//
+// The semantics on MacOS on ARM64 is the following:
+// The scope switches permissions between writable and executable for all the
+// pages allocated with RWX permissions. Only current thread is affected.
+// This achieves "real" W^X and it's fast (see pthread_jit_write_protect_np()
+// for details).
+// By default it is assumed that the state is executable.
+// It's also assumed that the process has the "com.apple.security.cs.allow-jit"
+// entitlement.
+//
+// The semantics on Intel with PKU support is the following:
+// When Intel PKU is available, the scope switches the protection key's
+// permission between writable and not writable. The executable permission
+// cannot be retracted with PKU. That is, this "only" achieves write
+// protection, but is similarly thread-local and fast.
+//
+// On other platforms the scope is a no-op and thus it's allowed to be used.
+//
+// The scope is reentrant and thread safe.
+class V8_NODISCARD RwxMemoryWriteScope {
+ public:
+  // The comment argument is used only for ensuring that explanation about why
+  // the scope is needed is given at particular use case.
+  V8_INLINE explicit RwxMemoryWriteScope(const char* comment);
+  V8_INLINE ~RwxMemoryWriteScope();
+
+  // Disable copy constructor and copy-assignment operator, since this manages
+  // a resource and implicit copying of the scope can yield surprising errors.
+  RwxMemoryWriteScope(const RwxMemoryWriteScope&) = delete;
+  RwxMemoryWriteScope& operator=(const RwxMemoryWriteScope&) = delete;
+
+  // Returns true if current configuration supports fast write-protection of
+  // executable pages.
+  V8_INLINE static bool IsSupported();
+  // An untrusted version of this check, i.e. the result might be
+  // attacker-controlled if we assume memory corruption. This is needed in
+  // signal handlers in which we might not have read access to the trusted
+  // memory.
+  V8_INLINE static bool IsSupportedUntrusted();
+
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  static int memory_protection_key();
+
+  static bool IsPKUWritable();
+
+  // Linux resets key's permissions to kDisableAccess before executing signal
+  // handlers. If the handler requires access to code page bodies it should take
+  // care of changing permissions to the default state (kDisableWrite).
+  static V8_EXPORT void SetDefaultPermissionsForSignalHandler();
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+
+ private:
+  friend class CodePageMemoryModificationScope;
+  friend class RwxMemoryWriteScopeForTesting;
+  friend class wasm::CodeSpaceWriteScope;
+
+  // {SetWritable} and {SetExecutable} implicitly enters/exits the scope.
+  // These methods are exposed only for the purpose of implementing other
+  // scope classes that affect executable pages permissions.
+  V8_INLINE static void SetWritable();
+  V8_INLINE static void SetExecutable();
+
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+  // This counter is used for supporting scope reentrance.
+  V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
+#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+};
+
 // The ThreadIsolation API is used to protect executable memory using per-thread
 // memory permissions and perform validation for any writes into it.
 //
@@ -102,8 +173,12 @@ class V8_EXPORT ThreadIsolation {
   // if Enabled() is true.
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
 
-  // Track individual allocations. The caller needs to hold an rwx write scope.
-  static void RegisterInstructionStreamAllocation(Address addr, size_t size);
+  class WritableJitAllocation;
+  // Register a new InstructionStream allocation for tracking and return a
+  // writable reference to it. All writes should go through the returned
+  // WritableJitAllocation object.
+  static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
+                                                                   size_t size);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
   static void RegisterWasmAllocation(Address addr, size_t size);
@@ -204,6 +279,43 @@ class V8_EXPORT ThreadIsolation {
     base::Address address_;
   };
 
+  // A scope class that temporarily makes the JitAllocation writable. All writes
+  // to executable memory should go through this object since it adds validation
+  // that the writes are safe for CFI.
+  class WritableJitAllocation {
+   public:
+    WritableJitAllocation(const WritableJitAllocation&) = delete;
+    WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
+
+    // Writes a header slot either as a primitive or as a Tagged value.
+    // Important: this function will not trigger a write barrier by itself,
+    // since we want to keep the code running with write access to executable
+    // memory to a minimum. You should trigger the write barriers after this
+    // function goes out of scope.
+    template <typename T, size_t offset>
+    V8_INLINE void WriteHeaderSlot(T value);
+
+    V8_INLINE void ClearBytes(size_t offset, size_t len);
+
+    Address address() const { return address_; }
+    size_t size() const { return size_; }
+
+   private:
+    V8_INLINE WritableJitAllocation(Address addr, size_t size);
+
+    JitPageReference& page_ref() { return page_ref_; }
+
+    const Address address_;
+    const size_t size_;
+    // TODO(sroettger): we can move the memory write scopes into the Write*
+    // functions in debug builds. This would allow us to ensure that all writes
+    // go through this object.
+    RwxMemoryWriteScope write_scope_;
+    JitPageReference page_ref_;
+
+    friend class ThreadIsolation;
+  };
+
   class JitPage {
    public:
     explicit JitPage(size_t size) : size_(size) {}
@@ -292,77 +404,6 @@ bool operator!=(const ThreadIsolation::StlAllocator<T>&,
                 const ThreadIsolation::StlAllocator<T>&) {
   return false;
 }
-
-// This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
-// ("Apple M1"/Apple Silicon) or Intel PKU (aka. memory protection keys)
-// with respective low-level semantics.
-//
-// The semantics on MacOS on ARM64 is the following:
-// The scope switches permissions between writable and executable for all the
-// pages allocated with RWX permissions. Only current thread is affected.
-// This achieves "real" W^X and it's fast (see pthread_jit_write_protect_np()
-// for details).
-// By default it is assumed that the state is executable.
-// It's also assumed that the process has the "com.apple.security.cs.allow-jit"
-// entitlement.
-//
-// The semantics on Intel with PKU support is the following:
-// When Intel PKU is available, the scope switches the protection key's
-// permission between writable and not writable. The executable permission
-// cannot be retracted with PKU. That is, this "only" achieves write
-// protection, but is similarly thread-local and fast.
-//
-// On other platforms the scope is a no-op and thus it's allowed to be used.
-//
-// The scope is reentrant and thread safe.
-class V8_NODISCARD RwxMemoryWriteScope {
- public:
-  // The comment argument is used only for ensuring that explanation about why
-  // the scope is needed is given at particular use case.
-  V8_INLINE explicit RwxMemoryWriteScope(const char* comment);
-  V8_INLINE ~RwxMemoryWriteScope();
-
-  // Disable copy constructor and copy-assignment operator, since this manages
-  // a resource and implicit copying of the scope can yield surprising errors.
-  RwxMemoryWriteScope(const RwxMemoryWriteScope&) = delete;
-  RwxMemoryWriteScope& operator=(const RwxMemoryWriteScope&) = delete;
-
-  // Returns true if current configuration supports fast write-protection of
-  // executable pages.
-  V8_INLINE static bool IsSupported();
-  // An untrusted version of this check, i.e. the result might be
-  // attacker-controlled if we assume memory corruption. This is needed in
-  // signal handlers in which we might not have read access to the trusted
-  // memory.
-  V8_INLINE static bool IsSupportedUntrusted();
-
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  static int memory_protection_key() { return ThreadIsolation::pkey(); }
-
-  static bool IsPKUWritable();
-
-  // Linux resets key's permissions to kDisableAccess before executing signal
-  // handlers. If the handler requires access to code page bodies it should take
-  // care of changing permissions to the default state (kDisableWrite).
-  static V8_EXPORT void SetDefaultPermissionsForSignalHandler();
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
-
- private:
-  friend class CodePageMemoryModificationScope;
-  friend class RwxMemoryWriteScopeForTesting;
-  friend class wasm::CodeSpaceWriteScope;
-
-  // {SetWritable} and {SetExecutable} implicitly enters/exits the scope.
-  // These methods are exposed only for the purpose of implementing other
-  // scope classes that affect executable pages permissions.
-  V8_INLINE static void SetWritable();
-  V8_INLINE static void SetExecutable();
-
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-  // This counter is used for supporting scope reentrance.
-  V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-};
 
 // This class is a no-op version of the RwxMemoryWriteScope class above.
 // It's used as a target type for other scope type definitions when a no-op

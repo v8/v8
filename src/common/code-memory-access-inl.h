@@ -29,6 +29,33 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
   }
 }
 
+ThreadIsolation::WritableJitAllocation::WritableJitAllocation(Address addr,
+                                                              size_t size)
+    : address_(addr),
+      size_(size),
+      // The order of these is important. We need to create the write scope
+      // before we lookup the Jit page, since the latter will take a mutex in
+      // protected memory.
+      write_scope_("WritableJitAllocation"),
+      page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {
+  page_ref_.RegisterAllocation(addr, size);
+}
+
+template <typename T, size_t offset>
+void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {
+  if constexpr (std::is_convertible_v<T, Object>) {
+    TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
+                                          value);
+  } else {
+    WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  }
+}
+
+void ThreadIsolation::WritableJitAllocation::ClearBytes(size_t offset,
+                                                        size_t len) {
+  memset(reinterpret_cast<void*>(address_ + offset), 0, len);
+}
+
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 // static

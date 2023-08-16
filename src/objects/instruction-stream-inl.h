@@ -20,7 +20,42 @@ namespace internal {
 CAST_ACCESSOR(InstructionStream)
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
-INT_ACCESSORS(InstructionStream, body_size, kBodySizeOffset)
+DEF_PRIMITIVE_ACCESSORS(InstructionStream, body_size, kBodySizeOffset, uint32_t)
+
+// TODO(sroettger): remove unused setter functions once all code writes go
+// through the WritableJitAllocation, e.g. the body_size setter above.
+void InstructionStream::Initialize(uint32_t body_size,
+                                   ByteArray reloc_info) const {
+  {
+    ThreadIsolation::WritableJitAllocation writable_allocation =
+        ThreadIsolation::RegisterInstructionStreamAllocation(
+            address(), InstructionStream::SizeFor(body_size));
+    CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
+    writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
+
+    // During the Code initialization process, InstructionStream::code is
+    // briefly unset (the Code object has not been allocated yet). In this state
+    // it is only visible through heap iteration.
+    writable_allocation.WriteHeaderSlot<Smi, kCodeOffset>(Smi::zero());
+
+    DCHECK(!ObjectInYoungGeneration(reloc_info));
+    writable_allocation.WriteHeaderSlot<ByteArray, kRelocationInfoOffset>(
+        reloc_info);
+
+    // Clear header padding
+    writable_allocation.ClearBytes(kUnalignedSize,
+                                   kHeaderSize - kUnalignedSize);
+    // Clear trailing padding.
+    writable_allocation.ClearBytes(kHeaderSize + body_size,
+                                   TrailingPaddingSizeFor(body_size));
+  }
+
+  // We want to keep the code minimal that runs with write access to a JIT
+  // allocation, so trigger the write barriers after the WritableJitAllocation
+  // went out of scope.
+  CONDITIONAL_WRITE_BARRIER(*this, kRelocationInfoOffset, reloc_info,
+                            UPDATE_WRITE_BARRIER);
+}
 
 Address InstructionStream::body_end() const {
   static_assert(kOnHeapBodyIsContiguous);
@@ -60,23 +95,12 @@ bool InstructionStream::TryGetCodeUnchecked(Code* code_out,
   return true;
 }
 
-void InstructionStream::initialize_code_to_smi_zero(ReleaseStoreTag) {
-  TaggedField<Object, kCodeOffset>::Release_Store(*this, Smi::zero());
-}
-
 ByteArray InstructionStream::relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
   ByteArray value =
       TaggedField<ByteArray, kRelocationInfoOffset>::load(cage_base, *this);
   DCHECK(!ObjectInYoungGeneration(value));
   return value;
-}
-
-void InstructionStream::set_relocation_info(ByteArray value) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  TaggedField<ByteArray, kRelocationInfoOffset>::store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kRelocationInfoOffset, value,
-                            UPDATE_WRITE_BARRIER);
 }
 
 Address InstructionStream::instruction_start() const {
@@ -103,15 +127,6 @@ int InstructionStream::relocation_size() const {
 }
 
 int InstructionStream::Size() const { return SizeFor(body_size()); }
-
-void InstructionStream::clear_padding() {
-  // Header padding.
-  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
-         kHeaderSize - kUnalignedSize);
-  // Trailing padding.
-  memset(reinterpret_cast<void*>(body_end()), 0,
-         TrailingPaddingSizeFor(body_size()));
-}
 
 // static
 InstructionStream InstructionStream::FromTargetAddress(Address address) {

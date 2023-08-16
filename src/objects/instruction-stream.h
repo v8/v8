@@ -73,7 +73,6 @@ class InstructionStream : public HeapObject {
 
   // [relocation_info]: InstructionStream relocation information.
   inline ByteArray relocation_info() const;
-  inline void set_relocation_info(ByteArray value);
   // Unchecked accessor to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
 
@@ -83,12 +82,10 @@ class InstructionStream : public HeapObject {
 
   // The size of the entire body section, containing instructions and inlined
   // metadata.
-  DECL_PRIMITIVE_ACCESSORS(body_size, int)
+  DECL_PRIMITIVE_ACCESSORS(body_size, uint32_t)
   inline Address body_end() const;
 
-  inline void clear_padding();
-
-  static constexpr int TrailingPaddingSizeFor(int body_size) {
+  static constexpr int TrailingPaddingSizeFor(uint32_t body_size) {
     return RoundUp<kCodeAlignment>(kHeaderSize + body_size) - kHeaderSize -
            body_size;
   }
@@ -103,6 +100,8 @@ class InstructionStream : public HeapObject {
   // Relocate the code by delta bytes.
   void Relocate(intptr_t delta);
 
+  V8_INLINE void Initialize(uint32_t body_size, ByteArray reloc_info) const;
+
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
   DECL_VERIFIER(InstructionStream)
@@ -115,7 +114,7 @@ class InstructionStream : public HeapObject {
   V(kEndOfStrongFieldsOffset, 0)                                      \
   /* Data or code not directly visited by GC directly starts here. */ \
   V(kDataStart, 0)                                                    \
-  V(kBodySizeOffset, kIntSize)                                        \
+  V(kBodySizeOffset, kUInt32Size)                                     \
   V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))           \
   V(kHeaderSize, 0)
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
@@ -135,10 +134,6 @@ class InstructionStream : public HeapObject {
   class BodyDescriptor;
 
  private:
-  // During the Code initialization process, InstructionStream::code is briefly
-  // unset (the Code object has not been allocated yet). In this state it is
-  // only visible through heap iteration.
-  inline void initialize_code_to_smi_zero(ReleaseStoreTag);
   friend class Factory;
 
   // Must be used when loading any of InstructionStream's tagged fields.

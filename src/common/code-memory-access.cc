@@ -17,6 +17,11 @@ thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 
+// static
+int RwxMemoryWriteScope::memory_protection_key() {
+  return ThreadIsolation::pkey();
+}
+
 bool RwxMemoryWriteScope::IsPKUWritable() {
   DCHECK(ThreadIsolation::initialized());
   return base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()) ==
@@ -431,9 +436,10 @@ void ThreadIsolation::RegisterJitAllocation(Address obj, size_t size) {
 }
 
 // static
-void ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
-                                                          size_t size) {
-  return RegisterJitAllocation(addr, size);
+ThreadIsolation::WritableJitAllocation
+ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
+                                                     size_t size) {
+  return WritableJitAllocation(addr, size);
 }
 
 // static
