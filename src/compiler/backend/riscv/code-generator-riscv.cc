@@ -1540,11 +1540,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvCvtSD: {
+      Label done;
+      __ feq_d(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+#if V8_TARGET_ARCH_RISCV64
+      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
+#elif V8_TARGET_ARCH_RISCV32
+      __ StoreDouble(i.InputDoubleRegister(0),
+                     MemOperand(sp, -kDoubleSize));  // store whole 64 bit
+#endif
       __ fcvt_s_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Branch(&done, ne, kScratchReg, Operand(zero_reg));
+#if V8_TARGET_ARCH_RISCV64
+      __ And(kScratchReg2, kScratchReg2, Operand(0x8000000000000000));
+      __ srai(kScratchReg2, kScratchReg2, 32);
+      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+#elif V8_TARGET_ARCH_RISCV32
+      __ Lw(kScratchReg2,
+            MemOperand(sp,
+                       -kDoubleSize /
+                           2));  // only load the high half to get the sign bit
+      __ fmv_w_x(kScratchDoubleReg, kScratchReg2);
+#endif
+      __ fsgnj_s(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+                 kScratchDoubleReg);
+      __ bind(&done);
       break;
     }
     case kRiscvCvtDS: {
+      Label done;
+      __ feq_s(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+#if V8_TARGET_ARCH_RISCV64
+      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
+#elif V8_TARGET_ARCH_RISCV32
+      __ StoreFloat(i.InputDoubleRegister(0), MemOperand(sp, -kFloatSize));
+#endif
       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
+      __ Branch(&done, ne, kScratchReg, Operand(zero_reg));
+#if V8_TARGET_ARCH_RISCV64
+      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
+      __ slli(kScratchReg2, kScratchReg2, 32);
+      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+#elif V8_TARGET_ARCH_RISCV32
+      __ Lw(kScratchReg2, MemOperand(sp, -kFloatSize));
+      __ fcvt_d_w(kScratchDoubleReg, kScratchReg2);
+#endif
+      __ fsgnj_d(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+                 kScratchDoubleReg);
+      __ bind(&done);
       break;
     }
     case kRiscvCvtDW: {

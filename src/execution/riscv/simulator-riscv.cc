@@ -2758,7 +2758,7 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
   }
 }
 
-#elif V8_TARGET_ARCH_32_BIT
+#elif V8_TARGET_ARCH_RISCV32
 template <typename T>
 void Simulator::TraceRegWr(T value, TraceType t) {
   if (v8_flags.trace_sim) {
@@ -2904,8 +2904,9 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
         } else {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64
-                   ")    flt:%e --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<float>(value), addr);
+                   ")    flt:%e bit:%x --> [addr: %" REGIx_FORMAT "]",
+                   icount_, static_cast<float>(value),
+                   base::bit_cast<int32_t, float>(value), addr);
         }
         break;
       case 8:
@@ -2918,8 +2919,13 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
         } else {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64
-                   ")    dbl:%e --> [addr: %" REGIx_FORMAT "]",
-                   icount_, static_cast<double>(value), addr);
+#if V8_TARGET_ARCH_RISCV64
+                   ")    dbl:%e bit:%lx --> [addr: %" REGIx_FORMAT "]",
+#elif V8_TARGET_ARCH_RISCV32
+                   ")    dbl:%e bit:%llx --> [addr: %" REGIx_FORMAT "]",
+#endif
+                   icount_, static_cast<double>(value),
+                   base::bit_cast<int64_t, double>(value), addr);
         }
         break;
       default:
@@ -2932,8 +2938,12 @@ void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
   if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_,
              "                    (%" PRIu64
-             ")    dbl:%e --> [addr: %" REGIx_FORMAT "]",
-             icount_, value, addr);
+#if V8_TARGET_ARCH_RISCV64
+             ")    dbl:%e bit:%lx--> [addr: %" REGIx_FORMAT "]",
+#elif V8_TARGET_ARCH_RISCV32
+             ")    dbl:%e bit:%llx--> [addr: %" REGIx_FORMAT "]",
+#endif
+             icount_, value, base::bit_cast<int64_t, double>(value), addr);
   }
 }
 // RISCV Memory Read/Write functions
@@ -3500,7 +3510,7 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() & rs2());
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_ADDW: {
       set_rd(sext32(rs1() + rs2()));
       break;
@@ -3521,7 +3531,7 @@ void Simulator::DecodeRVRType() {
       set_rd(sext32(int32_t(rs1()) >> (rs2() & 0x1F)));
       break;
     }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
       // TODO(riscv): Add RISCV M extension macro
     case RO_MUL: {
       set_rd(rs1() * rs2());
@@ -3583,7 +3593,7 @@ void Simulator::DecodeRVRType() {
       }
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_MULW: {
       set_rd(sext32(sext32(rs1()) * sext32(rs2())));
       break;
@@ -3632,7 +3642,7 @@ void Simulator::DecodeRVRType() {
       }
       break;
     }
-#endif /*V8_TARGET_ARCH_64_BIT*/
+#endif /*V8_TARGET_ARCH_RISCV64*/
       // TODO(riscv): End Add RISCV M extension macro
     default: {
       switch (instr_.BaseOpcode()) {
@@ -4009,7 +4019,7 @@ void Simulator::DecodeRVRAType() {
           instr_.instr(), WORD)));
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_LR_D: {
       base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
       int64_t addr = rs1();
@@ -4089,7 +4099,7 @@ void Simulator::DecodeRVRAType() {
           instr_.instr(), DWORD));
       break;
     }
-#endif /*V8_TARGET_ARCH_64_BIT*/
+#endif /*V8_TARGET_ARCH_RISCV64*/
     // TODO(riscv): End Add macro for RISCV A extension
     default: {
       UNSUPPORTED();
@@ -4226,7 +4236,7 @@ void Simulator::DecodeRVRFPType() {
               RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
         case 0b00010: {  // RO_FCVT_L_S
           set_rd(RoundF2IHelper<int64_t>(original_val, instr_.RoundMode()));
           break;
@@ -4235,7 +4245,7 @@ void Simulator::DecodeRVRFPType() {
           set_rd(RoundF2IHelper<uint64_t>(original_val, instr_.RoundMode()));
           break;
         }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
         default: {
           UNSUPPORTED();
         }
@@ -4293,7 +4303,7 @@ void Simulator::DecodeRVRFPType() {
           set_frd(static_cast<float>((uint32_t)rs1()));
           break;
         }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
         case 0b00010: {  // RO_FCVT_S_L
           set_frd(static_cast<float>((int64_t)rs1()));
           break;
@@ -4302,7 +4312,7 @@ void Simulator::DecodeRVRFPType() {
           set_frd(static_cast<float>((uint64_t)rs1()));
           break;
         }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
         default: {
           UNSUPPORTED();
         }
@@ -4477,12 +4487,12 @@ void Simulator::DecodeRVRFPType() {
           set_rd(FclassHelper(drs1()));
           break;
         }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
         case 0b000: {  // RO_FMV_X_D
           set_rd(base::bit_cast<int64_t>(drs1()));
           break;
         }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
         default: {
           UNSUPPORTED();
         }
@@ -4501,7 +4511,7 @@ void Simulator::DecodeRVRFPType() {
               RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
         case 0b00010: {  // RO_FCVT_L_D
           set_rd(RoundF2IHelper<int64_t>(original_val, instr_.RoundMode()));
           break;
@@ -4510,7 +4520,7 @@ void Simulator::DecodeRVRFPType() {
           set_rd(RoundF2IHelper<uint64_t>(original_val, instr_.RoundMode()));
           break;
         }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
         default: {
           UNSUPPORTED();
         }
@@ -4527,7 +4537,7 @@ void Simulator::DecodeRVRFPType() {
           set_drd((uint32_t)rs1());
           break;
         }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
         case 0b00010: {  // RO_FCVT_D_L
           set_drd((int64_t)rs1());
           break;
@@ -4536,14 +4546,14 @@ void Simulator::DecodeRVRFPType() {
           set_drd((uint64_t)rs1());
           break;
         }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
         default: {
           UNSUPPORTED();
         }
       }
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_FMV_D_X: {
       if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
         // Since FMV preserves source bit-pattern, no need to canonize
@@ -4553,7 +4563,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-#endif /* V8_TARGET_ARCH_64_BIT */
+#endif /* V8_TARGET_ARCH_RISCV64 */
     default: {
       UNSUPPORTED();
     }
@@ -4888,7 +4898,7 @@ void Simulator::DecodeRVIType() {
       TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_LWU: {
       int64_t addr = rs1() + imm12();
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
@@ -4903,7 +4913,7 @@ void Simulator::DecodeRVIType() {
       TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
-#endif /*V8_TARGET_ARCH_64_BIT*/
+#endif /*V8_TARGET_ARCH_RISCV64*/
     case RO_ADDI: {
       set_rd(sext_xlen(rs1() + imm12()));
       break;
@@ -4943,7 +4953,7 @@ void Simulator::DecodeRVIType() {
       }
       break;
     }
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_ADDIW: {
       set_rd(sext32(rs1() + imm12()));
       break;
@@ -4960,7 +4970,7 @@ void Simulator::DecodeRVIType() {
       }
       break;
     }
-#endif /*V8_TARGET_ARCH_64_BIT*/
+#endif /*V8_TARGET_ARCH_RISCV64*/
     case RO_FENCE: {
       // DO nothing in sumulator
       break;
@@ -5065,11 +5075,11 @@ void Simulator::DecodeRVSType() {
     case RO_SW:
       WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
       break;
-#ifdef V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_RISCV64
     case RO_SD:
       WriteMem<uint64_t>(rs1() + s_imm12(), (uint64_t)rs2(), instr_.instr());
       break;
-#endif /*V8_TARGET_ARCH_64_BIT*/
+#endif /*V8_TARGET_ARCH_RISCV64*/
     // TODO(riscv): use F Extension macro block
     case RO_FSW: {
       WriteMem<Float32>(rs1() + s_imm12(), get_fpu_register_Float32(rs2_reg()),
@@ -5207,7 +5217,7 @@ void Simulator::DecodeCAType() {
     case RO_C_AND:
       set_rvc_rs1s(rvc_rs1s() & rvc_rs2s());
       break;
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_SUBW:
       set_rvc_rs1s(sext32(rvc_rs1s() - rvc_rs2s()));
       break;
@@ -5228,7 +5238,7 @@ void Simulator::DecodeCIType() {
       else  // c.addi
         set_rvc_rd(sext_xlen(rvc_rs1() + rvc_imm6()));
       break;
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_ADDIW:
       set_rvc_rd(sext32(rvc_rs1() + rvc_imm6()));
       break;
@@ -5259,7 +5269,7 @@ void Simulator::DecodeCIType() {
                        get_fpu_register(rvc_frd_reg()));
       break;
     }
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_LWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_lwsp();
       int64_t val = ReadMem<int32_t>(addr, instr_.instr());
@@ -5274,7 +5284,7 @@ void Simulator::DecodeCIType() {
       TraceMemRd(addr, val, get_register(rvc_rd_reg()));
       break;
     }
-#elif V8_TARGET_ARCH_32_BIT
+#elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
@@ -5315,7 +5325,7 @@ void Simulator::DecodeCSSType() {
                         instr_.instr());
       break;
     }
-#if V8_TARGET_ARCH_32_BIT
+#if V8_TARGET_ARCH_RISCV32
     case RO_C_FSWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
       WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg()),
@@ -5328,7 +5338,7 @@ void Simulator::DecodeCSSType() {
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2(), instr_.instr());
       break;
     }
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_SDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2(), instr_.instr());
@@ -5355,7 +5365,7 @@ void Simulator::DecodeCLType() {
       set_rvc_drs2s(Float64::FromBits(val), false);
       break;
     }
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_LD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
       int64_t val = ReadMem<int64_t>(addr, instr_.instr());
@@ -5363,7 +5373,7 @@ void Simulator::DecodeCLType() {
       TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
       break;
     }
-#elif V8_TARGET_ARCH_32_BIT
+#elif V8_TARGET_ARCH_RISCV32
     case RO_C_FLW: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
       uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
@@ -5383,7 +5393,7 @@ void Simulator::DecodeCSType() {
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2s(), instr_.instr());
       break;
     }
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_RISCV64
     case RO_C_SD: {
       sreg_t addr = rvc_rs1s() + rvc_imm5_d();
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2s(), instr_.instr());
