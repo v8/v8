@@ -367,10 +367,11 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
         result.base = left_add->right();
         return result;
       }
-      // Treat it as (B + D)
-      result.index = OpIndex{};
-      result.scale = 0;
+      // Treat it as (B + B) and use index as right B.
       result.base = left;
+      result.index = right;
+      result.scale = 0;
+      DCHECK_EQ(result.displacement, 0);
       return result;
     }
   }
