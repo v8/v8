@@ -1058,9 +1058,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
     Handle<ByteArray> NewByteArray(int length, AllocationType allocation);
-    MaybeHandle<InstructionStream> NewInstructionStream(
-        bool retry_allocation_or_fail);
-    MaybeHandle<InstructionStream> AllocateInstructionStream(
+    // Return an allocation suitable for InstructionStreams but without writing
+    // the map.
+    Tagged<HeapObject> AllocateUninitializedInstructionStream(
         bool retry_allocation_or_fail);
     Handle<Code> NewCode(const NewCodeOptions& options);
 

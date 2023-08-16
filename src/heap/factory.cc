@@ -112,11 +112,6 @@ Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
   return local_isolate_->factory()->NewByteArray(length, allocation);
 }
 
-MaybeHandle<InstructionStream> Factory::CodeBuilder::NewInstructionStream(
-    bool retry_allocation_or_fail) {
-  return AllocateInstructionStream(retry_allocation_or_fail);
-}
-
 Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
   return local_isolate_->factory()->NewCode(options);
 }
@@ -146,20 +141,33 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
+  Tagged<HeapObject> istream_allocation =
+      AllocateUninitializedInstructionStream(retry_allocation_or_fail);
+  if (istream_allocation->is_null()) {
+    return {};
+  }
+
+  Handle<InstructionStream> istream;
+  {
+    // The InstructionStream object has not been fully initialized yet. We
+    // rely on the fact that no allocation will happen from this point on.
+    DisallowGarbageCollection no_gc;
+    InstructionStream raw_istream = InstructionStream::Initialize(
+        istream_allocation,
+        ReadOnlyRoots(local_isolate_).instruction_stream_map(),
+        code_desc_.body_size(), *reloc_info);
+    istream = handle(raw_istream, local_isolate_);
+    DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
+    DCHECK_IMPLIES(
+        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+            !local_isolate_->heap()->heap()->code_region().is_empty(),
+        local_isolate_->heap()->heap()->code_region().contains(
+            istream->address()));
+  }
+
   Handle<Code> code;
   {
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-
-    Handle<InstructionStream> istream;
-    if (!NewInstructionStream(retry_allocation_or_fail).ToHandle(&istream)) {
-      return {};
-    }
-
-    {
-      DisallowGarbageCollection no_gc;
-      CHECK_GT(code_desc_.body_size(), 0);
-      istream->Initialize(code_desc_.body_size(), *reloc_info);
-    }
 
     NewCodeOptions new_code_options = {
         kind_,
@@ -261,8 +269,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   return code;
 }
 
-// TODO(victorgomes): Unify the two AllocateCodes
-MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
+Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
     bool retry_allocation_or_fail) {
   LocalHeap* heap = local_isolate_->heap();
   Tagged<HeapObject> result;
@@ -275,33 +282,13 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
     result =
         heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
+    CHECK(!result.is_null());
+    return result;
   } else {
-    result = heap->AllocateRawWith<LocalHeap::kLightRetry>(
-        object_size, AllocationType::kCode);
-    if (result.is_null()) {
-      // Return an empty handle if we cannot allocate the code object.
-      return MaybeHandle<InstructionStream>();
-    }
+    // Return null if we cannot allocate the code object.
+    return heap->AllocateRawWith<LocalHeap::kLightRetry>(object_size,
+                                                         AllocationType::kCode);
   }
-  CHECK(!result.is_null());
-
-  // The code object has not been fully initialized yet.  We rely on the
-  // fact that no allocation will happen from this point on.
-  DisallowGarbageCollection no_gc;
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromHeapObject(result));
-    result->set_map_after_allocation(
-        ReadOnlyRoots(local_isolate_).instruction_stream_map(),
-        SKIP_WRITE_BARRIER);
-  }
-  Handle<InstructionStream> istream =
-      handle(InstructionStream::cast(result), local_isolate_);
-  DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
-  DCHECK_IMPLIES(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-                     !heap->heap()->code_region().is_empty(),
-                 heap->heap()->code_region().contains(istream->address()));
-  return istream;
 }
 
 MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {

@@ -24,13 +24,20 @@ DEF_PRIMITIVE_ACCESSORS(InstructionStream, body_size, kBodySizeOffset, uint32_t)
 
 // TODO(sroettger): remove unused setter functions once all code writes go
 // through the WritableJitAllocation, e.g. the body_size setter above.
-void InstructionStream::Initialize(uint32_t body_size,
-                                   ByteArray reloc_info) const {
+
+// static
+InstructionStream InstructionStream::Initialize(Tagged<HeapObject> self,
+                                                Tagged<Map> map,
+                                                uint32_t body_size,
+                                                ByteArray reloc_info) {
   {
     ThreadIsolation::WritableJitAllocation writable_allocation =
         ThreadIsolation::RegisterInstructionStreamAllocation(
-            address(), InstructionStream::SizeFor(body_size));
+            self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
+
+    writable_allocation.WriteHeaderSlot<Map, kMapOffset>(map);
+
     writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
 
     // During the Code initialization process, InstructionStream::code is
@@ -53,8 +60,11 @@ void InstructionStream::Initialize(uint32_t body_size,
   // We want to keep the code minimal that runs with write access to a JIT
   // allocation, so trigger the write barriers after the WritableJitAllocation
   // went out of scope.
-  CONDITIONAL_WRITE_BARRIER(*this, kRelocationInfoOffset, reloc_info,
+  SLOW_DCHECK(!WriteBarrier::IsRequired(self, map));
+  CONDITIONAL_WRITE_BARRIER(self, kRelocationInfoOffset, reloc_info,
                             UPDATE_WRITE_BARRIER);
+
+  return InstructionStream::cast(self);
 }
 
 Address InstructionStream::body_end() const {

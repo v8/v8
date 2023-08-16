@@ -44,8 +44,13 @@ ThreadIsolation::WritableJitAllocation::WritableJitAllocation(Address addr,
 template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {
   if constexpr (std::is_convertible_v<T, Object>) {
-    TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
-                                          value);
+    if (offset == HeapObject::kMapOffset) {
+      TaggedField<T, offset>::Release_Store_Map_Word(
+          HeapObject::FromAddress(address_), value);
+    } else {
+      TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
+                                            value);
+    }
   } else {
     WriteMaybeUnalignedValue<T>(address_ + offset, value);
   }

@@ -100,7 +100,10 @@ class InstructionStream : public HeapObject {
   // Relocate the code by delta bytes.
   void Relocate(intptr_t delta);
 
-  V8_INLINE void Initialize(uint32_t body_size, ByteArray reloc_info) const;
+  static V8_INLINE InstructionStream Initialize(Tagged<HeapObject> self,
+                                                Tagged<Map> map,
+                                                uint32_t body_size,
+                                                ByteArray reloc_info);
 
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
