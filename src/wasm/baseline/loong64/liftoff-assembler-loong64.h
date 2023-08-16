@@ -461,11 +461,11 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, uint32_t* protected_load_pc,
                             bool is_load_mem, bool i64_offset,
                             bool needs_shift) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         i64_offset, shift_amount);
 
-  if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
@@ -505,6 +505,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     default:
       UNREACHABLE();
   }
+  // protected_store_pc should be the address of the load/store instruction.
+  // The MacroAssembler load/store may contain some instructions for adjusting
+  // MemOperand, so use pc_offset-4 to locate.
+  if (protected_load_pc) *protected_load_pc = pc_offset() - 4;
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
@@ -512,10 +516,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem,
                              bool i64_offset) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
 
-  if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
@@ -544,6 +548,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+  // protected_store_pc should be the address of the load/store instruction.
+  // The MacroAssembler load/store may contain some instructions for adjusting
+  // MemOperand, so use pc_offset-4 to locate.
+  if (protected_store_pc) *protected_store_pc = pc_offset() - 4;
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
@@ -3037,7 +3045,7 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  if (v8_flags.debug_code) Abort(reason);
+  MacroAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

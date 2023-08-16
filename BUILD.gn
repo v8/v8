@@ -4399,6 +4399,17 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/loong64/regexp-macro-assembler-loong64.h",
       "src/wasm/baseline/loong64/liftoff-assembler-loong64.h",
     ]
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on loong64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "loong64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [ "src/trap-handler/handler-inside-posix.h" ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/trap-handler-simulator.h" ]
+      }
+    }
   } else if (v8_current_cpu == "ppc") {
     sources += [
       ### gcmole(ppc) ###
@@ -5668,6 +5679,20 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/loong64/simulator-loong64.cc",
       "src/regexp/loong64/regexp-macro-assembler-loong64.cc",
     ]
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on loong64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "loong64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [
+          "src/trap-handler/handler-inside-posix.cc",
+          "src/trap-handler/handler-outside-posix.cc",
+        ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
+      }
+    }
   } else if (v8_current_cpu == "ppc") {
     sources += [
       ### gcmole(ppc) ###
