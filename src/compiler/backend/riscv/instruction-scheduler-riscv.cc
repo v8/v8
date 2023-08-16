@@ -161,8 +161,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI16x8ExtractLaneU:
     case kRiscvI16x8ExtractLaneS:
     case kRiscvI16x8ReplaceLane:
-    case kRiscvI8x16SConvertI16x8:
-    case kRiscvI16x8SConvertI32x4:
     case kRiscvI16x8SConvertI8x16High:
     case kRiscvI16x8SConvertI8x16Low:
     case kRiscvI16x8Shl:
@@ -170,12 +168,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI16x8ShrU:
     case kRiscvI32x4TruncSatF64x2SZero:
     case kRiscvI32x4TruncSatF64x2UZero:
-    case kRiscvI8x16UConvertI16x8:
-    case kRiscvI16x8UConvertI32x4:
     case kRiscvI16x8UConvertI8x16High:
     case kRiscvI16x8UConvertI8x16Low:
     case kRiscvI16x8RoundingAverageU:
-    case kRiscvI16x8Q15MulRSatS:
     case kRiscvI16x8Abs:
     case kRiscvI16x8BitMask:
     case kRiscvI32x4ExtractLane:
@@ -263,9 +258,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI8x16Shuffle:
     case kRiscvVwmul:
     case kRiscvVwmulu:
-    case kRiscvVmvVv:
-    case kRiscvVmvVx:
-    case kRiscvVmvVi:
+    case kRiscvVmv:
     case kRiscvVandVv:
     case kRiscvVorVv:
     case kRiscvVnotVv:
@@ -274,16 +267,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVfmvVf:
     case kRiscvVcompress:
     case kRiscvVaddVv:
-    case kRiscvVwadd:
+    case kRiscvVwaddVv:
+    case kRiscvVwadduVv:
+    case kRiscvVwadduWx:
     case kRiscvVsubVv:
     case kRiscvVnegVv:
     case kRiscvVfnegVv:
     case kRiscvVmaxuVv:
-    case kRiscvVmaxsVv:
+    case kRiscvVmax:
     case kRiscvVminsVv:
     case kRiscvVminuVv:
     case kRiscvVmulVv:
-    case kRiscvVwaddu:
+    case kRiscvVdivu:
+    case kRiscvVsmulVv:
     case kRiscvVgtsVv:
     case kRiscvVgesVv:
     case kRiscvVgeuVv:
@@ -296,8 +292,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvVsubSatSVv:
     case kRiscvVrgather:
     case kRiscvVslidedown:
-    case kRiscvVsllVi:
-    case kRiscvVsllVx:
+    case kRiscvVnclipu:
+    case kRiscvVnclip:
+    case kRiscvVsll:
     case kRiscvVfaddVv:
     case kRiscvVfsubVv:
     case kRiscvVfmulVv:

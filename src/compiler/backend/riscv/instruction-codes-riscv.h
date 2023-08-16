@@ -274,8 +274,6 @@ namespace compiler {
   V(RiscvI16x8Shl)                        \
   V(RiscvI16x8ShrS)                       \
   V(RiscvI16x8ShrU)                       \
-  V(RiscvI16x8RoundingAverageU)           \
-  V(RiscvI16x8Q15MulRSatS)                \
   V(RiscvI16x8Abs)                        \
   V(RiscvI16x8BitMask)                    \
   V(RiscvI8x16ExtractLaneU)               \
@@ -336,39 +334,35 @@ namespace compiler {
   V(RiscvI32x4UConvertI16x8High)          \
   V(RiscvI16x8SConvertI8x16Low)           \
   V(RiscvI16x8SConvertI8x16High)          \
-  V(RiscvI16x8SConvertI32x4)              \
-  V(RiscvI16x8UConvertI32x4)              \
   V(RiscvI16x8UConvertI8x16Low)           \
   V(RiscvI16x8UConvertI8x16High)          \
-  V(RiscvI8x16SConvertI16x8)              \
-  V(RiscvI8x16UConvertI16x8)              \
-  V(RiscvVmvVv)                           \
+  V(RiscvI16x8RoundingAverageU)           \
+  V(RiscvVmv)                             \
   V(RiscvVandVv)                          \
   V(RiscvVnotVv)                          \
   V(RiscvVorVv)                           \
   V(RiscvVxorVv)                          \
-  V(RiscvVmvVx)                           \
-  V(RiscvVmvVi)                           \
   V(RiscvVwmul)                           \
   V(RiscvVwmulu)                          \
   V(RiscvVmvSx)                           \
   V(RiscvVcompress)                       \
   V(RiscvVaddVv)                          \
   V(RiscvVsubVv)                          \
-  V(RiscvVwadd)                           \
-  V(RiscvVwaddu)                          \
+  V(RiscvVwaddVv)                         \
+  V(RiscvVwadduVv)                        \
+  V(RiscvVwadduWx)                        \
   V(RiscvVrgather)                        \
   V(RiscvVslidedown)                      \
-  V(RiscvVsllVi)                          \
-  V(RiscvVsllVx)                          \
+  V(RiscvVsll)                            \
   V(RiscvVfmvVf)                          \
   V(RiscvVnegVv)                          \
   V(RiscvVfnegVv)                         \
   V(RiscvVmaxuVv)                         \
-  V(RiscvVmaxsVv)                         \
+  V(RiscvVmax)                            \
   V(RiscvVminuVv)                         \
   V(RiscvVminsVv)                         \
   V(RiscvVmulVv)                          \
+  V(RiscvVdivu)                           \
   V(RiscvVgtsVv)                          \
   V(RiscvVgesVv)                          \
   V(RiscvVgeuVv)                          \
@@ -389,7 +383,10 @@ namespace compiler {
   V(RiscvVfdivVv)                         \
   V(RiscvVfminVv)                         \
   V(RiscvVfmaxVv)                         \
-  V(RiscvVmergeVx)
+  V(RiscvVmergeVx)                        \
+  V(RiscvVsmulVv)                         \
+  V(RiscvVnclipu)                         \
+  V(RiscvVnclip)
 
 #define TARGET_ARCH_OPCODE_LIST(V)  \
   TARGET_ARCH_OPCODE_LIST_COMMON(V) \

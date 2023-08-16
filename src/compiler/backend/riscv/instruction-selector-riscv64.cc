@@ -2854,12 +2854,12 @@ void InstructionSelectorT<Adapter>::VisitF64x2Min(Node* node) {
 
   InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmvVi, NaN, g.UseImmediate64(0x7ff8000000000000L),
+  this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
              g.UseImmediate(E64), g.UseImmediate(m1));
   this->Emit(kRiscvVfminVv, result, g.UseRegister(node->InputAt(1)),
              g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
-  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
              g.UseImmediate(m1));
 }
 
@@ -2880,12 +2880,12 @@ void InstructionSelectorT<Adapter>::VisitF64x2Max(Node* node) {
 
   InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmvVi, NaN, g.UseImmediate64(0x7ff8000000000000L),
+  this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
              g.UseImmediate(E64), g.UseImmediate(m1));
   this->Emit(kRiscvVfmaxVv, result, g.UseRegister(node->InputAt(1)),
              g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
-  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
              g.UseImmediate(m1));
 }
 // static

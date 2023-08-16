@@ -1684,14 +1684,14 @@ void InstructionSelectorT<Adapter>::VisitF64x2Min(Node* node) {
   InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand temp4 = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand temp5 = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmvVi, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
              g.UseImmediate(m1));
-  this->Emit(kRiscvVsllVx, temp4, temp3, g.UseImmediate(kNaNShift),
+  this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
              g.UseImmediate(E64), g.UseImmediate(m1));
   this->Emit(kRiscvVfminVv, temp5, g.UseRegister(node->InputAt(1)),
              g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(Mask));
-  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
              g.UseImmediate(m1));
 }
 
@@ -1714,14 +1714,14 @@ void InstructionSelectorT<Adapter>::VisitF64x2Max(Node* node) {
   InstructionOperand temp3 = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand temp4 = g.TempFpRegister(kSimd128ScratchReg);
   InstructionOperand temp5 = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmvVi, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, temp3, g.UseImmediate(kNaN), g.UseImmediate(E64),
              g.UseImmediate(m1));
-  this->Emit(kRiscvVsllVx, temp4, temp3, g.UseImmediate(kNaNShift),
+  this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
              g.UseImmediate(E64), g.UseImmediate(m1));
   this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(node->InputAt(1)),
              g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
              g.UseImmediate(m1), g.UseImmediate(Mask));
-  this->Emit(kRiscvVmvVv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
+  this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
              g.UseImmediate(m1));
 }
 // static
