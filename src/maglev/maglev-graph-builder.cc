@@ -51,6 +51,10 @@
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
 
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
+
 namespace v8::internal::maglev {
 
 namespace {
@@ -5671,6 +5675,60 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
       {receiver, index},
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
+    compiler::JSFunctionRef target, CallArguments& args) {
+#ifdef V8_INTL_SUPPORT
+  if (args.count() < 1 || args.count() > 3) return ReduceResult::Fail();
+
+  LocalFactory* factory = local_isolate()->factory();
+  compiler::ObjectRef undefined_ref = broker()->undefined_value();
+
+  Handle<Object> locales_handle;
+  ValueNode* locales_node = nullptr;
+  if (args.count() > 1) {
+    compiler::OptionalHeapObjectRef maybe_locales = TryGetConstant(args[1]);
+    if (!maybe_locales) return ReduceResult::Fail();
+    compiler::HeapObjectRef locales = maybe_locales.value();
+    if (locales.equals(undefined_ref)) {
+      locales_handle = factory->undefined_value();
+      locales_node = GetRootConstant(RootIndex::kUndefinedValue);
+    } else {
+      if (!locales.IsString()) return ReduceResult::Fail();
+      compiler::StringRef sref = locales.AsString();
+      base::Optional<Handle<String>> maybe_locales_handle =
+          sref.ObjectIfContentAccessible(broker());
+      if (!maybe_locales_handle) return ReduceResult::Fail();
+      locales_handle = *maybe_locales_handle;
+      locales_node = GetTaggedValue(args[1]);
+    }
+  } else {
+    locales_handle = factory->undefined_value();
+    locales_node = GetRootConstant(RootIndex::kUndefinedValue);
+  }
+
+  if (args.count() > 2) {
+    compiler::OptionalHeapObjectRef maybe_options = TryGetConstant(args[2]);
+    if (!maybe_options) return ReduceResult::Fail();
+    if (!maybe_options.value().equals(undefined_ref))
+      return ReduceResult::Fail();
+  }
+
+  DCHECK(!locales_handle.is_null());
+  DCHECK_NOT_NULL(locales_node);
+
+  if (Intl::CompareStringsOptionsFor(local_isolate(), locales_handle,
+                                     factory->undefined_value()) !=
+      Intl::CompareStringsOptions::kTryFastPath) {
+    return ReduceResult::Fail();
+  }
+  return BuildCallBuiltin<Builtin::kStringFastLocaleCompare>(
+      {GetConstant(target), GetTaggedOrUndefined(args.receiver()),
+       GetTaggedValue(args[0]), locales_node});
+#else
+  return ReduceResult::Fail();
+#endif
 }
 
 template <typename LoadNode>
