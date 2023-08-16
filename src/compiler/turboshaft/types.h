@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE Type {
 static_assert(sizeof(Type) == 24);
 
 template <size_t Bits>
-class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
+class WordType : public Type {
   static_assert(Bits == 32 || Bits == 64);
   friend class Type;
   static constexpr int kMaxInlineSetSize = 2;
@@ -491,8 +491,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
       : Type(KIND, static_cast<uint8_t>(sub_kind), set_size, 0, 0, payload) {}
 };
 
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<32>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<64>;
+
 template <size_t Bits>
-class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
+class FloatType : public Type {
   static_assert(Bits == 32 || Bits == 64);
   friend class Type;
   static constexpr int kMaxInlineSetSize = 2;
@@ -791,6 +794,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
 };
 
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<32>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<64>;
+
 class TupleType : public Type {
  public:
   static constexpr int kMaxTupleSize = std::numeric_limits<uint8_t>::max();
@@ -912,32 +918,6 @@ struct fast_hash<Type> {
     // return fast_hash_combine(v.header_, v.payload_[0], v.payload_[1]);
   }
 };
-
-// The below exports of the explicitly instantiated template instances produce
-// build errors on v8_linux64_gcc_light_compile_dbg build with
-//
-// error: type attributes ignored after type is already defined
-// [-Werror=attributes] extern template class
-// EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<32>;
-//
-// No combination of export macros seems to be able to resolve this issue
-// although they seem to work for other classes. A temporary workaround is to
-// disable this warning here locally.
-// TODO(nicohartmann@): Ideally, we would find a better solution than to disable
-// the warning.
-#if V8_CC_GNU
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
-#endif  // V8_CC_GNU
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<32>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<64>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<32>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<64>;
-
-#if V8_CC_GNU
-#pragma GCC diagnostic pop
-#endif  // V8_CC_GNU
 
 }  // namespace v8::internal::compiler::turboshaft
 
