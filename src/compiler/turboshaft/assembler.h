@@ -1530,6 +1530,11 @@ class AssemblerOpInterface {
                 Float64, Word32)
   DECL_CHANGE_V(TruncateWord64ToWord32, kTruncate, kNoAssumption, Word64,
                 Word32)
+  OpIndex ZeroExtendWord32ToRep(V<Word32> value, WordRepresentation rep) {
+    if (rep == WordRepresentation::Word32()) return value;
+    DCHECK_EQ(rep, WordRepresentation::Word64());
+    return ChangeUint32ToUint64(value);
+  }
   V<Word32> TruncateWordPtrToWord32(ConstOrV<WordPtr> input) {
     if constexpr (Is64()) {
       return TruncateWord64ToWord32(input);
