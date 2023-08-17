@@ -1109,35 +1109,43 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   base::MutexGuard guard(&mutex_);
-  auto it = isolates_.find(isolate);
-  DCHECK_NE(isolates_.end(), it);
-  std::unique_ptr<IsolateInfo> info = std::move(it->second);
-  isolates_.erase(it);
-  for (auto* native_module : info->native_modules) {
+
+  // Lookup the IsolateInfo; do not remove it yet (that happens below).
+  auto isolates_it = isolates_.find(isolate);
+  DCHECK_NE(isolates_.end(), isolates_it);
+  IsolateInfo* isolate_info = isolates_it->second.get();
+
+  // Remove the isolate from the per-native-module info, and other cleanup.
+  for (auto* native_module : isolate_info->native_modules) {
     DCHECK_EQ(1, native_modules_.count(native_module));
-    DCHECK_EQ(1, native_modules_[native_module]->isolates.count(isolate));
-    auto* module = native_modules_[native_module].get();
-    module->isolates.erase(isolate);
-    if (current_gc_info_) {
-      for (WasmCode* code : module->potentially_dead_code) {
-        current_gc_info_->dead_code.erase(code);
-      }
-    }
+    NativeModuleInfo* native_module_info =
+        native_modules_.find(native_module)->second.get();
+    DCHECK_EQ(1, native_module_info->isolates.count(isolate));
+    native_module_info->isolates.erase(isolate);
+
+    // Remove any debug code and other info for this isolate.
     if (native_module->HasDebugInfo()) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
   }
+
+  // Abort any outstanding GC.
   if (current_gc_info_) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
-  if (auto* task = info->log_codes_task) {
+
+  // Cancel outstanding code logging and clear the {code_to_log} vector.
+  if (auto* task = isolate_info->log_codes_task) {
     task->Cancel();
-    for (auto& log_entry : info->code_to_log) {
+    for (auto& log_entry : isolate_info->code_to_log) {
       WasmCode::DecrementRefCount(base::VectorOf(log_entry.second.code));
     }
-    info->code_to_log.clear();
+    isolate_info->code_to_log.clear();
   }
-  DCHECK(info->code_to_log.empty());
+  DCHECK(isolate_info->code_to_log.empty());
+
+  // Finally remove the {IsolateInfo} for this isolate.
+  isolates_.erase(isolates_it);
 }
 
 void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
