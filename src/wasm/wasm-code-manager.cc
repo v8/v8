@@ -231,7 +231,17 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
 
 std::string WasmCode::DebugName() const {
   if (IsAnonymous()) {
-    return "anonymous function";
+    switch (kind()) {
+      case kWasmFunction:
+        UNREACHABLE();
+      case kWasmToCapiWrapper:
+        return "wasm to C-API wrapper";
+      case kWasmToJsWrapper:
+        return "wasm to js wrapper";
+      case kJumpTable:
+        return "jump table";
+    }
+    UNREACHABLE();
   }
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
