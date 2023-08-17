@@ -1346,7 +1346,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0, max_pages)) {
-    DCHECK(i_isolate->has_pending_exception() || thrower.error());
+    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
   // The descriptor's 'maximum'.
@@ -1354,7 +1354,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
                                   initial, max_pages)) {
-    DCHECK(i_isolate->has_pending_exception() || thrower.error());
+    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
 
