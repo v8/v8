@@ -746,6 +746,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &boilerplate_migration_access_;
   }
 
+  ReadOnlyArtifacts* read_only_artifacts() const {
+    ReadOnlyArtifacts* artifacts = artifacts_.get();
+    DCHECK_IMPLIES(ReadOnlyHeap::IsReadOnlySpaceShared(), artifacts != nullptr);
+    return artifacts;
+  }
+
   // The isolate's string table.
   StringTable* string_table() const { return string_table_.get(); }
   StringForwardingTable* string_forwarding_table() const {

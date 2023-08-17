@@ -107,7 +107,7 @@ class ReadOnlyHeap {
 
   // Creates a new read-only heap and attaches it to the provided isolate. Only
   // used the first time when creating a ReadOnlyHeap for sharing.
-  static ReadOnlyHeap* CreateInitalHeapForBootstrapping(
+  static ReadOnlyHeap* CreateInitialHeapForBootstrapping(
       Isolate* isolate, std::shared_ptr<ReadOnlyArtifacts> artifacts);
   // Runs the read-only deserializer and calls InitFromIsolate to complete
   // read-only heap initialization.

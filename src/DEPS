@@ -103,6 +103,9 @@ specific_include_rules = {
   "etw-jit-metadata-win\.h": [
     "+src/libplatform/etw/etw-provider-win.h",
   ],
+  "external-pointer-table\.cc": [
+    "+src/heap/read-only-spaces.h",
+  ],
   "script\.h": [
     "+src/heap/factory.h",
     "+src/heap/factory-base.h",

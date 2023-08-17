@@ -2769,6 +2769,10 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // External pointer table sweeping needs to happen before evacuating live
     // objects as it may perform table compaction, which requires objects to
     // still be at the same location as during marking.
+    //
+    // Note we explicitly do NOT run SweepAndCompact on
+    // read_only_external_pointer_space since these entries are all immortal by
+    // definition.
     isolate->external_pointer_table().SweepAndCompact(
         isolate->heap()->external_pointer_space(), isolate->counters());
     if (isolate->owns_shareable_data()) {

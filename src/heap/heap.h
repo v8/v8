@@ -775,8 +775,11 @@ class Heap final {
   ExternalPointerTable::Space* external_pointer_space() {
     return &external_pointer_space_;
   }
+  ExternalPointerTable::Space* read_only_external_pointer_space() {
+    return &read_only_external_pointer_space_;
+  }
 #endif  // V8_COMPRESS_POINTERS
-        //
+
 #ifdef V8_CODE_POINTER_SANDBOXING
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 #endif  // V8_CODE_POINTER_SANDBOXING
@@ -2115,6 +2118,8 @@ class Heap final {
   // The space in the ExternalPointerTable containing entries owned by objects
   // in this heap.
   ExternalPointerTable::Space external_pointer_space_;
+  // Likewise but for slots in host objects in ReadOnlySpace.
+  ExternalPointerTable::Space read_only_external_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_CODE_POINTER_SANDBOXING

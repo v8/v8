@@ -107,14 +107,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     // Returns the total length of the freelist.
     uint32_t length() const { return length_; }
 
-    bool is_empty() const {
-      // It would be enough to just check that the size is zero. However, when
-      // the size is zero, the next entry must also be zero, and checking that
-      // both values are zero allows the compiler to insert a single 64-bit
-      // comparison against zero.
-      DCHECK_EQ(next_ == 0, length_ == 0);
-      return next_ == 0 && length_ == 0;
-    }
+    bool is_empty() const { return length_ == 0; }
 
    private:
     uint32_t next_;
@@ -169,6 +162,11 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     // Returns true if this space contains the entry with the given index.
     bool Contains(uint32_t index);
 
+    // Whether this space is attached to a table's internal read-only segment.
+    bool is_internal_read_only_space() const {
+      return is_internal_read_only_space_;
+    }
+
    protected:
     friend class ExternalEntityTable<Entry, size>;
 
@@ -191,6 +189,13 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
     // The collection of segments belonging to this space.
     std::set<Segment> segments_;
+
+    // Whether this is the internal RO space, which has special semantics:
+    // - read-only page permissions after initialization,
+    // - the space is not swept since slots are live by definition,
+    // - contains exactly one segment, located at offset 0, and
+    // - the segment's lifecycle is managed by `owning_table_`.
+    bool is_internal_read_only_space_ = false;
 
     // Mutex guarding access to the segments_ set.
     base::Mutex mutex_;
@@ -271,9 +276,40 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // Deallocates all segments owned by the given space.
   void TearDownSpace(Space* space);
 
+  // Attaches/detaches the given space to the internal read-only segment. Note
+  // the lifetime of the underlying segment itself is managed by the table.
+  void AttachSpaceToReadOnlySegment(Space* space);
+  void DetachSpaceFromReadOnlySegment(Space* space);
+
+  // Use this scope to temporarily unseal the read-only segment (i.e. change
+  // permissions to RW).
+  class UnsealReadOnlySegmentScope final {
+   public:
+    explicit UnsealReadOnlySegmentScope(ExternalEntityTable<Entry, size>* table)
+        : table_(table) {
+      table_->UnsealReadOnlySegment();
+    }
+
+    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegment(); }
+
+   private:
+    ExternalEntityTable<Entry, size>* const table_;
+  };
+
  private:
   // Required for Isolate::CheckIsolateLayout().
   friend class Isolate;
+
+  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
+  static constexpr uint32_t kInternalNullEntryIndex = 0;
+
+  // Helpers to toggle the first segment's permissions between kRead (sealed)
+  // and kReadWrite (unsealed).
+  void UnsealReadOnlySegment();
+  void SealReadOnlySegment();
+
+  // Extends the given space with the given segment.
+  FreelistHead Extend(Space* space, Segment segment);
 
   // The pointer to the base of the virtual address space backing this table.
   // All entry accesses happen through this pointer.

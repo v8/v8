@@ -19,6 +19,7 @@ namespace internal {
 
 class Isolate;
 class Counters;
+class ReadOnlyArtifacts;
 
 /**
  * The entries of an ExternalPointerTable.
@@ -345,6 +346,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     //   evacuation area is still contained in the lower bits.
     std::atomic<uint32_t> start_of_evacuation_area_;
   };
+
+  // Initializes all slots in the RO space from pre-existing artifacts.
+  void SetUpFromReadOnlyArtifacts(Space* read_only_space,
+                                  const ReadOnlyArtifacts* artifacts);
 
   // Retrieves the entry referenced by the given handle.
   //

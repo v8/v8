@@ -42,6 +42,13 @@ class ObjectPreProcessor final {
   void EncodeExternalPointerSlot(ExternalPointerSlot slot,
                                  ExternalPointerTag tag) {
     Address value = slot.load(isolate_, tag);
+    EncodeExternalPointerSlot(slot, value, tag);
+  }
+
+  void EncodeExternalPointerSlot(ExternalPointerSlot slot, Address value,
+                                 ExternalPointerTag tag) {
+    // Note it's possible that `value != slot.load(...)`, e.g. for
+    // AccessorInfo::remove_getter_indirection.
     ExternalReferenceEncoder::Value encoder_value =
         extref_encoder_.Encode(value);
     DCHECK_LT(encoder_value.index(),
@@ -56,19 +63,19 @@ class ObjectPreProcessor final {
     slot.ReplaceContentWithIndexForSerialization(no_gc, encoded.ToUint32());
   }
   void PreProcessAccessorInfo(AccessorInfo o) {
-    if (USE_SIMULATOR_BOOL) o.remove_getter_redirection(isolate_);
     EncodeExternalPointerSlot(
         o.RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
+        o.getter(isolate_),  // Pass the non-redirected value.
         kAccessorInfoGetterTag);
     EncodeExternalPointerSlot(
         o.RawExternalPointerField(AccessorInfo::kSetterOffset),
         kAccessorInfoSetterTag);
   }
   void PreProcessCallHandlerInfo(CallHandlerInfo o) {
-    if (USE_SIMULATOR_BOOL) o.remove_callback_redirection(isolate_);
     EncodeExternalPointerSlot(
         o.RawExternalPointerField(
             CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+        o.callback(isolate_),  // Pass the non-redirected value.
         kCallHandlerInfoCallbackTag);
   }
   void PreProcessCode(Code o) {

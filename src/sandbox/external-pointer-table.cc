@@ -5,6 +5,7 @@
 #include "src/sandbox/external-pointer-table.h"
 
 #include "src/execution/isolate.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/logging/counters.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 
@@ -13,9 +14,20 @@
 namespace v8 {
 namespace internal {
 
+void ExternalPointerTable::SetUpFromReadOnlyArtifacts(
+    Space* read_only_space, const ReadOnlyArtifacts* artifacts) {
+  UnsealReadOnlySegmentScope unseal_scope(this);
+  for (const auto& registry_entry : artifacts->external_pointer_registry()) {
+    ExternalPointerHandle handle = AllocateAndInitializeEntry(
+        read_only_space, registry_entry.value, registry_entry.tag);
+    CHECK_EQ(handle, registry_entry.handle);
+  }
+}
+
 uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
                                                Counters* counters) {
   DCHECK(space->BelongsTo(this));
+  DCHECK(!space->is_internal_read_only_space());
 
   // Lock the space. Technically this is not necessary since no other thread can
   // allocate entries at this point, but some of the methods we call on the

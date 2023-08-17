@@ -110,15 +110,18 @@ void ExternalEntityTable<Entry, size>::Initialize() {
   }
   base_ = reinterpret_cast<Entry*>(vas_->base());
 
-  // Allocate the first segment of the table as read-only memory. This segment
-  // will contain the null entry, which should always contain nullptr.
-  auto first_segment = vas_->AllocatePages(
+  // Allocate the read-only segment of the table. This segment is always
+  // located at offset 0, and contains the null entry (pointing at
+  // kNullAddress) at index 0. It may later be temporarily marked read-write,
+  // see UnsealedReadOnlySegmentScope.
+  Address first_segment = vas_->AllocatePages(
       vas_->base(), kSegmentSize, kSegmentSize, PagePermissions::kRead);
   if (first_segment != vas_->base()) {
     V8::FatalProcessOutOfMemory(
         nullptr,
         "ExternalEntityTable::InitializeTable (first segment allocation)");
   }
+  DCHECK_EQ(first_segment - vas_->base(), kInternalReadOnlySegmentOffset);
 }
 
 template <typename Entry, size_t size>
@@ -149,6 +152,58 @@ void ExternalEntityTable<Entry, size>::TearDownSpace(Space* space) {
     FreeTableSegment(segment);
   }
   space->segments_.clear();
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegment(
+    Space* space) {
+  DCHECK(is_initialized());
+  DCHECK(space->BelongsTo(this));
+
+  DCHECK(!space->is_internal_read_only_space());
+  space->is_internal_read_only_space_ = true;
+
+  UnsealReadOnlySegmentScope unseal_scope(this);
+
+  // Physically attach the segment.
+  FreelistHead freelist;
+  {
+    base::MutexGuard guard(&space->mutex_);
+    DCHECK_EQ(space->segments_.size(), 0);
+    freelist = Extend(space, Segment::At(kInternalReadOnlySegmentOffset));
+  }
+
+  DCHECK(!freelist.is_empty());
+  DCHECK_EQ(freelist.next(), kInternalNullEntryIndex + 1);
+  DCHECK(space->Contains(freelist.next()));
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::DetachSpaceFromReadOnlySegment(
+    Space* space) {
+  DCHECK(is_initialized());
+  DCHECK(space->BelongsTo(this));
+  // Remove the RO segment from the space's segment list without freeing it.
+  // The table itself manages the RO segment's lifecycle.
+  base::MutexGuard guard(&space->mutex_);
+  DCHECK_EQ(space->segments_.size(), 1);
+  space->segments_.clear();
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::UnsealReadOnlySegment() {
+  DCHECK(is_initialized());
+  bool success = vas_->SetPagePermissions(vas_->base(), kSegmentSize,
+                                          PagePermissions::kReadWrite);
+  CHECK(success);
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::SealReadOnlySegment() {
+  DCHECK(is_initialized());
+  bool success = vas_->SetPagePermissions(vas_->base(), kSegmentSize,
+                                          PagePermissions::kRead);
+  CHECK(success);
 }
 
 template <typename Entry, size_t size>
@@ -193,7 +248,7 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
 
   uint32_t allocated_entry = freelist.next();
   DCHECK(space->Contains(allocated_entry));
-  DCHECK_NE(allocated_entry, 0);
+  DCHECK_IMPLIES(!space->is_internal_read_only_space(), allocated_entry != 0);
   return allocated_entry;
 }
 
@@ -248,15 +303,41 @@ ExternalEntityTable<Entry, size>::Extend(Space* space) {
   DCHECK_EQ(space->freelist_length(), 0);
   // The caller must lock the space's mutex before extending it.
   space->mutex_.AssertHeld();
+  // The read-only space must never be extended with a newly-allocated segment.
+  DCHECK(!space->is_internal_read_only_space());
 
   // Allocate the new segment.
   Segment segment = AllocateTableSegment();
+  return Extend(space, segment);
+}
+
+template <typename Entry, size_t size>
+typename ExternalEntityTable<Entry, size>::FreelistHead
+ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment) {
+  // Freelist should be empty when calling this method.
+  DCHECK_EQ(space->freelist_length(), 0);
+  // The caller must lock the space's mutex before extending it.
+  space->mutex_.AssertHeld();
+
   space->segments_.insert(segment);
-  DCHECK_NE(segment.number(), 0);
+  DCHECK_EQ(space->is_internal_read_only_space(), segment.number() == 0);
+  DCHECK_EQ(space->is_internal_read_only_space(),
+            segment.offset() == kInternalReadOnlySegmentOffset);
 
   // Refill the freelist with the entries in the newly allocated segment.
   uint32_t first = segment.first_entry();
   uint32_t last = segment.last_entry();
+  if (V8_UNLIKELY(space->is_internal_read_only_space())) {
+    // For the internal read-only segment, index 0 is reserved for the `null`
+    // entry. The underlying memory has been nulled by allocation, and is
+    // therefore already initialized.
+#ifdef DEBUG
+    CHECK_EQ(first, kInternalNullEntryIndex);
+    static constexpr uint8_t kNullBytes[kEntrySize] = {0};
+    CHECK_EQ(memcmp(&at(first), kNullBytes, kEntrySize), 0);
+#endif  // DEBUG
+    first = kInternalNullEntryIndex + 1;
+  }
   for (uint32_t i = first; i < last; i++) {
     uint32_t next_free_entry = i + 1;
     at(i).MakeFreelistEntry(next_free_entry);

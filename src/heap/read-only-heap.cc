@@ -82,7 +82,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       if (!artifacts) {
         artifacts = InitializeSharedReadOnlyArtifacts();
         artifacts->InitializeChecksum(read_only_snapshot_data);
-        ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
+        ro_heap = CreateInitialHeapForBootstrapping(isolate, artifacts);
         ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
                                         can_rehash);
         artifacts->set_initial_next_unique_sfi_id(
@@ -93,6 +93,11 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
         // Without PC, there is only one shared between all Isolates.
         ro_heap = artifacts->GetReadOnlyHeapForIsolate(isolate);
         isolate->SetUpFromReadOnlyArtifacts(artifacts, ro_heap);
+#ifdef V8_COMPRESS_POINTERS
+        isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
+            isolate->heap()->read_only_external_pointer_space(),
+            artifacts.get());
+#endif  // V8_COMPRESS_POINTERS
       }
       artifacts->VerifyChecksum(read_only_snapshot_data,
                                 read_only_heap_created);
@@ -106,7 +111,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       CHECK(!artifacts);
       artifacts = InitializeSharedReadOnlyArtifacts();
 
-      ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
+      ro_heap = CreateInitialHeapForBootstrapping(isolate, artifacts);
 
       // Ensure the first read-only page ends up first in the cage.
       ro_heap->read_only_space()->EnsurePage();
@@ -177,7 +182,7 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space)
 }
 
 // static
-ReadOnlyHeap* ReadOnlyHeap::CreateInitalHeapForBootstrapping(
+ReadOnlyHeap* ReadOnlyHeap::CreateInitialHeapForBootstrapping(
     Isolate* isolate, std::shared_ptr<ReadOnlyArtifacts> artifacts) {
   DCHECK(IsReadOnlySpaceShared());
 

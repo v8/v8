@@ -113,6 +113,24 @@ class ReadOnlyArtifacts {
     return initial_next_unique_sfi_id_;
   }
 
+  struct ExternalPointerRegistryEntry {
+    ExternalPointerRegistryEntry(ExternalPointerHandle handle, Address value,
+                                 ExternalPointerTag tag)
+        : handle(handle), value(value), tag(tag) {}
+    ExternalPointerHandle handle;
+    Address value;
+    ExternalPointerTag tag;
+  };
+  void set_external_pointer_registry(
+      std::vector<ExternalPointerRegistryEntry>&& registry) {
+    DCHECK(external_pointer_registry_.empty());
+    external_pointer_registry_ = std::move(registry);
+  }
+  const std::vector<ExternalPointerRegistryEntry>& external_pointer_registry()
+      const {
+    return external_pointer_registry_;
+  }
+
   void InitializeChecksum(SnapshotData* read_only_snapshot_data);
   void VerifyChecksum(SnapshotData* read_only_snapshot_data,
                       bool read_only_heap_created);
@@ -125,6 +143,7 @@ class ReadOnlyArtifacts {
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
   uint32_t initial_next_unique_sfi_id_ = 0;
+  std::vector<ExternalPointerRegistryEntry> external_pointer_registry_;
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if
   // any.
