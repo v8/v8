@@ -1568,6 +1568,9 @@
 
   # https://crbug.com/v8/13181
   'maglev/get-template-object': [SKIP],
+
+  # https://crbug.com/v8/14274
+  'regress/regress-1469634': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
