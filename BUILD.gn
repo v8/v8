@@ -2240,6 +2240,18 @@ v8_source_set("torque_generated_initializers") {
   }
 
   configs = [ ":internal_config" ]
+
+  if (v8_symbol_level > 1) {
+    # Symbols cause huge compile time on some bigger torque files, see
+    # https://crbug.com/1472715. Thus remove any symbol configs added in v8.gni
+    # and instead add the "minimal_symbols" config.
+    v8_add_configs -=
+        filter_include(v8_add_configs, [ "//build/config/compiler:*symbols" ])
+    if (v8_symbol_level == symbol_level) {
+      v8_remove_configs += [ "//build/config/compiler:default_symbols" ]
+    }
+    configs += [ "//build/config/compiler:minimal_symbols" ]
+  }
 }
 
 v8_source_set("torque_generated_definitions") {
