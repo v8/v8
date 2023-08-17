@@ -1197,11 +1197,12 @@ DEFINE_BOOL(
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
 #ifdef V8_USE_ZLIB
-DEFINE_BOOL(turbo_compress_translation_arrays, false,
-            "compress translation arrays (experimental)")
+DEFINE_BOOL(turbo_compress_frame_translations, false,
+            "compress deoptimization frame translations (experimental)")
 #else
-DEFINE_BOOL_READONLY(turbo_compress_translation_arrays, false,
-                     "compress translation arrays (experimental)")
+DEFINE_BOOL_READONLY(
+    turbo_compress_frame_translations, false,
+    "compress deoptimization frame translations (experimental)")
 #endif  // V8_USE_ZLIB
 DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
 DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, true,

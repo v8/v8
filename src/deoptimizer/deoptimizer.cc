@@ -778,7 +778,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   BytecodeOffset bytecode_offset =
       input_data->GetBytecodeOffset(deopt_exit_index_);
-  ByteArray translations = input_data->TranslationByteArray();
+  auto translations = input_data->FrameTranslation();
   unsigned translation_index =
       input_data->TranslationIndex(deopt_exit_index_).value();
 
@@ -789,7 +789,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   FILE* trace_file =
       verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
-  TranslationArrayIterator state_iterator(translations, translation_index);
+  DeoptimizationFrameTranslation::Iterator state_iterator(translations,
+                                                          translation_index);
   translated_state_.Init(
       isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
       input_data->LiteralArray(), input_->GetRegisterValues(), trace_file,

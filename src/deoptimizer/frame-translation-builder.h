@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
-#define V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
+#ifndef V8_DEOPTIMIZER_FRAME_TRANSLATION_BUILDER_H_
+#define V8_DEOPTIMIZER_FRAME_TRANSLATION_BUILDER_H_
 
 #include "src/codegen/register.h"
 #include "src/deoptimizer/translation-opcode.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -19,60 +19,16 @@ namespace internal {
 
 class LocalFactory;
 
-// The TranslationArray is the on-heap representation of translations created
-// during code generation in a (zone-allocated) TranslationArrayBuilder. The
-// translation array specifies how to transform an optimized frame back into
-// one or more unoptimized frames.
-// TODO(jgruber): Consider a real type instead of this type alias.
-using TranslationArray = ByteArray;
-
-class TranslationArrayIterator {
+class FrameTranslationBuilder {
  public:
-  TranslationArrayIterator(TranslationArray buffer, int index);
-
-  int32_t NextOperand();
-
-  uint32_t NextOperandUnsigned();
-
-  TranslationOpcode NextOpcode();
-
-  bool HasNextOpcode() const;
-
-  void SkipOperands(int n) {
-    for (int i = 0; i < n; i++) NextOperand();
-  }
-
- private:
-  TranslationOpcode NextOpcodeAtPreviousIndex();
-  uint32_t NextUnsignedOperandAtPreviousIndex();
-  void SkipOpcodeAndItsOperandsAtPreviousIndex();
-
-  std::vector<int32_t> uncompressed_contents_;
-  TranslationArray buffer_;
-  int index_;
-
-  // This decrementing counter indicates how many more times to read operations
-  // from the previous translation before continuing to move the index forward.
-  int remaining_ops_to_use_from_previous_translation_ = 0;
-
-  // An index into buffer_ for operations starting at a previous BEGIN, which
-  // can be used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
-  int previous_index_ = 0;
-
-  // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
-  // advance the previous_index_ by this many steps.
-  int ops_since_previous_index_was_updated_ = 0;
-};
-
-class TranslationArrayBuilder {
- public:
-  explicit TranslationArrayBuilder(Zone* zone)
+  explicit FrameTranslationBuilder(Zone* zone)
       : contents_(zone),
         contents_for_compression_(zone),
         basis_instructions_(zone),
         zone_(zone) {}
 
-  Handle<TranslationArray> ToTranslationArray(LocalFactory* factory);
+  Handle<DeoptimizationFrameTranslation> ToFrameTranslation(
+      LocalFactory* factory);
 
   int BeginTranslation(int frame_count, int jsframe_count,
                        bool update_feedback);
@@ -154,12 +110,12 @@ class TranslationArrayBuilder {
   void Add(TranslationOpcode opcode, T... operands);
 
   // Adds the instruction to contents_, without performing the other steps of
-  // Add(). Requires !v8_flags.turbo_compress_translation_arrays.
+  // Add(). Requires !v8_flags.turbo_compress_frame_translations.
   template <typename... T>
   void AddRawToContents(TranslationOpcode opcode, T... operands);
 
   // Adds the instruction to contents_for_compression_, without performing the
-  // other steps of Add(). Requires v8_flags.turbo_compress_translation_arrays.
+  // other steps of Add(). Requires v8_flags.turbo_compress_frame_translations.
   template <typename... T>
   void AddRawToContentsForCompression(TranslationOpcode opcode, T... operands);
 
@@ -169,12 +125,12 @@ class TranslationArrayBuilder {
   void AddRawBegin(bool update_feedback, T... operands);
 
   int Size() const {
-    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
                ? static_cast<int>(contents_for_compression_.size())
                : static_cast<int>(contents_.size());
   }
   int SizeInBytes() const {
-    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
                ? Size() * kInt32Size
                : Size();
   }
@@ -222,4 +178,4 @@ class TranslationArrayBuilder {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
+#endif  // V8_DEOPTIMIZER_FRAME_TRANSLATION_BUILDER_H_

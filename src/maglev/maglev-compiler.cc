@@ -22,7 +22,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/deoptimizer/translation-array.h"
+#include "src/deoptimizer/frame-translation-builder.h"
 #include "src/execution/frames.h"
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-basic-block.h"

@@ -466,7 +466,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
-  TranslationArrayBuilder translations_;
+  FrameTranslationBuilder translations_;
   int handler_table_offset_ = 0;
 
   // Deoptimization exits must be as small as possible, since their count grows

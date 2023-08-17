@@ -23,6 +23,7 @@ class BytecodeArray;
 class ClassPositions;
 class CoverageInfo;
 class DeoptimizationLiteralArray;
+class DeoptimizationFrameTranslation;
 class FixedArray;
 template <typename T>
 class FixedIntegerArray;
@@ -175,6 +176,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+  Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
+      int length);
 
   Handle<BytecodeArray> NewBytecodeArray(int length,
                                          const uint8_t* raw_bytecodes,

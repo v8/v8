@@ -917,10 +917,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
 
-  Handle<TranslationArray> translation_array = translations_.ToTranslationArray(
-      isolate()->main_thread_local_isolate()->factory());
+  Handle<DeoptimizationFrameTranslation> translation_array =
+      translations_.ToFrameTranslation(
+          isolate()->main_thread_local_isolate()->factory());
 
-  data->SetTranslationByteArray(*translation_array);
+  data->SetFrameTranslation(*translation_array);
   data->SetInlinedFunctionCount(
       Smi::FromInt(static_cast<int>(inlined_function_count_)));
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));

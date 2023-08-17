@@ -1672,8 +1672,8 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
     SetInternalReference(entry, "deoptimization_data", deoptimization_data,
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
     if (deoptimization_data->length() > 0) {
-      TagObject(deoptimization_data->TranslationByteArray(),
-                "(code deopt data)", HeapEntry::kCode);
+      TagObject(deoptimization_data->FrameTranslation(), "(code deopt data)",
+                HeapEntry::kCode);
       TagObject(deoptimization_data->LiteralArray(), "(code deopt data)",
                 HeapEntry::kCode);
       TagObject(deoptimization_data->InliningPositions(), "(code deopt data)",

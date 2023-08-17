@@ -19,8 +19,9 @@ OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 
 CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
+CAST_ACCESSOR(DeoptimizationFrameTranslation)
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(FrameTranslation, DeoptimizationFrameTranslation)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
@@ -46,7 +47,7 @@ void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 
-int DeoptimizationData::DeoptCount() {
+int DeoptimizationData::DeoptCount() const {
   return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
 }
 
@@ -84,6 +85,10 @@ inline void DeoptimizationLiteralArray::set(int index, Object value) {
   }
   Set(index, maybe);
 }
+
+inline DeoptimizationFrameTranslation::DeoptimizationFrameTranslation(
+    Address ptr)
+    : ByteArray(ptr) {}
 
 }  // namespace internal
 }  // namespace v8

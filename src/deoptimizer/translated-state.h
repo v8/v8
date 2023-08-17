@@ -8,7 +8,7 @@
 #include <stack>
 #include <vector>
 
-#include "src/deoptimizer/translation-array.h"
+#include "src/deoptimizer/frame-translation-builder.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
@@ -28,15 +28,15 @@ class TranslatedState;
 // TODO(jgruber): This duplicates decoding logic already present in
 // TranslatedState/TranslatedFrame. Deduplicate into one class, e.g. by basing
 // printing off TranslatedFrame.
-void TranslationArrayPrintSingleFrame(std::ostream& os,
-                                      TranslationArray translation_array,
-                                      int translation_index,
-                                      DeoptimizationLiteralArray literal_array);
+void DeoptimizationFrameTranslationPrintSingleOpcode(
+    std::ostream& os, TranslationOpcode opcode,
+    DeoptimizationFrameTranslation::Iterator& iterator,
+    DeoptimizationLiteralArray literal_array);
 
 // The Translated{Value,Frame,State} class hierarchy are a set of utility
 // functions to work with the combination of translations (built from a
-// TranslationArray) and the actual current CPU state (represented by
-// RegisterValues).
+// DeoptimizationFrameTranslation) and the actual current CPU state (represented
+// by RegisterValues).
 //
 // TranslatedState: describes the entire stack state of the current optimized
 // frame, contains:
@@ -397,7 +397,8 @@ class TranslatedState {
   Isolate* isolate() { return isolate_; }
 
   void Init(Isolate* isolate, Address input_frame_pointer,
-            Address stack_frame_pointer, TranslationArrayIterator* iterator,
+            Address stack_frame_pointer,
+            DeoptimizationFrameTranslation::Iterator* iterator,
             DeoptimizationLiteralArray literal_array, RegisterValues* registers,
             FILE* trace_file, int parameter_count, int actual_argument_count);
 
@@ -414,13 +415,12 @@ class TranslatedState {
   enum Purpose { kDeoptimization, kFrameInspection };
 
   TranslatedFrame CreateNextTranslatedFrame(
-      TranslationArrayIterator* iterator,
+      DeoptimizationFrameTranslation::Iterator* iterator,
       DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file);
-  int CreateNextTranslatedValue(int frame_index,
-                                TranslationArrayIterator* iterator,
-                                DeoptimizationLiteralArray literal_array,
-                                Address fp, RegisterValues* registers,
-                                FILE* trace_file);
+  int CreateNextTranslatedValue(
+      int frame_index, DeoptimizationFrameTranslation::Iterator* iterator,
+      DeoptimizationLiteralArray literal_array, Address fp,
+      RegisterValues* registers, FILE* trace_file);
   Address DecompressIfNeeded(intptr_t value);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
@@ -455,7 +455,7 @@ class TranslatedState {
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       Handle<Map> map, const DisallowGarbageCollection& no_gc);
 
-  void ReadUpdateFeedback(TranslationArrayIterator* iterator,
+  void ReadUpdateFeedback(DeoptimizationFrameTranslation::Iterator* iterator,
                           DeoptimizationLiteralArray literal_array,
                           FILE* trace_file);
 

@@ -2721,8 +2721,8 @@ void OptimizedFrame::GetFunctions(
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
   DeoptimizationLiteralArray const literal_array = data->LiteralArray();
 
-  TranslationArrayIterator it(data->TranslationByteArray(),
-                              data->TranslationIndex(deopt_index).value());
+  DeoptimizationFrameTranslation::Iterator it(
+      data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
   TranslationOpcode opcode = it.NextOpcode();
   DCHECK(TranslationOpcodeIsBegin(opcode));
   it.NextOperand();  // Skip lookback distance.

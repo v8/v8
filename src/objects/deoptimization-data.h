@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_DEOPTIMIZATION_DATA_H_
 #define V8_OBJECTS_DEOPTIMIZATION_DATA_H_
 
-#include "src/deoptimizer/translation-array.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -32,6 +32,74 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
   OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, WeakFixedArray);
 };
 
+// The DeoptimizationFrameTranslation is the on-heap representation of
+// translations created during code generation in a (zone-allocated)
+// DeoptimizationFrameTranslationBuilder. The translation specifies how to
+// transform an optimized frame back into one or more unoptimized frames.
+enum class TranslationOpcode;
+class DeoptimizationFrameTranslation : public ByteArray {
+ public:
+  DECL_CAST(DeoptimizationFrameTranslation)
+
+  class Iterator;
+
+#ifdef V8_USE_ZLIB
+  // Constants describing compressed DeoptimizationFrameTranslation layout. Only
+  // relevant if
+  // --turbo-compress-frame-translation is enabled.
+  static constexpr int kUncompressedSizeOffset = 0;
+  static constexpr int kUncompressedSizeSize = kInt32Size;
+  static constexpr int kCompressedDataOffset =
+      kUncompressedSizeOffset + kUncompressedSizeSize;
+  static constexpr int kDeoptimizationFrameTranslationElementSize = kInt32Size;
+#endif  // V8_USE_ZLIB
+
+#ifdef ENABLE_DISASSEMBLER
+  void PrintFrameTranslation(std::ostream& os, int index,
+                             DeoptimizationLiteralArray literal_array) const;
+#endif
+
+  OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, ByteArray);
+};
+
+class DeoptimizationFrameTranslation::Iterator {
+ public:
+  Iterator(DeoptimizationFrameTranslation buffer, int index);
+
+  int32_t NextOperand();
+
+  uint32_t NextOperandUnsigned();
+
+  TranslationOpcode NextOpcode();
+
+  bool HasNextOpcode() const;
+
+  void SkipOperands(int n) {
+    for (int i = 0; i < n; i++) NextOperand();
+  }
+
+ private:
+  TranslationOpcode NextOpcodeAtPreviousIndex();
+  uint32_t NextUnsignedOperandAtPreviousIndex();
+  void SkipOpcodeAndItsOperandsAtPreviousIndex();
+
+  std::vector<int32_t> uncompressed_contents_;
+  DeoptimizationFrameTranslation buffer_;
+  int index_;
+
+  // This decrementing counter indicates how many more times to read operations
+  // from the previous translation before continuing to move the index forward.
+  int remaining_ops_to_use_from_previous_translation_ = 0;
+
+  // An index into buffer_ for operations starting at a previous BEGIN, which
+  // can be used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
+  int previous_index_ = 0;
+
+  // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
+  // advance the previous_index_ by this many steps.
+  int ops_since_previous_index_was_updated_ = 0;
+};
+
 // DeoptimizationData is a fixed array used to hold the deoptimization data for
 // optimized code.  It also contains information about functions that were
 // inlined.  If N different functions were inlined then the first N elements of
@@ -41,7 +109,7 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
 class DeoptimizationData : public FixedArray {
  public:
   // Layout description.  Indices in the array.
-  static const int kTranslationByteArrayIndex = 0;
+  static const int kFrameTranslationIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
   static const int kLiteralArrayIndex = 2;
   static const int kOsrBytecodeOffsetIndex = 3;
@@ -70,7 +138,7 @@ class DeoptimizationData : public FixedArray {
   inline type name() const;                \
   inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
+  DECL_ELEMENT_ACCESSORS(FrameTranslation, DeoptimizationFrameTranslation)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
   DECL_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
@@ -102,7 +170,7 @@ class DeoptimizationData : public FixedArray {
 
   inline void SetBytecodeOffset(int i, BytecodeOffset value);
 
-  inline int DeoptCount();
+  inline int DeoptCount() const;
 
   static const int kNotInlinedIndex = -1;
 
@@ -125,7 +193,7 @@ class DeoptimizationData : public FixedArray {
   DECL_CAST(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
-  void DeoptimizationDataPrint(std::ostream& os);
+  void PrintDeoptimizationData(std::ostream& os) const;
 #endif
 
  private:

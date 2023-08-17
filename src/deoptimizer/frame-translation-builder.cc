@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/deoptimizer/translation-array.h"
+#include "src/deoptimizer/frame-translation-builder.h"
 
 #include "src/base/vlq.h"
 #include "src/deoptimizer/translated-state.h"
@@ -14,168 +14,6 @@
 
 namespace v8 {
 namespace internal {
-
-namespace {
-
-#ifdef V8_USE_ZLIB
-// Constants describing compressed TranslationArray layout. Only relevant if
-// --turbo-compress-translation-arrays is enabled.
-constexpr int kUncompressedSizeOffset = 0;
-constexpr int kUncompressedSizeSize = kInt32Size;
-constexpr int kCompressedDataOffset =
-    kUncompressedSizeOffset + kUncompressedSizeSize;
-constexpr int kTranslationArrayElementSize = kInt32Size;
-#endif  // V8_USE_ZLIB
-
-}  // namespace
-
-TranslationArrayIterator::TranslationArrayIterator(TranslationArray buffer,
-                                                   int index)
-    : buffer_(buffer), index_(index) {
-#ifdef V8_USE_ZLIB
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    const int size = buffer_.get_int(kUncompressedSizeOffset);
-    uncompressed_contents_.insert(uncompressed_contents_.begin(), size, 0);
-
-    uLongf uncompressed_size = size * kTranslationArrayElementSize;
-
-    CHECK_EQ(zlib_internal::UncompressHelper(
-                 zlib_internal::ZRAW,
-                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
-                 &uncompressed_size,
-                 buffer_.GetDataStartAddress() + kCompressedDataOffset,
-                 buffer_.DataSize()),
-             Z_OK);
-    DCHECK(index >= 0 && index < size);
-    return;
-  }
-#endif  // V8_USE_ZLIB
-  DCHECK(!v8_flags.turbo_compress_translation_arrays);
-  DCHECK(index >= 0 && index < buffer.length());
-  // Starting at a location other than a BEGIN would make
-  // MATCH_PREVIOUS_TRANSLATION instructions not work.
-  DCHECK(TranslationOpcodeIsBegin(
-      static_cast<TranslationOpcode>(buffer_.GetDataStartAddress()[index])));
-}
-
-int32_t TranslationArrayIterator::NextOperand() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    return uncompressed_contents_[index_++];
-  } else if (remaining_ops_to_use_from_previous_translation_) {
-    int32_t value =
-        base::VLQDecode(buffer_.GetDataStartAddress(), &previous_index_);
-    DCHECK_LT(previous_index_, index_);
-    return value;
-  } else {
-    int32_t value = base::VLQDecode(buffer_.GetDataStartAddress(), &index_);
-    DCHECK_LE(index_, buffer_.length());
-    return value;
-  }
-}
-
-TranslationOpcode TranslationArrayIterator::NextOpcodeAtPreviousIndex() {
-  TranslationOpcode opcode =
-      static_cast<TranslationOpcode>(buffer_.get(previous_index_++));
-  DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
-  DCHECK_NE(opcode, TranslationOpcode::MATCH_PREVIOUS_TRANSLATION);
-  DCHECK_LT(previous_index_, index_);
-  return opcode;
-}
-
-uint32_t TranslationArrayIterator::NextUnsignedOperandAtPreviousIndex() {
-  uint32_t value =
-      base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &previous_index_);
-  DCHECK_LT(previous_index_, index_);
-  return value;
-}
-
-uint32_t TranslationArrayIterator::NextOperandUnsigned() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    return uncompressed_contents_[index_++];
-  } else if (remaining_ops_to_use_from_previous_translation_) {
-    return NextUnsignedOperandAtPreviousIndex();
-  } else {
-    uint32_t value =
-        base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &index_);
-    DCHECK_LE(index_, buffer_.length());
-    return value;
-  }
-}
-
-TranslationOpcode TranslationArrayIterator::NextOpcode() {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    return static_cast<TranslationOpcode>(NextOperandUnsigned());
-  }
-  if (remaining_ops_to_use_from_previous_translation_) {
-    --remaining_ops_to_use_from_previous_translation_;
-  }
-  if (remaining_ops_to_use_from_previous_translation_) {
-    return NextOpcodeAtPreviousIndex();
-  }
-  CHECK_LT(index_, buffer_.length());
-  uint8_t opcode_byte = buffer_.get(index_++);
-
-  // If the opcode byte is greater than any valid opcode, then the opcode is
-  // implicitly MATCH_PREVIOUS_TRANSLATION and the operand is the opcode byte
-  // minus kNumTranslationOpcodes. This special-case encoding of the most common
-  // opcode saves some memory.
-  if (opcode_byte >= kNumTranslationOpcodes) {
-    remaining_ops_to_use_from_previous_translation_ =
-        opcode_byte - kNumTranslationOpcodes;
-    opcode_byte =
-        static_cast<uint8_t>(TranslationOpcode::MATCH_PREVIOUS_TRANSLATION);
-  } else if (opcode_byte ==
-             static_cast<uint8_t>(
-                 TranslationOpcode::MATCH_PREVIOUS_TRANSLATION)) {
-    remaining_ops_to_use_from_previous_translation_ = NextOperandUnsigned();
-  }
-
-  TranslationOpcode opcode = static_cast<TranslationOpcode>(opcode_byte);
-  DCHECK_LE(index_, buffer_.length());
-  DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
-  if (TranslationOpcodeIsBegin(opcode)) {
-    int temp_index = index_;
-    // The first argument for BEGIN is the distance, in bytes, since the
-    // previous BEGIN, or zero to indicate that MATCH_PREVIOUS_TRANSLATION will
-    // not be used in this translation.
-    uint32_t lookback_distance =
-        base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &temp_index);
-    if (lookback_distance) {
-      previous_index_ = index_ - 1 - lookback_distance;
-      DCHECK(TranslationOpcodeIsBegin(
-          static_cast<TranslationOpcode>(buffer_.get(previous_index_))));
-      // The previous BEGIN should specify zero as its lookback distance,
-      // meaning it won't use MATCH_PREVIOUS_TRANSLATION.
-      DCHECK_EQ(buffer_.get(previous_index_ + 1), 0);
-    }
-    ops_since_previous_index_was_updated_ = 1;
-  } else if (opcode == TranslationOpcode::MATCH_PREVIOUS_TRANSLATION) {
-    for (int i = 0; i < ops_since_previous_index_was_updated_; ++i) {
-      SkipOpcodeAndItsOperandsAtPreviousIndex();
-    }
-    ops_since_previous_index_was_updated_ = 0;
-    opcode = NextOpcodeAtPreviousIndex();
-  } else {
-    ++ops_since_previous_index_was_updated_;
-  }
-  return opcode;
-}
-
-bool TranslationArrayIterator::HasNextOpcode() const {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    return index_ < static_cast<int>(uncompressed_contents_.size());
-  } else {
-    return index_ < buffer_.length() ||
-           remaining_ops_to_use_from_previous_translation_ > 1;
-  }
-}
-
-void TranslationArrayIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {
-  TranslationOpcode opcode = NextOpcodeAtPreviousIndex();
-  for (int count = TranslationOpcodeOperandCount(opcode); count != 0; --count) {
-    NextUnsignedOperandAtPreviousIndex();
-  }
-}
 
 namespace {
 
@@ -233,28 +71,28 @@ inline bool OperandsEqual(uint32_t* expected_operands, T... operands) {
 }  // namespace
 
 template <typename... T>
-void TranslationArrayBuilder::AddRawToContents(TranslationOpcode opcode,
+void FrameTranslationBuilder::AddRawToContents(TranslationOpcode opcode,
                                                T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  DCHECK(!v8_flags.turbo_compress_translation_arrays);
+  DCHECK(!v8_flags.turbo_compress_frame_translations);
   contents_.push_back(static_cast<uint8_t>(opcode));
   (..., operands.WriteVLQ(&contents_));
 }
 
 template <typename... T>
-void TranslationArrayBuilder::AddRawToContentsForCompression(
+void FrameTranslationBuilder::AddRawToContentsForCompression(
     TranslationOpcode opcode, T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  DCHECK(v8_flags.turbo_compress_translation_arrays);
+  DCHECK(v8_flags.turbo_compress_frame_translations);
   contents_for_compression_.push_back(static_cast<uint8_t>(opcode));
   (..., contents_for_compression_.push_back(operands.value()));
 }
 
 template <typename... T>
-void TranslationArrayBuilder::AddRawBegin(bool update_feedback, T... operands) {
+void FrameTranslationBuilder::AddRawBegin(bool update_feedback, T... operands) {
   auto opcode = update_feedback ? TranslationOpcode::BEGIN_WITH_FEEDBACK
                                 : TranslationOpcode::BEGIN_WITHOUT_FEEDBACK;
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
+  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     AddRawToContentsForCompression(opcode, operands...);
   } else {
     AddRawToContents(opcode, operands...);
@@ -266,7 +104,7 @@ void TranslationArrayBuilder::AddRawBegin(bool update_feedback, T... operands) {
   }
 }
 
-int TranslationArrayBuilder::BeginTranslation(int frame_count,
+int FrameTranslationBuilder::BeginTranslation(int frame_count,
                                               int jsframe_count,
                                               bool update_feedback) {
 #ifdef DEBUG
@@ -309,7 +147,7 @@ int TranslationArrayBuilder::BeginTranslation(int frame_count,
   return start_index;
 }
 
-void TranslationArrayBuilder::FinishPendingInstructionIfNeeded() {
+void FrameTranslationBuilder::FinishPendingInstructionIfNeeded() {
   if (matching_instructions_count_) {
     total_matching_instructions_in_current_translation_ +=
         matching_instructions_count_;
@@ -334,9 +172,9 @@ void TranslationArrayBuilder::FinishPendingInstructionIfNeeded() {
 }
 
 template <typename... T>
-void TranslationArrayBuilder::Add(TranslationOpcode opcode, T... operands) {
+void FrameTranslationBuilder::Add(TranslationOpcode opcode, T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
+  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     AddRawToContentsForCompression(opcode, operands...);
     return;
   }
@@ -367,12 +205,12 @@ void TranslationArrayBuilder::Add(TranslationOpcode opcode, T... operands) {
   ++instruction_index_within_translation_;
 }
 
-Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
-    LocalFactory* factory) {
+Handle<DeoptimizationFrameTranslation>
+FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
   DCHECK_EQ(expected_frame_count_, 0);
   DCHECK_EQ(expected_jsframe_count_, 0);
 #ifdef V8_USE_ZLIB
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
+  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     const int input_size = SizeInBytes();
     uLongf compressed_data_size = compressBound(input_size);
 
@@ -386,28 +224,31 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
         Z_OK);
 
     const int translation_array_size =
-        static_cast<int>(compressed_data_size) + kUncompressedSizeSize;
-    Handle<TranslationArray> result =
-        factory->NewByteArray(translation_array_size, AllocationType::kOld);
+        static_cast<int>(compressed_data_size) +
+        DeoptimizationFrameTranslation::kUncompressedSizeSize;
+    Handle<DeoptimizationFrameTranslation> result =
+        factory->NewDeoptimizationFrameTranslation(translation_array_size);
 
-    result->set_int(kUncompressedSizeOffset, Size());
-    std::memcpy(result->GetDataStartAddress() + kCompressedDataOffset,
+    result->set_int(DeoptimizationFrameTranslation::kUncompressedSizeOffset,
+                    Size());
+    std::memcpy(result->GetDataStartAddress() +
+                    DeoptimizationFrameTranslation::kCompressedDataOffset,
                 compressed_data.data(), compressed_data_size);
 
     return result;
   }
 #endif
-  DCHECK(!v8_flags.turbo_compress_translation_arrays);
+  DCHECK(!v8_flags.turbo_compress_frame_translations);
   FinishPendingInstructionIfNeeded();
-  Handle<TranslationArray> result =
-      factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
+  Handle<DeoptimizationFrameTranslation> result =
+      factory->NewDeoptimizationFrameTranslation(SizeInBytes());
   if (SizeInBytes() == 0) return result;
   memcpy(result->GetDataStartAddress(), contents_.data(),
          contents_.size() * sizeof(uint8_t));
 #ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
     // Check that we can read back all of the same content we intended to write.
-    TranslationArrayIterator it(*result, 0);
+    DeoptimizationFrameTranslation::Iterator it(*result, 0);
     for (size_t i = 0; i < all_instructions_.size(); ++i) {
       CHECK(it.HasNextOpcode());
       const Instruction& instruction = all_instructions_[i];
@@ -425,7 +266,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
   return result;
 }
 
-void TranslationArrayBuilder::MarkFrameVisited(TranslationOpcode opcode) {
+void FrameTranslationBuilder::MarkFrameVisited(TranslationOpcode opcode) {
 #ifdef DEBUG
   if (IsTranslationJsFrameOpcode(opcode)) {
     expected_jsframe_count_--;
@@ -434,7 +275,7 @@ void TranslationArrayBuilder::MarkFrameVisited(TranslationOpcode opcode) {
 #endif
 }
 
-void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
+void FrameTranslationBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;
   MarkFrameVisited(opcode);
@@ -443,7 +284,7 @@ void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
+void FrameTranslationBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     base::Optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
@@ -454,7 +295,7 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
                                 : kNoWasmReturnKind));
 }
 
-void TranslationArrayBuilder::BeginWasmInlinedIntoJSFrame(
+void FrameTranslationBuilder::BeginWasmInlinedIntoJSFrame(
     BytecodeOffset bailout_id, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::WASM_INLINED_INTO_JS_FRAME;
   MarkFrameVisited(opcode);
@@ -463,7 +304,7 @@ void TranslationArrayBuilder::BeginWasmInlinedIntoJSFrame(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(
+void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME;
   MarkFrameVisited(opcode);
@@ -471,7 +312,7 @@ void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(
       SignedOperand(height));
 }
 
-void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
+void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode =
       TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
@@ -480,27 +321,27 @@ void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
       SignedOperand(height));
 }
 
-void TranslationArrayBuilder::BeginConstructCreateStubFrame(int literal_id,
+void FrameTranslationBuilder::BeginConstructCreateStubFrame(int literal_id,
                                                             unsigned height) {
   auto opcode = TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME;
   MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id), SignedOperand(height));
 }
 
-void TranslationArrayBuilder::BeginConstructInvokeStubFrame(int literal_id) {
+void FrameTranslationBuilder::BeginConstructInvokeStubFrame(int literal_id) {
   auto opcode = TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME;
   MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id));
 }
 
-void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
+void FrameTranslationBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
   auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
   MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id), SignedOperand(height));
 }
 
-void TranslationArrayBuilder::BeginInterpretedFrame(
+void FrameTranslationBuilder::BeginInterpretedFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     int return_value_offset, int return_value_count) {
   if (return_value_count == 0) {
@@ -517,152 +358,152 @@ void TranslationArrayBuilder::BeginInterpretedFrame(
   }
 }
 
-void TranslationArrayBuilder::ArgumentsElements(CreateArgumentsType type) {
+void FrameTranslationBuilder::ArgumentsElements(CreateArgumentsType type) {
   auto opcode = TranslationOpcode::ARGUMENTS_ELEMENTS;
   Add(opcode, SignedOperand(static_cast<uint8_t>(type)));
 }
 
-void TranslationArrayBuilder::ArgumentsLength() {
+void FrameTranslationBuilder::ArgumentsLength() {
   auto opcode = TranslationOpcode::ARGUMENTS_LENGTH;
   Add(opcode);
 }
 
-void TranslationArrayBuilder::BeginCapturedObject(int length) {
+void FrameTranslationBuilder::BeginCapturedObject(int length) {
   auto opcode = TranslationOpcode::CAPTURED_OBJECT;
   Add(opcode, SignedOperand(length));
 }
 
-void TranslationArrayBuilder::DuplicateObject(int object_index) {
+void FrameTranslationBuilder::DuplicateObject(int object_index) {
   auto opcode = TranslationOpcode::DUPLICATED_OBJECT;
   Add(opcode, SignedOperand(object_index));
 }
 
-void TranslationArrayBuilder::StoreRegister(TranslationOpcode opcode,
+void FrameTranslationBuilder::StoreRegister(TranslationOpcode opcode,
                                             Register reg) {
   static_assert(Register::kNumRegisters - 1 <= base::kDataMask);
   Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
-void TranslationArrayBuilder::StoreRegister(Register reg) {
+void FrameTranslationBuilder::StoreRegister(Register reg) {
   auto opcode = TranslationOpcode::REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreInt32Register(Register reg) {
+void FrameTranslationBuilder::StoreInt32Register(Register reg) {
   auto opcode = TranslationOpcode::INT32_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreInt64Register(Register reg) {
+void FrameTranslationBuilder::StoreInt64Register(Register reg) {
   auto opcode = TranslationOpcode::INT64_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreSignedBigInt64Register(Register reg) {
+void FrameTranslationBuilder::StoreSignedBigInt64Register(Register reg) {
   auto opcode = TranslationOpcode::SIGNED_BIGINT64_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreUnsignedBigInt64Register(Register reg) {
+void FrameTranslationBuilder::StoreUnsignedBigInt64Register(Register reg) {
   auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreUint32Register(Register reg) {
+void FrameTranslationBuilder::StoreUint32Register(Register reg) {
   auto opcode = TranslationOpcode::UINT32_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreBoolRegister(Register reg) {
+void FrameTranslationBuilder::StoreBoolRegister(Register reg) {
   auto opcode = TranslationOpcode::BOOL_REGISTER;
   StoreRegister(opcode, reg);
 }
 
-void TranslationArrayBuilder::StoreFloatRegister(FloatRegister reg) {
+void FrameTranslationBuilder::StoreFloatRegister(FloatRegister reg) {
   static_assert(FloatRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::FLOAT_REGISTER;
   Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
-void TranslationArrayBuilder::StoreDoubleRegister(DoubleRegister reg) {
+void FrameTranslationBuilder::StoreDoubleRegister(DoubleRegister reg) {
   static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::DOUBLE_REGISTER;
   Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
-void TranslationArrayBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
+void FrameTranslationBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
   static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::HOLEY_DOUBLE_REGISTER;
   Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
-void TranslationArrayBuilder::StoreStackSlot(int index) {
+void FrameTranslationBuilder::StoreStackSlot(int index) {
   auto opcode = TranslationOpcode::TAGGED_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreInt32StackSlot(int index) {
+void FrameTranslationBuilder::StoreInt32StackSlot(int index) {
   auto opcode = TranslationOpcode::INT32_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreInt64StackSlot(int index) {
+void FrameTranslationBuilder::StoreInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::INT64_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreSignedBigInt64StackSlot(int index) {
+void FrameTranslationBuilder::StoreSignedBigInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreUnsignedBigInt64StackSlot(int index) {
+void FrameTranslationBuilder::StoreUnsignedBigInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreUint32StackSlot(int index) {
+void FrameTranslationBuilder::StoreUint32StackSlot(int index) {
   auto opcode = TranslationOpcode::UINT32_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreBoolStackSlot(int index) {
+void FrameTranslationBuilder::StoreBoolStackSlot(int index) {
   auto opcode = TranslationOpcode::BOOL_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreFloatStackSlot(int index) {
+void FrameTranslationBuilder::StoreFloatStackSlot(int index) {
   auto opcode = TranslationOpcode::FLOAT_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreDoubleStackSlot(int index) {
+void FrameTranslationBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreHoleyDoubleStackSlot(int index) {
+void FrameTranslationBuilder::StoreHoleyDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
-void TranslationArrayBuilder::StoreLiteral(int literal_id) {
+void FrameTranslationBuilder::StoreLiteral(int literal_id) {
   auto opcode = TranslationOpcode::LITERAL;
   DCHECK_GE(literal_id, 0);
   Add(opcode, SignedOperand(literal_id));
 }
 
-void TranslationArrayBuilder::StoreOptimizedOut() {
+void FrameTranslationBuilder::StoreOptimizedOut() {
   auto opcode = TranslationOpcode::OPTIMIZED_OUT;
   Add(opcode);
 }
 
-void TranslationArrayBuilder::AddUpdateFeedback(int vector_literal, int slot) {
+void FrameTranslationBuilder::AddUpdateFeedback(int vector_literal, int slot) {
   auto opcode = TranslationOpcode::UPDATE_FEEDBACK;
   Add(opcode, SignedOperand(vector_literal), SignedOperand(slot));
 }
 
-void TranslationArrayBuilder::StoreJSFrameFunction() {
+void FrameTranslationBuilder::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
                   StandardFrameConstants::kFunctionOffset) /
                  kSystemPointerSize);

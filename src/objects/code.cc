@@ -330,7 +330,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (CodeKindCanDeoptimize(kind)) {
     DeoptimizationData data =
         DeoptimizationData::cast(code->deoptimization_data());
-    data->DeoptimizationDataPrint(os);
+    data->PrintDeoptimizationData(os);
   }
   os << "\n";
 

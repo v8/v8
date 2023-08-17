@@ -289,6 +289,13 @@ FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
 }
 
 template <typename Impl>
+Handle<DeoptimizationFrameTranslation>
+FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
+  return Handle<DeoptimizationFrameTranslation>::cast(
+      NewByteArray(length, AllocationType::kOld));
+}
+
+template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
     int parameter_count, Handle<FixedArray> constant_pool) {
