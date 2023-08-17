@@ -13,41 +13,28 @@ namespace ro {
 
 // Common functionality for RO serialization and deserialization.
 
-// Serializer format:
-//
-// --------------------------------------------------------------------
-// page_content[1..n]      - content of each page
-// kReadOnlyRootsTable
-// #ifndef V8_STATIC_ROOTS
-// read_only_roots[1..n]   - all entries of the ro roots table
-// #endif  // V8_STATIC_ROOTS
-// kFinalizeReadOnlySpace  - end mark
-// --------------------------------------------------------------------
-//
-// where page_content is:
-// ------------------------------------------------------------------
-// kPage                   - page begin mark
-// segment_content[1..n]   - content of each segment
-// kFinalizePage           - page end mark
-// ------------------------------------------------------------------
-//
-// where segment_content is:
-// ----------------------------------------------------------------
-// kSegment                - segment mark
-// offset                  - start of segment rel. to area_start
-// size                    - size of segment in bytes
-// bytes[1..size]          - content
-// #ifndef V8_STATIC_ROOTS
-// kRelocateSegment        - segment relocation mark
-// tagged_slots_bitfield[] - bitfield of tagged slots
-// #endif  // V8_STATIC_ROOTS
-// ----------------------------------------------------------------
 enum Bytecode {
-  kPage,
+  // kAllocatePage parameters:
+  //   Uint30 page_index
+  //   Uint30 area_size_in_bytes
+  //   IF_STATIC_ROOTS(Uint32 compressed_page_address)
+  kAllocatePage,
+  //
+  // kSegment parameters:
+  //   Uint30 page_index
+  //   Uint30 offset
+  //   Uint30 size_in_bytes
+  //   ... segment byte stream
   kSegment,
+  //
+  // kRelocateSegment parameters:
+  //   ... relocation byte stream
   kRelocateSegment,
-  kFinalizePage,
+  //
+  // kReadOnlyRootsTable parameters:
+  //   IF_STATIC_ROOTS(... ro roots table slots)
   kReadOnlyRootsTable,
+  //
   kFinalizeReadOnlySpace,
 };
 static constexpr int kNumberOfBytecodes =

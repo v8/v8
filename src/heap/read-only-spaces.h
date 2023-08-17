@@ -249,6 +249,9 @@ class ReadOnlySpace : public BaseSpace {
   Address limit() const { return limit_; }
   size_t Capacity() const { return capacity_; }
 
+  // Returns the index within pages_. The chunk must be part of this space.
+  size_t IndexOf(const BasicMemoryChunk* chunk) const;
+
   bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
@@ -293,10 +296,14 @@ class ReadOnlySpace : public BaseSpace {
                                       AllocationAlignment alignment);
   HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
                                         AllocationAlignment alignment);
-  void AllocateNextPage();
-  void AllocateNextPageAt(Address pos);
-  void FinalizeExternallyInitializedPage();
-  void FinalizeExternallyInitializedSpace();
+
+  // Return the index within pages_ of the newly allocated page.
+  size_t AllocateNextPage();
+  size_t AllocateNextPageAt(Address pos);
+  void InitializePageForDeserialization(ReadOnlyPage* page,
+                                        size_t area_size_in_bytes);
+  void FinalizeSpaceForDeserialization();
+
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 

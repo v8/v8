@@ -729,14 +729,22 @@ SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
   pages_ = artifacts->pages();
 }
 
-void ReadOnlySpace::AllocateNextPage() {
+size_t ReadOnlySpace::IndexOf(const BasicMemoryChunk* chunk) const {
+  for (size_t i = 0; i < pages_.size(); i++) {
+    if (chunk == pages_[i]) return i;
+  }
+  UNREACHABLE();
+}
+
+size_t ReadOnlySpace::AllocateNextPage() {
   ReadOnlyPage* page = heap_->memory_allocator()->AllocateReadOnlyPage(this);
   capacity_ += AreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);
+  return pages_.size() - 1;
 }
 
-void ReadOnlySpace::AllocateNextPageAt(Address pos) {
+size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   ReadOnlyPage* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
   // If this fails we probably allocated r/o space too late.
@@ -744,19 +752,17 @@ void ReadOnlySpace::AllocateNextPageAt(Address pos) {
   capacity_ += AreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);
+  return pages_.size() - 1;
 }
 
-void ReadOnlySpace::FinalizeExternallyInitializedPage() {
-  ReadOnlyPage* cur_page = pages_.back();
-  cur_page->IncreaseAllocatedBytes(top_ - cur_page->area_start());
-  cur_page->high_water_mark_ = top_ - cur_page->address();
-  limit_ = top_;
-  // Note we can't shrink the page yet because the roots table is uninitialized
-  // (therefore we cannot access filler object maps). That'll happen later in
-  // FinalizeExternallyInitializedSpace.
+void ReadOnlySpace::InitializePageForDeserialization(
+    ReadOnlyPage* page, size_t area_size_in_bytes) {
+  page->IncreaseAllocatedBytes(area_size_in_bytes);
+  limit_ = top_ = page->area_start() + area_size_in_bytes;
+  page->high_water_mark_ = top_ - page->address();
 }
 
-void ReadOnlySpace::FinalizeExternallyInitializedSpace() {
+void ReadOnlySpace::FinalizeSpaceForDeserialization() {
   // The ReadOnlyRoots table is now initialized. Create fillers, shrink pages,
   // and update accounting stats.
   for (ReadOnlyPage* page : pages_) {

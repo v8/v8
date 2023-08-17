@@ -34,46 +34,49 @@ class ReadOnlyHeapImageDeserializer final {
       int bytecode_as_int = source_->Get();
       DCHECK_LT(bytecode_as_int, ro::kNumberOfBytecodes);
       switch (static_cast<Bytecode>(bytecode_as_int)) {
-        case Bytecode::kPage:
-          DeserializeReadOnlyPage();
+        case Bytecode::kAllocatePage:
+          AllocatePage();
           break;
         case Bytecode::kSegment:
-          DeserializeReadOnlySegment();
+          DeserializeSegment();
           break;
         case Bytecode::kRelocateSegment:
           UNREACHABLE();  // Handled together with kSegment.
-        case Bytecode::kFinalizePage:
-          ro_space()->FinalizeExternallyInitializedPage();
-          break;
         case Bytecode::kReadOnlyRootsTable:
           DeserializeReadOnlyRootsTable();
           break;
         case Bytecode::kFinalizeReadOnlySpace:
-          ro_space()->FinalizeExternallyInitializedSpace();
+          ro_space()->FinalizeSpaceForDeserialization();
           return;
       }
     }
   }
 
-  void DeserializeReadOnlyPage() {
+  void AllocatePage() {
+    size_t expected_page_index = static_cast<size_t>(source_->GetUint30());
+    size_t actual_page_index = static_cast<size_t>(-1);
+    size_t area_size_in_bytes = static_cast<size_t>(source_->GetUint30());
     if (V8_STATIC_ROOTS_BOOL) {
       uint32_t compressed_page_addr = source_->GetUint32();
       Address pos = isolate_->GetPtrComprCage()->base() + compressed_page_addr;
-      ro_space()->AllocateNextPageAt(pos);
+      actual_page_index = ro_space()->AllocateNextPageAt(pos);
     } else {
-      ro_space()->AllocateNextPage();
+      actual_page_index = ro_space()->AllocateNextPage();
     }
+    CHECK_EQ(actual_page_index, expected_page_index);
+    ro_space()->InitializePageForDeserialization(PageAt(actual_page_index),
+                                                 area_size_in_bytes);
   }
 
-  void DeserializeReadOnlySegment() {
-    ReadOnlyPage* cur_page = ro_space()->pages().back();
+  void DeserializeSegment() {
+    uint32_t page_index = source_->GetUint30();
+    ReadOnlyPage* page = PageAt(page_index);
 
     // Copy over raw contents.
-    Address start = cur_page->area_start() + source_->GetUint30();
+    Address start = page->area_start() + source_->GetUint30();
     int size_in_bytes = source_->GetUint30();
-    CHECK_LE(start + size_in_bytes, cur_page->area_end());
+    CHECK_LE(start + size_in_bytes, page->area_end());
     source_->CopyRaw(reinterpret_cast<void*>(start), size_in_bytes);
-    ro_space()->top_ = start + size_in_bytes;
 
     if (!V8_STATIC_ROOTS_BOOL) {
       uint8_t relocate_marker_bytecode = source_->Get();
@@ -89,8 +92,7 @@ class ReadOnlyHeapImageDeserializer final {
   }
 
   Address Decode(ro::EncodedTagged encoded) const {
-    DCHECK_LT(encoded.page_index, static_cast<int>(ro_space()->pages().size()));
-    ReadOnlyPage* page = ro_space()->pages()[encoded.page_index];
+    ReadOnlyPage* page = PageAt(encoded.page_index);
     return page->OffsetToAddress(encoded.offset * kTaggedSize);
   }
 
@@ -110,6 +112,11 @@ class ReadOnlyHeapImageDeserializer final {
                  ? V8HeapCompressionScheme::CompressObject(obj_ptr)
                  : static_cast<Tagged_t>(obj_ptr);
     }
+  }
+
+  ReadOnlyPage* PageAt(size_t index) const {
+    DCHECK_LT(index, ro_space()->pages().size());
+    return ro_space()->pages()[index];
   }
 
   void DeserializeReadOnlyRootsTable() {

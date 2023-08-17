@@ -139,19 +139,15 @@ ro::EncodedTagged Encode(Isolate* isolate, HeapObject o) {
   Address o_address = o.address();
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(o_address);
 
-  int page_index = 0;
-  for (ReadOnlyPage* page : isolate->heap()->read_only_space()->pages()) {
-    if (chunk == page) break;
-    ++page_index;
-  }
-
   ro::EncodedTagged encoded;
-  DCHECK_LT(page_index, 1UL << ro::EncodedTagged::kPageIndexBits);
-  encoded.page_index = page_index;
-  uint32_t chunk_offset = static_cast<int>(chunk->Offset(o_address));
-  DCHECK(IsAligned(chunk_offset, kTaggedSize));
-  DCHECK_LT(chunk_offset / kTaggedSize, 1UL << ro::EncodedTagged::kOffsetBits);
-  encoded.offset = chunk_offset / kTaggedSize;
+  ReadOnlySpace* ro_space = isolate->read_only_heap()->read_only_space();
+  int index = static_cast<int>(ro_space->IndexOf(chunk));
+  DCHECK_LT(index, 1UL << ro::EncodedTagged::kPageIndexBits);
+  encoded.page_index = index;
+  uint32_t offset = static_cast<int>(chunk->Offset(o_address));
+  DCHECK(IsAligned(offset, kTaggedSize));
+  DCHECK_LT(offset / kTaggedSize, 1UL << ro::EncodedTagged::kOffsetBits);
+  encoded.offset = offset / kTaggedSize;
 
   return encoded;
 }
@@ -298,23 +294,43 @@ class ReadOnlyHeapImageSerializer {
     DCHECK_EQ(sink_->Position(), 0);
 
     ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+
+    // Allocate all pages first s.t. the deserializer can easily handle forward
+    // references (e.g.: an object on page i points at an object on page i+1).
     for (const ReadOnlyPage* page : ro_space->pages()) {
-      WritePage(page, unmapped_regions);
+      EmitAllocatePage(page, unmapped_regions);
     }
 
-    SerializeReadOnlyRootsTable();
+    // Now write the page contents.
+    for (const ReadOnlyPage* page : ro_space->pages()) {
+      SerializePage(page, unmapped_regions);
+    }
+
+    EmitReadOnlyRootsTable();
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
   }
 
-  void WritePage(const ReadOnlyPage* page,
-                 const std::vector<MemoryRegion>& unmapped_regions) {
-    sink_->Put(Bytecode::kPage, "page begin");
+  uint32_t IndexOf(const ReadOnlyPage* page) {
+    ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+    return static_cast<uint32_t>(ro_space->IndexOf(page));
+  }
+
+  void EmitAllocatePage(const ReadOnlyPage* page,
+                        const std::vector<MemoryRegion>& unmapped_regions) {
+    sink_->Put(Bytecode::kAllocatePage, "page begin");
+    sink_->PutUint30(IndexOf(page), "page index");
+    sink_->PutUint30(
+        static_cast<uint32_t>(page->HighWaterMark() - page->area_start()),
+        "area size in bytes");
     if (V8_STATIC_ROOTS_BOOL) {
       auto page_addr = reinterpret_cast<Address>(page);
       sink_->PutUint32(V8HeapCompressionScheme::CompressAny(page_addr),
                        "page start offset");
     }
+  }
 
+  void SerializePage(const ReadOnlyPage* page,
+                     const std::vector<MemoryRegion>& unmapped_regions) {
     Address pos = page->area_start();
 
     // If this page contains unmapped regions split it into multiple segments.
@@ -328,7 +344,7 @@ class ReadOnlyHeapImageSerializer {
         size_t segment_size = r->start - pos;
         ReadOnlySegmentForSerialization segment(isolate_, page, pos,
                                                 segment_size, &pre_processor_);
-        WriteSegment(&segment);
+        EmitSegment(&segment);
         pos += segment_size + r->size;
       }
     }
@@ -338,13 +354,12 @@ class ReadOnlyHeapImageSerializer {
     size_t segment_size = page->HighWaterMark() - pos;
     ReadOnlySegmentForSerialization segment(isolate_, page, pos, segment_size,
                                             &pre_processor_);
-    WriteSegment(&segment);
-
-    sink_->Put(Bytecode::kFinalizePage, "page end");
+    EmitSegment(&segment);
   }
 
-  void WriteSegment(const ReadOnlySegmentForSerialization* segment) {
+  void EmitSegment(const ReadOnlySegmentForSerialization* segment) {
     sink_->Put(Bytecode::kSegment, "segment begin");
+    sink_->PutUint30(IndexOf(segment->page), "page index");
     sink_->PutUint30(static_cast<uint32_t>(segment->segment_offset),
                      "segment start offset");
     sink_->PutUint30(static_cast<uint32_t>(segment->segment_size),
@@ -359,7 +374,7 @@ class ReadOnlyHeapImageSerializer {
     }
   }
 
-  void SerializeReadOnlyRootsTable() {
+  void EmitReadOnlyRootsTable() {
     sink_->Put(Bytecode::kReadOnlyRootsTable, "read only roots table");
     if (!V8_STATIC_ROOTS_BOOL) {
       ReadOnlyRoots roots(isolate_);
