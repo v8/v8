@@ -12,6 +12,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/objects/field-type.h"
+#include "src/objects/keys.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
@@ -1037,6 +1038,13 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   // current instance descriptors in the "survived" part of the tree with
   // the new descriptors to maintain descriptors sharing invariant.
   split_map->ReplaceDescriptors(isolate_, *new_descriptors);
+
+  // If the old descriptors had an enum cache, make sure the new ones do too.
+  if (old_descriptors_->enum_cache()->keys()->length() > 0 &&
+      new_map->NumberOfEnumerableProperties() > 0) {
+    FastKeyAccumulator::InitializeFastPropertyEnumCache(
+        isolate_, new_map, new_map->NumberOfEnumerableProperties());
+  }
 
   if (has_integrity_level_transition_) {
     target_map_ = new_map;
