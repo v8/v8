@@ -12,7 +12,6 @@ Obsolete now after switching to Python3 entirely. We keep the launcher
 for a transition period.
 """
 
-import os
 import re
 import shutil
 import subprocess

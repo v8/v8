@@ -41,7 +41,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-if args.target_cpu == None:
+if args.target_cpu is None:
   args.target_cpu = args.v8_target_cpu
 
 

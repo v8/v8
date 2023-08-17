@@ -120,7 +120,6 @@ The test flags are passed to the js test file after '--'.
 """
 
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 from math import sqrt
 from pathlib import Path
 from statistics import mean, stdev
@@ -900,11 +899,11 @@ class DesktopPlatform(Platform):
     # Setup command class to OS specific version.
     command.setup(utils.GuessOS(), args.device)
 
-    if args.prioritize or args.affinitize != None:
+    if args.prioritize or args.affinitize is not None:
       self.command_prefix = ['schedtool']
       if args.prioritize:
         self.command_prefix += ['-n', '-20']
-      if args.affinitize != None:
+      if args.affinitize is not None:
         # schedtool expects a bit pattern when setting affinity, where each
         # bit set to '1' corresponds to a core where the process may run on.
         # First bit corresponds to CPU 0. Since the 'affinitize' parameter is
@@ -1041,15 +1040,15 @@ class CustomMachineConfiguration:
     if self.disable_aslr:
       self.aslr_backup = CustomMachineConfiguration.GetASLR()
       CustomMachineConfiguration.SetASLR(0)
-    if self.governor != None:
+    if self.governor is not None:
       self.governor_backup = CustomMachineConfiguration.GetCPUGovernor()
       CustomMachineConfiguration.SetCPUGovernor(self.governor)
     return self
 
   def __exit__(self, type, value, traceback):
-    if self.aslr_backup != None:
+    if self.aslr_backup is not None:
       CustomMachineConfiguration.SetASLR(self.aslr_backup)
-    if self.governor_backup != None:
+    if self.governor_backup is not None:
       CustomMachineConfiguration.SetCPUGovernor(self.governor_backup)
 
   @staticmethod
@@ -1105,7 +1104,7 @@ class CustomMachineConfiguration:
         with open(cpu_device, 'r') as f:
           # We assume the governors of all CPUs are set to the same value
           val = f.readline().strip()
-          if ret == None:
+          if ret is None:
             ret = val
           elif ret != val:
             raise Exception('CPU cores have differing governor settings')
@@ -1256,7 +1255,7 @@ def Main(argv):
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
-  if args.binary_override_path == None:
+  if args.binary_override_path is None:
     args.shell_dir = find_build_directory(
         os.path.join(workspace, args.outdir), args.arch)
     default_binary_name = 'd8'
@@ -1295,8 +1294,6 @@ def Main(argv):
   # directory.
   args.suite = list(map(os.path.abspath, args.suite))
 
-  prev_aslr = None
-  prev_cpu_gov = None
   platform = Platform.GetPlatform(args)
 
   result_tracker = ResultTracker()

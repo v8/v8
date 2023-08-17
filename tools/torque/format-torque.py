@@ -7,7 +7,6 @@
 """This program either generates the parser files for Torque, generating
 the source and header files directly in V8's src directory."""
 
-import subprocess
 import sys
 import re
 from subprocess import Popen, PIPE
@@ -138,7 +137,6 @@ def Main():
     return arg in ['-i', '-l', '-il']
 
   should_format = lint = False
-  use_stdout = True
 
   flag, files = sys.argv[1], sys.argv[2:]
   if is_option(flag):

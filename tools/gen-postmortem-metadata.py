@@ -842,8 +842,6 @@ def parse_field(call):
   rest = call[idx + 1: len(call) - 1];
   args = re.split('\s*,\s*', rest);
 
-  consts = [];
-
   klass = args[0];
   field = args[1];
   dtype = None
@@ -982,7 +980,7 @@ def emit_config():
     bklass = get_base_class(klassname);
     if (bklass != 'Object'):
       continue;
-    if (pklass == None):
+    if (pklass is None):
       continue;
 
     consts.append({

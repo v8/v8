@@ -783,7 +783,7 @@ class MinidumpReader(object):
     return self.IsExceptionStackAddress(address)
 
   def IsModuleAddress(self, address):
-    return self.GetModuleForAddress(address) != None
+    return self.GetModuleForAddress(address) is not None
 
   def GetModuleForAddress(self, address):
     for module in self.module_list.modules:
@@ -1077,7 +1077,6 @@ class MinidumpReader(object):
   #
   def _LoadSymbolsFrom(self, symfile, baseaddr):
     print("Loading symbols from %s" % (symfile))
-    funcs = []
     with open(symfile) as f:
       for line in f:
         result = re.match(
@@ -1617,7 +1616,7 @@ class JSFunction(HeapObject):
     if self.shared.script.Is(Script) and self.shared.script.name.Is(String):
       p.Print("script name: %s" % self.shared.script.name)
     p.Print("source:")
-    p.PrintLines(self._GetSource().split("\n"))
+    p.Print(source)
     p.Print("code:")
     self.code.Print(p)
     if self.code != self.shared.code:
@@ -2013,7 +2012,7 @@ class InspectionInfo(object):
 
   def get_style_class_string(self, address):
     style = self.get_style_class(address)
-    if style != None:
+    if style is not None:
       return " class=%s " % style
     else:
       return ""
@@ -3048,7 +3047,7 @@ class InspectionWebFormatter(object):
       self.td_from_address(f, maybe_uncompressed_address)
       f.write(":&nbsp;%s&nbsp;</td>" % straddress)
       f.write("<td>")
-      if maybe_uncompressed_address != None:
+      if maybe_uncompressed_address is not None:
         self.output_comment_box(f, "sv-" + self.reader.FormatIntPtr(slot),
                                 maybe_uncompressed_address)
       f.write("</td>")

@@ -35,7 +35,7 @@ import json
 import multiprocessing
 import optparse
 import os
-from os.path import abspath, join, dirname, basename, exists
+from os.path import abspath, join, dirname, basename, exists, isfile, isdir
 import pickle
 import re
 import subprocess
@@ -43,8 +43,6 @@ from subprocess import PIPE
 import sys
 
 from testrunner.local import statusfile
-from testrunner.local import testsuite
-from testrunner.local import utils
 
 def decode(arg, encoding="utf-8"):
   return arg.decode(encoding)
@@ -94,7 +92,7 @@ def CppLintWorker(command):
     error_count = -1
     while True:
       out_line = decode(process.stderr.readline())
-      if out_line == '' and process.poll() != None:
+      if out_line == '' and process.poll() is not None:
         if error_count == -1:
           print("Failed to process %s" % command.pop())
           return 1
@@ -124,7 +122,7 @@ def TorqueLintWorker(command):
     error_count = 0
     while True:
       out_line = decode(process.stderr.readline())
-      if out_line == '' and process.poll() != None:
+      if out_line == '' and process.poll() is not None:
         break
       out_lines += out_line
       error_count += 1
@@ -396,7 +394,7 @@ class CppLintProcessor(CacheableSourceFileProcessor):
     filters = ','.join([n for n in LINT_RULES])
     arguments = ['--filter', filters]
 
-    cpplint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
+    cpplint = join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
     return cpplint, arguments
 
 
@@ -422,10 +420,10 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
     return TorqueLintWorker
 
   def GetProcessorScript(self):
-    torque_tools = os.path.join(TOOLS_PATH, "torque")
-    torque_path = os.path.join(torque_tools, "format-torque.py")
+    torque_tools = join(TOOLS_PATH, "torque")
+    torque_path = join(torque_tools, "format-torque.py")
     arguments = ["-il"]
-    if os.path.isfile(torque_path):
+    if isfile(torque_path):
       return torque_path, arguments
 
     return None, arguments
@@ -449,7 +447,7 @@ class JSLintProcessor(CacheableSourceFileProcessor):
     return JSLintWorker
 
   def GetProcessorScript(self):
-    jslint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
+    jslint = join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
     return jslint, []
 
 
@@ -484,16 +482,16 @@ class SourceProcessor(SourceFileProcessor):
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
-    if os.path.exists(path+'/.git'):
+    if exists(path+'/.git'):
       output = subprocess.Popen('git ls-files --full-name',
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
       for file in decode(output.stdout.read()).split():
-        for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
+        for dir_part in dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
         else:
-          if (self.IsRelevant(file) and os.path.exists(file)
+          if (self.IsRelevant(file) and exists(file)
               and not self.IgnoreFile(file)):
             result.append(join(path, file))
       if output.wait() == 0:
@@ -701,10 +699,10 @@ class StatusFilesProcessor(SourceFileProcessor):
     for file_path in files:
       if file_path.startswith(testrunner_path):
         for suitepath in os.listdir(test_path):
-          suitename = os.path.basename(suitepath)
-          status_file = os.path.join(
+          suitename = basename(suitepath)
+          status_file = join(
               test_path, suitename, suitename + ".status")
-          if os.path.exists(status_file):
+          if exists(status_file):
             status_files.add(status_file)
         return status_files
 
@@ -715,10 +713,10 @@ class StatusFilesProcessor(SourceFileProcessor):
         if pieces:
           # Infer affected status file name. Only care for existing status
           # files. Some directories under "test" don't have any.
-          if not os.path.isdir(join(test_path, pieces[0])):
+          if not isdir(join(test_path, pieces[0])):
             continue
           status_file = join(test_path, pieces[0], pieces[0] + ".status")
-          if not os.path.exists(status_file):
+          if not exists(status_file):
             continue
           status_files.add(status_file)
     return status_files
@@ -783,7 +781,7 @@ def FindTests(workspace):
   for root, dirs, files in os.walk(join(workspace, 'tools')):
     for f in files:
       if f.endswith('_test.py'):
-        fullpath = os.path.join(root, f)
+        fullpath = join(root, f)
         scripts.append(fullpath)
   for script in scripts:
     if not any(exc_dir in script for exc_dir in exclude):

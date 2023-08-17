@@ -10,8 +10,6 @@ import subprocess
 import sys
 from threading import Event, Timer
 
-import v8_fuzz_config
-
 PYTHON3 = sys.version_info >= (3, 0)
 
 # List of default flags passed to each d8 run.

@@ -12,10 +12,8 @@ from __future__ import print_function
 
 import argparse
 import hashlib
-import itertools
 import json
 import os
-import random
 import re
 import sys
 import traceback
