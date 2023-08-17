@@ -1162,6 +1162,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x4Pmax();
   const Operator* F64x4Splat();
   const Operator* F32x8Splat();
+  const Operator* I8x32Shuffle(const uint8_t shuffle[32]);
 
   const Operator* S256Const(const uint8_t value[32]);
   const Operator* S256Zero();

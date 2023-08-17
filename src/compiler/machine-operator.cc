@@ -2555,7 +2555,8 @@ S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
 }
 
 S256ImmediateParameter const& S256ImmediateParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kS256Const == op->opcode());
+  DCHECK(IrOpcode::kI8x32Shuffle == op->opcode() ||
+         IrOpcode::kS256Const == op->opcode());
   return OpParameter<S256ImmediateParameter>(op);
 }
 
@@ -2574,8 +2575,8 @@ const Operator* MachineOperatorBuilder::S256Const(const uint8_t value[32]) {
 const Operator* MachineOperatorBuilder::I8x16Shuffle(
     const uint8_t shuffle[16]) {
   return zone_->New<Operator1<S128ImmediateParameter>>(
-      IrOpcode::kI8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
-      S128ImmediateParameter(shuffle));
+      IrOpcode::kI8x16Shuffle, Operator::kPure, "I8x16Shuffle", 2, 0, 0, 1, 0,
+      0, S128ImmediateParameter(shuffle));
 }
 
 const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
@@ -2584,6 +2585,13 @@ const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
   } else {
     return &cache_.kI8x16Swizzle;
   }
+}
+
+const Operator* MachineOperatorBuilder::I8x32Shuffle(
+    const uint8_t shuffle[32]) {
+  return zone_->New<Operator1<S256ImmediateParameter>>(
+      IrOpcode::kI8x32Shuffle, Operator::kPure, "I8x32Shuffle", 2, 0, 0, 1, 0,
+      0, S256ImmediateParameter(shuffle));
 }
 
 StackCheckKind StackCheckKindOf(Operator const* op) {

@@ -4222,6 +4222,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitF64x4Pmin(node);
     case IrOpcode::kF64x4Pmax:
       return MarkAsSimd256(node), VisitF64x4Pmax(node);
+    case IrOpcode::kI8x32Shuffle:
+      return MarkAsSimd256(node), VisitI8x32Shuffle(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
@@ -5083,27 +5085,6 @@ InstructionSelectorT<TurbofanAdapter>::GetFrameStateDescriptor(node_t node) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::CanonicalizeShuffle(Node* node,
-                                                        uint8_t* shuffle,
-                                                        bool* is_swizzle) {
-  // Get raw shuffle indices.
-  memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
-  bool needs_swap;
-  bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
-                      GetVirtualRegister(node->InputAt(1));
-  wasm::SimdShuffle::CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap,
-                                         is_swizzle);
-  if (needs_swap) {
-    SwapShuffleInputs(node);
-  }
-  // Duplicate the first input; for some shuffles on some architectures, it's
-  // easiest to implement a swizzle as a shuffle so it might be used.
-  if (*is_swizzle) {
-    node->ReplaceInput(1, node->InputAt(0));
-  }
-}
-
 // static
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::SwapShuffleInputs(Node* node) {

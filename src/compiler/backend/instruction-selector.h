@@ -1021,7 +1021,34 @@ class InstructionSelectorT final : public Adapter {
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
-  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
+  template <const int simd_size = kSimd128Size,
+            typename = std::enable_if_t<simd_size == kSimd128Size ||
+                                        simd_size == kSimd256Size>>
+  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle) {
+    // Get raw shuffle indices.
+    if constexpr (simd_size == kSimd128Size) {
+      memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
+             kSimd128Size);
+    } else if constexpr (simd_size == kSimd256Size) {
+      memcpy(shuffle, S256ImmediateParameterOf(node->op()).data(),
+             kSimd256Size);
+    } else {
+      UNREACHABLE();
+    }
+    bool needs_swap;
+    bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
+                        GetVirtualRegister(node->InputAt(1));
+    wasm::SimdShuffle::CanonicalizeShuffle<simd_size>(inputs_equal, shuffle,
+                                                      &needs_swap, is_swizzle);
+    if (needs_swap) {
+      SwapShuffleInputs(node);
+    }
+    // Duplicate the first input; for some shuffles on some architectures, it's
+    // easiest to implement a swizzle as a shuffle so it might be used.
+    if (*is_swizzle) {
+      node->ReplaceInput(1, node->InputAt(0));
+    }
+  }
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.

@@ -5820,6 +5820,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       kScratchRegister, MiscField::decode(instr->opcode()));
       break;
     }
+    case kX64Vpshufd: {
+      if (instr->InputCount() == 2 && instr->InputAt(1)->IsImmediate()) {
+        YMMRegister dst = i.OutputSimd256Register();
+        YMMRegister src = i.InputSimd256Register(0);
+        uint8_t imm = i.InputUint8(1);
+        CpuFeatureScope avx2_scope(masm(), AVX2);
+        __ vpshufd(dst, src, imm);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    }
     case kX64I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp_simd = i.TempSimd128Register(0);

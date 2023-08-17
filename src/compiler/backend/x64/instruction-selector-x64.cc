@@ -5761,9 +5761,56 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
   }
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
+
+// The I32x8Swizzle is concated from 2 I32x4Swizzle, the first 4 lanes and the
+// last 4 lanes should be swizzled independently with the same order.
+bool TryMatchVpshufd(const uint8_t* shuffle32x8, uint8_t& control) {
+  control = 0;
+  for (int i = 0; i < 4; ++i) {
+    uint8_t mask;
+    if (shuffle32x8[i] < 4 && shuffle32x8[i + 4] - shuffle32x8[i] == 4) {
+      mask = shuffle32x8[i];
+      control |= mask << (2 * i);
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x32Shuffle(Node* node) {
+  uint8_t shuffle[kSimd256Size];
+  bool is_swizzle;
+  CanonicalizeShuffle<kSimd256Size>(node, shuffle, &is_swizzle);
+
+  X64OperandGeneratorT<Adapter> g(this);
+
+  if (uint8_t shuffle32x8[8];
+      wasm::SimdShuffle::TryMatch32x8Shuffle(shuffle, shuffle32x8)) {
+    if (is_swizzle) {
+      Node* input0 = node->InputAt(0);
+      InstructionOperand dst = g.DefineAsRegister(node);
+      InstructionOperand src = g.UseUniqueRegister(input0);
+      uint8_t control;
+      if (TryMatchVpshufd(shuffle32x8, control)) {
+        InstructionOperand imm = g.UseImmediate(control);
+        InstructionOperand inputs[] = {src, imm};
+        Emit(kX64Vpshufd, 1, &dst, 2, inputs);
+        return;
+      }
+    }
+  }
+
+  UNIMPLEMENTED();
+}
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+  UNREACHABLE();
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x32Shuffle(Node* node) {
   UNREACHABLE();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
