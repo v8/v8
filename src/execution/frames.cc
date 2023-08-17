@@ -1821,7 +1821,25 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
 
-  return data->GetBytecodeOffset(deopt_index);
+  DeoptimizationFrameTranslation::Iterator it(
+      data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
+  // Search the innermost interpreter frame and get its bailout id. The
+  // translation stores frames bottom up.
+  int js_frames = it.EnterBeginOpcode().js_frame_count;
+  DCHECK_GT(js_frames, 0);
+  BytecodeOffset offset = BytecodeOffset::None();
+  while (js_frames > 0) {
+    TranslationOpcode frame = it.SeekNextJSFrame();
+    --js_frames;
+    if (IsTranslationInterpreterFrameOpcode(frame)) {
+      offset = BytecodeOffset(it.NextOperand());
+      it.SkipOperands(TranslationOpcodeOperandCount(frame) - 1);
+    } else {
+      it.SkipOperands(TranslationOpcodeOperandCount(frame));
+    }
+  }
+
+  return offset;
 }
 
 bool CommonFrame::HasTaggedOutgoingParams(GcSafeCode code_lookup) const {
@@ -2723,30 +2741,21 @@ void OptimizedFrame::GetFunctions(
 
   DeoptimizationFrameTranslation::Iterator it(
       data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
-  TranslationOpcode opcode = it.NextOpcode();
-  DCHECK(TranslationOpcodeIsBegin(opcode));
-  it.NextOperand();  // Skip lookback distance.
-  it.NextOperand();  // Skip frame count.
-  int jsframe_count = it.NextOperand();
+  int jsframe_count = it.EnterBeginOpcode().js_frame_count;
 
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
-    opcode = it.NextOpcode();
-    if (IsTranslationJsFrameOpcode(opcode)) {
-      it.NextOperand();  // Skip bailout id.
-      jsframe_count--;
+    TranslationOpcode opcode = it.SeekNextJSFrame();
+    it.NextOperand();  // Skip bailout id.
+    jsframe_count--;
 
-      // The second operand of the frame points to the function.
-      Object shared = literal_array->get(it.NextOperand());
-      functions->push_back(SharedFunctionInfo::cast(shared));
+    // The second operand of the frame points to the function.
+    Object shared = literal_array->get(it.NextOperand());
+    functions->push_back(SharedFunctionInfo::cast(shared));
 
-      // Skip over remaining operands to advance to the next opcode.
-      it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
-    } else {
-      // Skip over operands to advance to the next opcode.
-      it.SkipOperands(TranslationOpcodeOperandCount(opcode));
-    }
+    // Skip over remaining operands to advance to the next opcode.
+    it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
   }
 }
 

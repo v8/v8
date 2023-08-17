@@ -39,7 +39,8 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Smi)
 #endif  // DEBUG
 
-BytecodeOffset DeoptimizationData::GetBytecodeOffset(int i) const {
+BytecodeOffset DeoptimizationData::GetBytecodeOffsetOrBuiltinContinuationId(
+    int i) const {
   return BytecodeOffset(BytecodeOffsetRaw(i).value());
 }
 

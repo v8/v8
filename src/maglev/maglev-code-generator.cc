@@ -964,12 +964,8 @@ class SafepointingNodeProcessor {
 };
 
 namespace {
-struct FrameCount {
-  int total;
-  int js_frame;
-};
-
-FrameCount GetFrameCount(const DeoptFrame* deopt_frame) {
+DeoptimizationFrameTranslation::FrameCount GetFrameCount(
+    const DeoptFrame* deopt_frame) {
   int total = 0;
   int js_frame = 0;
   do {

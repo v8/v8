@@ -89,7 +89,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << GetBytecodeOffset(i).ToInt() << "  "
+       << GetBytecodeOffsetOrBuiltinContinuationId(i).ToInt() << "  "
 #ifdef DEBUG
        << std::setw(7) << NodeId(i).value() << "  "
 #endif  // DEBUG
@@ -239,6 +239,45 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
     ++ops_since_previous_index_was_updated_;
   }
   return opcode;
+}
+
+DeoptimizationFrameTranslation::FrameCount
+DeoptimizationFrameTranslation::Iterator::EnterBeginOpcode() {
+  TranslationOpcode opcode = NextOpcode();
+  DCHECK(TranslationOpcodeIsBegin(opcode));
+  USE(opcode);
+  NextOperand();  // Skip lookback distance.
+  int frame_count = NextOperand();
+  int jsframe_count = NextOperand();
+  return {frame_count, jsframe_count};
+}
+
+TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextJSFrame() {
+  while (HasNextOpcode()) {
+    TranslationOpcode opcode = NextOpcode();
+    DCHECK(!TranslationOpcodeIsBegin(opcode));
+    if (IsTranslationJsFrameOpcode(opcode)) {
+      return opcode;
+    } else {
+      // Skip over operands to advance to the next opcode.
+      SkipOperands(TranslationOpcodeOperandCount(opcode));
+    }
+  }
+  UNREACHABLE();
+}
+
+TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextFrame() {
+  while (HasNextOpcode()) {
+    TranslationOpcode opcode = NextOpcode();
+    DCHECK(!TranslationOpcodeIsBegin(opcode));
+    if (IsTranslationFrameOpcode(opcode)) {
+      return opcode;
+    } else {
+      // Skip over operands to advance to the next opcode.
+      SkipOperands(TranslationOpcodeOperandCount(opcode));
+    }
+  }
+  UNREACHABLE();
 }
 
 bool DeoptimizationFrameTranslation::Iterator::HasNextOpcode() const {

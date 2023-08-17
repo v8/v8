@@ -777,7 +777,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            stack_guard->real_jslimit());
 
   BytecodeOffset bytecode_offset =
-      input_data->GetBytecodeOffset(deopt_exit_index_);
+      input_data->GetBytecodeOffsetOrBuiltinContinuationId(deopt_exit_index_);
   auto translations = input_data->FrameTranslation();
   unsigned translation_index =
       input_data->TranslationIndex(deopt_exit_index_).value();

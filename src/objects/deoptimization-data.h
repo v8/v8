@@ -41,6 +41,11 @@ class DeoptimizationFrameTranslation : public ByteArray {
  public:
   DECL_CAST(DeoptimizationFrameTranslation)
 
+  struct FrameCount {
+    int total_frame_count;
+    int js_frame_count;
+  };
+
   class Iterator;
 
 #ifdef V8_USE_ZLIB
@@ -70,7 +75,12 @@ class DeoptimizationFrameTranslation::Iterator {
 
   uint32_t NextOperandUnsigned();
 
+  DeoptimizationFrameTranslation::FrameCount EnterBeginOpcode();
+
   TranslationOpcode NextOpcode();
+
+  TranslationOpcode SeekNextJSFrame();
+  TranslationOpcode SeekNextFrame();
 
   bool HasNextOpcode() const;
 
@@ -166,7 +176,12 @@ class DeoptimizationData : public FixedArray {
 
 #undef DECL_ENTRY_ACCESSORS
 
-  inline BytecodeOffset GetBytecodeOffset(int i) const;
+  // In case the innermost frame is a builtin continuation stub, then this field
+  // actually contains the builtin id. See uses of
+  // `Builtins::GetBuiltinFromBytecodeOffset`.
+  // TODO(olivf): Add some validation that callers do not misinterpret the
+  // result.
+  inline BytecodeOffset GetBytecodeOffsetOrBuiltinContinuationId(int i) const;
 
   inline void SetBytecodeOffset(int i, BytecodeOffset value);
 
