@@ -3279,6 +3279,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvVmslt: {
       __ VU.set(kScratchReg, i.InputInt8(2), i.InputInt8(3));
+      if (i.InputInt8(4)) {
+        DCHECK(i.OutputSimd128Register() != i.InputSimd128Register(0));
+        __ vmv_vx(i.OutputSimd128Register(), zero_reg);
+      }
       if (instr->InputAt(1)->IsRegister()) {
         __ vmslt_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputRegister(1));
