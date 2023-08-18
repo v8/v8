@@ -17,10 +17,10 @@ transitioning javascript builtin SetPrototypeIsSupersetOf(
   ThrowTypeError(
       MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
-  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
-
   // 3. Let otherRec be ? GetSetRecord(other).
   let otherRec = GetSetRecord(other, methodName);
+
+  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
 
   // 4. Let thisSize be the number of elements in O.[[SetData]].
   const thisSize =

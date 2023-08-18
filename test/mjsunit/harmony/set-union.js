@@ -169,3 +169,33 @@
     firstSet.union(SetLike);
   });
 })();
+
+(function TestUnionAfterClearingTheReceiver() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+  firstSet.add(44);
+
+  const otherSet = new Set();
+  otherSet.add(45);
+  otherSet.add(46);
+  otherSet.add(47);
+
+  Object.defineProperty(otherSet, 'size', {
+    get: function() {
+      firstSet.clear();
+      return 3;
+    },
+
+  });
+
+  const resultSet = new Set();
+  resultSet.add(45);
+  resultSet.add(46);
+  resultSet.add(47);
+
+  const resultArray = Array.from(resultSet);
+  const unionArray = Array.from(firstSet.union(otherSet));
+
+  assertEquals(resultArray, unionArray);
+})();

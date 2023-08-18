@@ -116,3 +116,17 @@
   assertEquals(firstSet.isDisjointFrom(SetLike), true);
   assertEquals(arrIndex, [-1, -1, -1]);
 })();
+
+(function TestIsDisjointFromAfterClearingTheReceiver() {
+  const firstSet = new Set();
+  const otherSet = new Set();
+
+  Object.defineProperty(otherSet, 'size', {
+    get: function() {
+      firstSet.clear();
+      return 1;
+    },
+
+  });
+  assertEquals(firstSet.isDisjointFrom(otherSet), true);
+})();

@@ -179,3 +179,24 @@
 
   assertEquals(firstSet.isSubsetOf(SetLike), false);
 })();
+
+(function TestIsSubsetOfAfterClearingTheReceiver() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(43);
+  otherSet.add(47);
+
+  Object.defineProperty(otherSet, 'size', {
+    get: function() {
+      firstSet.clear();
+      return 3;
+    },
+
+  });
+
+  assertEquals(firstSet.isSubsetOf(otherSet), true);
+})();

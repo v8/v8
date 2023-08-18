@@ -168,3 +168,22 @@
 
   assertEquals(firstSet.isSupersetOf(SetLike), false);
 })();
+
+(function TestIsSupersetOfAfterClearingTheReceiver() {
+  const firstSet = new Set();
+  firstSet.add(42);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(44);
+
+  Object.defineProperty(otherSet, 'size', {
+    get: function() {
+      firstSet.clear();
+      return 2;
+    },
+
+  });
+
+  assertEquals(firstSet.isSupersetOf(otherSet), false);
+})();

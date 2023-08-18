@@ -216,3 +216,33 @@
       new Map([[3, 3], [4, 4], [5, 5], [6, 6]]));
   assertEquals([1, 2, 4, 5, 6], Array.from(s4));
 })();
+
+(function TestSymmetricDifferenceAfterClearingTheReceiver() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(46);
+  otherSet.add(47);
+
+  Object.defineProperty(otherSet, 'size', {
+    get: function() {
+      firstSet.clear();
+      return 3;
+    },
+
+  });
+
+  const resultSet = new Set();
+  resultSet.add(42);
+  resultSet.add(46);
+  resultSet.add(47);
+
+  const resultArray = Array.from(resultSet);
+  const symmetricDifferenceArray =
+      Array.from(firstSet.symmetricDifference(otherSet));
+
+  assertEquals(resultArray, symmetricDifferenceArray);
+})();
