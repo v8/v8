@@ -1157,10 +1157,38 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
     base::MutexGuard guard(&mutex_);
     NativeModule* native_module = code_vec[0]->native_module();
     DCHECK_EQ(1, native_modules_.count(native_module));
-    for (Isolate* isolate : native_modules_[native_module]->isolates) {
+    NativeModuleInfo* native_module_info =
+        native_modules_.find(native_module)->second.get();
+    for (Isolate* isolate : native_module_info->isolates) {
       DCHECK_EQ(1, isolates_.count(isolate));
       IsolateInfo* info = isolates_[isolate].get();
       if (info->log_codes == false) continue;
+
+      auto script_it = info->scripts.find(native_module);
+      // If the script does not yet exist, logging will happen later. If the
+      // weak handle is cleared already, we also don't need to log any more.
+      if (script_it == info->scripts.end()) continue;
+
+      // If this is the first code to log in that isolate, request an interrupt
+      // to log the newly added code as soon as possible.
+      if (info->code_to_log.empty()) {
+        isolate->stack_guard()->RequestLogWasmCode();
+      }
+
+      WeakScriptHandle& weak_script_handle = script_it->second;
+      auto& log_entry = info->code_to_log[weak_script_handle.script_id()];
+      if (!log_entry.source_url) {
+        log_entry.source_url = weak_script_handle.source_url();
+      }
+      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
+                            code_vec.end());
+
+      // Increment the reference count for the added {log_entry.code} entries.
+      for (WasmCode* code : code_vec) {
+        DCHECK_EQ(native_module, code->native_module());
+        code->IncRef();
+      }
+
       if (info->log_codes_task == nullptr) {
         auto new_task = std::make_unique<LogCodesTask>(
             &mutex_, &info->log_codes_task, isolate, this);
@@ -1177,24 +1205,6 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
         to_schedule.emplace_back(info->foreground_task_runner,
                                  std::move(new_task));
       }
-      if (info->code_to_log.empty()) {
-        isolate->stack_guard()->RequestLogWasmCode();
-      }
-      for (WasmCode* code : code_vec) {
-        DCHECK_EQ(native_module, code->native_module());
-        code->IncRef();
-      }
-
-      auto script_it = info->scripts.find(native_module);
-      // If the script does not yet exist, logging will happen later. If the
-      // weak handle is cleared already, we also don't need to log any more.
-      if (script_it == info->scripts.end()) continue;
-      auto& log_entry = info->code_to_log[script_it->second.script_id()];
-      if (!log_entry.source_url) {
-        log_entry.source_url = script_it->second.source_url();
-      }
-      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                            code_vec.end());
     }
   }
   for (auto& [runner, task] : to_schedule) {
