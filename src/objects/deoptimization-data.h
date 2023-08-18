@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_DEOPTIMIZATION_DATA_H_
 #define V8_OBJECTS_DEOPTIMIZATION_DATA_H_
 
+#include <vector>
+
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
 
