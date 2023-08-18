@@ -175,6 +175,7 @@ class TestCase(testcase.D8TestCase):
           .get('negative', {})
           .get('type', None)
     )
+    self._async = 'async' in self.test_record.get('flags', [])
 
     # We disallow combining FAIL_PHASE_ONLY with any other fail outcome types.
     # Outcome parsing logic in the base class converts all outcomes specified in
@@ -250,14 +251,14 @@ class TestCase(testcase.D8TestCase):
     if self._expected_exception is not None:
       return test262.ExceptionOutProc(self.expected_outcomes,
                                       self._expected_exception,
-                                      self._fail_phase_reverse)
+                                      self._fail_phase_reverse, self._async)
     else:
       # We only support fail phase reverse on tests that expect an exception.
       assert not self._fail_phase_reverse
 
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
-      return test262.PASS_NO_EXCEPTION
-    return test262.NoExceptionOutProc(self.expected_outcomes)
+      return test262.PassNoExceptionOutProc(self._async)
+    return test262.NoExceptionOutProc(self.expected_outcomes, self._async)
 
   def skip_rdb(self, result):
     return not result.has_unexpected_output
