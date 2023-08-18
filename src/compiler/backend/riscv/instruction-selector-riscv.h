@@ -1059,6 +1059,12 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
        g.UseImmediate(int8_t(E8)), g.UseImmediate(int8_t(mf2)));
 }
 
+#define SIMD_INT_TYPE_LIST(V) \
+  V(I64x2, E64, m1)           \
+  V(I32x4, E32, m1)           \
+  V(I16x8, E16, m1)           \
+  V(I8x16, E8, m1)
+
 #define SIMD_TYPE_LIST(V) \
   V(F32x4)                \
   V(I64x2)                \
@@ -1066,19 +1072,27 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_UNOP_LIST2(V)             \
-  V(F32x4Splat, kRiscvVfmvVf, E32, m1) \
-  V(I8x16Neg, kRiscvVnegVv, E8, m1)    \
-  V(I16x8Neg, kRiscvVnegVv, E16, m1)   \
-  V(I32x4Neg, kRiscvVnegVv, E32, m1)   \
-  V(I64x2Neg, kRiscvVnegVv, E64, m1)   \
-  V(I8x16Splat, kRiscvVmv, E8, m1)     \
-  V(I16x8Splat, kRiscvVmv, E16, m1)    \
-  V(I32x4Splat, kRiscvVmv, E32, m1)    \
-  V(I64x2Splat, kRiscvVmv, E64, m1)    \
-  V(F32x4Neg, kRiscvVfnegVv, E32, m1)  \
-  V(F64x2Neg, kRiscvVfnegVv, E64, m1)  \
-  V(F64x2Splat, kRiscvVfmvVf, E64, m1)
+#define SIMD_UNOP_LIST2(V)                 \
+  V(F32x4Splat, kRiscvVfmvVf, E32, m1)     \
+  V(I8x16Neg, kRiscvVnegVv, E8, m1)        \
+  V(I16x8Neg, kRiscvVnegVv, E16, m1)       \
+  V(I32x4Neg, kRiscvVnegVv, E32, m1)       \
+  V(I64x2Neg, kRiscvVnegVv, E64, m1)       \
+  V(I8x16Splat, kRiscvVmv, E8, m1)         \
+  V(I16x8Splat, kRiscvVmv, E16, m1)        \
+  V(I32x4Splat, kRiscvVmv, E32, m1)        \
+  V(I64x2Splat, kRiscvVmv, E64, m1)        \
+  V(F32x4Neg, kRiscvVfnegVv, E32, m1)      \
+  V(F64x2Neg, kRiscvVfnegVv, E64, m1)      \
+  V(F64x2Splat, kRiscvVfmvVf, E64, m1)     \
+  V(I32x4AllTrue, kRiscvVAllTrue, E32, m1) \
+  V(I16x8AllTrue, kRiscvVAllTrue, E16, m1) \
+  V(I8x16AllTrue, kRiscvVAllTrue, E8, m1)  \
+  V(I64x2AllTrue, kRiscvVAllTrue, E64, m1) \
+  V(I64x2Abs, kRiscvVAbs, E64, m1)         \
+  V(I32x4Abs, kRiscvVAbs, E32, m1)         \
+  V(I16x8Abs, kRiscvVAbs, E16, m1)         \
+  V(I8x16Abs, kRiscvVAbs, E8, m1)
 
 #define SIMD_UNOP_LIST(V)                                       \
   V(F64x2Abs, kRiscvF64x2Abs)                                   \
@@ -1090,8 +1104,6 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(F64x2Floor, kRiscvF64x2Floor)                               \
   V(F64x2Trunc, kRiscvF64x2Trunc)                               \
   V(F64x2NearestInt, kRiscvF64x2NearestInt)                     \
-  V(I64x2Abs, kRiscvI64x2Abs)                                   \
-  V(I64x2BitMask, kRiscvI64x2BitMask)                           \
   V(F32x4SConvertI32x4, kRiscvF32x4SConvertI32x4)               \
   V(F32x4UConvertI32x4, kRiscvF32x4UConvertI32x4)               \
   V(F32x4Abs, kRiscvF32x4Abs)                                   \
@@ -1115,25 +1127,13 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(I32x4SConvertI16x8High, kRiscvI32x4SConvertI16x8High)       \
   V(I32x4UConvertI16x8Low, kRiscvI32x4UConvertI16x8Low)         \
   V(I32x4UConvertI16x8High, kRiscvI32x4UConvertI16x8High)       \
-  V(I32x4Abs, kRiscvI32x4Abs)                                   \
-  V(I32x4BitMask, kRiscvI32x4BitMask)                           \
   V(I32x4TruncSatF64x2SZero, kRiscvI32x4TruncSatF64x2SZero)     \
   V(I32x4TruncSatF64x2UZero, kRiscvI32x4TruncSatF64x2UZero)     \
   V(I16x8SConvertI8x16Low, kRiscvI16x8SConvertI8x16Low)         \
   V(I16x8SConvertI8x16High, kRiscvI16x8SConvertI8x16High)       \
-  V(I16x8UConvertI8x16Low, kRiscvI16x8UConvertI8x16Low)         \
-  V(I16x8UConvertI8x16High, kRiscvI16x8UConvertI8x16High)       \
-  V(I16x8Abs, kRiscvI16x8Abs)                                   \
-  V(I16x8BitMask, kRiscvI16x8BitMask)                           \
-  V(I8x16Abs, kRiscvI8x16Abs)                                   \
-  V(I8x16BitMask, kRiscvI8x16BitMask)                           \
   V(I8x16Popcnt, kRiscvI8x16Popcnt)                             \
-  V(S128Not, kRiscvS128Not)                                     \
-  V(V128AnyTrue, kRiscvV128AnyTrue)                             \
-  V(I32x4AllTrue, kRiscvI32x4AllTrue)                           \
-  V(I16x8AllTrue, kRiscvI16x8AllTrue)                           \
-  V(I8x16AllTrue, kRiscvI8x16AllTrue)                           \
-  V(I64x2AllTrue, kRiscvI64x2AllTrue)
+  V(S128Not, kRiscvVnot)                                        \
+  V(V128AnyTrue, kRiscvV128AnyTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -1296,13 +1296,6 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-// #define SIMD_VISIT_BINOP(Name, instruction)                     \
-//   template <typename Adapter>                                   \
-//   void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-//     VisitRRR(this, instruction, node);                          \
-//   }
-// SIMD_BINOP_LIST2(SIMD_VISIT_BINOP)
-// #undef SIMD_VISIT_BINOP
 
 #define SIMD_VISIT_BINOP_RVV(Name, instruction, VSEW, LMUL)           \
   template <typename Adapter>                                         \
@@ -1601,17 +1594,6 @@ void InstructionSelectorT<Adapter>::VisitI8x16SConvertI16x8(Node* node) {
              g.UseImmediate(FPURoundingMode::RNE));
 }
 
-// case kRiscvI8x16UConvertI16x8: {
-//   __ VU.set(kScratchReg, E16, m1);
-//   __ vmv_vv(v26, i.InputSimd128Register(0));
-//   __ vmv_vv(v27, i.InputSimd128Register(1));
-//   __ VU.set(kScratchReg, E16, m2);
-//   __ vmax_vx(v26, v26, zero_reg);
-//   __ VU.set(kScratchReg, E8, m1);
-//   __ VU.set(FPURoundingMode::RNE);
-//   __ vnclipu_vi(i.OutputSimd128Register(), v26, 0);
-//   break;
-// }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16UConvertI16x8(Node* node) {
   RiscvOperandGeneratorT<Adapter> g(this);
@@ -1776,6 +1758,41 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), g.UseImmediate(E8),
        g.UseImmediate(m1), arraysize(temps), temps);
+}
+
+#define VISIT_BIMASK(TYPE, VSEW, LMUL)                                      \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##TYPE##BitMask(Node* node) {    \
+    RiscvOperandGeneratorT<Adapter> g(this);                                \
+    InstructionOperand temp = g.TempFpRegister(v16);                        \
+    this->Emit(kRiscvVmslt, temp, g.UseRegister(node->InputAt(0)),          \
+               g.UseImmediate(0), g.UseImmediate(VSEW), g.UseImmediate(m1), \
+               g.UseImmediate(true));                                       \
+    this->Emit(kRiscvVmvXs, g.DefineAsRegister(node), temp,                 \
+               g.UseImmediate(E32), g.UseImmediate(m1));                    \
+  }
+
+SIMD_INT_TYPE_LIST(VISIT_BIMASK)
+#undef VISIT_BIMASK
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8UConvertI8x16High(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  Emit(kRiscvVslidedown, temp, g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(8), g.UseImmediate(E8), g.UseImmediate(m1));
+  Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp, g.UseImmediate(E16),
+       g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8UConvertI8x16Low(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  Emit(kRiscvVmv, temp, g.UseRegister(node->InputAt(0)), g.UseImmediate(E16),
+       g.UseImmediate(m1));
+  Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp, g.UseImmediate(E16),
+       g.UseImmediate(m1));
 }
 
 template <typename Adapter>

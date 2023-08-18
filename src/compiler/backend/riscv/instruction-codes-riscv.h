@@ -244,11 +244,9 @@ namespace compiler {
   V(RiscvI64x2ExtractLane)                \
   V(RiscvI64x2ReplaceLane)                \
   V(RiscvI64x2ReplaceLaneI32Pair)         \
-  V(RiscvI64x2Abs)                        \
   V(RiscvI64x2Shl)                        \
   V(RiscvI64x2ShrS)                       \
   V(RiscvI64x2ShrU)                       \
-  V(RiscvI64x2BitMask)                    \
   V(RiscvF32x4Abs)                        \
   V(RiscvF32x4Sqrt)                       \
   V(RiscvF32x4Qfma)                       \
@@ -264,8 +262,6 @@ namespace compiler {
   V(RiscvF32x4NearestInt)                 \
   V(RiscvI32x4SConvertF32x4)              \
   V(RiscvI32x4UConvertF32x4)              \
-  V(RiscvI32x4Abs)                        \
-  V(RiscvI32x4BitMask)                    \
   V(RiscvI32x4TruncSatF64x2SZero)         \
   V(RiscvI32x4TruncSatF64x2UZero)         \
   V(RiscvI16x8ExtractLaneU)               \
@@ -274,8 +270,6 @@ namespace compiler {
   V(RiscvI16x8Shl)                        \
   V(RiscvI16x8ShrS)                       \
   V(RiscvI16x8ShrU)                       \
-  V(RiscvI16x8Abs)                        \
-  V(RiscvI16x8BitMask)                    \
   V(RiscvI8x16ExtractLaneU)               \
   V(RiscvI8x16ExtractLaneS)               \
   V(RiscvI8x16ReplaceLane)                \
@@ -283,18 +277,12 @@ namespace compiler {
   V(RiscvI8x16ShrS)                       \
   V(RiscvI8x16ShrU)                       \
   V(RiscvI8x16RoundingAverageU)           \
-  V(RiscvI8x16Abs)                        \
-  V(RiscvI8x16BitMask)                    \
   V(RiscvI8x16Popcnt)                     \
-  V(RiscvS128Not)                         \
+  V(RiscvVnot)                            \
   V(RiscvS128Select)                      \
   V(RiscvS128Load64Zero)                  \
   V(RiscvS128Load32Zero)                  \
-  V(RiscvI32x4AllTrue)                    \
-  V(RiscvI16x8AllTrue)                    \
   V(RiscvV128AnyTrue)                     \
-  V(RiscvI8x16AllTrue)                    \
-  V(RiscvI64x2AllTrue)                    \
   V(RiscvS32x4InterleaveRight)            \
   V(RiscvS32x4InterleaveLeft)             \
   V(RiscvS32x4PackEven)                   \
@@ -334,9 +322,6 @@ namespace compiler {
   V(RiscvI32x4UConvertI16x8High)          \
   V(RiscvI16x8SConvertI8x16Low)           \
   V(RiscvI16x8SConvertI8x16High)          \
-  V(RiscvI16x8UConvertI8x16Low)           \
-  V(RiscvI16x8UConvertI8x16High)          \
-  V(RiscvI16x8RoundingAverageU)           \
   V(RiscvVmv)                             \
   V(RiscvVandVv)                          \
   V(RiscvVnotVv)                          \
@@ -345,6 +330,7 @@ namespace compiler {
   V(RiscvVwmul)                           \
   V(RiscvVwmulu)                          \
   V(RiscvVmvSx)                           \
+  V(RiscvVmvXs)                           \
   V(RiscvVcompress)                       \
   V(RiscvVaddVv)                          \
   V(RiscvVsubVv)                          \
@@ -353,6 +339,7 @@ namespace compiler {
   V(RiscvVwadduWx)                        \
   V(RiscvVrgather)                        \
   V(RiscvVslidedown)                      \
+  V(RiscvVAbs)                            \
   V(RiscvVsll)                            \
   V(RiscvVfmvVf)                          \
   V(RiscvVnegVv)                          \
@@ -363,6 +350,7 @@ namespace compiler {
   V(RiscvVminsVv)                         \
   V(RiscvVmulVv)                          \
   V(RiscvVdivu)                           \
+  V(RiscvVmslt)                           \
   V(RiscvVgtsVv)                          \
   V(RiscvVgesVv)                          \
   V(RiscvVgeuVv)                          \
@@ -386,7 +374,11 @@ namespace compiler {
   V(RiscvVmergeVx)                        \
   V(RiscvVsmulVv)                         \
   V(RiscvVnclipu)                         \
-  V(RiscvVnclip)
+  V(RiscvVnclip)                          \
+  V(RiscvVredminuVs)                      \
+  V(RiscvVAllTrue)                        \
+  V(RiscvVzextVf2)                        \
+  V(RiscvVsextVf2)
 
 #define TARGET_ARCH_OPCODE_LIST(V)  \
   TARGET_ARCH_OPCODE_LIST_COMMON(V) \

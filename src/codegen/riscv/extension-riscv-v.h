@@ -405,6 +405,18 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
 
   void vcpop_m(Register rd, VRegister vs2, MaskType mask = NoMask);
 
+  void vmslt_vi(VRegister vd, VRegister vs1, int8_t imm5,
+                MaskType mask = NoMask) {
+    DCHECK(imm5 >= -15 && imm5 <= 16);
+    vmsle_vi(vd, vs1, imm5 - 1, mask);
+  }
+
+  void vmsltu_vi(VRegister vd, VRegister vs1, int8_t imm5,
+                 MaskType mask = NoMask) {
+    DCHECK(imm5 >= 1 && imm5 <= 16);
+    vmsleu_vi(vd, vs1, imm5 - 1, mask);
+  }
+
  protected:
   void vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
