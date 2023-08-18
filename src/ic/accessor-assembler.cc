@@ -4590,7 +4590,7 @@ void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC() {
-  using Descriptor = LoadWithVectorDescriptor;
+  using Descriptor = KeyedLoadWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -4603,7 +4603,7 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
-  using Descriptor = LoadWithVectorDescriptor;
+  using Descriptor = KeyedLoadWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -4629,7 +4629,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_MegamorphicStringKey() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
-  using Descriptor = LoadDescriptor;
+  using Descriptor = KeyedLoadDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -4641,7 +4641,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadICBaseline() {
-  using Descriptor = LoadBaselineDescriptor;
+  using Descriptor = KeyedLoadBaselineDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -4653,7 +4653,7 @@ void AccessorAssembler::GenerateKeyedLoadICBaseline() {
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
-  using Descriptor = LoadDescriptor;
+  using Descriptor = KeyedLoadDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -5248,7 +5248,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 }
 
 void AccessorAssembler::GenerateKeyedHasIC() {
-  using Descriptor = LoadWithVectorDescriptor;
+  using Descriptor = KeyedHasICWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -5261,7 +5261,7 @@ void AccessorAssembler::GenerateKeyedHasIC() {
 }
 
 void AccessorAssembler::GenerateKeyedHasICBaseline() {
-  using Descriptor = LoadBaselineDescriptor;
+  using Descriptor = KeyedHasICBaselineDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -5273,7 +5273,7 @@ void AccessorAssembler::GenerateKeyedHasICBaseline() {
 }
 
 void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
-  using Descriptor = LoadWithVectorDescriptor;
+  using Descriptor = KeyedHasICWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
