@@ -8525,6 +8525,15 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(wasm::ImportCallKind kind,
 #undef CASE
 }
 
+MachineGraph* CreateCommonMachineGraph(Zone* zone) {
+  return zone->New<MachineGraph>(
+      zone->New<Graph>(zone), zone->New<CommonOperatorBuilder>(zone),
+      zone->New<MachineOperatorBuilder>(
+          zone, MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags(),
+          InstructionSelector::AlignmentRequirements()));
+}
+
 wasm::WasmCompilationResult CompileWasmMathIntrinsic(
     wasm::ImportCallKind kind, const wasm::FunctionSig* sig) {
   DCHECK_EQ(1, sig->return_count());
@@ -8537,12 +8546,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   // Compile a Wasm function with a single bytecode and let TurboFan
   // generate either inlined machine code or a call to a helper.
   SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = zone.New<MachineGraph>(
-      zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
-      zone.New<MachineOperatorBuilder>(
-          &zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
+  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
   wasm::CompilationEnv env(nullptr, wasm::WasmFeatures::All(),
                            wasm::kNoDynamicTiering);
@@ -8665,14 +8669,8 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
 
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
 
-  // TODO(jkummerow): Extract common code into helper method.
   SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = zone.New<MachineGraph>(
-      zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
-      zone.New<MachineOperatorBuilder>(
-          &zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
+  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
   WasmWrapperGraphBuilder builder(
       &zone, mcgraph, sig, native_module->module(),
@@ -8716,15 +8714,8 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
                "wasm.CompileWasmJSFastCallWrapper");
 
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-
-  // TODO(jkummerow): Extract common code into helper method.
   SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = zone.New<MachineGraph>(
-      zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
-      zone.New<MachineOperatorBuilder>(
-          &zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
+  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
   WasmWrapperGraphBuilder builder(
       &zone, mcgraph, sig, native_module->module(),
@@ -8950,12 +8941,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
                "wasm.CompileTopTier", "func_index", data.func_index,
                "body_size", data.body_size());
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-  MachineGraph* mcgraph = zone.New<MachineGraph>(
-      zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
-      zone.New<MachineOperatorBuilder>(
-          &zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
+  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
   OptimizedCompilationInfo info(
       GetDebugName(&zone, env->module, data.wire_bytes_storage,
