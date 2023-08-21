@@ -36,7 +36,8 @@ enum class StartTracingMode {
 };
 
 void StartTracing(GCTracer* tracer, GarbageCollector collector,
-                  StartTracingMode mode) {
+                  StartTracingMode mode,
+                  base::Optional<base::TimeTicks> time = {}) {
   DCHECK_IMPLIES(mode != StartTracingMode::kAtomic,
                  !Heap::IsYoungGenerationCollector(collector));
   // Start the cycle for incremental marking.
@@ -49,7 +50,7 @@ void StartTracing(GCTracer* tracer, GarbageCollector collector,
   // If just that was requested, no more to be done.
   if (mode == StartTracingMode::kIncrementalStart) return;
   // Else, we enter the observable pause.
-  tracer->StartObservablePause();
+  tracer->StartObservablePause(time.value_or(base::TimeTicks::Now()));
   // Start an atomic GC cycle.
   if (mode == StartTracingMode::kAtomic) {
     tracer->StartCycle(collector, GarbageCollectionReason::kTesting,
@@ -64,9 +65,10 @@ void StartTracing(GCTracer* tracer, GarbageCollector collector,
   }
 }
 
-void StopTracing(GCTracer* tracer, GarbageCollector collector) {
+void StopTracing(GCTracer* tracer, GarbageCollector collector,
+                 base::Optional<base::TimeTicks> time = {}) {
   tracer->StopAtomicPause();
-  tracer->StopObservablePause(collector);
+  tracer->StopObservablePause(collector, time.value_or(base::TimeTicks::Now()));
   switch (collector) {
     case GarbageCollector::SCAVENGER:
       tracer->StopYoungCycleIfNeeded();
@@ -307,7 +309,8 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
 
   // Round 1.
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalStart);
+               StartTracingMode::kIncrementalStart,
+               base::TimeTicks::FromMsTicksForTesting(0));
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(1000000 / 100,
@@ -332,8 +335,10 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
             tracer->incremental_marking_duration_);
   EXPECT_EQ(4000000u, tracer->incremental_marking_bytes_);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalEnterPause);
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+               StartTracingMode::kIncrementalEnterPause,
+               base::TimeTicks::FromMsTicksForTesting(500));
+  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+              base::TimeTicks::FromMsTicksForTesting(600));
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
             tracer->current_.incremental_marking_duration);
   EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);
@@ -344,11 +349,14 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
 
   // Round 2.
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalStart);
+               StartTracingMode::kIncrementalStart,
+               base::TimeTicks::FromMsTicksForTesting(700));
   tracer->AddIncrementalMarkingStep(2000, 1000);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalEnterPause);
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+               StartTracingMode::kIncrementalEnterPause,
+               base::TimeTicks::FromMsTicksForTesting(3000));
+  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+              base::TimeTicks::FromMsTicksForTesting(3100));
   EXPECT_DOUBLE_EQ((4000000.0 / 400 + 1000.0 / 2000) / 2,
                    static_cast<double>(
                        tracer->IncrementalMarkingSpeedInBytesPerMillisecond()));

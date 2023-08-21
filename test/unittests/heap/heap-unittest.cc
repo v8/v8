@@ -226,7 +226,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   Heap* heap = paged_new_space->heap();
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   GCTracer* tracer = heap->tracer();
-  tracer->StartObservablePause();
+  tracer->StartObservablePause(base::TimeTicks::Now());
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
                      GarbageCollectionReason::kTesting, "heap unittest",
                      GCTracer::MarkingType::kAtomic);
@@ -254,7 +254,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
     page->SetLiveBytes(0);
   }
   tracer->StopAtomicPause();
-  tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR);
+  tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
+                              base::TimeTicks::Now());
   tracer->NotifyFullSweepingCompleted();
 }
 }  // namespace

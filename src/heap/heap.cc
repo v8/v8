@@ -1824,7 +1824,7 @@ void Heap::CollectGarbage(AllocationSpace space,
                                        ? CommittedOldGenerationMemory()
                                        : 0;
   {
-    tracer()->StartObservablePause();
+    tracer()->StartObservablePause(base::TimeTicks::Now());
     VMState<GC> state(isolate());
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
@@ -1891,7 +1891,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
 
     tracer()->StopAtomicPause();
-    tracer()->StopObservablePause(collector);
+    tracer()->StopObservablePause(collector, base::TimeTicks::Now());
     // Young generation cycles finish atomically. It is important that
     // StopObservablePause, and StopCycle are called in this
     // order; the latter may replace the current event with that of an

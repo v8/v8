@@ -271,8 +271,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   V8_INLINE CollectionEpoch CurrentEpoch(Scope::ScopeId id) const;
 
   // Start and stop an observable pause.
-  void StartObservablePause();
-  void StopObservablePause(GarbageCollector collector);
+  void StartObservablePause(base::TimeTicks time);
+  void StopObservablePause(GarbageCollector collector, base::TimeTicks time);
 
   // Update the current event if it precedes the start of the observable pause.
   void UpdateCurrentEvent(GarbageCollectionReason gc_reason,

@@ -192,9 +192,9 @@ void GCTracer::ResetForTesting() {
   new (this) GCTracer(heap_, GarbageCollectionReason::kTesting);
 }
 
-void GCTracer::StartObservablePause() {
+void GCTracer::StartObservablePause(base::TimeTicks time) {
   DCHECK(!IsInObservablePause());
-  start_of_observable_pause_.emplace(base::TimeTicks::Now());
+  start_of_observable_pause_.emplace(time);
 }
 
 void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
@@ -311,7 +311,8 @@ void GCTracer::StopInSafepoint() {
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
 }
 
-void GCTracer::StopObservablePause(GarbageCollector collector) {
+void GCTracer::StopObservablePause(GarbageCollector collector,
+                                   base::TimeTicks time) {
   DCHECK(IsConsistentWithCollector(collector));
   DCHECK(IsInObservablePause());
   start_of_observable_pause_.reset();
@@ -319,7 +320,7 @@ void GCTracer::StopObservablePause(GarbageCollector collector) {
   // TODO(chromium:1154636): The end_time of the current event contains
   // currently the end time of the observable pause. This should be
   // reconsidered.
-  current_.end_time = base::TimeTicks::Now();
+  current_.end_time = time;
   AddAllocation(current_.end_time);
 
   FetchBackgroundCounters();
