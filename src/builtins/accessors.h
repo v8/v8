@@ -16,8 +16,6 @@ namespace internal {
 
 // Forward declarations.
 class AccessorInfo;
-template <typename T>
-class Handle;
 class FieldIndex;
 class JavaScriptFrame;
 

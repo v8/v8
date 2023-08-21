@@ -17,9 +17,6 @@ namespace v8 {
 namespace internal {
 
 class ByteArray;
-template <typename T>
-class Handle;
-class Isolate;
 class Zone;
 
 struct PositionTableEntry {

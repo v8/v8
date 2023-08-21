@@ -15,9 +15,6 @@ namespace internal {
 class ByteArray;
 class CallInterfaceDescriptor;
 class Callable;
-template <typename T>
-class Handle;
-class Isolate;
 
 // Forward declarations.
 class BytecodeOffset;

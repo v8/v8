@@ -18,9 +18,6 @@ class WasmStreaming;
 }  // namespace v8
 
 namespace v8::internal {
-class Context;
-template <typename T>
-class Handle;
 
 namespace wasm {
 class CompilationResultResolver;

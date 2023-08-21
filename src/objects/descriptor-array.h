@@ -20,10 +20,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-
-class Isolate;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"

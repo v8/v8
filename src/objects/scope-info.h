@@ -24,13 +24,7 @@ class NameToIndexHashTable;
 
 #include "torque-generated/src/objects/scope-info-tq.inc"
 
-template <typename T>
-class Handle;
-class Isolate;
-template <typename T>
-class MaybeHandle;
 class SourceTextModuleInfo;
-class Scope;
 class StringSet;
 class Zone;
 

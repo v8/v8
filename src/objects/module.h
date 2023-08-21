@@ -17,14 +17,10 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-class Isolate;
 class JSModuleNamespace;
 class SourceTextModuleDescriptor;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
-class String;
 class Zone;
 
 #include "torque-generated/src/objects/module-tq.inc"

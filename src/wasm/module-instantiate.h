@@ -19,17 +19,10 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
 class JSArrayBuffer;
-class JSReceiver;
 class WasmModuleObject;
 class WasmInstanceObject;
 class Zone;
-
-template <typename T>
-class Handle;
-template <typename T>
-class MaybeHandle;
 
 namespace wasm {
 class ErrorThrower;

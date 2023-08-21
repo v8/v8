@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
-template <typename T>
-class Handle;
 
 // The limit for the the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.

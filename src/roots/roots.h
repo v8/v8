@@ -21,22 +21,13 @@ namespace internal {
 // Forward declarations.
 class Boolean;
 enum ElementsKind : uint8_t;
-template <typename T>
-class Handle;
-class Heap;
-class Isolate;
 class Factory;
 template <typename Impl>
 class FactoryBase;
 class LocalFactory;
-class Map;
 class PropertyCell;
 class ReadOnlyHeap;
 class RootVisitor;
-class String;
-class Symbol;
-template <typename T>
-class Tagged;
 
 #define STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)         \
   /* Special numbers */                                   \

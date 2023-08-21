@@ -38,8 +38,6 @@ namespace internal {
 class BackingStore;
 class FutexWaitList;
 
-template <typename T>
-class Handle;
 class Isolate;
 class JSArrayBuffer;
 

@@ -12,9 +12,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-
 class FieldType : public Object {
  public:
   static FieldType None();

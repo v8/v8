@@ -48,8 +48,6 @@ struct NumberFormatSpan {
 V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
     std::vector<NumberFormatSpan>* regions);
 
-template <typename T>
-class Handle;
 class JSCollator;
 
 class Intl {

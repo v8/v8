@@ -26,11 +26,6 @@ using PropertyDictionary = SwissNameDictionary;
 using PropertyDictionary = NameDictionary;
 #endif
 
-template <typename T>
-class Handle;
-
-class Isolate;
-
 template <typename Derived, typename Shape>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
     : public HashTable<Derived, Shape> {
