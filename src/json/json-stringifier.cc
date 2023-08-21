@@ -75,7 +75,9 @@ class JsonStringifier {
       one_byte_ptr_[current_index_++] = c;
     } else {
       DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
-      two_byte_ptr_[current_index_++] = c;
+      // Make sure to use unsigned extension even when SrcChar == char.
+      two_byte_ptr_[current_index_++] =
+          static_cast<std::make_unsigned_t<SrcChar>>(c);
     }
     if V8_UNLIKELY (current_index_ == part_length_) Extend();
   }
