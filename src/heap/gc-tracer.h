@@ -546,7 +546,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   double average_mutator_duration_ = 0.0;
   double average_mark_compact_duration_ = 0.0;
   double current_mark_compact_mutator_utilization_ = 1.0;
-  base::Optional<base::TimeTicks> previous_mark_compact_end_time_;
+
+  // The end of the last mark-compact GC. Is set to isolate/heap setup time
+  // before the first one.
+  base::TimeTicks previous_mark_compact_end_time_;
 
   BytesAndDurationBuffer recorded_minor_gcs_total_;
   BytesAndDurationBuffer recorded_minor_gcs_survived_;

@@ -303,6 +303,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
+  tracer->previous_mark_compact_end_time_ = base::TimeTicks();
 
   // Round 1.
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
@@ -357,21 +358,21 @@ TEST_F(GCTracerTest, MutatorUtilization) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
+  tracer->previous_mark_compact_end_time_ = base::TimeTicks();
 
   // Mark-compact #1 ended at 200ms and took 100ms.
   tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(200),
                                    base::TimeDelta::FromMilliseconds(100));
-  // Average mark-compact time = 0ms.
-  // Average mutator time = 0ms.
-  EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
-  EXPECT_DOUBLE_EQ(1.0, tracer->AverageMarkCompactMutatorUtilization());
+  // Average mark-compact time = 100ms.
+  // Average mutator time = 100ms.
+  EXPECT_DOUBLE_EQ(0.5, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #2 ended at 400ms and took 100ms.
   tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(400),
                                    base::TimeDelta::FromMilliseconds(100));
-  // The first mark-compactor is ignored.
-  // Average mark-compact time = 100ms.
-  // Average mutator time = 100ms.
+  // Average mark-compact time = 100ms * 0.5 + 100ms * 0.5.
+  // Average mutator time = 100ms * 0.5 + 100ms * 0.5.
   EXPECT_DOUBLE_EQ(0.5, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
 
