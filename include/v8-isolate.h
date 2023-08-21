@@ -679,6 +679,13 @@ class V8_EXPORT Isolate {
    */
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
 
+#if defined(V8_OS_WIN)
+  /**
+   * This specifies the callback called when an ETW tracing session starts.
+   */
+  void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
+#endif  // V8_OS_WIN
+
   /**
    * Optional notification that the system is running low on memory.
    * V8 uses these notifications to guide heuristics.

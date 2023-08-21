@@ -5598,6 +5598,20 @@ bool Isolate::HasPrepareStackTraceCallback() const {
   return prepare_stack_trace_callback_ != nullptr;
 }
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+void Isolate::SetFilterETWSessionByURLCallback(
+    FilterETWSessionByURLCallback callback) {
+  filter_etw_session_by_url_callback_ = callback;
+}
+
+bool Isolate::RunFilterETWSessionByURLCallback(
+    const std::string& etw_filter_payload) {
+  if (!filter_etw_session_by_url_callback_) return true;
+  v8::Local<v8::Context> context = Utils::ToLocal(native_context());
+  return filter_etw_session_by_url_callback_(context, etw_filter_payload);
+}
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   add_crash_key_callback_ = callback;
 

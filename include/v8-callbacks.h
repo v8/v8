@@ -424,6 +424,45 @@ using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
 
+#if defined(V8_OS_WIN)
+/**
+ * Callback to selectively enable ETW tracing based on the document URL.
+ * Implemented by the embedder, it should never call back into V8.
+ *
+ * Windows allows passing additional data to the ETW EnableCallback:
+ * https://learn.microsoft.com/en-us/windows/win32/api/evntprov/nc-evntprov-penablecallback
+ *
+ * This data can be configured in a WPR (Windows Performance Recorder)
+ * profile, adding a CustomFilter to an EventProvider like the following:
+ *
+ * <EventProvider Id=".." Name="57277741-3638-4A4B-BDBA-0AC6E45DA56C" Level="5">
+ *   <CustomFilter Type="0x80000000" Value="AQABAAAAAAA..." />
+ * </EventProvider>
+ *
+ * Where:
+ * - Name="57277741-3638-4A4B-BDBA-0AC6E45DA56C" is the GUID of the V8
+ *     ETW provider, (see src/libplatform/etw/etw-provider-win.h),
+ * - Type="0x80000000" is EVENT_FILTER_TYPE_SCHEMATIZED,
+ * - Value="AQABAAAAAA..." is a base64-encoded byte array that is
+ *     base64-decoded by Windows and passed to the ETW enable callback in
+ *     the 'PEVENT_FILTER_DESCRIPTOR FilterData' argument; see:
+ * https://learn.microsoft.com/en-us/windows/win32/api/evntprov/ns-evntprov-event_filter_descriptor.
+ *
+ * This array contains a struct EVENT_FILTER_HEADER followed by a
+ * variable length payload, and as payload we pass a string in JSON format,
+ * with a list of regular expressions that should match the document URL
+ * in order to enable ETW tracing:
+ *   {
+ *     "version": "1.0",
+ *     "filtered_urls": [
+ *         "https:\/\/.*\.chromium\.org\/.*", "https://v8.dev/";, "..."
+ *     ]
+ *  }
+ */
+using FilterETWSessionByURLCallback =
+    bool (*)(Local<Context> context, const std::string& etw_filter_payload);
+#endif  // V8_OS_WIN
+
 }  // namespace v8
 
 #endif  // INCLUDE_V8_ISOLATE_CALLBACKS_H_

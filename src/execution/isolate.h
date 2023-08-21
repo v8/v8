@@ -1898,6 +1898,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  // Specifies the callback called when an ETW tracing session starts.
+  void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
+  bool RunFilterETWSessionByURLCallback(const std::string& payload);
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
   void SetRAILMode(RAILMode rail_mode);
 
   RAILMode rail_mode() { return rail_mode_.load(); }
@@ -2517,6 +2523,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       nullptr;
 
   PrepareStackTraceCallback prepare_stack_trace_callback_ = nullptr;
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  FilterETWSessionByURLCallback filter_etw_session_by_url_callback_ = nullptr;
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
   // TODO(kenton@cloudflare.com): This mutex can be removed if
   // thread_data_table_ is always accessed under the isolate lock. I do not
