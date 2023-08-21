@@ -19,6 +19,7 @@
 
 #include "src/base/functional.h"
 #include "src/base/intrusive-set.h"
+#include "src/base/small-map.h"
 #include "src/base/small-vector.h"
 #include "src/zone/zone-allocator.h"
 
@@ -753,6 +754,33 @@ class SmallZoneVector : public base::SmallVector<T, kSize, ZoneAllocator<T>> {
   explicit SmallZoneVector(size_t size, Zone* zone)
       : base::SmallVector<T, kSize, ZoneAllocator<T>>(
             size, ZoneAllocator<T>(ZoneAllocator<T>(zone))) {}
+};
+
+// Used by SmallZoneMap below. Essentially a closure around placement-new of
+// the "full" fallback ZoneMap. Called once SmallMap grows beyond kArraySize.
+template <typename ZoneMap>
+class ZoneMapInit {
+ public:
+  explicit ZoneMapInit(Zone* zone) : zone_(zone) {}
+  void operator()(ZoneMap* map) const { new (map) ZoneMap(zone_); }
+
+ private:
+  Zone* zone_;
+};
+
+// A wrapper subclass for base::SmallMap to make it easy to construct one that
+// uses a zone-allocated std::map as the fallback once the SmallMap outgrows
+// its inline storage.
+template <typename K, typename V, size_t kArraySize,
+          typename Compare = std::less<K>, typename KeyEqual = std::equal_to<K>>
+class SmallZoneMap
+    : public base::SmallMap<ZoneMap<K, V, Compare>, kArraySize, KeyEqual,
+                            ZoneMapInit<ZoneMap<K, V, Compare>>> {
+ public:
+  explicit SmallZoneMap(Zone* zone)
+      : base::SmallMap<ZoneMap<K, V, Compare>, kArraySize, KeyEqual,
+                       ZoneMapInit<ZoneMap<K, V, Compare>>>(
+            ZoneMapInit<ZoneMap<K, V, Compare>>(zone)) {}
 };
 
 // Typedefs to shorten commonly used vectors.
