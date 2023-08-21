@@ -280,8 +280,8 @@
 }],  # novfp3
 
 ##############################################################################
-# TODO(ahaas): Port multiple return values to MIPS, S390 and PPC
-['arch in (mips64, mips64el, s390, s390x, ppc, ppc64)', {
+# TODO(ahaas): Port multiple return values to MIPS.
+['arch in (mips64, mips64el)', {
   'wasm/multi-value': [SKIP],
 }],
 
