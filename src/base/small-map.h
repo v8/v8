@@ -447,6 +447,35 @@ class SmallMap {
     return std::make_pair(iterator(array_ + size_++), true);
   }
 
+  // Invalidates iterators.
+  template <typename... Args>
+  std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+    key_equal compare;
+
+    if (UsingFullMap()) {
+      std::pair<typename NormalMap::iterator, bool> ret =
+          map_.try_emplace(key, std::forward<Args>(args)...);
+      return std::make_pair(iterator(ret.first), ret.second);
+    }
+
+    for (size_t i = 0; i < size_; ++i) {
+      if (compare(array_[i].first, key)) {
+        return std::make_pair(iterator(array_ + i), false);
+      }
+    }
+
+    if (size_ == kArraySize) {
+      ConvertToRealMap();  // Invalidates all iterators!
+      std::pair<typename NormalMap::iterator, bool> ret =
+          map_.try_emplace(key, std::forward<Args>(args)...);
+      return std::make_pair(iterator(ret.first), ret.second);
+    }
+
+    DCHECK(size_ < kArraySize);
+    new (&array_[size_]) value_type(key, std::forward<Args>(args)...);
+    return std::make_pair(iterator(array_ + size_++), true);
+  }
+
   iterator begin() {
     return UsingFullMap() ? iterator(map_.begin()) : iterator(array_);
   }
