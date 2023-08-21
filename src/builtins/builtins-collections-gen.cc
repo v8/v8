@@ -1280,6 +1280,17 @@ CollectionsBuiltinsAssembler::TransitionAndUpdate(
       });
 }
 
+TorqueStructOrderedHashSetIndexPair
+CollectionsBuiltinsAssembler::TransitionOrderedHashSetNoUpdate(
+    const TNode<OrderedHashSet> table_arg, const TNode<IntPtrT> index_arg) {
+  TNode<OrderedHashSet> table;
+  TNode<IntPtrT> index;
+  std::tie(table, index) = Transition<OrderedHashSet>(
+      table_arg, index_arg,
+      [](const TNode<OrderedHashSet>, const TNode<IntPtrT>) {});
+  return TorqueStructOrderedHashSetIndexPair{table, index};
+}
+
 template <typename TableType>
 std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
 CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
@@ -1346,6 +1357,10 @@ CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     const TNode<CollectionType> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
     Label* if_end) {
+  // Unmodified tables do not have transitions.
+  CSA_DCHECK(this, TaggedIsSmi(LoadObjectField(
+                       table, CollectionType::NextTableOffset())));
+
   TNode<Object> key;
   TNode<IntPtrT> entry_start_position;
   TNode<IntPtrT> next_index;

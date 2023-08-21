@@ -187,3 +187,28 @@
 
   assertEquals(resultArray, intersectionArray);
 })();
+
+(function TestTableTransition() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+  firstSet.add(44);
+
+  const setLike = {
+    size: 5,
+    keys() {
+      return [1, 2, 3, 4, 5].keys();
+    },
+    has(key) {
+      if (key == 43) {
+        // Cause a table transition in the receiver.
+        firstSet.clear();
+        return true;
+      }
+      return false;
+    }
+  };
+
+  assertEquals([43], Array.from(firstSet.intersection(setLike)));
+  assertEquals(0, firstSet.size);
+})();

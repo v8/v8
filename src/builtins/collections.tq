@@ -55,6 +55,12 @@ struct KeyIndexPair {
   index: intptr;
 }
 
+@export
+struct OrderedHashSetIndexPair {
+  table: OrderedHashSet;
+  index: intptr;
+}
+
 extern macro CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     OrderedHashSet, int32, int32, intptr): KeyIndexPair labels Done;
 
@@ -72,17 +78,25 @@ struct UnmodifiedOrderedHashSetIterator {
   current: KeyIndexPair;
 }
 
+extern macro CollectionsBuiltinsAssembler::TransitionOrderedHashSetNoUpdate(
+    OrderedHashSet, intptr): OrderedHashSetIndexPair;
+
 extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
     OrderedHashSet, intptr): KeyIndexPair labels Done;
 
 // The underlying table can be resized during iteration.
 struct OrderedHashSetIterator {
   macro Next(): JSAny labels Done {
+    // Transition the table and index in case it was modified during iteration.
+    const tableAndIndex =
+        TransitionOrderedHashSetNoUpdate(this.table, this.current.index);
+    this.table = tableAndIndex.table;
+    this.current.index = tableAndIndex.index;
     this.current = NextKeyIndexPair(this.table, this.current.index)
         otherwise Done;
     return this.current.key;
   }
-  const table: OrderedHashSet;
+  table: OrderedHashSet;
   current: KeyIndexPair;
 }
 

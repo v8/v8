@@ -31,8 +31,6 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
   }
 
   // 6. Let index be 0.
-  let thisIter = collections::NewOrderedHashSetIterator(table);
-  let key: JSAny;
 
   try {
     typeswitch (other) {
@@ -42,8 +40,9 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
         const otherTable =
             Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
 
+        let thisIter = collections::NewUnmodifiedOrderedHashSetIterator(table);
         while (true) {
-          key = thisIter.Next() otherwise Done;
+          const key = thisIter.Next() otherwise Done;
 
           if (!TableHasKey(otherTable, key)) {
             return False;
@@ -56,8 +55,9 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
         const otherTable =
             Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
 
+        let thisIter = collections::NewUnmodifiedOrderedHashSetIterator(table);
         while (true) {
-          key = thisIter.Next() otherwise Done;
+          const key = thisIter.Next() otherwise Done;
 
           if (!TableHasKey(otherTable, key)) {
             return False;
@@ -70,9 +70,10 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
     }
   } label SlowPath {
     // 7. Repeat, while index < thisSize,
+    let thisIter = collections::NewOrderedHashSetIterator(table);
     while (true) {
       // a. Let e be O.[[SetData]][index].
-      key = thisIter.Next() otherwise Done;
+      const key = thisIter.Next() otherwise Done;
 
       // b. Set index to index + 1.
       // c. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[Set]],

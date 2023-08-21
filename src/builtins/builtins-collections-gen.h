@@ -204,7 +204,8 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Normalizes -0 to +0.
   const TNode<Object> NormalizeNumberKey(const TNode<Object> key);
 
-  // Exposed for MapGroupBy in Torque.
+  // Methods after this point should really be protected but are exposed for
+  // Torque.
   void UnsafeStoreValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
                                              const TNode<Object> value,
                                              const TNode<IntPtrT> entry) {
@@ -215,6 +216,9 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   TNode<Smi> DeleteFromSetTable(const TNode<Object> context,
                                 TNode<OrderedHashSet> table, TNode<Object> key,
                                 Label* not_found);
+
+  TorqueStructOrderedHashSetIndexPair TransitionOrderedHashSetNoUpdate(
+      const TNode<OrderedHashSet> table, const TNode<IntPtrT> index);
 
  protected:
   template <typename IteratorType>
@@ -239,6 +243,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   template <typename IteratorType, typename TableType>
   std::pair<TNode<TableType>, TNode<IntPtrT>> TransitionAndUpdate(
       const TNode<IteratorType> iterator);
+
   template <typename TableType>
   std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>> NextSkipHoles(
       TNode<TableType> table, TNode<IntPtrT> index, Label* if_end);
