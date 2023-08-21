@@ -1123,13 +1123,8 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(I64x2UConvertI32x4High, kRiscvI64x2UConvertI32x4High)       \
   V(I32x4SConvertF32x4, kRiscvI32x4SConvertF32x4)               \
   V(I32x4UConvertF32x4, kRiscvI32x4UConvertF32x4)               \
-  V(I32x4SConvertI16x8Low, kRiscvI32x4SConvertI16x8Low)         \
-  V(I32x4SConvertI16x8High, kRiscvI32x4SConvertI16x8High)       \
-  V(I32x4UConvertI16x8Low, kRiscvI32x4UConvertI16x8Low)         \
-  V(I32x4UConvertI16x8High, kRiscvI32x4UConvertI16x8High)       \
   V(I32x4TruncSatF64x2SZero, kRiscvI32x4TruncSatF64x2SZero)     \
   V(I32x4TruncSatF64x2UZero, kRiscvI32x4TruncSatF64x2UZero)     \
-  V(I16x8SConvertI8x16Low, kRiscvI16x8SConvertI8x16Low)         \
   V(I8x16Popcnt, kRiscvI8x16Popcnt)                             \
   V(S128Not, kRiscvVnot)                                        \
   V(V128AnyTrue, kRiscvV128AnyTrue)
@@ -1346,15 +1341,6 @@ VISIT_SIMD_QFMOP(F32x4Qfma, kRiscvF32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms, kRiscvF32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8SConvertI8x16High(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
-  Emit(kRiscvVslidedown, temp1, g.UseRegister(node->InputAt(0)),
-       g.UseImmediate(8), g.UseImmediate(E8), g.UseImmediate(m1));
-  Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp1, g.UseImmediate(E16),
-       g.UseImmediate(m1));
-}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4Min(Node* node) {
@@ -1540,6 +1526,36 @@ void InstructionSelectorT<Adapter>::VisitF32x4Le(Node* node) {
              g.UseImmediate(m1));
   this->Emit(kRiscvVmergeVx, g.DefineAsRegister(node), g.UseImmediate(-1),
              temp2, g.UseImmediate(E32), g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4SConvertI16x8Low(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVmv, temp, g.UseRegister(node->InputAt(0)),
+             g.UseImmediate(E32), g.UseImmediate(m1));
+  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
+             g.UseImmediate(E32), g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4UConvertI16x8Low(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVmv, temp, g.UseRegister(node->InputAt(0)),
+             g.UseImmediate(E32), g.UseImmediate(m1));
+  this->Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp,
+             g.UseImmediate(E32), g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8SConvertI8x16High(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp1 = g.TempFpRegister(v0);
+  Emit(kRiscvVslidedown, temp1, g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(8), g.UseImmediate(E8), g.UseImmediate(m1));
+  Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp1, g.UseImmediate(E16),
+       g.UseImmediate(m1));
 }
 
 template <typename Adapter>
@@ -1786,6 +1802,36 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
 
 SIMD_INT_TYPE_LIST(VISIT_BIMASK)
 #undef VISIT_BIMASK
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4SConvertI16x8High(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVslidedown, temp, g.UseRegister(node->InputAt(0)),
+             g.UseImmediate(4), g.UseImmediate(E16), g.UseImmediate(m1));
+  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
+             g.UseImmediate(E32), g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4UConvertI16x8High(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVslidedown, temp, g.UseRegister(node->InputAt(0)),
+             g.UseImmediate(4), g.UseImmediate(E16), g.UseImmediate(m1));
+  this->Emit(kRiscvVzextVf2, g.DefineAsRegister(node), temp,
+             g.UseImmediate(E32), g.UseImmediate(m1));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8SConvertI8x16Low(Node* node) {
+  RiscvOperandGeneratorT<Adapter> g(this);
+  InstructionOperand temp = g.TempFpRegister(kSimd128ScratchReg);
+  this->Emit(kRiscvVmv, temp, g.UseRegister(node->InputAt(0)),
+             g.UseImmediate(E16), g.UseImmediate(m1));
+  this->Emit(kRiscvVsextVf2, g.DefineAsRegister(node), temp,
+             g.UseImmediate(E16), g.UseImmediate(m1));
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x8UConvertI8x16High(Node* node) {

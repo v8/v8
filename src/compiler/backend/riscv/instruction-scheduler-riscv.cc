@@ -159,7 +159,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI16x8ExtractLaneU:
     case kRiscvI16x8ExtractLaneS:
     case kRiscvI16x8ReplaceLane:
-    case kRiscvI16x8SConvertI8x16Low:
     case kRiscvI16x8Shl:
     case kRiscvI16x8ShrS:
     case kRiscvI16x8ShrU:
@@ -168,14 +167,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI32x4ExtractLane:
     case kRiscvI32x4ReplaceLane:
     case kRiscvI32x4SConvertF32x4:
-    case kRiscvI32x4SConvertI16x8High:
-    case kRiscvI32x4SConvertI16x8Low:
     case kRiscvI32x4Shl:
     case kRiscvI32x4ShrS:
     case kRiscvI32x4ShrU:
     case kRiscvI32x4UConvertF32x4:
-    case kRiscvI32x4UConvertI16x8High:
-    case kRiscvI32x4UConvertI16x8Low:
     case kRiscvI8x16ExtractLaneU:
     case kRiscvI8x16ExtractLaneS:
     case kRiscvI8x16ReplaceLane:

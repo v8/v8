@@ -3064,19 +3064,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
-    case kRiscvI32x4SConvertI16x8Low: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvI32x4SConvertI16x8High: {
-      __ VU.set(kScratchReg, E16, m1);
-      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 4);
-      __ VU.set(kScratchReg, E32, m1);
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
     case kRiscvI32x4SConvertF32x4: {
       __ VU.set(kScratchReg, E32, m1);
       __ VU.set(FPURoundingMode::RTZ);
@@ -3105,32 +3092,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_xu_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
-      break;
-    }
-    case kRiscvI32x4UConvertI16x8Low: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvI32x4UConvertI16x8High: {
-      __ VU.set(kScratchReg, E16, m1);
-      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 4);
-      __ VU.set(kScratchReg, E32, m1);
-      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvI16x8SConvertI8x16Low: {
-      __ VU.set(kScratchReg, E16, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvI16x8SConvertI8x16High: {
-      __ VU.set(kScratchReg, E8, m1);
-      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 8);
-      __ VU.set(kScratchReg, E16, m1);
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
 #if V8_TARGET_ARCH_RISCV32
