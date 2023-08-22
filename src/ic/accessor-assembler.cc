@@ -5071,18 +5071,6 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     feedback = TryMonomorphicCase(slot, CAST(maybe_vector), weak_source_map,
                                   &if_handler, &var_handler, &try_polymorphic);
 
-    BIND(&if_handler);
-    Comment("CloneObjectIC_if_handler");
-
-    // When the result of cloning the object is an empty object literal we store
-    // a Smi into the feedback.
-    GotoIf(TaggedIsSmi(var_handler.value()), &if_empty_object);
-
-    // Handlers for the CloneObjectIC stub are weak references to the Map of
-    // a result object.
-    result_map = CAST(GetHeapObjectAssumeWeak(var_handler.value(), &miss));
-    Goto(&if_result_map);
-
     BIND(&try_polymorphic);
     TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
     {
@@ -5104,6 +5092,18 @@ void AccessorAssembler::GenerateCloneObjectIC() {
                 &miss);
       Goto(&slow);
     }
+
+    BIND(&if_handler);
+    Comment("CloneObjectIC_if_handler");
+
+    // When the result of cloning the object is an empty object literal we store
+    // a Smi into the feedback.
+    GotoIf(TaggedIsSmi(var_handler.value()), &if_empty_object);
+
+    // Handlers for the CloneObjectIC stub are weak references to the Map of
+    // a result object.
+    result_map = CAST(GetHeapObjectAssumeWeak(var_handler.value(), &miss));
+    Goto(&if_result_map);
   }
 
   // Cloning with a concrete result_map.
