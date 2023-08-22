@@ -5421,7 +5421,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
 
-#if V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_LOCAL
   i::Handle<i::Object>* args = new i::Handle<i::Object>[argc];
   for (int i = 0; i < argc; ++i) {
     args[i] = Utils::OpenHandle(*argv[i]);

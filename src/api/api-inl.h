@@ -66,9 +66,9 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
   DCHECK(obj.is_null() || (IsSmi(*obj) || !IsTheHole(*obj)));
   return Local<To>::FromAddress(obj.address());
 #elif defined(V8_ENABLE_DIRECT_HANDLE)
-  return Utils::Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
+  return Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
 #else
-  return Utils::Convert<From, To>(obj);
+  return Convert<From, To>(obj);
 #endif
 }
 
@@ -77,30 +77,34 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
     return Convert<v8::internal::From, v8::To>(obj);                        \
-  }
-
-#define MAKE_TO_LOCAL_DIRECT_HANDLE(Name, From, To)           \
-  Local<v8::To> Utils::Name(                                  \
-      v8::internal::DirectHandle<v8::internal::From> obj,     \
-      i::Isolate* isolate) {                                  \
-    return Convert<v8::internal::From, v8::To>(obj, isolate); \
+  }                                                                         \
+                                                                            \
+  Local<v8::To> Utils::Name(                                                \
+      v8::internal::DirectHandle<v8::internal::From> obj,                   \
+      i::Isolate* isolate) {                                                \
+    return Convert<v8::internal::From, v8::To>(obj, isolate);               \
   }
 
 TO_LOCAL_LIST(MAKE_TO_LOCAL)
-TO_LOCAL_LIST(MAKE_TO_LOCAL_DIRECT_HANDLE)
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)        \
-  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
-      v8::internal::Handle<v8::internal::JSTypedArray> obj) {         \
-    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);      \
-    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj); \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)                 \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                          \
+      v8::internal::Handle<v8::internal::JSTypedArray> obj) {                  \
+    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);               \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);          \
+  }                                                                            \
+                                                                               \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                          \
+      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj,              \
+      v8::internal::Isolate* isolate) {                                        \
+    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);               \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj, isolate); \
   }
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
-#undef MAKE_TO_LOCAL_DIRECT_HANDLE
 #undef TO_LOCAL_LIST
 
 // Implementations of OpenHandle
@@ -120,9 +124,8 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return v8::internal::Handle<v8::internal::To>(                           \
         v8::HandleScope::CreateHandleForCurrentIsolate(                      \
             v8::internal::ValueHelper::ValueAsAddress(that)));               \
-  }
-
-#define MAKE_OPEN_DIRECT_HANDLE(From, To)                                    \
+  }                                                                          \
+                                                                             \
   v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(      \
       const v8::From* that, bool allow_empty_handle) {                       \
     DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
@@ -131,6 +134,11 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
     return v8::internal::DirectHandle<v8::internal::To>(                     \
         v8::internal::ValueHelper::ValueAsAddress(that));                    \
+  }                                                                          \
+                                                                             \
+  v8::internal::IndirectHandle<v8::internal::To> Utils::OpenIndirectHandle(  \
+      const v8::From* that, bool allow_empty_handle) {                       \
+    return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
 #else  // !V8_ENABLE_DIRECT_LOCAL
@@ -145,21 +153,23 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     return v8::internal::Handle<v8::internal::To>(                           \
         reinterpret_cast<v8::internal::Address*>(                            \
             const_cast<v8::From*>(that)));                                   \
-  }
-
-#define MAKE_OPEN_DIRECT_HANDLE(From, To)                                      \
-  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(        \
-      const v8::From* that, bool allow_empty_handle) {                         \
-    return Utils::OpenHandle(that, allow_empty_handle); \
+  }                                                                          \
+                                                                             \
+  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(      \
+      const v8::From* that, bool allow_empty_handle) {                       \
+    return Utils::OpenHandle(that, allow_empty_handle);                      \
+  }                                                                          \
+                                                                             \
+  v8::internal::IndirectHandle<v8::internal::To> Utils::OpenIndirectHandle(  \
+      const v8::From* that, bool allow_empty_handle) {                       \
+    return Utils::OpenHandle(that, allow_empty_handle);                      \
   }
 
 #endif  // V8_ENABLE_DIRECT_LOCAL
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
-OPEN_HANDLE_LIST(MAKE_OPEN_DIRECT_HANDLE)
 
 #undef MAKE_OPEN_HANDLE
-#undef MAKE_OPEN_DIRECT_HANDLE
 #undef OPEN_HANDLE_LIST
 
 template <bool do_callback>

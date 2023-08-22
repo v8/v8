@@ -473,7 +473,7 @@ void AllocateWithHandle(Isolate* isolate, StateWithHandle* state) {
   state->scope.emplace(isolate);
   // Allocate a fixed array, keep a handle and a weak reference.
   state->handle = isolate->factory()->NewFixedArray(size, allocation);
-  auto l = Utils::Convert<FixedArray, v8::FixedArray>(state->handle);
+  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(state->handle);
   state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
   state->weak.SetWeak();
 }
@@ -490,7 +490,7 @@ void InvokeGC(AllocationSpace space, Isolate* isolate) {
 template <typename TestType, AllocationType allocation, AllocationSpace space>
 void ToEachTheirOwnWithHandle(TestType* test) {
   using ThreadType = typename TestType::ThreadType;
-  auto thread = test->thread();
+  ThreadType* thread = test->thread();
 
   // Install all the callbacks.
   test->with_setup([](TestType* test) {
@@ -552,9 +552,9 @@ template <AllocationType allocation, AllocationSpace space, int size>
 void AllocateWithRawPointer(Isolate* isolate, StateWithRawPointer* state) {
   // Allocate a fixed array, keep a raw pointer and a weak reference.
   HandleScope scope(isolate);
-  auto h = isolate->factory()->NewFixedArray(size, allocation);
+  Handle<FixedArray> h = isolate->factory()->NewFixedArray(size, allocation);
   state->ptr = h->GetHeapObject().ptr();
-  auto l = Utils::Convert<FixedArray, v8::FixedArray>(h);
+  Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h, isolate);
   state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
   state->weak.SetWeak();
 }
@@ -567,7 +567,7 @@ using SharedHeapTestStateWithRawPointerUnparked =
 template <typename TestType, AllocationType allocation, AllocationSpace space>
 void ToEachTheirOwnWithRawPointer(TestType* test) {
   using ThreadType = typename TestType::ThreadType;
-  auto thread = test->thread();
+  ThreadType* thread = test->thread();
 
   // Install all the callbacks.
   test->with_setup([](TestType* test) {

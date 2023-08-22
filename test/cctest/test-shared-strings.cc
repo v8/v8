@@ -1984,8 +1984,7 @@ UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
   Handle<String> shared_string =
       factory->NewStringFromAsciiChecked("foobar", AllocationType::kSharedOld);
   CHECK(shared_string->InWritableSharedSpace());
-  v8::Local<v8::String> lh_shared_string =
-      Utils::Convert<String, v8::String>(shared_string);
+  v8::Local<v8::String> lh_shared_string = Utils::ToLocal(shared_string);
   v8::Global<v8::String> gh_shared_string(test.main_isolate(),
                                           lh_shared_string);
   gh_shared_string.SetWeak();
@@ -2024,8 +2023,7 @@ class WorkerIsolateThread : public v8::base::Thread {
       Handle<String> shared_string = factory->NewStringFromAsciiChecked(
           "foobar", AllocationType::kSharedOld);
       CHECK(shared_string->InWritableSharedSpace());
-      v8::Local<v8::String> lh_shared_string =
-          Utils::Convert<String, v8::String>(shared_string);
+      v8::Local<v8::String> lh_shared_string = Utils::ToLocal(shared_string);
       gh_shared_string.Reset(test_->main_isolate(), lh_shared_string);
       gh_shared_string.SetWeak();
     }
