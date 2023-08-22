@@ -850,9 +850,60 @@ class TurboshaftGraphBuildingInterface {
       HANDLE_UNARY_OPTIONAL_OPCODE(F64x2NearestInt, float64_round_ties_even,
                                    wasm_f64x2_nearest_int)
 #undef HANDLE_UNARY_OPTIONAL_OPCODE
+
+#define HANDLE_SHIFT_OPCODE(kind)                             \
+  case kExpr##kind:                                           \
+    result->op = asm_.Simd128Shift(                           \
+        args[0].op, args[1].op,                               \
+        compiler::turboshaft::Simd128ShiftOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_SHIFT_OPCODE(HANDLE_SHIFT_OPCODE)
+#undef HANDLE_SHIFT_OPCODE
+
+#define HANDLE_TEST_OPCODE(kind)                                         \
+  case kExpr##kind:                                                      \
+    result->op = asm_.Simd128Test(                                       \
+        args[0].op, compiler::turboshaft::Simd128TestOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_TEST_OPCODE(HANDLE_TEST_OPCODE)
+#undef HANDLE_TEST_OPCODE
+
+#if V8_TARGET_ARCH_32_BIT
+#define HANDLE_SPLAT_OPCODE(kind) \
+  case kExpr##kind##Splat:        \
+    Bailout(decoder);             \
+    break;
+#else
+#define HANDLE_SPLAT_OPCODE(kind)                                         \
+  case kExpr##kind##Splat:                                                \
+    result->op = asm_.Simd128Splat(                                       \
+        args[0].op, compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
+    break;
+#endif
+      FOREACH_SIMD_128_SPLAT_OPCODE(HANDLE_SPLAT_OPCODE)
+#undef HANDLE_SPLAT_OPCODE
+
+// Ternary mask operators put the mask as first input.
+#define HANDLE_TERNARY_MASK_OPCODE(kind)                        \
+  case kExpr##kind:                                             \
+    result->op = asm_.Simd128Ternary(                           \
+        args[2].op, args[0].op, args[1].op,                     \
+        compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_TERNARY_MASK_OPCODE(HANDLE_TERNARY_MASK_OPCODE)
+#undef HANDLE_TERNARY_MASK_OPCODE
+
+#define HANDLE_TERNARY_OTHER_OPCODE(kind)                       \
+  case kExpr##kind:                                             \
+    result->op = asm_.Simd128Ternary(                           \
+        args[0].op, args[1].op, args[2].op,                     \
+        compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
+#undef HANDLE_TERNARY_OTHER_OPCODE
+
       default:
-        Bailout(decoder);
-        break;
+        UNREACHABLE();
     }
   }
 

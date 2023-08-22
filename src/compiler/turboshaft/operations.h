@@ -105,7 +105,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
   V(Simd128Binop)                         \
-  V(Simd128Unary)
+  V(Simd128Unary)                         \
+  V(Simd128Shift)                         \
+  V(Simd128Test)                          \
+  V(Simd128Splat)                         \
+  V(Simd128Ternary)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V)
@@ -6010,7 +6014,14 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(F64x2Min)                             \
   V(F64x2Max)                             \
   V(F64x2Pmin)                            \
-  V(F64x2Pmax)
+  V(F64x2Pmax)                            \
+  V(I8x16RelaxedSwizzle)                  \
+  V(F32x4RelaxedMin)                      \
+  V(F32x4RelaxedMax)                      \
+  V(F64x2RelaxedMin)                      \
+  V(F64x2RelaxedMax)                      \
+  V(I16x8RelaxedQ15MulRS)                 \
+  V(I16x8DotI8x16I7x16S)
 
 struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   enum class Kind : uint8_t {
@@ -6040,10 +6051,7 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
-  void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, left(), RegisterRepresentation::Simd128()));
-    DCHECK(ValidOpInputRep(graph, right(), RegisterRepresentation::Simd128()));
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -6091,7 +6099,11 @@ std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind);
   V(I32x4TruncSatF64x2SZero)                          \
   V(I32x4TruncSatF64x2UZero)                          \
   V(F64x2ConvertLowI32x4S)                            \
-  V(F64x2ConvertLowI32x4U)
+  V(F64x2ConvertLowI32x4U)                            \
+  V(I32x4RelaxedTruncF32x4S)                          \
+  V(I32x4RelaxedTruncF32x4U)                          \
+  V(I32x4RelaxedTruncF64x2SZero)                      \
+  V(I32x4RelaxedTruncF64x2UZero)
 
 #define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V) \
   V(F32x4Ceil)                                    \
@@ -6131,13 +6143,201 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Simd128()));
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd128UnaryOp::Kind kind);
+
+#define FOREACH_SIMD_128_SHIFT_OPCODE(V) \
+  V(I8x16Shl)                            \
+  V(I8x16ShrS)                           \
+  V(I8x16ShrU)                           \
+  V(I16x8Shl)                            \
+  V(I16x8ShrS)                           \
+  V(I16x8ShrU)                           \
+  V(I32x4Shl)                            \
+  V(I32x4ShrS)                           \
+  V(I32x4ShrU)                           \
+  V(I64x2Shl)                            \
+  V(I64x2ShrS)                           \
+  V(I64x2ShrU)
+
+struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_SHIFT_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128(),
+                          RegisterRepresentation::Word32()>();
+  }
+
+  Simd128ShiftOp(OpIndex input, OpIndex shift, Kind kind)
+      : Base(input, shift), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex shift() const { return Base::input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128ShiftOp::Kind kind);
+
+#define FOREACH_SIMD_128_TEST_OPCODE(V) \
+  V(V128AnyTrue)                        \
+  V(I8x16AllTrue)                       \
+  V(I8x16BitMask)                       \
+  V(I16x8AllTrue)                       \
+  V(I16x8BitMask)                       \
+  V(I32x4AllTrue)                       \
+  V(I32x4BitMask)                       \
+  V(I64x2AllTrue)                       \
+  V(I64x2BitMask)
+
+struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
+  enum class Kind {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_TEST_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128TestOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128TestOp::Kind kind);
+
+#define FOREACH_SIMD_128_SPLAT_OPCODE(V) \
+  V(I8x16)                               \
+  V(I16x8)                               \
+  V(I32x4)                               \
+  V(I64x2)                               \
+  V(F32x4)                               \
+  V(F64x2)
+
+struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
+  enum class Kind {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_SPLAT_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    switch (kind) {
+      case Kind::kI8x16:
+      case Kind::kI16x8:
+      case Kind::kI32x4:
+        return MaybeRepVector<RegisterRepresentation::Word32()>();
+      case Kind::kI64x2:
+        return MaybeRepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF32x4:
+        return MaybeRepVector<RegisterRepresentation::Float32()>();
+      case Kind::kF64x2:
+        return MaybeRepVector<RegisterRepresentation::Float64()>();
+    }
+  }
+
+  Simd128SplatOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128SplatOp::Kind kind);
+
+#define FOREACH_SIMD_128_TERNARY_MASK_OPCODE(V) \
+  V(S128Select)                                 \
+  V(I8x16RelaxedLaneSelect)                     \
+  V(I16x8RelaxedLaneSelect)                     \
+  V(I32x4RelaxedLaneSelect)                     \
+  V(I64x2RelaxedLaneSelect)
+
+#define FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(V) \
+  V(F32x4Qfma)                                   \
+  V(F32x4Qfms)                                   \
+  V(F64x2Qfma)                                   \
+  V(F64x2Qfms)                                   \
+  V(I32x4DotI8x16I7x16AddS)
+
+#define FOREACH_SIMD_128_TERNARY_OPCODE(V) \
+  FOREACH_SIMD_128_TERNARY_MASK_OPCODE(V)  \
+  FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(V)
+
+struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
+  enum class Kind {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_TERNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128(),
+                          RegisterRepresentation::Simd128(),
+                          RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128TernaryOp(OpIndex first, OpIndex second, OpIndex third, Kind kind)
+      : Base(first, second, third), kind(kind) {}
+
+  OpIndex first() const { return input(0); }
+  OpIndex second() const { return input(1); }
+  OpIndex third() const { return input(2); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

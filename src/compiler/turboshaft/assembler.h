@@ -3094,6 +3094,37 @@ class AssemblerOpInterface {
     }
     return stack().ReduceSimd128Unary(input, kind);
   }
+
+  V<Simd128> Simd128Shift(V<Simd128> input, V<Word32> shift,
+                          Simd128ShiftOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Shift(input, shift, kind);
+  }
+
+  V<Word32> Simd128Test(V<Simd128> input, Simd128TestOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Test(input, kind);
+  }
+
+  V<Simd128> Simd128Splat(OpIndex input, Simd128SplatOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Splat(input, kind);
+  }
+
+  V<Simd128> Simd128Ternary(OpIndex first, OpIndex second, OpIndex third,
+                            Simd128TernaryOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Ternary(first, second, third, kind);
+  }
+
 #endif
 
   template <typename Rep>

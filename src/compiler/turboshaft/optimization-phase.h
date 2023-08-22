@@ -1001,6 +1001,25 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphSimd128Unary(const Simd128UnaryOp& op) {
     return assembler().ReduceSimd128Unary(MapToNewGraph(op.input()), op.kind);
   }
+
+  OpIndex AssembleOutputGraphSimd128Shift(const Simd128ShiftOp& op) {
+    return assembler().ReduceSimd128Shift(MapToNewGraph(op.input()),
+                                          MapToNewGraph(op.shift()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Test(const Simd128TestOp& op) {
+    return assembler().ReduceSimd128Test(MapToNewGraph(op.input()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Splat(const Simd128SplatOp& op) {
+    return assembler().ReduceSimd128Splat(MapToNewGraph(op.input()), op.kind);
+  }
+
+  OpIndex AssembleOutputGraphSimd128Ternary(const Simd128TernaryOp& op) {
+    return assembler().ReduceSimd128Ternary(MapToNewGraph(op.first()),
+                                            MapToNewGraph(op.second()),
+                                            MapToNewGraph(op.third()), op.kind);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
