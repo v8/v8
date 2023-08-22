@@ -165,17 +165,16 @@ using AccessorNameSetterCallback =
 /**
  * Access control specifications.
  *
- * Some accessors should be accessible across contexts.  These
+ * Some accessors should be accessible across contexts. These
  * accessors have an explicit access control parameter which specifies
  * the kind of cross-context access that should be allowed.
  *
- * TODO(dcarney): Remove PROHIBITS_OVERWRITING as it is now unused.
  */
 enum AccessControl {
   DEFAULT = 0,
   ALL_CAN_READ = 1,
   ALL_CAN_WRITE = 1 << 1,
-  PROHIBITS_OVERWRITING = 1 << 2
+  PROHIBITS_OVERWRITING V8_ENUM_DEPRECATE_SOON("unused") = 1 << 2
 };
 
 /**
