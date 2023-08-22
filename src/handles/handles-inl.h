@@ -13,11 +13,7 @@
 #include "src/objects/objects.h"
 
 #ifdef DEBUG
-// For GetIsolateFromWritableHeapObject.
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/utils/ostreams.h"
-// For GetIsolateFromWritableObject.
-#include "src/execution/isolate-utils-inl.h"
 #endif
 
 namespace v8 {
@@ -34,7 +30,7 @@ HandleBase::HandleBase(Address object, LocalIsolate* isolate)
 HandleBase::HandleBase(Address object, LocalHeap* local_heap)
     : location_(LocalHandleScope::GetHandle(local_heap, object)) {}
 
-bool HandleBase::is_identical_to(const HandleBase that) const {
+bool HandleBase::is_identical_to(const HandleBase& that) const {
   SLOW_DCHECK((this->location_ == nullptr || this->IsDereferenceAllowed()) &&
               (that.location_ == nullptr || that.IsDereferenceAllowed()));
   if (this->location_ == that.location_) return true;
@@ -126,6 +122,11 @@ V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
   return DirectHandle<T>(*that.location());
 }
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle) {
+  return os << Brief(*handle);
+}
+
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
@@ -134,9 +135,33 @@ V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object, Isolate* isolate) {
 }
 
 template <typename T>
+V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object,
+                                        LocalIsolate* isolate) {
+  return DirectHandle<T>(object, isolate);
+}
+
+template <typename T>
+V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object,
+                                        LocalHeap* local_heap) {
+  return DirectHandle<T>(object, local_heap);
+}
+
+template <typename T>
 V8_INLINE DirectHandle<T> direct_handle(T object, Isolate* isolate) {
   static_assert(kTaggedCanConvertToRawObjects);
   return direct_handle(Tagged<T>(object), isolate);
+}
+
+template <typename T>
+V8_INLINE DirectHandle<T> direct_handle(T object, LocalIsolate* isolate) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return direct_handle(Tagged<T>(object), isolate);
+}
+
+template <typename T>
+V8_INLINE DirectHandle<T> direct_handle(T object, LocalHeap* local_heap) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return direct_handle(Tagged<T>(object), local_heap);
 }
 
 HandleScope::HandleScope(Isolate* isolate) {
@@ -264,9 +289,7 @@ inline SealHandleScope::~SealHandleScope() {
 #endif  // DEBUG
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
-
-template <typename T>
-bool DirectHandle<T>::is_identical_to(const DirectHandle<T> that) const {
+bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   SLOW_DCHECK(
       (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&
       (that.address() == kTaggedNullAddress || that.IsDereferenceAllowed()));
@@ -278,49 +301,6 @@ bool DirectHandle<T>::is_identical_to(const DirectHandle<T> that) const {
     return false;
   return Object(this->address()) == Object(that.address());
 }
-
-#ifdef DEBUG
-
-template <typename T>
-bool DirectHandle<T>::IsDereferenceAllowed() const {
-  DCHECK_NE(obj_, kTaggedNullAddress);
-  Object object(obj_);
-  if (IsSmi(object)) return true;
-  HeapObject heap_object = HeapObject::cast(object);
-  if (IsReadOnlyHeapObject(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
-  if (!AllowHandleDereference::IsAllowed()) return false;
-
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (heap_object.InWritableSharedSpace()) return true;
-
-  LocalHeap* local_heap = isolate->CurrentLocalHeap();
-
-  // Local heap can't access handles when parked
-  if (!local_heap->IsHandleDereferenceAllowed()) {
-    StdoutStream{} << "Cannot dereference handle owned by "
-                   << "non-running local heap\n";
-    return false;
-  }
-
-  // If LocalHeap::Current() is null, we're on the main thread -- if we were to
-  // check main thread HandleScopes here, we should additionally check the
-  // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-
-  return true;
-}
-
-template <typename T>
-void DirectHandle<T>::VerifyOnStackAndMainThread() const {
-  internal::HandleHelper::VerifyOnStack(this);
-  // The following verifies that we are on the main thread, as
-  // LocalHeap::Current is not set in that case.
-  DCHECK_NULL(LocalHeap::Current());
-}
-
-#endif  // DEBUG
-
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal

@@ -121,7 +121,11 @@ inline std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle) {
 
 template <typename T>
 MaybeDirectHandle<T>::MaybeDirectHandle(T object, Isolate* isolate)
-    : MaybeDirectHandle(DirectHandle<T>(object.ptr())) {}
+    : MaybeDirectHandle(direct_handle(object, isolate)) {}
+
+template <typename T>
+MaybeDirectHandle<T>::MaybeDirectHandle(T object, LocalHeap* local_heap)
+    : MaybeDirectHandle(direct_handle(object, local_heap)) {}
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, MaybeDirectHandle<T> handle) {
@@ -134,10 +138,23 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
   HeapObject heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
-    handle_ = DirectHandle<HeapObject>(heap_object.ptr());
+    handle_ = direct_handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
-    handle_ = DirectHandle<Object>(object->cast<Object>().ptr());
+    handle_ = direct_handle(object->cast<Object>(), isolate);
+    reference_type_ = HeapObjectReferenceType::STRONG;
+  }
+}
+
+MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
+                                                 LocalHeap* local_heap) {
+  HeapObject heap_object;
+  DCHECK(!object->IsCleared());
+  if (object->GetHeapObjectIfWeak(&heap_object)) {
+    handle_ = direct_handle(heap_object, local_heap);
+    reference_type_ = HeapObjectReferenceType::WEAK;
+  } else {
+    handle_ = direct_handle(object->cast<Object>(), local_heap);
     reference_type_ = HeapObjectReferenceType::STRONG;
   }
 }
@@ -149,6 +166,11 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(Object object,
                                                  Isolate* isolate)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, isolate) {}
+
+MaybeObjectDirectHandle::MaybeObjectDirectHandle(Object object,
+                                                 LocalHeap* local_heap)
+    : reference_type_(HeapObjectReferenceType::STRONG),
+      handle_(object, local_heap) {}
 
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(
     Object object, HeapObjectReferenceType reference_type, Isolate* isolate)

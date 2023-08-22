@@ -924,15 +924,15 @@ class InstructionStream;
 class Code;
 class CodeSpace;
 class Context;
-#ifdef V8_ENABLE_DIRECT_HANDLE
-template <typename T>
-class DirectHandle;
-#endif
 class DeclarationScope;
 class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+class DirectHandle;
+#endif
 class TransitionArray;
 class ExternalReference;
 class FeedbackVector;
@@ -943,10 +943,16 @@ class FunctionTemplateInfo;
 class GlobalDictionary;
 template <typename T>
 class Handle;
+#ifndef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+using DirectHandle = Handle<T>;
+#endif
 class Heap;
 class HeapObject;
 class HeapObjectReference;
 class IC;
+template <typename T>
+using IndirectHandle = Handle<T>;
 class InterceptorInfo;
 class Isolate;
 class JSReceiver;
@@ -957,9 +963,27 @@ class LocalIsolate;
 class MacroAssembler;
 class Map;
 class MarkCompactCollector;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+class MaybeDirectHandle;
+#endif
 template <typename T>
 class MaybeHandle;
+#ifndef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+using MaybeDirectHandle = MaybeHandle<T>;
+#endif
+template <typename T>
+using MaybeIndirectHandle = MaybeHandle<T>;
 class MaybeObject;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+class MaybeObjectDirectHandle;
+#endif
+class MaybeObjectHandle;
+#ifndef V8_ENABLE_DIRECT_HANDLE
+using MaybeObjectDirectHandle = MaybeObjectHandle;
+#endif
+using MaybeObjectIndirectHandle = MaybeObjectHandle;
 class MemoryChunk;
 class MessageLocation;
 class ModuleScope;

@@ -22,6 +22,8 @@
 #ifdef DEBUG
 // For GetIsolateFromWritableHeapObject.
 #include "src/heap/heap-write-barrier-inl.h"
+// For GetIsolateFromWritableObject.
+#include "src/execution/isolate-utils-inl.h"
 #endif
 
 namespace v8 {
@@ -90,6 +92,46 @@ bool HandleBase::IsDereferenceAllowed() const {
   // TODO(leszeks): Check if the main thread owns this handle.
   return true;
 }
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+
+bool DirectHandleBase::IsDereferenceAllowed() const {
+  DCHECK_NE(obj_, kTaggedNullAddress);
+  Object object(obj_);
+  if (IsSmi(object)) return true;
+  HeapObject heap_object = HeapObject::cast(object);
+  if (IsReadOnlyHeapObject(heap_object)) return true;
+  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+  if (!AllowHandleDereference::IsAllowed()) return false;
+
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  if (heap_object.InWritableSharedSpace()) return true;
+
+  LocalHeap* local_heap = isolate->CurrentLocalHeap();
+
+  // Local heap can't access handles when parked
+  if (!local_heap->IsHandleDereferenceAllowed()) {
+    StdoutStream{} << "Cannot dereference handle owned by "
+                   << "non-running local heap\n";
+    return false;
+  }
+
+  // If LocalHeap::Current() is null, we're on the main thread -- if we were to
+  // check main thread HandleScopes here, we should additionally check the
+  // main-thread LocalHeap.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  return true;
+}
+
+void DirectHandleBase::VerifyOnStackAndMainThread() const {
+  internal::HandleHelper::VerifyOnStack(this);
+  // The following verifies that we are on the main thread, as
+  // LocalHeap::Current is not set in that case.
+  DCHECK_NULL(LocalHeap::Current());
+}
+
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 #endif  // DEBUG
 

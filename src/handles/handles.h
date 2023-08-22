@@ -28,8 +28,6 @@ class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
 class LocalIsolate;
-template <typename T>
-class MaybeHandle;
 class Object;
 class OrderedHashMap;
 class OrderedHashSet;
@@ -44,16 +42,11 @@ class WasmExportedFunctionData;
 constexpr Address kTaggedNullAddress = 0x1;
 
 // ----------------------------------------------------------------------------
-// Base class for Handle instantiations.  Don't use directly.
+// Base class for Handle instantiations. Don't use directly.
 class HandleBase {
  public:
-  V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
-  V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
-
   // Check if this handle refers to the exact same object as the other handle.
-  V8_INLINE bool is_identical_to(const HandleBase that) const;
+  V8_INLINE bool is_identical_to(const HandleBase& that) const;
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
   // Returns the raw address where this handle is stored. This should only be
@@ -71,6 +64,11 @@ class HandleBase {
   }
 
  protected:
+  V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
+  V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
+
 #ifdef DEBUG
   bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
 #else
@@ -308,6 +306,40 @@ static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 
 // ----------------------------------------------------------------------------
+// Base class for DirectHandle instantiations. Don't use directly.
+class DirectHandleBase {
+ public:
+  // Check if this handle refers to the exact same object as the other handle.
+  V8_INLINE bool is_identical_to(const DirectHandleBase& that) const;
+  V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
+
+  V8_INLINE Address address() const { return obj_; }
+
+ protected:
+  V8_INLINE explicit DirectHandleBase(Address object) : obj_(object) {
+#ifdef DEBUG
+    VerifyOnStackAndMainThread();
+#endif
+  }
+
+  V8_INLINE explicit DirectHandleBase(Address object, Isolate* isolate);
+  V8_INLINE explicit DirectHandleBase(Address object, LocalIsolate* isolate);
+  V8_INLINE explicit DirectHandleBase(Address object, LocalHeap* local_heap);
+
+#ifdef DEBUG
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
+  V8_EXPORT_PRIVATE void VerifyOnStackAndMainThread() const;
+#else
+  V8_INLINE
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
+#endif  // DEBUG
+
+  // This is a direct pointer to either a tagged object or SMI. Design overview:
+  // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
+  Address obj_;
+};
+
+// ----------------------------------------------------------------------------
 // A DirectHandle provides a reference to an object without an intermediate
 // pointer.
 //
@@ -322,17 +354,11 @@ static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 // Further motivation is explained in the design doc:
 // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
 template <typename T>
-class DirectHandle final {
+class DirectHandle final : public DirectHandleBase {
  public:
-  V8_INLINE explicit DirectHandle() : DirectHandle(kTaggedNullAddress) {}
+  V8_INLINE DirectHandle() : DirectHandle(kTaggedNullAddress) {}
 
-  V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
-
-  V8_INLINE explicit DirectHandle(Address object) : obj_(object) {
-#ifdef DEBUG
-    VerifyOnStackAndMainThread();
-#endif
-  }
+  V8_INLINE explicit DirectHandle(Address object) : DirectHandleBase(object) {}
 
   V8_INLINE explicit DirectHandle(Tagged<T> object);
   V8_INLINE DirectHandle(Tagged<T> object, Isolate* isolate)
@@ -362,9 +388,6 @@ class DirectHandle final {
       : DirectHandle(handle.location() != nullptr ? *handle.location()
                                                   : kTaggedNullAddress) {}
 
-  // Check if this handle refers to the exact same object as the other handle.
-  V8_INLINE bool is_identical_to(const DirectHandle<T> that) const;
-
   V8_INLINE Tagged<T> operator->() const { return **this; }
 
   V8_INLINE Tagged<T> operator*() const {
@@ -375,8 +398,8 @@ class DirectHandle final {
         std::is_base_of_v<T, Object> || std::is_convertible_v<T*, Object*>,
         "static type violation");
     // Direct construction of Tagged from address, without a type check, because
-    // we rather trust Handle<T> to contain a T than include all the respective
-    // -inl.h headers for SLOW_DCHECKs.
+    // we rather trust DirectHandle<T> to contain a T than include all the
+    // respective -inl.h headers for SLOW_DCHECKs.
     SLOW_DCHECK(IsDereferenceAllowed());
     return Tagged<T>(address());
   }
@@ -388,10 +411,8 @@ class DirectHandle final {
   V8_INLINE static const DirectHandle<T> cast(Handle<S> that);
 
   // Consider declaring values that contain empty handles as
-  // MaybeHandle to force validation before being used as handles.
+  // MaybeDirectHandle to force validation before being used as handles.
   V8_INLINE static const DirectHandle<T> null() { return DirectHandle<T>(); }
-
-  V8_INLINE Address address() const { return obj_; }
 
  private:
   // DirectHandles of different classes are allowed to access each other's
@@ -401,30 +422,10 @@ class DirectHandle final {
   // MaybeDirectHandle is allowed to access obj_.
   template <typename>
   friend class MaybeDirectHandle;
-
-#ifdef DEBUG
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
-#else
-  V8_INLINE
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
-#endif  // DEBUG
-
-#ifdef DEBUG
-  V8_EXPORT_PRIVATE void VerifyOnStackAndMainThread() const;
-#endif
-
-  // This is a direct pointer to either a tagged object or SMI. Design overview:
-  // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
-  Address obj_;
 };
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
-
-#else  // !V8_ENABLE_DIRECT_HANDLE
-
-template <typename T>
-using DirectHandle = Handle<T>;
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
