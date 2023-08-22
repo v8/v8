@@ -3295,6 +3295,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
   const size_t majority =
       (current_block->PredecessorCount() + 2 - deferred_blocks) / 2;
   bool taken_registers[RegisterConfiguration::kMaxRegisters] = {false};
+  DCHECK(to_be_live.empty());
   auto assign_to_live = [this, majority, &counts](
                             std::function<bool(TopLevelLiveRange*)> filter,
                             RangeRegisterSmallMap& to_be_live,
@@ -3330,9 +3331,11 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
         } else if (!check_aliasing) {
           taken_registers[reg] = true;
         }
-        to_be_live.insert(val.first, reg);
         TRACE("Reset %d as live due vote %zu in %s\n", val.first->vreg(),
               val.second.count, RegisterName(reg));
+        auto [_, inserted] = to_be_live.emplace(val.first, reg);
+        DCHECK(inserted);
+        USE(inserted);
       }
     }
   };
@@ -3588,9 +3591,6 @@ void LinearScanAllocator::AllocateRegisters() {
           .NextFullStart();
   SpillMode spill_mode = SpillMode::kSpillAtDefinition;
 
-  // Allocate once to save memory, reuse across iterations in the loop below.
-  RangeRegisterSmallMap to_be_live(allocation_zone());
-
   // Process all ranges. We also need to ensure that we have seen all block
   // boundaries. Linear scan might have assigned and spilled ranges before
   // reaching the last block and hence we would ignore control flow effects for
@@ -3668,7 +3668,7 @@ void LinearScanAllocator::AllocateRegisters() {
         // allocation if they were not live at the predecessors.
         ForwardStateTo(next_block_boundary);
 
-        to_be_live.clear();
+        RangeRegisterSmallMap to_be_live(allocation_zone());
 
         // If we end up deciding to use the state of the immediate
         // predecessor, it is better not to perform a change. It would lead to
@@ -3692,13 +3692,17 @@ void LinearScanAllocator::AllocateRegisters() {
             LifetimePosition pred_end =
                 LifetimePosition::GapFromInstructionIndex(
                     this->code()->InstructionBlockAt(pred)->code_end());
+            DCHECK(to_be_live.empty());
             for (const auto range : spill_state) {
               // Filter out ranges that were split or had their register
               // stolen by backwards working spill heuristics. These have
               // been spilled after the fact, so ignore them.
               if (range->End() < pred_end || !range->HasRegisterAssigned())
                 continue;
-              to_be_live.insert(range->TopLevel(), range->assigned_register());
+              auto [_, inserted] = to_be_live.emplace(
+                  range->TopLevel(), range->assigned_register());
+              DCHECK(inserted);
+              USE(inserted);
             }
           }
           return is_noop;

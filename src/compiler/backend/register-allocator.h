@@ -1559,45 +1559,9 @@ class RegisterAllocator : public ZoneObject {
 // A map from `TopLevelLiveRange`s to their expected physical register.
 // Typically this is very small, e.g., on JetStream2 it has 3 elements or less
 // >50% of the times it is queried, 8 elements or less >90% of the times,
-// and never more than 15 elements.
-// Hence this is backed by a simple array and lookup is just linear search.
-class RangeRegisterSmallMap {
- public:
-  using value_type = std::pair<TopLevelLiveRange*, /* expected_register */ int>;
-  using iterator = const value_type*;
-
-  explicit RangeRegisterSmallMap(Zone* zone) : elements_(zone) {
-    elements_.reserve(8);
-  }
-
-  iterator begin() const { return elements_.begin(); }
-  iterator end() const { return elements_.end(); }
-  iterator find(TopLevelLiveRange* range) const {
-    return std::find_if(begin(), end(), [=](const value_type& elem) {
-      return elem.first == range;
-    });
-  }
-
-  void insert(TopLevelLiveRange* range, int expected_register) {
-    auto it = std::find_if(
-        elements_.begin(), elements_.end(),
-        [=](const value_type& elem) { return elem.first == range; });
-    if (it == elements_.end()) {
-      elements_.push_back(std::make_pair(range, expected_register));
-    } else {
-      // We may only update an unassigned register to an assigned one,
-      // but not the reverse.
-      DCHECK(it->second == kUnassignedRegister ||
-             it->second == expected_register);
-      it->second = expected_register;
-    }
-  }
-  void erase(iterator it) { elements_.erase(it); }
-  void clear() { elements_.clear(); }
-
- private:
-  ZoneVector<value_type> elements_;
-};
+// and never more than 15 elements. Hence this is backed by a `SmallZoneMap`.
+using RangeRegisterSmallMap =
+    SmallZoneMap<TopLevelLiveRange*, /* expected_register */ int, 16>;
 
 class LinearScanAllocator final : public RegisterAllocator {
  public:
