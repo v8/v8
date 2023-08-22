@@ -711,6 +711,7 @@ filegroup(
         "src/base/safe_conversions.h",
         "src/base/safe_conversions_arm_impl.h",
         "src/base/safe_conversions_impl.h",
+        "src/base/small-map.h",
         "src/base/small-vector.h",
         "src/base/string-format.h",
         "src/base/strings.cc",
