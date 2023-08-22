@@ -174,7 +174,7 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const AllocateOp& op) {
-    return callback_(op.size(), op.type, op.allow_large_objects);
+    return callback_(op.size(), op.type);
   }
 
   OpIndex operator()(const DecodeExternalPointerOp& op) {

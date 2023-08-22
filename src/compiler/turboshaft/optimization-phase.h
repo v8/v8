@@ -692,8 +692,8 @@ class GraphVisitor {
         op.maybe_initializing_or_transitioning);
   }
   OpIndex AssembleOutputGraphAllocate(const AllocateOp& op) {
-    return assembler().FinishInitialization(assembler().Allocate(
-        MapToNewGraph(op.size()), op.type, op.allow_large_objects));
+    return assembler().FinishInitialization(
+        assembler().Allocate(MapToNewGraph(op.size()), op.type));
   }
   OpIndex AssembleOutputGraphDecodeExternalPointer(
       const DecodeExternalPointerOp& op) {

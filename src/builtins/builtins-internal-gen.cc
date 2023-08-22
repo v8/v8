@@ -1295,19 +1295,7 @@ TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
   TNode<Smi> allocation_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
-                               AllowLargeObjectAllocationFlag::encode(true)));
-  TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), allocation_flags);
-}
-
-TF_BUILTIN(AllocateRegularInYoungGeneration, CodeStubAssembler) {
-  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
-  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
-
-  TNode<Smi> allocation_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
-                               AllowLargeObjectAllocationFlag::encode(false)));
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
   TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), allocation_flags);
 }
@@ -1317,19 +1305,7 @@ TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
   TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
-                               AllowLargeObjectAllocationFlag::encode(true)));
-  TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), runtime_flags);
-}
-
-TF_BUILTIN(AllocateRegularInOldGeneration, CodeStubAssembler) {
-  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
-  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
-
-  TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
-                               AllowLargeObjectAllocationFlag::encode(false)));
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }

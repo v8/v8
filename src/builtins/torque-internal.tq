@@ -284,8 +284,6 @@ extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
 extern macro Allocate(
     intptr, constexpr AllocationFlag): UninitializedHeapObject;
 
-const kAllocateBaseFlags: constexpr AllocationFlag =
-    AllocationFlag::kAllowLargeObjectAllocation;
 macro AllocateFromNew(
     sizeInBytes: intptr, map: Map, pretenured: bool,
     clearPadding: bool): UninitializedHeapObject {
@@ -295,10 +293,9 @@ macro AllocateFromNew(
     res = Allocate(
         sizeInBytes,
         %RawConstexprCast<constexpr AllocationFlag>(
-            %RawConstexprCast<constexpr int32>(kAllocateBaseFlags) |
             %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
   } else {
-    res = Allocate(sizeInBytes, kAllocateBaseFlags);
+    res = Allocate(sizeInBytes, AllocationFlag::kNone);
   }
   if (clearPadding) {
     *unsafe::NewReference<Zero>(res, sizeInBytes - kObjectAlignment) = kZero;

@@ -101,9 +101,8 @@ macro NewJSArrayFilledWithZero(implicit context: Context)(length: intptr):
   if (length > kMaxFastArrayLength) goto Slow;
 
   const map: Map = GetFastPackedSmiElementsJSArrayMap();
-  const elements: FixedArrayBase = AllocateFixedArray(
-      ElementsKind::PACKED_SMI_ELEMENTS, length,
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const elements: FixedArrayBase =
+      AllocateFixedArray(ElementsKind::PACKED_SMI_ELEMENTS, length);
   FillFixedArrayWithSmiZero(
       ElementsKind::PACKED_SMI_ELEMENTS, UnsafeCast<FixedArray>(elements), 0,
       length);

@@ -73,6 +73,7 @@ extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
+extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
@@ -381,9 +382,7 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
 }
 
 builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
-  const result: HeapObject = unsafe::Allocate(
-      Convert<intptr>(instanceSize),
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const result: HeapObject = unsafe::Allocate(Convert<intptr>(instanceSize));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
@@ -398,8 +397,7 @@ builtin WasmAllocateArray_Uninitialized(
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
       Convert<intptr>(kWasmArrayHeaderSize);
-  const result: HeapObject = unsafe::Allocate(
-      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  const result: HeapObject = unsafe::Allocate(instanceSize);
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;

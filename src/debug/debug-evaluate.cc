@@ -870,8 +870,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStrictPoisonPillThrower:
     case Builtin::kAllocateInYoungGeneration:
     case Builtin::kAllocateInOldGeneration:
-    case Builtin::kAllocateRegularInYoungGeneration:
-    case Builtin::kAllocateRegularInOldGeneration:
     case Builtin::kConstructVarargs:
     case Builtin::kConstructWithArrayLike:
     case Builtin::kGetOwnPropertyDescriptor:

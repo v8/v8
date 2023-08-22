@@ -1882,17 +1882,14 @@ class AssemblerOpInterface {
   }
 
   template <typename T = HeapObject>
-  Uninitialized<T> Allocate(
-      ConstOrV<WordPtr> size, AllocationType type,
-      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse) {
+  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
     static_assert(std::is_base_of_v<HeapObject, T>);
     DCHECK(!in_object_initialization_);
     in_object_initialization_ = true;
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return Uninitialized<T>(OpIndex::Invalid());
     }
-    return Uninitialized<T>{
-        stack().ReduceAllocate(resolve(size), type, allow_large_objects)};
+    return Uninitialized<T>{stack().ReduceAllocate(resolve(size), type)};
   }
 
   template <typename T>

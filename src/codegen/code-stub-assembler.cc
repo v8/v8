@@ -1409,23 +1409,17 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   Label runtime_call(this, Label::kDeferred), no_runtime_call(this), out(this);
 
   bool needs_double_alignment = flags & AllocationFlag::kDoubleAlignment;
-  bool allow_large_object_allocation =
-      flags & AllocationFlag::kAllowLargeObjectAllocation;
 
-  if (allow_large_object_allocation) {
-    Label next(this);
-    GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
+  Label next(this);
+  GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
 
-    TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
-        AllocateDoubleAlignFlag::encode(needs_double_alignment) |
-        AllowLargeObjectAllocationFlag::encode(allow_large_object_allocation)));
-    result =
-        CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
-                    SmiTag(size_in_bytes), runtime_flags);
-    Goto(&out);
+  TNode<Smi> runtime_flags = SmiConstant(
+      Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
+  result = CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                       SmiTag(size_in_bytes), runtime_flags);
+  Goto(&out);
 
-    BIND(&next);
-  }
+  BIND(&next);
 
   TVARIABLE(IntPtrT, adjusted_size, size_in_bytes);
 
@@ -1448,9 +1442,8 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
 
   BIND(&runtime_call);
   {
-    TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
-        AllocateDoubleAlignFlag::encode(needs_double_alignment) |
-        AllowLargeObjectAllocationFlag::encode(allow_large_object_allocation)));
+    TNode<Smi> runtime_flags = SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
     if (flags & AllocationFlag::kPretenured) {
       result =
           CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
@@ -1541,22 +1534,9 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
   Comment("Allocate");
   if (v8_flags.single_generation) flags |= AllocationFlag::kPretenured;
   bool const new_space = !(flags & AllocationFlag::kPretenured);
-  bool const allow_large_objects =
-      flags & AllocationFlag::kAllowLargeObjectAllocation;
-  if (!allow_large_objects) {
-    intptr_t size_constant;
-    if (TryToIntPtrConstant(size_in_bytes, &size_constant)) {
-      CHECK_LE(size_constant, kMaxRegularHeapObjectSize);
-    } else {
-      CSA_DCHECK(this, IsRegularHeapObjectSize(size_in_bytes));
-    }
-  }
   if (!(flags & AllocationFlag::kDoubleAlignment)) {
-    return OptimizedAllocate(
-        size_in_bytes,
-        new_space ? AllocationType::kYoung : AllocationType::kOld,
-        allow_large_objects ? AllowLargeObjects::kTrue
-                            : AllowLargeObjects::kFalse);
+    return OptimizedAllocate(size_in_bytes, new_space ? AllocationType::kYoung
+                                                      : AllocationType::kOld);
   }
   TNode<ExternalReference> top_address = ExternalConstant(
       new_space
@@ -3787,8 +3767,7 @@ TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
   TNode<IntPtrT> size =
       IntPtrAdd(IntPtrConstant(BigInt::kHeaderSize),
                 Signed(WordShl(length, kSystemPointerSizeLog2)));
-  TNode<HeapObject> raw_result =
-      Allocate(size, AllocationFlag::kAllowLargeObjectAllocation);
+  TNode<HeapObject> raw_result = Allocate(size);
   StoreMapNoWriteBarrier(raw_result, RootIndex::kBigIntMap);
   if (FIELD_SIZE(BigInt::kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(BigInt::kOptionalPaddingOffset));
@@ -4122,9 +4101,9 @@ TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTableWithCapacity(
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   TNode<Map> fixed_array_map =
       HeapConstant(CollectionType::GetMap(ReadOnlyRoots(isolate())));
-  TNode<CollectionType> table = CAST(AllocateFixedArray(
-      elements_kind, fixed_array_length,
-      AllocationFlag::kAllowLargeObjectAllocation, fixed_array_map));
+  TNode<CollectionType> table =
+      CAST(AllocateFixedArray(elements_kind, fixed_array_length,
+                              AllocationFlag::kNone, fixed_array_map));
 
   Comment("Initialize the OrderedHashTable fields.");
   const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
@@ -4460,7 +4439,6 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     TNode<IntPtrT> capacity, AllocationFlags allocation_flags,
     int array_header_size) {
   Comment("begin allocation of JSArray with elements");
-  CHECK_EQ(allocation_flags & ~AllocationFlag::kAllowLargeObjectAllocation, 0);
   CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
 
   TVARIABLE(JSArray, array);
@@ -4511,32 +4489,31 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     // folding trick. Instead, we first allocate the elements in large object
     // space, and then allocate the JSArray (and possibly the allocation
     // memento) in new space.
-    if (allocation_flags & AllocationFlag::kAllowLargeObjectAllocation) {
-      Label next(this);
-      GotoIf(IsRegularHeapObjectSize(size), &next);
+    Label next(this);
+    GotoIf(IsRegularHeapObjectSize(size), &next);
 
-      CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity));
+    CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity));
 
-      // Allocate and initialize the elements first. Full initialization is
-      // needed because the upcoming JSArray allocation could trigger GC.
-      elements = AllocateFixedArray(kind, capacity, allocation_flags);
+    // Allocate and initialize the elements first. Full initialization is
+    // needed because the upcoming JSArray allocation could trigger GC.
+    elements = AllocateFixedArray(kind, capacity, allocation_flags);
 
-      if (IsDoubleElementsKind(kind)) {
-        FillEntireFixedDoubleArrayWithZero(CAST(elements.value()), capacity);
-      } else {
-        FillEntireFixedArrayWithSmiZero(kind, CAST(elements.value()), capacity);
-      }
-
-      // The JSArray and possibly allocation memento next. Note that
-      // allocation_flags are *not* passed on here and the resulting JSArray
-      // will always be in new space.
-      array = AllocateJSArray(array_map, elements.value(), length,
-                              allocation_site, array_header_size);
-
-      Goto(&out);
-
-      BIND(&next);
+    if (IsDoubleElementsKind(kind)) {
+      FillEntireFixedDoubleArrayWithZero(CAST(elements.value()), capacity);
+    } else {
+      FillEntireFixedArrayWithSmiZero(kind, CAST(elements.value()), capacity);
     }
+
+    // The JSArray and possibly allocation memento next. Note that
+    // allocation_flags are *not* passed on here and the resulting JSArray
+    // will always be in new space.
+    array = AllocateJSArray(array_map, elements.value(), length,
+                            allocation_site, array_header_size);
+
+    Goto(&out);
+
+    BIND(&next);
+
     // Fold all objects into a single new space allocation.
     array =
         AllocateUninitializedJSArray(array_map, length, allocation_site, size);
@@ -4992,7 +4969,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       var_holes_converted != nullptr ? HoleConversionMode::kConvertToUndefined
                                      : HoleConversionMode::kDontConvert;
   TVARIABLE(FixedArrayBase, var_result);
-  auto allocation_flags = AllocationFlag::kAllowLargeObjectAllocation;
+  auto allocation_flags = AllocationFlag::kNone;
   if (!first) {
     first = IntPtrOrSmiConstant<TIndex>(0);
   }
@@ -16889,14 +16866,13 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
       SwissNameDictionaryMetaTableSizeFor(capacity);
 
   TNode<ByteArray> meta_table =
-      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
-                                AllocationFlag::kAllowLargeObjectAllocation);
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size));
 
   Comment("SwissNameDictionary allocation.");
   TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
 
-  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
-      Allocate(total_size, AllocationFlag::kAllowLargeObjectAllocation));
+  TNode<SwissNameDictionary> table =
+      UncheckedCast<SwissNameDictionary>(Allocate(total_size));
 
   StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
 
@@ -16989,14 +16965,13 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
       SwissNameDictionaryMetaTableSizeFor(capacity);
 
   TNode<ByteArray> meta_table =
-      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
-                                AllocationFlag::kAllowLargeObjectAllocation);
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size));
 
   Comment("SwissNameDictionary allocation.");
   TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
 
-  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
-      Allocate(total_size, AllocationFlag::kAllowLargeObjectAllocation));
+  TNode<SwissNameDictionary> table =
+      UncheckedCast<SwissNameDictionary>(Allocate(total_size));
 
   StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
 
@@ -17500,8 +17475,7 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
   // TODO(v8:12499): Consider supporting other ElementsKinds.
   constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
   TNode<IntPtrT> length = PositiveSmiUntag(ArrayListGetLength(array));
-  TNode<FixedArrayBase> elements = AllocateFixedArray(
-      kind, length, AllocationFlag::kAllowLargeObjectAllocation);
+  TNode<FixedArrayBase> elements = AllocateFixedArray(kind, length);
   CopyElements(kind, elements, IntPtrConstant(0), array,
                IntPtrConstant(ArrayList::kFirstIndex), length);
   return CAST(elements);

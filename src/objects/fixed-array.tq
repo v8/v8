@@ -101,7 +101,7 @@ operator '[]=' macro StoreFixedArrayDirect(
     a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
-
+extern macro AllocateFixedArray(constexpr ElementsKind, intptr): FixedArrayBase;
 extern macro AllocateFixedArray(
     constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
 
@@ -115,8 +115,10 @@ extern macro FillFixedArrayWithSmiZero(
 extern macro FillFixedDoubleArrayWithZero(
     FixedDoubleArray, intptr, intptr): void;
 
+extern macro AllocateFixedArrayWithHoles(intptr): FixedArray;
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(intptr): FixedDoubleArray;
 extern macro AllocateFixedDoubleArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedDoubleArray;
 extern macro CopyFixedArrayElements(

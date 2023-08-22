@@ -129,16 +129,13 @@ Node* WasmGraphAssembler::BuildChangeSmiToIntPtr(Node* value) {
 // at least two places, put a helper function here.
 
 Node* WasmGraphAssembler::Allocate(int size) {
-  AllowLargeObjects allow_large = size < kMaxRegularHeapObjectSize
-                                      ? AllowLargeObjects::kFalse
-                                      : AllowLargeObjects::kTrue;
-  return Allocate(Int32Constant(size), allow_large);
+  return Allocate(Int32Constant(size));
 }
 
-Node* WasmGraphAssembler::Allocate(Node* size, AllowLargeObjects allow_large) {
+Node* WasmGraphAssembler::Allocate(Node* size) {
   return AddNode(graph()->NewNode(
-      simplified_.AllocateRaw(Type::Any(), AllocationType::kYoung, allow_large),
-      size, effect(), control()));
+      simplified_.AllocateRaw(Type::Any(), AllocationType::kYoung), size,
+      effect(), control()));
 }
 
 Node* WasmGraphAssembler::LoadFromObject(MachineType type, Node* base,

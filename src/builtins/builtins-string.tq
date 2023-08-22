@@ -79,9 +79,8 @@ transitioning builtin StringToList(implicit context: Context)(string: String):
 
   const nativeContext = LoadNativeContext(context);
   const map: Map = LoadJSArrayElementsMap(kind, nativeContext);
-  const array: JSArray = AllocateJSArray(
-      kind, map, stringLength, SmiTag(stringLength),
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const array: JSArray =
+      AllocateJSArray(kind, map, stringLength, SmiTag(stringLength));
   const elements = UnsafeCast<FixedArray>(array.elements);
   const encoding = UnicodeEncoding::UTF16;
   let arrayLength: Smi = 0;

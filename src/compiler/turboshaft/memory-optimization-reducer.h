@@ -127,8 +127,7 @@ class MemoryOptimizationReducer : public Next {
                              maybe_initializing_or_transitioning);
   }
 
-  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type,
-                           AllowLargeObjects allow_large_objects) {
+  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
@@ -157,21 +156,11 @@ class MemoryOptimizationReducer : public Next {
 
     OpIndex allocate_builtin;
     if (type == AllocationType::kYoung) {
-      if (allow_large_objects == AllowLargeObjects::kTrue) {
-        allocate_builtin =
-            Asm().BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
-      } else {
-        allocate_builtin = Asm().BuiltinCode(
-            Builtin::kAllocateRegularInYoungGeneration, isolate_);
-      }
+      allocate_builtin =
+          Asm().BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
     } else {
-      if (allow_large_objects == AllowLargeObjects::kTrue) {
-        allocate_builtin =
-            Asm().BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
-      } else {
-        allocate_builtin = Asm().BuiltinCode(
-            Builtin::kAllocateRegularInOldGeneration, isolate_);
-      }
+      allocate_builtin =
+          Asm().BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
     }
 
     Block* call_runtime = Asm().NewBlock();
@@ -191,15 +180,12 @@ class MemoryOptimizationReducer : public Next {
       reservation_size = size;
     }
     // Check if we can do bump pointer allocation here.
-    bool reachable = true;
-    if (allow_large_objects == AllowLargeObjects::kTrue) {
-      reachable =
-          Asm().GotoIfNot(
-              Asm().UintPtrLessThan(
-                  size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
-              call_runtime,
-              BranchHint::kTrue) != ConditionalGotoStatus::kGotoDestination;
-    }
+    bool reachable =
+        Asm().GotoIfNot(
+            Asm().UintPtrLessThan(
+                size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
+            call_runtime,
+            BranchHint::kTrue) != ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
       Asm().Branch(
           Asm().UintPtrLessThan(

@@ -14,8 +14,7 @@ macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
   const insertCount: intptr = Convert<intptr>(insertCountSmi);
   const actualDeleteCount: intptr = Convert<intptr>(actualDeleteCountSmi);
 
-  const copy: FixedArrayBase = AllocateFixedArray(
-      kind, newLen, AllocationFlag::kAllowLargeObjectAllocation);
+  const copy: FixedArrayBase = AllocateFixedArray(kind, newLen);
 
   if (actualStart > 0) {
     // Copy the part before the inserted items.

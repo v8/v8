@@ -350,8 +350,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   enum class AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
-    kPretenured = 1 << 1,
-    kAllowLargeObjectAllocation = 1 << 2,
+    kPretenured = 1 << 1
   };
 
   enum SlackTrackingMode {
@@ -2010,8 +2009,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TNode<IntPtrT> digit_index);
 
   // Allocate a ByteArray with the given non-zero length.
-  TNode<ByteArray> AllocateNonEmptyByteArray(TNode<UintPtrT> length,
-                                             AllocationFlags flags);
+  TNode<ByteArray> AllocateNonEmptyByteArray(
+      TNode<UintPtrT> length, AllocationFlags flags = AllocationFlag::kNone);
 
   // Allocate a ByteArray with the given length.
   TNode<ByteArray> AllocateByteArray(
@@ -2171,8 +2170,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<FixedArray> AllocateZeroedFixedArray(TNode<IntPtrT> capacity) {
     TNode<FixedArray> result = UncheckedCast<FixedArray>(
-        AllocateFixedArray(PACKED_ELEMENTS, capacity,
-                           AllocationFlag::kAllowLargeObjectAllocation));
+        AllocateFixedArray(PACKED_ELEMENTS, capacity));
     FillEntireFixedArrayWithSmiZero(PACKED_ELEMENTS, result, capacity);
     return result;
   }
@@ -2180,14 +2178,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<FixedDoubleArray> AllocateZeroedFixedDoubleArray(
       TNode<IntPtrT> capacity) {
     TNode<FixedDoubleArray> result = UncheckedCast<FixedDoubleArray>(
-        AllocateFixedArray(PACKED_DOUBLE_ELEMENTS, capacity,
-                           AllocationFlag::kAllowLargeObjectAllocation));
+        AllocateFixedArray(PACKED_DOUBLE_ELEMENTS, capacity));
     FillEntireFixedDoubleArrayWithZero(result, capacity);
     return result;
   }
 
-  TNode<FixedArray> AllocateFixedArrayWithHoles(TNode<IntPtrT> capacity,
-                                                AllocationFlags flags) {
+  TNode<FixedArray> AllocateFixedArrayWithHoles(
+      TNode<IntPtrT> capacity, AllocationFlags flags = AllocationFlag::kNone) {
     TNode<FixedArray> result = UncheckedCast<FixedArray>(
         AllocateFixedArray(PACKED_ELEMENTS, capacity, flags));
     FillFixedArrayWithValue(PACKED_ELEMENTS, result, IntPtrConstant(0),
@@ -2196,7 +2193,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<FixedDoubleArray> AllocateFixedDoubleArrayWithHoles(
-      TNode<IntPtrT> capacity, AllocationFlags flags) {
+      TNode<IntPtrT> capacity, AllocationFlags flags = AllocationFlag::kNone) {
     TNode<FixedDoubleArray> result = UncheckedCast<FixedDoubleArray>(
         AllocateFixedArray(PACKED_DOUBLE_ELEMENTS, capacity, flags));
     FillFixedArrayWithValue(PACKED_DOUBLE_ELEMENTS, result, IntPtrConstant(0),

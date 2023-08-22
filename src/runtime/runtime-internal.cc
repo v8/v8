@@ -495,13 +495,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
-  bool allow_large_object_allocation =
-      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  if (!allow_large_object_allocation) {
-    CHECK(size <= kMaxRegularHeapObjectSize);
-  }
 
 #if V8_ENABLE_WEBASSEMBLY
   // When this is called from WasmGC code, clear the "thread in wasm" flag,
@@ -528,13 +523,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
-  bool allow_large_object_allocation =
-      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  if (!allow_large_object_allocation) {
-    CHECK(size <= kMaxRegularHeapObjectSize);
-  }
   return *isolate->factory()->NewFillerObject(
       size, alignment, AllocationType::kOld, AllocationOrigin::kGeneratedCode);
 }

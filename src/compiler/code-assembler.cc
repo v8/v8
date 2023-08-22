@@ -985,11 +985,10 @@ Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler()->Projection(index, value);
 }
 
-TNode<HeapObject> CodeAssembler::OptimizedAllocate(
-    TNode<IntPtrT> size, AllocationType allocation,
-    AllowLargeObjects allow_large_objects) {
-  return UncheckedCast<HeapObject>(raw_assembler()->OptimizedAllocate(
-      size, allocation, allow_large_objects));
+TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
+                                                   AllocationType allocation) {
+  return UncheckedCast<HeapObject>(
+      raw_assembler()->OptimizedAllocate(size, allocation));
 }
 
 void CodeAssembler::HandleException(Node* node) {

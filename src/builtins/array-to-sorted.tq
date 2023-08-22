@@ -14,9 +14,8 @@ CopyWorkArrayToNewFastJSArray(implicit context: Context, sortState: SortState)(
   dcheck(len == numberOfNonUndefined + sortState.numberOfUndefined);
   dcheck(len <= kMaxFastArrayLength);
 
-  const copy: FixedArray = UnsafeCast<FixedArray>(AllocateFixedArray(
-      elementsKind, Convert<intptr>(len),
-      AllocationFlag::kAllowLargeObjectAllocation));
+  const copy: FixedArray = UnsafeCast<FixedArray>(
+      AllocateFixedArray(elementsKind, Convert<intptr>(len)));
 
   const workArray = sortState.workArray;
   CopyElements(

@@ -1471,8 +1471,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     GotoIfNot(IsOneByteStringInstanceType(to_direct.instance_type()),
               &call_runtime);
 
-    TNode<FixedArray> elements = CAST(AllocateFixedArray(
-        PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
+    TNode<FixedArray> elements =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, length));
     // Don't allocate anything while {string_data} is live!
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);

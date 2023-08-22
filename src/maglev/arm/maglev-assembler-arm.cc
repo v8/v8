@@ -70,8 +70,8 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
         __ b(*done);
       },
       register_snapshot, object,
-      in_new_space ? Builtin::kAllocateRegularInYoungGeneration
-                   : Builtin::kAllocateRegularInOldGeneration,
+      in_new_space ? Builtin::kAllocateInYoungGeneration
+                   : Builtin::kAllocateInOldGeneration,
       size_in_bytes, done);
   // Store new top and tag object.
   Move(ExternalReferenceAsOperand(top, scratch), new_top);

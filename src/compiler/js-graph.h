@@ -78,38 +78,36 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   void GetCachedNodes(NodeVector* nodes);
 
 // Cached global nodes.
-#define CACHED_GLOBAL_LIST(V)                           \
-  V(AllocateInYoungGenerationStubConstant, Code)        \
-  V(AllocateRegularInYoungGenerationStubConstant, Code) \
-  V(AllocateInOldGenerationStubConstant, Code)          \
-  V(AllocateRegularInOldGenerationStubConstant, Code)   \
-  V(ArrayConstructorStubConstant, Code)                 \
-  V(BigIntMapConstant, Map)                             \
-  V(BooleanMapConstant, Map)                            \
-  V(ToNumberBuiltinConstant, Code)                      \
-  V(PlainPrimitiveToNumberBuiltinConstant, Code)        \
-  V(EmptyFixedArrayConstant, FixedArray)                \
-  V(EmptyStringConstant, String)                        \
-  V(FixedArrayMapConstant, Map)                         \
-  V(PropertyArrayMapConstant, Map)                      \
-  V(FixedDoubleArrayMapConstant, Map)                   \
-  V(WeakFixedArrayMapConstant, Map)                     \
-  V(HeapNumberMapConstant, Map)                         \
-  V(OptimizedOutConstant, Oddball)                      \
-  V(StaleRegisterConstant, Oddball)                     \
-  V(UndefinedConstant, Undefined)                       \
-  V(TheHoleConstant, Hole)                              \
-  V(PropertyCellHoleConstant, Hole)                     \
-  V(TrueConstant, True)                                 \
-  V(FalseConstant, False)                               \
-  V(NullConstant, Null)                                 \
-  V(ZeroConstant, Number)                               \
-  V(MinusZeroConstant, Number)                          \
-  V(OneConstant, Number)                                \
-  V(MinusOneConstant, Number)                           \
-  V(NaNConstant, Number)                                \
-  V(EmptyStateValues, UntaggedT)                        \
-  V(SingleDeadTypedStateValues, UntaggedT)              \
+#define CACHED_GLOBAL_LIST(V)                    \
+  V(AllocateInYoungGenerationStubConstant, Code) \
+  V(AllocateInOldGenerationStubConstant, Code)   \
+  V(ArrayConstructorStubConstant, Code)          \
+  V(BigIntMapConstant, Map)                      \
+  V(BooleanMapConstant, Map)                     \
+  V(ToNumberBuiltinConstant, Code)               \
+  V(PlainPrimitiveToNumberBuiltinConstant, Code) \
+  V(EmptyFixedArrayConstant, FixedArray)         \
+  V(EmptyStringConstant, String)                 \
+  V(FixedArrayMapConstant, Map)                  \
+  V(PropertyArrayMapConstant, Map)               \
+  V(FixedDoubleArrayMapConstant, Map)            \
+  V(WeakFixedArrayMapConstant, Map)              \
+  V(HeapNumberMapConstant, Map)                  \
+  V(OptimizedOutConstant, Oddball)               \
+  V(StaleRegisterConstant, Oddball)              \
+  V(UndefinedConstant, Undefined)                \
+  V(TheHoleConstant, Hole)                       \
+  V(PropertyCellHoleConstant, Hole)              \
+  V(TrueConstant, True)                          \
+  V(FalseConstant, False)                        \
+  V(NullConstant, Null)                          \
+  V(ZeroConstant, Number)                        \
+  V(MinusZeroConstant, Number)                   \
+  V(OneConstant, Number)                         \
+  V(MinusOneConstant, Number)                    \
+  V(NaNConstant, Number)                         \
+  V(EmptyStateValues, UntaggedT)                 \
+  V(SingleDeadTypedStateValues, UntaggedT)       \
   V(ExternalObjectMapConstant, Map)
 
 // Cached global node accessor methods.

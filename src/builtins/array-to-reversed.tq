@@ -9,8 +9,7 @@ macro FastPackedDoubleArrayToReversed(implicit context: Context)(
   // 3. Let A be ? ArrayCreate(𝔽(len)).
   const copy: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(AllocateFixedArray(
-          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length),
-          AllocationFlag::kAllowLargeObjectAllocation));
+          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length)));
 
   // 4. Let k be 0.
   let k: Smi = 0;
@@ -43,8 +42,7 @@ macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
     kind: constexpr ElementsKind, elements: FromElements, length: Smi,
     initializeArray: constexpr bool): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
-  const copy: FixedArrayBase = AllocateFixedArray(
-      kind, SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
+  const copy: FixedArrayBase = AllocateFixedArray(kind, SmiUntag(length));
 
   // Reversing HOLEY_DOUBLE_ELEMENTS array may allocate heap numbers.
   // We need to initialize the array to avoid running GC with garbage values.

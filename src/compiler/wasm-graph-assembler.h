@@ -112,8 +112,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* Allocate(int size);
 
-  Node* Allocate(Node* size,
-                 AllowLargeObjects allow_large = AllowLargeObjects::kTrue);
+  Node* Allocate(Node* size);
 
   Node* LoadFromObject(MachineType type, Node* base, Node* offset);
 

@@ -1312,8 +1312,6 @@ enum AllocationAlignment {
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
-enum class AllowLargeObjects { kFalse, kTrue };
-
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,
   USE_CUSTOM_MINIMUM_CAPACITY

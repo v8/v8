@@ -816,8 +816,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
-                                      AllocationType allocation,
-                                      AllowLargeObjects allow_large_objects);
+                                      AllocationType allocation);
   void StoreToObject(MachineRepresentation rep, TNode<Object> object,
                      TNode<IntPtrT> offset, Node* value,
                      StoreToObjectWriteBarrier write_barrier);

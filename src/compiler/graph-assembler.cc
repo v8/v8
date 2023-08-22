@@ -275,11 +275,10 @@ Node* GraphAssembler::Projection(int index, Node* value, Node* ctrl) {
                                   ctrl ? ctrl : control()));
 }
 
-Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size,
-                                 AllowLargeObjects allow_large_objects) {
-  return AddNode(graph()->NewNode(
-      simplified()->AllocateRaw(Type::Any(), allocation, allow_large_objects),
-      size, effect(), control()));
+Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size) {
+  return AddNode(
+      graph()->NewNode(simplified()->AllocateRaw(Type::Any(), allocation), size,
+                       effect(), control()));
 }
 
 TNode<Map> JSGraphAssembler::LoadMap(TNode<HeapObject> object) {

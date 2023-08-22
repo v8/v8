@@ -471,9 +471,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
 
 void AllocateOp::PrintOptions(std::ostream& os) const {
   os << "[";
-  os << type << ", ";
-  os << (allow_large_objects == AllowLargeObjects::kTrue ? "allow large objects"
-                                                         : "no large objects");
+  os << type;
   os << "]";
 }
 

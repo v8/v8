@@ -2687,7 +2687,6 @@ struct StoreOp : OperationT<StoreOp> {
 
 struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   AllocationType type;
-  AllowLargeObjects allow_large_objects;
 
   static constexpr OpEffects effects =
       OpEffects()
@@ -2709,16 +2708,14 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   OpIndex size() const { return input(0); }
 
-  AllocateOp(OpIndex size, AllocationType type,
-             AllowLargeObjects allow_large_objects)
-      : Base(size), type(type), allow_large_objects(allow_large_objects) {}
+  AllocateOp(OpIndex size, AllocationType type) : Base(size), type(type) {}
 
   void Validate(const Graph& graph) const {
     DCHECK(
         ValidOpInputRep(graph, size(), RegisterRepresentation::PointerSized()));
   }
   void PrintOptions(std::ostream& os) const;
-  auto options() const { return std::tuple{type, allow_large_objects}; }
+  auto options() const { return std::tuple{type}; }
 };
 
 struct DecodeExternalPointerOp

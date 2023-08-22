@@ -645,21 +645,15 @@ int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
-  AllocateParameters(
-      Type type, AllocationType allocation_type,
-      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse)
-      : type_(type),
-        allocation_type_(allocation_type),
-        allow_large_objects_(allow_large_objects) {}
+  AllocateParameters(Type type, AllocationType allocation_type)
+      : type_(type), allocation_type_(allocation_type) {}
 
   Type type() const { return type_; }
   AllocationType allocation_type() const { return allocation_type_; }
-  AllowLargeObjects allow_large_objects() const { return allow_large_objects_; }
 
  private:
   Type type_;
   AllocationType allocation_type_;
-  AllowLargeObjects allow_large_objects_;
 };
 
 bool IsCheckedWithFeedback(const Operator* op);
@@ -1102,8 +1096,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* Allocate(Type type,
                            AllocationType allocation = AllocationType::kYoung);
   const Operator* AllocateRaw(
-      Type type, AllocationType allocation = AllocationType::kYoung,
-      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse);
+      Type type, AllocationType allocation = AllocationType::kYoung);
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();

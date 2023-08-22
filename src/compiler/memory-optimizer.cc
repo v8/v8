@@ -314,8 +314,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node, AllocationState const* state,
     }
   }
 
-  Reduction reduction = memory_lowering()->ReduceAllocateRaw(
-      node, allocation_type, allocation.allow_large_objects(), &state);
+  Reduction reduction =
+      memory_lowering()->ReduceAllocateRaw(node, allocation_type, &state);
   CHECK(reduction.Changed() && reduction.replacement() != node);
 
   ReplaceUsesAndKillNode(node, reduction.replacement());

@@ -216,8 +216,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   {
     GotoIf(WordEqual(object_enum_length, IntPtrConstant(0)), if_no_properties);
     TNode<FixedArray> values_or_entries =
-        CAST(AllocateFixedArray(PACKED_ELEMENTS, object_enum_length,
-                                AllocationFlag::kAllowLargeObjectAllocation));
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, object_enum_length));
 
     // If in case we have enum_cache,
     // we can't detect accessor of object until loop through descriptors.
@@ -1221,8 +1220,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> size =
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);
-  TNode<FixedArrayBase> parameters_and_registers = AllocateFixedArray(
-      HOLEY_ELEMENTS, size, AllocationFlag::kAllowLargeObjectAllocation);
+  TNode<FixedArrayBase> parameters_and_registers =
+      AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.

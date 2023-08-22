@@ -149,8 +149,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       const capacity: intptr = Convert<intptr>(len);
       const map: Map = GetFastPackedSmiElementsJSArrayMap();
       a = AllocateJSArray(
-          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen,
-          AllocationFlag::kAllowLargeObjectAllocation);
+          ElementsKind::PACKED_SMI_ELEMENTS, map, capacity, smiLen);
     } label CreateWithConstructor {
       typeswitch (c) {
         case (c: Constructor): {

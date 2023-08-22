@@ -2115,11 +2115,10 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type type, AllocationType allocation,
-    AllowLargeObjects allow_large_objects) {
+    Type type, AllocationType allocation) {
   return zone()->New<Operator1<AllocateParameters>>(
       IrOpcode::kAllocateRaw, Operator::kEliminatable, "AllocateRaw", 1, 1, 1,
-      1, 1, 1, AllocateParameters(type, allocation, allow_large_objects));
+      1, 1, 1, AllocateParameters(type, allocation));
 }
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                        \

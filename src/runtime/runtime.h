@@ -985,8 +985,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 
 using AllocateDoubleAlignFlag = base::BitField<bool, 0, 1>;
 
-using AllowLargeObjectAllocationFlag = base::BitField<bool, 1, 1>;
-
 // A set of bits returned by Runtime_GetOptimizationStatus.
 // These bits must be in sync with bits defined in test/mjsunit/mjsunit.js
 enum class OptimizationStatus {
