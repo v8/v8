@@ -1709,10 +1709,7 @@ struct PrintableInstructionBlock {
 
 std::ostream& operator<<(std::ostream&, const PrintableInstructionBlock&);
 
-using ConstantDeque = ZoneDeque<Constant>;
-using ConstantMap = std::map<int, Constant, std::less<int>,
-                             ZoneAllocator<std::pair<const int, Constant> > >;
-
+using ConstantMap = ZoneUnorderedMap</* virtual register */ int, Constant>;
 using Instructions = ZoneVector<Instruction*>;
 using ReferenceMaps = ZoneVector<ReferenceMap*>;
 using InstructionBlocks = ZoneVector<InstructionBlock*>;
@@ -1814,13 +1811,12 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
 
-  int AddConstant(int virtual_register, Constant constant) {
+  void AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
     DCHECK_NE(Constant::kRpoNumber, constant.type());
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
-    constants_.insert(std::make_pair(virtual_register, constant));
-    return virtual_register;
+    constants_.emplace(virtual_register, constant);
   }
   Constant GetConstant(int virtual_register) const {
     auto it = constants_.find(virtual_register);
