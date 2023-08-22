@@ -149,10 +149,14 @@ class StraightForwardRegisterAllocator {
   RegisterFrameState<DoubleRegister> double_registers_;
 
   struct SpillSlotInfo {
-    SpillSlotInfo(uint32_t slot_index, NodeIdT freed_at_position)
-        : slot_index(slot_index), freed_at_position(freed_at_position) {}
+    SpillSlotInfo(uint32_t slot_index, NodeIdT freed_at_position,
+                  bool double_slot)
+        : slot_index(slot_index),
+          freed_at_position(freed_at_position),
+          double_slot(double_slot) {}
     uint32_t slot_index;
     NodeIdT freed_at_position;
+    bool double_slot;
   };
   struct SpillSlots {
     int top = 0;
