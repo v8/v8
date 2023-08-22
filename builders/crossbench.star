@@ -64,7 +64,6 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Linux x64 Try",
-            experiment_percentage = 100,
         ),
     ],
 )
