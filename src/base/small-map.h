@@ -372,7 +372,7 @@ class SmallMap {
       }
     }
 
-    if (size_ == kArraySize) {
+    if (V8_UNLIKELY(size_ == kArraySize)) {
       ConvertToRealMap();
       return map_[key];
     }
@@ -397,7 +397,7 @@ class SmallMap {
       }
     }
 
-    if (size_ == kArraySize) {
+    if (V8_UNLIKELY(size_ == kArraySize)) {
       ConvertToRealMap();  // Invalidates all iterators!
       std::pair<typename NormalMap::iterator, bool> ret = map_.insert(x);
       return std::make_pair(iterator(ret.first), ret.second);
@@ -435,7 +435,7 @@ class SmallMap {
       }
     }
 
-    if (size_ == kArraySize) {
+    if (V8_UNLIKELY(size_ == kArraySize)) {
       ConvertToRealMap();  // Invalidates all iterators!
       std::pair<typename NormalMap::iterator, bool> ret =
           map_.emplace(std::move(x));
@@ -464,7 +464,7 @@ class SmallMap {
       }
     }
 
-    if (size_ == kArraySize) {
+    if (V8_UNLIKELY(size_ == kArraySize)) {
       ConvertToRealMap();  // Invalidates all iterators!
       std::pair<typename NormalMap::iterator, bool> ret =
           map_.try_emplace(key, std::forward<Args>(args)...);
@@ -572,7 +572,7 @@ class SmallMap {
     NormalMap map_;
   };
 
-  void ConvertToRealMap() {
+  V8_NOINLINE V8_PRESERVE_MOST void ConvertToRealMap() {
     // Storage for the elements in the temporary array. This is intentionally
     // declared as a union to avoid having to default-construct |kArraySize|
     // elements, only to move construct over them in the initial loop.
