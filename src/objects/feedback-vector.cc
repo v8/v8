@@ -884,10 +884,12 @@ void FeedbackNexus::ConfigureCloneObject(
   // TODO(olivf): Introduce a CloneHandler to deal with all the logic of this
   // state machine which is now spread between Runtime_CloneObjectIC_Miss and
   // this method.
-  auto handler = *handler_handle;
-  if (!handler.IsSmi()) {
-    handler = HeapObjectReference::MakeWeak(handler);
-  }
+  auto GetHandler = [=]() {
+    if (handler_handle->IsSmi()) {
+      return *handler_handle;
+    }
+    return HeapObjectReference::MakeWeak(*handler_handle);
+  };
   DCHECK(config()->can_write());
   Isolate* isolate = GetIsolate();
   Handle<HeapObject> feedback;
@@ -903,13 +905,13 @@ void FeedbackNexus::ConfigureCloneObject(
     case InlineCacheState::UNINITIALIZED:
       // Cache the first map seen which meets the fast case requirements.
       SetFeedback(HeapObjectReference::Weak(*source_map), UPDATE_WRITE_BARRIER,
-                  handler);
+                  GetHandler());
       break;
     case InlineCacheState::MONOMORPHIC:
       if (feedback.is_null() || feedback.is_identical_to(source_map) ||
           Map::cast(*feedback)->is_deprecated()) {
         SetFeedback(HeapObjectReference::Weak(*source_map),
-                    UPDATE_WRITE_BARRIER, handler);
+                    UPDATE_WRITE_BARRIER, GetHandler());
       } else {
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
@@ -919,7 +921,7 @@ void FeedbackNexus::ConfigureCloneObject(
         raw_array->Set(0, HeapObjectReference::Weak(*feedback));
         raw_array->Set(1, GetFeedbackExtra());
         raw_array->Set(2, HeapObjectReference::Weak(*source_map));
-        raw_array->Set(3, handler);
+        raw_array->Set(3, GetHandler());
         SetFeedback(raw_array, UPDATE_WRITE_BARRIER,
                     HeapObjectReference::ClearedValue(isolate));
       }
@@ -959,7 +961,7 @@ void FeedbackNexus::ConfigureCloneObject(
       }
 
       array->Set(i, HeapObjectReference::Weak(*source_map));
-      array->Set(i + 1, handler);
+      array->Set(i + 1, GetHandler());
       break;
     }
 
