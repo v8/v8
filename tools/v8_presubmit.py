@@ -812,33 +812,40 @@ def Main():
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   parser = GetOptions()
   (options, args) = parser.parse_args()
-  success = True
+  failures = []
+
   print("Running checkdeps...")
-  success &= CheckDeps(workspace)
+  failures.append(None if CheckDeps(workspace) else 'CheckDeps')
   use_linter_cache = not options.no_linter_cache
   if not options.no_lint:
     print("Running C++ lint check...")
-    success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
+    failures.append(None if CppLintProcessor(use_cache=use_linter_cache)
+                    .RunOnPath(workspace) else 'CppLintProcessor')
 
   print("Running Torque formatting check...")
-  success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
+  failures.append(None if TorqueLintProcessor(use_cache=use_linter_cache)
+                  .RunOnPath(workspace) else 'TorqueLintProcessor')
   print("Running JavaScript formatting check...")
-  success &= JSLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
+  failures.append(None if JSLintProcessor(
+      use_cache=use_linter_cache).RunOnPath(workspace) else 'JSLintProcessor')
   print("Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check...")
-  success &= SourceProcessor().RunOnPath(workspace)
+  failures.append(
+      None if SourceProcessor().RunOnPath(workspace) else 'SourceProcessor')
   print("Running status-files check...")
-  success &= StatusFilesProcessor().RunOnPath(workspace)
+  failures.append(None if StatusFilesProcessor()
+                  .RunOnPath(workspace) else 'StatusFilesProcessor')
   print("Running python tests...")
-  success &= PyTests(workspace)
+  failures.append(None if PyTests(workspace) else 'PyTests')
   print("Running gcmole pattern check...")
-  success &= GCMoleProcessor().RunOnPath(workspace)
-  if success:
-    return 0
-  else:
-    return 1
+  failures.append(
+      None if GCMoleProcessor().RunOnPath(workspace) else 'GCMoleProcessor')
+  failures = [f for f in failures if f]
+  if failures:
+    lines = '\n'.join(failures)
+    print('------------------')
+    print(f'Checks failed:\n{lines}')
+  return 0
 
 
 if __name__ == '__main__':
