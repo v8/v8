@@ -2975,11 +2975,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       } else {
         bool is_global_proxy = IsJSGlobalProxy(*this);
         if (IsJSFunction(constructor)) {
-          if (!heap->Contains(JSFunction::cast(constructor)->shared())) {
+          SharedFunctionInfo sfi = JSFunction::cast(constructor)->shared();
+          if (!sfi.InReadOnlySpace() && !heap->Contains(sfi)) {
             accumulator->Add("!!!INVALID SHARED ON CONSTRUCTOR!!!");
           } else {
-            String constructor_name =
-                JSFunction::cast(constructor)->shared()->Name();
+            String constructor_name = sfi->Name();
             if (constructor_name->length() > 0) {
               accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
               accumulator->Put(constructor_name);
