@@ -3230,14 +3230,15 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
       used_registers[reg] = 1;
     }
   };
-  struct TopLevelLiveRangeComparator {
-    bool operator()(const TopLevelLiveRange* lhs,
-                    const TopLevelLiveRange* rhs) const {
-      return lhs->vreg() < rhs->vreg();
-    }
-  };
-  ZoneMap<TopLevelLiveRange*, Vote, TopLevelLiveRangeComparator> counts(
-      data()->allocation_zone());
+  // Typically this map is very small, e.g., on JetStream2 it has at most 3
+  // elements ~80% of the time and at most 8 elements ~94% of the time.
+  // Thus use a `SmallZoneMap` to avoid allocations and because linear search
+  // in an array is faster than map lookup for such small sizes.
+  // We don't want too many inline elements though since `Vote` is pretty large.
+  using RangeVoteMap = SmallZoneMap<TopLevelLiveRange*, Vote, 16>;
+  static_assert(sizeof(RangeVoteMap) < 4096, "too large stack allocation");
+  RangeVoteMap counts(data()->allocation_zone());
+
   int deferred_blocks = 0;
   for (RpoNumber pred : current_block->predecessors()) {
     if (!ConsiderBlockForControlFlow(current_block, pred)) {
@@ -3264,7 +3265,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
   const size_t majority =
       (current_block->PredecessorCount() + 2 - deferred_blocks) / 2;
   bool taken_registers[RegisterConfiguration::kMaxRegisters] = {false};
-  auto assign_to_live = [this, counts, majority](
+  auto assign_to_live = [this, majority, &counts](
                             std::function<bool(TopLevelLiveRange*)> filter,
                             RangeRegisterSmallMap& to_be_live,
                             bool* taken_registers) {
