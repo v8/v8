@@ -107,10 +107,6 @@ void FrameTranslationBuilder::AddRawBegin(bool update_feedback, T... operands) {
 int FrameTranslationBuilder::BeginTranslation(int frame_count,
                                               int jsframe_count,
                                               bool update_feedback) {
-#ifdef DEBUG
-  expected_frame_count_ = frame_count;
-  expected_jsframe_count_ = jsframe_count;
-#endif
   FinishPendingInstructionIfNeeded();
   int start_index = Size();
   int distance_from_last_start = 0;
@@ -207,8 +203,6 @@ void FrameTranslationBuilder::Add(TranslationOpcode opcode, T... operands) {
 
 Handle<DeoptimizationFrameTranslation>
 FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
-  DCHECK_EQ(expected_frame_count_, 0);
-  DCHECK_EQ(expected_jsframe_count_, 0);
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     const int input_size = SizeInBytes();
@@ -266,19 +260,9 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
   return result;
 }
 
-void FrameTranslationBuilder::MarkFrameVisited(TranslationOpcode opcode) {
-#ifdef DEBUG
-  if (IsTranslationJsFrameOpcode(opcode)) {
-    expected_jsframe_count_--;
-  }
-  expected_frame_count_--;
-#endif
-}
-
 void FrameTranslationBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -288,7 +272,6 @@ void FrameTranslationBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     base::Optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height),
       SignedOperand(return_kind ? static_cast<int>(return_kind.value())
@@ -298,7 +281,6 @@ void FrameTranslationBuilder::BeginJSToWasmBuiltinContinuationFrame(
 void FrameTranslationBuilder::BeginWasmInlinedIntoJSFrame(
     BytecodeOffset bailout_id, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::WASM_INLINED_INTO_JS_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -307,7 +289,6 @@ void FrameTranslationBuilder::BeginWasmInlinedIntoJSFrame(
 void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -316,7 +297,6 @@ void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode =
       TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
       SignedOperand(height));
 }
@@ -324,20 +304,17 @@ void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
 void FrameTranslationBuilder::BeginConstructCreateStubFrame(int literal_id,
                                                             unsigned height) {
   auto opcode = TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id), SignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginConstructInvokeStubFrame(int literal_id) {
   auto opcode = TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id));
 }
 
 void FrameTranslationBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
   auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
-  MarkFrameVisited(opcode);
   Add(opcode, SignedOperand(literal_id), SignedOperand(height));
 }
 
@@ -346,12 +323,10 @@ void FrameTranslationBuilder::BeginInterpretedFrame(
     int return_value_offset, int return_value_count) {
   if (return_value_count == 0) {
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN;
-    MarkFrameVisited(opcode);
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
         SignedOperand(literal_id), SignedOperand(height));
   } else {
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN;
-    MarkFrameVisited(opcode);
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
         SignedOperand(literal_id), SignedOperand(height),
         SignedOperand(return_value_offset), SignedOperand(return_value_count));

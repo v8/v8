@@ -974,6 +974,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
 #endif  // DEBUG
   }
 
+#ifdef DEBUG
+  data->Verify(info->bytecode_array());
+#endif  // DEBUG
   return data;
 }
 

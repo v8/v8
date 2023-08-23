@@ -51,6 +51,56 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
   }
 }
 
+#ifdef DEBUG
+void DeoptimizationData::Verify(Handle<BytecodeArray> bytecode) const {
+#ifdef V8_USE_ZLIB
+  if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
+    return;
+  }
+#endif  // V8_USE_ZLIB
+  for (int i = 0; i < DeoptCount(); ++i) {
+    // Check the frame count and identify the bailout id of the top compilation
+    // unit.
+    int idx = TranslationIndex(i).value();
+    DeoptimizationFrameTranslation::Iterator iterator(FrameTranslation(), idx);
+    auto [frame_count, jsframe_count] = iterator.EnterBeginOpcode();
+    DCHECK_GE(frame_count, jsframe_count);
+    BytecodeOffset bailout = BytecodeOffset::None();
+    bool first_frame = true;
+    while (frame_count > 0) {
+      TranslationOpcode frame = iterator.SeekNextFrame();
+      frame_count--;
+      if (IsTranslationJsFrameOpcode(frame)) {
+        jsframe_count--;
+        if (first_frame) {
+          bailout = BytecodeOffset(iterator.NextOperand());
+          first_frame = false;
+          iterator.SkipOperands(TranslationOpcodeOperandCount(frame) - 1);
+          continue;
+        }
+      }
+      iterator.SkipOperands(TranslationOpcodeOperandCount(frame));
+    }
+    CHECK_EQ(frame_count, 0);
+    CHECK_EQ(jsframe_count, 0);
+
+    // Check the bytecode offset exists in the bytecode array
+    if (bailout != BytecodeOffset::None()) {
+#ifdef ENABLE_SLOW_DCHECKS
+      interpreter::BytecodeArrayIterator bytecode_iterator(bytecode);
+      while (bytecode_iterator.current_offset() < bailout.ToInt()) {
+        bytecode_iterator.Advance();
+        DCHECK_LE(bytecode_iterator.current_offset(), bailout.ToInt());
+      }
+#else
+      DCHECK_GE(bailout.ToInt(), 0);
+      DCHECK_LT(bailout.ToInt(), bytecode->length());
+#endif  // ENABLE_SLOW_DCHECKS
+    }
+  }
+}
+#endif  // DEBUG
+
 #ifdef ENABLE_DISASSEMBLER
 
 namespace {
