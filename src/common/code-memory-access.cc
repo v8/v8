@@ -302,12 +302,7 @@ base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
 }
 
 // static
-void ThreadIsolation::RegisterJitPage(Address address, size_t size,
-                                      AllocationSource source) {
-  if (source == AllocationSource::kWasm && !Enabled()) {
-    return;
-  }
-
+void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
 
   {
@@ -360,12 +355,7 @@ void ThreadIsolation::RegisterJitPage(Address address, size_t size,
   }
 }
 
-void ThreadIsolation::UnregisterJitPage(Address address, size_t size,
-                                        AllocationSource source) {
-  if (source == AllocationSource::kWasm && !Enabled()) {
-    return;
-  }
-
+void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Removing executable memory.");
 
   JitPage* to_delete;
@@ -443,6 +433,22 @@ ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
 }
 
 // static
+void ThreadIsolation::RegisterJitAllocations(Address start,
+                                             const std::vector<size_t>& sizes) {
+  size_t total_size = 0;
+  for (auto size : sizes) {
+    total_size += size;
+  }
+
+  JitPageReference page_ref = LookupJitPage(start, total_size);
+
+  for (auto size : sizes) {
+    page_ref.RegisterAllocation(start, size);
+    start += size;
+  }
+}
+
+// static
 void ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
     Address page, size_t page_size, const std::vector<Address>& keep) {
   LookupJitPage(page, page_size)
@@ -471,17 +477,11 @@ void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
 
 // static
 void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
-  if (!Enabled()) {
-    return;
-  }
   return RegisterJitAllocation(addr, size);
 }
 
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
-  if (!Enabled()) {
-    return;
-  }
   LookupJitPage(addr, size).UnregisterAllocation(addr);
 }
 

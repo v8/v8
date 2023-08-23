@@ -156,19 +156,10 @@ class V8_EXPORT ThreadIsolation {
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
 
-  enum class AllocationSource {
-    kJavaScript,
-    kWasm,
-  };
-
   // Register a new JIT region.
-  static void RegisterJitPage(
-      Address address, size_t size,
-      AllocationSource source = AllocationSource::kJavaScript);
+  static void RegisterJitPage(Address address, size_t size);
   // Unregister a JIT region that is about to be unmpapped.
-  static void UnregisterJitPage(
-      Address address, size_t size,
-      AllocationSource source = AllocationSource::kJavaScript);
+  static void UnregisterJitPage(Address address, size_t size);
   // Make a page executable. Needs to be registered first. Should only be called
   // if Enabled() is true.
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
@@ -179,6 +170,9 @@ class V8_EXPORT ThreadIsolation {
   // WritableJitAllocation object.
   static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
                                                                    size_t size);
+  // Register multiple consecutive allocations together.
+  static void RegisterJitAllocations(Address start,
+                                     const std::vector<size_t>& sizes);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
   static void RegisterWasmAllocation(Address addr, size_t size);
