@@ -3070,6 +3070,21 @@ class AssemblerOpInterface {
     return stack().ReduceAssertNotNull(object, type, trap_id);
   }
 
+  V<Map> RttCanon(V<WasmInstanceObject> instance, uint32_t type_index) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceRttCanon(instance, type_index);
+  }
+
+  V<Word32> WasmTypeCheck(V<Tagged> object, V<Map> rtt,
+                          WasmTypeCheckConfig config) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceWasmTypeCheck(object, rtt, config);
+  }
+
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();

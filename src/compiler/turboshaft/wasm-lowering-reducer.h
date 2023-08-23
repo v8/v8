@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -42,8 +43,15 @@ class WasmLoweringReducer : public Next {
   OpIndex REDUCE(Null)(wasm::ValueType type) { return Null(type); }
 
   OpIndex REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
-    // TODO(14108): Optimize for compressed-pointer, static-root builds.
-    return __ TaggedEqual(object, Null(type));
+    // TODO(14108): Can this be done simpler for static-roots nowadays?
+    Tagged_t static_null =
+        wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
+    OpIndex null_value =
+        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
+                static_null != 0
+            ? __ UintPtrConstant(static_null)
+            : Null(type);
+    return __ TaggedEqual(object, null_value);
   }
 
   OpIndex REDUCE(AssertNotNull)(OpIndex object, wasm::ValueType type,
@@ -72,6 +80,84 @@ class WasmLoweringReducer : public Next {
       __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
     }
     return object;
+  }
+
+  OpIndex REDUCE(RttCanon)(OpIndex instance, uint32_t type_index) {
+    OpIndex maps_list = LOAD_INSTANCE_FIELD(
+        instance, ManagedObjectMaps, MemoryRepresentation::TaggedPointer());
+    int map_offset = FixedArray::kHeaderSize + type_index * kTaggedSize;
+    return __ Load(maps_list, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::AnyTagged(), map_offset);
+  }
+
+  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, V<Tagged> rtt,
+                                WasmTypeCheckConfig config) {
+    int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+    bool object_can_be_null = config.from.is_nullable();
+    bool object_can_be_i31 =
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+    bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
+
+    Label<Word32> end_label(&Asm());
+
+    // If we are casting from any and null results in check failure, then the
+    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
+    // an explicit null check now.
+    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+      const int kResult = config.to.is_nullable() ? 1 : 0;
+      GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
+              __ Word32Constant(kResult));
+    }
+
+    if (object_can_be_i31) {
+      GOTO_IF(__ IsSmi(object), end_label, __ Word32Constant(0));
+    }
+
+    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
+    V<Map> map = __ LoadMapField(object);
+
+    if (module_->types[config.to.ref_index()].is_final) {
+      GOTO(end_label, __ TaggedEqual(map, rtt));
+    } else {
+      // First, check if types happen to be equal. This has been shown to give
+      // large speedups.
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label,
+              __ Word32Constant(1));
+
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
+      }
+
+      V<Tagged> type_info = LoadWasmTypeInfo(map);
+      DCHECK_GE(rtt_depth, 0);
+      // If the depth of the rtt is known to be less that the minimum supertype
+      // array length, we can access the supertype without bounds-checking the
+      // supertype array.
+      if (static_cast<uint32_t>(rtt_depth) >=
+          wasm::kMinimumSupertypeArraySize) {
+        // TODO(mliedtke): Why do we convert to word size and not just do a 32
+        // bit operation?
+        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
+            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                    MemoryRepresentation::TaggedSigned(),
+                    WasmTypeInfo::kSupertypesLengthOffset));
+        GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(__ IntPtrConstant(rtt_depth),
+                                              supertypes_length)),
+                    end_label, __ Word32Constant(0));
+      }
+
+      V<Tagged> maybe_match =
+          __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
+
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt));
+    }
+
+    BIND(end_label, result);
+    return result;
   }
 
  private:
@@ -166,9 +252,31 @@ class WasmLoweringReducer : public Next {
     RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
                           ? RootIndex::kNullValue
                           : RootIndex::kWasmNull;
-    return __ Load(roots, LoadOp::Kind::RawAligned(),
+    return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
                    MemoryRepresentation::PointerSized(),
                    IsolateData::root_slot_offset(index));
+  }
+
+  V<WordPtr> ChangeSmiToWordPtr(V<Tagged> smi) {
+    return __ ChangeInt32ToIntPtr(__ UntagSmi(smi));
+  }
+
+  V<Word32> IsDataRefMap(V<Map> map) {
+    // TODO(mliedtke): LoadInstanceTypeField should emit an immutable load for
+    // wasm.
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
+    V<Word32> comparison_value =
+        __ Word32Sub(instance_type, FIRST_WASM_OBJECT_TYPE);
+    return __ Uint32LessThanOrEqual(
+        comparison_value, LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE);
+  }
+
+  V<Tagged> LoadWasmTypeInfo(V<Map> map) {
+    int offset = Map::kConstructorOrBackPointerOrNativeContextOffset;
+    return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::TaggedPointer(), offset);
   }
 
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();

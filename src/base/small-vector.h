@@ -63,6 +63,7 @@ class SmallVector {
   }
 
   ~SmallVector() {
+    static_assert(std::is_trivially_destructible_v<T>);
     if (is_big()) FreeDynamicStorage();
   }
 

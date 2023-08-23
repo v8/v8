@@ -989,6 +989,16 @@ class GraphVisitor {
                                            op.trap_id);
   }
 
+  OpIndex AssembleOutputGraphRttCanon(const RttCanonOp& op) {
+    return assembler().ReduceRttCanon(MapToNewGraph(op.instance()),
+                                      op.type_index);
+  }
+
+  OpIndex AssembleOutputGraphWasmTypeCheck(const WasmTypeCheckOp& op) {
+    return assembler().ReduceWasmTypeCheck(MapToNewGraph(op.object()),
+                                           MapToNewGraph(op.rtt()), op.config);
+  }
+
   OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
     return assembler().ReduceSimd128Constant(op.value);
   }

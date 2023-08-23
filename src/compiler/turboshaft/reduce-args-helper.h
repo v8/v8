@@ -435,6 +435,14 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const AssertNotNullOp& op) {
     return callback_(op.object(), op.type, op.trap_id);
   }
+
+  OpIndex operator()(const RttCanonOp& op) {
+    return callback_(op.instance(), op.type_index);
+  }
+
+  OpIndex operator()(const WasmTypeCheckOp& op) {
+    return callback_(op.object(), op.rtt(), op.config);
+  }
 #endif
 
  private:

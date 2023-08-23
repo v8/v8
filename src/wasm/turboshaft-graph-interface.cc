@@ -494,12 +494,15 @@ class TurboshaftGraphBuildingInterface {
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
-    Bailout(decoder);
+    asm_.TrapIfNot(asm_.IsNull(obj.op, obj.type), OpIndex::Invalid(),
+                   TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
 
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    Bailout(decoder);
+    asm_.AssertNotNull(obj.op, obj.type, TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
@@ -1345,7 +1348,11 @@ class TurboshaftGraphBuildingInterface {
 
   void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                Value* result, bool null_succeeds) {
-    Bailout(decoder);
+    V<Map> rtt = asm_.RttCanon(instance_node_, ref_index);
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    result->op = asm_.WasmTypeCheck(object.op, rtt, config);
   }
 
   void RefTestAbstract(FullDecoder* decoder, const Value& object, HeapType type,
