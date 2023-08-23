@@ -2594,7 +2594,6 @@ TEST(ManyLocalsInSharedContext) {
       "var ok = eval(result.join('\\n'));");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
-
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK(global);
   const v8::HeapGraphNode* ok_object = GetProperty(
@@ -4199,4 +4198,43 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
 
   CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot(options)));
   CHECK_EQ(gc_calls, 1);
+}
+
+TEST(ObjectRetainedInHandle) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  // Allocate an array and keep a handle to it.
+  i::Handle<i::FixedArray> handle = i_isolate->factory()->NewFixedArray(1024);
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  // Make sure to keep the handle alive.
+  CHECK(!handle.is_null());
+}
+
+TEST(ObjectRetainedInDirectHandle) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  // Allocate an array and keep a direct handle to it.
+  i::DirectHandle<i::FixedArray> direct;
+  {
+    // Make sure the temporary indirect handle goes away.
+    v8::HandleScope inner_scope(isolate);
+    direct = i_isolate->factory()->NewFixedArray(1024);
+  }
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  // Make sure to keep the handle alive.
+  CHECK(!direct.is_null());
 }

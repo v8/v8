@@ -30,8 +30,7 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
       allocator_(isolate->heap()->memory_allocator()),
       collector_(collector) {}
 
-Address ConservativeStackVisitor::FindBasePtrForMarking(
-    Address maybe_inner_ptr) const {
+Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
   const BasicMemoryChunk* chunk =
@@ -57,11 +56,8 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
   // must ignore it, as its markbits may not be clean.
   if (page->IsFromPage()) return kNullAddress;
   // Try to find the address of a previous valid object on this page.
-  Address base_ptr = MarkingBitmap::FindPreviousObjectForConservativeMarking(
-      page, maybe_inner_ptr);
-  // If the markbit is set, then we have an object that does not need to be
-  // marked.
-  if (base_ptr == kNullAddress) return kNullAddress;
+  Address base_ptr =
+      MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);
   // Iterate through the objects in the page forwards, until we find the object
   // containing maybe_inner_ptr.
   DCHECK_LE(base_ptr, maybe_inner_ptr);
@@ -106,7 +102,7 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
     return;
   }
   // Proceed with inner-pointer resolution.
-  Address base_ptr = FindBasePtrForMarking(address);
+  Address base_ptr = FindBasePtr(address);
   if (base_ptr == kNullAddress) return;
   HeapObject obj = HeapObject::FromAddress(base_ptr);
   Object root = obj;

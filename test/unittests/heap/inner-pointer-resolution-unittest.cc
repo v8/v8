@@ -20,7 +20,7 @@ class WithInnerPointerResolutionMixin : public TMixin {
   Address ResolveInnerPointer(Address maybe_inner_ptr) {
     return ConservativeStackVisitor::ForTesting(
                this->isolate(), GarbageCollector::MARK_COMPACTOR)
-        .FindBasePtrForMarking(maybe_inner_ptr);
+        .FindBasePtr(maybe_inner_ptr);
   }
 };
 
@@ -236,10 +236,7 @@ class InnerPointerResolutionTest
     DCHECK_GT(object.size, offset);
     Address base_ptr = ResolveInnerPointer(object.address + offset);
     bool should_return_null =
-        !IsPageAlive(object.page_id) || (object.type == ObjectRequest::FREE) ||
-        (object.type == ObjectRequest::REGULAR &&
-         (object.marked == ObjectRequest::MARKED_AREA ||
-          (object.marked == ObjectRequest::MARKED && offset < kTaggedSize)));
+        !IsPageAlive(object.page_id) || object.type == ObjectRequest::FREE;
     if (should_return_null)
       EXPECT_EQ(kNullAddress, base_ptr);
     else

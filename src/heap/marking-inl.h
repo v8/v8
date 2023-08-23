@@ -169,8 +169,9 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousObjectForConservativeMarking(
-    const Page* page, Address maybe_inner_ptr) {
+inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
+                                                      Address maybe_inner_ptr) {
+  DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();
   const MarkBit::CellType* cells = bitmap->cells();
 
@@ -188,11 +189,7 @@ inline Address MarkingBitmap::FindPreviousObjectForConservativeMarking(
   auto cell_index = MarkingBitmap::IndexToCell(index);
   const auto index_in_cell = MarkingBitmap::IndexInCell(index);
   DCHECK_GT(MarkingBitmap::kBitsPerCell, index_in_cell);
-  const auto mask = static_cast<MarkBit::CellType>(1u) << index_in_cell;
   auto cell = cells[cell_index];
-
-  // If the markbit is already set, bail out.
-  if ((cell & mask) != 0) return kNullAddress;
 
   // Clear the bits corresponding to higher addresses in the cell.
   cell &= ((~static_cast<MarkBit::CellType>(0)) >>
