@@ -58,8 +58,13 @@ class WasmInliner final : public AdvancedReducer {
   // Inlines calls registered by {Reduce}, until an inlining budget is exceeded.
   void Finalize() final;
 
-  static bool graph_size_allows_inlining(size_t graph_size) {
-    return graph_size < v8_flags.wasm_inlining_budget;
+  static bool graph_size_allows_inlining(size_t graph_size,
+                                         size_t initial_graph_size) {
+    size_t budget =
+        std::max<size_t>(v8_flags.wasm_inlining_min_budget,
+                         v8_flags.wasm_inlining_factor * initial_graph_size);
+    budget = std::min<size_t>(v8_flags.wasm_inlining_budget, budget);
+    return graph_size < budget;
   }
 
  private:

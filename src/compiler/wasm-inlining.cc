@@ -112,17 +112,19 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   return NoChange();
 }
 
-bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size) {
+bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size,
+                         size_t initial_graph_size) {
   if (candidate_size > v8_flags.wasm_inlining_max_size) {
     return false;
   }
-  if (WasmInliner::graph_size_allows_inlining(current_graph_size +
-                                              candidate_size)) {
+  if (WasmInliner::graph_size_allows_inlining(
+          current_graph_size + candidate_size, initial_graph_size)) {
     return true;
   }
   // For truly tiny functions, let's be a bit more generous.
   return candidate_size <= 12 &&
-         WasmInliner::graph_size_allows_inlining(current_graph_size - 100);
+         WasmInliner::graph_size_allows_inlining(current_graph_size - 100,
+                                                 initial_graph_size);
 }
 
 void WasmInliner::Trace(const CandidateInfo& candidate, const char* decision) {
@@ -149,7 +151,8 @@ void WasmInliner::Finalize() {
     // We could build the candidate's graph first and consider its node count,
     // but it turns out that wire byte size and node count are quite strongly
     // correlated, at about 1.16 nodes per wire byte (measured for J2Wasm).
-    if (!SmallEnoughToInline(current_graph_size_, candidate.wire_byte_size)) {
+    if (!SmallEnoughToInline(current_graph_size_, candidate.wire_byte_size,
+                             initial_graph_size_)) {
       Trace(candidate, "not enough inlining budget");
       continue;
     }

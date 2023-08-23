@@ -1431,6 +1431,12 @@ DEFINE_SIZE_T(wasm_inlining_budget, 5000,
               "maximum graph size (in TF nodes) that allows inlining more")
 DEFINE_SIZE_T(wasm_inlining_max_size, 500,
               "maximum function size (in wire bytes) that may be inlined")
+DEFINE_SIZE_T(
+    wasm_inlining_factor, 3,
+    "maximum multiple graph size (in TF nodes) in comparison to initial size")
+DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
+              "minimum graph size budget (in TF nodes) for which the "
+              "wasm_inlinining_factor does not apply")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, false,
