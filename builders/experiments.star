@@ -139,6 +139,15 @@ in_category(
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
     ),
+    experiment_builder_pair(
+        name = "V8 Linux64 - no shared cage - debug",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        execution_timeout = 19800,
+        use_remoteexec = RECLIENT.DEFAULT,
+        notify_owners = ["jgruber@chromium.org"],
+        notifies = ["blamelist"],
+    ),
     experiment_builder(
         name = "V8 Linux64 - fyi",
         parent_builder = "V8 Linux64 - builder",
