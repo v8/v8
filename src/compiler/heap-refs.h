@@ -857,7 +857,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   HeapObjectRef prototype(JSHeapBroker* broker) const;
 
-  bool HasOnlyStablePrototypesWithFastElements(
+  bool PrototypesElementsDoNotHaveAccessorsOrThrow(
       JSHeapBroker* broker, ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:

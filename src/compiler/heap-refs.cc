@@ -1119,13 +1119,26 @@ OptionalMapRef MapRef::AsElementsKind(JSHeapBroker* broker,
   return MakeRefAssumeMemoryFence(broker, maybe_result.value());
 }
 
-bool MapRef::HasOnlyStablePrototypesWithFastElements(
+bool MapRef::PrototypesElementsDoNotHaveAccessorsOrThrow(
     JSHeapBroker* broker, ZoneVector<MapRef>* prototype_maps) {
   DCHECK_NOT_NULL(prototype_maps);
   MapRef prototype_map = prototype(broker).map(broker);
   while (prototype_map.oddball_type(broker) != OddballType::kNull) {
+    // For the purposes of depending on prototypes' elements behavior when
+    // doing keyed property sets, non-extensible and sealed fast elements are
+    // okay because they behave like fast elements for stores into holes on
+    // the receiver. In such cases, the value is stored on the receiver's
+    // elements and does not trigger any setters and does not throw.
+    //
+    // Note that frozen elements are _not_ okay because of the "override
+    // mistake":
+    //
+    //   Object.prototype[1] = "x";
+    //   Object.freeze(Object.prototype);
+    //   ([])[1] = "y"; <-- throws in strict mode, nop in sloppy mode
     if (!prototype_map.IsJSObjectMap() || !prototype_map.is_stable() ||
-        !IsFastElementsKind(prototype_map.elements_kind())) {
+        !IsFastOrNonextensibleOrSealedElementsKind(
+            prototype_map.elements_kind())) {
       return false;
     }
     prototype_maps->push_back(prototype_map);

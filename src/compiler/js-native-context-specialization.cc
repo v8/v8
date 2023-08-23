@@ -2211,10 +2211,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // If the {receiver_map} has a prototype and its elements backing
         // store is either holey, or we have a potentially growing store,
         // then we need to check that all prototypes have stable maps with
-        // fast elements (and we need to guard against changes to that below).
+        // no element accessors and no throwing behavior for elements (and we
+        // need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
-            !receiver_map.HasOnlyStablePrototypesWithFastElements(
+            !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return NoChange();
         }
