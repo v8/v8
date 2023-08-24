@@ -56,26 +56,18 @@ class SwitchChromium(Step):
   def RunStep(self):
     cwd = self._options.chromium
     self.InitialEnvironmentChecks(cwd)
-    # Check for a clean workdir.
-    if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
-      self.Die("Workspace is not clean. Please commit or undo your changes.")
     # Assert that the DEPS file is there.
     if not os.path.exists(os.path.join(cwd, "DEPS")):  # pragma: no cover
       self.Die("DEPS file not present.")
 
 
-class UpdateChromiumCheckout(Step):
-  MESSAGE = "Update the checkout and create a new branch."
+class ChromiumCreateBranch(Step):
+  MESSAGE = "Create a new branch."
 
   def RunStep(self):
     cwd = self._options.chromium
     self.GitCheckout("main", cwd=cwd)
     self.DeleteBranch("work-branch", cwd=cwd)
-    self.GitPull(cwd=cwd)
-
-    # Update v8 remotes.
-    self.GitFetchOrigin()
-
     self.GitCreateBranch("work-branch", cwd=cwd)
 
 
@@ -88,6 +80,7 @@ class UploadCL(Step):
     if self.Command("gclient", "setdep -r src/v8@%s" %
                     self._options.revision, cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self._options.revision)
+    self.GitAdd('DEPS', cwd=cwd)
 
     message = []
     message.append("Update V8 to %s." % self["roll_title"].lower())
@@ -99,7 +92,11 @@ class UploadCL(Step):
     message.append(ISSUE_MSG)
 
     message.append("R=%s" % self._options.reviewer)
-    self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
+    self.GitCommit(
+        "\n\n".join(message),
+        author=self._options.author,
+        prefix=["-c", "diff.ignoreSubmodules=all"],
+        cwd=cwd)
     if not self._options.dry_run:
       self.GitUpload(force=True,
                      bypass_hooks=True,
@@ -167,7 +164,7 @@ class AutoRoll(ScriptsBase):
       Preparation,
       PrepareRollCandidate,
       SwitchChromium,
-      UpdateChromiumCheckout,
+      ChromiumCreateBranch,
       UploadCL,
       CleanUp,
     ]

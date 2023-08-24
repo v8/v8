@@ -575,15 +575,13 @@ deps = {
       Cmd(f"git log -1 --format=%s {self.ROLL_HASH}", "Version 3.22.4\n"),
       Cmd(f"git tag --points-at {self.ROLL_HASH}", "3.22.4\n3.22.4-pgo"),
       Cmd("git tag --points-at last_roll_hsh", "3.22.2.1\n22.2.1-pgo"),
-      Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
-      Cmd("git pull", "", cwd=chrome_dir),
-      Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),
       Cmd(f"gclient setdep -r src/v8@{self.ROLL_HASH}", "", cb=WriteDeps,
           cwd=chrome_dir),
-      Cmd(("git commit -am \"%s\" "
+      Cmd("git add \"DEPS\"", "", cwd=chrome_dir),
+      Cmd(("git -c diff.ignoreSubmodules=all commit -m \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
