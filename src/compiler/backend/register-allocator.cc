@@ -3152,61 +3152,91 @@ void LinearScanAllocator::ReloadLiveRanges(
 
 RpoNumber LinearScanAllocator::ChooseOneOfTwoPredecessorStates(
     InstructionBlock* current_block, LifetimePosition boundary) {
-  using SmallRangeVector =
-      base::SmallVector<TopLevelLiveRange*,
-                        RegisterConfiguration::kMaxRegisters>;
   // Pick the state that would generate the least spill/reloads.
-  // Compute vectors of ranges with imminent use for both sides.
-  // As GetChildCovers is cached, it is cheaper to repeatedly
-  // call is rather than compute a shared set first.
+  // Compute vectors of ranges with use counts for both sides.
+  // We count uses only for live ranges that are unique to either the left or
+  // the right predecessor since many live ranges are shared between both.
+  // Shared ranges don't influence the decision anyway and this is faster.
   auto& left = data()->GetSpillState(current_block->predecessors()[0]);
   auto& right = data()->GetSpillState(current_block->predecessors()[1]);
-  SmallRangeVector left_used;
-  for (const auto item : left) {
-    LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
-    if (at_next_block != nullptr &&
-        at_next_block->NextUsePositionRegisterIsBeneficial(boundary) !=
-            nullptr) {
-      left_used.emplace_back(item->TopLevel());
+
+  // Build a set of the `TopLevelLiveRange`s in the left predecessor.
+  // Usually this set is very small, e.g., for JetStream2 at most 3 ranges in
+  // ~72% of the cases and at most 8 ranges in ~93% of the cases. In those cases
+  // `SmallMap` is backed by inline storage and uses fast linear search.
+  // In some pathological cases the set grows large (e.g. the Wasm binary of
+  // v8:9529) and then `SmallMap` gives us O(log n) worst case lookup when
+  // intersecting with the right predecessor below. The set is encoded as a
+  // `SmallMap` to `Dummy` values, since we don't have an equivalent `SmallSet`.
+  struct Dummy {};
+  SmallZoneMap<TopLevelLiveRange*, Dummy, 16> left_set(allocation_zone());
+  for (LiveRange* range : left) {
+    TopLevelLiveRange* parent = range->TopLevel();
+    auto [_, inserted] = left_set.emplace(parent, Dummy{});
+    // The `LiveRange`s in `left` come from the spill state, which is just the
+    // list of active `LiveRange`s at the end of the block (see
+    // `RememberSpillState`). Since at most one `LiveRange` out of a
+    // `TopLevelLiveRange` can be active at the same time, there should never be
+    // the same `TopLevelLiveRange` twice in `left_set`, hence this check.
+    DCHECK(inserted);
+    USE(inserted);
+  }
+
+  // Now build a list of ranges unique to either the left or right predecessor.
+  struct RangeUseCount {
+    // The set above contains `TopLevelLiveRange`s, but ultimately we want to
+    // count uses of the child `LiveRange` covering `boundary`.
+    // The lookup in `GetChildCovers` is O(log n), so do it only once when
+    // inserting into this list.
+    LiveRange* range;
+    // +1 if used in the left predecessor, -1 if used in the right predecessor.
+    int use_count_delta;
+  };
+  SmallZoneVector<RangeUseCount, 16> unique_range_use_counts(allocation_zone());
+  for (LiveRange* range : right) {
+    TopLevelLiveRange* parent = range->TopLevel();
+    auto left_it = left_set.find(parent);
+    bool range_is_shared_left_and_right = left_it != left_set.end();
+    if (range_is_shared_left_and_right) {
+      left_set.erase(left_it);
+    } else {
+      // This range is unique to the right predecessor, so insert into the list.
+      LiveRange* child = parent->GetChildCovers(boundary);
+      if (child != nullptr) {
+        unique_range_use_counts.push_back({child, -1});
+      }
     }
   }
-  SmallRangeVector right_used;
-  for (const auto item : right) {
-    LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
-    if (at_next_block != nullptr &&
-        at_next_block->NextUsePositionRegisterIsBeneficial(boundary) !=
-            nullptr) {
-      right_used.emplace_back(item->TopLevel());
+  // So far `unique_range_use_counts` contains only the ranges unique in the
+  // right predecessor. Now also add the ranges from the left predecessor.
+  for (auto [parent, _] : left_set) {
+    LiveRange* child = parent->GetChildCovers(boundary);
+    if (child != nullptr) {
+      unique_range_use_counts.push_back({child, +1});
     }
   }
-  if (left_used.empty() && right_used.empty()) {
-    // There are no beneficial register uses. Look at any use at
-    // all. We do not account for all uses, like flowing into a phi.
+
+  // Finally, count the uses for each range.
+  int use_count_difference = 0;
+  for (auto [range, use_count] : unique_range_use_counts) {
+    if (range->NextUsePositionRegisterIsBeneficial(boundary) != nullptr) {
+      use_count_difference += use_count;
+    }
+  }
+  if (use_count_difference == 0) {
+    // There is a tie in beneficial register uses. Now, look at any use at all.
+    // We do not account for all uses, like flowing into a phi.
     // So we just look at ranges still being live.
     TRACE("Looking at only uses\n");
-    for (const auto item : left) {
-      LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
-      if (at_next_block != nullptr &&
-          at_next_block->NextUsePosition(boundary) !=
-              at_next_block->positions().end()) {
-        left_used.emplace_back(item->TopLevel());
-      }
-    }
-    for (const auto item : right) {
-      LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
-      if (at_next_block != nullptr &&
-          at_next_block->NextUsePosition(boundary) !=
-              at_next_block->positions().end()) {
-        right_used.emplace_back(item->TopLevel());
+    for (auto [range, use_count] : unique_range_use_counts) {
+      if (range->NextUsePosition(boundary) != range->positions().end()) {
+        use_count_difference += use_count;
       }
     }
   }
-  // Now left_used and right_used contains those ranges that matter.
-  // Count which side matches this most.
-  TRACE("Vote went %zu vs %zu\n", left_used.size(), right_used.size());
-  return left_used.size() > right_used.size()
-             ? current_block->predecessors()[0]
-             : current_block->predecessors()[1];
+  TRACE("Left predecessor has %d more uses than right\n", use_count_difference);
+  return use_count_difference > 0 ? current_block->predecessors()[0]
+                                  : current_block->predecessors()[1];
 }
 
 bool LinearScanAllocator::CheckConflict(
