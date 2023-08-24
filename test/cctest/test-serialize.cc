@@ -172,7 +172,15 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+  {
+    // Note that we need to run a garbage collection without stack at this
+    // point, so that all dead objects are reclaimed. This is required to avoid
+    // conservative stack scanning and guarantee deterministic behaviour.
+    EmbedderStackStateScope stack_scope(
+        i_isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+    heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+  }
 
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
@@ -380,7 +388,16 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap::InvokeMemoryReducingMajorGCs(heap);
+    {
+      // Note that we need to run a garbage collection without stack at this
+      // point, so that all dead objects are reclaimed. This is required to
+      // avoid conservative stack scanning and guarantee deterministic
+      // behaviour.
+      EmbedderStackStateScope stack_scope(
+          heap, EmbedderStackStateScope::kExplicitInvocation,
+          StackState::kNoHeapPointers);
+      heap::InvokeMemoryReducingMajorGCs(heap);
+    }
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -555,7 +572,16 @@ static void SerializeCustomContext(
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+    {
+      // Note that we need to run a garbage collection without stack at this
+      // point, so that all dead objects are reclaimed. This is required to
+      // avoid conservative stack scanning and guarantee deterministic
+      // behaviour.
+      EmbedderStackStateScope stack_scope(
+          i_isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+          StackState::kNoHeapPointers);
+      heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+    }
 
     {
       v8::HandleScope handle_scope(isolate);

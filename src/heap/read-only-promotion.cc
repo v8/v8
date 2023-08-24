@@ -40,9 +40,9 @@ class Committee final {
     DCHECK(promo_accepted_.empty());
     DCHECK(promo_rejected_.empty());
 
-    HeapObjectIterator it(
-        isolate_->heap(), safepoint_scope,
-        HeapObjectIterator::HeapObjectsFiltering::kFilterUnreachable);
+    // We assume that a full and precise GC has reclaimed all dead objects
+    // and therefore that no filtering of unreachable objects is required here.
+    HeapObjectIterator it(isolate_->heap(), safepoint_scope);
     for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
       DCHECK(!o.InReadOnlySpace());
 
@@ -293,9 +293,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                            });
 
     // Iterate all objects on the mutable heap.
-    HeapObjectIterator it(
-        heap, safepoint_scope,
-        HeapObjectIterator::HeapObjectsFiltering::kFilterUnreachable);
+    // We assume that a full and precise GC has reclaimed all dead objects
+    // and therefore that no filtering of unreachable objects is required here.
+    HeapObjectIterator it(heap, safepoint_scope);
     for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
       o.Iterate(isolate, &v);
     }

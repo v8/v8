@@ -1036,8 +1036,16 @@ StartupData SnapshotCreatorImpl::CreateBlob(
 
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
-  isolate_->heap()->CollectAllAvailableGarbage(
-      GarbageCollectionReason::kSnapshotCreator);
+  {
+    // Note that we need to run a garbage collection without stack at this
+    // point, so that all dead objects are reclaimed. This is required to avoid
+    // conservative stack scanning and guarantee deterministic behaviour.
+    EmbedderStackStateScope stack_scope(
+        isolate_->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+    isolate_->heap()->CollectAllAvailableGarbage(
+        GarbageCollectionReason::kSnapshotCreator);
+  }
   {
     HandleScope scope(isolate_);
     isolate_->heap()->CompactWeakArrayLists();
