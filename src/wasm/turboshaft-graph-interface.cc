@@ -1101,9 +1101,27 @@ class TurboshaftGraphBuildingInterface {
                &block->exception);
   }
 
+  void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
+                    OpIndex index, OpIndex value, Value* result) {
+    V<WordPtr> converted_index;
+    compiler::BoundsCheckResult bounds_check_result;
+    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+        imm.memory, MemoryRepresentation::Int32(), index, imm.offset,
+        decoder->position(), compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+
+    OpIndex effective_offset = asm_.WordPtrAdd(converted_index, imm.offset);
+
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmAtomicNotify,
+        {asm_.Word32Constant(imm.memory->index), effective_offset, value});
+  }
+
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
                 Value* result) {
+    if (opcode == WasmOpcode::kExprAtomicNotify) {
+      return AtomicNotify(decoder, imm, args[0].op, args[1].op, result);
+    }
     using Binop = compiler::turboshaft::AtomicRMWOp::BinOp;
     struct AtomicOpInfo {
       Binop bin_op;
