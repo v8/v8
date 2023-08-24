@@ -469,6 +469,8 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(0);
   }
 
+  // TODO(saelo) also try to detect harmless stack overflows here if possible.
+
   // Otherwise it's a sandbox violation, so restore the original signal
   // handlers, then return from this handler. The faulting instruction will be
   // re-executed and will again trigger the access violation, but now the
@@ -494,12 +496,14 @@ void SandboxTesting::InstallSandboxCrashFilter() {
   CHECK(GetProcessWideSandbox()->is_initialized());
 #ifdef V8_OS_LINUX
   // Register an alternate stack for signal delivery so that signal handlers
-  // can run properly even if for example the stack pointer has been corrupted.
+  // can run properly even if for example the stack pointer has been corrupted
+  // or the stack has overflowed.
   // Note that the alternate stack is currently only registered for the main
-  // thread. Stack pointer corruption on background threads may therefore still
-  // cause the signal handler to crash.
-  void* alternate_stack = malloc(SIGSTKSZ);
-  CHECK_NE(alternate_stack, nullptr);
+  // thread. Stack pointer corruption or stack overflows on background threads
+  // may therefore still cause the signal handler to crash.
+  void* alternate_stack = mmap(nullptr, SIGSTKSZ, PROT_READ | PROT_WRITE,
+                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  CHECK_NE(alternate_stack, MAP_FAILED);
   stack_t signalstack = {
       .ss_sp = alternate_stack,
       .ss_flags = 0,
