@@ -1507,15 +1507,20 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 }
 
 void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
-  // Load the signature, considering forward pointers.
-  FullObjectSlot sig_slot(fp() + 2 * kSystemPointerSize);
-  if (!*sig_slot.location()) {
-    // There is no signature in the signature slot, so there is nothing to do.
+  Object maybe_signature = Object(
+      Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset));
+  // The signature slot contains a marker and not a signature, so there is
+  // nothing we have to iterate here.
+  if (IsSmi(maybe_signature)) {
     return;
   }
+
+  FullObjectSlot sig_slot(fp() + WasmToJSWrapperConstants::kSignatureOffset);
   VisitSpillSlot(isolate(), v, sig_slot);
+
+  // Load the signature, considering forward pointers.
   PtrComprCageBase cage_base(isolate());
-  HeapObject raw = HeapObject::cast(Object(*sig_slot.location()));
+  HeapObject raw = HeapObject::cast(maybe_signature);
   MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
   HeapObject forwarded =
       map_word.IsForwardingAddress() ? map_word.ToForwardingAddress(raw) : raw;
@@ -2982,19 +2987,37 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
 }
 
 bool WasmFrame::at_to_number_conversion() const {
+  if (callee_pc() == kNullAddress) return false;
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
-  wasm::WasmCode* code =
-      callee_pc() != kNullAddress
-          ? wasm::GetWasmCodeManager()->LookupCode(callee_pc())
-          : nullptr;
-  if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
-  int offset = static_cast<int>(callee_pc() - code->instruction_start());
-  int pos = code->GetSourceOffsetBefore(offset);
-  // The imported call has position 0, ToNumber has position 1.
-  // If there is no source position available, this is also not a ToNumber call.
-  DCHECK(pos == wasm::kNoCodePosition || pos == 0 || pos == 1);
-  return pos == 1;
+  wasm::WasmCode* wasm_code =
+      wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+
+  if (wasm_code) {
+    if (wasm_code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
+    int offset = static_cast<int>(callee_pc() - wasm_code->instruction_start());
+    int pos = wasm_code->GetSourceOffsetBefore(offset);
+    // The imported call has position 0, ToNumber has position 1.
+    // If there is no source position available, this is also not a ToNumber
+    // call.
+    DCHECK(pos == wasm::kNoCodePosition || pos == 0 || pos == 1);
+    return pos == 1;
+  }
+
+  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(callee_pc());
+  CHECK(entry->code.has_value());
+  GcSafeCode code = entry->code.value();
+  if (!code.is_builtin() || code.builtin_id() != Builtin::kWasmToJsWrapperCSA) {
+    return false;
+  }
+  // The generic wasm-to-js wrapper initially pushes the signature on the stack,
+  // but overwrites the signature just before the call to JavaScript. Therefore,
+  // if the signature is still there, we are at the to-number conversion, if the
+  // slot is empty, then we are at the call to JavaScript.
+  FullObjectSlot sig_slot(callee_fp() +
+                          WasmToJSWrapperConstants::kSignatureOffset);
+  return *sig_slot.location() != kNullAddress;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {

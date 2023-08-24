@@ -28,12 +28,15 @@ extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
 extern macro StackAlignmentInBytes(): intptr;
 
+const kSignatureOffset: constexpr intptr
+    generates 'WasmToJSWrapperConstants::kSignatureOffset';
+
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // Spill the signature on the stack so that it can be read by the GC. This is
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.
-  const sigSlot = LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
+  const sigSlot = LoadFramePointer() + kSignatureOffset;
   *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
   const sizeOfSig = StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
 
@@ -138,6 +141,11 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const result = CallVarargs(
       context, target, 0, Convert<int32>(paramCount) + 1, outParams);
 
+  // Put a marker on the stack to indicate to the frame iterator that the call
+  // to JavaScript is finished. For asm.js source positions it is important to
+  // know if an exception happened in the call to JS, or in the ToNumber
+  // conversion afterwards.
+  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(SmiConstant(2));
   let resultFixedArray: FixedArray;
   if (returnCount > 1) {
     resultFixedArray =

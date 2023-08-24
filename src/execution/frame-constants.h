@@ -293,6 +293,11 @@ class JSToWasmWrapperConstants {
       kWrapperBufferGPReturnRegister2 + kSystemPointerSize;
 };
 
+class WasmToJSWrapperConstants {
+ public:
+  // FP-relative.
+  static constexpr size_t kSignatureOffset = 2 * kSystemPointerSize;
+};
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
