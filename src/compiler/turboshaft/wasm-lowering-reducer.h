@@ -92,6 +92,16 @@ class WasmLoweringReducer : public Next {
 
   OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, V<Tagged> rtt,
                                 WasmTypeCheckConfig config) {
+    if (rtt != OpIndex::Invalid()) {
+      return ReduceWasmTypeCheckRtt(object, rtt, config);
+    } else {
+      return ReduceWasmTypeCheckAbstract(object, config);
+    }
+  }
+
+  // TODO(mliedtke): Move to private section.
+  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, V<Tagged> rtt,
+                                 WasmTypeCheckConfig config) {
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -186,6 +196,7 @@ class WasmLoweringReducer : public Next {
       __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
     }
 
+    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
@@ -243,6 +254,85 @@ class WasmLoweringReducer : public Next {
   MemoryRepresentation RepresentationFor(wasm::ValueType type) {
     return MemoryRepresentation::FromRegisterRepresentation(
         turboshaft::RepresentationFor(type), true);
+  }
+
+  OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,
+                                      WasmTypeCheckConfig config) {
+    const bool object_can_be_null = config.from.is_nullable();
+    const bool null_succeeds = config.to.is_nullable();
+    const bool object_can_be_i31 =
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from,
+                          module_) ||
+        config.from.heap_representation() == wasm::HeapType::kExtern;
+
+    OpIndex result;
+    Label<Word32> end_label(&Asm());
+
+    wasm::HeapType::Representation to_rep = config.to.heap_representation();
+    do {
+      // The none-types only perform a null check. They need no control flow.
+      if (to_rep == wasm::HeapType::kNone ||
+          to_rep == wasm::HeapType::kNoExtern ||
+          to_rep == wasm::HeapType::kNoFunc) {
+        result = __ IsNull(object, config.from);
+        break;
+      }
+      // Null checks performed by any other type check need control flow. We can
+      // skip the null check if null fails, because it's covered by the Smi
+      // check or instance type check we'll do later.
+      if (object_can_be_null && null_succeeds) {
+        const int kResult = 1;
+        GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
+                __ Word32Constant(kResult));
+      }
+      // i31 is special in that the Smi check is the last thing to do.
+      if (to_rep == wasm::HeapType::kI31) {
+        // If earlier optimization passes reached the limit of possible graph
+        // transformations, we could DCHECK(object_can_be_i31) here.
+        result = object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kEq) {
+        if (object_can_be_i31) {
+          GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(1));
+        }
+        // TODO(mliedtke): Ideally we'd be able to mark the map load as
+        // immutable.
+        result = IsDataRefMap(__ LoadMapField(object));
+        break;
+      }
+      // array, struct, string: i31 fails.
+      if (object_can_be_i31) {
+        GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(0));
+      }
+      if (to_rep == wasm::HeapType::kArray) {
+        result = HasInstanceType(object, WASM_ARRAY_TYPE);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kStruct) {
+        result = HasInstanceType(object, WASM_STRUCT_TYPE);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kString) {
+        V<Word32> instance_type =
+            __ LoadInstanceTypeField(__ LoadMapField(object));
+        result = __ Uint32LessThan(instance_type,
+                                   __ Word32Constant(FIRST_NONSTRING_TYPE));
+        break;
+      }
+      UNREACHABLE();
+    } while (false);
+
+    DCHECK(result.valid());
+    GOTO(end_label, result);
+    BIND(end_label, final_result);
+    return final_result;
+  }
+
+  V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
+    // TODO(mliedtke): These loads should be immutable.
+    return __ Word32Equal(__ LoadInstanceTypeField(__ LoadMapField(object)),
+                          __ Word32Constant(instance_type));
   }
 
   OpIndex LowerGlobalSetOrGet(OpIndex instance, OpIndex value,

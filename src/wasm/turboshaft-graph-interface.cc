@@ -1357,7 +1357,11 @@ class TurboshaftGraphBuildingInterface {
 
   void RefTestAbstract(FullDecoder* decoder, const Value& object, HeapType type,
                        Value* result, bool null_succeeds) {
-    Bailout(decoder);
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         type, null_succeeds ? kNullable : kNonNullable)};
+    V<Map> rtt = OpIndex::Invalid();
+    result->op = asm_.WasmTypeCheck(object.op, rtt, config);
   }
 
   void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,

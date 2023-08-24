@@ -995,8 +995,8 @@ class GraphVisitor {
   }
 
   OpIndex AssembleOutputGraphWasmTypeCheck(const WasmTypeCheckOp& op) {
-    return assembler().ReduceWasmTypeCheck(MapToNewGraph(op.object()),
-                                           MapToNewGraph(op.rtt()), op.config);
+    return assembler().ReduceWasmTypeCheck(
+        MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
   }
 
   OpIndex AssembleOutputGraphWasmTypeCast(const WasmTypeCastOp& op) {

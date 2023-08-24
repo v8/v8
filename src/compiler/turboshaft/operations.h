@@ -5938,17 +5938,24 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
   auto options() const { return std::tuple{type_index}; }
 };
 
-struct WasmTypeCheckOp : FixedArityOperationT<2, WasmTypeCheckOp> {
+struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
   WasmTypeCheckConfig config;
 
   static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
 
   explicit WasmTypeCheckOp(V<Tagged> object, V<Tagged> rtt,
                            WasmTypeCheckConfig config)
-      : Base(object, rtt), config(config) {}
+      : Base(1 + rtt.valid()), config(config) {
+    input(0) = object;
+    if (rtt.valid()) {
+      input(1) = rtt;
+    }
+  }
 
   V<Tagged> object() const { return Base::input(0); }
-  V<Tagged> rtt() const { return Base::input(1); }
+  V<Tagged> rtt() const {
+    return input_count > 1 ? input(1) : OpIndex::Invalid();
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
@@ -5956,13 +5963,20 @@ struct WasmTypeCheckOp : FixedArityOperationT<2, WasmTypeCheckOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::Tagged()>();
+    return input_count > 1
+               ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                                MaybeRegisterRepresentation::Tagged()>()
+               : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{config}; }
+
+  static WasmTypeCheckOp& New(Graph* graph, V<Tagged> object, V<Tagged> rtt,
+                              WasmTypeCheckConfig config) {
+    return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
+  }
 };
 
 struct WasmTypeCastOp : FixedArityOperationT<2, WasmTypeCastOp> {
