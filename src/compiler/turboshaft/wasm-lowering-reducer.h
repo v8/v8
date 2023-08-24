@@ -172,6 +172,16 @@ class WasmLoweringReducer : public Next {
 
   OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, V<Tagged> rtt,
                                WasmTypeCheckConfig config) {
+    if (rtt != OpIndex::Invalid()) {
+      return ReduceWasmTypeCastRtt(object, rtt, config);
+    } else {
+      return ReduceWasmTypeCastAbstract(object, config);
+    }
+  }
+
+  // TODO(mliedtke): Move to private section.
+  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, V<Tagged> rtt,
+                                WasmTypeCheckConfig config) {
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -327,6 +337,82 @@ class WasmLoweringReducer : public Next {
     GOTO(end_label, result);
     BIND(end_label, final_result);
     return final_result;
+  }
+
+  OpIndex ReduceWasmTypeCastAbstract(V<Tagged> object,
+                                     WasmTypeCheckConfig config) {
+    const bool object_can_be_null = config.from.is_nullable();
+    const bool null_succeeds = config.to.is_nullable();
+    const bool object_can_be_i31 =
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from,
+                          module_) ||
+        config.from.heap_representation() == wasm::HeapType::kExtern;
+
+    Label<> end_label(&Asm());
+
+    wasm::HeapType::Representation to_rep = config.to.heap_representation();
+
+    do {
+      // The none-types only perform a null check.
+      if (to_rep == wasm::HeapType::kNone ||
+          to_rep == wasm::HeapType::kNoExtern ||
+          to_rep == wasm::HeapType::kNoFunc) {
+        __ TrapIfNot(__ IsNull(object, config.from), OpIndex::Invalid(),
+                     TrapId::kTrapIllegalCast);
+        break;
+      }
+      // Null checks performed by any other type cast can be skipped if null
+      // fails, because it's covered by the Smi check
+      // or instance type check we'll do later.
+      if (object_can_be_null && null_succeeds &&
+          !v8_flags.experimental_wasm_skip_null_checks) {
+        GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label);
+      }
+      if (to_rep == wasm::HeapType::kI31) {
+        // If earlier optimization passes reached the limit of possible graph
+        // transformations, we could DCHECK(object_can_be_i31) here.
+        V<Word32> success =
+            object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
+        __ TrapIfNot(success, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kEq) {
+        if (object_can_be_i31) {
+          GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
+        }
+        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)), OpIndex::Invalid(),
+                     TrapId::kTrapIllegalCast);
+        break;
+      }
+      // array, struct, string: i31 fails.
+      if (object_can_be_i31) {
+        __ TrapIf(__ IsSmi(object), OpIndex::Invalid(),
+                  TrapId::kTrapIllegalCast);
+      }
+      if (to_rep == wasm::HeapType::kArray) {
+        __ TrapIfNot(HasInstanceType(object, WASM_ARRAY_TYPE),
+                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kStruct) {
+        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE),
+                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        break;
+      }
+      if (to_rep == wasm::HeapType::kString) {
+        V<Word32> instance_type =
+            __ LoadInstanceTypeField(__ LoadMapField(object));
+        __ TrapIfNot(__ Uint32LessThan(instance_type,
+                                       __ Word32Constant(FIRST_NONSTRING_TYPE)),
+                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        break;
+      }
+      UNREACHABLE();
+    } while (false);
+
+    GOTO(end_label);
+    BIND(end_label);
+    return object;
   }
 
   V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {

@@ -1000,8 +1000,8 @@ class GraphVisitor {
   }
 
   OpIndex AssembleOutputGraphWasmTypeCast(const WasmTypeCastOp& op) {
-    return assembler().ReduceWasmTypeCast(MapToNewGraph(op.object()),
-                                          MapToNewGraph(op.rtt()), op.config);
+    return assembler().ReduceWasmTypeCast(
+        MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
   }
 
   OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
