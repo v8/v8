@@ -5212,6 +5212,10 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
     // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
     // of optimized code.
     i::Deoptimizer::DeoptimizeAll(i_isolate);
+    // Trigger GC to better align with production code. Also needed by
+    // ClearReconstructableDataForSerialization to not look into dead objects.
+    i_isolate->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kSnapshotCreator);
     i::Snapshot::ClearReconstructableDataForSerialization(
         i_isolate, kClearRecompilableData);
     i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate, i_context);

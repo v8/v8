@@ -1541,6 +1541,7 @@
   'regress/regress-441099': [SKIP],
   'regress/regress-677685': [SKIP],
   'regress/regress-799690': [SKIP],
+  'regress/regress-1469634': [SKIP],
   'regress/regress-crbug-935800': [SKIP],
   'regress/wasm/*': [SKIP],
   'wasm/*': [SKIP],
@@ -1571,10 +1572,6 @@
 
   # https://crbug.com/v8/13181
   'maglev/get-template-object': [SKIP],
-
-  # asm.js / wasm functions cannot be part of a snapshot.
-  # (See https://crbug.com/v8/14274 for further details.)
-  'regress/regress-1469634': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################

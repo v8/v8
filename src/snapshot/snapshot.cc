@@ -339,15 +339,17 @@ void Snapshot::ClearReconstructableDataForSerialization(
     // wrapper. A tiered-up wrapper would have to be replaced with a generic
     // wrapper which isn't supported. For asm.js there also isn't any support
     // for the generic wrapper at all.
-    i::HeapObjectIterator it(isolate->heap());
+    i::HeapObjectIterator it(isolate->heap(),
+                             HeapObjectIterator::kFilterUnreachable);
     for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
       if (IsJSFunction(o)) {
         i::JSFunction fun = i::JSFunction::cast(o);
         if (fun->shared()->HasAsmWasmData()) {
           FATAL("asm.js functions are not supported in snapshots");
         }
-        if (fun->shared()->HasWasmFunctionData()) {
-          FATAL("WebAssembly functions are not supported in snapshots");
+        if (fun->shared()->HasWasmExportedFunctionData()) {
+          FATAL(
+              "Exported WebAssembly functions are not supported in snapshots");
         }
       }
     }
