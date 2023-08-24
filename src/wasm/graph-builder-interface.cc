@@ -1162,7 +1162,8 @@ class WasmGraphBuildingInterface {
     GetNodes(args.data(), base::VectorOf(arg_values, count));
     CheckForException(decoder,
                       builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
-                                      decoder->position()));
+                                      decoder->position()),
+                      false);
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -1170,7 +1171,7 @@ class WasmGraphBuildingInterface {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     DCHECK_NOT_NULL(exception);
-    CheckForException(decoder, builder_->Rethrow(exception));
+    CheckForException(decoder, builder_->Rethrow(exception), false);
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -2201,7 +2202,8 @@ class WasmGraphBuildingInterface {
     builder_->set_instance_cache(&env->instance_cache);
   }
 
-  TFNode* CheckForException(FullDecoder* decoder, TFNode* node) {
+  TFNode* CheckForException(FullDecoder* decoder, TFNode* node,
+                            bool may_modify_instance_cache) {
     DCHECK_NOT_NULL(node);
 
     // We need to emit IfSuccess/IfException nodes if this node throws and has
@@ -2231,7 +2233,9 @@ class WasmGraphBuildingInterface {
 
     // The exceptional operation could have modified memory size; we need to
     // reload the memory context into the exceptional control path.
-    ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
+    if (may_modify_instance_cache) {
+      ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
+    }
 
     if (emit_loop_exits()) {
       ValueVector values;
@@ -2478,7 +2482,7 @@ class WasmGraphBuildingInterface {
             call_info.table_index(), call_info.sig_index(),
             base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
             decoder->position());
-        CheckForException(decoder, call);
+        CheckForException(decoder, call, true);
         break;
       }
       case CallInfo::kCallDirect: {
@@ -2486,14 +2490,14 @@ class WasmGraphBuildingInterface {
             call_info.callee_index(), base::VectorOf(arg_nodes),
             base::VectorOf(return_nodes), decoder->position());
         builder_->StoreCallCount(call, call_info.call_count());
-        CheckForException(decoder, call);
+        CheckForException(decoder, call, true);
         break;
       }
       case CallInfo::kCallRef: {
         TFNode* call = builder_->CallRef(
             sig, base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
             call_info.null_check(), decoder->position());
-        CheckForException(decoder, call);
+        CheckForException(decoder, call, true);
         break;
       }
     }
