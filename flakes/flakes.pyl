@@ -20,6 +20,24 @@
 [
   {
     "bisect_builder_group": "client.v8",
+    "bisect_buildername": "V8 Linux64 - predictable - builder",
+    "bug_url": "https://crbug.com/v8/14228",
+    "extra_args": [],
+    "isolated_name": "d8_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64-avx2",
+      "pool:chromium.tests",
+      "os:Ubuntu-22.04",
+    ],
+    "test_name": "mjsunit/asm/poppler/poppler",
+    "timeout_sec": 60,
+    "total_timeout_sec": 240,
+    "variant": "default",
+  },
+  {
+    "bisect_builder_group": "client.v8",
     "bisect_buildername": "V8 Linux - arm64 - sim - MSAN - builder",
     "bug_url": "https://crbug.com/v8/13128",
     "extra_args": [],
