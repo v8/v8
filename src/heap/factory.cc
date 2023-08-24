@@ -1078,6 +1078,35 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
   return str;
 }
 
+Handle<String> Factory::NewCopiedSubstring(Handle<String> str, int begin,
+                                           int length) {
+  DCHECK(str->IsFlat());  // Callers must flatten.
+  DCHECK_GT(length, 0);   // Callers must handle empty string.
+  bool one_byte;
+  if (str->IsOneByteRepresentation()) {
+    one_byte = true;
+  } else {
+    DisallowGarbageCollection no_gc;
+    const uint16_t* src = str->GetFlatContent(no_gc).ToUC16Vector().data();
+    one_byte = String::IsOneByte(src + begin, length);
+  }
+  if (one_byte) {
+    Handle<SeqOneByteString> result =
+        NewRawOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    uint8_t* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  } else {
+    Handle<SeqTwoByteString> result =
+        NewRawTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    base::uc16* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  }
+}
+
 Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
                                            int end) {
 #if VERIFY_HEAP
@@ -1102,21 +1131,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
   }
 
   if (!v8_flags.string_slices || length < SlicedString::kMinLength) {
-    if (str->IsOneByteRepresentation()) {
-      Handle<SeqOneByteString> result =
-          NewRawOneByteString(length).ToHandleChecked();
-      DisallowGarbageCollection no_gc;
-      uint8_t* dest = result->GetChars(no_gc);
-      String::WriteToFlat(*str, dest, begin, length);
-      return result;
-    } else {
-      Handle<SeqTwoByteString> result =
-          NewRawTwoByteString(length).ToHandleChecked();
-      DisallowGarbageCollection no_gc;
-      base::uc16* dest = result->GetChars(no_gc);
-      String::WriteToFlat(*str, dest, begin, length);
-      return result;
-    }
+    return NewCopiedSubstring(str, begin, length);
   }
 
   int offset = begin;

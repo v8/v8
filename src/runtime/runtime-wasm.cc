@@ -1275,6 +1275,18 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
       isolate->factory()->NewStringFromUtf16(array, start, end));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmSubstring) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  Handle<String> string(String::cast(args[0]), isolate);
+  int start = args.positive_smi_value_at(1);
+  int length = args.positive_smi_value_at(2);
+
+  string = String::Flatten(isolate, string);
+  return *isolate->factory()->NewCopiedSubstring(string, start, length);
+}
+
 // Returns the new string if the operation succeeds.  Otherwise traps.
 RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   ClearThreadInWasmScope flag_scope(isolate);

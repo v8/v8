@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --experimental-wasm-typed-funcref
+// For {isOneByteString}:
+// Flags: --expose-externalize-string
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -861,6 +863,37 @@ function makeWtf16TestDataSegment() {
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.slice_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
+
+  // Cover runtime code path for long slices.
+  const prefix = "a".repeat(10);
+  const slice = "x".repeat(40);
+  const suffix = "b".repeat(40);
+  const input = prefix + slice + suffix;
+  const start = prefix.length;
+  const end = start + slice.length;
+  assertEquals(slice, instance.exports.slice(input, start, end));
+
+  // Check that we create one-byte substrings when possible.
+  let onebyte = instance.exports.slice("\u1234abcABCDE", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the CodeStubAssembler implementation also creates one-byte
+  // substrings.
+  onebyte = instance.exports.slice("\u1234abcA", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+  // Cover the code path that checks 8 characters at a time.
+  onebyte = instance.exports.slice("\u1234abcdefgh\u1234", 1, 9);
+  assertEquals("abcdefgh", onebyte);  // Exactly 8 characters.
+  assertTrue(isOneByteString(onebyte));
+  onebyte = instance.exports.slice("\u1234abcdefghijXYZ", 1, 11);
+  assertEquals("abcdefghij", onebyte);  // Longer than 8.
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the runtime code path also creates one-byte substrings.
+  assertTrue(isOneByteString(
+      instance.exports.slice(input + "\u1234", start, end)));
 })();
 
 (function TestStringViewWtf8() {

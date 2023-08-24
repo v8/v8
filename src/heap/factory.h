@@ -345,6 +345,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create a new string object which holds a proper substring of a string.
   Handle<String> NewProperSubString(Handle<String> str, int begin, int end);
+  // Same, but always copies (never creates a SlicedString).
+  // {str} must be flat, {length} must be non-zero.
+  Handle<String> NewCopiedSubstring(Handle<String> str, int begin, int length);
 
   // Create a new string object which holds a substring of a string.
   inline Handle<String> NewSubString(Handle<String> str, int begin, int end);
