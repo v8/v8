@@ -1143,7 +1143,7 @@ static void InitializeTemplate(i::TemplateInfo that, int type,
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                    v8::PropertyAttribute attribute) {
   auto templ = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = templ->GetIsolate();
+  i::Isolate* i_isolate = templ->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto value_obj = Utils::OpenHandle(*value);
@@ -1189,7 +1189,7 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
   // TODO(verwaest): Remove |access_control|.
   DCHECK_EQ(v8::DEFAULT, access_control);
   auto templ = Utils::OpenHandle(this);
-  auto i_isolate = templ->GetIsolate();
+  auto i_isolate = templ->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(!name.IsEmpty());
   DCHECK(!getter.IsEmpty() || !setter.IsEmpty());
@@ -1233,7 +1233,7 @@ Local<ObjectTemplate> ObjectTemplateNew(i::Isolate* i_isolate,
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   auto self = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = self->GetIsolate();
+  i::Isolate* i_isolate = self->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::HeapObject> result(self->GetPrototypeTemplate(), i_isolate);
   if (i::IsUndefined(*result, i_isolate)) {
@@ -1248,7 +1248,7 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
 void FunctionTemplate::SetPrototypeProviderTemplate(
     Local<FunctionTemplate> prototype_provider) {
   auto self = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = self->GetIsolate();
+  i::Isolate* i_isolate = self->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::FunctionTemplateInfo> result =
       Utils::OpenHandle(*prototype_provider);
@@ -1319,7 +1319,7 @@ Local<FunctionTemplate> FunctionTemplateNew(
 void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   auto info = Utils::OpenHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::Inherit");
-  i::Isolate* i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(
       i::IsUndefined(info->GetPrototypeProviderTemplate(), i_isolate),
@@ -1417,7 +1417,7 @@ void FunctionTemplate::SetCallHandler(
     const MemorySpan<const CFunction>& c_function_overloads) {
   auto info = Utils::OpenHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetCallHandler");
-  i::Isolate* i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
@@ -1500,7 +1500,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
                        "Reading from empty handle")) {
     return Local<ObjectTemplate>();
   }
-  i::Isolate* i_isolate = handle->GetIsolate();
+  i::Isolate* i_isolate = handle->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (i::IsUndefined(handle->GetInstanceTemplate(), i_isolate)) {
     Local<ObjectTemplate> templ =
@@ -1516,7 +1516,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 void FunctionTemplate::SetLength(int length) {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetLength");
-  auto i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   info->set_length(length);
 }
@@ -1524,7 +1524,7 @@ void FunctionTemplate::SetLength(int length) {
 void FunctionTemplate::SetClassName(Local<String> name) {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetClassName");
-  auto i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   info->set_class_name(*Utils::OpenHandle(*name));
 }
@@ -1532,7 +1532,7 @@ void FunctionTemplate::SetClassName(Local<String> name) {
 void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetAcceptAnyReceiver");
-  auto i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   info->set_accept_any_receiver(value);
 }
@@ -1540,7 +1540,7 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
 void FunctionTemplate::ReadOnlyPrototype() {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::ReadOnlyPrototype");
-  auto i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   info->set_read_only_prototype(true);
 }
@@ -1548,7 +1548,7 @@ void FunctionTemplate::ReadOnlyPrototype() {
 void FunctionTemplate::RemovePrototype() {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::RemovePrototype");
-  auto i_isolate = info->GetIsolate();
+  i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   info->set_remove_prototype(true);
 }
@@ -1592,7 +1592,7 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                          SideEffectType getter_side_effect_type,
                          SideEffectType setter_side_effect_type) {
   auto info = Utils::OpenHandle(template_obj);
-  auto i_isolate = info->GetIsolate();
+  auto i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::Handle<i::AccessorInfo> accessor_info =
@@ -1651,7 +1651,7 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
                                         PropertyAttribute attribute) {
   auto templ = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = templ->GetIsolate();
+  i::Isolate* i_isolate = templ->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::ApiNatives::AddDataProperty(i_isolate, templ, Utils::OpenHandle(*name),
@@ -7284,14 +7284,16 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
   auto self = Utils::OpenHandle(this);
   Local<Function> result;
   has_pending_exception =
-      !ToLocal<Function>(i::ApiNatives::InstantiateFunction(self), &result);
+      !ToLocal<Function>(i::ApiNatives::InstantiateFunction(
+                             i_isolate, i_isolate->native_context(), self),
+                         &result);
   RETURN_ON_FAILED_EXECUTION(Function);
   RETURN_ESCAPED(result);
 }
 
 MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
   auto self = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = self->GetIsolate();
+  i::Isolate* i_isolate = self->GetIsolateChecked();
   API_RCS_SCOPE(i_isolate, FunctionTemplate, NewRemoteInstance);
   i::HandleScope scope(i_isolate);
   i::Handle<i::FunctionTemplateInfo> constructor =
@@ -7325,8 +7327,8 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   if (i::IsJSGlobalProxy(*obj)) {
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
-    i::PrototypeIterator iter(self->GetIsolate(),
-                              i::JSObject::cast(*obj)->map());
+    auto jsobj = i::JSObject::cast(*obj);
+    i::PrototypeIterator iter(jsobj->GetIsolate(), jsobj->map());
     // The global proxy should always have a prototype, as it is a bug to call
     // this on a detached JSGlobalProxy.
     DCHECK(!iter.IsAtEnd());

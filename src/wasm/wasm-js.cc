@@ -2881,7 +2881,7 @@ Handle<JSFunction> CreateFunc(
   Handle<FunctionTemplateInfo> temp =
       NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
   Handle<JSFunction> function =
-      ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
+      ApiNatives::InstantiateFunction(isolate, temp, name).ToHandleChecked();
   DCHECK(function->shared()->HasSharedName());
   return function;
 }

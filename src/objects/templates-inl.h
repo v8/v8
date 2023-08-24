@@ -24,7 +24,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 
-NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
+NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
                UndetectableBit::kShift)
@@ -185,6 +185,22 @@ void ObjectTemplateInfo::set_code_like(bool is_code_like) {
 
 bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {
   return IsTemplateFor(object->map());
+}
+
+bool TemplateInfo::TryGetIsolate(Isolate** isolate) const {
+  if (GetIsolateFromHeapObject(*this, isolate)) return true;
+  Isolate* isolate_value = Isolate::TryGetCurrent();
+  if (isolate_value != nullptr) {
+    *isolate = isolate_value;
+    return true;
+  }
+  return false;
+}
+
+Isolate* TemplateInfo::GetIsolateChecked() const {
+  Isolate* isolate;
+  CHECK(TryGetIsolate(&isolate));
+  return isolate;
 }
 
 }  // namespace internal

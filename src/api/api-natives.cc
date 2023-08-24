@@ -601,8 +601,8 @@ MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
 }
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
-    Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
-  Isolate* isolate = data->GetIsolate();
+    Isolate* isolate, Handle<FunctionTemplateInfo> data,
+    MaybeHandle<Name> maybe_name) {
   InvokeScope invoke_scope(isolate);
   return ::v8::internal::InstantiateFunction(isolate, data, maybe_name);
 }

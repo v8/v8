@@ -35,7 +35,7 @@ class ApiNatives {
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
-      Handle<FunctionTemplateInfo> data,
+      Isolate* isolate, Handle<FunctionTemplateInfo> data,
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateObject(

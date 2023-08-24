@@ -1374,7 +1374,8 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, getter,
           ApiNatives::InstantiateFunction(
-              Handle<FunctionTemplateInfo>::cast(getter), MaybeHandle<Name>()),
+              isolate, Handle<FunctionTemplateInfo>::cast(getter),
+              MaybeHandle<Name>()),
           Nothing<bool>());
     }
     Handle<Object> setter = desc->set();
@@ -1382,7 +1383,8 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, setter,
           ApiNatives::InstantiateFunction(
-              Handle<FunctionTemplateInfo>::cast(setter), MaybeHandle<Name>()),
+              isolate, Handle<FunctionTemplateInfo>::cast(setter),
+              MaybeHandle<Name>()),
           Nothing<bool>());
     }
     descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),

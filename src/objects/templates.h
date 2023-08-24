@@ -23,8 +23,6 @@ namespace internal {
 
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
   // While we could grow the slow cache until we run out of memory, we put
@@ -41,6 +39,9 @@ class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
 
   inline bool should_cache() const;
   inline bool is_cached() const;
+
+  inline bool TryGetIsolate(Isolate** isolate) const;
+  inline Isolate* GetIsolateChecked() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -201,6 +202,8 @@ class ObjectTemplateInfo
     : public TorqueGeneratedObjectTemplateInfo<ObjectTemplateInfo,
                                                TemplateInfo> {
  public:
+  NEVER_READ_ONLY_SPACE
+
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
   DECL_BOOLEAN_ACCESSORS(code_like)
