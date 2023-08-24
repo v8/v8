@@ -1362,7 +1362,15 @@ class TurboshaftGraphBuildingInterface {
 
   void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                Value* result, bool null_succeeds) {
-    Bailout(decoder);
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    V<Map> rtt = asm_.RttCanon(instance_node_, ref_index);
+    DCHECK_EQ(result->type.is_nullable(), null_succeeds);
+    compiler::WasmTypeCheckConfig config{object.type, result->type};
+    result->op = asm_.WasmTypeCast(object.op, rtt, config);
   }
 
   // TODO(jkummerow): {type} is redundant.

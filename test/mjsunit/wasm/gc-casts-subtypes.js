@@ -106,6 +106,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let wasm = instance.exports;
 
   for (let [sourceType, targetType, testName, isDowncast] of tests) {
+    print(testName);
     assertEquals(0, wasm['testNull' + testName]());
     assertTraps(kTrapIllegalCast, wasm['castNull' + testName]);
     assertEquals(0, wasm['branchDeprecatedNull' + testName]());

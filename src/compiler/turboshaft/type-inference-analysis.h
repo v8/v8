@@ -305,6 +305,7 @@ class TypeInferenceAnalysis {
         case Opcode::kAssertNotNull:
         case Opcode::kRttCanon:
         case Opcode::kWasmTypeCheck:
+        case Opcode::kWasmTypeCast:
         case Opcode::kSimd128Constant:
         case Opcode::kSimd128Binop:
         case Opcode::kSimd128Unary:

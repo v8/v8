@@ -113,7 +113,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 #define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
   V(RttCanon)                                \
-  V(WasmTypeCheck)
+  V(WasmTypeCheck)                           \
+  V(WasmTypeCast)
 
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
@@ -5951,6 +5952,33 @@ struct WasmTypeCheckOp : FixedArityOperationT<2, WasmTypeCheckOp> {
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{config}; }
+};
+
+struct WasmTypeCastOp : FixedArityOperationT<2, WasmTypeCastOp> {
+  WasmTypeCheckConfig config;
+
+  static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
+
+  explicit WasmTypeCastOp(V<Tagged> object, V<Tagged> rtt,
+                          WasmTypeCheckConfig config)
+      : Base(object, rtt), config(config) {}
+
+  V<Tagged> object() const { return Base::input(0); }
+  V<Tagged> rtt() const { return Base::input(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(

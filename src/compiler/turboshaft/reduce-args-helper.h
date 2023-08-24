@@ -443,6 +443,10 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const WasmTypeCheckOp& op) {
     return callback_(op.object(), op.rtt(), op.config);
   }
+
+  OpIndex operator()(const WasmTypeCastOp& op) {
+    return callback_(op.object(), op.rtt(), op.config);
+  }
 #endif
 
  private:

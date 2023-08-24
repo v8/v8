@@ -3085,6 +3085,14 @@ class AssemblerOpInterface {
     return stack().ReduceWasmTypeCheck(object, rtt, config);
   }
 
+  V<Tagged> WasmTypeCast(V<Tagged> object, V<Map> rtt,
+                         WasmTypeCheckConfig config) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceWasmTypeCast(object, rtt, config);
+  }
+
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
