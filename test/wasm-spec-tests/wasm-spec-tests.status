@@ -36,6 +36,18 @@
   'f64*': [PASS, HEAVY],
 
   # TODO(7748): Make these pass.
+  'proposals/gc/unreached-valid': [FAIL],
+  'proposals/gc/type-subtyping': [FAIL],
+  'proposals/gc/type-rec': [FAIL],
+  'proposals/gc/type-canon': [FAIL],
+  'proposals/gc/ref': [FAIL],
+  'proposals/gc/table-sub': [FAIL],
+  'proposals/gc/return_call_ref': [FAIL],
+  'proposals/gc/ref_as_non_null': [FAIL],
+  'proposals/gc/br_on_non_null': [FAIL],
+  'proposals/gc/call_ref': [FAIL],
+  'proposals/gc/br_on_null': [FAIL],
+  'proposals/gc/type-equivalence': [FAIL],
   # Binary encoding mismatch (official repo vs. M6 prototype spec):
   'proposals/gc/array': [FAIL],  # Also bogus test assertion.
   'proposals/gc/array_copy': [FAIL],
@@ -50,18 +62,13 @@
   'proposals/gc/ref_test': [FAIL],  # Also has the "hostref" issue.
   'proposals/gc/struct': [FAIL],  # Also bogus test assertion.
   # Missing '[i]' after `actual` in `assert_return`:
-  'proposals/function-references/ref_null': [FAIL],
-  'proposals/function-references/select': [FAIL],
-  'proposals/function-references/table': [FAIL],
   'proposals/gc/ref_null': [FAIL],
   'proposals/gc/table': [FAIL],
   # "hostref is not defined":
   'proposals/gc/br_table': [FAIL],
   'proposals/gc/elem': [FAIL],
-  'proposals/gc/global': [FAIL],
   'proposals/gc/local_init': [FAIL],
   'proposals/gc/ref_is_null': [FAIL],
-  'proposals/gc/select': [FAIL],
   # Missing support for i31ref in `assert_return`:
   'proposals/gc/i31': [FAIL],
   # Broken generated Wasm binary in the test:

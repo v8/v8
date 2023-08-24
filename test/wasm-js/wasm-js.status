@@ -17,11 +17,6 @@
   # tests have been updated.
   'wpt/exception/getArg.tentative': [FAIL],
 
-  # TODO(v8): Should work after
-  # https://github.com/WebAssembly/memory64/pull/39 landed and the
-  # tests have been updated.
-  'proposals/memory64/memory/constructor': [FAIL],
-
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],
