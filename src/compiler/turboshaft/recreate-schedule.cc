@@ -1565,6 +1565,64 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128TernaryOp& op) {
 #undef HANDLE_KIND
   }
 }
+
+Node* ScheduleBuilder::ProcessOperation(const Simd128ExtractLaneOp& op) {
+  const Operator* o = nullptr;
+  switch (op.kind) {
+    case Simd128ExtractLaneOp::Kind::kI8x16S:
+      o = machine.I8x16ExtractLaneS(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kI8x16U:
+      o = machine.I8x16ExtractLaneU(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kI16x8S:
+      o = machine.I16x8ExtractLaneS(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kI16x8U:
+      o = machine.I16x8ExtractLaneU(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kI32x4:
+      o = machine.I32x4ExtractLane(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kI64x2:
+      o = machine.I64x2ExtractLane(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kF32x4:
+      o = machine.F32x4ExtractLane(op.lane);
+      break;
+    case Simd128ExtractLaneOp::Kind::kF64x2:
+      o = machine.F64x2ExtractLane(op.lane);
+      break;
+  }
+
+  return AddNode(o, {GetNode(op.input())});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd128ReplaceLaneOp& op) {
+  const Operator* o = nullptr;
+  switch (op.kind) {
+    case Simd128ReplaceLaneOp::Kind::kI8x16:
+      o = machine.I8x16ReplaceLane(op.lane);
+      break;
+    case Simd128ReplaceLaneOp::Kind::kI16x8:
+      o = machine.I16x8ReplaceLane(op.lane);
+      break;
+    case Simd128ReplaceLaneOp::Kind::kI32x4:
+      o = machine.I32x4ReplaceLane(op.lane);
+      break;
+    case Simd128ReplaceLaneOp::Kind::kI64x2:
+      o = machine.I64x2ReplaceLane(op.lane);
+      break;
+    case Simd128ReplaceLaneOp::Kind::kF32x4:
+      o = machine.F32x4ReplaceLane(op.lane);
+      break;
+    case Simd128ReplaceLaneOp::Kind::kF64x2:
+      o = machine.F64x2ReplaceLane(op.lane);
+      break;
+  }
+
+  return AddNode(o, {GetNode(op.into()), GetNode(op.new_lane())});
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace

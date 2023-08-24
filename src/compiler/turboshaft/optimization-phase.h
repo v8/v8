@@ -1041,6 +1041,17 @@ class GraphVisitor {
                                             MapToNewGraph(op.second()),
                                             MapToNewGraph(op.third()), op.kind);
   }
+  OpIndex AssembleOutputGraphSimd128ExtractLane(
+      const Simd128ExtractLaneOp& op) {
+    return assembler().ReduceSimd128ExtractLane(MapToNewGraph(op.input()),
+                                                op.kind, op.lane);
+  }
+  OpIndex AssembleOutputGraphSimd128ReplaceLane(
+      const Simd128ReplaceLaneOp& op) {
+    return assembler().ReduceSimd128ReplaceLane(MapToNewGraph(op.into()),
+                                                MapToNewGraph(op.new_lane()),
+                                                op.kind, op.lane);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

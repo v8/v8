@@ -1288,6 +1288,62 @@ std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind) {
 #undef PRINT_KIND
 }
 
+void Simd128ExtractLaneOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kI8x16S:
+      os << "I8x16S";
+      break;
+    case Kind::kI8x16U:
+      os << "I8x16U";
+      break;
+    case Kind::kI16x8S:
+      os << "I16x8S";
+      break;
+    case Kind::kI16x8U:
+      os << "I16x8U";
+      break;
+    case Kind::kI32x4:
+      os << "I32x4";
+      break;
+    case Kind::kI64x2:
+      os << "I64x2";
+      break;
+    case Kind::kF32x4:
+      os << "F32x4";
+      break;
+    case Kind::kF64x2:
+      os << "F64x2";
+      break;
+  }
+  os << ", " << static_cast<int32_t>(lane) << "]";
+}
+
+void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kI8x16:
+      os << "I8x16";
+      break;
+    case Kind::kI16x8:
+      os << "I16x8";
+      break;
+    case Kind::kI32x4:
+      os << "I32x4";
+      break;
+    case Kind::kI64x2:
+      os << "I64x2";
+      break;
+    case Kind::kF32x4:
+      os << "F32x4";
+      break;
+    case Kind::kF64x2:
+      os << "F64x2";
+      break;
+  }
+  os << ", " << static_cast<int32_t>(lane) << "]";
+}
+
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

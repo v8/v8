@@ -340,6 +340,46 @@ class Int64LoweringReducer : public Next {
     return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
   }
 
+  OpIndex REDUCE(Simd128Splat)(OpIndex input, Simd128SplatOp::Kind kind) {
+    // TODO(14108): Introduce I32-pair splat for better codegen.
+    if (kind != Simd128SplatOp::Kind::kI64x2) {
+      return Next::ReduceSimd128Splat(input, kind);
+    }
+    auto [low, high] = Unpack(input);
+    V<Simd128> base = __ Simd128Splat(low, Simd128SplatOp::Kind::kI32x4);
+    V<Simd128> first_replaced = __ Simd128ReplaceLane(
+        base, high, Simd128ReplaceLaneOp::Kind::kI32x4, 1);
+    return __ Simd128ReplaceLane(first_replaced, high,
+                                 Simd128ReplaceLaneOp::Kind::kI32x4, 3);
+  }
+
+  OpIndex REDUCE(Simd128ExtractLane)(OpIndex input,
+                                     Simd128ExtractLaneOp::Kind kind,
+                                     uint8_t lane) {
+    if (kind != Simd128ExtractLaneOp::Kind::kI64x2) {
+      return Next::ReduceSimd128ExtractLane(input, kind, lane);
+    }
+    OpIndex low = __ Simd128ExtractLane(
+        input, Simd128ExtractLaneOp::Kind::kI32x4, 2 * lane);
+    OpIndex high = __ Simd128ExtractLane(
+        input, Simd128ExtractLaneOp::Kind::kI32x4, 2 * lane + 1);
+    return __ Tuple(low, high);
+  }
+
+  OpIndex REDUCE(Simd128ReplaceLane)(OpIndex into, OpIndex new_lane,
+                                     Simd128ReplaceLaneOp::Kind kind,
+                                     uint8_t lane) {
+    // TODO(14108): Introduce I32-pair lane replacement for better codegen.
+    if (kind != Simd128ReplaceLaneOp::Kind::kI64x2) {
+      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    }
+    auto [low, high] = Unpack(new_lane);
+    V<Simd128> low_replaced = __ Simd128ReplaceLane(
+        into, low, Simd128ReplaceLaneOp::Kind::kI32x4, 2 * lane);
+    return __ Simd128ReplaceLane(
+        low_replaced, high, Simd128ReplaceLaneOp::Kind::kI32x4, 2 * lane + 1);
+  }
+
  private:
   bool CheckPairOrPairOp(OpIndex input) {
 #ifdef DEBUG

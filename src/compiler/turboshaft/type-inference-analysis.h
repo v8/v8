@@ -314,6 +314,8 @@ class TypeInferenceAnalysis {
         case Opcode::kSimd128Test:
         case Opcode::kSimd128Splat:
         case Opcode::kSimd128Ternary:
+        case Opcode::kSimd128ExtractLane:
+        case Opcode::kSimd128ReplaceLane:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

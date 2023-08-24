@@ -3157,6 +3157,22 @@ class AssemblerOpInterface {
     return stack().ReduceSimd128Ternary(first, second, third, kind);
   }
 
+  OpIndex Simd128ExtractLane(V<Simd128> input, Simd128ExtractLaneOp::Kind kind,
+                             uint8_t lane) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128ExtractLane(input, kind, lane);
+  }
+
+  V<Simd128> Simd128ReplaceLane(V<Simd128> into, OpIndex new_lane,
+                                Simd128ReplaceLaneOp::Kind kind, uint8_t lane) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+  }
+
 #endif
 
   template <typename Rep>

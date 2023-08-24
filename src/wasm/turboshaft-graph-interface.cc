@@ -871,18 +871,11 @@ class TurboshaftGraphBuildingInterface {
       FOREACH_SIMD_128_TEST_OPCODE(HANDLE_TEST_OPCODE)
 #undef HANDLE_TEST_OPCODE
 
-#if V8_TARGET_ARCH_32_BIT
-#define HANDLE_SPLAT_OPCODE(kind) \
-  case kExpr##kind##Splat:        \
-    Bailout(decoder);             \
-    break;
-#else
 #define HANDLE_SPLAT_OPCODE(kind)                                         \
   case kExpr##kind##Splat:                                                \
     result->op = asm_.Simd128Splat(                                       \
         args[0].op, compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
     break;
-#endif
       FOREACH_SIMD_128_SPLAT_OPCODE(HANDLE_SPLAT_OPCODE)
 #undef HANDLE_SPLAT_OPCODE
 
@@ -913,7 +906,74 @@ class TurboshaftGraphBuildingInterface {
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate& imm,
                   base::Vector<const Value> inputs, Value* result) {
-    Bailout(decoder);
+    using compiler::turboshaft::Simd128ExtractLaneOp;
+    using compiler::turboshaft::Simd128ReplaceLaneOp;
+    switch (opcode) {
+      case kExprI8x16ExtractLaneS:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16S, imm.lane);
+        break;
+      case kExprI8x16ExtractLaneU:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16U, imm.lane);
+        break;
+      case kExprI16x8ExtractLaneS:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
+        break;
+      case kExprI16x8ExtractLaneU:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8U, imm.lane);
+        break;
+      case kExprI32x4ExtractLane:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI32x4, imm.lane);
+        break;
+      case kExprI64x2ExtractLane:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
+        break;
+      case kExprF32x4ExtractLane:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
+        break;
+      case kExprF64x2ExtractLane:
+        result->op = asm_.Simd128ExtractLane(
+            inputs[0].op, Simd128ExtractLaneOp::Kind::kF64x2, imm.lane);
+        break;
+      case kExprI8x16ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kI8x16,
+                                             imm.lane);
+        break;
+      case kExprI16x8ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kI16x8,
+                                             imm.lane);
+        break;
+      case kExprI32x4ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kI32x4,
+                                             imm.lane);
+        break;
+      case kExprI64x2ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kI64x2,
+                                             imm.lane);
+        break;
+      case kExprF32x4ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kF32x4,
+                                             imm.lane);
+        break;
+      case kExprF64x2ReplaceLane:
+        result->op = asm_.Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+                                             Simd128ReplaceLaneOp::Kind::kF64x2,
+                                             imm.lane);
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
 
   void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
@@ -976,9 +1036,26 @@ class TurboshaftGraphBuildingInterface {
                                  compiler::kFullWriteBarrier);
           index++;
           break;
-        case kS128:
-          Bailout(decoder);
-          return;
+        case kS128: {
+          using Kind = compiler::turboshaft::Simd128ExtractLaneOp::Kind;
+          BuildEncodeException32BitValue(
+              values_array, index,
+              asm_.Simd128ExtractLane(value, Kind::kI32x4, 0));
+          index += 2;
+          BuildEncodeException32BitValue(
+              values_array, index,
+              asm_.Simd128ExtractLane(value, Kind::kI32x4, 1));
+          index += 2;
+          BuildEncodeException32BitValue(
+              values_array, index,
+              asm_.Simd128ExtractLane(value, Kind::kI32x4, 2));
+          index += 2;
+          BuildEncodeException32BitValue(
+              values_array, index,
+              asm_.Simd128ExtractLane(value, Kind::kI32x4, 3));
+          index += 2;
+          break;
+        }
         case kI8:
         case kI16:
         case kVoid:
@@ -3722,9 +3799,29 @@ class TurboshaftGraphBuildingInterface {
               BuildDecodeException64BitValue(exception_values_array, index));
           index += 4;
           break;
-        case kS128:
-          Bailout(decoder);
-          return;
+        case kS128: {
+          value.op = asm_.Simd128Splat(
+              BuildDecodeException32BitValue(exception_values_array, index),
+              compiler::turboshaft::Simd128SplatOp::Kind::kI32x4);
+          index += 2;
+          using Kind = compiler::turboshaft::Simd128ReplaceLaneOp::Kind;
+          value.op = asm_.Simd128ReplaceLane(
+              value.op,
+              BuildDecodeException32BitValue(exception_values_array, index),
+              Kind::kI32x4, 1);
+          index += 2;
+          value.op = asm_.Simd128ReplaceLane(
+              value.op,
+              BuildDecodeException32BitValue(exception_values_array, index),
+              Kind::kI32x4, 2);
+          index += 2;
+          value.op = asm_.Simd128ReplaceLane(
+              value.op,
+              BuildDecodeException32BitValue(exception_values_array, index),
+              Kind::kI32x4, 3);
+          index += 2;
+          break;
+        }
         case kRtt:
         case kRef:
         case kRefNull:

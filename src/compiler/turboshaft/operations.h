@@ -109,7 +109,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128Shift)                         \
   V(Simd128Test)                          \
   V(Simd128Splat)                         \
-  V(Simd128Ternary)
+  V(Simd128Ternary)                       \
+  V(Simd128ExtractLane)                   \
+  V(Simd128ReplaceLane)
 
 #define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
   V(RttCanon)                                \
@@ -6394,7 +6396,7 @@ std::ostream& operator<<(std::ostream& os, Simd128ShiftOp::Kind kind);
   V(I64x2BitMask)
 
 struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
-  enum class Kind {
+  enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_128_TEST_OPCODE(DEFINE_KIND)
 #undef DEFINE_KIND
@@ -6432,7 +6434,7 @@ std::ostream& operator<<(std::ostream& os, Simd128TestOp::Kind kind);
   V(F64x2)
 
 struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
-  enum class Kind {
+  enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_128_SPLAT_OPCODE(DEFINE_KIND)
 #undef DEFINE_KIND
@@ -6491,7 +6493,7 @@ std::ostream& operator<<(std::ostream& os, Simd128SplatOp::Kind kind);
   FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(V)
 
 struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
-  enum class Kind {
+  enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_128_TERNARY_OPCODE(DEFINE_KIND)
 #undef DEFINE_KIND
@@ -6524,6 +6526,107 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind);
+
+struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
+  enum class Kind : uint8_t {
+    kI8x16S,
+    kI8x16U,
+    kI16x8S,
+    kI16x8U,
+    kI32x4,
+    kI64x2,
+    kF32x4,
+    kF64x2,
+  };
+
+  Kind kind;
+  uint8_t lane;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kI8x16S:
+      case Kind::kI8x16U:
+      case Kind::kI16x8S:
+      case Kind::kI16x8U:
+      case Kind::kI32x4:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case Kind::kI64x2:
+        return RepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF32x4:
+        return RepVector<RegisterRepresentation::Float32()>();
+      case Kind::kF64x2:
+        return RepVector<RegisterRepresentation::Float64()>();
+    }
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128ExtractLaneOp(OpIndex input, Kind kind, uint8_t lane)
+      : Base(input), kind(kind), lane(lane) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind, lane}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
+struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
+  enum class Kind : uint8_t {
+    kI8x16,
+    kI16x8,
+    kI32x4,
+    kI64x2,
+    kF32x4,
+    kF64x2,
+  };
+
+  Kind kind;
+  uint8_t lane;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage,
+                        {RegisterRepresentation::Simd128(), new_lane_rep()});
+  }
+
+  Simd128ReplaceLaneOp(OpIndex into, OpIndex new_lane, Kind kind, uint8_t lane)
+      : Base(into, new_lane), kind(kind), lane(lane) {}
+
+  OpIndex into() const { return Base::input(0); }
+  OpIndex new_lane() const { return Base::input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind, lane}; }
+  void PrintOptions(std::ostream& os) const;
+
+  RegisterRepresentation new_lane_rep() const {
+    switch (kind) {
+      case Kind::kI8x16:
+      case Kind::kI16x8:
+      case Kind::kI32x4:
+        return RegisterRepresentation::Word32();
+      case Kind::kI64x2:
+        return RegisterRepresentation::Word64();
+      case Kind::kF32x4:
+        return RegisterRepresentation::Float32();
+      case Kind::kF64x2:
+        return RegisterRepresentation::Float64();
+    }
+  }
+};
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
