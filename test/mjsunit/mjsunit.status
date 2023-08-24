@@ -1287,6 +1287,9 @@
 
   # Slow tests.
   'wasm/serialization-with-compilation-hints': [SKIP],
+
+  # https://crbug.com/v8/14228
+  'asm/poppler/poppler': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################
