@@ -1818,25 +1818,27 @@ void Heap::CollectGarbage(AllocationSpace space,
   });
 
   // The main garbage collection phase.
-  DisallowGarbageCollection no_gc_during_gc;
+  //
+  // We need a stack marker at the top of all entry points to allow
+  // deterministic passes over the stack. E.g., a verifier that should only
+  // find a subset of references of the marker.
+  //
+  // TODO(chromium:1056170): Consider adding a component that keeps track
+  // of relevant GC stack regions where interesting pointers can be found.
+  stack().SetMarkerIfNeededAndCallback([this, collector, gc_reason,
+                                        collector_reason, gc_callback_flags]() {
+    DisallowGarbageCollection no_gc_during_gc;
 
-  size_t committed_memory_before = collector == GarbageCollector::MARK_COMPACTOR
-                                       ? CommittedOldGenerationMemory()
-                                       : 0;
-  {
+    size_t committed_memory_before =
+        collector == GarbageCollector::MARK_COMPACTOR
+            ? CommittedOldGenerationMemory()
+            : 0;
+
     tracer()->StartObservablePause(base::TimeTicks::Now());
     VMState<GC> state(isolate());
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
         ToString(gc_reason));
-
-    // We need a stack marker at the top of all entry points to allow
-    // deterministic passes over the stack. E.g., a verifier that should only
-    // find a subset of references of the marker.
-    //
-    // TODO(chromium:1056170): Consider adding a component that keeps track
-    // of relevant GC stack regions where interesting pointers can be found.
-    stack().SetMarkerToCurrentStackPosition();
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
     {
@@ -1901,7 +1903,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     } else {
       tracer()->StopFullCycleIfNeeded();
     }
-  }
+  });
 
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
   // cannot be related exactly to garbage collection cycles.
@@ -4691,10 +4693,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     if (!options.contains(SkipRoot::kStack)) {
       IterateStackRoots(v);
       if (!options.contains(SkipRoot::kConservativeStack)) {
-        ScanStackMode stack_mode = options.contains(SkipRoot::kTopOfStack)
-                                       ? ScanStackMode::kFromMarker
-                                       : ScanStackMode::kComplete;
-        IterateConservativeStackRoots(v, stack_mode, roots_mode);
+        IterateConservativeStackRoots(v, roots_mode);
       }
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
@@ -4771,9 +4770,6 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
 
   if (isolate()->is_shared_space_isolate()) {
     ClientRootVisitor<> client_root_visitor(v);
-    // For client isolates, use the stack marker to conservatively scan the
-    // stack.
-    options.Add(SkipRoot::kTopOfStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
           client->heap()->IterateRoots(v, options,
@@ -4808,7 +4804,6 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* v,
-                                         ScanStackMode stack_mode,
                                          IterateRootsMode roots_mode) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (!IsGCWithStack()) return;
@@ -4821,11 +4816,7 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, v);
-  if (stack_mode == ScanStackMode::kComplete) {
-    stack().IteratePointers(&stack_visitor);
-  } else {
-    stack().IteratePointersUntilMarker(&stack_visitor);
-  }
+  stack().IteratePointersUntilMarker(&stack_visitor);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
@@ -6341,7 +6332,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkReachableObjects() {
     MarkingVisitor visitor(this);
-    heap_->IterateRoots(&visitor, {});
+    heap_->stack().SetMarkerIfNeededAndCallback(
+        [this, &visitor]() { heap_->IterateRoots(&visitor, {}); });
     visitor.TransitiveClosure();
   }
 

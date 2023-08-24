@@ -149,7 +149,6 @@ enum class SkipRoot {
   kUnserializable,
   kWeak,
   kConservativeStack,
-  kTopOfStack,
   kReadOnlyBuiltins,
 };
 
@@ -987,9 +986,8 @@ class Heap final {
 
   void IterateStackRoots(RootVisitor* v);
 
-  enum class ScanStackMode { kFromMarker, kComplete };
   void IterateConservativeStackRoots(
-      RootVisitor* v, ScanStackMode stack_mode,
+      RootVisitor* v,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
 
   // ===========================================================================

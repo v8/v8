@@ -172,7 +172,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
                               ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
-  bool is_in_trampoline() const { return is_in_trampoline_; }
+  bool is_in_trampoline() const { return heap_->stack().IsMarkerSet(); }
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
@@ -308,8 +308,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename Callback>
   V8_INLINE void ExecuteWithStackMarker(Callback callback);
   template <typename Callback>
-  V8_INLINE void ExecuteWithStackMarkerReentrant(Callback callback);
-  template <typename Callback>
   V8_INLINE void ExecuteWithStackMarkerIfNeeded(Callback callback);
 
   void Park() {
@@ -350,7 +348,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   Heap* heap_;
   bool is_main_thread_;
-  bool is_in_trampoline_;
 
   AtomicThreadState state_;
 

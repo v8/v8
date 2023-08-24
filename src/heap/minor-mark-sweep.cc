@@ -592,7 +592,6 @@ void MinorMarkSweepCollector::MarkRoots(
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
     YoungGenerationRootMarkingVisitor& root_visitor) {
   heap_->IterateConservativeStackRoots(&root_visitor,
-                                       Heap::ScanStackMode::kComplete,
                                        Heap::IterateRootsMode::kMainIsolate);
 }
 

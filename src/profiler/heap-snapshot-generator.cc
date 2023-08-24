@@ -2207,8 +2207,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   bool interrupted = false;
 
-  CombinedHeapObjectIterator iterator(heap_,
-                                      HeapObjectIterator::kFilterUnreachable);
+  CombinedHeapObjectIterator iterator(heap_);
   PtrComprCageBase cage_base(heap_->isolate());
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -2882,37 +2881,48 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8::base::ElapsedTimer timer;
   timer.Start();
 
-  IsolateSafepointScope scope(heap_);
+  // We need a stack marker here to allow deterministic passes over the stack.
+  // The garbage collection and the filling of references should scan the same
+  // part of the stack.
+  const auto interrupted = std::make_unique<bool>(false);
+  heap_->stack().SetMarkerIfNeededAndCallback([this, &interrupted]() {
+    IsolateSafepointScope scope(heap_);
 
-  Isolate* isolate = heap_->isolate();
-  v8_heap_explorer_.PopulateLineEnds();
-  auto temporary_global_object_tags =
-      v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
+    Isolate* isolate = heap_->isolate();
+    v8_heap_explorer_.PopulateLineEnds();
+    auto temporary_global_object_tags =
+        v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
 
-  EmbedderStackStateScope stack_scope(
-      heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
-  heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
+    EmbedderStackStateScope stack_scope(
+        heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
-  // No allocation that could trigger GC from here onwards. We cannot use a
-  // DisallowGarbageCollection scope as the HeapObjectIterator used during
-  // snapshot creation enters a safepoint as well. However, in practice we
-  // already enter a safepoint above so that should never trigger a GC.
+    // No allocation that could trigger GC from here onwards. We cannot use a
+    // DisallowGarbageCollection scope as the HeapObjectIterator used during
+    // snapshot creation enters a safepoint as well. However, in practice we
+    // already enter a safepoint above so that should never trigger a GC.
 
-  NullContextForSnapshotScope null_context_scope(isolate);
+    NullContextForSnapshotScope null_context_scope(isolate);
 
-  v8_heap_explorer_.MakeGlobalObjectTagMap(
-      std::move(temporary_global_object_tags));
+    v8_heap_explorer_.MakeGlobalObjectTagMap(
+        std::move(temporary_global_object_tags));
 
-  InitProgressCounter();
+    InitProgressCounter();
 
-  snapshot_->AddSyntheticRootEntries();
+    snapshot_->AddSyntheticRootEntries();
 
-  if (!FillReferences()) return false;
+    if (!FillReferences()) {
+      *interrupted = true;
+      return;
+    }
 
-  snapshot_->FillChildren();
-  snapshot_->RememberLastJSObjectId();
+    snapshot_->FillChildren();
+    snapshot_->RememberLastJSObjectId();
 
-  progress_counter_ = progress_total_;
+    progress_counter_ = progress_total_;
+  });
+
+  if (*interrupted) return false;
 
   if (i::v8_flags.profile_heap_snapshot) {
     base::OS::PrintError("[Heap snapshot took %0.3f ms]\n",

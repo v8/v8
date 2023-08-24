@@ -1802,7 +1802,6 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
 void MarkCompactCollector::MarkRootsFromConservativeStack(
     RootVisitor* root_visitor) {
   heap_->IterateConservativeStackRoots(root_visitor,
-                                       Heap::ScanStackMode::kComplete,
                                        Heap::IterateRootsMode::kMainIsolate);
 
   Isolate* const isolate = heap_->isolate();
@@ -1813,8 +1812,7 @@ void MarkCompactCollector::MarkRootsFromConservativeStack(
     isolate->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor](Isolate* client) {
           client->heap()->IterateConservativeStackRoots(
-              v, Heap::ScanStackMode::kFromMarker,
-              Heap::IterateRootsMode::kClientIsolate);
+              v, Heap::IterateRootsMode::kClientIsolate);
         });
   }
 }

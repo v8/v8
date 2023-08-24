@@ -1004,13 +1004,14 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
   // Finish sweeping in case it is still running.
   sweeper().FinishIfRunning();
 
-  stack()->SetMarkerToCurrentStackPosition();
-
   if (isolate_) {
     reinterpret_cast<v8::Isolate*>(isolate_)
         ->RequestGarbageCollectionForTesting(
             v8::Isolate::kFullGarbageCollection, stack_state);
-  } else {
+    return;
+  }
+
+  stack()->SetMarkerIfNeededAndCallback([this, collection_type, stack_state]() {
     // Perform an atomic GC, with starting incremental/concurrent marking and
     // immediately finalizing the garbage collection.
     if (!IsMarking()) {
@@ -1023,7 +1024,7 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
       CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     }
     TraceEpilogue();
-  }
+  });
 }
 
 void CppHeap::EnableDetachedGarbageCollectionsForTesting() {

@@ -970,7 +970,7 @@ void CppGraphBuilderImpl::Run() {
         states_.CreateRootState(AddRootNode("C++ native stack roots")));
     GraphBuildingRootVisitor root_object_visitor(*this, parent_scope);
     GraphBuildingStackVisitor stack_visitor(cpp_heap_, root_object_visitor);
-    cpp_heap_.stack()->IteratePointers(&stack_visitor);
+    cpp_heap_.stack()->IteratePointersUntilMarker(&stack_visitor);
   }
 }
 

@@ -29,8 +29,8 @@ void MarkingVerifierBase::VisitMapPointer(HeapObject object) {
 }
 
 void MarkingVerifierBase::VerifyRoots() {
-  heap_->IterateRootsIncludingClients(
-      this, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTopOfStack});
+  heap_->IterateRootsIncludingClients(this,
+                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
 void MarkingVerifierBase::VerifyMarkingOnPage(const Page* page, Address start,
