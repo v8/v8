@@ -459,7 +459,9 @@ RegExpNode* RegExpClassRanges::ToNode(RegExpCompiler* compiler,
   Zone* const zone = compiler->zone();
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
 
-  if (NeedsUnicodeCaseEquivalents(compiler->flags())) {
+  const bool needs_case_folding =
+      NeedsUnicodeCaseEquivalents(compiler->flags()) && !is_case_folded();
+  if (needs_case_folding) {
     CharacterRange::AddUnicodeCaseEquivalents(ranges, zone);
   }
 
@@ -470,8 +472,7 @@ RegExpNode* RegExpClassRanges::ToNode(RegExpCompiler* compiler,
 
   if (is_negated()) {
     // With /v, character classes are never negated.
-    // TODO(v8:11935): Change permalink once proposal is in stage 4.
-    // https://arai-a.github.io/ecma262-compare/snapshot.html?pr=2418#sec-compileatom
+    // https://tc39.es/ecma262/#sec-compileatom
     // Atom :: CharacterClass
     //   4. Assert: cc.[[Invert]] is false.
     // Instead the complement is created when evaluating the class set.
@@ -544,7 +545,12 @@ RegExpNode* RegExpClassSetOperand::ToNode(RegExpCompiler* compiler,
     }
   }
   if (!ranges()->is_empty()) {
-    alternatives->Add(zone->template New<RegExpClassRanges>(zone, ranges()),
+    // In unicode sets mode case folding has to be done at precise locations
+    // (e.g. before building complements).
+    // It is therefore the parsers responsibility to case fold (sub-) ranges
+    // before creating ClassSetOperands.
+    alternatives->Add(zone->template New<RegExpClassRanges>(
+                          zone, ranges(), RegExpClassRanges::IS_CASE_FOLDED),
                       zone);
   }
   if (empty_string != nullptr) {

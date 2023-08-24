@@ -252,5 +252,9 @@ assertTrue(
     /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇨🇭'));
 assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
     '🏴󠁧󠁢󠁷󠁬󠁳󠁿'));
+
+// Check new case-folding semantics.
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));
+assertFalse(/\P{ASCII}/iv.test('K'));
+assertFalse(/^\P{Lowercase}/iv.test('A'));

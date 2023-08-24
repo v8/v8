@@ -309,9 +309,12 @@ class RegExpClassRanges final : public RegExpTree {
   //     the specified ranges.
   // CONTAINS_SPLIT_SURROGATE: The character class contains part of a split
   //     surrogate and should not be unicode-desugared (crbug.com/641091).
+  // IS_CASE_FOLDED: If case folding is required (/i), it was already
+  //     performed on individual ranges and should not be applied again.
   enum Flag {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
+    IS_CASE_FOLDED = 1 << 2,
   };
   using ClassRangesFlags = base::Flags<Flag>;
 
@@ -353,6 +356,9 @@ class RegExpClassRanges final : public RegExpTree {
   bool is_negated() const { return (class_ranges_flags_ & NEGATED) != 0; }
   bool contains_split_surrogate() const {
     return (class_ranges_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
+  }
+  bool is_case_folded() const {
+    return (class_ranges_flags_ & IS_CASE_FOLDED) != 0;
   }
 
  private:
