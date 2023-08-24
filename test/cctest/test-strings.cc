@@ -1433,7 +1433,7 @@ static void ExternalizeDuringJsonStringifyCallback(
   v8::Local<v8::Value> key = v8_compile("p")
                                  ->Run(CcTest::isolate()->GetCurrentContext())
                                  .ToLocalChecked();
-  const char ext_string_content[] = "prop-1234567890asdf";
+  const static char ext_string_content[] = "prop-1234567890asdf";
   OneByteVectorResource* resource =
       new OneByteVectorResource(v8::base::Vector<const char>(
           ext_string_content, strlen(ext_string_content)));
