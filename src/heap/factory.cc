@@ -219,35 +219,20 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
                 handle(on_heap_profiler_data->counts(), isolate_));
       }
 
-      {
-        CodePageMemoryModificationScope memory_modification_scope(raw_istream);
-        // Migrate generated code.
-        // The generated code can contain embedded objects (typically from
-        // handles) in a pointer-to-tagged-value format (i.e. with indirection
-        // like a handle) that are dereferenced during the copy to point
-        // directly to the actual heap objects. These pointers can include
-        // references to the code object itself, through the self_reference
-        // parameter.
-        code->CopyFromNoFlush(*reloc_info, isolate_->heap(), code_desc_);
-
-        // Now that the InstructionStream's body is fully initialized and
-        // relocated, publish its code pointer, effectively enabling RelocInfo
-        // iteration. See InstructionStream::BodyDescriptor::IterateBody.
-        raw_istream->set_code(*code, kReleaseStore);
-      }
+      // Migrate generated code.
+      // The generated code can contain embedded objects (typically from
+      // handles) in a pointer-to-tagged-value format (i.e. with indirection
+      // like a handle) that are dereferenced during the copy to point
+      // directly to the actual heap objects. These pointers can include
+      // references to the code object itself, through the self_reference
+      // parameter.
+      istream->Finalize(*code, *reloc_info, code_desc_, isolate_->heap());
 
 #ifdef VERIFY_HEAP
       if (v8_flags.verify_heap) {
         HeapObject::VerifyCodePointer(isolate_, raw_istream);
       }
 #endif
-
-      // Flush the instruction cache before changing the permissions.
-      // Note: we do this before setting permissions to ReadExecute because on
-      // some older ARM kernels there is a bug which causes an access error on
-      // cache flush instructions to trigger access error on non-writable
-      // memory. See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-      code->FlushICache();
     }
   }
 

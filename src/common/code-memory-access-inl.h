@@ -29,8 +29,8 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
   }
 }
 
-ThreadIsolation::WritableJitAllocation::WritableJitAllocation(Address addr,
-                                                              size_t size)
+ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
+    Address addr, size_t size, JitAllocationSource source)
     : address_(addr),
       size_(size),
       // The order of these is important. We need to create the write scope
@@ -38,22 +38,62 @@ ThreadIsolation::WritableJitAllocation::WritableJitAllocation(Address addr,
       // protected memory.
       write_scope_("WritableJitAllocation"),
       page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {
-  page_ref_.RegisterAllocation(addr, size);
+  if (source == JitAllocationSource::kLookup) {
+    CHECK(page_ref_.HasAllocation(addr, size));
+  } else {
+    DCHECK_EQ(source, JitAllocationSource::kRegister);
+    page_ref_.RegisterAllocation(addr, size);
+  }
 }
 
 template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {
-  if constexpr (std::is_convertible_v<T, Object>) {
-    if (offset == HeapObject::kMapOffset) {
-      TaggedField<T, offset>::Release_Store_Map_Word(
-          HeapObject::FromAddress(address_), value);
-    } else {
-      TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
-                                            value);
-    }
+  // These asserts are no strict requirements, they just guard against
+  // non-implemented functionality.
+  static_assert(!std::is_convertible_v<T, Object>);
+  static_assert(offset != HeapObject::kMapOffset);
+
+  WriteMaybeUnalignedValue<T>(address_ + offset, value);
+}
+
+template <typename T, size_t offset>
+void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value,
+                                                             ReleaseStoreTag) {
+  // These asserts are no strict requirements, they just guard against
+  // non-implemented functionality.
+  static_assert(std::is_convertible_v<T, Object>);
+  static_assert(offset != HeapObject::kMapOffset);
+
+  TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
+                                        value);
+}
+
+template <typename T, size_t offset>
+void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value,
+                                                             RelaxedStoreTag) {
+  // These asserts are no strict requirements, they just guard against
+  // non-implemented functionality.
+  static_assert(std::is_convertible_v<T, Object>);
+
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(
+        HeapObject::FromAddress(address_), value);
   } else {
-    WriteMaybeUnalignedValue<T>(address_ + offset, value);
+    TaggedField<T, offset>::Relaxed_Store(HeapObject::FromAddress(address_),
+                                          value);
   }
+}
+
+void ThreadIsolation::WritableJitAllocation::CopyCode(size_t dst_offset,
+                                                      const uint8_t* src,
+                                                      size_t num_bytes) {
+  CopyBytes(reinterpret_cast<uint8_t*>(address_ + dst_offset), src, num_bytes);
+}
+
+void ThreadIsolation::WritableJitAllocation::CopyData(size_t dst_offset,
+                                                      const uint8_t* src,
+                                                      size_t num_bytes) {
+  CopyBytes(reinterpret_cast<uint8_t*>(address_ + dst_offset), src, num_bytes);
 }
 
 void ThreadIsolation::WritableJitAllocation::ClearBytes(size_t offset,

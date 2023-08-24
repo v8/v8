@@ -173,6 +173,7 @@ class V8_EXPORT ThreadIsolation {
   // Register multiple consecutive allocations together.
   static void RegisterJitAllocations(Address start,
                                      const std::vector<size_t>& sizes);
+  static WritableJitAllocation LookupJitAllocation(Address addr, size_t size);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
   static void RegisterWasmAllocation(Address addr, size_t size);
@@ -258,6 +259,7 @@ class V8_EXPORT ThreadIsolation {
                                      const std::vector<base::Address>& addr);
 
     base::Address StartOfAllocationAt(base::Address inner_pointer);
+    bool HasAllocation(base::Address address, size_t size);
 
     bool Empty() const;
     void Shrink(class JitPage* tail);
@@ -288,6 +290,17 @@ class V8_EXPORT ThreadIsolation {
     // function goes out of scope.
     template <typename T, size_t offset>
     V8_INLINE void WriteHeaderSlot(T value);
+    template <typename T, size_t offset>
+    V8_INLINE void WriteHeaderSlot(T value, ReleaseStoreTag);
+    template <typename T, size_t offset>
+    V8_INLINE void WriteHeaderSlot(T value, RelaxedStoreTag);
+
+    // CopyCode and CopyData have the same implementation at the moment, but
+    // they will diverge once we implement validation.
+    V8_INLINE void CopyCode(size_t dst_offset, const uint8_t* src,
+                            size_t num_bytes);
+    V8_INLINE void CopyData(size_t dst_offset, const uint8_t* src,
+                            size_t num_bytes);
 
     V8_INLINE void ClearBytes(size_t offset, size_t len);
 
@@ -295,7 +308,12 @@ class V8_EXPORT ThreadIsolation {
     size_t size() const { return size_; }
 
    private:
-    V8_INLINE WritableJitAllocation(Address addr, size_t size);
+    enum class JitAllocationSource {
+      kRegister,
+      kLookup,
+    };
+    V8_INLINE WritableJitAllocation(Address addr, size_t size,
+                                    JitAllocationSource source);
 
     JitPageReference& page_ref() { return page_ref_; }
 

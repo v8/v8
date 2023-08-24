@@ -5,6 +5,11 @@
 #ifndef V8_OBJECTS_INSTRUCTION_STREAM_H_
 #define V8_OBJECTS_INSTRUCTION_STREAM_H_
 
+#ifdef DEBUG
+#include <set>
+#endif
+
+#include "src/codegen/code-desc.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -104,6 +109,8 @@ class InstructionStream : public HeapObject {
                                                 Tagged<Map> map,
                                                 uint32_t body_size,
                                                 ByteArray reloc_info);
+  V8_INLINE void Finalize(Code code, ByteArray reloc_info, CodeDesc desc,
+                          Heap* heap);
 
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
@@ -138,6 +145,40 @@ class InstructionStream : public HeapObject {
 
  private:
   friend class Factory;
+
+  class V8_NODISCARD WriteBarrierPromise {
+   public:
+    WriteBarrierPromise() = default;
+    WriteBarrierPromise(WriteBarrierPromise&&) V8_NOEXCEPT = default;
+    WriteBarrierPromise(const WriteBarrierPromise&) = delete;
+    WriteBarrierPromise& operator=(const WriteBarrierPromise&) = delete;
+
+#ifdef DEBUG
+    void RegisterAddress(Address address);
+    void ResolveAddress(Address address);
+    ~WriteBarrierPromise();
+
+   private:
+    std::set<Address> delayed_write_barriers_;
+#else
+    void RegisterAddress(Address address) {}
+    void ResolveAddress(Address address) {}
+#endif
+  };
+
+  // Migrate code from desc without flushing the instruction cache. This
+  // function will not trigger any write barriers and the caller needs to call
+  // RelocateFromDescWriteBarriers afterwards. This is split into two functions,
+  // since the former needs write access to executable memory and we need to
+  // keep this critical section minimal since any memory write poses attack
+  // surface for CFI and will require special validation.
+  WriteBarrierPromise RelocateFromDesc(Heap* heap, const CodeDesc& desc,
+                                       Address constant_pool,
+                                       const DisallowGarbageCollection& no_gc);
+  void RelocateFromDescWriteBarriers(Heap* heap, const CodeDesc& desc,
+                                     Address constant_pool,
+                                     WriteBarrierPromise& promise,
+                                     const DisallowGarbageCollection& no_gc);
 
   // Must be used when loading any of InstructionStream's tagged fields.
   static inline PtrComprCageBase main_cage_base();

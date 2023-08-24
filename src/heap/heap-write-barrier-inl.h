@@ -137,13 +137,20 @@ inline void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
                                 Object value, WriteBarrierMode mode) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!IsHeapObject(value)) return;
-  WriteBarrierForCode(host, rinfo, HeapObject::cast(value));
+  WriteBarrierForCode(host, rinfo, HeapObject::cast(value), mode);
 }
 
 inline void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
                                 HeapObject value, WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
+  // Used during InstructionStream initialization where we update the write
+  // barriers together separate from the field writes.
+  if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
+    DCHECK(!DisallowGarbageCollection::IsAllowed());
     return;
   }
 

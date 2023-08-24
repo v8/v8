@@ -261,10 +261,6 @@ class Code : public HeapObject {
   inline bool embedded_objects_cleared() const;
   inline void set_embedded_objects_cleared(bool flag);
 
-  // Migrate code from desc without flushing the instruction cache.
-  void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
-  void RelocateFromDesc(Heap* heap, const CodeDesc& desc);
-
   bool IsIsolateIndependent(Isolate* isolate);
 
   inline uintptr_t GetBaselineStartPCForBytecodeOffset(int bytecode_offset,

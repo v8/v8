@@ -185,6 +185,13 @@ RelocIterator::RelocIterator(Code code, int mode_mask)
           code->instruction_stream()->relocation_info()->GetDataStartAddress(),
           mode_mask) {}
 
+RelocIterator::RelocIterator(InstructionStream istream, Address constant_pool,
+                             int mode_mask)
+    : RelocIterator(istream->instruction_start(), constant_pool,
+                    istream->relocation_info()->GetDataEndAddress(),
+                    istream->relocation_info()->GetDataStartAddress(),
+                    mode_mask) {}
+
 RelocIterator::RelocIterator(Code code, InstructionStream instruction_stream,
                              ByteArray relocation_info, int mode_mask)
     : RelocIterator(instruction_stream->instruction_start(),

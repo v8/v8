@@ -490,6 +490,13 @@ class V8_EXPORT_PRIVATE RelocIterator {
  public:
   // Prefer using this ctor when possible:
   explicit RelocIterator(Code code, int mode_mask = kAllModesMask);
+
+  // Relocation during InstructionStream initialization. Pass the instruction
+  // stream directly since we want to avoid reading from the Code object for
+  // CFI. I.e. the istream lives in trusted memory but the code object doesn't.
+  RelocIterator(InstructionStream istream, Address constant_pool,
+                int mode_mask);
+
   // For when GC may be in progress and thus pointers on the Code object may be
   // stale (or forwarding pointers); or when objects are not fully constructed,
   // or we're operating on fake objects for some reason. Then, we pass relevant

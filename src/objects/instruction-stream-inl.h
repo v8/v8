@@ -36,18 +36,19 @@ InstructionStream InstructionStream::Initialize(Tagged<HeapObject> self,
             self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
 
-    writable_allocation.WriteHeaderSlot<Map, kMapOffset>(map);
+    writable_allocation.WriteHeaderSlot<Map, kMapOffset>(map, kRelaxedStore);
 
     writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
 
     // During the Code initialization process, InstructionStream::code is
     // briefly unset (the Code object has not been allocated yet). In this state
     // it is only visible through heap iteration.
-    writable_allocation.WriteHeaderSlot<Smi, kCodeOffset>(Smi::zero());
+    writable_allocation.WriteHeaderSlot<Smi, kCodeOffset>(Smi::zero(),
+                                                          kReleaseStore);
 
     DCHECK(!ObjectInYoungGeneration(reloc_info));
     writable_allocation.WriteHeaderSlot<ByteArray, kRelocationInfoOffset>(
-        reloc_info);
+        reloc_info, kRelaxedStore);
 
     // Clear header padding
     writable_allocation.ClearBytes(kUnalignedSize,
@@ -65,6 +66,76 @@ InstructionStream InstructionStream::Initialize(Tagged<HeapObject> self,
                             UPDATE_WRITE_BARRIER);
 
   return InstructionStream::cast(self);
+}
+
+// Copy from compilation artifacts stored in CodeDesc to the target on-heap
+// objects.
+//
+// Note this is quite convoluted for historical reasons. The CodeDesc buffer
+// contains instructions, a part of inline metadata, and the relocation info.
+// Additionally, the unwinding_info is stored in a separate buffer
+// `desc.unwinding_info`. In this method, we copy all these parts into the
+// final on-heap representation.
+//
+// The off-heap representation:
+//
+// CodeDesc.buffer:
+//
+// +-------------------
+// | instructions
+// +-------------------
+// | inline metadata
+// | .. safepoint table
+// | .. handler table
+// | .. constant pool
+// | .. code comments
+// +-------------------
+// | reloc info
+// +-------------------
+//
+// CodeDesc.unwinding_info:  .. the unwinding info.
+//
+// This is transformed into the on-heap representation, where
+// InstructionStream contains all instructions and inline metadata, and a
+// pointer to the relocation info byte array.
+void InstructionStream::Finalize(Code code, ByteArray reloc_info, CodeDesc desc,
+                                 Heap* heap) {
+  DisallowGarbageCollection no_gc;
+  base::Optional<WriteBarrierPromise> promise;
+
+  // Copy the relocation info first before we unlock the Jit allocation.
+  // TODO(sroettger): reloc info should live in protected memory.
+  DCHECK_EQ(reloc_info->length(), desc.reloc_size);
+  CopyBytes(reloc_info->GetDataStartAddress(), desc.buffer + desc.reloc_offset,
+            static_cast<size_t>(desc.reloc_size));
+
+  {
+    ThreadIsolation::WritableJitAllocation writable_allocation =
+        ThreadIsolation::LookupJitAllocation(
+            address(), InstructionStream::SizeFor(body_size()));
+
+    // Copy code and inline metadata.
+    static_assert(InstructionStream::kOnHeapBodyIsContiguous);
+    writable_allocation.CopyCode(kHeaderSize, desc.buffer,
+                                 static_cast<size_t>(desc.instr_size));
+    writable_allocation.CopyData(kHeaderSize + desc.instr_size,
+                                 desc.unwinding_info,
+                                 static_cast<size_t>(desc.unwinding_info_size));
+    DCHECK_EQ(desc.body_size(), desc.instr_size + desc.unwinding_info_size);
+    DCHECK_EQ(code.body_size(), code.instruction_size() + code.metadata_size());
+
+    promise.emplace(RelocateFromDesc(heap, desc, code->constant_pool(), no_gc));
+
+    // Publish the code pointer after the istream has been fully initialized.
+    writable_allocation.WriteHeaderSlot<Code, kCodeOffset>(code, kReleaseStore);
+  }
+
+  // Trigger the write barriers after we dropped  the JIT write permissions.
+  RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
+                                no_gc);
+  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, code, UPDATE_WRITE_BARRIER);
+
+  code->FlushICache();
 }
 
 Address InstructionStream::body_end() const {
