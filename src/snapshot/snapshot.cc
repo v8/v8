@@ -287,41 +287,43 @@ void Snapshot::ClearReconstructableDataForSerialization(
   }
 
   // Clear JSFunctions.
+  {
+    i::HeapObjectIterator it(isolate->heap());
+    for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+      if (!IsJSFunction(o, cage_base)) continue;
 
-  i::HeapObjectIterator it(isolate->heap());
-  for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (!IsJSFunction(o, cage_base)) continue;
+      i::JSFunction fun = i::JSFunction::cast(o);
+      fun->CompleteInobjectSlackTrackingIfActive();
 
-    i::JSFunction fun = i::JSFunction::cast(o);
-    fun->CompleteInobjectSlackTrackingIfActive();
+      i::SharedFunctionInfo shared = fun->shared();
+      if (IsScript(shared->script(cage_base), cage_base) &&
+          Script::cast(shared->script(cage_base))->type() ==
+              Script::Type::kExtension) {
+        continue;  // Don't clear extensions, they cannot be recompiled.
+      }
 
-    i::SharedFunctionInfo shared = fun->shared();
-    if (IsScript(shared->script(cage_base), cage_base) &&
-        Script::cast(shared->script(cage_base))->type() ==
-            Script::Type::kExtension) {
-      continue;  // Don't clear extensions, they cannot be recompiled.
-    }
-
-    // Also, clear out feedback vectors and recompilable code.
-    if (fun->CanDiscardCompiled()) {
-      fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
-    }
-    if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
-      fun->raw_feedback_cell(cage_base)->set_value(
-          i::ReadOnlyRoots(isolate).undefined_value());
-    }
+      // Also, clear out feedback vectors and recompilable code.
+      if (fun->CanDiscardCompiled()) {
+        fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+      }
+      if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
+        fun->raw_feedback_cell(cage_base)->set_value(
+            i::ReadOnlyRoots(isolate).undefined_value());
+      }
 #ifdef DEBUG
-    if (clear_recompilable_data) {
+      if (clear_recompilable_data) {
 #if V8_ENABLE_WEBASSEMBLY
-      DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
-             fun->shared()->HasBuiltinId() || fun->shared()->IsApiFunction() ||
-             fun->shared()->HasUncompiledDataWithoutPreparseData());
+        DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
+               fun->shared()->HasBuiltinId() ||
+               fun->shared()->IsApiFunction() ||
+               fun->shared()->HasUncompiledDataWithoutPreparseData());
 #else
-      DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
-             fun.shared().HasUncompiledDataWithoutPreparseData());
+        DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
+               fun.shared().HasUncompiledDataWithoutPreparseData());
 #endif  // V8_ENABLE_WEBASSEMBLY
-    }
+      }
 #endif  // DEBUG
+    }
   }
 
   // PendingOptimizeTable also contains BytecodeArray, we need to clear the
@@ -329,6 +331,28 @@ void Snapshot::ClearReconstructableDataForSerialization(
   ReadOnlyRoots roots(isolate);
   isolate->heap()->SetFunctionsMarkedForManualOptimization(
       roots.undefined_value());
+
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    // Check if there are any asm.js / wasm functions on the heap.
+    // These cannot be serialized due to restrictions with the js-to-wasm
+    // wrapper. A tiered-up wrapper would have to be replaced with a generic
+    // wrapper which isn't supported. For asm.js there also isn't any support
+    // for the generic wrapper at all.
+    i::HeapObjectIterator it(isolate->heap());
+    for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+      if (IsJSFunction(o)) {
+        i::JSFunction fun = i::JSFunction::cast(o);
+        if (fun->shared()->HasAsmWasmData()) {
+          FATAL("asm.js functions are not supported in snapshots");
+        }
+        if (fun->shared()->HasWasmFunctionData()) {
+          FATAL("WebAssembly functions are not supported in snapshots");
+        }
+      }
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 // static
