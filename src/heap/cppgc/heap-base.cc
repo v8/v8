@@ -218,8 +218,11 @@ void HeapBase::ResetRememberedSet() {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
 void HeapBase::Terminate() {
-  DCHECK(!IsMarking());
+  CHECK(!IsMarking());
   CHECK(!in_disallow_gc_scope());
+  // Cannot use IsGCAllowed() as `Terminate()` will be invoked after detaching
+  // which implies GC is prohibited at this point.
+  CHECK(!sweeper().IsSweepingOnMutatorThread());
 
   sweeper().FinishIfRunning();
 
@@ -325,6 +328,12 @@ void HeapBase::UnregisterMoveListener(MoveListener* listener) {
   auto it =
       std::remove(move_listeners_.begin(), move_listeners_.end(), listener);
   move_listeners_.erase(it, move_listeners_.end());
+}
+
+bool HeapBase::IsGCAllowed() const {
+  // GC is prohibited in a GC forbidden scope, or when currently sweeping an
+  // object.
+  return !sweeper().IsSweepingOnMutatorThread() && !in_no_gc_scope();
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)
