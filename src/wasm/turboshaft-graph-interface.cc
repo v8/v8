@@ -1335,6 +1335,35 @@ class TurboshaftGraphBuildingInterface {
                &block->exception);
   }
 
+  V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input) {
+    V<WordPtr> builtin =
+        Is64() ? asm_.RelocatableConstant(WasmCode::kI64ToBigInt,
+                                          RelocInfo::WASM_STUB_CALL)
+               : asm_.RelocatableConstant(WasmCode::kI32PairToBigInt,
+                                          RelocInfo::WASM_STUB_CALL);
+    CallInterfaceDescriptor interface_descriptor =
+        Is64()
+            ? Builtins::CallInterfaceDescriptorFor(Builtin::kI64ToBigInt)
+            : Builtins::CallInterfaceDescriptorFor(Builtin::kI32PairToBigInt);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetStubCallDescriptor(
+            asm_.graph_zone(),  // zone
+            interface_descriptor,
+            0,                                  // stack parameter count
+            CallDescriptor::kNoFlags,           // flags
+            compiler::Operator::kNoProperties,  // properties
+            StubCallMode::kCallWasmRuntimeStub);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
+    if (Is64()) {
+      return asm_.Call(builtin, {input}, ts_call_descriptor);
+    }
+    V<Word32> low_word = asm_.TruncateWord64ToWord32(input);
+    V<Word32> high_word = asm_.TruncateWord64ToWord32(asm_.ShiftRightLogical(
+        input, asm_.Word32Constant(32), WordRepresentation::Word64()));
+    return asm_.Call(builtin, {low_word, high_word}, ts_call_descriptor);
+  }
+
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
                     OpIndex index, OpIndex value, Value* result) {
     V<WordPtr> converted_index;
@@ -1350,11 +1379,46 @@ class TurboshaftGraphBuildingInterface {
         {asm_.Word32Constant(imm.memory->index), effective_offset, value});
   }
 
+  void AtomicWait(FullDecoder* decoder, WasmOpcode opcode,
+                  const MemoryAccessImmediate& imm, OpIndex index,
+                  OpIndex expected, V<Word64> timeout, Value* result) {
+    V<WordPtr> converted_index;
+    compiler::BoundsCheckResult bounds_check_result;
+    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+        imm.memory,
+        opcode == kExprI32AtomicWait ? MemoryRepresentation::Int32()
+                                     : MemoryRepresentation::Int64(),
+        index, imm.offset, decoder->position(),
+        compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+
+    OpIndex effective_offset = asm_.WordPtrAdd(converted_index, imm.offset);
+    V<BigInt> bigint_timeout = BuildChangeInt64ToBigInt(timeout);
+
+    if (opcode == kExprI32AtomicWait) {
+      result->op = CallBuiltinFromRuntimeStub(
+          decoder, WasmCode::kWasmI32AtomicWait,
+          {asm_.Word32Constant(imm.memory->index), effective_offset, expected,
+           bigint_timeout});
+      return;
+    }
+    DCHECK_EQ(opcode, kExprI64AtomicWait);
+    V<BigInt> bigint_expected = BuildChangeInt64ToBigInt(expected);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmI64AtomicWait,
+        {asm_.Word32Constant(imm.memory->index), effective_offset,
+         bigint_expected, bigint_timeout});
+  }
+
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
                 Value* result) {
     if (opcode == WasmOpcode::kExprAtomicNotify) {
       return AtomicNotify(decoder, imm, args[0].op, args[1].op, result);
+    }
+    if (opcode == WasmOpcode::kExprI32AtomicWait ||
+        opcode == WasmOpcode::kExprI64AtomicWait) {
+      return AtomicWait(decoder, opcode, imm, args[0].op, args[1].op,
+                        args[2].op, result);
     }
     using Binop = compiler::turboshaft::AtomicRMWOp::BinOp;
     enum OpType { kNotImplemented, kBinop, kLoad };
