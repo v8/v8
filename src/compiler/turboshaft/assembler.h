@@ -602,6 +602,12 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
 
   void FixLoopPhi(const PhiOp& input_phi, OpIndex output_index,
                   Block* output_graph_loop) {
+    if (!Asm()
+             .output_graph()
+             .Get(output_index)
+             .template Is<PendingLoopPhiOp>()) {
+      return;
+    }
 #ifdef DEBUG
     DCHECK(output_graph_loop->Contains(output_index));
     auto& pending_phi = Asm()
