@@ -4863,7 +4863,13 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // When GC was performed without a stack, the table was cleared and this
     // does nothing. In the case this was a GC with stack, we need to update
     // the entries for evacuated objects.
-    heap_->isolate()->string_forwarding_table()->UpdateAfterFullEvacuation();
+    // All entries are objects in shared space (unless
+    // --always-use-forwarding-table), so we only need to update pointers during
+    // a shared GC.
+    if (heap_->isolate()->OwnsStringTables() ||
+        V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
+      heap_->isolate()->string_forwarding_table()->UpdateAfterFullEvacuation();
+    }
 
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap_->ProcessWeakListRoots(&evacuation_object_retainer);
