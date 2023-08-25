@@ -3639,6 +3639,11 @@ void Heap::MakeHeapIterable() {
   if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
 }
 
+void Heap::MakeNewSpaceIterable() {
+  sweeper()->EnsureMinorCompleted();
+  if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
+}
+
 void Heap::FreeLinearAllocationAreas() {
   FreeMainThreadLinearAllocationAreas();
 
