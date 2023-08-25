@@ -4172,27 +4172,16 @@ void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
 
 Node* WasmGraphBuilder::BuildChangeInt64ToBigInt(Node* input,
                                                  StubCallMode stub_mode) {
-  Node* target;
   if (mcgraph()->machine()->Is64()) {
-    target = (stub_mode == StubCallMode::kCallWasmRuntimeStub)
-                 ? mcgraph()->RelocatableIntPtrConstant(
-                       wasm::WasmCode::kI64ToBigInt, RelocInfo::WASM_STUB_CALL)
-                 : gasm_->GetBuiltinPointerTarget(Builtin::kI64ToBigInt);
+    return gasm_->CallBuiltin(Builtin::kI64ToBigInt, Operator::kEliminatable,
+                              input);
   } else {
-    DCHECK(mcgraph()->machine()->Is32());
-    // On 32-bit platforms we already set the target to the
-    // I32PairToBigInt builtin here, so that we don't have to replace the
-    // target in the int64-lowering.
-    target =
-        (stub_mode == StubCallMode::kCallWasmRuntimeStub)
-            ? mcgraph()->RelocatableIntPtrConstant(
-                  wasm::WasmCode::kI32PairToBigInt, RelocInfo::WASM_STUB_CALL)
-            : gasm_->GetBuiltinPointerTarget(Builtin::kI32PairToBigInt);
+    Node* low_word = gasm_->TruncateInt64ToInt32(input);
+    Node* high_word = gasm_->TruncateInt64ToInt32(
+        gasm_->Word64Shr(input, gasm_->Int32Constant(32)));
+    return gasm_->CallBuiltin(Builtin::kI32PairToBigInt,
+                              Operator::kEliminatable, low_word, high_word);
   }
-  CallDescriptor* descriptor =
-      wasm::GetWasmEngine()->call_descriptors()->GetI64ToBigIntDescriptor(
-          stub_mode);
-  return gasm_->Call(descriptor, target, input);
 }
 
 void WasmGraphBuilder::SetSourcePosition(Node* node,
@@ -8339,6 +8328,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       }
     }
     Return(jsval);
+
+    if (ContainsInt64(sig_)) LowerInt64(kCalledFromJS);
   }
 
   void BuildCWasmEntry() {
