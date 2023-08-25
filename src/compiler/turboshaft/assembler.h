@@ -1695,6 +1695,18 @@ class AssemblerOpInterface {
         BitcastTaggedToWord(input), kSmiShiftBits));
   }
 
+  OpIndex AtomicRMW(V<WordPtr> base, V<WordPtr> index, OpIndex value,
+                    AtomicRMWOp::BinOp bin_op,
+                    RegisterRepresentation result_rep,
+                    MemoryRepresentation input_rep,
+                    MemoryAccessKind memory_access_kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceAtomicRMW(base, index, value, bin_op, result_rep,
+                                   input_rep, memory_access_kind);
+  }
+
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep, int32_t offset = 0,
                uint8_t element_size_log2 = 0) {

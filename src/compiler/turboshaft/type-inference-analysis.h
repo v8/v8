@@ -233,6 +233,7 @@ class TypeInferenceAnalysis {
         case Opcode::kTaggedBitcast:
         case Opcode::kSelect:
         case Opcode::kLoad:
+        case Opcode::kAtomicRMW:
         case Opcode::kAllocate:
         case Opcode::kDecodeExternalPointer:
         case Opcode::kParameter:

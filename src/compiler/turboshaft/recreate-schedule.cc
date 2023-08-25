@@ -899,6 +899,44 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }
+Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
+#define ATOMIC_BINOPS(V) \
+  V(Add)                 \
+  V(Sub)                 \
+  V(And)                 \
+  V(Or)                  \
+  V(Xor)                 \
+  V(Exchange)
+
+  AtomicOpParameters param(op.input_rep.ToMachineType(), op.memory_access_kind);
+  const Operator* node_op;
+  if (op.result_rep == RegisterRepresentation::Word32()) {
+    switch (op.bin_op) {
+#define CASE(Name)                               \
+  case AtomicRMWOp::BinOp::k##Name:              \
+    node_op = machine.Word32Atomic##Name(param); \
+    break;
+      ATOMIC_BINOPS(CASE)
+#undef CASE
+    }
+  } else {
+    DCHECK_EQ(op.result_rep, RegisterRepresentation::Word64());
+    switch (op.bin_op) {
+#define CASE(Name)                               \
+  case AtomicRMWOp::BinOp::k##Name:              \
+    node_op = machine.Word64Atomic##Name(param); \
+    break;
+      ATOMIC_BINOPS(CASE)
+#undef CASE
+    }
+  }
+#undef ATOMIC_BINOPS
+  Node* base = GetNode(op.base());
+  Node* index = GetNode(op.index());
+  Node* value = GetNode(op.value());
+  return AddNode(node_op, {base, index, value});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {
   // Tuples are only used for lowerings during reduction. Therefore, we can
   // assume that it is unused if it occurs at this point.

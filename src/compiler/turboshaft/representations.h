@@ -32,10 +32,12 @@ class MaybeRegisterRepresentation {
   };
 
   explicit constexpr MaybeRegisterRepresentation(Enum value) : value_(value) {}
-  MaybeRegisterRepresentation() : value_(kInvalid) {}
+  constexpr MaybeRegisterRepresentation() : value_(kInvalid) {}
+
+  constexpr bool is_valid() const { return value_ != kInvalid; }
 
   constexpr Enum value() const {
-    DCHECK_NE(value_, kInvalid);
+    DCHECK(is_valid());
     return value_;
   }
 
@@ -449,9 +451,12 @@ class MemoryRepresentation {
   };
 
   explicit constexpr MemoryRepresentation(Enum value) : value_(value) {}
-  MemoryRepresentation() : value_(kInvalid) {}
+  constexpr MemoryRepresentation() : value_(kInvalid) {}
+
+  constexpr bool is_valid() const { return value_ != kInvalid; }
+
   constexpr Enum value() const {
-    DCHECK_NE(value_, kInvalid);
+    DCHECK(is_valid());
     return value_;
   }
   constexpr operator Enum() const { return value(); }

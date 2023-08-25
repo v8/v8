@@ -228,7 +228,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Tuple)                                   \
   V(Projection)                              \
   V(DebugBreak)                              \
-  V(AssumeMap)
+  V(AssumeMap)                               \
+  V(AtomicRMW)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -2613,6 +2614,58 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
                           (kind.maybe_unaligned << 1) |
                           (kind.with_trap_handler << 2));
 }
+
+struct AtomicRMWOp : FixedArityOperationT<3, AtomicRMWOp> {
+  enum class BinOp : uint8_t { kAdd, kSub, kAnd, kOr, kXor, kExchange };
+  BinOp bin_op;
+  RegisterRepresentation result_rep;
+  MemoryRepresentation input_rep;
+  MemoryAccessKind memory_access_kind;
+  OpEffects Effects() const {
+    OpEffects effects =
+        OpEffects().CanWriteMemory().CanDependOnChecks().CanReadMemory();
+    if (memory_access_kind == MemoryAccessKind::kProtected) {
+      effects = effects.CanLeaveCurrentFunction();
+    }
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&result_rep, 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::PointerSized(),
+                                  RegisterRepresentation::PointerSized(),
+                                  input_rep.ToRegisterRepresentation()});
+  }
+
+  V<WordPtr> base() const { return input(0); }
+  V<WordPtr> index() const { return input(1); }
+  OpIndex value() const { return input(2); }
+
+  void Validate(const Graph& graph) const {}
+
+  explicit AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value, BinOp bin_op,
+                       RegisterRepresentation result_rep,
+                       MemoryRepresentation input_rep, MemoryAccessKind kind)
+      : Base(base, index, value),
+        bin_op(bin_op),
+        result_rep(result_rep),
+        input_rep(input_rep),
+        memory_access_kind(kind) {}
+
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
+
+  void PrintOptions(std::ostream& os) const;
+
+  auto options() const {
+    return std::tuple{bin_op, result_rep, input_rep, memory_access_kind};
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp kind);
 
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
@@ -6530,6 +6583,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StoreOp>().Effects();
     case Opcode::kCall:
       return Cast<CallOp>().Effects();
+    case Opcode::kAtomicRMW:
+      return Cast<AtomicRMWOp>().Effects();
     default:
       UNREACHABLE();
   }

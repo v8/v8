@@ -105,6 +105,16 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
 enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
+enum class MemoryAccessKind : uint8_t {
+  kNormal,
+  kUnaligned,
+  kProtected,
+};
+
+size_t hash_value(MemoryAccessKind);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -1104,7 +1104,105 @@ class TurboshaftGraphBuildingInterface {
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
                 Value* result) {
-    Bailout(decoder);
+    using Binop = compiler::turboshaft::AtomicRMWOp::BinOp;
+    struct AtomicOpInfo {
+      Binop bin_op;
+      RegisterRepresentation result_rep;
+      MemoryRepresentation input_rep;
+
+      constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation result_rep,
+                             MemoryRepresentation input_rep)
+          : bin_op(bin_op), result_rep(result_rep), input_rep(input_rep) {}
+
+      constexpr AtomicOpInfo() : bin_op(Binop::kAdd) {}
+
+      static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
+        switch (opcode) {
+#define CASE(OPCODE, BINOP, RESULT, INPUT)                     \
+  case WasmOpcode::kExpr##OPCODE:                              \
+    return {Binop::k##BINOP, RegisterRepresentation::RESULT(), \
+            MemoryRepresentation::INPUT()};
+#define RMW_OPERATION(V)                            \
+  V(I32AtomicAdd, Add, Word32, Uint32)              \
+  V(I32AtomicAdd8U, Add, Word32, Uint8)             \
+  V(I32AtomicAdd16U, Add, Word32, Uint16)           \
+  V(I32AtomicSub, Sub, Word32, Uint32)              \
+  V(I32AtomicSub8U, Sub, Word32, Uint8)             \
+  V(I32AtomicSub16U, Sub, Word32, Uint16)           \
+  V(I32AtomicAnd, And, Word32, Uint32)              \
+  V(I32AtomicAnd8U, And, Word32, Uint8)             \
+  V(I32AtomicAnd16U, And, Word32, Uint16)           \
+  V(I32AtomicOr, Or, Word32, Uint32)                \
+  V(I32AtomicOr8U, Or, Word32, Uint8)               \
+  V(I32AtomicOr16U, Or, Word32, Uint16)             \
+  V(I32AtomicXor, Xor, Word32, Uint32)              \
+  V(I32AtomicXor8U, Xor, Word32, Uint8)             \
+  V(I32AtomicXor16U, Xor, Word32, Uint16)           \
+  V(I32AtomicExchange, Exchange, Word32, Uint32)    \
+  V(I32AtomicExchange8U, Exchange, Word32, Uint8)   \
+  V(I32AtomicExchange16U, Exchange, Word32, Uint16) \
+  V(I64AtomicAdd, Add, Word64, Uint64)              \
+  V(I64AtomicAdd8U, Add, Word64, Uint8)             \
+  V(I64AtomicAdd16U, Add, Word64, Uint16)           \
+  V(I64AtomicAdd32U, Add, Word64, Uint32)           \
+  V(I64AtomicSub, Sub, Word64, Uint64)              \
+  V(I64AtomicSub8U, Sub, Word64, Uint8)             \
+  V(I64AtomicSub16U, Sub, Word64, Uint16)           \
+  V(I64AtomicSub32U, Sub, Word64, Uint32)           \
+  V(I64AtomicAnd, And, Word64, Uint64)              \
+  V(I64AtomicAnd8U, And, Word64, Uint8)             \
+  V(I64AtomicAnd16U, And, Word64, Uint16)           \
+  V(I64AtomicAnd32U, And, Word64, Uint32)           \
+  V(I64AtomicOr, Or, Word64, Uint64)                \
+  V(I64AtomicOr8U, Or, Word64, Uint8)               \
+  V(I64AtomicOr16U, Or, Word64, Uint16)             \
+  V(I64AtomicOr32U, Or, Word64, Uint32)             \
+  V(I64AtomicXor, Xor, Word64, Uint64)              \
+  V(I64AtomicXor8U, Xor, Word64, Uint8)             \
+  V(I64AtomicXor16U, Xor, Word64, Uint16)           \
+  V(I64AtomicXor32U, Xor, Word64, Uint32)           \
+  V(I64AtomicExchange, Exchange, Word64, Uint64)    \
+  V(I64AtomicExchange8U, Exchange, Word64, Uint8)   \
+  V(I64AtomicExchange16U, Exchange, Word64, Uint16) \
+  V(I64AtomicExchange32U, Exchange, Word64, Uint32)
+
+          RMW_OPERATION(CASE)
+#undef RMW_OPERATION
+#undef CASE
+          default:
+            return {};
+        }
+      }
+    };
+
+    AtomicOpInfo info = AtomicOpInfo::Get(opcode);
+
+    if (!info.input_rep.is_valid()) {
+      Bailout(decoder);
+      return;
+    }
+
+    if (!Is64() && info.result_rep == RegisterRepresentation::Word64()) {
+      // The int64 lowering for atomic instructions is not yet finished.
+      Bailout(decoder);
+      return;
+    }
+
+    V<WordPtr> index;
+    compiler::BoundsCheckResult bounds_check_result;
+    std::tie(index, bounds_check_result) = CheckBoundsAndAlignment(
+        imm.memory, info.input_rep, args[0].op, imm.offset, decoder->position(),
+        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+    // MemoryAccessKind::kUnaligned is impossible due to explicit aligment
+    // check.
+    MemoryAccessKind access_kind =
+        bounds_check_result == compiler::BoundsCheckResult::kTrapHandler
+            ? MemoryAccessKind::kProtected
+            : MemoryAccessKind::kNormal;
+
+    result->op = asm_.AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
+                                args[1].op, info.bin_op, info.result_rep,
+                                info.input_rep, access_kind);
   }
 
   void AtomicFence(FullDecoder* decoder) { Bailout(decoder); }
@@ -2899,7 +2997,35 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  std::pair<OpIndex, compiler::BoundsCheckResult> BoundsCheckMem(
+  std::pair<V<WordPtr>, compiler::BoundsCheckResult> CheckBoundsAndAlignment(
+      const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
+      uintptr_t offset, wasm::WasmCodePosition position,
+      compiler::EnforceBoundsCheck enforce_check) {
+    // Atomic operations need bounds checks until the backend can emit protected
+    // loads.
+    compiler::BoundsCheckResult bounds_check_result;
+    V<WordPtr> converted_index;
+    std::tie(converted_index, bounds_check_result) =
+        BoundsCheckMem(memory, repr, index, offset, enforce_check);
+
+    const uintptr_t align_mask = repr.SizeInBytes() - 1;
+
+    // TODO(14108): Optimize constant index as per wasm-compiler.cc.
+
+    // Unlike regular memory accesses, atomic memory accesses should trap if
+    // the effective offset is misaligned.
+    // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
+    OpIndex effective_offset =
+        asm_.WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
+
+    V<Word32> cond = asm_.TruncateWordPtrToWord32(asm_.WordPtrBitwiseAnd(
+        effective_offset, asm_.IntPtrConstant(align_mask)));
+    asm_.TrapIfNot(asm_.Word32Equal(cond, asm_.Word32Constant(0)),
+                   OpIndex::Invalid(), TrapId::kTrapUnalignedAccess);
+    return {converted_index, bounds_check_result};
+  }
+
+  std::pair<V<WordPtr>, compiler::BoundsCheckResult> BoundsCheckMem(
       const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
       uintptr_t offset, compiler::EnforceBoundsCheck enforce_bounds_check) {
     // The function body decoder already validated that the access is not
@@ -2967,6 +3093,12 @@ class TurboshaftGraphBuildingInterface {
                        ByteArray::kHeaderSize +
                            2 * index * kMaybeSandboxedPointer.SizeInBytes());
     }
+  }
+
+  V<WordPtr> MemBuffer(uint32_t mem_index, uintptr_t offset) {
+    V<WordPtr> mem_start = MemStart(mem_index);
+    if (offset == 0) return mem_start;
+    return asm_.WordPtrAdd(mem_start, offset);
   }
 
   V<WordPtr> MemSize(uint32_t index) {

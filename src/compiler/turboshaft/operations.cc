@@ -335,6 +335,23 @@ std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
+  switch (bin_op) {
+    case AtomicRMWOp::BinOp::kAdd:
+      return os << "add";
+    case AtomicRMWOp::BinOp::kSub:
+      return os << "sub";
+    case AtomicRMWOp::BinOp::kAnd:
+      return os << "and";
+    case AtomicRMWOp::BinOp::kOr:
+      return os << "or";
+    case AtomicRMWOp::BinOp::kXor:
+      return os << "xor";
+    case AtomicRMWOp::BinOp::kExchange:
+      return os << "exchange";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
   switch (kind) {
     case FrameConstantOp::Kind::kStackCheckOffset:
@@ -440,6 +457,19 @@ void LoadOp::PrintOptions(std::ostream& os) const {
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
   os << "]";
+}
+
+void AtomicRMWOp::PrintInputs(std::ostream& os,
+                              const std::string& op_index_prefix) const {
+  os << " *(" << op_index_prefix << base().id() << " + " << op_index_prefix
+     << index().id() << ").atomic_" << bin_op << "(" << op_index_prefix
+     << value().id() << ")";
+}
+
+void AtomicRMWOp::PrintOptions(std::ostream& os) const {
+  os << "["
+     << "binop: " << bin_op << ", result_rep: " << result_rep
+     << ", input_rep: " << input_rep << "]";
 }
 
 void StoreOp::PrintInputs(std::ostream& os,

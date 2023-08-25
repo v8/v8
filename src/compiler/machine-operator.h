@@ -44,16 +44,6 @@ class OptionalOperator final {
   const Operator* const op_;
 };
 
-enum class MemoryAccessKind {
-  kNormal,
-  kUnaligned,
-  kProtected,
-};
-
-size_t hash_value(MemoryAccessKind);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
-
 // A Load needs a MachineType.
 using LoadRepresentation = MachineType;
 

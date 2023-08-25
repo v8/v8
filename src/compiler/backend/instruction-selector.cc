@@ -4906,6 +4906,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kDebugBreak:
       return VisitDebugBreak(node);
 
+    case Opcode::kAtomicRMW:
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
