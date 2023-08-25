@@ -5374,9 +5374,9 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ Pop(kReturnRegister1, kReturnRegister0);
   }
 
-  __ Mov(sp, kOldSPRegister);
-
   SwitchSimulatorStackLimit(masm);
+
+  __ Mov(sp, kOldSPRegister);
 
   __ bind(&no_stack_change);
 }
