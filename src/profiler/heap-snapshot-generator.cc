@@ -2881,48 +2881,37 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8::base::ElapsedTimer timer;
   timer.Start();
 
-  // We need a stack marker here to allow deterministic passes over the stack.
-  // The garbage collection and the filling of references should scan the same
-  // part of the stack.
-  const auto interrupted = std::make_unique<bool>(false);
-  heap_->stack().SetMarkerIfNeededAndCallback([this, &interrupted]() {
-    IsolateSafepointScope scope(heap_);
+  IsolateSafepointScope scope(heap_);
 
-    Isolate* isolate = heap_->isolate();
-    v8_heap_explorer_.PopulateLineEnds();
-    auto temporary_global_object_tags =
-        v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
+  Isolate* isolate = heap_->isolate();
+  v8_heap_explorer_.PopulateLineEnds();
+  auto temporary_global_object_tags =
+      v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
 
-    EmbedderStackStateScope stack_scope(
-        heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
-    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
+  EmbedderStackStateScope stack_scope(
+      heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+  heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
-    // No allocation that could trigger GC from here onwards. We cannot use a
-    // DisallowGarbageCollection scope as the HeapObjectIterator used during
-    // snapshot creation enters a safepoint as well. However, in practice we
-    // already enter a safepoint above so that should never trigger a GC.
+  // No allocation that could trigger GC from here onwards. We cannot use a
+  // DisallowGarbageCollection scope as the HeapObjectIterator used during
+  // snapshot creation enters a safepoint as well. However, in practice we
+  // already enter a safepoint above so that should never trigger a GC.
 
-    NullContextForSnapshotScope null_context_scope(isolate);
+  NullContextForSnapshotScope null_context_scope(isolate);
 
-    v8_heap_explorer_.MakeGlobalObjectTagMap(
-        std::move(temporary_global_object_tags));
+  v8_heap_explorer_.MakeGlobalObjectTagMap(
+      std::move(temporary_global_object_tags));
 
-    InitProgressCounter();
+  InitProgressCounter();
 
-    snapshot_->AddSyntheticRootEntries();
+  snapshot_->AddSyntheticRootEntries();
 
-    if (!FillReferences()) {
-      *interrupted = true;
-      return;
-    }
+  if (!FillReferences()) return false;
 
-    snapshot_->FillChildren();
-    snapshot_->RememberLastJSObjectId();
+  snapshot_->FillChildren();
+  snapshot_->RememberLastJSObjectId();
 
-    progress_counter_ = progress_total_;
-  });
-
-  if (*interrupted) return false;
+  progress_counter_ = progress_total_;
 
   if (i::v8_flags.profile_heap_snapshot) {
     base::OS::PrintError("[Heap snapshot took %0.3f ms]\n",
