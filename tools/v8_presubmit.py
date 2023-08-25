@@ -808,37 +808,52 @@ def GetOptions():
   return result
 
 
+def run_checks(checks, workspace):
+  failures = []
+
+  def run(check_function, named_object=None):
+    name = (named_object or check_function).__name__
+    print('__________________')
+    print(f'Running {name}...')
+    if check_function(workspace):
+      print(f'{name} SUCCEDED')
+      return
+    failures.append(name)
+    print(f'!!! {name} FAILED')
+
+  for check in checks:
+    if callable(check):
+      run(check)
+    else:
+      run(check.RunOnPath, check.__class__)
+  return '\n'.join(failures)
+
+
 def Main():
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   parser = GetOptions()
   (options, args) = parser.parse_args()
-  success = True
-  print("Running checkdeps...")
-  success &= CheckDeps(workspace)
   use_linter_cache = not options.no_linter_cache
+  checks = [
+    CheckDeps,
+    TorqueLintProcessor(use_cache=use_linter_cache),
+    JSLintProcessor(use_cache=use_linter_cache),
+    SourceProcessor(),
+    StatusFilesProcessor(),
+    PyTests,
+    GCMoleProcessor(),
+  ]
   if not options.no_lint:
-    print("Running C++ lint check...")
-    success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
+    checks.append(CppLintProcessor(use_cache=use_linter_cache))
 
-  print("Running Torque formatting check...")
-  success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
-  print("Running JavaScript formatting check...")
-  success &= JSLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
-  print("Running copyright header, trailing whitespaces and " \
-        "two empty lines between declarations check...")
-  success &= SourceProcessor().RunOnPath(workspace)
-  print("Running status-files check...")
-  success &= StatusFilesProcessor().RunOnPath(workspace)
-  print("Running python tests...")
-  success &= PyTests(workspace)
-  print("Running gcmole pattern check...")
-  success &= GCMoleProcessor().RunOnPath(workspace)
-  if success:
-    return 0
-  else:
+
+  failure_lines = run_checks(checks, workspace)
+  if failure_lines:
+    print('__________________')
+    print('==================')
+    print(f'Checks failed:\n{failure_lines}')
     return 1
+  return 0
 
 
 if __name__ == '__main__':
