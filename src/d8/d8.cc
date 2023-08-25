@@ -3050,7 +3050,7 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
       case 2:
         DCHECK(false);
         break;
-      default:
+      case 3: {
         // Access an invalid address.
         // We want to use an "interesting" address for the access (instead of
         // e.g. nullptr). In the (unlikely) case that the address is actually
@@ -3060,6 +3060,29 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
           *ptr = 'A';
           ptr += 1 * i::GB;
         }
+        break;
+      }
+      case 4: {
+        // Use-after-free, likely only crashes in ASan builds.
+        auto* vec = new std::vector<int>(4);
+        delete vec;
+        USE(vec->at(0));
+        break;
+      }
+      case 5: {
+        // Out-of-bounds access (1), likely only crashes in ASan or
+        // "hardened"/"safe" libc++ builds.
+        std::vector<int> vec(5);
+        USE(vec[5]);
+        break;
+      }
+      case 6: {
+        // Out-of-bounds access (2), likely only crashes in ASan builds.
+        std::vector<int> vec(6);
+        memset(vec.data(), 42, 0x100);
+        break;
+      }
+      default:
         break;
     }
   } else if (strcmp(*operation, "FUZZILLI_PRINT") == 0) {
