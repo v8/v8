@@ -985,6 +985,12 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         current += PrintRightAVXOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
+      case 0x06:
+        AppendToBuffer("vperm2f128 %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
       case 0x08:
         AppendToBuffer("vroundps %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);

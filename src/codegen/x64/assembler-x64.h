@@ -1509,6 +1509,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vinserti128(YMMRegister dst, YMMRegister src1, XMMRegister src2,
                    uint8_t lane);
+  void vperm2f128(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                  uint8_t lane);
 
   void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                  XMMRegister src2, VectorLength l, SIMDPrefix pp,

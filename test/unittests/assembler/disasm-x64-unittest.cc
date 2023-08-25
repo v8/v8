@@ -1465,6 +1465,8 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vcvttps2dq(ymm3, ymm2));
     COMPARE("c5fe5b9c8b10270000   vcvttps2dq ymm3,[rbx+rcx*4+0x2710]",
             vcvttps2dq(ymm3, Operand256(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e36d06cb02         vperm2f128 ymm1,ymm2,ymm3,0x2",
+            vperm2f128(ymm1, ymm2, ymm3, 2));
 
     // vcmp
     COMPARE("c5dcc2e900           vcmpps ymm5,ymm4,ymm1, (eq)",

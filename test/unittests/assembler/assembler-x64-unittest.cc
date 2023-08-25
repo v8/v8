@@ -2657,6 +2657,7 @@ TEST_F(AssemblerX64Test, AssemblerX64FloatingPoint256bit) {
   __ vcvtdq2pd(ymm1, Operand(rbx, rcx, times_4, 10000));
   __ vcvttps2dq(ymm3, ymm2);
   __ vcvttps2dq(ymm3, Operand256(rbx, rcx, times_4, 10000));
+  __ vperm2f128(ymm1, ymm2, ymm3, 2);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2715,7 +2716,9 @@ TEST_F(AssemblerX64Test, AssemblerX64FloatingPoint256bit) {
                         // vcvttps2dq ymm3, ymm2
                         0xC5, 0xFE, 0x5B, 0xDA,
                         // vcvttps2dq ymm3, YMMWORD PTR [rbx+rcx*4+0x2710]
-                        0xC5, 0xFE, 0x5B, 0x9C, 0x8B, 0x10, 0x27, 0x00, 0x00};
+                        0xC5, 0xFE, 0x5B, 0x9C, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                        // vperm2f128 ymm1, ymm2, ymm3, 2
+                        0xc4, 0xe3, 0x6d, 0x06, 0xcb, 0x02};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
