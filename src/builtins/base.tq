@@ -469,6 +469,7 @@ extern enum MessageTemplate {
   kSizeIsNaN,
   kArgumentIsNonObject,
   kKeysMethodInvalid,
+  kGeneratorRunning,
   ...
 }
 

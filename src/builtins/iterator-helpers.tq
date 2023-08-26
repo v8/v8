@@ -6,12 +6,49 @@
 
 namespace iterator {
 
+// Iterator helpers are specced as generators but implemented as direct
+// iterators. As such generator states need to be tracked manually. To save
+// space, this is done by assigning sentinel values to underlying.next.
+
+// Tracks the ~completed~ generator state.
+const kIteratorHelperExhausted: Null = Null;
+// Tracks the ~executing~ generator state.
+const kIteratorHelperExecuting: Undefined = Undefined;
+
 macro IsIteratorHelperExhausted(helper: JSIteratorHelper): bool {
-  return helper.underlying.next == Null;
+  return helper.underlying.next == kIteratorHelperExhausted;
 }
 
 macro MarkIteratorHelperAsExhausted(helper: JSIteratorHelper): void {
-  helper.underlying.next = Null;
+  helper.underlying.next = kIteratorHelperExhausted;
+}
+
+macro IsIteratorHelperExecuting(helper: JSIteratorHelper): bool {
+  return helper.underlying.next == kIteratorHelperExecuting;
+}
+
+// When a generator's state is ~executing~, attempts to reenter via next() or
+// return() throw a TypeError. See step 6 in ES #sec-generatorvalidate.
+macro ThrowIfIteratorHelperExecuting(implicit context: Context)(
+    helper: JSIteratorHelper): void {
+  if (IsIteratorHelperExecuting(helper)) {
+    ThrowTypeError(MessageTemplate::kGeneratorRunning);
+  }
+}
+
+macro MarkIteratorHelperAsExecuting(helper: JSIteratorHelper): IteratorRecord {
+  dcheck(!IsIteratorHelperExecuting(helper));
+  const underlying = helper.underlying;
+  helper.underlying.next = kIteratorHelperExecuting;
+  return underlying;
+}
+
+macro MarkIteratorHelperAsFinishedExecuting(
+    helper: JSIteratorHelper, underlying: IteratorRecord): void {
+  dcheck(IsIteratorHelperExecuting(helper));
+  dcheck(underlying.next != kIteratorHelperExecuting);
+  dcheck(underlying.object == helper.underlying.object);
+  helper.underlying.next = underlying.next;
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
@@ -35,7 +72,17 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
 
   // Iterator helpers are specified as generators but we implement them as
   // direct iterators.
-  typeswitch (receiver) {
+  const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'Iterator Helper.prototype.next', receiver);
+
+  ThrowIfIteratorHelperExecuting(helper);
+
+  if (IsIteratorHelperExhausted(helper)) {
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  typeswitch (helper) {
     case (mapHelper: JSIteratorMapHelper): {
       return IteratorMapHelperNext(mapHelper);
     }
@@ -52,9 +99,7 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
       return IteratorFlatMapHelperNext(flatMapHelper);
     }
     case (Object): {
-      ThrowTypeError(
-          MessageTemplate::kIncompatibleMethodReceiver,
-          'Iterator Helper.prototype.next', receiver);
+      unreachable;
     }
   }
 }
@@ -77,6 +122,8 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
   // Return for flatMap helper is not the same as other helpers.
   typeswitch (receiver) {
     case (helper: JSIteratorFlatMapHelper): {
+      ThrowIfIteratorHelperExecuting(helper);
+
       if (IsIteratorHelperExhausted(helper)) {
         return AllocateJSIteratorResult(Undefined, True);
       }
@@ -107,6 +154,7 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
       const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
           MessageTemplate::kIncompatibleMethodReceiver,
           'Iterator Helper.prototype.return', receiver);
+      ThrowIfIteratorHelperExecuting(helper);
       if (!IsIteratorHelperExhausted(helper)) {
         MarkIteratorHelperAsExhausted(helper);
         IteratorClose(helper.underlying);
@@ -163,12 +211,8 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
   // (Done when creating JSIteratorMapHelper.)
 
   const fastIteratorResultMap = GetIteratorResultMap();
-  const underlying = helper.underlying;
+  const underlying = MarkIteratorHelperAsExecuting(helper);
   const counter = helper.counter;
-
-  if (IsIteratorHelperExhausted(helper)) {
-    return AllocateJSIteratorResult(Undefined, True);
-  }
 
   try {
     // b. Repeat,
@@ -197,6 +241,7 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
       helper.counter = counter + 1;
 
       // vi. Let completion be Completion(Yield(mapped)).
+      MarkIteratorHelperAsFinishedExecuting(helper, underlying);
       return AllocateJSIteratorResult(mapped, False);
 
       // vii. IfAbruptCloseIterator(completion, iterated).
@@ -259,11 +304,7 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
   // (Done when creating JSIteratorFilterHelper.)
 
   const fastIteratorResultMap = GetIteratorResultMap();
-  const underlying = helper.underlying;
-
-  if (IsIteratorHelperExhausted(helper)) {
-    return AllocateJSIteratorResult(Undefined, True);
-  }
+  const underlying = MarkIteratorHelperAsExecuting(helper);
 
   try {
     while (true) {
@@ -298,6 +339,7 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
         // vi. If ToBoolean(selected) is true, then
         if (ToBoolean(selected)) {
           // 1. Let completion be Completion(Yield(value)).
+          MarkIteratorHelperAsFinishedExecuting(helper, underlying);
           return AllocateJSIteratorResult(value, False);
           // 2. IfAbruptCloseIterator(completion, iterated).
           // (Done in IteratorHelperPrototypeReturn.)
@@ -373,12 +415,8 @@ transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
   // (Done when creating JSIteratorTakeHelper.)
 
   const fastIteratorResultMap = GetIteratorResultMap();
-  const underlying = helper.underlying;
+  const underlying = MarkIteratorHelperAsExecuting(helper);
   const remaining = helper.remaining;
-
-  if (IsIteratorHelperExhausted(helper)) {
-    return AllocateJSIteratorResult(Undefined, True);
-  }
 
   try {
     // b. Repeat,
@@ -410,6 +448,7 @@ transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
 
     // v. Let completion be Completion(Yield(? IteratorValue(next))).
     const value = IteratorValue(next, fastIteratorResultMap);
+    MarkIteratorHelperAsFinishedExecuting(helper, underlying);
     return AllocateJSIteratorResult(value, False);
 
     // vi. IfAbruptCloseIterator(completion, iterated).
@@ -478,13 +517,9 @@ transitioning builtin IteratorDropHelperNext(implicit context: Context)(
   // (Done when creating JSIteratorDropHelper.)
 
   const fastIteratorResultMap = GetIteratorResultMap();
-  const underlying = helper.underlying;
+  const underlying = MarkIteratorHelperAsExecuting(helper);
   let remaining = helper.remaining;
   let next: JSReceiver;
-
-  if (IsIteratorHelperExhausted(helper)) {
-    return AllocateJSIteratorResult(Undefined, True);
-  }
 
   try {
     // b. Repeat, while remaining > 0,
@@ -514,6 +549,7 @@ transitioning builtin IteratorDropHelperNext(implicit context: Context)(
 
     // iii. Let completion be Completion(Yield(? IteratorValue(next))).
     const value = IteratorValue(next, fastIteratorResultMap);
+    MarkIteratorHelperAsFinishedExecuting(helper, underlying);
     return AllocateJSIteratorResult(value, False);
 
     // iv. IfAbruptCloseIterator(completion, iterated).
@@ -575,11 +611,7 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
   // (Done when creating JSIteratorFlatMapHelper.)
 
   const fastIteratorResultMap = GetIteratorResultMap();
-  const underlying = helper.underlying;
-
-  if (IsIteratorHelperExhausted(helper)) {
-    return AllocateJSIteratorResult(Undefined, True);
-  }
+  const underlying = MarkIteratorHelperAsExecuting(helper);
 
   try {
     while (true) {
@@ -639,6 +671,7 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
         const innerValue = IteratorValue(innerNext, fastIteratorResultMap);
 
         // c. Let completion be Completion(Yield(innerValue)).
+        MarkIteratorHelperAsFinishedExecuting(helper, underlying);
         return AllocateJSIteratorResult(innerValue, False);
 
         // d. If completion is an abrupt completion, then

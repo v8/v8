@@ -2114,13 +2114,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12681
   'built-ins/Array/prototype/push/set-length-zero-array-length-is-non-writable': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14287
-  'built-ins/Iterator/prototype/drop/throws-typeerror-when-generator-is-running': [FAIL],
-  'built-ins/Iterator/prototype/filter/throws-typeerror-when-generator-is-running': [FAIL],
-  'built-ins/Iterator/prototype/flatMap/throws-typeerror-when-generator-is-running': [FAIL],
-  'built-ins/Iterator/prototype/map/throws-typeerror-when-generator-is-running': [FAIL],
-  'built-ins/Iterator/prototype/take/throws-typeerror-when-generator-is-running': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=14288
   'intl402/DateTimeFormat/timezone-case-insensitive': [FAIL],
   'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
