@@ -392,11 +392,7 @@ V8_INLINE size_t MinorMarkingLoopImpl(
   auto& marking_worklists_local = visitor.marking_worklists_local();
   Isolate* isolate = heap->isolate();
   do {
-    DCHECK_IMPLIES(
-        marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent,
-        !delegate->IsJoiningThread());
-    if ((marking_mode == YoungGenerationMarkingVisitationMode::kParallel) &&
-        delegate->IsJoiningThread()) {
+    if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
     }
     HeapObject heap_object;
