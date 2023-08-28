@@ -715,9 +715,13 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), r3));
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), r3));
+  }
 }
 
 template <typename Adapter>
@@ -746,7 +750,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -857,7 +861,7 @@ static void VisitGeneralStore(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
+void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
   UNREACHABLE();
 }
 
@@ -887,13 +891,13 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
   UNREACHABLE();
 }
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
 }
 
@@ -1165,25 +1169,33 @@ void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
 #endif
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(node_t node) {
   UNREACHABLE();
 }
 
 #if V8_TARGET_ARCH_S390X
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(node_t node) {
   UNREACHABLE();
 }
 #endif
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(Node* node) {
-  VisitWord32UnaryOp(this, node, kS390_Abs32, OperandMode::kNone);
+void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32UnaryOp(this, node, kS390_Abs32, OperandMode::kNone);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(Node* node) {
-  VisitWord64UnaryOp(this, node, kS390_Abs64, OperandMode::kNone);
+void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord64UnaryOp(this, node, kS390_Abs64, OperandMode::kNone);
+  }
 }
 
 template <typename Adapter>
@@ -1444,55 +1456,10 @@ static inline bool TryMatchDoubleConstructFromInsert(
 }
 
 #define null ([]() { return false; })
-// TODO(john.yan): place kAllowRM where available
-#define FLOAT_UNARY_OP_LIST_32(V)                           \
-  V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32, \
-    OperandMode::kNone, null)
-
-#ifdef V8_TARGET_ARCH_S390X
-#define FLOAT_UNARY_OP_LIST(V) FLOAT_UNARY_OP_LIST_32(V)
-
-#define WORD32_UNARY_OP_LIST(V)                                     \
-  V(Word32, SignExtendWord32ToInt64, kS390_SignExtendWord32ToInt64, \
-    OperandMode::kNone, null)
-
-#else
-#define FLOAT_UNARY_OP_LIST(V) FLOAT_UNARY_OP_LIST_32(V)
-#endif
-
-#define WORD32_BIN_OP_LIST(V)                                                \
-  V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,             \
-    OperandMode::kAllowRRR,                                                  \
-    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); }) \
-  V(Word32, Float64InsertHighWord32, kS390_DoubleInsertHighWord32,           \
-    OperandMode::kAllowRRR,                                                  \
-    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })
-
-#define DECLARE_UNARY_OP(type, name, op, mode, try_extra)       \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##name(Node* node) { \
-    if (std::function<bool()>(try_extra)()) return;             \
-    Visit##type##UnaryOp(this, node, op, mode);                 \
-  }
-
-#define DECLARE_BIN_OP(type, name, op, mode, try_extra)         \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##name(Node* node) { \
-    if (std::function<bool()>(try_extra)()) return;             \
-    Visit##type##BinOp(this, node, op, mode);                   \
-  }
-
-WORD32_BIN_OP_LIST(DECLARE_BIN_OP)
-WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP)
-FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
-
-#undef DECLARE_BIN_OP
-#undef DECLARE_UNARY_OP
-#undef WORD32_BIN_OP_LIST
-#undef WORD32_UNARY_OP_LIST
-#undef FLOAT_UNARY_OP_LIST
 
 #define FLOAT_UNARY_OP_LIST(V)                                                 \
+  V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32,                    \
+    OperandMode::kNone, null)                                                  \
   V(Float64, Float64SilenceNaN, kS390_Float64SilenceNaN, OperandMode::kNone,   \
     null)                                                                      \
   V(Float64, Float64Sqrt, kS390_SqrtDouble, OperandMode::kNone, null)          \
@@ -1557,6 +1524,8 @@ FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
   V(Float64, Float64Div, kS390_DivDouble, OperandMode::kAllowRM, null)
 
 #define WORD32_UNARY_OP_LIST(V)                                              \
+  V(Word32, SignExtendWord32ToInt64, kS390_SignExtendWord32ToInt64,          \
+    OperandMode::kNone, null)                                                \
   V(Word32, SignExtendWord16ToInt64, kS390_SignExtendWord16ToInt64,          \
     OperandMode::kNone, null)                                                \
   V(Word32, SignExtendWord8ToInt64, kS390_SignExtendWord8ToInt64,            \
@@ -1589,6 +1558,12 @@ FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
     })
 
 #define WORD32_BIN_OP_LIST(V)                                                 \
+  V(Word32, Float64InsertHighWord32, kS390_DoubleInsertHighWord32,            \
+    OperandMode::kAllowRRR,                                                   \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })  \
+  V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,              \
+    OperandMode::kAllowRRR,                                                   \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })  \
   V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,                \
     ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))             \
   V(Word32, Uint32MulHigh, kS390_MulHighU32,                                  \
@@ -2507,9 +2482,13 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitMemoryBarrier(Node* node) {
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+  UNIMPLEMENTED();
+  } else {
   S390OperandGeneratorT<Adapter> g(this);
   Emit(kArchNop, g.NoOutput());
+  }
 }
 
 template <typename Adapter>
