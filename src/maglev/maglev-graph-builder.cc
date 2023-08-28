@@ -934,6 +934,23 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
       DCHECK_NULL(current_deopt_scope_->parent());
       DCHECK_EQ(current_deopt_scope_->data().tag(),
                 DeoptFrame::FrameType::kBuiltinContinuationFrame);
+#ifdef DEBUG
+      if (current_deopt_scope_->data().tag() ==
+          DeoptFrame::FrameType::kBuiltinContinuationFrame) {
+        const DeoptFrame::BuiltinContinuationFrameData& frame =
+            current_deopt_scope_->data()
+                .get<DeoptFrame::BuiltinContinuationFrameData>();
+        if (frame.maybe_js_target) {
+          int stack_parameter_count =
+              Builtins::GetStackParameterCount(frame.builtin_id);
+          DCHECK_EQ(stack_parameter_count, frame.parameters.length());
+        } else {
+          CallInterfaceDescriptor descriptor =
+              Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
+          DCHECK_EQ(descriptor.GetParameterCount(), frame.parameters.length());
+        }
+      }
+#endif
 
       // Wrap the above frame in the scope frame.
       latest_checkpointed_frame_.emplace(
@@ -972,6 +989,30 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   // the accumulator
   DCHECK(
       interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
+
+#ifdef DEBUG
+  if (scope->data().tag() == DeoptFrame::FrameType::kBuiltinContinuationFrame) {
+    const DeoptFrame::BuiltinContinuationFrameData& frame =
+        current_deopt_scope_->data()
+            .get<DeoptFrame::BuiltinContinuationFrameData>();
+    if (frame.maybe_js_target) {
+      int stack_parameter_count =
+          Builtins::GetStackParameterCount(frame.builtin_id);
+      // The deopt input value is passed by the deoptimizer, so shouldn't be a
+      // parameter here.
+      DCHECK_EQ(stack_parameter_count, frame.parameters.length() + 1);
+    } else {
+      CallInterfaceDescriptor descriptor =
+          Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
+      // The deopt input value is passed by the deoptimizer, so shouldn't be a
+      // parameter here.
+      DCHECK_EQ(descriptor.GetParameterCount(), frame.parameters.length() + 1);
+      // The deopt input value is passed on the stack.
+      DCHECK_GT(descriptor.GetStackParameterCount(), 0);
+    }
+  }
+#endif
+
   // Mark the accumulator dead in parent frames since we know that the
   // continuation will write it.
   return DeoptFrame(scope->data(),
@@ -5493,6 +5534,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   ReduceResult result;
   {
+    // Checkpoint for eager deopts before creating the lazy deopt scope, so that
+    // reduced builtin calls that eager deopt don't pick up the lazy deopt
+    // continuation.
+    GetLatestCheckpointedFrame();
+
     DeoptFrameScope lazy_deopt_scope(
         this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>(
@@ -7427,6 +7473,11 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
                        {callable_node, object});
     ValueNode* call_result;
     {
+      // Checkpoint for eager deopts before creating the lazy deopt scope, so
+      // that reduced builtin calls that eager deopt don't pick up the lazy
+      // deopt continuation.
+      GetLatestCheckpointedFrame();
+
       // Make sure that a lazy deopt after the @@hasInstance call also performs
       // ToBoolean before returning to the interpreter.
       DeoptFrameScope continuation_scope(
