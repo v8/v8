@@ -231,6 +231,7 @@
       # RISC-V
       'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
+      'V8 Linux - riscv64 - sim - pointer compression - builder': 'release_simulate_riscv64_pointer_compression',
       # Loongson
       'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
     },
@@ -292,6 +293,7 @@
       'v8_linux64_msan_compile_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux_riscv32_compile_rel': 'release_simulate_riscv32',
       'v8_linux64_riscv64_compile_rel': 'release_simulate_riscv64',
+      'v8_linux64_riscv64_pointer_compression_compile_rel': 'release_simulate_riscv64_pointer_compression',
       'v8_linux64_tsan_compile_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_compile_dbg': 'debug_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_no_cm_compile_rel': 'release_x64_tsan_no_cm',
@@ -478,6 +480,8 @@
       'release_bot', 'simulate_riscv32'],
     'release_simulate_riscv64': [
       'release_bot', 'simulate_riscv64'],
+    'release_simulate_riscv64_pointer_compression': [
+      'release_bot', 'simulate_riscv64', 'v8_enable_pointer_compression'],
     'release_simulate_s390x': [
       'release_bot', 'simulate_s390x'],
 
@@ -1068,6 +1072,9 @@
 
     'v8_disable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=false',
+    },
+    'v8_enable_pointer_compression': {
+      'gn_args': 'v8_enable_pointer_compression=true',
     },
     'v8_disable_pointer_compression_shared_cage': {
       'gn_args': 'v8_enable_pointer_compression_shared_cage=false',
