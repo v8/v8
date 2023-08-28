@@ -1714,14 +1714,22 @@ class AssemblerOpInterface {
   }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
-               MemoryRepresentation loaded_rep, int32_t offset = 0,
+               MemoryRepresentation loaded_rep,
+               RegisterRepresentation result_rep, int32_t offset = 0,
                uint8_t element_size_log2 = 0) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceLoad(base, index, kind, loaded_rep,
-                              loaded_rep.ToRegisterRepresentation(), offset,
+    return stack().ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                               element_size_log2);
+  }
+
+  OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
+               MemoryRepresentation loaded_rep, int32_t offset = 0,
+               uint8_t element_size_log2 = 0) {
+    return Load(base, index, kind, loaded_rep,
+                loaded_rep.ToRegisterRepresentation(), offset,
+                element_size_log2);
   }
   OpIndex Load(OpIndex base, LoadOp::Kind kind, MemoryRepresentation loaded_rep,
                int32_t offset = 0) {

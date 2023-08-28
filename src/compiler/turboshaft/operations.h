@@ -2485,6 +2485,8 @@ struct LoadOp : OperationT<LoadOp> {
     bool always_canonically_accessed : 1;
     // The loaded value may not change.
     bool is_immutable : 1;
+    // The load should be atomic.
+    bool is_atomic : 1;
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {
       switch (base_is_tagged) {
@@ -2497,19 +2499,19 @@ struct LoadOp : OperationT<LoadOp> {
 
     // TODO(dmercadier): use designed initializers once we move to C++20.
     static constexpr Kind TaggedBase() {
-      return {true, false, false, true, false};
+      return {true, false, false, true, false, false};
     }
     static constexpr Kind RawAligned() {
-      return {false, false, false, true, false};
+      return {false, false, false, true, false, false};
     }
     static constexpr Kind RawUnaligned() {
-      return {false, true, false, true, false};
+      return {false, true, false, true, false, false};
     }
     static constexpr Kind Protected() {
-      return {false, false, true, true, false};
+      return {false, false, true, true, false, false};
     }
     static constexpr Kind TrapOnNull() {
-      return {true, false, true, true, false};
+      return {true, false, true, true, false, false};
     }
 
     constexpr Kind NotAlwaysCanonicallyAccessed() {
@@ -2524,12 +2526,18 @@ struct LoadOp : OperationT<LoadOp> {
       return kind;
     }
 
+    constexpr Kind Atomic() const {
+      Kind kind(*this);
+      kind.is_atomic = true;
+      return kind;
+    }
+
     bool operator==(const Kind& other) const {
       return tagged_base == other.tagged_base &&
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
              always_canonically_accessed == other.always_canonically_accessed &&
-             is_immutable == other.is_immutable;
+             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
     }
   };
   Kind kind;
@@ -2584,7 +2592,8 @@ struct LoadOp : OperationT<LoadOp> {
   void Validate(const Graph& graph) const {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsTagged() &&
-            result_rep == RegisterRepresentation::Compressed()));
+            result_rep == RegisterRepresentation::Compressed()) ||
+           kind.is_atomic);
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK(
         kind.tagged_base
@@ -2612,9 +2621,10 @@ struct LoadOp : OperationT<LoadOp> {
 };
 
 V8_INLINE size_t hash_value(LoadOp::Kind kind) {
-  return base::hash_value(static_cast<int>(kind.tagged_base) |
-                          (kind.maybe_unaligned << 1) |
-                          (kind.with_trap_handler << 2));
+  return base::hash_value(
+      static_cast<int>(kind.tagged_base) | (kind.maybe_unaligned << 1) |
+      (kind.always_canonically_accessed << 2) | (kind.is_immutable << 3) |
+      (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
 }
 
 struct AtomicRMWOp : FixedArityOperationT<3, AtomicRMWOp> {

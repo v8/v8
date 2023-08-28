@@ -1009,6 +1009,18 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
     } else {
       o = machine.UnalignedLoad(loaded_rep);
     }
+  } else if (op.kind.is_atomic) {
+    DCHECK(!op.kind.maybe_unaligned);
+    AtomicLoadParameters params(loaded_rep, AtomicMemoryOrder::kSeqCst,
+                                op.kind.with_trap_handler
+                                    ? MemoryAccessKind::kProtected
+                                    : MemoryAccessKind::kNormal);
+    if (op.result_rep == RegisterRepresentation::Word32()) {
+      o = machine.Word32AtomicLoad(params);
+    } else {
+      DCHECK_EQ(op.result_rep, RegisterRepresentation::Word64());
+      o = machine.Word64AtomicLoad(params);
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     if (op.kind.tagged_base) {

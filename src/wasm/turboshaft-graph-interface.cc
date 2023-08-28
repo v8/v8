@@ -1200,23 +1200,33 @@ class TurboshaftGraphBuildingInterface {
       return AtomicNotify(decoder, imm, args[0].op, args[1].op, result);
     }
     using Binop = compiler::turboshaft::AtomicRMWOp::BinOp;
+    enum OpType { kNotImplemented, kBinop, kLoad };
     struct AtomicOpInfo {
-      Binop bin_op;
+      OpType op_type;
+      // Initialize with a default value, to allow constexpr constructors.
+      Binop bin_op = Binop::kAdd;
       RegisterRepresentation result_rep;
       MemoryRepresentation input_rep;
 
       constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation result_rep,
                              MemoryRepresentation input_rep)
-          : bin_op(bin_op), result_rep(result_rep), input_rep(input_rep) {}
+          : op_type(kBinop),
+            bin_op(bin_op),
+            result_rep(result_rep),
+            input_rep(input_rep) {}
 
-      constexpr AtomicOpInfo() : bin_op(Binop::kAdd) {}
+      constexpr AtomicOpInfo(RegisterRepresentation result_rep,
+                             MemoryRepresentation input_rep)
+          : op_type(kLoad), result_rep(result_rep), input_rep(input_rep) {}
+
+      constexpr AtomicOpInfo() : op_type(kNotImplemented) {}
 
       static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
         switch (opcode) {
-#define CASE(OPCODE, BINOP, RESULT, INPUT)                     \
-  case WasmOpcode::kExpr##OPCODE:                              \
-    return {Binop::k##BINOP, RegisterRepresentation::RESULT(), \
-            MemoryRepresentation::INPUT()};
+#define CASE_BINOP(OPCODE, BINOP, RESULT, INPUT)                           \
+  case WasmOpcode::kExpr##OPCODE:                                          \
+    return AtomicOpInfo(Binop::k##BINOP, RegisterRepresentation::RESULT(), \
+                        MemoryRepresentation::INPUT());
 #define RMW_OPERATION(V)                            \
   V(I32AtomicAdd, Add, Word32, Uint32)              \
   V(I32AtomicAdd8U, Add, Word32, Uint8)             \
@@ -1261,9 +1271,22 @@ class TurboshaftGraphBuildingInterface {
   V(I64AtomicExchange16U, Exchange, Word64, Uint16) \
   V(I64AtomicExchange32U, Exchange, Word64, Uint32)
 
-          RMW_OPERATION(CASE)
+          RMW_OPERATION(CASE_BINOP)
 #undef RMW_OPERATION
 #undef CASE
+#define CASE_LOAD(OPCODE, RESULT, INPUT)                  \
+  case WasmOpcode::kExpr##OPCODE:                         \
+    return AtomicOpInfo(RegisterRepresentation::RESULT(), \
+                        MemoryRepresentation::INPUT());
+#define LOAD_OPERATION(V)             \
+  V(I32AtomicLoad, Word32, Uint32)    \
+  V(I32AtomicLoad16U, Word32, Uint16) \
+  V(I32AtomicLoad8U, Word32, Uint8)   \
+  V(I64AtomicLoad, Word64, Uint64)    \
+  V(I64AtomicLoad32U, Word64, Uint32) \
+  V(I64AtomicLoad16U, Word64, Uint16) \
+  V(I64AtomicLoad8U, Word64, Uint8)
+          LOAD_OPERATION(CASE_LOAD)
           default:
             return {};
         }
@@ -1272,7 +1295,7 @@ class TurboshaftGraphBuildingInterface {
 
     AtomicOpInfo info = AtomicOpInfo::Get(opcode);
 
-    if (!info.input_rep.is_valid()) {
+    if (info.op_type == kNotImplemented) {
       Bailout(decoder);
       return;
     }
@@ -1295,9 +1318,18 @@ class TurboshaftGraphBuildingInterface {
             ? MemoryAccessKind::kProtected
             : MemoryAccessKind::kNormal;
 
-    result->op = asm_.AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
-                                args[1].op, info.bin_op, info.result_rep,
-                                info.input_rep, access_kind);
+    if (info.op_type == kBinop) {
+      result->op = asm_.AtomicRMW(MemBuffer(imm.memory->index, imm.offset),
+                                  index, args[1].op, info.bin_op,
+                                  info.result_rep, info.input_rep, access_kind);
+      return;
+    }
+    DCHECK_EQ(info.op_type, kLoad);
+    result->op = asm_.Load(MemBuffer(imm.memory->index, imm.offset), index,
+                           access_kind == MemoryAccessKind::kProtected
+                               ? LoadOp::Kind::Protected().Atomic()
+                               : LoadOp::Kind::RawAligned().Atomic(),
+                           info.input_rep, info.result_rep);
   }
 
   void AtomicFence(FullDecoder* decoder) { Bailout(decoder); }
