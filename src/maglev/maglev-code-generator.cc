@@ -1420,16 +1420,17 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       graph_(graph),
       deopt_literals_(isolate->heap()->heap()) {}
 
-void MaglevCodeGenerator::Assemble() {
-  EmitCode();
+bool MaglevCodeGenerator::Assemble() {
+  if (!EmitCode()) {
 #ifdef V8_TARGET_ARCH_ARM
-  if (masm_.failed()) {
     // Even if we fail, we force emit the constant pool, so that it is empty.
     __ CheckConstPool(true, false);
-    return;
-  }
 #endif
+    return false;
+  }
+
   EmitMetadata();
+
   if (v8_flags.maglev_build_code_on_background) {
     code_ = local_isolate_->heap()->NewPersistentMaybeHandle(
         BuildCodeObject(local_isolate_));
@@ -1439,6 +1440,7 @@ void MaglevCodeGenerator::Assemble() {
     deopt_data_ = local_isolate_->heap()->NewPersistentHandle(
         GenerateDeoptimizationData(local_isolate_));
   }
+  return true;
 }
 
 MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
@@ -1453,7 +1455,7 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
   return BuildCodeObject(isolate->main_thread_local_isolate());
 }
 
-void MaglevCodeGenerator::EmitCode() {
+bool MaglevCodeGenerator::EmitCode() {
   GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
                                     MaglevCodeGeneratingNodeProcessor>>
       processor(SafepointingNodeProcessor{local_isolate_},
@@ -1468,10 +1470,12 @@ void MaglevCodeGenerator::EmitCode() {
 
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
-  EmitDeopts();
-  if (code_gen_failed_) return;
+  if (!EmitDeopts()) return false;
   EmitExceptionHandlerTrampolines();
   __ FinishCode();
+
+  code_gen_succeeded_ = true;
+  return true;
 }
 
 void MaglevCodeGenerator::RecordInlinedFunctions() {
@@ -1503,12 +1507,11 @@ void MaglevCodeGenerator::EmitDeferredCode() {
   }
 }
 
-void MaglevCodeGenerator::EmitDeopts() {
+bool MaglevCodeGenerator::EmitDeopts() {
   const size_t num_deopts = code_gen_state_.eager_deopts().size() +
                             code_gen_state_.lazy_deopts().size();
   if (num_deopts > Deoptimizer::kMaxNumberOfEntries) {
-    code_gen_failed_ = true;
-    return;
+    return false;
   }
 
   MaglevFrameTranslationBuilder translation_builder(
@@ -1578,6 +1581,8 @@ void MaglevCodeGenerator::EmitDeopts() {
         deopt_index);
     deopt_index++;
   }
+
+  return true;
 }
 
 void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
@@ -1605,7 +1610,7 @@ void MaglevCodeGenerator::EmitMetadata() {
 
 MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
     LocalIsolate* local_isolate) {
-  if (code_gen_failed_) return {};
+  if (!code_gen_succeeded_) return {};
 
   Handle<DeoptimizationData> deopt_data =
       (v8_flags.maglev_deopt_data_on_background &&

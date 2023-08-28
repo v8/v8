@@ -24,18 +24,14 @@ class MaglevCodeGenerator final {
   MaglevCodeGenerator(LocalIsolate* isolate,
                       MaglevCompilationInfo* compilation_info, Graph* graph);
 
-  void Assemble();
+  V8_NODISCARD bool Assemble();
 
   MaybeHandle<Code> Generate(Isolate* isolate);
 
-#ifdef V8_TARGET_ARCH_ARM
-  bool AssembleHasFailed() const { return masm_.failed(); }
-#endif
-
  private:
-  void EmitCode();
+  V8_NODISCARD bool EmitCode();
   void EmitDeferredCode();
-  void EmitDeopts();
+  V8_NODISCARD bool EmitDeopts();
   void EmitExceptionHandlerTrampolines();
   void EmitMetadata();
   void RecordInlinedFunctions();
@@ -63,7 +59,7 @@ class MaglevCodeGenerator final {
   int handler_table_offset_ = 0;
   int inlined_function_count_ = 0;
 
-  bool code_gen_failed_ = false;
+  bool code_gen_succeeded_ = false;
 
   Handle<DeoptimizationData> deopt_data_;
   MaybeHandle<Code> code_;

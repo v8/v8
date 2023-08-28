@@ -474,13 +474,10 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     std::unique_ptr<MaglevCodeGenerator> code_generator =
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
-    code_generator->Assemble();
-
-#ifdef V8_TARGET_ARCH_ARM
-    if (code_generator->AssembleHasFailed()) {
+    bool success = code_generator->Assemble();
+    if (!success) {
       return false;
     }
-#endif
 
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));

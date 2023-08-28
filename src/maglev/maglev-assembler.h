@@ -546,11 +546,6 @@ class MaglevAssembler : public MacroAssembler {
   void set_allow_deferred_call(bool value) { allow_deferred_call_ = value; }
 #endif  // DEBUG
 
-#ifdef V8_TARGET_ARCH_ARM
-  bool failed() const { return failed_; }
-  void set_failed(bool value) { failed_ = true; }
-#endif
-
  private:
   inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
     return StandardFrameConstants::kExpressionsOffset -
@@ -566,10 +561,6 @@ class MaglevAssembler : public MacroAssembler {
   bool allow_call_ = false;
   bool allow_deferred_call_ = false;
 #endif  // DEBUG
-
-#ifdef V8_TARGET_ARCH_ARM
-  bool failed_ = false;
-#endif
 };
 
 class SaveRegisterStateForCall {
