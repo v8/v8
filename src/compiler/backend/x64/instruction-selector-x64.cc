@@ -1476,9 +1476,28 @@ void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
   auto binop = this->word_binop_view(node);
   if (auto c = GetWord32Constant(this, binop.right())) {
     if (*c == 0xFF) {
+      if (this->is_load(binop.left())) {
+        LoadRepresentation load_rep =
+            this->load_view(binop.left()).loaded_rep();
+        if (load_rep.representation() == MachineRepresentation::kWord8 &&
+            load_rep.IsUnsigned()) {
+          EmitIdentity(node);
+          return;
+        }
+      }
       Emit(kX64Movzxbl, g.DefineAsRegister(node), g.Use(binop.left()));
       return;
     } else if (*c == 0xFFFF) {
+      if (this->is_load(binop.left())) {
+        LoadRepresentation load_rep =
+            this->load_view(binop.left()).loaded_rep();
+        if ((load_rep.representation() == MachineRepresentation::kWord16 ||
+             load_rep.representation() == MachineRepresentation::kWord8) &&
+            load_rep.IsUnsigned()) {
+          EmitIdentity(node);
+          return;
+        }
+      }
       Emit(kX64Movzxwl, g.DefineAsRegister(node), g.Use(binop.left()));
       return;
     }
