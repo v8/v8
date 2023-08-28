@@ -283,13 +283,6 @@ namespace compiler {
   V(RiscvS128Load64Zero)                  \
   V(RiscvS128Load32Zero)                  \
   V(RiscvV128AnyTrue)                     \
-  V(RiscvS32x4InterleaveRight)            \
-  V(RiscvS32x4InterleaveLeft)             \
-  V(RiscvS32x4PackEven)                   \
-  V(RiscvS32x4PackOdd)                    \
-  V(RiscvS32x4InterleaveEven)             \
-  V(RiscvS32x4InterleaveOdd)              \
-  V(RiscvS32x4Shuffle)                    \
   V(RiscvS16x8InterleaveRight)            \
   V(RiscvS16x8InterleaveLeft)             \
   V(RiscvS16x8PackEven)                   \
@@ -298,17 +291,7 @@ namespace compiler {
   V(RiscvS16x8InterleaveOdd)              \
   V(RiscvS16x4Reverse)                    \
   V(RiscvS16x2Reverse)                    \
-  V(RiscvS8x16InterleaveRight)            \
-  V(RiscvS8x16InterleaveLeft)             \
-  V(RiscvS8x16PackEven)                   \
-  V(RiscvS8x16PackOdd)                    \
-  V(RiscvS8x16InterleaveEven)             \
-  V(RiscvS8x16InterleaveOdd)              \
   V(RiscvI8x16Shuffle)                    \
-  V(RiscvS8x16Concat)                     \
-  V(RiscvS8x8Reverse)                     \
-  V(RiscvS8x4Reverse)                     \
-  V(RiscvS8x2Reverse)                     \
   V(RiscvS128LoadSplat)                   \
   V(RiscvS128Load64ExtendS)               \
   V(RiscvS128Load64ExtendU)               \
