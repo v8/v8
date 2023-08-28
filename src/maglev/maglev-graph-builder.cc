@@ -5080,63 +5080,95 @@ bool MaglevGraphBuilder::HasValidInitialMap(
   return initial_map.GetConstructor(broker()).equals(constructor);
 }
 
+bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
+    ValueNode* this_function, ValueNode* new_target,
+    std::pair<interpreter::Register, interpreter::Register> result) {
+  // See also:
+  // JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct
+
+  compiler::OptionalHeapObjectRef maybe_constant =
+      TryGetConstant(this_function);
+  if (!maybe_constant) return false;
+
+  compiler::MapRef function_map = maybe_constant->map(broker());
+  compiler::HeapObjectRef current = function_map.prototype(broker());
+
+  // TODO(v8:13091): Don't produce incomplete stack traces when debug is active.
+  // We already deopt when a breakpoint is set. But it would be even nicer to
+  // avoid producting incomplete stack traces when when debug is active, even if
+  // there are no breakpoints - then a user inspecting stack traces via Dev
+  // Tools would always see the full stack trace.
+
+  while (true) {
+    if (!current.IsJSFunction()) return false;
+    compiler::JSFunctionRef current_function = current.AsJSFunction();
+
+    // If there are class fields, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.shared(broker())
+            .requires_instance_members_initializer()) {
+      return false;
+    }
+
+    // If there are private methods, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.context(broker())
+            .scope_info(broker())
+            .ClassScopeHasPrivateBrand()) {
+      return false;
+    }
+
+    FunctionKind kind = current_function.shared(broker()).kind();
+    if (kind != FunctionKind::kDefaultDerivedConstructor) {
+      // The hierarchy walk will end here; this is the last change to bail out
+      // before creating new nodes.
+      if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
+        return false;
+      }
+
+      compiler::OptionalHeapObjectRef new_target_function =
+          TryGetConstant(new_target);
+      if (kind == FunctionKind::kDefaultBaseConstructor) {
+        // Store the result register first, so that a lazy deopt in
+        // `FastNewObject` writes `true` to this register.
+        StoreRegister(result.first, GetBooleanConstant(true));
+
+        ValueNode* object;
+        if (new_target_function && new_target_function->IsJSFunction() &&
+            HasValidInitialMap(new_target_function->AsJSFunction(),
+                               current_function)) {
+          object = BuildAllocateFastObject(
+              FastObject(new_target_function->AsJSFunction(), zone(), broker()),
+              AllocationType::kYoung);
+        } else {
+          object = BuildCallBuiltin<Builtin::kFastNewObject>(
+              {GetConstant(current_function), new_target});
+          // We've already stored "true" into result.first, so a deopt here just
+          // has to store result.second.
+          object->lazy_deopt_info()->UpdateResultLocation(result.second, 1);
+        }
+        StoreRegister(result.second, object);
+      } else {
+        StoreRegister(result.first, GetBooleanConstant(false));
+        StoreRegister(result.second, GetConstant(current));
+      }
+
+      broker()->dependencies()->DependOnStablePrototypeChain(
+          function_map, WhereToStart::kStartAtReceiver, current_function);
+      return true;
+    }
+
+    // Keep walking up the class tree.
+    current = current_function.map(broker()).prototype(broker());
+  }
+}
+
 void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   ValueNode* this_function = LoadRegisterTagged(0);
   ValueNode* new_target = LoadRegisterTagged(1);
 
   auto register_pair = iterator_.GetRegisterPairOperand(2);
 
-  if (compiler::OptionalHeapObjectRef constant =
-          TryGetConstant(this_function)) {
-    compiler::MapRef function_map = constant->map(broker());
-    compiler::HeapObjectRef current = function_map.prototype(broker());
-
-    if (broker()->dependencies()->DependOnArrayIteratorProtector()) {
-      while (true) {
-        if (!current.IsJSFunction()) break;
-        compiler::JSFunctionRef current_function = current.AsJSFunction();
-        if (current_function.shared(broker())
-                .requires_instance_members_initializer()) {
-          break;
-        }
-        if (current_function.context(broker())
-                .scope_info(broker())
-                .ClassScopeHasPrivateBrand()) {
-          break;
-        }
-        FunctionKind kind = current_function.shared(broker()).kind();
-        if (kind != FunctionKind::kDefaultDerivedConstructor) {
-          broker()->dependencies()->DependOnStablePrototypeChain(
-              function_map, WhereToStart::kStartAtReceiver, current_function);
-
-          compiler::OptionalHeapObjectRef new_target_function =
-              TryGetConstant(new_target);
-          if (kind == FunctionKind::kDefaultBaseConstructor) {
-            ValueNode* object;
-            if (new_target_function && new_target_function->IsJSFunction() &&
-                HasValidInitialMap(new_target_function->AsJSFunction(),
-                                   current_function)) {
-              object = BuildAllocateFastObject(
-                  FastObject(new_target_function->AsJSFunction(), zone(),
-                             broker()),
-                  AllocationType::kYoung);
-            } else {
-              object = BuildCallBuiltin<Builtin::kFastNewObject>(
-                  {GetConstant(current_function), new_target});
-            }
-            StoreRegister(register_pair.first, GetBooleanConstant(true));
-            StoreRegister(register_pair.second, object);
-            return;
-          }
-          break;
-        }
-
-        // Keep walking up the class tree.
-        current = current_function.map(broker()).prototype(broker());
-      }
-    }
-    StoreRegister(register_pair.first, GetBooleanConstant(false));
-    StoreRegister(register_pair.second, GetConstant(current));
+  if (TryBuildFindNonDefaultConstructorOrConstruct(this_function, new_target,
+                                                   register_pair)) {
     return;
   }
 

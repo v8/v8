@@ -1675,6 +1675,10 @@ class MaglevGraphBuilder {
   ReduceResult TryBuildGlobalLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
+  bool TryBuildFindNonDefaultConstructorOrConstruct(
+      ValueNode* this_function, ValueNode* new_target,
+      std::pair<interpreter::Register, interpreter::Register> result);
+
   ValueNode* BuildSmiUntag(ValueNode* node);
   ValueNode* BuildNumberOrOddballToFloat64(
       ValueNode* node, TaggedToFloat64ConversionType conversion_type);
