@@ -233,6 +233,14 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
     ),
+    multibranch_builder_pair(
+        name = "V8 Linux - riscv64 - sim - pointer compression",
+        tester_execution_timeout = 19800,
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
+        first_branch_version = "11.8",
+    ),
 )
 
 in_category(

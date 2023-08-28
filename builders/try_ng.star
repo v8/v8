@@ -323,6 +323,13 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_linux64_riscv64_pointer_compression_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+trybot_pair(
     name = "v8_linux64_loong64_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
