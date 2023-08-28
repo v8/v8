@@ -886,13 +886,34 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(TryTruncateFloat64ToUint64)
   DECLARE_GENERATOR_T(TryTruncateFloat64ToInt32)
   DECLARE_GENERATOR_T(TryTruncateFloat64ToUint32)
+  DECLARE_GENERATOR_T(Int32PairAdd)
+  DECLARE_GENERATOR_T(Int32PairSub)
+  DECLARE_GENERATOR_T(Int32PairMul)
+  DECLARE_GENERATOR_T(Word32PairShl)
+  DECLARE_GENERATOR_T(Word32PairShr)
+  DECLARE_GENERATOR_T(Word32PairSar)
+  DECLARE_GENERATOR_T(Float64InsertLowWord32)
+  DECLARE_GENERATOR_T(Float64InsertHighWord32)
+  DECLARE_GENERATOR_T(Comment)
+  DECLARE_GENERATOR_T(Word32ReverseBits)
+  DECLARE_GENERATOR_T(Word64ReverseBits)
+  DECLARE_GENERATOR_T(AbortCSADcheck)
+  DECLARE_GENERATOR_T(StorePair)
+  DECLARE_GENERATOR_T(UnalignedLoad)
+  DECLARE_GENERATOR_T(UnalignedStore)
+  DECLARE_GENERATOR_T(Int32AbsWithOverflow)
+  DECLARE_GENERATOR_T(Int64AbsWithOverflow)
+  DECLARE_GENERATOR_T(TruncateFloat64ToUint32)
+  DECLARE_GENERATOR_T(SignExtendWord32ToInt64)
+  DECLARE_GENERATOR_T(TraceInstruction)
+  DECLARE_GENERATOR_T(MemoryBarrier)
+  DECLARE_GENERATOR_T(LoadStackCheckOffset)
+  DECLARE_GENERATOR_T(LoadFramePointer)
+  DECLARE_GENERATOR_T(LoadParentFramePointer)
+  DECLARE_GENERATOR_T(ProtectedLoad)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  DECLARE_GENERATOR(Int32AbsWithOverflow)
-  DECLARE_GENERATOR(Word32ReverseBits)
-  DECLARE_GENERATOR(Word64RolLowerable)
-  DECLARE_GENERATOR(Word64RorLowerable)
   DECLARE_GENERATOR(Word32AtomicLoad)
   DECLARE_GENERATOR(Word32AtomicExchange)
   DECLARE_GENERATOR(Word32AtomicCompareExchange)
@@ -918,41 +939,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word64AtomicXor)
   DECLARE_GENERATOR(Word64AtomicExchange)
   DECLARE_GENERATOR(Word64AtomicCompareExchange)
-  DECLARE_GENERATOR(AbortCSADcheck)
-  DECLARE_GENERATOR(Comment)
-  DECLARE_GENERATOR(LoadImmutable)
-  DECLARE_GENERATOR(StorePair)
-  DECLARE_GENERATOR(Word64ClzLowerable)
-  DECLARE_GENERATOR(Word64CtzLowerable)
-  DECLARE_GENERATOR(Word64ReverseBits)
   DECLARE_GENERATOR(Simd128ReverseBytes)
-  DECLARE_GENERATOR(Int64AbsWithOverflow)
-  DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
-  DECLARE_GENERATOR(BitcastWordToTaggedSigned)
-  DECLARE_GENERATOR(TruncateFloat64ToUint32)
-  DECLARE_GENERATOR(Float64InsertLowWord32)
-  DECLARE_GENERATOR(Float64InsertHighWord32)
-  DECLARE_GENERATOR(Word32Select)
-  DECLARE_GENERATOR(Word64Select)
-  DECLARE_GENERATOR(Float32Select)
-  DECLARE_GENERATOR(Float64Select)
-  DECLARE_GENERATOR(LoadStackCheckOffset)
-  DECLARE_GENERATOR(LoadFramePointer)
-  DECLARE_GENERATOR(LoadParentFramePointer)
-  DECLARE_GENERATOR(UnalignedLoad)
-  DECLARE_GENERATOR(UnalignedStore)
-  DECLARE_GENERATOR(Int32PairAdd)
-  DECLARE_GENERATOR(Int32PairSub)
-  DECLARE_GENERATOR(Int32PairMul)
-  DECLARE_GENERATOR(Word32PairShl)
-  DECLARE_GENERATOR(Word32PairShr)
-  DECLARE_GENERATOR(Word32PairSar)
-  DECLARE_GENERATOR(ProtectedLoad)
-  DECLARE_GENERATOR(LoadTrapOnNull)
-  DECLARE_GENERATOR(StoreTrapOnNull)
-  DECLARE_GENERATOR(MemoryBarrier)
-  DECLARE_GENERATOR(SignExtendWord32ToInt64)
-  DECLARE_GENERATOR(TraceInstruction)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
@@ -974,19 +961,20 @@ class InstructionSelectorT final : public Adapter {
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(node_t node, TrapId trap_id);
   void VisitTrapUnless(node_t node, TrapId trap_id);
-  void VisitTailCall(Node* call);
+  void VisitTailCall(node_t call);
   void VisitGoto(block_t target);
   void VisitBranch(node_t input, block_t tbranch, block_t fbranch);
   void VisitSwitch(node_t node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeReason reason, id_t node_id,
                        FeedbackSource const& feedback, node_t frame_state);
-  void VisitSelect(Node* node);
+  void VisitSelect(node_t node);
   void VisitReturn(node_t node);
   void VisitThrow(Node* node);
   void VisitRetain(node_t node);
   void VisitUnreachable(node_t node);
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
+  void VisitBitcastWord32PairToFloat64(node_t node);
 
   void TryPrepareScheduleFirstProjection(node_t maybe_projection);
 
@@ -1073,7 +1061,7 @@ class InstructionSelectorT final : public Adapter {
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
-  void MarkPairProjectionsAsWord32(Node* node);
+  void MarkPairProjectionsAsWord32(node_t node);
   bool IsSourcePositionUsed(node_t node);
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
                                           VisitWord32AtomicBinaryOperation)

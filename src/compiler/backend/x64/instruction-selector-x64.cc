@@ -945,10 +945,15 @@ ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTraceInstruction(Node* node) {
-  X64OperandGeneratorT<Adapter> g(this);
-  uint32_t markid = OpParameter<uint32_t>(node->op());
-  Emit(kX64TraceInstruction, g.Use(node), g.UseImmediate(markid));
+void InstructionSelectorT<Adapter>::VisitTraceInstruction(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    // Currently not used by Turboshaft.
+    UNIMPLEMENTED();
+  } else {
+    X64OperandGeneratorT<Adapter> g(this);
+    uint32_t markid = OpParameter<uint32_t>(node->op());
+    Emit(kX64TraceInstruction, g.Use(node), g.UseImmediate(markid));
+  }
 }
 
 template <typename Adapter>
@@ -962,9 +967,11 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(Node* node) {
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), rdx));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kArchAbortCSADcheck, g.NoOutput(),
+       g.UseFixed(this->input_at(node, 0), rdx));
 }
 
 template <typename Adapter>
@@ -1138,7 +1145,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   VisitLoad(node);
 }
 
@@ -1295,7 +1302,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
+void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
   UNREACHABLE();
 }
 
@@ -1311,13 +1318,13 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
   UNREACHABLE();
 }
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
 }
 
@@ -1985,12 +1992,12 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(node_t node) {
   UNREACHABLE();
 }
 
@@ -2735,10 +2742,6 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 
 namespace {
 
-void VisitRO(InstructionSelectorT<TurboshaftAdapter>*, Node*, InstructionCode) {
-  UNREACHABLE();
-}
-
 template <typename Adapter>
 void VisitRO(InstructionSelectorT<Adapter>* selector,
              typename Adapter::node_t node, InstructionCode opcode) {
@@ -2888,11 +2891,9 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                        \
   V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)
 
-#define RO_OP_LIST(V)                                                    \
-  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
-  V(SignExtendWord32ToInt64, kX64Movsxlq)
-
 #define RR_OP_T_LIST(V)                                                       \
+  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0))      \
+  V(SignExtendWord32ToInt64, kX64Movsxlq)                                     \
   V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \
   V(Float64RoundDown, kSSEFloat64Round | MiscField::encode(kRoundDown))       \
   V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))           \
@@ -2912,15 +2913,6 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
   V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
   V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \
   V(F64x2NearestInt, kX64F64x2Round | MiscField::encode(kRoundToNearest))
-
-#define RO_VISITOR(Name, opcode)                                \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRO(this, node, opcode);                                \
-  }
-RO_OP_LIST(RO_VISITOR)
-#undef RO_VISITOR
-#undef RO_OP_LIST
 
 #define RO_VISITOR(Name, opcode)                                 \
   template <typename Adapter>                                    \
@@ -4360,25 +4352,32 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Float64Matcher mleft(left);
-  if (mleft.HasResolvedValue() &&
-      (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
-    Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
-    return;
+  DCHECK_EQ(this->value_input_count(node), 2);
+  node_t left = this->input_at(node, 0);
+  node_t right = this->input_at(node, 1);
+  if constexpr (Adapter::IsTurboshaft) {
+    // TODO(nicohartmann@): Might want to provide this optimization for
+    // turboshaft.
+  } else {
+    Float64Matcher mleft(left);
+    if (mleft.HasResolvedValue() &&
+        (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
+      Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+      return;
+    }
   }
   Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  node_t left = this->input_at(node, 0);
+  node_t right = this->input_at(node, 1);
   Emit(kSSEFloat64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
 }
@@ -4392,16 +4391,21 @@ void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitMemoryBarrier(Node* node) {
-  // x64 is no weaker than release-acquire and only needs to emit an instruction
-  // for SeqCst memory barriers.
-  AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
-  if (order == AtomicMemoryOrder::kSeqCst) {
-    X64OperandGeneratorT<Adapter> g(this);
-    Emit(kX64MFence, g.NoOutput());
-    return;
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    // Currently not used by Turboshaft.
+    UNIMPLEMENTED();
+  } else {
+    // x64 is no weaker than release-acquire and only needs to emit an
+    // instruction for SeqCst memory barriers.
+    AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
+    if (order == AtomicMemoryOrder::kSeqCst) {
+      X64OperandGeneratorT<Adapter> g(this);
+      Emit(kX64MFence, g.NoOutput());
+      return;
+    }
+    DCHECK_EQ(AtomicMemoryOrder::kAcqRel, order);
   }
-  DCHECK_EQ(AtomicMemoryOrder::kAcqRel, order);
 }
 
 template <typename Adapter>
@@ -5404,12 +5408,12 @@ void InstructionSelectorT<Adapter>::VisitI32x8UConvertF32x8(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 

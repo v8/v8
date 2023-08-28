@@ -1656,13 +1656,13 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(Node* node) {
-  Node* projection0 = NodeProperties::FindProjection(node, 0);
-  if (projection0) {
+void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(node_t node) {
+  node_t projection0 = FindProjection(node, 0);
+  if (Adapter::valid(projection0)) {
     MarkAsWord32(projection0);
   }
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
+  node_t projection1 = FindProjection(node, 1);
+  if (Adapter::valid(projection1)) {
     MarkAsWord32(projection1);
   }
 }
@@ -1674,21 +1674,20 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(node_t node) {
   VisitStackPointerGreaterThan(node, &cont);
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitLoadStackCheckOffset(
-    Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadStackCheckOffset(node_t node) {
   OperandGenerator g(this);
   Emit(kArchStackCheckOffset, g.DefineAsRegister(node));
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitLoadFramePointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadFramePointer(node_t node) {
   OperandGenerator g(this);
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(Node* node) {
+void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(node_t node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
 }
@@ -1877,12 +1876,7 @@ VISIT_UNSUPPORTED_OP(Word64Rol)
 VISIT_UNSUPPORTED_OP(Word64Ror)
 VISIT_UNSUPPORTED_OP(Word64Clz)
 VISIT_UNSUPPORTED_OP(Word64Ctz)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(Word64ReverseBits)
 VISIT_UNSUPPORTED_OP(Word64Popcnt)
 VISIT_UNSUPPORTED_OP(Word64Equal)
 VISIT_UNSUPPORTED_OP(Int64Add)
@@ -1923,44 +1917,18 @@ VISIT_UNSUPPORTED_OP(BitcastFloat64ToInt64)
 VISIT_UNSUPPORTED_OP(BitcastInt64ToFloat64)
 VISIT_UNSUPPORTED_OP(SignExtendWord8ToInt64)
 VISIT_UNSUPPORTED_OP(SignExtendWord16ToInt64)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(SignExtendWord32ToInt64)
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // 64 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_64_BIT
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairAdd(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairSub(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairMul(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShl(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShr(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairSar(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Int32PairAdd)
+VISIT_UNSUPPORTED_OP(Int32PairSub)
+VISIT_UNSUPPORTED_OP(Int32PairMul)
+VISIT_UNSUPPORTED_OP(Word32PairShl)
+VISIT_UNSUPPORTED_OP(Word32PairShr)
+VISIT_UNSUPPORTED_OP(Word32PairSar)
+VISIT_UNSUPPORTED_OP(BitcastWord32PairToFloat64)
 #endif  // V8_TARGET_ARCH_64_BIT
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
@@ -2354,41 +2322,38 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTailCall(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
-    UNIMPLEMENTED();
-  } else {
-    OperandGenerator g(this);
+void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
+  OperandGenerator g(this);
 
-    auto caller = linkage()->GetIncomingDescriptor();
-    auto callee = CallDescriptorOf(node->op());
-    DCHECK(caller->CanTailCall(callee));
-    const int stack_param_delta = callee->GetStackParameterDelta(caller);
-    CallBuffer buffer(zone(), callee, nullptr);
+  auto call = this->call_view(node);
+  auto caller = linkage()->GetIncomingDescriptor();
+  auto callee = call.call_descriptor();
+  DCHECK(caller->CanTailCall(callee));
+  const int stack_param_delta = callee->GetStackParameterDelta(caller);
+  CallBuffer buffer(zone(), callee, nullptr);
 
-    // Compute InstructionOperands for inputs and outputs.
-    CallBufferFlags flags(kCallCodeImmediate | kCallTail);
-    if (IsTailCallAddressImmediate()) {
-      flags |= kCallAddressImmediate;
-    }
-    if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
-      flags |= kCallFixedTargetRegister;
-    }
-    InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
-    UpdateMaxPushedArgumentCount(stack_param_delta);
+  // Compute InstructionOperands for inputs and outputs.
+  CallBufferFlags flags(kCallCodeImmediate | kCallTail);
+  if (IsTailCallAddressImmediate()) {
+    flags |= kCallAddressImmediate;
+  }
+  if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
+    flags |= kCallFixedTargetRegister;
+  }
+  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
+  UpdateMaxPushedArgumentCount(stack_param_delta);
 
-    // Select the appropriate opcode based on the call type.
-    InstructionCode opcode;
-    InstructionOperandVector temps(zone());
-    switch (callee->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObject;
-        break;
-      case CallDescriptor::kCallAddress:
-        DCHECK(!caller->IsJSFunctionCall());
-        opcode = kArchTailCallAddress;
-        break;
+  // Select the appropriate opcode based on the call type.
+  InstructionCode opcode;
+  InstructionOperandVector temps(zone());
+  switch (callee->kind()) {
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchTailCallCodeObject;
+      break;
+    case CallDescriptor::kCallAddress:
+      DCHECK(!caller->IsJSFunctionCall());
+      opcode = kArchTailCallAddress;
+      break;
 #if V8_ENABLE_WEBASSEMBLY
       case CallDescriptor::kCallWasmFunction:
         DCHECK(!caller->IsJSFunctionCall());
@@ -2397,7 +2362,7 @@ void InstructionSelectorT<Adapter>::VisitTailCall(Node* node) {
 #endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
-    }
+  }
     opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
     Emit(kArchPrepareTailCall, g.NoOutput());
@@ -2419,7 +2384,6 @@ void InstructionSelectorT<Adapter>::VisitTailCall(Node* node) {
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
          &buffer.instruction_args.front(), temps.size(),
          temps.empty() ? nullptr : &temps.front());
-  }
 }
 
 template <typename Adapter>
@@ -2629,15 +2593,11 @@ void InstructionSelectorT<Adapter>::VisitDeoptimizeUnless(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSelect(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
-    UNIMPLEMENTED();
-  } else {
-    FlagsContinuation cont = FlagsContinuation::ForSelect(
-        kNotEqual, node, node->InputAt(1), node->InputAt(2));
-    VisitWordCompareZero(node, node->InputAt(0), &cont);
-  }
+void InstructionSelectorT<Adapter>::VisitSelect(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 3);
+  FlagsContinuation cont = FlagsContinuation::ForSelect(
+      kNotEqual, node, this->input_at(node, 1), this->input_at(node, 2));
+  VisitWordCompareZero(node, this->input_at(node, 0), &cont);
 }
 
 template <typename Adapter>
@@ -2717,7 +2677,7 @@ void InstructionSelectorT<Adapter>::VisitDeadValue(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitComment(Node* node) {
+void InstructionSelectorT<Adapter>::VisitComment(node_t node) {
   OperandGenerator g(this);
   InstructionOperand operand(g.UseImmediate(node));
   Emit(kArchComment, 0, nullptr, 1, &operand);
@@ -2736,10 +2696,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
   // Edge split form guarantees this property, but is more strict.
-  if (auto successors = turboshaft::SuccessorBlocks(
-          block->LastOperation(*turboshaft_graph()));
+  if (auto successors =
+          SuccessorBlocks(block->LastOperation(*turboshaft_graph()));
       successors.size() > 1) {
-    for (turboshaft::Block* successor : successors) {
+    for (Block* successor : successors) {
       if (successor->HasPhis(*turboshaft_graph())) {
         std::ostringstream str;
         str << "You might have specified merged variables for a label with "
@@ -2759,6 +2719,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
       break;
     case Opcode::kReturn:
       VisitReturn(node);
+      break;
+    case Opcode::kTailCall:
+      VisitTailCall(node);
       break;
     case Opcode::kDeoptimize: {
       const DeoptimizeOp& deoptimize = op.Cast<DeoptimizeOp>();
@@ -4243,6 +4206,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kBranch:
     case Opcode::kGoto:
     case Opcode::kReturn:
+    case Opcode::kTailCall:
     case Opcode::kUnreachable:
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
@@ -4846,28 +4810,25 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kLoad: {
-      MachineRepresentation rep = op.Cast<turboshaft::LoadOp>()
-                                      .loaded_rep.ToMachineType()
-                                      .representation();
+      MachineRepresentation rep =
+          op.Cast<LoadOp>().loaded_rep.ToMachineType().representation();
       MarkAsRepresentation(rep, node);
       return VisitLoad(node);
     }
     case Opcode::kStore:
       return VisitStore(node);
     case Opcode::kTaggedBitcast: {
-      const turboshaft::TaggedBitcastOp& cast =
-          op.Cast<turboshaft::TaggedBitcastOp>();
-      if (cast.from == turboshaft::RegisterRepresentation::Tagged() &&
-          cast.to == turboshaft::RegisterRepresentation::PointerSized()) {
+      const TaggedBitcastOp& cast = op.Cast<TaggedBitcastOp>();
+      if (cast.from == RegisterRepresentation::Tagged() &&
+          cast.to == RegisterRepresentation::PointerSized()) {
         MarkAsRepresentation(MachineType::PointerRepresentation(), node);
         return VisitBitcastTaggedToWord(node);
       } else if (cast.from.IsWord() &&
-                 cast.to == turboshaft::RegisterRepresentation::Tagged()) {
+                 cast.to == RegisterRepresentation::Tagged()) {
         MarkAsTagged(node);
         return VisitBitcastWordToTagged(node);
-      } else if (cast.from ==
-                     turboshaft::RegisterRepresentation::Compressed() &&
-                 cast.to == turboshaft::RegisterRepresentation::Word32()) {
+      } else if (cast.from == RegisterRepresentation::Compressed() &&
+                 cast.to == RegisterRepresentation::Word32()) {
         MarkAsRepresentation(MachineType::PointerRepresentation(), node);
         return VisitBitcastTaggedToWord(node);
       } else {
@@ -4875,15 +4836,22 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
     }
     case Opcode::kPhi:
-      MarkAsRepresentation(op.Cast<turboshaft::PhiOp>().rep, node);
+      MarkAsRepresentation(op.Cast<PhiOp>().rep, node);
       return VisitPhi(node);
     case Opcode::kProjection:
       return VisitProjection(node);
     case Opcode::kDeoptimizeIf:
-      if (Get(node).Cast<turboshaft::DeoptimizeIfOp>().negated) {
+      if (Get(node).Cast<DeoptimizeIfOp>().negated) {
         return VisitDeoptimizeUnless(node);
       }
       return VisitDeoptimizeIf(node);
+    case Opcode::kTrapIf: {
+      const TrapIfOp& trap_if = op.Cast<TrapIfOp>();
+      if (trap_if.negated) {
+        return VisitTrapUnless(node, trap_if.trap_id);
+      }
+      return VisitTrapIf(node, trap_if.trap_id);
+    }
     case Opcode::kCatchBlockBegin:
       MarkAsTagged(node);
       return VisitIfException(node);
@@ -4905,28 +4873,55 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return;
     case Opcode::kDebugBreak:
       return VisitDebugBreak(node);
-
-    case Opcode::kAtomicRMW:
-#define UNREACHABLE_CASE(op) case Opcode::k##op:
-      TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
-      TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
-      TURBOSHAFT_WASM_OPERATION_LIST(UNREACHABLE_CASE)
-      TURBOSHAFT_WASM_GC_OPERATION_LIST(UNREACHABLE_CASE)
-      TURBOSHAFT_SIMD_OPERATION_LIST(UNREACHABLE_CASE)
-      UNREACHABLE_CASE(PendingLoopPhi)
-      UNREACHABLE_CASE(Tuple)
+    case Opcode::kSelect: {
+      const SelectOp& select = op.Cast<SelectOp>();
+      // If there is a Select, then it should only be one that is supported by
+      // the machine, and it should be meant to be implementation with cmove.
+      DCHECK_EQ(select.implem, SelectOp::Implementation::kCMove);
+      MarkAsRepresentation(select.rep, node);
+      return VisitSelect(node);
+    }
+    case Opcode::kWord32PairBinop: {
+      const Word32PairBinopOp& binop = op.Cast<Word32PairBinopOp>();
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
+      switch (binop.kind) {
+        case Word32PairBinopOp::Kind::kAdd:
+          return VisitInt32PairAdd(node);
+        case Word32PairBinopOp::Kind::kSub:
+          return VisitInt32PairSub(node);
+        case Word32PairBinopOp::Kind::kMul:
+          return VisitInt32PairMul(node);
+        case Word32PairBinopOp::Kind::kShiftLeft:
+          return VisitWord32PairShl(node);
+        case Word32PairBinopOp::Kind::kShiftRightLogical:
+          return VisitWord32PairShr(node);
+        case Word32PairBinopOp::Kind::kShiftRightArithmetic:
+          return VisitWord32PairSar(node);
+      }
       UNREACHABLE();
-#undef UNREACHABLE_CASE
-
-    case Opcode::kTailCall:
-    case Opcode::kWord32PairBinop:
+    }
     case Opcode::kBitcastWord32PairToFloat64:
-    case Opcode::kSelect:
-    case Opcode::kTrapIf: {
+      return VisitBitcastWord32PairToFloat64(node);
+
+#define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
+      TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
+      TURBOSHAFT_WASM_GC_OPERATION_LIST(UNIMPLEMENTED_CASE)
+      TURBOSHAFT_SIMD_OPERATION_LIST(UNIMPLEMENTED_CASE)
+#undef UNIMPLEMENTED_CASE
+    case Opcode::kAtomicRMW: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
       FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
     }
+
+#define UNREACHABLE_CASE(op) case Opcode::k##op:
+      TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
+      TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
+      UNREACHABLE_CASE(PendingLoopPhi)
+      UNREACHABLE_CASE(Tuple)
+      UNREACHABLE();
+#undef UNREACHABLE_CASE
   }
 }
 

@@ -576,9 +576,14 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    // This is currently not used by Turboshaft.
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+  }
 }
 
 template <typename Adapter>
@@ -723,7 +728,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -874,7 +879,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
+void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
   UNREACHABLE();
 }
 
@@ -895,7 +900,7 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -964,9 +969,14 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitUnalignedStore(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitUnalignedStore(Node* node) {
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -1366,9 +1376,14 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairAdd(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairAdd(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairAdd(node_t node) {
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
 
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -1392,9 +1407,14 @@ void InstructionSelectorT<Adapter>::VisitInt32PairAdd(Node* node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairSub(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairSub(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairSub(node_t node) {
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
 
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -1418,9 +1438,14 @@ void InstructionSelectorT<Adapter>::VisitInt32PairSub(Node* node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairMul(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairMul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairMul(node_t node) {
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
     InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
@@ -1480,18 +1505,30 @@ void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
 }
 }  // namespace
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShl(Node* node) {
-  VisitWord32PairShift(this, kArmLslPair, node);
+void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kArmLslPair, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShr(Node* node) {
-  VisitWord32PairShift(this, kArmLsrPair, node);
+void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kArmLsrPair, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairSar(Node* node) {
-  VisitWord32PairShift(this, kArmAsrPair, node);
+void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kArmAsrPair, node);
+  }
 }
 
 template <typename Adapter>
@@ -1510,7 +1547,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(node_t node) {
   DCHECK(IsSupported(ARMv7));
   VisitRR(this, kArmRbit, node);
 }
@@ -1773,6 +1810,7 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   V(Float64ExtractHighWord32, kArmVmovHighU32F64)    \
   V(TruncateFloat64ToFloat32, kArmVcvtF32F64)        \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI) \
+  V(TruncateFloat64ToUint32, kArmVcvtU32F64)         \
   V(BitcastFloat32ToInt32, kArmVmovU32F32)           \
   V(BitcastInt32ToFloat32, kArmVmovF32U32)           \
   V(RoundFloat64ToInt32, kArmVcvtS32F64)             \
@@ -1784,8 +1822,6 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   V(Float32Sqrt, kArmVsqrtF32)                       \
   V(Float64Sqrt, kArmVsqrtF64)                       \
   V(Word32Clz, kArmClz)
-
-#define RR_OP_LIST(V) V(TruncateFloat64ToUint32, kArmVcvtU32F64)
 
 #define RR_OP_T_LIST_V8(V)               \
   V(Float32RoundDown, kArmVrintmF32)     \
@@ -1818,15 +1854,6 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   V(Float32Min, kArmFloat32Min) \
   V(Float64Min, kArmFloat64Min) \
   V(Int32MulHigh, kArmSmmul)
-
-#define RR_VISITOR(Name, opcode)                                \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRR(this, opcode, node);                                \
-  }
-RR_OP_LIST(RR_VISITOR)
-#undef RR_VISITOR
-#undef RR_OP_LIST
 
 #define RR_VISITOR(Name, opcode)                                 \
   template <typename Adapter>                                    \
@@ -2605,39 +2632,53 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(right),
-         g.UseRegister(left));
-    return;
-  }
-  Emit(kArmVmovLowF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
-       g.UseRegister(right));
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(left),
+void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
+        CanCover(node, left)) {
+      left = left->InputAt(1);
+      Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(right),
+           g.UseRegister(left));
+      return;
+    }
+    Emit(kArmVmovLowF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
          g.UseRegister(right));
-    return;
   }
-  Emit(kArmVmovHighF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
-       g.UseRegister(right));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitMemoryBarrier(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
+        CanCover(node, left)) {
+      left = left->InputAt(1);
+      Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), g.UseRegister(left),
+           g.UseRegister(right));
+      return;
+    }
+    Emit(kArmVmovHighF64U32, g.DefineSameAsFirst(node), g.UseRegister(left),
+         g.UseRegister(right));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
   // Use DMB ISH for both acquire-release and sequentially consistent barriers.
   ArmOperandGeneratorT<Adapter> g(this);
   Emit(kArmDmbIsh, g.NoOutput());
@@ -3552,12 +3593,12 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 

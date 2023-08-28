@@ -3572,6 +3572,7 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
       return {casted.if_true, casted.if_false};
     }
     case Opcode::kReturn:
+    case Opcode::kTailCall:
     case Opcode::kDeoptimize:
     case Opcode::kUnreachable:
       return base::SmallVector<Block*, 4>{};

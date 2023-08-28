@@ -646,7 +646,7 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTraceInstruction(Node* node) {}
+void InstructionSelectorT<Adapter>::VisitTraceInstruction(node_t node) {}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
@@ -663,9 +663,13 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+  }
 }
 
 template <typename Adapter>
@@ -958,12 +962,12 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   VisitLoad(node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
+void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -1231,13 +1235,13 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
   UNREACHABLE();
 }
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUnalignedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
 }
 
@@ -1813,26 +1817,26 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(BitcastInt64ToFloat64, kArm64Float64MoveU64)              \
   V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)          \
+  V(TruncateFloat64ToUint32, kArm64Float64ToUint32)           \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
   V(Word64Clz, kArm64Clz)                                     \
   V(Word32Clz, kArm64Clz32)                                   \
   V(Word32Popcnt, kArm64Cnt32)                                \
   V(Word64Popcnt, kArm64Cnt64)                                \
+  V(Word32ReverseBits, kArm64Rbit32)                          \
+  V(Word64ReverseBits, kArm64Rbit)                            \
   V(Word32ReverseBytes, kArm64Rev32)                          \
   V(Word64ReverseBytes, kArm64Rev)
 
-#define RR_OP_LIST(V)                               \
-  V(Word32ReverseBits, kArm64Rbit32)                \
-  V(Word64ReverseBits, kArm64Rbit)                  \
-  V(TruncateFloat64ToUint32, kArm64Float64ToUint32) \
-  V(F32x4Ceil, kArm64Float32RoundUp)                \
-  V(F32x4Floor, kArm64Float32RoundDown)             \
-  V(F32x4Trunc, kArm64Float32RoundTruncate)         \
-  V(F32x4NearestInt, kArm64Float32RoundTiesEven)    \
-  V(F64x2Ceil, kArm64Float64RoundUp)                \
-  V(F64x2Floor, kArm64Float64RoundDown)             \
-  V(F64x2Trunc, kArm64Float64RoundTruncate)         \
+#define RR_OP_LIST(V)                            \
+  V(F32x4Ceil, kArm64Float32RoundUp)             \
+  V(F32x4Floor, kArm64Float32RoundDown)          \
+  V(F32x4Trunc, kArm64Float32RoundTruncate)      \
+  V(F32x4NearestInt, kArm64Float32RoundTiesEven) \
+  V(F64x2Ceil, kArm64Float64RoundUp)             \
+  V(F64x2Floor, kArm64Float64RoundDown)          \
+  V(F64x2Trunc, kArm64Float64RoundTruncate)      \
   V(F64x2NearestInt, kArm64Float64RoundTiesEven)
 
 #define RRR_OP_T_LIST(V)          \
@@ -4103,38 +4107,47 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
-      CanCover(node, left)) {
-    Node* right_of_left = left->InputAt(1);
-    Emit(kArm64Bfi, g.DefineSameAsFirst(right), g.UseRegister(right),
-         g.UseRegister(right_of_left), g.TempImmediate(32),
-         g.TempImmediate(32));
-    Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(right));
-    return;
+void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
+        CanCover(node, left)) {
+      Node* right_of_left = left->InputAt(1);
+      Emit(kArm64Bfi, g.DefineSameAsFirst(right), g.UseRegister(right),
+           g.UseRegister(right_of_left), g.TempImmediate(32),
+           g.TempImmediate(32));
+      Emit(kArm64Float64MoveU64, g.DefineAsRegister(node),
+           g.UseRegister(right));
+      return;
+    }
+    Emit(kArm64Float64InsertLowWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.UseRegister(right));
   }
-  Emit(kArm64Float64InsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
-      CanCover(node, left)) {
-    Node* right_of_left = left->InputAt(1);
-    Emit(kArm64Bfi, g.DefineSameAsFirst(left), g.UseRegister(right_of_left),
-         g.UseRegister(right), g.TempImmediate(32), g.TempImmediate(32));
-    Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(left));
-    return;
+void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
+        CanCover(node, left)) {
+      Node* right_of_left = left->InputAt(1);
+      Emit(kArm64Bfi, g.DefineSameAsFirst(left), g.UseRegister(right_of_left),
+           g.UseRegister(right), g.TempImmediate(32), g.TempImmediate(32));
+      Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(left));
+      return;
+    }
+    Emit(kArm64Float64InsertHighWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.UseRegister(right));
   }
-  Emit(kArm64Float64InsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
 }
 
 template <typename Adapter>
@@ -4180,7 +4193,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Mul(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitMemoryBarrier(Node* node) {
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
   // Use DMB ISH for both acquire-release and sequentially consistent barriers.
   Arm64OperandGeneratorT<Adapter> g(this);
   Emit(kArm64DmbIsh, g.NoOutput());
@@ -4368,12 +4381,12 @@ VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
@@ -5267,7 +5280,7 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
   VisitRR(this, kArm64Sxtw, node);
 }
 

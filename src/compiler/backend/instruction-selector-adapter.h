@@ -544,12 +544,10 @@ struct TurboshaftAdapter
   class CallView {
    public:
     explicit CallView(turboshaft::Graph* graph, node_t node) : node_(node) {
-      if ((call_op_ = graph->Get(node_).TryCast<turboshaft::CallOp>())) {
-        return;
-      }
-      if (graph->Get(node_).Is<turboshaft::TailCallOp>()) {
-        UNIMPLEMENTED();
-      }
+      call_op_ = graph->Get(node_).TryCast<turboshaft::CallOp>();
+      if (call_op_ != nullptr) return;
+      tail_call_op_ = graph->Get(node_).TryCast<turboshaft::TailCallOp>();
+      if (tail_call_op_ != nullptr) return;
       UNREACHABLE();
     }
 
@@ -557,10 +555,14 @@ struct TurboshaftAdapter
       if (call_op_) {
         return static_cast<int>(call_op_->results_rep().size());
       }
+      if (tail_call_op_) {
+        return static_cast<int>(tail_call_op_->outputs_rep().size());
+      }
       UNREACHABLE();
     }
     node_t callee() const {
       if (call_op_) return call_op_->callee();
+      if (tail_call_op_) return tail_call_op_->callee();
       UNREACHABLE();
     }
     node_t frame_state() const {
@@ -569,10 +571,12 @@ struct TurboshaftAdapter
     }
     base::Vector<const node_t> arguments() const {
       if (call_op_) return call_op_->arguments();
+      if (tail_call_op_) return tail_call_op_->arguments();
       UNREACHABLE();
     }
     const CallDescriptor* call_descriptor() const {
       if (call_op_) return call_op_->descriptor->descriptor;
+      if (tail_call_op_) return tail_call_op_->descriptor->descriptor;
       UNREACHABLE();
     }
 
@@ -581,6 +585,7 @@ struct TurboshaftAdapter
    private:
     node_t node_;
     const turboshaft::CallOp* call_op_;
+    const turboshaft::TailCallOp* tail_call_op_;
   };
 
   class BranchView {
