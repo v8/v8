@@ -680,12 +680,12 @@ struct FloatOperationTyper {
       }
       if V8_UNLIKELY (IsMinusZero(b)) {
         // +-0 / -0 ==> NaN
-        if (a == 0) return nan_v<Bits>;
+        if (a == 0 || std::isnan(a)) return nan_v<Bits>;
         return a > 0 ? -inf : inf;
       }
       if V8_UNLIKELY (b == 0) {
         // +-0 / 0 ==> NaN
-        if (a == 0) return nan_v<Bits>;
+        if (a == 0 || std::isnan(a)) return nan_v<Bits>;
         return a > 0 ? inf : -inf;
       }
       return a / b;
