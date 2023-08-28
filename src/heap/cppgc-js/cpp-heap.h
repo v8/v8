@@ -210,6 +210,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool TracingInitialized() const { return collection_type_.has_value(); }
 
+  bool IsGCAllowed() const override;
+  bool IsDetachedGCAllowed() const;
+
   Heap* heap() const { return heap_; }
 
   Isolate* isolate_ = nullptr;

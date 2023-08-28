@@ -256,6 +256,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
 
+  virtual bool IsGCAllowed() const;
+
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
 
   bool IsMarking() const { return marker_.get(); }
