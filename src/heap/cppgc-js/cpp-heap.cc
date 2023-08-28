@@ -806,7 +806,7 @@ bool CppHeap::ShouldFinalizeIncrementalMarking() const {
 }
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
-  CHECK(IsGCAllowed());
+  CHECK(!in_disallow_gc_scope());
   // Enter atomic pause even if tracing is not initialized. This is needed to
   // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
@@ -954,8 +954,11 @@ void CppHeap::AllocatedObjectSizeDecreased(size_t bytes) {
 }
 
 void CppHeap::ReportBufferedAllocationSizeIfPossible() {
-  // Reporting memory to V8 may trigger GC.
-  if (!IsGCAllowed()) {
+  // Avoid reporting to V8 in the following conditions as that may trigger GC
+  // finalizations where not allowed.
+  // - Recursive sweeping.
+  // - GC forbidden scope.
+  if (sweeper().IsSweepingOnMutatorThread() || in_no_gc_scope() || !isolate_) {
     return;
   }
 
@@ -1172,9 +1175,8 @@ CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
 }
 
 void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
-  if (!IsGCAllowed()) {
-    return;
-  }
+  if (in_no_gc_scope() || !isolate_) return;
+
   // TODO(mlippautz): Respect full config.
   const auto flags =
       (config.free_memory_handling ==
@@ -1206,10 +1208,6 @@ void CppHeap::ResetCrossHeapRememberedSet() {
 
 void CppHeap::UpdateGCCapabilitiesFromFlagsForTesting() {
   UpdateGCCapabilitiesFromFlags();
-}
-
-bool CppHeap::IsGCAllowed() const {
-  return (isolate_ || in_detached_testing_mode_) && HeapBase::IsGCAllowed();
 }
 
 }  // namespace internal
