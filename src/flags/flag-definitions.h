@@ -1240,6 +1240,7 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")
+DEFINE_IMPLICATION(turboshaft_future, turboshaft)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
 #ifdef V8_TARGET_ARCH_X64
