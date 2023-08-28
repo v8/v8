@@ -1621,25 +1621,45 @@ class TurboshaftGraphBuildingInterface {
 
   void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                 Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
-  }
-
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
-                    const Value& object, Value* value_on_fallthrough,
-                    uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
+    V<Map> rtt = asm_.RttCanon(instance_node_, ref_index);
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
+                        null_succeeds);
   }
 
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         HeapType type, Value* value_on_branch,
                         uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
+    V<Map> rtt = OpIndex::Invalid();
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         type, null_succeeds ? kNullable : kNonNullable)};
+    return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
+                        null_succeeds);
+  }
+
+  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+                    const Value& object, Value* value_on_fallthrough,
+                    uint32_t br_depth, bool null_succeeds) {
+    V<Map> rtt = asm_.RttCanon(instance_node_, ref_index);
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
+                            br_depth, null_succeeds);
   }
 
   void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,
                             HeapType type, Value* value_on_fallthrough,
                             uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
+    V<Map> rtt = OpIndex::Invalid();
+    compiler::WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         type, null_succeeds ? kNullable : kNonNullable)};
+    return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
+                            br_depth, null_succeeds);
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
@@ -3955,6 +3975,41 @@ class TurboshaftGraphBuildingInterface {
     asm_.Store(array, index, value, LoadOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(), write_barrier,
                FixedArray::kHeaderSize, kTaggedSizeLog2);
+  }
+
+  void BrOnCastImpl(FullDecoder* decoder, V<Map> rtt,
+                    compiler::WasmTypeCheckConfig config, const Value& object,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    OpIndex cast_succeeds = asm_.WasmTypeCheck(object.op, rtt, config);
+    IF (cast_succeeds) {
+      // Narrow type for the successful cast target branch.
+      Forward(decoder, object, value_on_branch);
+      BrOrRet(decoder, br_depth, 0);
+    }
+    END_IF
+    // Note: Differently to below for br_on_cast_fail, we do not Forward
+    // the value here to perform a TypeGuard. It can't be done here due to
+    // asymmetric decoder code. A Forward here would be popped from the stack
+    // and ignored by the decoder. Therefore the decoder has to call Forward
+    // itself.
+  }
+
+  void BrOnCastFailImpl(FullDecoder* decoder, V<Map> rtt,
+                        compiler::WasmTypeCheckConfig config,
+                        const Value& object, Value* value_on_fallthrough,
+                        uint32_t br_depth, bool null_succeeds) {
+    OpIndex cast_succeeds = asm_.WasmTypeCheck(object.op, rtt, config);
+    IF (__ Word32Equal(cast_succeeds, 0)) {
+      // It is necessary in case of {null_succeeds} to forward the value.
+      // This will add a TypeGuard to the non-null type (as in this case the
+      // object is non-nullable).
+      Forward(decoder, object, decoder->stack_value(1));
+      BrOrRet(decoder, br_depth, 0);
+    }
+    END_IF
+    // Narrow type for the successful cast fallthrough branch.
+    Forward(decoder, object, value_on_fallthrough);
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
