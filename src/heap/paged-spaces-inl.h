@@ -15,81 +15,60 @@
 namespace v8 {
 namespace internal {
 
-// -----------------------------------------------------------------------------
-// Heap object iterator in paged spaces.
-//
-// A PagedSpaceObjectIterator iterates objects from the bottom of the given
-// space to its top or from the bottom of the given page to its top.
-//
-// If objects are allocated in the page during iteration the iterator may
-// or may not iterate over those objects.  The caller must create a new
-// iterator in order to be sure to visit these new objects.
-class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
- public:
-  // Creates a new object iterator in a given space.
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpaceBase* space);
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpaceBase* space,
-                           const Page* page);
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpace* space,
-                           const Page* page, Address start_address);
+HeapObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
 
-  // Advance to the next object, skipping free spaces and other fillers and
-  // skipping the special garbage section of which there is one per space.
-  // Returns nullptr when the iteration has ended.
-  inline Tagged<HeapObject> Next() override;
+HeapObjectRange::iterator::iterator(const Page* page)
+    : cage_base_(page->heap()->isolate()),
+      cur_addr_(page->area_start()),
+      cur_end_(page->area_end()) {
+  AdvanceToNextObject();
+}
 
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to InstructionStream objects.
-  PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
+HeapObjectRange::iterator& HeapObjectRange::iterator::operator++() {
+  DCHECK_GT(cur_size_, 0);
+  cur_addr_ += cur_size_;
+  AdvanceToNextObject();
+  return *this;
+}
+
+HeapObjectRange::iterator HeapObjectRange::iterator::operator++(int) {
+  iterator retval = *this;
+  ++(*this);
+  return retval;
+}
+
+void HeapObjectRange::iterator::AdvanceToNextObject() {
+  DCHECK_NE(cur_addr_, kNullAddress);
+  while (cur_addr_ != cur_end_) {
+    DCHECK_LT(cur_addr_, cur_end_);
+    Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
+    cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
+    DCHECK_LE(cur_addr_ + cur_size_, cur_end_);
+    if (IsFreeSpaceOrFiller(*obj, cage_base())) {
+      cur_addr_ += cur_size_;
+    } else {
+      if (IsInstructionStream(*obj, cage_base())) {
+        DCHECK_EQ(Page::FromHeapObject(obj)->owner_identity(), CODE_SPACE);
+        DCHECK_CODEOBJECT_SIZE(cur_size_);
+      } else {
+        DCHECK_OBJECT_SIZE(cur_size_);
+      }
+      return;
+    }
   }
+  cur_addr_ = kNullAddress;
+}
 
- private:
-  // Fast (inlined) path of next().
-  inline Tagged<HeapObject> FromCurrentPage();
+HeapObjectRange::iterator HeapObjectRange::begin() { return iterator(page_); }
 
-  // Slow path of next(), goes into the next page.  Returns false if the
-  // iteration has ended.
-  bool AdvanceToNextPage();
-
-  Address cur_addr_;  // Current iteration point.
-  Address cur_end_;   // End iteration point.
-  const PagedSpaceBase* const space_;
-  ConstPageRange page_range_;
-  ConstPageRange::iterator current_page_;
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
-};
+HeapObjectRange::iterator HeapObjectRange::end() { return iterator(); }
 
 Tagged<HeapObject> PagedSpaceObjectIterator::Next() {
   do {
-    Tagged<HeapObject> next_obj = FromCurrentPage();
-    if (!next_obj->is_null()) return next_obj;
-  } while (AdvanceToNextPage());
-  return Tagged<HeapObject>();
-}
-
-Tagged<HeapObject> PagedSpaceObjectIterator::FromCurrentPage() {
-  while (cur_addr_ != cur_end_) {
-    Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-    const int obj_size = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
-    cur_addr_ += obj_size;
-    DCHECK_LE(cur_addr_, cur_end_);
-    if (!IsFreeSpaceOrFiller(*obj, cage_base())) {
-      if (IsInstructionStream(*obj, cage_base())) {
-        DCHECK_EQ(space_->identity(), CODE_SPACE);
-        DCHECK_CODEOBJECT_SIZE(obj_size, space_);
-      } else {
-        DCHECK_OBJECT_SIZE(obj_size);
-      }
-      return obj;
+    if (cur_ != end_) {
+      return *cur_++;
     }
-  }
+  } while (AdvanceToNextPage());
   return Tagged<HeapObject>();
 }
 

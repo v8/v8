@@ -1444,7 +1444,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       }
       dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
-      DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
+      DCHECK_CODEOBJECT_SIZE(size);
       {
         ThreadIsolation::WritableJitAllocation writable_allocation =
             ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr,

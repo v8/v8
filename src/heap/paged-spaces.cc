@@ -42,67 +42,21 @@ namespace internal {
 
 PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
                                                    const PagedSpaceBase* space)
-    : cur_addr_(kNullAddress),
-      cur_end_(kNullAddress),
-      space_(space),
+    : space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin())
-#if V8_COMPRESS_POINTERS
-      ,
-      cage_base_(heap->isolate())
-#endif  // V8_COMPRESS_POINTERS
-{
+      current_page_(page_range_.begin()) {
   heap->MakeHeapIterable();
   USE(space_);
-}
-
-PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
-                                                   const PagedSpaceBase* space,
-                                                   const Page* page)
-    : cur_addr_(kNullAddress),
-      cur_end_(kNullAddress),
-      space_(space),
-      page_range_(page),
-      current_page_(page_range_.begin())
-#if V8_COMPRESS_POINTERS
-      ,
-      cage_base_(heap->isolate())
-#endif  // V8_COMPRESS_POINTERS
-{
-  heap->MakeHeapIterable();
-}
-
-PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
-                                                   const PagedSpace* space,
-                                                   const Page* page,
-                                                   Address start_address)
-    : cur_addr_(start_address),
-      cur_end_(page->area_end()),
-      space_(space),
-      page_range_(page, page),
-      current_page_(page_range_.begin())
-#if V8_COMPRESS_POINTERS
-      ,
-      cage_base_(heap->isolate())
-#endif  // V8_COMPRESS_POINTERS
-{
-  heap->MakeHeapIterable();
-  DCHECK_IMPLIES(!heap->IsInlineAllocationEnabled(),
-                 !page->Contains(space->top()));
-  DCHECK(page->Contains(start_address));
-  DCHECK(page->SweepingDone());
 }
 
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
 bool PagedSpaceObjectIterator::AdvanceToNextPage() {
-  DCHECK_EQ(cur_addr_, cur_end_);
   if (current_page_ == page_range_.end()) return false;
   const Page* cur_page = *(current_page_++);
-
-  cur_addr_ = cur_page->area_start();
-  cur_end_ = cur_page->area_end();
-  DCHECK(cur_page->SweepingDone());
+  HeapObjectRange heap_objects(cur_page);
+  cur_ = heap_objects.begin();
+  end_ = heap_objects.end();
   return true;
 }
 
@@ -696,11 +650,10 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
-    PagedSpaceObjectIterator it(isolate->heap(), this, page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
 
-    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
+    for (HeapObject object : HeapObjectRange(page)) {
       CHECK(end_of_previous_object <= object.address());
 
       // Invoke verification method for each object.
@@ -756,9 +709,8 @@ void PagedSpaceBase::VerifyLiveBytes() const {
   PtrComprCageBase cage_base(heap()->isolate());
   for (const Page* page : *this) {
     CHECK(page->SweepingDone());
-    PagedSpaceObjectIterator it(heap(), this, page);
     int black_size = 0;
-    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
+    for (HeapObject object : HeapObjectRange(page)) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsMarked(object)) {
         black_size += object->Size(cage_base);
@@ -777,9 +729,8 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
   for (const Page* page : *this) {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
-    PagedSpaceObjectIterator it(heap, this, page);
     size_t real_allocated = 0;
-    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
+    for (HeapObject object : HeapObjectRange(page)) {
       if (!IsFreeSpaceOrFiller(object)) {
         real_allocated +=
             ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));
