@@ -589,6 +589,43 @@ TEST_F(RevecTest, StoreDependencyCheck) {
   EXPECT_FALSE(revec.TryRevectorize(nullptr));
 }
 
+TEST_F(RevecTest, S128Zero) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  Node* start = graph()->NewNode(common()->Start(5));
+  graph()->SetStart(start);
+
+  Node* control = graph()->start();
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* sixteen = graph()->NewNode(common()->Int64Constant(16));
+  Node* zero128 = graph()->NewNode(machine()->S128Zero());
+  // offset of memory start field in WASM instance object.
+  Node* offset = graph()->NewNode(common()->Int64Constant(23));
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* p1 = graph()->NewNode(common()->Parameter(1), start);
+  Node* base = graph()->NewNode(machine()->Load(MachineType::Uint64()), p0,
+                                offset, start, control);
+  StoreRepresentation store_rep(MachineRepresentation::kSimd128,
+                                WriteBarrierKind::kNoWriteBarrier);
+  Node* store1 = graph()->NewNode(machine()->Store(store_rep), base, p1,
+                                  zero128, base, control);
+  Node* object = graph()->NewNode(machine()->Int64Add(), base, sixteen);
+  Node* store2 = graph()->NewNode(machine()->Store(store_rep), object, p1,
+                                  zero128, store1, control);
+  Node* ret = graph()->NewNode(common()->Return(0), zero, store2, control);
+  Node* end = graph()->NewNode(common()->End(1), ret);
+  graph()->SetEnd(end);
+
+  graph()->RecordSimdStore(store1);
+  graph()->RecordSimdStore(store2);
+  graph()->SetSimd(true);
+
+  // Test whether the graph can be revectorized
+  Revectorizer revec(zone(), graph(), mcgraph());
+  EXPECT_TRUE(revec.TryRevectorize(nullptr));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

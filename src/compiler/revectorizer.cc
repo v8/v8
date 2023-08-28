@@ -118,7 +118,13 @@ namespace {
   V(F64x2Pmax, F64x4Pmax)                   \
   V(F32x4SConvertI32x4, F32x8SConvertI32x8) \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8) \
-  V(I32x4UConvertF32x4, I32x8UConvertF32x8)
+  V(I32x4UConvertF32x4, I32x8UConvertF32x8) \
+  V(S128And, S256And)                       \
+  V(S128Or, S256Or)                         \
+  V(S128Xor, S256Xor)                       \
+  V(S128Not, S256Not)                       \
+  V(S128Select, S256Select)                 \
+  V(S128AndNot, S256AndNot)
 
 #define SIMD_SHIFT_OP(V)   \
   V(I64x2Shl, I64x4Shl)    \
@@ -661,6 +667,11 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     }
   }
 
+  if (node0->opcode() == IrOpcode::kS128Zero) {
+    PackNode* p = NewPackNode(node_group);
+    PopStack();
+    return p;
+  }
   if (node0->opcode() == IrOpcode::kS128Const) {
     PackNode* p = NewPackNode(node_group);
     PopStack();
@@ -1072,6 +1083,10 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[2] = source->InputAt(2);
       inputs[3] = source->InputAt(3);
       input_count = 4;
+      break;
+    }
+    case IrOpcode::kS128Zero: {
+      new_op = mcgraph_->machine()->S256Zero();
       break;
     }
     case IrOpcode::kS128Const: {
