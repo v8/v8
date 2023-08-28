@@ -682,8 +682,8 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphAtomicRMW(const AtomicRMWOp& op) {
     return assembler().ReduceAtomicRMW(
         MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), op.bin_op, op.result_rep, op.input_rep,
-        op.memory_access_kind);
+        MapToNewGraph(op.value()), MapToNewGraphIfValid(op.expected()),
+        op.bin_op, op.result_rep, op.input_rep, op.memory_access_kind);
   }
   OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
     return assembler().ReduceLoad(

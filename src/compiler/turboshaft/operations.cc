@@ -349,6 +349,8 @@ std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
       return os << "xor";
     case AtomicRMWOp::BinOp::kExchange:
       return os << "exchange";
+    case AtomicRMWOp::BinOp::kCompareExchange:
+      return os << "compare-exchange";
   }
 }
 
@@ -462,8 +464,14 @@ void LoadOp::PrintOptions(std::ostream& os) const {
 void AtomicRMWOp::PrintInputs(std::ostream& os,
                               const std::string& op_index_prefix) const {
   os << " *(" << op_index_prefix << base().id() << " + " << op_index_prefix
-     << index().id() << ").atomic_" << bin_op << "(" << op_index_prefix
-     << value().id() << ")";
+     << index().id() << ").atomic_" << bin_op << "(";
+  if (bin_op == BinOp::kCompareExchange) {
+    os << "expected: " << op_index_prefix << expected().id();
+    os << ", new: " << op_index_prefix << value().id();
+  } else {
+    os << op_index_prefix << value().id();
+  }
+  os << ")";
 }
 
 void AtomicRMWOp::PrintOptions(std::ostream& os) const {

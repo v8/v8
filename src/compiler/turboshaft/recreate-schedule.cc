@@ -906,7 +906,8 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   V(And)                 \
   V(Or)                  \
   V(Xor)                 \
-  V(Exchange)
+  V(Exchange)            \
+  V(CompareExchange)
 
   AtomicOpParameters param(op.input_rep.ToMachineType(), op.memory_access_kind);
   const Operator* node_op;
@@ -934,7 +935,12 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   Node* base = GetNode(op.base());
   Node* index = GetNode(op.index());
   Node* value = GetNode(op.value());
-  return AddNode(node_op, {base, index, value});
+  if (op.bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
+    Node* expected = GetNode(op.expected());
+    return AddNode(node_op, {base, index, expected, value});
+  } else {
+    return AddNode(node_op, {base, index, value});
+  }
 }
 
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {

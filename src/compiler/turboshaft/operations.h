@@ -2627,8 +2627,16 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
       (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
 }
 
-struct AtomicRMWOp : FixedArityOperationT<3, AtomicRMWOp> {
-  enum class BinOp : uint8_t { kAdd, kSub, kAnd, kOr, kXor, kExchange };
+struct AtomicRMWOp : OperationT<AtomicRMWOp> {
+  enum class BinOp : uint8_t {
+    kAdd,
+    kSub,
+    kAnd,
+    kOr,
+    kXor,
+    kExchange,
+    kCompareExchange
+  };
   BinOp bin_op;
   RegisterRepresentation result_rep;
   MemoryRepresentation input_rep;
@@ -2648,6 +2656,12 @@ struct AtomicRMWOp : FixedArityOperationT<3, AtomicRMWOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    if (bin_op == BinOp::kCompareExchange) {
+      return InitVectorOf(storage, {RegisterRepresentation::PointerSized(),
+                                    RegisterRepresentation::PointerSized(),
+                                    input_rep.ToRegisterRepresentation(),
+                                    input_rep.ToRegisterRepresentation()});
+    }
     return InitVectorOf(storage, {RegisterRepresentation::PointerSized(),
                                   RegisterRepresentation::PointerSized(),
                                   input_rep.ToRegisterRepresentation()});
@@ -2656,17 +2670,38 @@ struct AtomicRMWOp : FixedArityOperationT<3, AtomicRMWOp> {
   V<WordPtr> base() const { return input(0); }
   V<WordPtr> index() const { return input(1); }
   OpIndex value() const { return input(2); }
+  OpIndex expected() const {
+    return (input_count == 4) ? input(3) : OpIndex::Invalid();
+  }
 
-  void Validate(const Graph& graph) const {}
+  void Validate(const Graph& graph) const {
+    DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
+  }
 
-  explicit AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value, BinOp bin_op,
-                       RegisterRepresentation result_rep,
-                       MemoryRepresentation input_rep, MemoryAccessKind kind)
-      : Base(base, index, value),
+  AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value, OpIndex expected,
+              BinOp bin_op, RegisterRepresentation result_rep,
+              MemoryRepresentation input_rep, MemoryAccessKind kind)
+      : Base(3 + expected.valid()),
         bin_op(bin_op),
         result_rep(result_rep),
         input_rep(input_rep),
-        memory_access_kind(kind) {}
+        memory_access_kind(kind) {
+    input(0) = base;
+    input(1) = index;
+    input(2) = value;
+    if (expected.valid()) {
+      input(3) = expected;
+    }
+  }
+
+  static AtomicRMWOp& New(Graph* graph, OpIndex base, OpIndex index,
+                          OpIndex value, OpIndex expected, BinOp bin_op,
+                          RegisterRepresentation result_rep,
+                          MemoryRepresentation input_rep,
+                          MemoryAccessKind kind) {
+    return Base::New(graph, 3 + expected.valid(), base, index, value, expected,
+                     bin_op, result_rep, input_rep, kind);
+  }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
 

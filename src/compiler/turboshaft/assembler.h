@@ -1709,8 +1709,22 @@ class AssemblerOpInterface {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceAtomicRMW(base, index, value, bin_op, result_rep,
-                                   input_rep, memory_access_kind);
+    return stack().ReduceAtomicRMW(base, index, value, OpIndex::Invalid(),
+                                   bin_op, result_rep, input_rep,
+                                   memory_access_kind);
+  }
+
+  OpIndex AtomicCompareExchange(V<WordPtr> base, V<WordPtr> index,
+                                OpIndex expected, OpIndex new_value,
+                                RegisterRepresentation result_rep,
+                                MemoryRepresentation input_rep,
+                                MemoryAccessKind memory_access_kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceAtomicRMW(base, index, new_value, expected,
+                                   AtomicRMWOp::BinOp::kCompareExchange,
+                                   result_rep, input_rep, memory_access_kind);
   }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,

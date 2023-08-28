@@ -1227,49 +1227,56 @@ class TurboshaftGraphBuildingInterface {
   case WasmOpcode::kExpr##OPCODE:                                          \
     return AtomicOpInfo(Binop::k##BINOP, RegisterRepresentation::RESULT(), \
                         MemoryRepresentation::INPUT());
-#define RMW_OPERATION(V)                            \
-  V(I32AtomicAdd, Add, Word32, Uint32)              \
-  V(I32AtomicAdd8U, Add, Word32, Uint8)             \
-  V(I32AtomicAdd16U, Add, Word32, Uint16)           \
-  V(I32AtomicSub, Sub, Word32, Uint32)              \
-  V(I32AtomicSub8U, Sub, Word32, Uint8)             \
-  V(I32AtomicSub16U, Sub, Word32, Uint16)           \
-  V(I32AtomicAnd, And, Word32, Uint32)              \
-  V(I32AtomicAnd8U, And, Word32, Uint8)             \
-  V(I32AtomicAnd16U, And, Word32, Uint16)           \
-  V(I32AtomicOr, Or, Word32, Uint32)                \
-  V(I32AtomicOr8U, Or, Word32, Uint8)               \
-  V(I32AtomicOr16U, Or, Word32, Uint16)             \
-  V(I32AtomicXor, Xor, Word32, Uint32)              \
-  V(I32AtomicXor8U, Xor, Word32, Uint8)             \
-  V(I32AtomicXor16U, Xor, Word32, Uint16)           \
-  V(I32AtomicExchange, Exchange, Word32, Uint32)    \
-  V(I32AtomicExchange8U, Exchange, Word32, Uint8)   \
-  V(I32AtomicExchange16U, Exchange, Word32, Uint16) \
-  V(I64AtomicAdd, Add, Word64, Uint64)              \
-  V(I64AtomicAdd8U, Add, Word64, Uint8)             \
-  V(I64AtomicAdd16U, Add, Word64, Uint16)           \
-  V(I64AtomicAdd32U, Add, Word64, Uint32)           \
-  V(I64AtomicSub, Sub, Word64, Uint64)              \
-  V(I64AtomicSub8U, Sub, Word64, Uint8)             \
-  V(I64AtomicSub16U, Sub, Word64, Uint16)           \
-  V(I64AtomicSub32U, Sub, Word64, Uint32)           \
-  V(I64AtomicAnd, And, Word64, Uint64)              \
-  V(I64AtomicAnd8U, And, Word64, Uint8)             \
-  V(I64AtomicAnd16U, And, Word64, Uint16)           \
-  V(I64AtomicAnd32U, And, Word64, Uint32)           \
-  V(I64AtomicOr, Or, Word64, Uint64)                \
-  V(I64AtomicOr8U, Or, Word64, Uint8)               \
-  V(I64AtomicOr16U, Or, Word64, Uint16)             \
-  V(I64AtomicOr32U, Or, Word64, Uint32)             \
-  V(I64AtomicXor, Xor, Word64, Uint64)              \
-  V(I64AtomicXor8U, Xor, Word64, Uint8)             \
-  V(I64AtomicXor16U, Xor, Word64, Uint16)           \
-  V(I64AtomicXor32U, Xor, Word64, Uint32)           \
-  V(I64AtomicExchange, Exchange, Word64, Uint64)    \
-  V(I64AtomicExchange8U, Exchange, Word64, Uint8)   \
-  V(I64AtomicExchange16U, Exchange, Word64, Uint16) \
-  V(I64AtomicExchange32U, Exchange, Word64, Uint32)
+#define RMW_OPERATION(V)                                          \
+  V(I32AtomicAdd, Add, Word32, Uint32)                            \
+  V(I32AtomicAdd8U, Add, Word32, Uint8)                           \
+  V(I32AtomicAdd16U, Add, Word32, Uint16)                         \
+  V(I32AtomicSub, Sub, Word32, Uint32)                            \
+  V(I32AtomicSub8U, Sub, Word32, Uint8)                           \
+  V(I32AtomicSub16U, Sub, Word32, Uint16)                         \
+  V(I32AtomicAnd, And, Word32, Uint32)                            \
+  V(I32AtomicAnd8U, And, Word32, Uint8)                           \
+  V(I32AtomicAnd16U, And, Word32, Uint16)                         \
+  V(I32AtomicOr, Or, Word32, Uint32)                              \
+  V(I32AtomicOr8U, Or, Word32, Uint8)                             \
+  V(I32AtomicOr16U, Or, Word32, Uint16)                           \
+  V(I32AtomicXor, Xor, Word32, Uint32)                            \
+  V(I32AtomicXor8U, Xor, Word32, Uint8)                           \
+  V(I32AtomicXor16U, Xor, Word32, Uint16)                         \
+  V(I32AtomicExchange, Exchange, Word32, Uint32)                  \
+  V(I32AtomicExchange8U, Exchange, Word32, Uint8)                 \
+  V(I32AtomicExchange16U, Exchange, Word32, Uint16)               \
+  V(I32AtomicCompareExchange, CompareExchange, Word32, Uint32)    \
+  V(I32AtomicCompareExchange8U, CompareExchange, Word32, Uint8)   \
+  V(I32AtomicCompareExchange16U, CompareExchange, Word32, Uint16) \
+  V(I64AtomicAdd, Add, Word64, Uint64)                            \
+  V(I64AtomicAdd8U, Add, Word64, Uint8)                           \
+  V(I64AtomicAdd16U, Add, Word64, Uint16)                         \
+  V(I64AtomicAdd32U, Add, Word64, Uint32)                         \
+  V(I64AtomicSub, Sub, Word64, Uint64)                            \
+  V(I64AtomicSub8U, Sub, Word64, Uint8)                           \
+  V(I64AtomicSub16U, Sub, Word64, Uint16)                         \
+  V(I64AtomicSub32U, Sub, Word64, Uint32)                         \
+  V(I64AtomicAnd, And, Word64, Uint64)                            \
+  V(I64AtomicAnd8U, And, Word64, Uint8)                           \
+  V(I64AtomicAnd16U, And, Word64, Uint16)                         \
+  V(I64AtomicAnd32U, And, Word64, Uint32)                         \
+  V(I64AtomicOr, Or, Word64, Uint64)                              \
+  V(I64AtomicOr8U, Or, Word64, Uint8)                             \
+  V(I64AtomicOr16U, Or, Word64, Uint16)                           \
+  V(I64AtomicOr32U, Or, Word64, Uint32)                           \
+  V(I64AtomicXor, Xor, Word64, Uint64)                            \
+  V(I64AtomicXor8U, Xor, Word64, Uint8)                           \
+  V(I64AtomicXor16U, Xor, Word64, Uint16)                         \
+  V(I64AtomicXor32U, Xor, Word64, Uint32)                         \
+  V(I64AtomicExchange, Exchange, Word64, Uint64)                  \
+  V(I64AtomicExchange8U, Exchange, Word64, Uint8)                 \
+  V(I64AtomicExchange16U, Exchange, Word64, Uint16)               \
+  V(I64AtomicExchange32U, Exchange, Word64, Uint32)               \
+  V(I64AtomicCompareExchange, CompareExchange, Word64, Uint64)    \
+  V(I64AtomicCompareExchange8U, CompareExchange, Word64, Uint8)   \
+  V(I64AtomicCompareExchange16U, CompareExchange, Word64, Uint16) \
+  V(I64AtomicCompareExchange32U, CompareExchange, Word64, Uint32)
 
           RMW_OPERATION(CASE_BINOP)
 #undef RMW_OPERATION
@@ -1319,6 +1326,12 @@ class TurboshaftGraphBuildingInterface {
             : MemoryAccessKind::kNormal;
 
     if (info.op_type == kBinop) {
+      if (info.bin_op == Binop::kCompareExchange) {
+        result->op = asm_.AtomicCompareExchange(
+            MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
+            args[2].op, info.result_rep, info.input_rep, access_kind);
+        return;
+      }
       result->op = asm_.AtomicRMW(MemBuffer(imm.memory->index, imm.offset),
                                   index, args[1].op, info.bin_op,
                                   info.result_rep, info.input_rep, access_kind);
