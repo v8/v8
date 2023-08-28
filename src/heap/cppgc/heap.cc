@@ -101,9 +101,7 @@ void Heap::CollectGarbage(GCConfig config) {
   DCHECK_EQ(GCConfig::MarkingType::kAtomic, config.marking_type);
   CheckConfig(config, marking_support_, sweeping_support_);
 
-  if (!IsGCAllowed()) {
-    return;
-  }
+  if (in_no_gc_scope()) return;
 
   config_ = config;
 
