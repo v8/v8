@@ -82,8 +82,8 @@ macro NativeContextSlot<T: type>(
     context: Context, index: Slot<NativeContext, T>):&T {
   return ContextSlot(LoadNativeContext(context), index);
 }
-macro NativeContextSlot<C: type, T: type>(implicit context: C)(
-    index: Slot<NativeContext, T>):&T {
+macro NativeContextSlot<C: type, T: type>(
+    implicit context: C)(index: Slot<NativeContext, T>):&T {
   return NativeContextSlot(context, index);
 }
 

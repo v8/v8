@@ -13,9 +13,9 @@ namespace string {
 extern macro StringBuiltinsAssembler::ReplaceUnpairedSurrogates(
     String, String): void labels Indirect;
 
-transitioning javascript builtin
-StringPrototypeToWellFormed(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypeToWellFormed(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.toWellFormed';
 
   // 1. Let O be ? RequireObjectCoercible(this value).

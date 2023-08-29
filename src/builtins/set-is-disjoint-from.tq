@@ -6,8 +6,8 @@ namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.isdisjointfrom
 transitioning javascript builtin SetPrototypeIsDisjointFrom(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(other: JSAny): Boolean {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    other: JSAny): Boolean {
   const methodName: constexpr string = 'Set.prototype.isDisjointFrom';
   const fastIteratorResultMap = GetIteratorResultMap();
 
@@ -141,8 +141,8 @@ transitioning javascript builtin SetPrototypeIsDisjointFrom(
 // needs to be checked (tableToLookup), and return if the two collections
 // are disjoint from each other or not.
 macro FastIsDisjointFrom<T : type extends FixedArray>(
-    implicit context: Context)(
-    collectionToIterate: OrderedHashSet, tableToLookup: T): Boolean {
+    implicit context: Context)(collectionToIterate: OrderedHashSet,
+    tableToLookup: T): Boolean {
   let iter =
       collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
   try {

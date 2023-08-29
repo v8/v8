@@ -5,8 +5,8 @@
 #include 'src/builtins/builtins-constructor-gen.h'
 
 namespace typed_array {
-extern builtin IterableToListMayPreserveHoles(
-    Context, Object, Callable): JSArray;
+extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
+    JSArray;
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     implicit context: Context)(): JSArrayBuffer;
@@ -15,16 +15,16 @@ extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
 extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
     JSTypedArray): void;
 
-extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
-    Map, String): never;
+extern runtime ThrowInvalidTypedArrayAlignment(
+    implicit context: Context)(Map, String): never;
 
-extern runtime GrowableSharedArrayBufferByteLength(implicit context: Context)(
-    Object): JSAny;
+extern runtime GrowableSharedArrayBufferByteLength(
+    implicit context: Context)(Object): JSAny;
 
-transitioning macro AllocateTypedArray(implicit context: Context)(
-    isOnHeap: constexpr bool, map: Map, buffer: JSArrayBuffer,
-    byteOffset: uintptr, byteLength: uintptr, length: uintptr,
-    isLengthTracking: bool): JSTypedArray {
+transitioning macro AllocateTypedArray(
+    implicit context: Context)(isOnHeap: constexpr bool, map: Map,
+    buffer: JSArrayBuffer, byteOffset: uintptr, byteLength: uintptr,
+    length: uintptr, isLengthTracking: bool): JSTypedArray {
   let elements: ByteArray;
   if constexpr (isOnHeap) {
     dcheck(!IsResizableArrayBuffer(buffer));
@@ -82,9 +82,9 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   return typedArray;
 }
 
-transitioning macro TypedArrayInitialize(implicit context: Context)(
-    initialize: constexpr bool, map: Map, length: uintptr,
-    elementsInfo: typed_array::TypedArrayElementsInfo):
+transitioning macro TypedArrayInitialize(
+    implicit context: Context)(initialize: constexpr bool, map: Map,
+    length: uintptr, elementsInfo: typed_array::TypedArrayElementsInfo):
     JSTypedArray labels IfRangeError {
   const byteLength = elementsInfo.CalculateByteLength(length)
       otherwise IfRangeError;
@@ -128,8 +128,8 @@ transitioning macro TypedArrayInitialize(implicit context: Context)(
 
 // 22.2.4.2 TypedArray ( length )
 // ES #sec-typedarray-length
-transitioning macro ConstructByLength(implicit context: Context)(
-    map: Map, lengthObj: JSAny,
+transitioning macro ConstructByLength(
+    implicit context: Context)(map: Map, lengthObj: JSAny,
     elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
   try {
     const length: uintptr = ToIndex(lengthObj) otherwise RangeError;
@@ -143,8 +143,9 @@ transitioning macro ConstructByLength(implicit context: Context)(
 
 // 22.2.4.4 TypedArray ( object )
 // ES #sec-typedarray-object
-transitioning macro ConstructByArrayLike(implicit context: Context)(
-    map: Map, arrayLike: HeapObject, length: uintptr,
+transitioning macro ConstructByArrayLike(
+    implicit context: Context)(map: Map, arrayLike: HeapObject,
+    length: uintptr,
     elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
   try {
     const initialize: constexpr bool = false;
@@ -195,8 +196,9 @@ transitioning macro ConstructByArrayLike(implicit context: Context)(
 
 // 22.2.4.4 TypedArray ( object )
 // ES #sec-typedarray-object
-transitioning macro ConstructByIterable(implicit context: Context)(
-    iterable: JSReceiver, iteratorFn: Callable): never
+transitioning macro ConstructByIterable(
+    implicit context: Context)(iterable: JSReceiver,
+    iteratorFn: Callable): never
     labels IfConstructByArrayLike(JSArray, uintptr) {
   const array: JSArray =
       IterableToListMayPreserveHoles(context, iterable, iteratorFn);
@@ -206,8 +208,8 @@ transitioning macro ConstructByIterable(implicit context: Context)(
 
 // 22.2.4.3 TypedArray ( typedArray )
 // ES #sec-typedarray-typedarray
-transitioning macro ConstructByTypedArray(implicit context: Context)(
-    srcTypedArray: JSTypedArray): never
+transitioning macro ConstructByTypedArray(
+    implicit context: Context)(srcTypedArray: JSTypedArray): never
     labels IfConstructByArrayLike(JSTypedArray, uintptr) {
   let length: uintptr;
   try {
@@ -223,9 +225,9 @@ transitioning macro ConstructByTypedArray(implicit context: Context)(
 
 // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
 // ES #sec-initializetypedarrayfromarraybuffer
-transitioning macro ConstructByArrayBuffer(implicit context: Context)(
-    target: JSFunction, newTarget: JSReceiver, buffer: JSArrayBuffer,
-    byteOffset: JSAny, length: JSAny): JSTypedArray {
+transitioning macro ConstructByArrayBuffer(
+    implicit context: Context)(target: JSFunction, newTarget: JSReceiver,
+    buffer: JSArrayBuffer, byteOffset: JSAny, length: JSAny): JSTypedArray {
   let map: Map;
   const isLengthTracking: bool =
       IsResizableArrayBuffer(buffer) && (length == Undefined);
@@ -329,9 +331,9 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
 // 22.2.4.6 TypedArrayCreate ( constructor, argumentList )
 // ES #typedarray-create
 @export
-transitioning macro TypedArrayCreateByLength(implicit context: Context)(
-    constructor: Constructor, length: Number, methodName: constexpr string):
-    JSTypedArray {
+transitioning macro TypedArrayCreateByLength(
+    implicit context: Context)(constructor: Constructor, length: Number,
+    methodName: constexpr string): JSTypedArray {
   dcheck(IsSafeInteger(length));
 
   // 1. Let newTypedArray be ? Construct(constructor, argumentList).
@@ -367,8 +369,8 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   return newTypedArray;
 }
 
-transitioning macro ConstructByJSReceiver(implicit context: Context)(
-    obj: JSReceiver): never
+transitioning macro ConstructByJSReceiver(
+    implicit context: Context)(obj: JSReceiver): never
     labels IfConstructByArrayLike(JSReceiver, uintptr),
     IfIteratorNotCallable(JSAny) {
   try {
@@ -441,9 +443,9 @@ transitioning builtin CreateTypedArray(
   }
 }
 
-transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
-    methodName: constexpr string, numArgs: constexpr int31,
-    exemplar: JSTypedArray, arg0: JSAny, arg1: JSAny,
+transitioning macro TypedArraySpeciesCreate(
+    implicit context: Context)(methodName: constexpr string,
+    numArgs: constexpr int31, exemplar: JSTypedArray, arg0: JSAny, arg1: JSAny,
     arg2: JSAny): JSTypedArray {
   const defaultConstructor = GetDefaultConstructor(exemplar);
 
@@ -479,9 +481,9 @@ transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
 }
 
 @export
-transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
-    methodName: constexpr string, exemplar: JSTypedArray, length: uintptr):
-    JSTypedArray {
+transitioning macro TypedArraySpeciesCreateByLength(
+    implicit context: Context)(methodName: constexpr string,
+    exemplar: JSTypedArray, length: uintptr): JSTypedArray {
   const numArgs: constexpr int31 = 1;
   // TODO(v8:4153): pass length further as uintptr.
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
@@ -500,9 +502,10 @@ transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
   return typedArray;
 }
 
-transitioning macro TypedArraySpeciesCreateByBuffer(implicit context: Context)(
-    methodName: constexpr string, exemplar: JSTypedArray, buffer: JSArrayBuffer,
-    beginByteOffset: uintptr, newLength: NumberOrUndefined): JSTypedArray {
+transitioning macro TypedArraySpeciesCreateByBuffer(
+    implicit context: Context)(methodName: constexpr string,
+    exemplar: JSTypedArray, buffer: JSArrayBuffer, beginByteOffset: uintptr,
+    newLength: NumberOrUndefined): JSTypedArray {
   const numArgs: constexpr int31 = 3;
   // TODO(v8:4153): pass length further as uintptr.
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
@@ -511,8 +514,9 @@ transitioning macro TypedArraySpeciesCreateByBuffer(implicit context: Context)(
   return typedArray;
 }
 
-transitioning macro TypedArrayCreateSameType(implicit context: Context)(
-    exemplar: JSTypedArray, newLength: uintptr): JSTypedArray {
+transitioning macro TypedArrayCreateSameType(
+    implicit context: Context)(exemplar: JSTypedArray,
+    newLength: uintptr): JSTypedArray {
   const constructor = GetDefaultConstructor(exemplar);
   const typedArray = CreateTypedArray(
       context, constructor, constructor, Convert<Number>(newLength), Undefined,

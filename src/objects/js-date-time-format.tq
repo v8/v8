@@ -4,7 +4,8 @@
 
 #include 'src/objects/js-date-time-format.h'
 
-type DateTimeStyle extends int32 constexpr 'JSDateTimeFormat::DateTimeStyle';
+type DateTimeStyle extends int32
+    constexpr 'JSDateTimeFormat::DateTimeStyle';
 type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
 bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;

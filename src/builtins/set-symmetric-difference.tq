@@ -132,8 +132,8 @@ struct OrderedHashSetAndNumberOfElements {
   setData: OrderedHashSet;
   numberOfElements: Smi;
 }
-macro FastSymmetricDifference(implicit context: Context)(
-    nextValue: JSAny, table: OrderedHashSet,
+macro FastSymmetricDifference(
+    implicit context: Context)(nextValue: JSAny, table: OrderedHashSet,
     resultSetDataAndNumberOfElements: OrderedHashSetAndNumberOfElements,
     methodName: constexpr string): OrderedHashSetAndNumberOfElements {
   let key = nextValue;

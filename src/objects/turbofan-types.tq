@@ -11,8 +11,7 @@ const kMinIntPtr: constexpr IntegerLiteral
 
 @export
 @abstract
-class TurbofanType extends HeapObject {
-}
+class TurbofanType extends HeapObject {}
 
 // TurbofanBitsetType is 64 bit.
 // We use two separate 32 bit bitsets in Torque, due to limitted support
@@ -203,17 +202,18 @@ macro TestTurbofanBitsetType(
       }
     }
     @if(V8_ENABLE_WEBASSEMBLY)
-    case (WasmObject): {
-      return bitsetLow.wasm_object;
-    }
+      case (WasmObject): {
+        return bitsetLow.wasm_object;
+      }
     case (Object): {
       return false;
     }
   }
 }
 
-builtin TestTurbofanType(implicit context: Context)(
-    value: Object, expectedType: TurbofanType): Boolean {
+builtin TestTurbofanType(
+    implicit context: Context)(value: Object,
+    expectedType: TurbofanType): Boolean {
   typeswitch (expectedType) {
     case (t: TurbofanBitsetType): {
       return Convert<Boolean>(
@@ -245,8 +245,9 @@ builtin TestTurbofanType(implicit context: Context)(
   }
 }
 
-builtin CheckTurbofanType(implicit context: Context)(
-    value: Object, expectedType: TurbofanType, nodeId: Smi): Undefined {
+builtin CheckTurbofanType(
+    implicit context: Context)(value: Object, expectedType: TurbofanType,
+    nodeId: Smi): Undefined {
   if (TestTurbofanType(value, expectedType) == True) {
     return Undefined;
   }

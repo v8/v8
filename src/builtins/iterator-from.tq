@@ -4,7 +4,8 @@
 
 namespace iterator {
 
-macro NewJSValidIteratorWrapper(implicit context: Context)(
+macro NewJSValidIteratorWrapper(
+    implicit context: Context)(
     underlying: IteratorRecord): JSValidIteratorWrapper {
   return new JSValidIteratorWrapper{
     map: *NativeContextSlot(ContextSlot::VALID_ITERATOR_WRAPPER_MAP_INDEX),
@@ -15,8 +16,8 @@ macro NewJSValidIteratorWrapper(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
-transitioning macro GetIteratorFlattenable(implicit context: Context)(
-    obj: JSReceiver|String): IteratorRecord {
+transitioning macro GetIteratorFlattenable(
+    implicit context: Context)(obj: JSReceiver|String): IteratorRecord {
   // 1. If obj is not an Object, then
   //   a. If stringHandling is reject-strings or obj is not a String, throw a
   //      TypeError exception.
@@ -47,8 +48,8 @@ transitioning macro GetIteratorFlattenable(implicit context: Context)(
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iterator.from
 transitioning javascript builtin IteratorFrom(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(objArg: JSAny): JSReceiver {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    objArg: JSAny): JSReceiver {
   // GetIteratorFlattenable below accepts either Objects or Strings (without
   // wrapping) with the iterate-strings parameter. The type checking is done by
   // the caller of GetIteratorFlattenable.

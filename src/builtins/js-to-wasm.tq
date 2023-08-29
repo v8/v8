@@ -6,7 +6,7 @@
 
 namespace runtime {
 extern runtime WasmGenericJSToWasmObject(
-    Context, WasmInstanceObject | Undefined, JSAny, Smi): JSAny;
+    Context, WasmInstanceObject|Undefined, JSAny, Smi): JSAny;
 extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
 extern runtime WasmCompileWrapper(NoContext, WasmExportedFunctionData): JSAny;
 }  // namespace runtime
@@ -62,7 +62,7 @@ extern enum ValueKind extends int32 constexpr 'wasm::ValueKind' {
 }
 
 extern enum HeapType extends int32
-constexpr 'wasm::HeapType::Representation' {
+    constexpr 'wasm::HeapType::Representation' {
   kExtern,
   kNoExtern,
   kString,
@@ -420,10 +420,9 @@ macro JSToWasmObject(
       context, instanceOrUndefined, value, Convert<Smi>(targetType));
 }
 
-transitioning javascript builtin
-JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny,
-    target: JSFunction)(...arguments): JSAny {
+transitioning javascript builtin JSToWasmWrapper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   const functionData = UnsafeCast<WasmExportedFunctionData>(
       target.shared_function_info.function_data);
 
@@ -646,8 +645,8 @@ JSToWasmWrapper(
   PopAndReturn(popCount + 1, result);
 }
 
-macro WasmToJSObject(
-    context: NativeContext, value: Object, retType: int32): JSAny {
+macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
+    JSAny {
   const paramKind = retType & kValueTypeKindBitsMask;
   const heapType = (retType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
   if (paramKind == ValueKind::kRef) {

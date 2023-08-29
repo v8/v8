@@ -349,21 +349,21 @@ const kFirstRabGsabFixedTypedArrayElementsKind: constexpr ElementsKind =
     ElementsKind::RAB_GSAB_UINT8_ELEMENTS;
 
 extern enum AllocationFlag extends int32
-constexpr 'CodeStubAssembler::AllocationFlag' {
+    constexpr 'CodeStubAssembler::AllocationFlag' {
   kNone,
   kDoubleAlignment,
   kPretenured
 }
 
 extern enum SlackTrackingMode
-constexpr 'CodeStubAssembler::SlackTrackingMode' {
+    constexpr 'CodeStubAssembler::SlackTrackingMode' {
   kWithSlackTracking,
   kNoSlackTracking,
   kDontInitializeInObjectProperties
 }
 
 extern enum ExtractFixedArrayFlag
-constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
+    constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
   kFixedDoubleArrays,
   kAllFixedArrays,
   kFixedArrays,
@@ -601,8 +601,8 @@ const SKIP_WRITE_BARRIER:
 const UNSAFE_SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'UNSAFE_SKIP_WRITE_BARRIER';
 
-extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
-    JSAny, Boolean): JSObject;
+extern transitioning macro AllocateJSIteratorResult(
+    implicit context: Context)(JSAny, Boolean): JSObject;
 
 extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 
@@ -647,8 +647,8 @@ extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )
-transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
-    Number {
+transitioning macro ToIntegerImpl(
+    implicit context: Context)(input: JSAny): Number {
   let input = input;
 
   while (true) {
@@ -674,14 +674,14 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
   unreachable;
 }
 
-transitioning builtin ToInteger(implicit context: Context)(input: JSAny):
-    Number {
+transitioning builtin ToInteger(
+    implicit context: Context)(input: JSAny): Number {
   return ToIntegerImpl(input);
 }
 
 @export
-transitioning macro ToInteger_Inline(implicit context: Context)(input: JSAny):
-    Number {
+transitioning macro ToInteger_Inline(
+    implicit context: Context)(input: JSAny): Number {
   typeswitch (input) {
     case (s: Smi): {
       return s;
@@ -695,68 +695,75 @@ transitioning macro ToInteger_Inline(implicit context: Context)(input: JSAny):
 extern macro ToBigInt(Context, JSAny): BigInt;
 
 extern enum BigIntHandling extends int32
-constexpr 'CodeStubAssembler::BigIntHandling' { kConvertToNumber, kThrow }
+    constexpr 'CodeStubAssembler::BigIntHandling' { kConvertToNumber, kThrow }
 
-extern transitioning macro ToNumber(implicit context: Context)(
-    JSAny, constexpr BigIntHandling): Number;
+extern transitioning macro ToNumber(
+    implicit context: Context)(JSAny, constexpr BigIntHandling): Number;
 
-extern transitioning macro ToLength_Inline(implicit context: Context)(JSAny):
-    Number;
-extern transitioning macro ToNumber_Inline(implicit context: Context)(JSAny):
-    Number;
-extern transitioning macro ToString_Inline(implicit context: Context)(JSAny):
-    String;
-extern transitioning macro ToThisString(implicit context: Context)(
-    JSAny, String): String;
-extern transitioning macro ToThisValue(implicit context: Context)(
-    JSAny, constexpr PrimitiveType, constexpr string): JSAny;
-extern transitioning macro GetProperty(implicit context: Context)(
-    JSAny, JSAny): JSAny;
+extern transitioning macro ToLength_Inline(
+    implicit context: Context)(JSAny): Number;
+extern transitioning macro ToNumber_Inline(
+    implicit context: Context)(JSAny): Number;
+extern transitioning macro ToString_Inline(
+    implicit context: Context)(JSAny): String;
+extern transitioning macro ToThisString(
+    implicit context: Context)(JSAny, String): String;
+extern transitioning macro ToThisValue(
+    implicit context: Context)(JSAny, constexpr PrimitiveType,
+    constexpr string): JSAny;
+extern transitioning macro GetProperty(
+    implicit context: Context)(JSAny, JSAny): JSAny;
 extern macro IsInterestingProperty(Name): bool;
 extern macro GetInterestingProperty(Context, JSReceiver, Name): JSAny
     labels NotFound;
-extern transitioning builtin SetProperty(implicit context: Context)(
-    JSAny, JSAny, JSAny): JSAny;
+extern transitioning builtin SetProperty(
+    implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
-extern transitioning builtin CreateDataProperty(implicit context: Context)(
-    JSAny, JSAny, JSAny): JSAny;
-extern transitioning builtin DeleteProperty(implicit context: Context)(
-    JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;
-extern transitioning builtin HasProperty(implicit context: Context)(
-    JSAny, JSAny): Boolean;
-extern transitioning macro HasProperty_Inline(implicit context: Context)(
-    JSReceiver, JSAny): Boolean;
+extern transitioning builtin CreateDataProperty(
+    implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
+extern transitioning builtin DeleteProperty(
+    implicit context: Context)(JSAny, JSAny|PrivateSymbol,
+    LanguageModeSmi): Boolean;
+extern transitioning builtin HasProperty(
+    implicit context: Context)(JSAny, JSAny): Boolean;
+extern transitioning macro HasProperty_Inline(
+    implicit context: Context)(JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 
 extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
 
-extern macro ThrowRangeError(implicit context: Context)(
-    constexpr MessageTemplate): never;
-extern macro ThrowRangeError(implicit context: Context)(
-    constexpr MessageTemplate, Object): never;
-extern macro ThrowRangeError(implicit context: Context)(
-    constexpr MessageTemplate, Object, Object): never;
-extern macro ThrowTypeError(implicit context: Context)(
-    constexpr MessageTemplate): never;
-extern macro ThrowTypeError(implicit context: Context)(
-    constexpr MessageTemplate, constexpr string): never;
-extern macro ThrowTypeError(implicit context: Context)(
-    constexpr MessageTemplate, Object): never;
-extern macro ThrowTypeError(implicit context: Context)(
-    constexpr MessageTemplate, Object, Object): never;
-extern macro ThrowTypeError(implicit context: Context)(
-    constexpr MessageTemplate, Object, Object, Object): never;
-extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
-    Smi, Object, Object): void;
-extern transitioning runtime ThrowIteratorError(implicit context: Context)(
-    JSAny): never;
-extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
-    JSAny): never;
+extern macro ThrowRangeError(
+    implicit context: Context)(constexpr MessageTemplate): never;
+extern macro ThrowRangeError(
+    implicit context: Context)(constexpr MessageTemplate, Object): never;
+extern macro ThrowRangeError(
+    implicit context: Context)(constexpr MessageTemplate, Object,
+    Object): never;
+extern macro ThrowTypeError(
+    implicit context: Context)(constexpr MessageTemplate): never;
+extern macro ThrowTypeError(
+    implicit context: Context)(constexpr MessageTemplate,
+    constexpr string): never;
+extern macro ThrowTypeError(
+    implicit context: Context)(constexpr MessageTemplate, Object): never;
+extern macro ThrowTypeError(
+    implicit context: Context)(constexpr MessageTemplate, Object,
+    Object): never;
+extern macro ThrowTypeError(
+    implicit context: Context)(constexpr MessageTemplate, Object, Object,
+    Object): never;
+extern transitioning runtime ThrowTypeErrorIfStrict(
+    implicit context: Context)(Smi, Object, Object): void;
+extern transitioning runtime ThrowIteratorError(
+    implicit context: Context)(JSAny): never;
+extern transitioning runtime ThrowCalledNonCallable(
+    implicit context: Context)(JSAny): never;
 
-extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
-    JSAny, constexpr MessageTemplate, constexpr string): void;
+extern transitioning macro ThrowIfNotJSReceiver(
+    implicit context: Context)(JSAny, constexpr MessageTemplate,
+    constexpr string): void;
 
 extern macro TerminateExecution(implicit context: Context)(): never;
 
@@ -769,18 +776,18 @@ extern macro EnsureArrayPushable(implicit context: Context)(Map): ElementsKind
     labels Bailout;
 // TODO: Reduce duplication once varargs are supported in macros.
 extern macro Construct(implicit context: Context)(Constructor): JSReceiver;
-extern macro Construct(implicit context: Context)(
-    Constructor, JSAny): JSReceiver;
-extern macro Construct(implicit context: Context)(
-    Constructor, JSAny, JSAny): JSReceiver;
-extern macro Construct(implicit context: Context)(
-    Constructor, JSAny, JSAny, JSAny): JSReceiver;
-extern macro ConstructWithTarget(implicit context: Context)(
-    Constructor, JSReceiver): JSReceiver;
-extern macro ConstructWithTarget(implicit context: Context)(
-    Constructor, JSReceiver, JSAny): JSReceiver;
-extern macro SpeciesConstructor(implicit context: Context)(
-    JSAny, JSReceiver): JSReceiver;
+extern macro Construct(
+    implicit context: Context)(Constructor, JSAny): JSReceiver;
+extern macro Construct(
+    implicit context: Context)(Constructor, JSAny, JSAny): JSReceiver;
+extern macro Construct(
+    implicit context: Context)(Constructor, JSAny, JSAny, JSAny): JSReceiver;
+extern macro ConstructWithTarget(
+    implicit context: Context)(Constructor, JSReceiver): JSReceiver;
+extern macro ConstructWithTarget(
+    implicit context: Context)(Constructor, JSReceiver, JSAny): JSReceiver;
+extern macro SpeciesConstructor(
+    implicit context: Context)(JSAny, JSReceiver): JSReceiver;
 
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
@@ -811,8 +818,8 @@ extern transitioning builtin NonPrimitiveToPrimitive_String(
 extern transitioning builtin NonPrimitiveToPrimitive_Default(
     Context, JSAny): JSPrimitive;
 
-transitioning macro ToPrimitiveDefault(implicit context: Context)(v: JSAny):
-    JSPrimitive {
+transitioning macro ToPrimitiveDefault(
+    implicit context: Context)(v: JSAny): JSPrimitive {
   typeswitch (v) {
     case (v: JSReceiver): {
       return NonPrimitiveToPrimitive_Default(context, v);
@@ -845,10 +852,10 @@ extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro StringToNumber(String): Number;
-extern transitioning macro NonNumberToNumber(implicit context: Context)(
-    JSAnyNotNumber): Number;
-extern transitioning macro NonNumberToNumeric(implicit context: Context)(
-    JSAnyNotNumber): Numeric;
+extern transitioning macro NonNumberToNumber(
+    implicit context: Context)(JSAnyNotNumber): Number;
+extern transitioning macro NonNumberToNumeric(
+    implicit context: Context)(JSAnyNotNumber): Numeric;
 
 extern macro Equal(JSAny, JSAny, Context): Boolean;
 macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {
@@ -859,7 +866,7 @@ extern macro StrictEqual(JSAny, JSAny): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 
 extern runtime ReThrowWithMessage(
-    Context, JSAny, TheHole | JSMessageObject): never;
+    Context, JSAny, TheHole|JSMessageObject): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
@@ -977,11 +984,11 @@ macro Float64IsNaN(n: float64): bool {
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
 @if(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Hole | Map |
-    WeakCell | Context | EmptyString | Symbol | WasmInternalFunction | WasmNull;
+  type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
+      Context|EmptyString|Symbol|WasmInternalFunction|WasmNull;
 @ifnot(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Hole | Map |
-    WeakCell | Context | EmptyString | Symbol;
+  type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
+      Context|EmptyString|Symbol;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -1055,16 +1062,15 @@ extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '%' macro Uint32Mod(uint32, uint32): uint32;
 extern operator '&' macro Word32And(int32, int32): int32;
 extern operator '&' macro Word32And(uint32, uint32): uint32;
-extern operator '==' macro
-ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
-extern operator '!=' macro
-ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
-extern operator '==' macro
-ConstexprUint32Equal(constexpr uint32, constexpr uint32): constexpr bool;
-extern operator '!=' macro
-ConstexprUint32NotEqual(constexpr uint32, constexpr uint32): constexpr bool;
-extern operator '>=' macro
-ConstexprInt31GreaterThanEqual(
+extern operator '==' macro ConstexprInt31Equal(
+    constexpr int31, constexpr int31): constexpr bool;
+extern operator '!=' macro ConstexprInt31NotEqual(
+    constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro ConstexprUint32Equal(
+    constexpr uint32, constexpr uint32): constexpr bool;
+extern operator '!=' macro ConstexprUint32NotEqual(
+    constexpr uint32, constexpr uint32): constexpr bool;
+extern operator '>=' macro ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;
 extern operator '==' macro ConstexprInt32Equal(
     constexpr int32, constexpr int32): constexpr bool;
@@ -1181,8 +1187,7 @@ extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '!' macro IsFalse(Boolean): bool;
 
-extern operator '==' macro
-ConstexprInt31Equal(
+extern operator '==' macro ConstexprInt31Equal(
     constexpr InstanceType, constexpr InstanceType): constexpr bool;
 extern operator '-' macro ConstexprUint32Sub(
     constexpr InstanceType, constexpr InstanceType): constexpr int32;
@@ -1204,10 +1209,10 @@ operator '.length_uintptr' macro LoadStringLengthAsUintPtr(s: String): uintptr {
 extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
-extern builtin StringAdd_CheckNone(implicit context: Context)(
-    String, String): String;
-operator '+' macro StringAdd(implicit context: Context)(
-    a: String, b: String): String {
+extern builtin StringAdd_CheckNone(
+    implicit context: Context)(String, String): String;
+operator '+' macro StringAdd(
+    implicit context: Context)(a: String, b: String): String {
   return StringAdd_CheckNone(a, b);
 }
 
@@ -1270,8 +1275,8 @@ extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro RoundInt32ToFloat32(int32): float32;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeNumberToUint32(Number): uint32;
-extern macro ChangeTaggedNonSmiToInt32(implicit context: Context)(HeapObject):
-    int32;
+extern macro ChangeTaggedNonSmiToInt32(
+    implicit context: Context)(HeapObject): int32;
 extern macro ChangeFloat32ToTagged(float32): Number;
 extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
@@ -1279,14 +1284,15 @@ extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeFloat64ToIntPtr(float64): intptr;
 extern macro ChangeBoolToInt32(bool): int32;
 extern macro ChangeInt32ToFloat64(int32): float64;
-extern macro ChangeInt32ToIntPtr(int32): intptr;    // Sign-extends.
-extern macro ChangeUint32ToWord(uint32): uintptr;   // Doesn't sign-extend.
-extern macro ChangeInt32ToInt64(int32): int64;      // Sign-extends.
+extern macro ChangeInt32ToIntPtr(int32): intptr;  // Sign-extends.
+extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
+extern macro ChangeInt32ToInt64(int32): int64;  // Sign-extends.
 extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
-extern macro LoadJSArrayElementsMap(constexpr ElementsKind, NativeContext): Map;
+extern macro LoadJSArrayElementsMap(
+    constexpr ElementsKind, NativeContext): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, NativeContext): Map;
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
@@ -1357,8 +1363,8 @@ macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
       Convert<uintptr>(Convert<intptr>(length)));
 }
 
-extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
-    bool;
+extern macro IsPrototypeInitialArrayPrototype(
+    implicit context: Context)(Map): bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
 extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
@@ -1367,8 +1373,8 @@ extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro HasBuiltinSubclassingFlag(): bool;
-extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
-    bool;
+extern macro IsPrototypeTypedArrayPrototype(
+    implicit context: Context)(Map): bool;
 extern macro IsSetIteratorProtectorCellInvalid(): bool;
 extern macro IsMapIteratorProtectorCellInvalid(): bool;
 
@@ -1534,8 +1540,8 @@ macro ToBoolean(obj: JSAny): bool {
 }
 
 @export
-macro RequireObjectCoercible(implicit context: Context)(
-    value: JSAny, name: constexpr string): JSAny {
+macro RequireObjectCoercible(
+    implicit context: Context)(value: JSAny, name: constexpr string): JSAny {
   if (IsNullOrUndefined(value)) {
     ThrowTypeError(MessageTemplate::kCalledOnNullOrUndefined, name);
   }
@@ -1680,8 +1686,8 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
 // We can do this because all callers do a range checks against uintptr length
 // anyway and throw a RangeError in case of out-of-bounds index.
 @export
-transitioning macro ToIndex(implicit context: Context)(value: JSAny):
-    uintptr labels IfRangeError {
+transitioning macro ToIndex(
+    implicit context: Context)(value: JSAny): uintptr labels IfRangeError {
   if (value == Undefined) return 0;
   const indexNumber = ToInteger_Inline(value);
   // Less than 0 case, uintptr range overflow and safe integer range overflow
@@ -1690,8 +1696,8 @@ transitioning macro ToIndex(implicit context: Context)(value: JSAny):
       otherwise IfRangeError, IfRangeError, IfRangeError;
 }
 
-transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
-    Number {
+transitioning macro GetLengthProperty(
+    implicit context: Context)(o: JSAny): Number {
   try {
     typeswitch (o) {
       case (a: JSArray): {
@@ -1712,8 +1718,9 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
   }
 }
 
-transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, name: AnyName): Callable labels IfNullOrUndefined,
+transitioning macro GetMethod(
+    implicit context: Context)(o: JSAny, name: AnyName):
+    Callable labels IfNullOrUndefined,
     IfMethodNotCallable(JSAny) {
   // Use GetInterestingMethod - a version of GetMethod optimized for interesting
   // properties.
@@ -1726,8 +1733,9 @@ transitioning macro GetMethod(implicit context: Context)(
       otherwise goto IfMethodNotCallable(value);
 }
 
-transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, name: String): Callable labels IfNullOrUndefined {
+transitioning macro GetMethod(
+    implicit context: Context)(o: JSAny,
+    name: String): Callable labels IfNullOrUndefined {
   // Use GetInterestingMethod - a version of GetMethod optimized for interesting
   // properties.
   dcheck(!IsInterestingProperty(name));
@@ -1738,13 +1746,15 @@ transitioning macro GetMethod(implicit context: Context)(
   }
 }
 
-transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, name: constexpr string): Callable labels IfNullOrUndefined {
+transitioning macro GetMethod(
+    implicit context: Context)(o: JSAny,
+    name: constexpr string): Callable labels IfNullOrUndefined {
   return GetMethod(o, StringConstant(name)) otherwise IfNullOrUndefined;
 }
 
-transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, symbol: Symbol): Callable labels IfNullOrUndefined {
+transitioning macro GetMethod(
+    implicit context: Context)(o: JSAny,
+    symbol: Symbol): Callable labels IfNullOrUndefined {
   // Use GetInterestingMethod - a version of GetMethod optimized for interesting
   // properties.
   dcheck(!IsInterestingProperty(symbol));
@@ -1755,8 +1765,9 @@ transitioning macro GetMethod(implicit context: Context)(
       MessageTemplate::kPropertyNotFunction, value, symbol, o);
 }
 
-transitioning macro GetInterestingMethod(implicit context: Context)(
-    o: JSReceiver, name: String): Callable labels IfNullOrUndefined {
+transitioning macro GetInterestingMethod(
+    implicit context: Context)(o: JSReceiver,
+    name: String): Callable labels IfNullOrUndefined {
   dcheck(IsInterestingProperty(name));
   try {
     const value = GetInterestingProperty(context, o, name)
@@ -1774,8 +1785,8 @@ extern macro IsOneByteStringInstanceType(InstanceType): bool;
 // After converting an index to an integer, calculate a relative index:
 // return index < 0 ? max(length + index, 0) : min(index, length)
 @export
-transitioning macro ConvertAndClampRelativeIndex(implicit context: Context)(
-    index: JSAny, length: uintptr): uintptr {
+transitioning macro ConvertAndClampRelativeIndex(
+    implicit context: Context)(index: JSAny, length: uintptr): uintptr {
   const indexNumber: Number = ToInteger_Inline(index);
   return ConvertAndClampRelativeIndex(indexNumber, length);
 }
@@ -1783,8 +1794,8 @@ transitioning macro ConvertAndClampRelativeIndex(implicit context: Context)(
 // Calculate a relative index:
 // return index < 0 ? max(length + index, 0) : min(index, length)
 @export
-macro ConvertAndClampRelativeIndex(indexNumber: Number, length: uintptr):
-    uintptr {
+macro ConvertAndClampRelativeIndex(
+    indexNumber: Number, length: uintptr): uintptr {
   try {
     return ConvertRelativeIndex(indexNumber, length) otherwise OutOfBoundsLow,
            OutOfBoundsHigh;
@@ -1842,8 +1853,8 @@ macro ConvertRelativeIndex(indexNumber: Number, length: uintptr):
 // range [0, limit]:
 // return min(max(index, 0), limit)
 @export
-transitioning macro ClampToIndexRange(implicit context: Context)(
-    index: JSAny, limit: uintptr): uintptr {
+transitioning macro ClampToIndexRange(
+    implicit context: Context)(index: JSAny, limit: uintptr): uintptr {
   const indexNumber: Number = ToInteger_Inline(index);
   return ClampToIndexRange(indexNumber, limit);
 }
@@ -1924,27 +1935,27 @@ macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
 }
 
 @export
-macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
-    bool {
+macro IsFastJSArrayForReadWithNoCustomIteration(
+    context: Context, o: Object): bool {
   return Is<FastJSArrayForReadWithNoCustomIteration>(o);
 }
 
-extern transitioning runtime
-CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny): void;
+extern transitioning runtime CreateDataProperty(
+    implicit context: Context)(JSReceiver, JSAny, JSAny): void;
 
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): void;
 
 namespace runtime {
-extern runtime
-GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
+extern runtime GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
 extern macro IsDeprecatedMap(Map): bool;
 
 extern macro LoadSlowObjectWithNullPrototypeMap(NativeContext): Map;
 
-transitioning builtin FastCreateDataProperty(implicit context: Context)(
-    receiver: JSReceiver, key: JSAny, value: JSAny): Object {
+transitioning builtin FastCreateDataProperty(
+    implicit context: Context)(receiver: JSReceiver, key: JSAny,
+    value: JSAny): Object {
   try {
     const array = Cast<FastJSArray>(receiver) otherwise Slow;
     const index: Smi = Cast<Smi>(key) otherwise goto Slow;

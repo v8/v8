@@ -4,8 +4,8 @@
 
 namespace promise {
 
-extern macro AllocatePromiseWithResolversResult(implicit context: Context)(
-    JSAny, JSAny, JSAny): JSObject;
+extern macro AllocatePromiseWithResolversResult(
+    implicit context: Context)(JSAny, JSAny, JSAny): JSObject;
 
 // https://tc39.es/proposal-promise-with-resolvers/#sec-promise.withResolvers
 transitioning javascript builtin PromiseWithResolvers(

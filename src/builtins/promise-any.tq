@@ -7,7 +7,7 @@
 namespace promise {
 type PromiseAnyRejectElementContext extends FunctionContext;
 extern enum PromiseAnyRejectElementContextSlots extends intptr
-constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
+    constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
   kPromiseAnyRejectElementRemainingSlot:
       Slot<PromiseAnyRejectElementContext, Smi>,
   kPromiseAnyRejectElementCapabilitySlot:
@@ -30,8 +30,7 @@ extern operator '[]' macro LoadContextElement(
 // was called already (we slap the native context onto the closure in that
 // case to mark it's done). See Promise.all which uses the same approach.
 transitioning macro CreatePromiseAnyRejectElementContext(
-    implicit context: Context)(
-    capability: PromiseCapability,
+    implicit context: Context)(capability: PromiseCapability,
     nativeContext: NativeContext): PromiseAnyRejectElementContext {
   const rejectContext = %RawDownCast<PromiseAnyRejectElementContext>(
       AllocateSyntheticFunctionContext(
@@ -54,7 +53,8 @@ transitioning macro CreatePromiseAnyRejectElementContext(
   return rejectContext;
 }
 
-macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
+macro CreatePromiseAnyRejectElementFunction(
+    implicit context: Context)(
     rejectElementContext: PromiseAnyRejectElementContext, index: Smi,
     nativeContext: NativeContext): JSFunction {
   dcheck(index > 0);
@@ -70,10 +70,9 @@ macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
 }
 
 // https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
-transitioning javascript builtin
-PromiseAnyRejectElementClosure(
-    js-implicit context: Context, receiver: JSAny,
-    target: JSFunction)(value: JSAny): JSAny {
+transitioning javascript builtin PromiseAnyRejectElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
   // 1. Let F be the active function object.
 
   // 2. Let alreadyCalled be F.[[AlreadyCalled]].
@@ -167,9 +166,10 @@ PromiseAnyRejectElementClosure(
   return Undefined;
 }
 
-transitioning macro PerformPromiseAny(implicit context: Context)(
-    nativeContext: NativeContext, iteratorRecord: iterator::IteratorRecord,
-    constructor: Constructor, resultCapability: PromiseCapability,
+transitioning macro PerformPromiseAny(
+    implicit context: Context)(nativeContext: NativeContext,
+    iteratorRecord: iterator::IteratorRecord, constructor: Constructor,
+    resultCapability: PromiseCapability,
     promiseResolveFunction: JSAny): JSAny labels
 Reject(JSAny) {
   // 1. Assert: ! IsConstructor(constructor) is true.
@@ -332,8 +332,7 @@ Reject(JSAny) {
 }
 
 // https://tc39.es/ecma262/#sec-promise.any
-transitioning javascript builtin
-PromiseAny(
+transitioning javascript builtin PromiseAny(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);
 
@@ -390,8 +389,8 @@ PromiseAny(
   }
 }
 
-transitioning macro ConstructAggregateError(implicit context: Context)(
-    errors: FixedArray): JSObject {
+transitioning macro ConstructAggregateError(
+    implicit context: Context)(errors: FixedArray): JSObject {
   const obj: JSObject = error::ConstructInternalAggregateErrorHelper(
       context, SmiConstant(MessageTemplate::kAllPromisesRejected));
   const errorsJSArray = array::CreateJSArrayWithElements(errors);

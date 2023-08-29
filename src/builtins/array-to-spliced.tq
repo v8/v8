@@ -5,9 +5,9 @@
 namespace array {
 // Makes a copy of the source array for toSpliced without inserting the new
 // items.
-macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
-    kind: constexpr ElementsKind, array: JSArray, newLenSmi: Smi,
-    actualStartSmi: Smi, insertCountSmi: Smi,
+macro CopyFastPackedArrayForToSpliced(
+    implicit context: Context)(kind: constexpr ElementsKind, array: JSArray,
+    newLenSmi: Smi, actualStartSmi: Smi, insertCountSmi: Smi,
     actualDeleteCountSmi: Smi): JSArray {
   const newLen: intptr = Convert<intptr>(newLenSmi);
   const actualStart: intptr = Convert<intptr>(actualStartSmi);
@@ -47,10 +47,10 @@ macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
   return NewJSArray(map, copy);
 }
 
-transitioning macro TryFastArrayToSpliced(implicit context: Context)(
-    args: Arguments, o: JSReceiver, originalLenNumber: Number,
-    newLenNumber: Number, actualStartNumber: Number, insertCount: Smi,
-    actualDeleteCountNumber: Number): JSArray labels Slow {
+transitioning macro TryFastArrayToSpliced(
+    implicit context: Context)(args: Arguments, o: JSReceiver,
+    originalLenNumber: Number, newLenNumber: Number, actualStartNumber: Number,
+    insertCount: Smi, actualDeleteCountNumber: Number): JSArray labels Slow {
   const newLen: Smi = Cast<Smi>(newLenNumber) otherwise Slow;
   const actualStart: Smi = Cast<Smi>(actualStartNumber) otherwise Slow;
   const actualDeleteCount: Smi =
@@ -106,9 +106,9 @@ transitioning macro TryFastArrayToSpliced(implicit context: Context)(
   return copy;
 }
 
-transitioning macro GenericArrayToSpliced(implicit context: Context)(
-    args: Arguments, o: JSReceiver, newLen: Number, actualStart: Number,
-    actualDeleteCount: Number): JSArray {
+transitioning macro GenericArrayToSpliced(
+    implicit context: Context)(args: Arguments, o: JSReceiver, newLen: Number,
+    actualStart: Number, actualDeleteCount: Number): JSArray {
   // 13. Let A be ? ArrayCreate(𝔽(newLen)).
   const copy = ArrayCreate(newLen);
 

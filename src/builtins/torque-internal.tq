@@ -7,16 +7,18 @@
 type MutableSlice<T: type> extends torque_internal::Slice<T, &T>;
 type ConstSlice<T: type> extends torque_internal::Slice<T, const &T>;
 
-macro Subslice<T: type>(slice: ConstSlice<T>, start: intptr, length: intptr):
-    ConstSlice<T>labels OutOfBounds {
+macro Subslice<T: type>(
+    slice: ConstSlice<T>, start: intptr,
+    length: intptr): ConstSlice<T>labels OutOfBounds {
   if (Unsigned(length) > Unsigned(slice.length)) goto OutOfBounds;
   if (Unsigned(start) > Unsigned(slice.length - length)) goto OutOfBounds;
   const offset = slice.offset + torque_internal::TimesSizeOf<T>(start);
   return torque_internal::unsafe::NewConstSlice<T>(
       slice.object, offset, length);
 }
-macro Subslice<T: type>(slice: MutableSlice<T>, start: intptr, length: intptr):
-    MutableSlice<T>labels OutOfBounds {
+macro Subslice<T: type>(
+    slice: MutableSlice<T>, start: intptr,
+    length: intptr): MutableSlice<T>labels OutOfBounds {
   if (Unsigned(length) > Unsigned(slice.length)) goto OutOfBounds;
   if (Unsigned(start) > Unsigned(slice.length - length)) goto OutOfBounds;
   const offset = slice.offset + torque_internal::TimesSizeOf<T>(start);
@@ -89,8 +91,8 @@ macro ReferenceCast<T: type, U: type>(ref:&U):&T {
   return ref;
 }
 
-extern macro GCUnsafeReferenceToRawPtr(
-    HeapObject | TaggedZeroPattern, intptr): RawPtr;
+extern macro GCUnsafeReferenceToRawPtr(HeapObject|TaggedZeroPattern, intptr):
+    RawPtr;
 
 }  // namespace unsafe
 
@@ -143,8 +145,8 @@ struct Slice<T: type, Reference: type> {
       unsafeMarker: Unsafe {}
     };
   }
-  macro Iterator(
-      startIndex: intptr, endIndex: intptr): SliceIterator<T, Reference> {
+  macro Iterator(startIndex: intptr, endIndex: intptr):
+      SliceIterator<T, Reference> {
     check(
         Convert<uintptr>(endIndex) <= Convert<uintptr>(this.length) &&
         Convert<uintptr>(startIndex) <= Convert<uintptr>(endIndex));
@@ -281,8 +283,8 @@ macro ValidAllocationSize(sizeInBytes: intptr, map: Map): bool {
 type UninitializedHeapObject extends HeapObject;
 
 extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
-extern macro Allocate(
-    intptr, constexpr AllocationFlag): UninitializedHeapObject;
+extern macro Allocate(intptr, constexpr AllocationFlag):
+    UninitializedHeapObject;
 
 macro AllocateFromNew(
     sizeInBytes: intptr, map: Map, pretenured: bool,
@@ -374,11 +376,11 @@ intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string): intptr;
 // optional field, which is either length zero or one depending on whether the
 // field is present. This intrinsic provides Slices for both indexed fields
 // (equivalent to &o.x) and optional fields.
-intrinsic %FieldSlice<T: type, TSlice: type>(
-    o: T, f: constexpr string): TSlice;
+intrinsic %FieldSlice<T: type, TSlice: type>(o: T, f: constexpr string):
+    TSlice;
 
 extern macro GetPendingMessage(): TheHole|JSMessageObject;
-extern macro SetPendingMessage(TheHole | JSMessageObject): void;
+extern macro SetPendingMessage(TheHole|JSMessageObject): void;
 
 // This is implicitly performed at the beginning of Torque catch-blocks.
 macro GetAndResetPendingMessage(): TheHole|JSMessageObject {
@@ -405,7 +407,8 @@ intrinsic %MaxInstanceType<T: type>(): constexpr InstanceType;
 intrinsic %ClassHasMapConstant<T: type>(): constexpr bool;
 intrinsic %GetClassMapConstant<T: type>(): Map;
 
-struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
+struct IteratorSequence<
+    T: type, FirstIterator: type, SecondIterator: type> {
   macro Empty(): bool {
     return this.first.Empty() && this.second.Empty();
   }
@@ -419,7 +422,8 @@ struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
   second: SecondIterator;
 }
 
-macro IteratorSequence<T: type, FirstIterator: type, SecondIterator: type>(
+macro
+IteratorSequence<T: type, FirstIterator: type, SecondIterator: type>(
     first: FirstIterator, second: SecondIterator):
     IteratorSequence<T, FirstIterator, SecondIterator> {
   return IteratorSequence<T>{first, second};

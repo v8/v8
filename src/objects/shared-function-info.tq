@@ -122,8 +122,7 @@ extern class UncompiledData extends HeapObject {
 @generateBodyDescriptor
 @generateUniqueMap
 @generateFactoryFunction
-extern class UncompiledDataWithoutPreparseData extends UncompiledData {
-}
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {}
 
 @generateBodyDescriptor
 @generateUniqueMap

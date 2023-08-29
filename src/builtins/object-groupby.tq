@@ -12,8 +12,8 @@ extern macro CollectionsBuiltinsAssembler::NormalizeNumberKey(JSAny): JSAny;
 }  // namespace collections
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
-transitioning macro CoerceGroupKey(implicit context: Context)(
-    key: JSAny, coerceToProperty: Boolean): JSAny {
+transitioning macro CoerceGroupKey(
+    implicit context: Context)(key: JSAny, coerceToProperty: Boolean): JSAny {
   // 6.g. If coercion is property, then
   if (coerceToProperty == True) {
     // i. Set key to Completion(ToPropertyKey(key)).
@@ -26,9 +26,10 @@ transitioning macro CoerceGroupKey(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
-transitioning builtin GroupByGeneric(implicit context: Context)(
-    items: JSAny, initialGroups: OrderedHashMap, callbackfn: Callable,
-    coerceToProperty: Boolean, methodName: String): OrderedHashMap {
+transitioning builtin GroupByGeneric(
+    implicit context: Context)(items: JSAny, initialGroups: OrderedHashMap,
+    callbackfn: Callable, coerceToProperty: Boolean,
+    methodName: String): OrderedHashMap {
   let groups = initialGroups;
 
   // 4. Let iteratorRecord be ? GetIterator(items, sync).
@@ -90,9 +91,9 @@ transitioning builtin GroupByGeneric(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
-transitioning macro GroupByImpl(implicit context: Context)(
-    items: JSAny, callback: JSAny, coerceToProperty: Boolean,
-    methodName: constexpr string): OrderedHashMap {
+transitioning macro GroupByImpl(
+    implicit context: Context)(items: JSAny, callback: JSAny,
+    coerceToProperty: Boolean, methodName: constexpr string): OrderedHashMap {
   // 1. Perform ? RequireObjectCoercible(items).
   RequireObjectCoercible(items, methodName);
 
@@ -162,9 +163,9 @@ transitioning macro GroupByImpl(implicit context: Context)(
   }
 }
 
-transitioning javascript builtin
-ObjectGroupBy(js-implicit context: NativeContext, receiver: JSAny)(
-    items: JSAny, callback: JSAny): JSAny {
+transitioning javascript builtin ObjectGroupBy(
+    js-implicit context: NativeContext, receiver: JSAny)(items: JSAny,
+    callback: JSAny): JSAny {
   // 1. Let groups be ? GroupBy(items, callbackfn, property).
   const groups: OrderedHashMap = GroupByImpl(
       items, callback, /* coerceToProperty */ True, 'Object.groupBy');

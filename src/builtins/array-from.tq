@@ -5,9 +5,9 @@
 namespace array {
 // Array.from( items [, mapfn [, thisArg ] ] )
 // ES #sec-array.from
-transitioning javascript builtin
-ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
-    JSReceiver {
+transitioning javascript builtin ArrayFrom(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSReceiver {
   const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
 
   // Use fast path if:

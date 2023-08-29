@@ -123,13 +123,11 @@ extern class ExternalTwoByteString extends ExternalString {
 }
 
 @doNotGenerateCast
-extern class InternalizedString extends String {
-}
+extern class InternalizedString extends String {}
 
 @abstract
 @doNotGenerateCast
-extern class SeqString extends String {
-}
+extern class SeqString extends String {}
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqOneByteString extends SeqString {
@@ -200,12 +198,14 @@ macro AllocateSeqTwoByteString<Iterator: type>(
 }
 
 @export
-macro AllocateSeqOneByteString(length: uint32): SeqOneByteString|EmptyString {
+macro AllocateSeqOneByteString(length: uint32): SeqOneByteString|
+    EmptyString {
   return AllocateSeqOneByteString(length, UninitializedIterator{});
 }
 
 @export
-macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|EmptyString {
+macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|
+    EmptyString {
   return AllocateSeqTwoByteString(length, UninitializedIterator{});
 }
 
@@ -394,8 +394,9 @@ macro Call<A: type, B: type>(
       Convert<intptr>(self.fromIndex)));
 }
 
-macro AbstractStringIndexOf(implicit context: Context)(
-    string: String, searchString: String, fromIndex: Smi): Smi {
+macro AbstractStringIndexOf(
+    implicit context: Context)(string: String, searchString: String,
+    fromIndex: Smi): Smi {
   // Special case the empty string.
   const searchStringLength = searchString.length_intptr;
   const stringLength = string.length_intptr;

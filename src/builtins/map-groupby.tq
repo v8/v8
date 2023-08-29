@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-transitioning javascript builtin
-MapGroupBy(js-implicit context: NativeContext, receiver: JSAny)(
-    items: JSAny, callback: JSAny): JSAny {
+transitioning javascript builtin MapGroupBy(
+    js-implicit context: NativeContext, receiver: JSAny)(items: JSAny,
+    callback: JSAny): JSAny {
   // 1. Let groups be ? GroupBy(items, callbackfn, zero).
   const groups: OrderedHashMap =
       GroupByImpl(items, callback, /* coerceToProperty */ False, 'Map.groupBy');

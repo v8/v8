@@ -11,14 +11,12 @@ bitfield struct TurboshaftFloatSpecialValues extends uint32 {
 }
 
 @abstract
-extern class TurboshaftType extends HeapObject {
-}
+extern class TurboshaftType extends HeapObject {}
 
 @generateBodyDescriptor
 @generateUniqueMap
 @generateFactoryFunction
-extern class TurboshaftWord32Type extends TurboshaftType {
-}
+extern class TurboshaftWord32Type extends TurboshaftType {}
 
 @generateBodyDescriptor
 @generateUniqueMap
@@ -39,8 +37,7 @@ extern class TurboshaftWord32SetType extends TurboshaftWord32Type {
 @generateBodyDescriptor
 @generateUniqueMap
 @generateFactoryFunction
-extern class TurboshaftWord64Type extends TurboshaftType {
-}
+extern class TurboshaftWord64Type extends TurboshaftType {}
 
 @generateBodyDescriptor
 @generateUniqueMap
@@ -175,8 +172,9 @@ macro TestTurboshaftFloat64Type(
   }
 }
 
-builtin CheckTurboshaftWord32Type(implicit context: Context)(
-    value: uint32, expectedType: TurboshaftWord32Type, nodeId: Smi): Undefined {
+builtin CheckTurboshaftWord32Type(
+    implicit context: Context)(value: uint32,
+    expectedType: TurboshaftWord32Type, nodeId: Smi): Undefined {
   if (TestTurboshaftWord32Type(value, expectedType)) {
     return Undefined;
   }
@@ -188,9 +186,9 @@ builtin CheckTurboshaftWord32Type(implicit context: Context)(
   unreachable;
 }
 
-builtin CheckTurboshaftWord64Type(implicit context: Context)(
-    valueHigh: uint32, valueLow: uint32, expectedType: TurboshaftWord64Type,
-    nodeId: Smi): Undefined {
+builtin CheckTurboshaftWord64Type(
+    implicit context: Context)(valueHigh: uint32, valueLow: uint32,
+    expectedType: TurboshaftWord64Type, nodeId: Smi): Undefined {
   if (TestTurboshaftWord64Type(valueHigh, valueLow, expectedType)) {
     return Undefined;
   }
@@ -205,9 +203,9 @@ builtin CheckTurboshaftWord64Type(implicit context: Context)(
 
 // Builtin needs custom interface descriptor to allow float32 argument type.
 @customInterfaceDescriptor
-builtin CheckTurboshaftFloat32Type(implicit context: Context)(
-    value: float32, expectedType: TurboshaftFloat64Type, nodeId: Smi):
-    Undefined {
+builtin CheckTurboshaftFloat32Type(
+    implicit context: Context)(value: float32,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
   const v = Convert<float64>(value);
   if (TestTurboshaftFloat64Type(v, expectedType)) {
     return Undefined;
@@ -222,9 +220,9 @@ builtin CheckTurboshaftFloat32Type(implicit context: Context)(
 
 // Builtin needs custom interface descriptor to allow float64 argument type.
 @customInterfaceDescriptor
-builtin CheckTurboshaftFloat64Type(implicit context: Context)(
-    value: float64, expectedType: TurboshaftFloat64Type, nodeId: Smi):
-    Undefined {
+builtin CheckTurboshaftFloat64Type(
+    implicit context: Context)(value: float64,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
   if (TestTurboshaftFloat64Type(value, expectedType)) {
     return Undefined;
   }
@@ -237,15 +235,15 @@ builtin CheckTurboshaftFloat64Type(implicit context: Context)(
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWordPtr(implicit context: Context)(value: uintptr):
-    Undefined {
+builtin DebugPrintWordPtr(
+    implicit context: Context)(value: uintptr): Undefined {
   Print('DebugPrint (word): ', value);
   return Undefined;
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintFloat64(implicit context: Context)(value: float64):
-    Undefined {
+builtin DebugPrintFloat64(
+    implicit context: Context)(value: float64): Undefined {
   Print('DebugPrint (float64): ', value);
   return Undefined;
 }

@@ -17,15 +17,15 @@ macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
   return coverageInfo;
 }
 
-macro IncrementBlockCount(implicit context: Context)(
-    coverageInfo: CoverageInfo, slot: Smi): void {
+macro IncrementBlockCount(
+    implicit context: Context)(coverageInfo: CoverageInfo, slot: Smi): void {
   dcheck(Convert<int32>(slot) < coverageInfo.slot_count);
   ++coverageInfo.slots[slot].block_count;
 }
 
 builtin IncBlockCounter(
-    implicit context:
-        Context)(function: JSFunction, coverageArraySlotIndex: Smi): Undefined {
+    implicit context: Context)(function: JSFunction,
+    coverageArraySlotIndex: Smi): Undefined {
   // It's quite possible that a function contains IncBlockCounter bytecodes,
   // but no coverage info exists. This happens e.g. by selecting the
   // best-effort coverage collection mode, which triggers deletion of all

@@ -6,8 +6,8 @@ namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.issubsetof
 transitioning javascript builtin SetPrototypeIsSubsetOf(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(other: JSAny): Boolean {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    other: JSAny): Boolean {
   const methodName: constexpr string = 'Set.prototype.isSubsetOf';
 
   // 1. Let O be the this value.

@@ -167,8 +167,9 @@ transitioning javascript builtin SetPrototypeIntersection(
 // (collectionToIterate), lookup each value of the iterator in a table that
 // needs to be checked (tableToLookup), and adds the value to the result
 // (resultSetData) if it exists in the table.
-macro FastIntersect<T : type extends FixedArray>(implicit context: Context)(
-    collectionToIterate: OrderedHashSet, tableToLookup: T, methodName: String,
+macro FastIntersect<T : type extends FixedArray>(
+    implicit context: Context)(collectionToIterate: OrderedHashSet,
+    tableToLookup: T, methodName: String,
     resultSetData: OrderedHashSet): OrderedHashSet {
   let result = resultSetData;
 

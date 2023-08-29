@@ -6,8 +6,8 @@ namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.issupersetof
 transitioning javascript builtin SetPrototypeIsSupersetOf(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(other: JSAny): Boolean {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    other: JSAny): Boolean {
   const methodName: constexpr string = 'Set.prototype.isSupersetOf';
   const fastIteratorResultMap = GetIteratorResultMap();
 

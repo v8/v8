@@ -163,9 +163,9 @@ transitioning javascript builtin SetPrototypeDifference(
 // (collectionToIterate), lookup each value of the iterator in a table that
 // needs to be checked (tableToLookup), and delete the value from result
 // (resultSetData) if it exists in the table.
-macro FastDifference<T : type extends FixedArray>(implicit context: Context)(
-    collectionToIterate: OrderedHashSet, tableToLookup: T,
-    resultSetData: OrderedHashSet): Smi {
+macro FastDifference<T : type extends FixedArray>(
+    implicit context: Context)(collectionToIterate: OrderedHashSet,
+    tableToLookup: T, resultSetData: OrderedHashSet): Smi {
   let iter =
       collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
 

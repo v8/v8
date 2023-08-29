@@ -212,12 +212,10 @@ extern operator '.native_type_ptr' macro LoadWasmTypeInfoNativeTypePtr(
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
 @abstract
-extern class WasmObject extends JSReceiver {
-}
+extern class WasmObject extends JSReceiver {}
 
 @highestInstanceTypeWithinParentClassRange
-extern class WasmStruct extends WasmObject {
-}
+extern class WasmStruct extends WasmObject {}
 
 @lowestInstanceTypeWithinParentClassRange
 extern class WasmArray extends WasmObject {
