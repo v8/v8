@@ -5732,14 +5732,14 @@ void Simulator::DecodeRvvIVV() {
       }
       break;
     case RO_V_VSLL_VV: {
-      RVV_VI_VV_LOOP({ vd = vs2 << vs1; })
+      RVV_VI_VV_LOOP({ vd = vs2 << (vs1 & (rvv_sew() - 1)); })
       break;
     }
     case RO_V_VSRL_VV:
-      RVV_VI_VV_ULOOP({ vd = vs2 >> vs1; })
+      RVV_VI_VV_ULOOP({ vd = vs2 >> (vs1 & (rvv_sew() - 1)); })
       break;
     case RO_V_VSRA_VV:
-      RVV_VI_VV_LOOP({ vd = vs2 >> vs1; })
+      RVV_VI_VV_LOOP({ vd = vs2 >> (vs1 & (rvv_sew() - 1)); })
       break;
     case RO_V_VSMUL_VV: {
       RVV_VI_GENERAL_LOOP_BASE
@@ -5979,13 +5979,13 @@ void Simulator::DecodeRvvIVI() {
       rvv_trace_vd();
     } break;
     case RO_V_VSRL_VI:
-      RVV_VI_VI_ULOOP({ vd = vs2 >> uimm5; })
+      RVV_VI_VI_ULOOP({ vd = vs2 >> (uimm5 & (rvv_sew() - 1)); })
       break;
     case RO_V_VSRA_VI:
       RVV_VI_VI_LOOP({ vd = vs2 >> (simm5 & (rvv_sew() - 1) & 0x1f); })
       break;
     case RO_V_VSLL_VI:
-      RVV_VI_VI_ULOOP({ vd = vs2 << uimm5; })
+      RVV_VI_VI_ULOOP({ vd = vs2 << (uimm5 & (rvv_sew() - 1)); })
       break;
     case RO_V_VADC_VI:
       if (instr_.RvvVM()) {
@@ -6257,7 +6257,7 @@ void Simulator::DecodeRvvIVX() {
       }
       break;
     case RO_V_VSLL_VX: {
-      RVV_VI_VX_LOOP({ vd = vs2 << rs1; })
+      RVV_VI_VX_LOOP({ vd = vs2 << (rs1 & (rvv_sew() - 1)); })
       break;
     }
     case RO_V_VSRL_VX: {

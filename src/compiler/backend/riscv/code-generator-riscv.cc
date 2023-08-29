@@ -2564,7 +2564,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI32x4ShrU: {
       __ VU.set(kScratchReg, E32, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 32 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2576,7 +2575,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI64x2ShrU: {
       __ VU.set(kScratchReg, E64, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 64 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2594,7 +2592,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16ShrS: {
       __ VU.set(kScratchReg, E8, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 8 - 1);
         __ vsra_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2606,7 +2603,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8ShrS: {
       __ VU.set(kScratchReg, E16, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 16 - 1);
         __ vsra_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2618,7 +2614,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI32x4ShrS: {
       __ VU.set(kScratchReg, E32, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 32 - 1);
         __ vsra_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2630,7 +2625,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI64x2ShrS: {
       __ VU.set(kScratchReg, E64, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 64 - 1);
         __ vsra_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2680,7 +2674,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16Shl: {
       __ VU.set(kScratchReg, E8, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 8 - 1);
         __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2692,7 +2685,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8Shl: {
       __ VU.set(kScratchReg, E16, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 16 - 1);
         __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2704,7 +2696,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI32x4Shl: {
       __ VU.set(kScratchReg, E32, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 32 - 1);
         __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
@@ -2716,7 +2707,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI64x2Shl: {
       __ VU.set(kScratchReg, E64, m1);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 64 - 1);
         __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputRegister(1));
       } else {
