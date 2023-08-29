@@ -424,7 +424,11 @@ void PagedSpaceBase::UnmarkLinearAllocationArea() {
 
 void PagedSpaceBase::MakeLinearAllocationAreaIterable() {
   Address current_top = top();
-  Address current_limit = limit();
+  Address current_limit = original_limit_relaxed();
+  DCHECK_GE(current_limit, limit());
+  // Only new space supports LAB extensions. For all other spaces,
+  // `original_limit_relaxed()` and `limit()` should be equivalent.
+  DCHECK_IMPLIES(!SupportsExtendingLAB(), current_limit == limit());
   if (current_top != kNullAddress && current_top != current_limit) {
     heap_->CreateFillerObjectAt(current_top,
                                 static_cast<int>(current_limit - current_top));
