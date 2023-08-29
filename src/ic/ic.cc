@@ -3204,6 +3204,15 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
       source_used_inobj_properties > target_inobj_properties) {
     return false;
   }
+  // The properties backing store must be of the same size as the clone ic again
+  // blindly copies it.
+  if (source_map->HasOutOfObjectProperties() !=
+          target_map->HasOutOfObjectProperties() ||
+      (target_map->HasOutOfObjectProperties() &&
+       source_map->UnusedPropertyFields() !=
+           target_map->UnusedPropertyFields())) {
+    return false;
+  }
   // TODO(olivf, chrome:1204540) The clone ic blindly copies the bytes from
   // source object to result object. Therefore it must be ensured that
   // the both maps are in the same slack tracking state and the result map is
