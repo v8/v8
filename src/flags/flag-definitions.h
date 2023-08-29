@@ -2583,23 +2583,28 @@ DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 #define DEFINE_PERF_PROF_IMPLICATION(...)
 #endif
 
+#if defined(ANDROID)
+#define DEFAULT_PERF_BASIC_PROF_PATH "/data/local/tmp"
+#define DEFAULT_PERF_PROF_PATH DEFAULT_PERF_BASIC_PROF_PATH
+#else
+#define DEFAULT_PERF_BASIC_PROF_PATH "/tmp"
+#define DEFAULT_PERF_PROF_PATH "."
+#endif
+
 DEFINE_PERF_PROF_BOOL(perf_basic_prof,
                       "Enable perf linux profiler (basic support).")
 DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
+DEFINE_STRING(perf_basic_prof_path, DEFAULT_PERF_BASIC_PROF_PATH,
+              "directory to write perf-<pid>.map symbol file to")
 DEFINE_PERF_PROF_BOOL(
     perf_basic_prof_only_functions,
     "Only report function code ranges to perf (i.e. no stubs).")
 DEFINE_PERF_PROF_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
-#if defined(ANDROID)
-#define DEFAULT_PERF_BASIC_PROF_PATH "/data/local/tmp"
-#else
-#define DEFAULT_PERF_BASIC_PROF_PATH "/tmp"
-#endif
-DEFINE_STRING(perf_basic_prof_path, DEFAULT_PERF_BASIC_PROF_PATH,
-              "directory to write perf-<pid>.map symbol file to")
 
 DEFINE_PERF_PROF_BOOL(
     perf_prof, "Enable perf linux profiler (experimental annotate support).")
+DEFINE_STRING(perf_prof_path, DEFAULT_PERF_PROF_PATH,
+              "directory to write jit-<pid>.dump symbol file to")
 DEFINE_PERF_PROF_BOOL(
     perf_prof_annotate_wasm,
     "Used with --perf-prof, load wasm source map and provide annotate "

@@ -28,6 +28,7 @@
 #include "src/diagnostics/perf-jit.h"
 
 #include "src/common/assert-scope.h"
+#include "src/flags/flags.h"
 
 // Only compile the {LinuxPerfJitLogger} on Linux.
 #if V8_OS_LINUX
@@ -116,7 +117,7 @@ struct PerfJitCodeUnwindingInfo : PerfJitBase {
   // Followed by size_ - sizeof(PerfJitCodeUnwindingInfo) bytes of data.
 };
 
-const char LinuxPerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
+const char LinuxPerfJitLogger::kFilenameFormatString[] = "%s/jit-%d.dump";
 
 // Extra padding for the PID in the filename
 const int LinuxPerfJitLogger::kFilenameBufferPadding = 16;
@@ -135,9 +136,11 @@ void LinuxPerfJitLogger::OpenJitDumpFile() {
   // Open the perf JIT dump file.
   perf_output_handle_ = nullptr;
 
-  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
+  size_t bufferSize = strlen(v8_flags.perf_prof_path) +
+                      sizeof(kFilenameFormatString) + kFilenameBufferPadding;
   base::ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString, process_id_);
+  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
+                      v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);
 
   int fd = open(perf_dump_name.begin(), O_CREAT | O_TRUNC | O_RDWR, 0666);
