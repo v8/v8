@@ -20,7 +20,7 @@ class MinorGCJob {
  public:
   MinorGCJob() V8_NOEXCEPT = default;
 
-  void ScheduleTaskIfNeeded(Heap* heap);
+  void ScheduleTask(Heap* heap);
 
   static size_t YoungGenerationTaskTriggerSize(Heap* heap);
 

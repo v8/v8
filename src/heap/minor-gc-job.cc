@@ -39,11 +39,17 @@ bool MinorGCJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {
   return heap->new_space()->Size() >= YoungGenerationTaskTriggerSize(heap);
 }
 
-void MinorGCJob::ScheduleTaskIfNeeded(Heap* heap) {
+void MinorGCJob::ScheduleTask(Heap* heap) {
   if (!v8_flags.minor_gc_task) return;
   if (task_pending_) return;
   if (heap->IsTearingDown()) return;
-  DCHECK(YoungGenerationSizeTaskTriggerReached(heap));
+  // A task should be scheduled when young generation size reaches the task
+  // trigger, but may also occur before the trigger is reached. For example,
+  // this method is called from the allocation observer for new space. The
+  // observer step size is detemine based on the current task trigger. However,
+  // due to refining allocated bytes after sweeping (allocated bytes after
+  // sweeping may be less than live bytes during marking), new space size may
+  // decrease while the observer step size remains the same.
   std::shared_ptr<v8::TaskRunner> taskrunner = heap->GetForegroundTaskRunner();
   if (taskrunner->NonNestableTasksEnabled()) {
     taskrunner->PostNonNestableTask(

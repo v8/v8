@@ -1484,7 +1484,7 @@ void Heap::HandleGCRequest() {
 
 void Heap::ScheduleMinorGCTaskIfNeeded() {
   DCHECK_NOT_NULL(minor_gc_job_);
-  minor_gc_job_->ScheduleTaskIfNeeded(this);
+  minor_gc_job_->ScheduleTask(this);
 }
 
 namespace {
