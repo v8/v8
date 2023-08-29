@@ -1000,7 +1000,7 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(kRiscvLw, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLwu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(kRiscvZeroExtendWord, s[2]->arch_opcode());
     EXPECT_EQ(2U, s[1]->InputCount());

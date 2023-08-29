@@ -306,7 +306,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
         opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
         break;
       case MachineRepresentation::kWord32:
-        opcode = kRiscvLw;
+        opcode = load_rep.IsUnsigned() ? kRiscvLwu : kRiscvLw;
         break;
 #ifdef V8_COMPRESS_POINTERS
       case MachineRepresentation::kTaggedSigned:

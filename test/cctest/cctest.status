@@ -366,28 +366,22 @@
   # this test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
-  # SIMD not fully implemented yet.
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
   # Some wasm functionality is not implemented yet.
-  'test-run-wasm-64/*': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
 
-  # riscv64 sign extend on uint32.
-  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
-
   # According to riscv's NaN generation and propagation scheme, the payload
   # is not guaranteed. So the test fails when src bits has payload.
   'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
-}],  # 'arch == riscv64'
+}],  # 'arch == riscv64 or (arch == riscv32)'
+['arch == riscv32', {
+  # Some wasm functionality is not implemented yet.
+  'test-run-wasm-64/*': [SKIP],
+}],  # 'arch == riscv32'
 
 ##############################################################################
 ['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
