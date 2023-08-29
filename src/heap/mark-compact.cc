@@ -1839,13 +1839,14 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   Heap* heap = client->heap();
 
   // Ensure new space is iterable.
-  heap->MakeNewSpaceIterable();
+  heap->MakeHeapIterable();
 
   if (heap->new_space()) {
-    for (Page* page : *heap->new_space()) {
-      for (HeapObject obj : HeapObjectRange(page)) {
-        obj->IterateFast(cage_base, &visitor);
-      }
+    std::unique_ptr<ObjectIterator> iterator =
+        heap->new_space()->GetObjectIterator(heap);
+    for (HeapObject obj = iterator->Next(); !obj.is_null();
+         obj = iterator->Next()) {
+      obj->IterateFast(cage_base, &visitor);
     }
   }
 
