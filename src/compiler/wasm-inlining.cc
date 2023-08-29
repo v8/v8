@@ -4,6 +4,8 @@
 
 #include "src/compiler/wasm-inlining.h"
 
+#include <cinttypes>
+
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
@@ -130,9 +132,10 @@ bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size,
 void WasmInliner::Trace(const CandidateInfo& candidate, const char* decision) {
   TRACE(
       "  [function %d: considering candidate {@%d, index=%d, count=%d, "
-      "size=%d}: %s]\n",
+      "size=%d, score=%" PRId64 "}: %s]\n",
       data_.func_index, candidate.node->id(), candidate.inlinee_index,
-      candidate.call_count, candidate.wire_byte_size, decision);
+      candidate.call_count, candidate.wire_byte_size, candidate.score(),
+      decision);
 }
 
 void WasmInliner::Finalize() {
@@ -240,7 +243,9 @@ void WasmInliner::Finalize() {
     data_.loop_infos->insert(data_.loop_infos->end(),
                              inlinee_loop_infos.begin(),
                              inlinee_loop_infos.end());
-    // Returning after only one inlining has been tried and found worse.
+    // Returning after inlining, so that new calls in the inlined body are added
+    // to the candidates list and prioritized if they have a higher score.
+    return;
   }
 }
 
