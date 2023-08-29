@@ -366,6 +366,7 @@ constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 // ExternalPointerTable.
 constexpr uint64_t kExternalPointerMarkBit = 1ULL << 62;
 constexpr uint64_t kExternalPointerTagMask = 0x40ff000000000000;
+constexpr uint64_t kExternalPointerTagMaskWithoutMarkBit = 0xff000000000000;
 constexpr uint64_t kExternalPointerTagShift = 48;
 
 // All possible 8-bit type tags.

@@ -50,6 +50,9 @@ struct ExternalPointerTableEntry {
   // This entry must be an external pointer entry.
   inline void SetExternalPointer(Address value, ExternalPointerTag tag);
 
+  // Returns true if this entry contains an external pointer with the given tag.
+  inline bool HasExternalPointer(ExternalPointerTag tag) const;
+
   // Exchanges the external pointer stored in this entry with the provided one.
   // Returns the old external pointer. This entry must be an external pointer
   // entry. If the provided tag doesn't match the tag of the old entry, the
@@ -94,7 +97,12 @@ struct ExternalPointerTableEntry {
     }
 
     bool IsTaggedWith(ExternalPointerTag tag) const {
-      return (encoded_word_ & kExternalPointerTagMask) == tag;
+      // We have to explicitly ignore the marking bit (which is part of the
+      // tag) since an unmarked entry with tag kXyzTag is still considered to
+      // be tagged with kXyzTag.
+      uint64_t expected = tag & ~kExternalPointerMarkBit;
+      uint64_t actual = encoded_word_ & kExternalPointerTagMaskWithoutMarkBit;
+      return expected == actual;
     }
 
     void SetMarkBit() { encoded_word_ |= kExternalPointerMarkBit; }
