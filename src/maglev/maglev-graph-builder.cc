@@ -8946,9 +8946,25 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
   if (IsConstantNode(node->opcode())) {
     known_to_boolean_value = true;
     direction_is_true = FromConstantToBool(local_isolate(), node);
-  } else if (CheckType(node, NodeType::kJSReceiver)) {
-    known_to_boolean_value = true;
-    direction_is_true = true;
+  } else {
+    // JSReceivers are true iff they are not marked as undetectable. Check if
+    // all maps have the same detectability, and if yes, the boolean value is
+    // known.
+    NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node);
+    if (node_info && NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
+        node_info->possible_maps_are_known()) {
+      bool all_detectable = true;
+      bool all_undetectable = true;
+      for (compiler::MapRef map : node_info->possible_maps()) {
+        bool is_undetectable = map.is_undetectable();
+        all_detectable &= !is_undetectable;
+        all_undetectable &= is_undetectable;
+      }
+      if (all_detectable || all_undetectable) {
+        known_to_boolean_value = true;
+        direction_is_true = all_detectable;
+      }
+    }
   }
   if (known_to_boolean_value) {
     bool is_jump_taken = direction_is_true == (jump_type == kJumpIfTrue);
