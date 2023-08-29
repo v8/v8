@@ -155,6 +155,13 @@ in_category(
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
     ),
+    experiment_builder(
+        name = "V8 Linux64 - PKU",
+        parent_builder = "V8 Linux64 - builder",
+        execution_timeout = 19800,
+        notify_owners = ["sroettger@chromium.org"],
+        notifies = ["blamelist"],
+    ),
     experiment_builder_pair(
         name = "V8 Linux64 gcc",
         triggered_by = ["v8-trigger"],
