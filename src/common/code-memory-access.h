@@ -156,6 +156,11 @@ class V8_EXPORT ThreadIsolation {
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
 
+  enum class JitAllocationType {
+    kInstructionStream,
+    kWasmCode,
+  };
+
   // Register a new JIT region.
   static void RegisterJitPage(Address address, size_t size);
   // Unregister a JIT region that is about to be unmpapped.
@@ -165,6 +170,7 @@ class V8_EXPORT ThreadIsolation {
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
 
   class WritableJitAllocation;
+
   // Register a new InstructionStream allocation for tracking and return a
   // writable reference to it. All writes should go through the returned
   // WritableJitAllocation object.
@@ -172,8 +178,10 @@ class V8_EXPORT ThreadIsolation {
                                                                    size_t size);
   // Register multiple consecutive allocations together.
   static void RegisterJitAllocations(Address start,
-                                     const std::vector<size_t>& sizes);
-  static WritableJitAllocation LookupJitAllocation(Address addr, size_t size);
+                                     const std::vector<size_t>& sizes,
+                                     JitAllocationType type);
+  static WritableJitAllocation LookupJitAllocation(Address addr, size_t size,
+                                                   JitAllocationType type);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
   static void RegisterWasmAllocation(Address addr, size_t size);
@@ -232,11 +240,14 @@ class V8_EXPORT ThreadIsolation {
 
   class JitAllocation {
    public:
-    explicit JitAllocation(size_t size) : size_(size) {}
+    explicit JitAllocation(size_t size, JitAllocationType type)
+        : size_(size), type_(type) {}
     size_t Size() const { return size_; }
+    JitAllocationType Type() const { return type_; }
 
    private:
     size_t size_;
+    JitAllocationType type_;
   };
 
   class JitPage;
@@ -253,7 +264,10 @@ class V8_EXPORT ThreadIsolation {
     base::Address Address() const { return address_; }
     size_t Size() const;
     base::Address End() const { return Address() + Size(); }
-    void RegisterAllocation(base::Address addr, size_t size);
+    JitAllocation& RegisterAllocation(base::Address addr, size_t size,
+                                      JitAllocationType type);
+    JitAllocation& LookupAllocation(base::Address addr, size_t size,
+                                    JitAllocationType type);
     void UnregisterAllocation(base::Address addr);
     void UnregisterAllocationsExcept(base::Address start, size_t size,
                                      const std::vector<base::Address>& addr);
@@ -305,7 +319,7 @@ class V8_EXPORT ThreadIsolation {
     V8_INLINE void ClearBytes(size_t offset, size_t len);
 
     Address address() const { return address_; }
-    size_t size() const { return size_; }
+    size_t size() const { return allocation_.Size(); }
 
    private:
     enum class JitAllocationSource {
@@ -313,17 +327,18 @@ class V8_EXPORT ThreadIsolation {
       kLookup,
     };
     V8_INLINE WritableJitAllocation(Address addr, size_t size,
+                                    JitAllocationType type,
                                     JitAllocationSource source);
 
     JitPageReference& page_ref() { return page_ref_; }
 
     const Address address_;
-    const size_t size_;
     // TODO(sroettger): we can move the memory write scopes into the Write*
     // functions in debug builds. This would allow us to ensure that all writes
     // go through this object.
     RwxMemoryWriteScope write_scope_;
     JitPageReference page_ref_;
+    const JitAllocation& allocation_;
 
     friend class ThreadIsolation;
   };
@@ -392,7 +407,8 @@ class V8_EXPORT ThreadIsolation {
   template <typename T>
   static void Delete(T* ptr);
 
-  static void RegisterJitAllocation(Address obj, size_t size);
+  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
+                                                     JitAllocationType type);
 
   static JitPageReference LookupJitPage(Address addr, size_t size);
   static base::Optional<JitPageReference> TryLookupJitPage(Address addr,

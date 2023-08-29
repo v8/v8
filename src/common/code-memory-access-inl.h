@@ -30,21 +30,17 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
 }
 
 ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
-    Address addr, size_t size, JitAllocationSource source)
+    Address addr, size_t size, JitAllocationType type,
+    JitAllocationSource source)
     : address_(addr),
-      size_(size),
       // The order of these is important. We need to create the write scope
       // before we lookup the Jit page, since the latter will take a mutex in
       // protected memory.
       write_scope_("WritableJitAllocation"),
-      page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {
-  if (source == JitAllocationSource::kLookup) {
-    CHECK(page_ref_.HasAllocation(addr, size));
-  } else {
-    DCHECK_EQ(source, JitAllocationSource::kRegister);
-    page_ref_.RegisterAllocation(addr, size);
-  }
-}
+      page_ref_(ThreadIsolation::LookupJitPage(addr, size)),
+      allocation_(source == JitAllocationSource::kRegister
+                      ? page_ref_.RegisterAllocation(addr, size, type)
+                      : page_ref_.LookupAllocation(addr, size, type)) {}
 
 template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {

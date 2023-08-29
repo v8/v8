@@ -2256,15 +2256,13 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   // {results} vector in smaller chunks).
   CHECK(jump_tables.is_valid());
 
-  {
-    std::vector<size_t> sizes;
-    for (const auto& result : results) {
-      sizes.emplace_back(RoundUp<kCodeAlignment>(result.code_desc.instr_size));
-    }
-    CodeSpaceWriteScope write_scope;
-    ThreadIsolation::RegisterJitAllocations(
-        reinterpret_cast<Address>(code_space.begin()), sizes);
+  std::vector<size_t> sizes;
+  for (const auto& result : results) {
+    sizes.emplace_back(RoundUp<kCodeAlignment>(result.code_desc.instr_size));
   }
+  ThreadIsolation::RegisterJitAllocations(
+      reinterpret_cast<Address>(code_space.begin()), sizes,
+      ThreadIsolation::JitAllocationType::kWasmCode);
 
   // Now copy the generated code into the code space and relocate it.
   for (auto& result : results) {

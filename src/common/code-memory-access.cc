@@ -238,8 +238,10 @@ void ThreadIsolation::JitPageReference::Merge(JitPageReference& next) {
   DCHECK(next.jit_page_->allocations_.empty());
 }
 
-void ThreadIsolation::JitPageReference::RegisterAllocation(base::Address addr,
-                                                           size_t size) {
+ThreadIsolation::JitAllocation&
+ThreadIsolation::JitPageReference::RegisterAllocation(base::Address addr,
+                                                      size_t size,
+                                                      JitAllocationType type) {
   // The data is untrusted from the pov of CFI, so the checks are security
   // sensitive.
   CHECK_GE(addr, address_);
@@ -250,7 +252,17 @@ void ThreadIsolation::JitPageReference::RegisterAllocation(base::Address addr,
   CHECK_GE(jit_page_->size_, end_offset);
 
   CheckForRegionOverlap(jit_page_->allocations_, addr, size);
-  jit_page_->allocations_.emplace(addr, JitAllocation(size));
+  return jit_page_->allocations_.emplace(addr, JitAllocation(size, type))
+      .first->second;
+}
+
+ThreadIsolation::JitAllocation&
+ThreadIsolation::JitPageReference::LookupAllocation(base::Address addr,
+                                                    size_t size,
+                                                    JitAllocationType type) {
+  auto it = jit_page_->allocations_.find(addr);
+  CHECK_NE(it, jit_page_->allocations_.end());
+  return it->second;
 }
 
 void ThreadIsolation::JitPageReference::UnregisterAllocation(
@@ -315,53 +327,51 @@ bool ThreadIsolation::JitPageReference::HasAllocation(base::Address address,
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
 
-  {
-    // Wasm code can allocate memory that spans jit page registrations, so we
-    // merge them here too.
-    base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
-    auto it = trusted_data_.jit_pages_->upper_bound(address);
-    base::Optional<JitPageReference> jit_page, next_page;
-    bool is_begin = it == trusted_data_.jit_pages_->begin();
-    bool is_end = it == trusted_data_.jit_pages_->end();
+  // Wasm code can allocate memory that spans jit page registrations, so we
+  // merge them here too.
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+  auto it = trusted_data_.jit_pages_->upper_bound(address);
+  base::Optional<JitPageReference> jit_page, next_page;
+  bool is_begin = it == trusted_data_.jit_pages_->begin();
+  bool is_end = it == trusted_data_.jit_pages_->end();
 
-    Address end = address + size;
-    CHECK_GT(end, address);
+  Address end = address + size;
+  CHECK_GT(end, address);
 
-    // Check for overlap first since we might extend the previous page below.
-    if (!is_end) {
-      next_page.emplace(it->second, it->first);
-      CHECK_LE(end, next_page->Address());
+  // Check for overlap first since we might extend the previous page below.
+  if (!is_end) {
+    next_page.emplace(it->second, it->first);
+    CHECK_LE(end, next_page->Address());
+  }
+
+  // Check if we can expand the previous page instead of creating a new one.
+  bool expanded_previous = false;
+  if (!is_begin) {
+    it--;
+    jit_page.emplace(it->second, it->first);
+    CHECK_LE(jit_page->End(), address);
+    if (jit_page->End() == address) {
+      jit_page->Expand(size);
+      expanded_previous = true;
     }
+  }
 
-    // Check if we can expand the previous page instead of creating a new one.
-    bool expanded_previous = false;
-    if (!is_begin) {
-      it--;
-      jit_page.emplace(it->second, it->first);
-      CHECK_LE(jit_page->End(), address);
-      if (jit_page->End() == address) {
-        jit_page->Expand(size);
-        expanded_previous = true;
-      }
-    }
+  // Expanding didn't work, create a new region.
+  if (!expanded_previous) {
+    JitPage* new_jit_page;
+    ConstructNew(&new_jit_page, size);
+    trusted_data_.jit_pages_->emplace(address, new_jit_page);
+    jit_page.emplace(new_jit_page, address);
+  }
+  DCHECK(jit_page.has_value());
 
-    // Expanding didn't work, create a new region.
-    if (!expanded_previous) {
-      JitPage* new_jit_page;
-      ConstructNew(&new_jit_page, size);
-      trusted_data_.jit_pages_->emplace(address, new_jit_page);
-      jit_page.emplace(new_jit_page, address);
-    }
-    DCHECK(jit_page.has_value());
-
-    // Check if we should merge with the next page.
-    if (next_page && jit_page->End() == next_page->Address()) {
-      jit_page->Merge(*next_page);
-      trusted_data_.jit_pages_->erase(next_page->Address());
-      JitPage* to_delete = next_page->JitPage();
-      next_page.reset();
-      Delete(to_delete);
-    }
+  // Check if we should merge with the next page.
+  if (next_page && jit_page->End() == next_page->Address()) {
+    jit_page->Merge(*next_page);
+    trusted_data_.jit_pages_->erase(next_page->Address());
+    JitPage* to_delete = next_page->JitPage();
+    next_page.reset();
+    Delete(to_delete);
   }
 }
 
@@ -369,7 +379,6 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Removing executable memory.");
 
   JitPage* to_delete;
-
   {
     base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
     base::Optional<JitPageReference> jit_page_lookup =
@@ -431,28 +440,33 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 }
 
 // static
-void ThreadIsolation::RegisterJitAllocation(Address obj, size_t size) {
-  LookupJitPage(obj, size).RegisterAllocation(obj, size);
+ThreadIsolation::WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
+    Address obj, size_t size, JitAllocationType type) {
+  return WritableJitAllocation(
+      obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister);
 }
 
 // static
 ThreadIsolation::WritableJitAllocation
 ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
                                                      size_t size) {
-  return WritableJitAllocation(
-      addr, size, WritableJitAllocation::JitAllocationSource::kRegister);
+  return RegisterJitAllocation(addr, size,
+                               JitAllocationType::kInstructionStream);
 }
 
 // static
 ThreadIsolation::WritableJitAllocation ThreadIsolation::LookupJitAllocation(
-    Address addr, size_t size) {
+    Address addr, size_t size, JitAllocationType type) {
   return WritableJitAllocation(
-      addr, size, WritableJitAllocation::JitAllocationSource::kLookup);
+      addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup);
 }
 
 // static
 void ThreadIsolation::RegisterJitAllocations(Address start,
-                                             const std::vector<size_t>& sizes) {
+                                             const std::vector<size_t>& sizes,
+                                             JitAllocationType type) {
+  RwxMemoryWriteScope write_scope("Register bulk allocations.");
+
   size_t total_size = 0;
   for (auto size : sizes) {
     total_size += size;
@@ -461,7 +475,7 @@ void ThreadIsolation::RegisterJitAllocations(Address start,
   JitPageReference page_ref = LookupJitPage(start, total_size);
 
   for (auto size : sizes) {
-    page_ref.RegisterAllocation(start, size);
+    page_ref.RegisterAllocation(start, size, type);
     start += size;
   }
 }
@@ -475,7 +489,7 @@ void ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
 
 void ThreadIsolation::RegisterJitAllocationForTesting(Address obj,
                                                       size_t size) {
-  RegisterJitAllocation(obj, size);
+  RegisterJitAllocation(obj, size, JitAllocationType::kInstructionStream);
 }
 
 // static
@@ -495,7 +509,8 @@ void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
 
 // static
 void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
-  return RegisterJitAllocation(addr, size);
+  LookupJitPage(addr, size)
+      .RegisterAllocation(addr, size, JitAllocationType::kWasmCode);
 }
 
 // static
