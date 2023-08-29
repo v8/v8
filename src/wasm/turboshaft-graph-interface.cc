@@ -1421,7 +1421,7 @@ class TurboshaftGraphBuildingInterface {
                         args[2].op, result);
     }
     using Binop = compiler::turboshaft::AtomicRMWOp::BinOp;
-    enum OpType { kNotImplemented, kBinop, kLoad };
+    enum OpType { kNotImplemented, kBinop, kLoad, kStore };
     struct AtomicOpInfo {
       OpType op_type;
       // Initialize with a default value, to allow constexpr constructors.
@@ -1439,6 +1439,9 @@ class TurboshaftGraphBuildingInterface {
       constexpr AtomicOpInfo(RegisterRepresentation result_rep,
                              MemoryRepresentation input_rep)
           : op_type(kLoad), result_rep(result_rep), input_rep(input_rep) {}
+
+      constexpr explicit AtomicOpInfo(MemoryRepresentation input_rep)
+          : op_type(kStore), input_rep(input_rep) {}
 
       constexpr AtomicOpInfo() : op_type(kNotImplemented) {}
 
@@ -1515,6 +1518,22 @@ class TurboshaftGraphBuildingInterface {
   V(I64AtomicLoad16U, Word64, Uint16) \
   V(I64AtomicLoad8U, Word64, Uint8)
           LOAD_OPERATION(CASE_LOAD)
+#undef LOAD_OPERATION
+#undef CASE_LOAD
+#define CASE_STORE(OPCODE, OUTPUT) \
+  case WasmOpcode::kExpr##OPCODE:  \
+    return AtomicOpInfo(MemoryRepresentation::OUTPUT());
+#define STORE_OPERATION(V)     \
+  V(I32AtomicStore, Uint32)    \
+  V(I32AtomicStore16U, Uint16) \
+  V(I32AtomicStore8U, Uint8)   \
+  V(I64AtomicStore, Uint64)    \
+  V(I64AtomicStore32U, Uint32) \
+  V(I64AtomicStore16U, Uint16) \
+  V(I64AtomicStore8U, Uint8)
+          STORE_OPERATION(CASE_STORE)
+#undef STORE_OPERATION_OPERATION
+#undef CASE_STORE
           default:
             return {};
         }
@@ -1528,7 +1547,15 @@ class TurboshaftGraphBuildingInterface {
       return;
     }
 
-    if (!Is64() && info.result_rep == RegisterRepresentation::Word64()) {
+    if (!Is64() && info.result_rep.is_valid() &&
+        info.result_rep == RegisterRepresentation::Word64()) {
+      // The int64 lowering for atomic instructions is not yet finished.
+      Bailout(decoder);
+      return;
+    }
+    if (!Is64() && info.op_type == kStore &&
+        asm_.output_graph().Get(args[1].op).outputs_rep()[0] ==
+            RegisterRepresentation::Word64()) {
       // The int64 lowering for atomic instructions is not yet finished.
       Bailout(decoder);
       return;
@@ -1556,6 +1583,14 @@ class TurboshaftGraphBuildingInterface {
       result->op = asm_.AtomicRMW(MemBuffer(imm.memory->index, imm.offset),
                                   index, args[1].op, info.bin_op,
                                   info.result_rep, info.input_rep, access_kind);
+      return;
+    }
+    if (info.op_type == kStore) {
+      asm_.Store(MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
+                 access_kind == MemoryAccessKind::kProtected
+                     ? LoadOp::Kind::Protected().Atomic()
+                     : LoadOp::Kind::RawAligned().Atomic(),
+                 info.input_rep, compiler::kNoWriteBarrier);
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);

@@ -1075,6 +1075,20 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
       o = machine.UnalignedStore(
           op.stored_rep.ToMachineType().representation());
     }
+  } else if (op.kind.is_atomic) {
+    AtomicStoreParameters params(op.stored_rep.ToMachineType().representation(),
+                                 op.write_barrier, AtomicMemoryOrder::kSeqCst,
+                                 op.kind.with_trap_handler
+                                     ? MemoryAccessKind::kProtected
+                                     : MemoryAccessKind::kNormal);
+    if (input_graph.Get(op.value()).outputs_rep()[0] ==
+        RegisterRepresentation::Word32()) {
+      o = machine.Word32AtomicStore(params);
+    } else {
+      DCHECK_EQ(input_graph.Get(op.value()).outputs_rep()[0],
+                RegisterRepresentation::Word64());
+      o = machine.Word64AtomicStore(params);
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     if (op.kind.tagged_base) {

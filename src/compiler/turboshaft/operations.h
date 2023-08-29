@@ -2741,6 +2741,12 @@ struct StoreOp : OperationT<StoreOp> {
     if (maybe_initializing_or_transitioning) {
       effects = effects.CanDoRawHeapAccess();
     }
+    if (kind.is_atomic) {
+      // Atomic stores should not be eliminated away, even if the situation
+      // seems to allow e.g. store-store elimination. Elimination is avoided by
+      // setting the `CanReadMemory` effect.
+      effects = effects.CanReadMemory();
+    }
     return effects;
   }
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
