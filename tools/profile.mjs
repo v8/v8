@@ -520,12 +520,13 @@ export class Profile {
     // As code and functions are in the same address space,
     // it is safe to put them in a single code map.
     let sfi = this.codeMap_.findDynamicEntryByStartAddress(sfiAddr);
-    if (sfi === null) {
+    // Overwrite any old (unused) code objects that overlap with the new SFI.
+    const new_sfi_old_code = !(sfi instanceof SharedFunctionInfoEntry)
+    if (sfi === null || new_sfi_old_code) {
       sfi = new SharedFunctionInfoEntry(name, this.useBigInt);
       this.codeMap_.addCode(sfiAddr, sfi);
     } else if (sfi.name !== name) {
       // SFI object has been overwritten with a new one.
-
       sfi.name = name;
     }
     let entry = this.codeMap_.findDynamicEntryByStartAddress(start);
