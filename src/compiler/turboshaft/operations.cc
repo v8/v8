@@ -1377,6 +1377,23 @@ void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  if (load_kind.maybe_unaligned) os << "unaligned, ";
+  if (load_kind.with_trap_handler) os << "protected, ";
+
+  switch (transform_kind) {
+#define PRINT_KIND(kind)       \
+  case TransformKind::k##kind: \
+    os << #kind;               \
+    break;
+    FOREACH_SIMD_128_LOAD_TRANSFORM_OPCODE(PRINT_KIND)
+#undef PRINT_KIND
+  }
+
+  os << ", offset: " << offset << "]";
+}
+
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

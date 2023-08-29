@@ -1676,6 +1676,27 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128LaneMemoryOp& op) {
       o, {GetNode(op.base()), GetNode(op.index()), GetNode(op.value())});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd128LoadTransformOp& op) {
+  DCHECK_EQ(op.offset, 0);
+  MemoryAccessKind access =
+      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtected
+      : op.load_kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
+                                     : MemoryAccessKind::kNormal;
+  LoadTransformation transformation;
+  switch (op.transform_kind) {
+#define HANDLE_KIND(kind)                                 \
+  case Simd128LoadTransformOp::TransformKind::k##kind:    \
+    transformation = LoadTransformation::kS128Load##kind; \
+    break;
+    FOREACH_SIMD_128_LOAD_TRANSFORM_OPCODE(HANDLE_KIND)
+#undef HANDLE_KIND
+  }
+
+  const Operator* o = machine.LoadTransform(access, transformation);
+
+  return AddNode(o, {GetNode(op.base()), GetNode(op.index())});
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace

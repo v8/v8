@@ -112,7 +112,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128Ternary)                       \
   V(Simd128ExtractLane)                   \
   V(Simd128ReplaceLane)                   \
-  V(Simd128LaneMemory)
+  V(Simd128LaneMemory)                    \
+  V(Simd128LoadTransform)
 
 #define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
   V(RttCanon)                                \
@@ -6736,6 +6737,80 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   auto options() const {
     return std::tuple{mode, kind, lane_kind, lane, offset};
   }
+  void PrintOptions(std::ostream& os) const;
+};
+
+#define FOREACH_SIMD_128_LOAD_TRANSFORM_OPCODE(V) \
+  V(8x8S)                                         \
+  V(8x8U)                                         \
+  V(16x4S)                                        \
+  V(16x4U)                                        \
+  V(32x2S)                                        \
+  V(32x2U)                                        \
+  V(8Splat)                                       \
+  V(16Splat)                                      \
+  V(32Splat)                                      \
+  V(64Splat)                                      \
+  V(32Zero)                                       \
+  V(64Zero)
+
+// Load a value from `base() + index() + offset`, whose size is determinded by
+// `transform_kind`, and generate a Simd128 value as follows:
+// - From 8x8S to 32x2U (extend kinds), the loaded value has size 8. It is
+//   interpreted as a vector of values according to the size of the kind, which
+//   populate the even lanes of the generated value. The odd lanes are zero- or
+//   sign-extended according to the kind.
+// - For splat kinds, the loaded value's size is determined by the kind, all
+//   lanes of the generated value are populated with the loaded value.
+// - For "zero" kinds, the loaded value's size is determined by the kind, and
+//   the generated value zero-extends the loaded value.
+struct Simd128LoadTransformOp
+    : FixedArityOperationT<2, Simd128LoadTransformOp> {
+  using LoadKind = LoadOp::Kind;
+  enum class TransformKind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_LOAD_TRANSFORM_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  LoadKind load_kind;
+  TransformKind transform_kind;
+  int offset;
+
+  OpEffects Effects() const {
+    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    if (load_kind.with_trap_handler) {
+      effects = effects.CanLeaveCurrentFunction();
+    }
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::PointerSized(),
+                          RegisterRepresentation::PointerSized()>();
+  }
+
+  Simd128LoadTransformOp(OpIndex base, OpIndex index, LoadKind load_kind,
+                         TransformKind transform_kind, int offset)
+      : Base(base, index),
+        load_kind(load_kind),
+        transform_kind(transform_kind),
+        offset(offset) {}
+
+  OpIndex base() const { return input(0); }
+  OpIndex index() const { return input(1); }
+
+  void Validate(const Graph& graph) {
+    DCHECK(load_kind == any_of(LoadKind::RawAligned(), LoadKind::RawUnaligned(),
+                               LoadKind::Protected()));
+  }
+
+  auto options() const { return std::tuple{load_kind, transform_kind, offset}; }
   void PrintOptions(std::ostream& os) const;
 };
 

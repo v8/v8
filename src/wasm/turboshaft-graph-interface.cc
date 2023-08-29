@@ -600,7 +600,74 @@ class TurboshaftGraphBuildingInterface {
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index,
                      Value* result) {
+#if defined(V8_TARGET_BIG_ENDIAN)
+    // TODO(14108): Implement for big endian.
     Bailout(decoder);
+#endif
+    MemoryRepresentation repr =
+        transform == LoadTransformationKind::kExtend
+            ? MemoryRepresentation::Int64()
+            : MemoryRepresentation::FromMachineType(type.mem_type());
+
+    auto [final_index, strategy] =
+        BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+
+    compiler::turboshaft::Simd128LoadTransformOp::LoadKind load_kind =
+        GetMemoryAccessKind(repr, strategy);
+
+    using TransformKind =
+        compiler::turboshaft::Simd128LoadTransformOp::TransformKind;
+
+    TransformKind transform_kind;
+
+    if (transform == LoadTransformationKind::kExtend) {
+      if (type.mem_type() == MachineType::Int8()) {
+        transform_kind = TransformKind::k8x8S;
+      } else if (type.mem_type() == MachineType::Uint8()) {
+        transform_kind = TransformKind::k8x8U;
+      } else if (type.mem_type() == MachineType::Int16()) {
+        transform_kind = TransformKind::k16x4S;
+      } else if (type.mem_type() == MachineType::Uint16()) {
+        transform_kind = TransformKind::k16x4U;
+      } else if (type.mem_type() == MachineType::Int32()) {
+        transform_kind = TransformKind::k32x2S;
+      } else if (type.mem_type() == MachineType::Uint32()) {
+        transform_kind = TransformKind::k32x2U;
+      } else {
+        UNREACHABLE();
+      }
+    } else if (transform == LoadTransformationKind::kSplat) {
+      if (type.mem_type() == MachineType::Int8()) {
+        transform_kind = TransformKind::k8Splat;
+      } else if (type.mem_type() == MachineType::Int16()) {
+        transform_kind = TransformKind::k16Splat;
+      } else if (type.mem_type() == MachineType::Int32()) {
+        transform_kind = TransformKind::k32Splat;
+      } else if (type.mem_type() == MachineType::Int64()) {
+        transform_kind = TransformKind::k64Splat;
+      } else {
+        UNREACHABLE();
+      }
+    } else {
+      if (type.mem_type() == MachineType::Int32()) {
+        transform_kind = TransformKind::k32Zero;
+      } else if (type.mem_type() == MachineType::Int64()) {
+        transform_kind = TransformKind::k64Zero;
+      } else {
+        UNREACHABLE();
+      }
+    }
+
+    OpIndex load = asm_.Simd128LoadTransform(
+        asm_.WordPtrAdd(MemStart(imm.mem_index), imm.offset), final_index,
+        load_kind, transform_kind, 0);
+
+    if (v8_flags.trace_wasm_memory) {
+      TraceMemoryOperation(false, repr, final_index, imm.offset);
+    }
+
+    result->op = load;
   }
 
   void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,

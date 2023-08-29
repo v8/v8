@@ -1058,6 +1058,12 @@ class GraphVisitor {
         MapToNewGraph(op.value()), op.mode, op.kind, op.lane_kind, op.lane,
         op.offset);
   }
+  OpIndex AssembleOutputGraphSimd128LoadTransform(
+      const Simd128LoadTransformOp& op) {
+    return assembler().ReduceSimd128LoadTransform(
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.load_kind,
+        op.transform_kind, op.offset);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

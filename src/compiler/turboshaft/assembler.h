@@ -3213,6 +3213,17 @@ class AssemblerOpInterface {
                                            lane_kind, lane, offset);
   }
 
+  OpIndex Simd128LoadTransform(
+      V<WordPtr> base, V<WordPtr> index,
+      Simd128LoadTransformOp::LoadKind load_kind,
+      Simd128LoadTransformOp::TransformKind transform_kind, int offset) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128LoadTransform(base, index, load_kind,
+                                              transform_kind, offset);
+  }
+
 #endif
 
   template <typename Rep>
