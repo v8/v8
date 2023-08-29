@@ -318,8 +318,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
                fun->shared()->IsApiFunction() ||
                fun->shared()->HasUncompiledDataWithoutPreparseData());
 #else
-        DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
-               fun.shared().HasUncompiledDataWithoutPreparseData());
+        DCHECK(fun->shared()->HasBuiltinId() ||
+               fun->shared()->IsApiFunction() ||
+               fun->shared()->HasUncompiledDataWithoutPreparseData());
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
 #endif  // DEBUG

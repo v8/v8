@@ -33,7 +33,7 @@ class HeapObject : public Object {
 
   // [map]: Contains a map which contains the object's reflective
   // information.
-  DECL_GETTER(map, Map)
+  DECL_GETTER(map, Tagged<Map>)
   inline void set_map(Map value);
 
   // This method behaves the same as `set_map` but marks the map transition as
@@ -55,7 +55,7 @@ class HeapObject : public Object {
                                                        ReleaseStoreTag);
 
   // Access the map using acquire load and release store.
-  DECL_ACQUIRE_GETTER(map, Map)
+  DECL_ACQUIRE_GETTER(map, Tagged<Map>)
   inline void set_map(Map value, ReleaseStoreTag);
   inline void set_map_safe_transition(Map value, ReleaseStoreTag);
 

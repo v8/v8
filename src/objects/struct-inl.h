@@ -49,8 +49,8 @@ void AccessorPair::set(AccessorComponent component, Object value,
   }
 }
 
-RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
-RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Tagged<Object>, kGetterOffset)
+RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Tagged<Object>, kSetterOffset)
 
 void AccessorPair::SetComponents(Object getter, Object setter) {
   if (!IsNull(getter)) set_getter(getter);

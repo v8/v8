@@ -4408,9 +4408,8 @@ void Genesis::InitializeIteratorFunctions() {
         native_context->async_function_map(), kReleaseStore);
     async_function_constructor->shared()->DontAdaptArguments();
     async_function_constructor->shared()->set_length(1);
-    InstallWithIntrinsicDefaultProto(
-        isolate, async_function_constructor,
-        Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+    InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
+                                     Context::ASYNC_FUNCTION_FUNCTION_INDEX);
 
     native_context->set_async_function_constructor(*async_function_constructor);
     JSObject::ForceSetPrototype(isolate, async_function_constructor,

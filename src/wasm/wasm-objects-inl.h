@@ -65,7 +65,7 @@ CAST_ACCESSOR(WasmInstanceObject)
     Object value = TaggedField<Object, offset>::load(cage_base, *this); \
     return !IsUndefined(value, GetReadOnlyRoots(cage_base));            \
   }                                                                     \
-  ACCESSORS_CHECKED2(holder, name, type, offset,                        \
+  ACCESSORS_CHECKED2(holder, name, Tagged<type>, offset,                \
                      !IsUndefined(value, GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
@@ -110,9 +110,10 @@ bool WasmModuleObject::is_asm_js() {
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
 
 // WasmGlobalObject
-ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
+ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
           kUntaggedBufferOffset)
-ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
+ACCESSORS(WasmGlobalObject, tagged_buffer, Tagged<FixedArray>,
+          kTaggedBufferOffset)
 
 wasm::ValueType WasmGlobalObject::type() const {
   return wasm::ValueType::FromRawBitField(static_cast<uint32_t>(raw_type()));
@@ -198,38 +199,41 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, isorecursive_canonical_types,
                     const uint32_t*, kIsorecursiveCanonicalTypesOffset)
 SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, uint8_t*,
                             kGlobalsStartOffset)
-ACCESSORS(WasmInstanceObject, imported_mutable_globals, FixedAddressArray,
-          kImportedMutableGlobalsOffset)
-ACCESSORS(WasmInstanceObject, imported_function_targets, FixedAddressArray,
-          kImportedFunctionTargetsOffset)
+ACCESSORS(WasmInstanceObject, imported_mutable_globals,
+          Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
+ACCESSORS(WasmInstanceObject, imported_function_targets,
+          Tagged<FixedAddressArray>, kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
                     kIndirectFunctionTableSizeOffset)
-ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids, FixedUInt32Array,
-          kIndirectFunctionTableSigIdsOffset)
+ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
+          Tagged<FixedUInt32Array>, kIndirectFunctionTableSigIdsOffset)
 ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
-          ExternalPointerArray, kIndirectFunctionTableTargetsOffset)
+          Tagged<ExternalPointerArray>, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, tiering_budget_array, uint32_t*,
                     kTieringBudgetArrayOffset)
-ACCESSORS(WasmInstanceObject, memory_bases_and_sizes, FixedAddressArray,
+ACCESSORS(WasmInstanceObject, memory_bases_and_sizes, Tagged<FixedAddressArray>,
           kMemoryBasesAndSizesOffset)
-ACCESSORS(WasmInstanceObject, data_segment_starts, FixedAddressArray,
+ACCESSORS(WasmInstanceObject, data_segment_starts, Tagged<FixedAddressArray>,
           kDataSegmentStartsOffset)
-ACCESSORS(WasmInstanceObject, data_segment_sizes, FixedUInt32Array,
+ACCESSORS(WasmInstanceObject, data_segment_sizes, Tagged<FixedUInt32Array>,
           kDataSegmentSizesOffset)
-ACCESSORS(WasmInstanceObject, element_segments, FixedArray,
+ACCESSORS(WasmInstanceObject, element_segments, Tagged<FixedArray>,
           kElementSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
                     kBreakOnEntryOffset)
 
-ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
+ACCESSORS(WasmInstanceObject, module_object, Tagged<WasmModuleObject>,
           kModuleObjectOffset)
-ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
-ACCESSORS(WasmInstanceObject, native_context, Context, kNativeContextOffset)
-ACCESSORS(WasmInstanceObject, memory_objects, FixedArray, kMemoryObjectsOffset)
+ACCESSORS(WasmInstanceObject, exports_object, Tagged<JSObject>,
+          kExportsObjectOffset)
+ACCESSORS(WasmInstanceObject, native_context, Tagged<Context>,
+          kNativeContextOffset)
+ACCESSORS(WasmInstanceObject, memory_objects, Tagged<FixedArray>,
+          kMemoryObjectsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, untagged_globals_buffer, JSArrayBuffer,
                    kUntaggedGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tagged_globals_buffer, FixedArray,
@@ -239,18 +243,18 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
 OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_tables, FixedArray,
                    kIndirectFunctionTablesOffset)
-ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
+ACCESSORS(WasmInstanceObject, imported_function_refs, Tagged<FixedArray>,
           kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
                    kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
-ACCESSORS(WasmInstanceObject, wasm_internal_functions, FixedArray,
+ACCESSORS(WasmInstanceObject, wasm_internal_functions, Tagged<FixedArray>,
           kWasmInternalFunctionsOffset)
-ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
+ACCESSORS(WasmInstanceObject, managed_object_maps, Tagged<FixedArray>,
           kManagedObjectMapsOffset)
-ACCESSORS(WasmInstanceObject, feedback_vectors, FixedArray,
+ACCESSORS(WasmInstanceObject, feedback_vectors, Tagged<FixedArray>,
           kFeedbackVectorsOffset)
-ACCESSORS(WasmInstanceObject, well_known_imports, FixedArray,
+ACCESSORS(WasmInstanceObject, well_known_imports, Tagged<FixedArray>,
           kWellKnownImportsOffset)
 
 void WasmInstanceObject::clear_padding() {
@@ -301,7 +305,8 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kWasmInternalFunctionCallTargetTag)
 
 // WasmFunctionData
-ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
+ACCESSORS(WasmFunctionData, internal, Tagged<WasmInternalFunction>,
+          kInternalOffset)
 
 EXTERNAL_POINTER_ACCESSORS(WasmExportedFunctionData, sig, wasm::FunctionSig*,
                            kSigOffset, kWasmExportedFunctionDataSignatureTag)
@@ -329,8 +334,9 @@ CAST_ACCESSOR(WasmExternalFunction)
 
 // WasmIndirectFunctionTable
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
-ACCESSORS(WasmIndirectFunctionTable, sig_ids, FixedUInt32Array, kSigIdsOffset)
-ACCESSORS(WasmIndirectFunctionTable, targets, ExternalPointerArray,
+ACCESSORS(WasmIndirectFunctionTable, sig_ids, Tagged<FixedUInt32Array>,
+          kSigIdsOffset)
+ACCESSORS(WasmIndirectFunctionTable, targets, Tagged<ExternalPointerArray>,
           kTargetsOffset)
 
 // WasmTypeInfo

@@ -151,13 +151,13 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
                               ->code(Builtin::kWasmToJsWrapperAsm)
                               .instruction_start();
   int result = 0;
-  int import_count = instance->imported_function_targets().length();
+  int import_count = instance->imported_function_targets()->length();
   for (int i = 0; i < import_count; ++i) {
-    if (instance->imported_function_targets().get(i) == wrapper_start) {
+    if (instance->imported_function_targets()->get(i) == wrapper_start) {
       ++result;
     }
   }
-  int table_count = instance->tables().length();
+  int table_count = instance->tables()->length();
   for (int table_index = 0; table_index < table_count; ++table_index) {
     if (!IsWasmIndirectFunctionTable(
             instance->indirect_function_tables()->get(table_index))) {

@@ -32,11 +32,12 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWrappedFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunction)
 
-ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
-RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
+ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
+          kFeedbackCellOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
                           kFeedbackCellOffset)
 
-DEF_GETTER(JSFunction, feedback_vector, FeedbackVector) {
+DEF_GETTER(JSFunction, feedback_vector, Tagged<FeedbackVector>) {
   DCHECK(has_feedback_vector(cage_base));
   return FeedbackVector::cast(raw_feedback_cell(cage_base)->value(cage_base));
 }
@@ -63,7 +64,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 template <typename IsolateT>
 AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
-    return AbstractCode::cast(shared().GetBytecodeArray(isolate));
+    return AbstractCode::cast(shared()->GetBytecodeArray(isolate));
   } else {
     return AbstractCode::cast(code(kAcquireLoad));
   }
@@ -71,15 +72,15 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared()->length(); }
 
-Code JSFunction::code() const {
+Tagged<Code> JSFunction::code() const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return JSFunction::code(cage_base);
 }
-Code JSFunction::code(PtrComprCageBase cage_base) const {
+Tagged<Code> JSFunction::code(PtrComprCageBase cage_base) const {
   return Code::cast(raw_code());
 }
 
-void JSFunction::set_code(Code value, WriteBarrierMode mode) {
+void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   RawIndirectPointerField(kCodeOffset).Relaxed_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
@@ -89,11 +90,12 @@ void JSFunction::set_code(Code value, WriteBarrierMode mode) {
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-Code JSFunction::code(AcquireLoadTag tag) const {
+Tagged<Code> JSFunction::code(AcquireLoadTag tag) const {
   return Code::cast(raw_code(tag));
 }
 
-void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
+void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
+                          WriteBarrierMode mode) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   RawIndirectPointerField(kCodeOffset).Release_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
@@ -106,7 +108,7 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
   }
 }
 
-Object JSFunction::raw_code() const {
+Tagged<Object> JSFunction::raw_code() const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   return RawIndirectPointerField(kCodeOffset).Relaxed_Load();
 #else
@@ -114,7 +116,7 @@ Object JSFunction::raw_code() const {
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-Object JSFunction::raw_code(AcquireLoadTag tag) const {
+Tagged<Object> JSFunction::raw_code(AcquireLoadTag tag) const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   return RawIndirectPointerField(kCodeOffset).Acquire_Load();
 #else
@@ -122,23 +124,24 @@ Object JSFunction::raw_code(AcquireLoadTag tag) const {
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Tagged<Context>, kContextOffset)
 
 Address JSFunction::instruction_start() const {
   return Code::cast(code())->instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?
-DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
+DEF_GETTER(JSFunction, shared, Tagged<SharedFunctionInfo>) {
   return shared(cage_base, kRelaxedLoad);
 }
 
-DEF_RELAXED_GETTER(JSFunction, shared, SharedFunctionInfo) {
+DEF_RELAXED_GETTER(JSFunction, shared, Tagged<SharedFunctionInfo>) {
   return TaggedField<SharedFunctionInfo,
                      kSharedFunctionInfoOffset>::Relaxed_Load(cage_base, *this);
 }
 
-void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
+void JSFunction::set_shared(Tagged<SharedFunctionInfo> value,
+                            WriteBarrierMode mode) {
   // Release semantics to support acquire read in NeedsResetDueToFlushedBytecode
   RELEASE_WRITE_FIELD(*this, kSharedFunctionInfoOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
@@ -180,7 +183,7 @@ Context JSFunction::context() {
   return TaggedField<Context, kContextOffset>::load(*this);
 }
 
-DEF_RELAXED_GETTER(JSFunction, context, Context) {
+DEF_RELAXED_GETTER(JSFunction, context, Tagged<Context>) {
   return TaggedField<Context, kContextOffset>::Relaxed_Load(cage_base, *this);
 }
 
@@ -195,14 +198,15 @@ NativeContext JSFunction::native_context() {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  HeapObject, kPrototypeOrInitialMapOffset,
+                                  Tagged<HeapObject>,
+                                  kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
   return map(cage_base)->has_prototype_slot();
 }
 
-DEF_GETTER(JSFunction, initial_map, Map) {
+DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {
   return Map::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
@@ -234,7 +238,7 @@ DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
          map(cage_base)->has_non_instance_prototype();
 }
 
-DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
+DEF_GETTER(JSFunction, instance_prototype, Tagged<HeapObject>) {
   DCHECK(has_instance_prototype(cage_base));
   if (has_initial_map(cage_base)) {
     return initial_map(cage_base)->prototype(cage_base);
@@ -244,7 +248,7 @@ DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
   return HeapObject::cast(prototype_or_initial_map(cage_base, kAcquireLoad));
 }
 
-DEF_GETTER(JSFunction, prototype, Object) {
+DEF_GETTER(JSFunction, prototype, Tagged<Object>) {
   DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.

@@ -77,7 +77,7 @@ class FixedArrayBase
   using TorqueGeneratedFixedArrayBase::set_length;
   DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
-  inline Object unchecked_length(AcquireLoadTag) const;
+  inline Tagged<Object> unchecked_length(AcquireLoadTag) const;
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -101,10 +101,10 @@ class FixedArray
     : public TorqueGeneratedFixedArray<FixedArray, FixedArrayBase> {
  public:
   // Setter and getter for elements.
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> get(int index) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
 
-  static inline Handle<Object> get(FixedArray array, int index,
+  static inline Handle<Object> get(Tagged<FixedArray> array, int index,
                                    Isolate* isolate);
 
   // Return a grown copy if the index is bigger than the array's length.
@@ -113,47 +113,47 @@ class FixedArray
       Handle<Object> value);
 
   // Relaxed accessors.
-  inline Object get(int index, RelaxedLoadTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    RelaxedLoadTag) const;
-  inline void set(int index, Object value, RelaxedStoreTag,
+  inline Tagged<Object> get(int index, RelaxedLoadTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            RelaxedLoadTag) const;
+  inline void set(int index, Tagged<Object> value, RelaxedStoreTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, RelaxedStoreTag);
+  inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
 
   // SeqCst accessors.
-  inline Object get(int index, SeqCstAccessTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    SeqCstAccessTag) const;
-  inline void set(int index, Object value, SeqCstAccessTag,
+  inline Tagged<Object> get(int index, SeqCstAccessTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            SeqCstAccessTag) const;
+  inline void set(int index, Tagged<Object> value, SeqCstAccessTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, SeqCstAccessTag);
+  inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
   // Acquire/release accessors.
-  inline Object get(int index, AcquireLoadTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    AcquireLoadTag) const;
-  inline void set(int index, Object value, ReleaseStoreTag,
+  inline Tagged<Object> get(int index, AcquireLoadTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            AcquireLoadTag) const;
+  inline void set(int index, Tagged<Object> value, ReleaseStoreTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, ReleaseStoreTag);
+  inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
 
   // Setter that uses write barrier.
-  inline void set(int index, Object value);
+  inline void set(int index, Tagged<Object> value);
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-  inline void set(int index, Smi value);
+  inline void set(int index, Tagged<Smi> value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object value, WriteBarrierMode mode);
+  inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
 
   // Atomic swap that doesn't need write barrier.
-  inline Object swap(int index, Smi value, SeqCstAccessTag);
+  inline Tagged<Object> swap(int index, Tagged<Smi> value, SeqCstAccessTag);
   // Atomic swap with explicit barrier mode.
-  inline Object swap(int index, Object value, SeqCstAccessTag,
-                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> swap(int index, Tagged<Object> value, SeqCstAccessTag,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Object compare_and_swap(int index, Object expected, Object value,
-                                 SeqCstAccessTag,
-                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> compare_and_swap(
+      int index, Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
@@ -175,8 +175,9 @@ class FixedArray
   inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
                            int len, WriteBarrierMode mode);
 
-  inline void CopyElements(Isolate* isolate, int dst_index, FixedArray src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<FixedArray> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   inline void FillWithHoles(int from, int to);
 
@@ -189,7 +190,7 @@ class FixedArray
                                           int new_length);
 
   // Copy a sub array from the receiver to dest.
-  V8_EXPORT_PRIVATE void CopyTo(int pos, FixedArray dest, int dest_pos,
+  V8_EXPORT_PRIVATE void CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
                                 int len) const;
 
   // Garbage collection support.
@@ -229,8 +230,8 @@ class FixedArray
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
-  static inline void NoWriteBarrierSet(FixedArray array, int index,
-                                       Object value);
+  static inline void NoWriteBarrierSet(Tagged<FixedArray> array, int index,
+                                       Tagged<Object> value);
 
  private:
   static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
@@ -362,7 +363,7 @@ class WeakArrayList
   // inserted atomically w.r.t GC.
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
       Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value1,
-      Smi value2);
+      Tagged<Smi> value2);
 
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
@@ -382,7 +383,7 @@ class WeakArrayList
   // instead.
   inline void Set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Set(int index, Smi value);
+  inline void Set(int index, Tagged<Smi> value);
 
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
@@ -468,11 +469,10 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
                                                  Handle<Object> obj2);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
                                                  Handle<ArrayList> array,
-                                                 Smi obj1);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
-                                                 Handle<ArrayList> array,
-                                                 Handle<Object> obj1, Smi obj2,
-                                                 Smi obj3, Smi obj4);
+                                                 Tagged<Smi> obj1);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
+      Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj1,
+      Tagged<Smi> obj2, Tagged<Smi> obj3, Tagged<Smi> obj4);
   V8_EXPORT_PRIVATE static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which
@@ -482,19 +482,19 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   // Sets the Length() as used by Elements(). Does not change the underlying
   // storage capacity, i.e., length().
   inline void SetLength(int length);
-  inline Object Get(int index) const;
-  inline Object Get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> Get(int index) const;
+  inline Tagged<Object> Get(PtrComprCageBase cage_base, int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the ArrayList, use the static Add() methods instead.
-  inline void Set(int index, Object obj,
+  inline void Set(int index, Tagged<Object> obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline void Set(int index, Smi obj);
+  inline void Set(int index, Tagged<Smi> obj);
 
   // Set the element at index to undefined. This does not change the Length().
-  inline void Clear(int index, Object undefined);
+  inline void Clear(int index, Tagged<Object> undefined);
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
@@ -732,9 +732,9 @@ class TemplateList
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
-  inline void set(int index, Object value);
+  inline Tagged<Object> get(int index) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
+  inline void set(int index, Tagged<Object> value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
  private:

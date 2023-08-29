@@ -127,7 +127,7 @@ void StringStream::Add(base::Vector<const char> format,
       }
       case 'o': {
         DCHECK_EQ(FmtElm::OBJ, current.type_);
-        Object obj(current.data_.u_obj_);
+        Tagged<Object> obj(current.data_.u_obj_);
         PrintObject(obj);
         break;
       }
@@ -191,7 +191,7 @@ void StringStream::Add(base::Vector<const char> format,
   DCHECK_EQ(buffer_[length_], '\0');
 }
 
-void StringStream::PrintObject(Object o) {
+void StringStream::PrintObject(Tagged<Object> o) {
   ShortPrint(o, this);
   if (IsString(o)) {
     if (String::cast(o)->length() <= String::kMaxShortPrintLength) {
@@ -268,9 +268,11 @@ bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
 }
 #endif
 
-bool StringStream::Put(String str) { return Put(str, 0, str->length()); }
+bool StringStream::Put(Tagged<String> str) {
+  return Put(str, 0, str->length());
+}
 
-bool StringStream::Put(String str, int start, int end) {
+bool StringStream::Put(Tagged<String> str, int start, int end) {
   StringCharacterStream stream(str, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
     uint16_t c = stream.GetNext();
@@ -284,9 +286,9 @@ bool StringStream::Put(String str, int start, int end) {
   return true;
 }
 
-void StringStream::PrintName(Object name) {
+void StringStream::PrintName(Tagged<Object> name) {
   if (IsString(name)) {
-    String str = String::cast(name);
+    Tagged<String> str = String::cast(name);
     if (str->length() > 0) {
       Put(str);
     } else {
@@ -297,9 +299,10 @@ void StringStream::PrintName(Object name) {
   }
 }
 
-void StringStream::PrintUsingMap(JSObject js_object) {
-  Map map = js_object->map();
-  DescriptorArray descs = map->instance_descriptors(js_object->GetIsolate());
+void StringStream::PrintUsingMap(Tagged<JSObject> js_object) {
+  Tagged<Map> map = js_object->map();
+  Tagged<DescriptorArray> descs =
+      map->instance_descriptors(js_object->GetIsolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     if (details.location() == PropertyLocation::kField) {
@@ -325,7 +328,8 @@ void StringStream::PrintUsingMap(JSObject js_object) {
   }
 }
 
-void StringStream::PrintFixedArray(FixedArray array, unsigned int limit) {
+void StringStream::PrintFixedArray(Tagged<FixedArray> array,
+                                   unsigned int limit) {
   ReadOnlyRoots roots = array->GetReadOnlyRoots();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object element = array->get(i);
@@ -340,7 +344,7 @@ void StringStream::PrintFixedArray(FixedArray array, unsigned int limit) {
   }
 }
 
-void StringStream::PrintByteArray(ByteArray byte_array) {
+void StringStream::PrintByteArray(Tagged<ByteArray> byte_array) {
   unsigned int limit = byte_array->length();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     uint8_t b = byte_array->get(i);
@@ -397,21 +401,23 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   }
 }
 
-void StringStream::PrintSecurityTokenIfChanged(JSFunction fun) {
-  Object token = fun->native_context()->security_token();
+void StringStream::PrintSecurityTokenIfChanged(Tagged<JSFunction> fun) {
+  Tagged<Object> token = fun->native_context()->security_token();
   Isolate* isolate = fun->GetIsolate();
   // Use SafeEquals because the cached token might be a stale pointer.
-  if (token.SafeEquals(isolate->string_stream_current_security_token())) {
+  if (token->SafeEquals(isolate->string_stream_current_security_token())) {
     Add("Security context: %o\n", token);
     isolate->set_string_stream_current_security_token(token);
   }
 }
 
-void StringStream::PrintFunction(JSFunction fun, Object receiver) {
+void StringStream::PrintFunction(Tagged<JSFunction> fun,
+                                 Tagged<Object> receiver) {
   PrintPrototype(fun, receiver);
 }
 
-void StringStream::PrintPrototype(JSFunction fun, Object receiver) {
+void StringStream::PrintPrototype(Tagged<JSFunction> fun,
+                                  Tagged<Object> receiver) {
   Object name = fun->shared()->Name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();

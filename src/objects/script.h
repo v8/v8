@@ -61,14 +61,14 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // [type]: the script type.
   DECL_PRIMITIVE_ACCESSORS(type, Type)
 
-  DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments, Object)
+  DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments, Tagged<Object>)
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
+  DECL_ACCESSORS(eval_from_shared, Tagged<SharedFunctionInfo>)
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
-  DECL_ACCESSORS(wrapped_arguments, FixedArray)
+  DECL_ACCESSORS(wrapped_arguments, Tagged<FixedArray>)
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
@@ -84,7 +84,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
+  DECL_ACCESSORS(shared_function_infos, Tagged<WeakFixedArray>)
 
   inline int shared_function_info_count() const;
 
@@ -92,18 +92,18 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // [wasm_breakpoint_infos]: the list of {BreakPointInfo} objects describing
   // all WebAssembly breakpoints for modules/instances managed via this script.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_breakpoint_infos, FixedArray)
+  DECL_ACCESSORS(wasm_breakpoint_infos, Tagged<FixedArray>)
   inline bool has_wasm_breakpoint_infos() const;
 
   // [wasm_native_module]: the wasm {NativeModule} this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_managed_native_module, Object)
+  DECL_ACCESSORS(wasm_managed_native_module, Tagged<Object>)
   inline wasm::NativeModule* wasm_native_module() const;
 
   // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
   // affected by breakpoints that are managed via this script.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_weak_instance_list, WeakArrayList)
+  DECL_ACCESSORS(wasm_weak_instance_list, Tagged<WeakArrayList>)
 
   // [break_on_entry] (wasm only): whether an instrumentation breakpoint is set
   // for this script; this information will be transferred to existing and
@@ -140,7 +140,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
 
-  DECL_ACCESSORS(compiled_lazy_function_positions, Object)
+  DECL_ACCESSORS(compiled_lazy_function_positions, Tagged<Object>)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.

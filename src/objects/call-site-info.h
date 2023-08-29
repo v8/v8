@@ -45,7 +45,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsPromiseAny() const;
   bool IsNative() const;
 
-  DECL_ACCESSORS(code_object, HeapObject)
+  DECL_ACCESSORS(code_object, Tagged<HeapObject>)
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)

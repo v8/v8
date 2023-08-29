@@ -25,8 +25,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRabGsabDataView)
 
-ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
-RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
+ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>, kBasePointerOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)
 
 size_t JSArrayBuffer::byte_length() const {
@@ -153,7 +153,7 @@ void JSArrayBuffer::clear_padding() {
   }
 }
 
-ACCESSORS(JSArrayBuffer, detach_key, Object, kDetachKeyOffset)
+ACCESSORS(JSArrayBuffer, detach_key, Tagged<Object>, kDetachKeyOffset)
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);

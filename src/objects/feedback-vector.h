@@ -221,8 +221,8 @@ class FeedbackVector
 
   inline bool is_empty() const;
 
-  inline FeedbackMetadata metadata() const;
-  inline FeedbackMetadata metadata(AcquireLoadTag tag) const;
+  DECL_GETTER(metadata, Tagged<FeedbackMetadata>)
+  DECL_ACQUIRE_GETTER(metadata, Tagged<FeedbackMetadata>)
 
   // Forward declare the non-atomic accessors.
   using TorqueGeneratedFeedbackVector::invocation_count;

@@ -32,11 +32,12 @@ BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
 
-DEF_GETTER(CallSiteInfo, code_object, HeapObject) {
+DEF_GETTER(CallSiteInfo, code_object, Tagged<HeapObject>) {
   return TorqueGeneratedClass::code_object(cage_base);
 }
 
-void CallSiteInfo::set_code_object(HeapObject code, WriteBarrierMode mode) {
+void CallSiteInfo::set_code_object(Tagged<HeapObject> code,
+                                   WriteBarrierMode mode) {
   DCHECK(!IsCodeSpaceObject(code));
   TorqueGeneratedClass::set_code_object(code, mode);
 }

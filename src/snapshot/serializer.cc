@@ -938,7 +938,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     }
     HeapObject current_contents;
     HeapObjectReferenceType reference_type;
-    while (current < end && current.load(cage_base).GetHeapObject(
+    while (current < end && current.load(cage_base)->GetHeapObject(
                                 &current_contents, &reference_type)) {
       // Write a weak prefix if we need it. This has to be done before the
       // potential pending object serialization.

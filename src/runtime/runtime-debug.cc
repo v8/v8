@@ -164,7 +164,7 @@ template <class IteratorType>
 static Handle<ArrayList> AddIteratorInternalProperties(
     Isolate* isolate, Handle<ArrayList> result, Handle<IteratorType> iterator) {
   const char* kind = nullptr;
-  switch (iterator->map().instance_type()) {
+  switch (iterator->map()->instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
       kind = "keys";
       break;

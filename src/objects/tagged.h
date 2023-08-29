@@ -403,7 +403,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
             typename = std::enable_if_t<std::is_base_of_v<U, T> ||
                                         std::is_convertible_v<T*, U*>>>
   // NOLINTNEXTLINE
-  constexpr operator U() {
+  constexpr operator U() const {
     static_assert(kTaggedCanConvertToRawObjects);
     return ToRawPtr();
   }

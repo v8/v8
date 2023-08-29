@@ -23,13 +23,13 @@ class Oddball : public PrimitiveHeapObject {
   inline void set_to_number_raw_as_bits(uint64_t bits);
 
   // [to_string]: Cached to_string computed at startup.
-  DECL_ACCESSORS(to_string, String)
+  DECL_ACCESSORS(to_string, Tagged<String>)
 
   // [to_number]: Cached to_number computed at startup.
-  DECL_ACCESSORS(to_number, Object)
+  DECL_ACCESSORS(to_number, Tagged<Object>)
 
   // [typeof]: Cached type_of computed at startup.
-  DECL_ACCESSORS(type_of, String)
+  DECL_ACCESSORS(type_of, Tagged<String>)
 
   inline uint8_t kind() const;
   inline void set_kind(uint8_t kind);

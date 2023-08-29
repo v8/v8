@@ -31,7 +31,7 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::value;
   using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::set_value;
 
-  DECL_RELEASE_ACQUIRE_ACCESSORS(value, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(value, Tagged<HeapObject>)
 
   inline void clear_interrupt_budget();
 

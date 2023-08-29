@@ -145,7 +145,7 @@ class SourceTextModule
 
   // The parent modules of a given async dependency, use async_parent_modules()
   // to retrieve the ArrayList representation.
-  DECL_ACCESSORS(async_parent_modules, ArrayList)
+  DECL_ACCESSORS(async_parent_modules, Tagged<ArrayList>)
 
   // Helpers for Instantiate and Evaluate.
   static void CreateExport(Isolate* isolate, Handle<SourceTextModule> module,

@@ -60,7 +60,7 @@ namespace internal {
 
 PropertyDetails::PropertyDetails(Smi smi) { value_ = smi.value(); }
 
-Smi PropertyDetails::AsSmi() const {
+Tagged<Smi> PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
   // necessary to be able to use the 31st bit of the property details.
   int value = value_ << 1;
@@ -864,7 +864,7 @@ MapWord MapWord::FromMap(const Map map) {
 #endif
 }
 
-Map MapWord::ToMap() const {
+Tagged<Map> MapWord::ToMap() const {
 #ifdef V8_MAP_PACKING
   return Map::unchecked_cast(Object(Unpack(value_)));
 #else
@@ -945,7 +945,7 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
   return GetReadOnlyRoots();
 }
 
-Map HeapObject::map() const {
+Tagged<Map> HeapObject::map() const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
@@ -953,7 +953,8 @@ Map HeapObject::map() const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
 }
-Map HeapObject::map(PtrComprCageBase cage_base) const {
+
+Tagged<Map> HeapObject::map(PtrComprCageBase cage_base) const {
   return map_word(cage_base, kRelaxedLoad).ToMap();
 }
 
@@ -1047,7 +1048,7 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 #endif
 }
 
-DEF_ACQUIRE_GETTER(HeapObject, map, Map) {
+DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
   return map_word(cage_base, kAcquireLoad).ToMap();
 }
 

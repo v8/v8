@@ -38,8 +38,8 @@ void ScriptContextTable::set_used(int used, ReleaseStoreTag tag) {
   set(kUsedSlotIndex, Smi::FromInt(used), tag);
 }
 
-ACCESSORS(ScriptContextTable, names_to_context_index, NameToIndexHashTable,
-          kHashTableOffset)
+ACCESSORS(ScriptContextTable, names_to_context_index,
+          Tagged<NameToIndexHashTable>, kHashTableOffset)
 
 // static
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
@@ -111,7 +111,7 @@ void NativeContext::set(int index, Object value, WriteBarrierMode mode,
   Context::set(index, value, mode, tag);
 }
 
-ACCESSORS(Context, scope_info, ScopeInfo, kScopeInfoOffset)
+ACCESSORS(Context, scope_info, Tagged<ScopeInfo>, kScopeInfoOffset)
 
 Object Context::unchecked_previous() const { return get(PREVIOUS_INDEX); }
 

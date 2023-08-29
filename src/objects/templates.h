@@ -65,7 +65,7 @@ class FunctionTemplateInfo
                                                  TemplateInfo> {
  public:
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
-  DECL_GETTER(Get##CamelName, Type)                                          \
+  DECL_GETTER(Get##CamelName, Tagged<Type>)                                  \
   static inline void Set##CamelName(                                         \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info, \
       Handle<Type> Name);
@@ -188,10 +188,10 @@ class FunctionTemplateInfo
   inline void set_relaxed_flag(int32_t flags);
 
   static constexpr int kNoJSApiObjectType = 0;
-  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
+  static inline Tagged<FunctionTemplateRareData> EnsureFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
-  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
+  static Tagged<FunctionTemplateRareData> AllocateFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateInfo)

@@ -331,7 +331,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // given bucket of the data table.
   inline void SetEntryForEnumerationIndex(int enumeration_index, int entry);
 
-  DECL_ACCESSORS(meta_table, ByteArray)
+  DECL_ACCESSORS(meta_table, Tagged<ByteArray>)
   inline void SetMetaTableField(int field_index, int value);
   inline int GetMetaTableField(int field_index);
 

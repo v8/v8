@@ -106,7 +106,7 @@ void BytecodeArray::SetSourcePositionsFailedToCollect() {
   set_source_position_table(GetReadOnlyRoots().exception(), kReleaseStore);
 }
 
-DEF_GETTER(BytecodeArray, SourcePositionTable, ByteArray) {
+DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
   Object maybe_table = source_position_table(cage_base, kAcquireLoad);
@@ -116,7 +116,7 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, ByteArray) {
   return roots.empty_byte_array();
 }
 
-DEF_GETTER(BytecodeArray, raw_constant_pool, Object) {
+DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
   Object value =
       TaggedField<Object>::load(cage_base, *this, kConstantPoolOffset);
   // This field might be 0 during deserialization.
@@ -124,7 +124,7 @@ DEF_GETTER(BytecodeArray, raw_constant_pool, Object) {
   return value;
 }
 
-DEF_GETTER(BytecodeArray, raw_handler_table, Object) {
+DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
   Object value =
       TaggedField<Object>::load(cage_base, *this, kHandlerTableOffset);
   // This field might be 0 during deserialization.
@@ -132,7 +132,7 @@ DEF_GETTER(BytecodeArray, raw_handler_table, Object) {
   return value;
 }
 
-DEF_GETTER(BytecodeArray, raw_source_position_table, Object) {
+DEF_GETTER(BytecodeArray, raw_source_position_table, Tagged<Object>) {
   Object value =
       TaggedField<Object>::load(cage_base, *this, kSourcePositionTableOffset);
   // This field might be 0 during deserialization.

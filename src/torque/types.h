@@ -116,7 +116,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
-  std::string UnhandlifiedCppTypeName() const;
+  std::string TagglifiedCppTypeName() const;
   std::string HandlifiedCppTypeName() const;
 
   const Type* parent() const { return parent_; }

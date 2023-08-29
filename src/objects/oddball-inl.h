@@ -30,9 +30,9 @@ void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
-ACCESSORS(Oddball, to_string, String, kToStringOffset)
-ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
-ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
+ACCESSORS(Oddball, to_string, Tagged<String>, kToStringOffset)
+ACCESSORS(Oddball, to_number, Tagged<Object>, kToNumberOffset)
+ACCESSORS(Oddball, type_of, Tagged<String>, kTypeOfOffset)
 
 uint8_t Oddball::kind() const {
   return Smi::ToInt(TaggedField<Smi>::load(*this, kKindOffset));

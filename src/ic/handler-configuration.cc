@@ -533,7 +533,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     os << "LoadHandler(Symbol)(" << Brief(Symbol::cast(handler)) << ")";
   } else if (IsLoadHandler(handler)) {
     LoadHandler load_handler = LoadHandler::cast(handler);
-    int raw_handler = load_handler->smi_handler().ToSmi().value();
+    int raw_handler = Smi::cast(load_handler->smi_handler()).value();
     os << "LoadHandler(do access check on lookup start object = "
        << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
        << ", lookup on lookup start object = "
@@ -574,7 +574,7 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
       os << "builtin = ";
       ShortPrint(code, os);
     } else {
-      int raw_handler = store_handler->smi_handler().ToSmi().value();
+      int raw_handler = Smi::cast(store_handler->smi_handler()).value();
       os << "do access check on lookup start object = "
          << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
          << ", lookup on lookup start object = "

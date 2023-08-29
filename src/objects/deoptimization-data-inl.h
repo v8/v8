@@ -21,22 +21,24 @@ CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
 CAST_ACCESSOR(DeoptimizationFrameTranslation)
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS(FrameTranslation, DeoptimizationFrameTranslation)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(EagerDeoptCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(FrameTranslation,
+                               Tagged<DeoptimizationFrameTranslation>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, Tagged<DeoptimizationLiteralArray>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions,
+                               Tagged<PodArray<InliningPosition>>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(EagerDeoptCount, Tagged<Smi>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Tagged<Smi>)
 
-DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
-DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
-DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Tagged<Smi>)
+DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Tagged<Smi>)
+DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Tagged<Smi>)
 #ifdef DEBUG
-DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Tagged<Smi>)
 #endif  // DEBUG
 
 BytecodeOffset DeoptimizationData::GetBytecodeOffsetOrBuiltinContinuationId(

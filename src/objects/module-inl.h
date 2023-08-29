@@ -32,7 +32,7 @@ NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluating_ordinal,
                     SourceTextModule::AsyncEvaluatingOrdinalBits)
-ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
+ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
           kAsyncParentModulesOffset)
 
 struct Module::Hash {

@@ -46,8 +46,8 @@ class FixedArrayBuilder {
   bool HasCapacity(int elements);
   void EnsureCapacity(Isolate* isolate, int elements);
 
-  void Add(Object value);
-  void Add(Smi value);
+  void Add(Tagged<Object> value);
+  void Add(Tagged<Smi> value);
 
   Handle<FixedArray> array() { return array_; }
 

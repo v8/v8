@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"
@@ -136,34 +137,6 @@ Code SharedFunctionInfo::GetCode(Isolate* isolate) const {
   UNREACHABLE();
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-WasmFunctionData SharedFunctionInfo::wasm_function_data() const {
-  DCHECK(HasWasmFunctionData());
-  return WasmFunctionData::cast(function_data(kAcquireLoad));
-}
-
-WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
-    const {
-  DCHECK(HasWasmExportedFunctionData());
-  return WasmExportedFunctionData::cast(function_data(kAcquireLoad));
-}
-
-WasmJSFunctionData SharedFunctionInfo::wasm_js_function_data() const {
-  DCHECK(HasWasmJSFunctionData());
-  return WasmJSFunctionData::cast(function_data(kAcquireLoad));
-}
-
-WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
-  DCHECK(HasWasmCapiFunctionData());
-  return WasmCapiFunctionData::cast(function_data(kAcquireLoad));
-}
-
-WasmResumeData SharedFunctionInfo::wasm_resume_data() const {
-  DCHECK(HasWasmResumeData());
-  return WasmResumeData::cast(function_data(kAcquireLoad));
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script script)
     : ScriptIterator(handle(script->shared_function_infos(), isolate)) {}
@@ -281,11 +254,11 @@ bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
   return isolate->debug()->HasDebugInfo(*this);
 }
 
-DebugInfo SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
+Tagged<DebugInfo> SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this).value();
 }
 
-base::Optional<DebugInfo> SharedFunctionInfo::TryGetDebugInfo(
+base::Optional<Tagged<DebugInfo>> SharedFunctionInfo::TryGetDebugInfo(
     Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this);
 }

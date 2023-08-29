@@ -408,7 +408,7 @@ class ScriptContextTable : public FixedArray {
   inline Context get_context(int i) const;
   inline Context get_context(int i, AcquireLoadTag tag) const;
 
-  DECL_ACCESSORS(names_to_context_index, NameToIndexHashTable)
+  DECL_ACCESSORS(names_to_context_index, Tagged<NameToIndexHashTable>)
 
   // Adds local names from `script_context` to the hash table.
   static void AddLocalNamesFromContext(
@@ -594,7 +594,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
+  DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)
 
   inline Object unchecked_previous() const;
   inline Context previous() const;

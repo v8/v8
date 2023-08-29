@@ -78,11 +78,11 @@ void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
 }
 
 template <typename T>
-void PrintDictionaryContents(std::ostream& os, T dict) {
+void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+  ReadOnlyRoots roots = dict->GetReadOnlyRoots();
 
-  if (dict.Capacity() == 0) {
+  if (dict->Capacity() == 0) {
     return;
   }
 
@@ -91,17 +91,17 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
   // IterateEntries for SwissNameDictionary needs to create a handle.
   HandleScope scope(isolate);
 #endif
-  for (InternalIndex i : dict.IterateEntries()) {
+  for (InternalIndex i : dict->IterateEntries()) {
     Object k;
-    if (!dict.ToKey(roots, i, &k)) continue;
+    if (!dict->ToKey(roots, i, &k)) continue;
     os << "\n   ";
     if (IsString(k)) {
       String::cast(k)->PrintUC16(os);
     } else {
       os << Brief(k);
     }
-    os << ": " << Brief(dict.ValueAt(i)) << " ";
-    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+    os << ": " << Brief(dict->ValueAt(i)) << " ";
+    dict->DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
   }
 }
 }  // namespace
@@ -444,7 +444,8 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, T array) {
   // Print in array notation for non-sparse arrays.
-  Object previous_value = array.length() > 0 ? array.get(0) : Object();
+  if (array.length() == 0) return;
+  Object previous_value = array.get(0);
   Object value;
   int previous_index = 0;
   int i;
@@ -467,7 +468,7 @@ void PrintFixedArrayElements(std::ostream& os, T array) {
 
 void PrintDictionaryElements(std::ostream& os, FixedArrayBase elements) {
   // Print some internal fields
-  NumberDictionary dict = NumberDictionary::cast(elements);
+  Tagged<NumberDictionary> dict = NumberDictionary::cast(elements);
   if (dict->requires_slow_elements()) {
     os << "\n   - requires_slow_elements";
   } else {

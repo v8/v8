@@ -62,7 +62,7 @@ class Managed;
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   DECL_GETTER(has_##name, bool)             \
-  DECL_ACCESSORS(name, type)
+  DECL_ACCESSORS(name, Tagged<type>)
 
 class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
@@ -298,8 +298,8 @@ class WasmMemoryObject
 class WasmGlobalObject
     : public TorqueGeneratedWasmGlobalObject<WasmGlobalObject, JSObject> {
  public:
-  DECL_ACCESSORS(untagged_buffer, JSArrayBuffer)
-  DECL_ACCESSORS(tagged_buffer, FixedArray)
+  DECL_ACCESSORS(untagged_buffer, Tagged<JSArrayBuffer>)
+  DECL_ACCESSORS(tagged_buffer, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
 
   // Dispatched behavior.
@@ -341,26 +341,26 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
 
-  DECL_ACCESSORS(module_object, WasmModuleObject)
-  DECL_ACCESSORS(exports_object, JSObject)
-  DECL_ACCESSORS(native_context, Context)
-  DECL_ACCESSORS(memory_objects, FixedArray)
+  DECL_ACCESSORS(module_object, Tagged<WasmModuleObject>)
+  DECL_ACCESSORS(exports_object, Tagged<JSObject>)
+  DECL_ACCESSORS(native_context, Tagged<Context>)
+  DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
   DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, FixedArray)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_tables, FixedArray)
-  DECL_ACCESSORS(imported_function_refs, FixedArray)
-  DECL_ACCESSORS(imported_mutable_globals, FixedAddressArray)
-  DECL_ACCESSORS(imported_function_targets, FixedAddressArray)
+  DECL_ACCESSORS(imported_function_refs, Tagged<FixedArray>)
+  DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
+  DECL_ACCESSORS(imported_function_targets, Tagged<FixedAddressArray>)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
-  DECL_ACCESSORS(indirect_function_table_sig_ids, FixedUInt32Array)
-  DECL_ACCESSORS(indirect_function_table_targets, ExternalPointerArray)
+  DECL_ACCESSORS(indirect_function_table_sig_ids, Tagged<FixedUInt32Array>)
+  DECL_ACCESSORS(indirect_function_table_targets, Tagged<ExternalPointerArray>)
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
-  DECL_ACCESSORS(wasm_internal_functions, FixedArray)
-  DECL_ACCESSORS(managed_object_maps, FixedArray)
-  DECL_ACCESSORS(feedback_vectors, FixedArray)
-  DECL_ACCESSORS(well_known_imports, FixedArray)
+  DECL_ACCESSORS(wasm_internal_functions, Tagged<FixedArray>)
+  DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
+  DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
+  DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
   DECL_SANDBOXED_POINTER_ACCESSORS(memory0_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
@@ -375,10 +375,10 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
-  DECL_ACCESSORS(memory_bases_and_sizes, FixedAddressArray)
-  DECL_ACCESSORS(data_segment_starts, FixedAddressArray)
-  DECL_ACCESSORS(data_segment_sizes, FixedUInt32Array)
-  DECL_ACCESSORS(element_segments, FixedArray)
+  DECL_ACCESSORS(memory_bases_and_sizes, Tagged<FixedAddressArray>)
+  DECL_ACCESSORS(data_segment_starts, Tagged<FixedAddressArray>)
+  DECL_ACCESSORS(data_segment_sizes, Tagged<FixedUInt32Array>)
+  DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -729,7 +729,7 @@ class WasmIndirectFunctionTable
     : public TorqueGeneratedWasmIndirectFunctionTable<WasmIndirectFunctionTable,
                                                       Struct> {
  public:
-  DECL_ACCESSORS(sig_ids, FixedUInt32Array)
+  DECL_ACCESSORS(sig_ids, Tagged<FixedUInt32Array>)
   // When the sandbox is enabled, this array holds indices into the external
   // pointer table that contain the function entrypoint. Otherwise, this array
   // directly contains the entrypoint pointers.
@@ -740,7 +740,7 @@ class WasmIndirectFunctionTable
   // array of indices into a WasmCodePointerTable. This way, we can also
   // guarantee that an attacker cannot for example modify the signature
   // associated with a target function.
-  DECL_ACCESSORS(targets, ExternalPointerArray)
+  DECL_ACCESSORS(targets, Tagged<ExternalPointerArray>)
 
   V8_EXPORT_PRIVATE static Handle<WasmIndirectFunctionTable> New(
       Isolate* isolate, uint32_t size);
@@ -762,7 +762,7 @@ class WasmIndirectFunctionTable
 class WasmFunctionData
     : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
  public:
-  DECL_ACCESSORS(internal, WasmInternalFunction)
+  DECL_ACCESSORS(internal, Tagged<WasmInternalFunction>)
 
   DECL_PRINTER(WasmFunctionData)
 
@@ -857,7 +857,7 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
+  DECL_ACCESSORS(wasm_to_js_wrapper_code, Tagged<Code>)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)

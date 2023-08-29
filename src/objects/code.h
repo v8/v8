@@ -64,12 +64,12 @@ class Code : public HeapObject {
   // object is InReadOnlySpace. That may only be the case for Code objects
   // representing builtins, or in other words, Code objects for which
   // has_instruction_stream() is never true.
-  DECL_GETTER(instruction_stream, InstructionStream)
-  DECL_RELAXED_GETTER(instruction_stream, InstructionStream)
-  DECL_ACCESSORS(raw_instruction_stream, Object)
-  DECL_RELAXED_GETTER(raw_instruction_stream, Object)
+  DECL_GETTER(instruction_stream, Tagged<InstructionStream>)
+  DECL_RELAXED_GETTER(instruction_stream, Tagged<InstructionStream>)
+  DECL_ACCESSORS(raw_instruction_stream, Tagged<Object>)
+  DECL_RELAXED_GETTER(raw_instruction_stream, Tagged<Object>)
   // An unchecked accessor to be used during GC.
-  inline InstructionStream unchecked_instruction_stream() const;
+  inline Tagged<InstructionStream> unchecked_instruction_stream() const;
 
   // Whether this Code object has an associated InstructionStream (embedded
   // builtins don't).
@@ -115,16 +115,16 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, FixedArray)
+  DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  DECL_ACCESSORS(bytecode_or_interpreter_data, HeapObject)
+  DECL_ACCESSORS(bytecode_or_interpreter_data, Tagged<HeapObject>)
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
-  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
-  DECL_ACCESSORS(bytecode_offset_table, ByteArray)
+  DECL_ACCESSORS(bytecode_offset_table, Tagged<ByteArray>)
   DECL_PRIMITIVE_ACCESSORS(inlined_bytecode_size, unsigned)
   DECL_PRIMITIVE_ACCESSORS(osr_offset, BytecodeOffset)
   // [code_comments_offset]: Offset of the code comment section.

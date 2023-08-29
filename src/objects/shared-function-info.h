@@ -236,9 +236,9 @@ class SharedFunctionInfo
   static constexpr int kAgeSize = kAgeOffsetEnd - kAgeOffset + 1;
   static constexpr uint16_t kMaxAge = UINT16_MAX;
 
-  DECL_ACQUIRE_GETTER(scope_info, ScopeInfo)
+  DECL_ACQUIRE_GETTER(scope_info, Tagged<ScopeInfo>)
   // Deprecated, use the ACQUIRE version instead.
-  DECL_GETTER(scope_info, ScopeInfo)
+  DECL_GETTER(scope_info, Tagged<ScopeInfo>)
   // Slow but safe:
   inline ScopeInfo EarlyScopeInfo(AcquireLoadTag tag);
 
@@ -263,8 +263,9 @@ class SharedFunctionInfo
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
-  DECL_ACQUIRE_GETTER(raw_outer_scope_info_or_feedback_metadata, HeapObject)
+  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, Tagged<HeapObject>)
+  DECL_ACQUIRE_GETTER(raw_outer_scope_info_or_feedback_metadata,
+                      Tagged<HeapObject>)
  private:
   using TorqueGeneratedSharedFunctionInfo::
       outer_scope_info_or_feedback_metadata;
@@ -280,8 +281,8 @@ class SharedFunctionInfo
   // this function.
   inline bool HasFeedbackMetadata() const;
   inline bool HasFeedbackMetadata(AcquireLoadTag tag) const;
-  inline FeedbackMetadata feedback_metadata() const;
-  DECL_RELEASE_ACQUIRE_ACCESSORS(feedback_metadata, FeedbackMetadata)
+  DECL_GETTER(feedback_metadata, Tagged<FeedbackMetadata>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(feedback_metadata, Tagged<FeedbackMetadata>)
 
   // Returns if this function has been compiled yet. Note: with bytecode
   // flushing, any GC after this call is made could cause the function
@@ -326,26 +327,25 @@ class SharedFunctionInfo
   //  - a UncompiledDataWithPreparseData for lazy compilation
   //    [HasUncompiledDataWithPreparseData()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
-  DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Tagged<Object>)
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
-  inline FunctionTemplateInfo api_func_data() const;
-  inline void set_api_func_data(FunctionTemplateInfo data);
+  DECL_ACCESSORS(api_func_data, Tagged<FunctionTemplateInfo>)
   DECL_GETTER(HasBytecodeArray, bool)
   template <typename IsolateT>
-  inline BytecodeArray GetBytecodeArray(IsolateT* isolate) const;
+  inline Tagged<BytecodeArray> GetBytecodeArray(IsolateT* isolate) const;
 
-  inline void set_bytecode_array(BytecodeArray bytecode);
-  DECL_GETTER(InterpreterTrampoline, Code)
+  inline void set_bytecode_array(Tagged<BytecodeArray> bytecode);
+  DECL_GETTER(InterpreterTrampoline, Tagged<Code>)
   DECL_GETTER(HasInterpreterData, bool)
-  DECL_GETTER(interpreter_data, InterpreterData)
+  DECL_ACCESSORS(interpreter_data, Tagged<InterpreterData>)
   inline void set_interpreter_data(InterpreterData interpreter_data);
   DECL_GETTER(HasBaselineCode, bool)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Code)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
   inline void FlushBaselineCode();
-  inline BytecodeArray GetActiveBytecodeArray() const;
-  inline void SetActiveBytecodeArray(BytecodeArray bytecode);
+  DECL_GETTER(GetActiveBytecodeArray, Tagged<BytecodeArray>)
+  inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode);
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool HasAsmWasmData() const;
@@ -354,15 +354,13 @@ class SharedFunctionInfo
   inline bool HasWasmJSFunctionData() const;
   inline bool HasWasmCapiFunctionData() const;
   inline bool HasWasmResumeData() const;
-  inline AsmWasmData asm_wasm_data() const;
-  inline void set_asm_wasm_data(AsmWasmData data);
+  DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
-  V8_EXPORT_PRIVATE WasmExportedFunctionData
-  wasm_exported_function_data() const;
-  WasmFunctionData wasm_function_data() const;
-  WasmJSFunctionData wasm_js_function_data() const;
-  WasmCapiFunctionData wasm_capi_function_data() const;
-  WasmResumeData wasm_resume_data() const;
+  DECL_GETTER(wasm_exported_function_data, Tagged<WasmExportedFunctionData>)
+  DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
+  DECL_GETTER(wasm_js_function_data, Tagged<WasmJSFunctionData>)
+  DECL_GETTER(wasm_capi_function_data, Tagged<WasmCapiFunctionData>)
+  DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 
   inline const wasm::WasmModule* wasm_module() const;
   inline const wasm::FunctionSig* wasm_function_signature() const;
@@ -371,16 +369,12 @@ class SharedFunctionInfo
 
   // builtin corresponds to the auto-generated Builtin enum.
   inline bool HasBuiltinId() const;
-  inline Builtin builtin_id() const;
-  inline void set_builtin_id(Builtin builtin);
+  DECL_PRIMITIVE_ACCESSORS(builtin_id, Builtin)
   inline bool HasUncompiledData() const;
-  inline UncompiledData uncompiled_data() const;
-  inline void set_uncompiled_data(UncompiledData data);
+  DECL_ACCESSORS(uncompiled_data, Tagged<UncompiledData>)
   inline bool HasUncompiledDataWithPreparseData() const;
-  inline UncompiledDataWithPreparseData uncompiled_data_with_preparse_data()
-      const;
-  inline void set_uncompiled_data_with_preparse_data(
-      UncompiledDataWithPreparseData data);
+  DECL_ACCESSORS(uncompiled_data_with_preparse_data,
+                 Tagged<UncompiledDataWithPreparseData>)
   inline bool HasUncompiledDataWithoutPreparseData() const;
   inline void ClearUncompiledDataJobPointer();
 
@@ -393,13 +387,13 @@ class SharedFunctionInfo
   // code written in OO style, where almost all functions are anonymous but are
   // assigned to object properties.
   inline bool HasInferredName();
-  inline String inferred_name() const;
+  DECL_GETTER(inferred_name, Tagged<String>)
 
   // All DebugInfo accessors forward to the Debug object which stores DebugInfo
   // objects in a sidetable.
   bool HasDebugInfo(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE DebugInfo GetDebugInfo(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE base::Optional<DebugInfo> TryGetDebugInfo(
+  V8_EXPORT_PRIVATE Tagged<DebugInfo> GetDebugInfo(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE base::Optional<Tagged<DebugInfo>> TryGetDebugInfo(
       Isolate* isolate) const;
   V8_EXPORT_PRIVATE bool HasBreakInfo(Isolate* isolate) const;
   bool BreakAtEntry(Isolate* isolate) const;
@@ -415,15 +409,15 @@ class SharedFunctionInfo
   bool PassesFilter(const char* raw_filter);
 
   // [script]: the Script from which the function originates, or undefined.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(script, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(script, Tagged<HeapObject>)
   // Use `raw_script` if deserialization of this SharedFunctionInfo may still
   // be in progress and thus the `script` field still equal to
   // Smi::uninitialized_deserialization_value.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_script, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_script, Tagged<Object>)
   // TODO(jgruber): Remove these overloads and pass the kAcquireLoad tag
   // explicitly.
-  inline HeapObject script() const;
-  inline HeapObject script(PtrComprCageBase cage_base) const;
+  inline Tagged<HeapObject> script() const;
+  inline Tagged<HeapObject> script(PtrComprCageBase cage_base) const;
   inline bool has_script(AcquireLoadTag tag) const;
 
   // True if the underlying script was parsed and compiled in REPL mode.
@@ -724,11 +718,11 @@ class SharedFunctionInfo
 
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Tagged<Object>)
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS(outer_scope_info, HeapObject)
+  DECL_ACCESSORS(outer_scope_info, Tagged<HeapObject>)
 
   // [properties_are_final]: This bit is used to track if we have finished
   // parsing its properties. The properties final bit is only used by

@@ -240,7 +240,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // encoding of the underlying string.  This is taken into account here.
   // This function is static because that helps it get inlined.
   // Requires: string.IsFlat()
-  static inline bool IsOneByteRepresentationUnderneath(String string);
+  static inline bool IsOneByteRepresentationUnderneath(Tagged<String> string);
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -604,7 +604,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Returns true if string can be internalized without copying. In such cases
   // the string is inserted into the string table and its map is changed to an
   // internalized equivalent.
-  static inline bool IsInPlaceInternalizable(String string);
+  static inline bool IsInPlaceInternalizable(Tagged<String> string);
   static inline bool IsInPlaceInternalizable(InstanceType instance_type);
 
   static inline bool IsInPlaceInternalizableExcludingExternal(
@@ -882,7 +882,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
 // ThinStrings can be thought of as "one-part cons strings".
 class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
-  DECL_GETTER(unchecked_actual, HeapObject)
+  DECL_GETTER(unchecked_actual, Tagged<HeapObject>)
 
   V8_EXPORT_PRIVATE uint16_t
   Get(int index, PtrComprCageBase cage_base,

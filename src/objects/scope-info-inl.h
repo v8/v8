@@ -117,7 +117,7 @@ class ScopeInfo::LocalNamesRange {
   InternalIndex max_index() const {
     int max = inlined()
                   ? scope_info_->ContextLocalCount()
-                  : scope_info_->context_local_names_hashtable().Capacity();
+                  : scope_info_->context_local_names_hashtable()->Capacity();
     return InternalIndex(max);
   }
 

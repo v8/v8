@@ -56,7 +56,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
-  DECL_ACCESSORS(last_index, Object)
+  DECL_ACCESSORS(last_index, Tagged<Object>)
 
   // Instance fields accessors.
   inline String source() const;

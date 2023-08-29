@@ -4078,14 +4078,13 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
 }
 
 void CppClassGenerator::GenerateClass() {
-  // Is<name>_NonInline(HeapObject)
+  // Is<name>_NonInline(Tagged<HeapObject>)
   if (!type_->IsShape()) {
     cpp::Function f("Is"s + name_ + "_NonInline");
-    f.SetDescription("Alias for HeapObject::Is"s + name_ +
-                     "() that avoids inlining.");
+    f.SetDescription("Alias for Is"s + name_ + "() that avoids inlining.");
     f.SetExport(true);
     f.SetReturnType("bool");
-    f.AddParameter("HeapObject", "o");
+    f.AddParameter("Tagged<HeapObject>", "o");
 
     f.PrintDeclaration(hdr_);
     hdr_ << "\n";
@@ -4296,17 +4295,17 @@ void CppClassGenerator::GenerateClassCasts() {
   cpp::Function f(&owner, "cast");
   f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
   f.SetReturnType("D");
-  f.AddParameter("Object", "object");
+  f.AddParameter("Tagged<Object>", "object");
 
-  // V8_INLINE static D cast(Object)
+  // V8_INLINE static D cast(Tagged<Object>)
   f.PrintDeclaration(hdr_);
   f.PrintDefinition(inl_, [](std::ostream& stream) {
-    stream << "    return D(object.ptr());\n";
+    stream << "    return Tagged<D>(D(object.ptr()).ptr());\n";
   });
-  // V8_INLINE static D unchecked_cast(Object)
+  // V8_INLINE static D unchecked_cast(Tagged<Object>)
   f.SetName("unchecked_cast");
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "    return base::bit_cast<D>(object);\n";
+    stream << "    return Tagged<D>(object.ptr());\n";
   });
 }
 
@@ -4332,8 +4331,8 @@ void CppClassGenerator::GenerateClassConstructors() {
 
   hdr_ << " protected:\n";
   hdr_ << "  inline explicit constexpr " << gen_name_
-       << "(Address ptr, Object::SkipTypeCheckTag\n)";
-  hdr_ << "    : P(ptr, Object::SkipTypeCheckTag()) {}\n";
+       << "(Address ptr, typename P::SkipTypeCheckTag\n)";
+  hdr_ << "    : P(ptr, typename P::SkipTypeCheckTag{}) {}\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
 
   inl_ << "template<class D, class P>\n";
@@ -4482,7 +4481,6 @@ void CppClassGenerator::GenerateFieldAccessors(
     }
 
     getter.PrintDefinition(inl_, [&](auto& stream) {
-      stream << "  " << type_name << " value;\n";
       EmitLoadFieldStatement(stream, class_field, struct_fields);
       stream << "  return value;\n";
     });
@@ -4540,11 +4538,7 @@ std::string CppClassGenerator::GetTypeNameForAccessor(const Field& f) {
     }
     return constexpr_version->GetGeneratedTypeName();
   }
-  if (field_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
-    // Follow the convention to create Smi accessors with type int.
-    return "int";
-  }
-  return field_type->UnhandlifiedCppTypeName();
+  return field_type->TagglifiedCppTypeName();
 }
 
 bool CppClassGenerator::CanContainHeapObjects(const Type* t) {
@@ -4579,7 +4573,7 @@ void CppClassGenerator::EmitLoadFieldStatement(
     offset = "offset";
   }
 
-  stream << "  value = ";
+  stream << "  " << type_name << " value = ";
 
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     if (class_field.read_synchronization ==
@@ -4812,9 +4806,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << "  Tagged<HeapObject> raw_object =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
-        factory_impl << "  Tagged<" << type->UnhandlifiedCppTypeName()
-                     << "> result = Tagged<" << type->UnhandlifiedCppTypeName()
-                     << ">::cast(raw_object);\n";
+        factory_impl << "  " << type->TagglifiedCppTypeName()
+                     << " result = " << type->GetConstexprGeneratedTypeName()
+                     << "::cast(raw_object);\n";
         factory_impl << "  DisallowGarbageCollection no_gc;";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
                      << "     allocation_type == AllocationType::kYoung\n"

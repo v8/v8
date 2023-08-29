@@ -659,14 +659,14 @@ Handle<WasmIndirectFunctionTable> WasmIndirectFunctionTable::New(
 void WasmIndirectFunctionTable::Set(uint32_t index, int sig_id,
                                     Address call_target, Object ref) {
   Isolate* isolate = GetIsolateFromWritableObject(*this);
-  sig_ids().set(index, sig_id);
+  sig_ids()->set(index, sig_id);
   targets()->set<kWasmIndirectFunctionTargetTag>(index, isolate, call_target);
   refs()->set(index, ref);
 }
 
 void WasmIndirectFunctionTable::Clear(uint32_t index) {
   Isolate* isolate = GetIsolateFromWritableObject(*this);
-  sig_ids().set(index, -1);
+  sig_ids()->set(index, -1);
   targets()->clear(index);
   refs()->set(index, ReadOnlyRoots(isolate).undefined_value());
 }
@@ -1126,11 +1126,11 @@ Object ImportedFunctionEntry::object_ref() {
 }
 
 Address ImportedFunctionEntry::target() {
-  return instance_->imported_function_targets().get(index_);
+  return instance_->imported_function_targets()->get(index_);
 }
 
 void ImportedFunctionEntry::set_target(Address new_target) {
-  instance_->imported_function_targets().set(index_, new_target);
+  instance_->imported_function_targets()->set(index_, new_target);
 }
 
 // static
@@ -1322,8 +1322,8 @@ void WasmInstanceObject::InitDataSegmentArrays(WasmModuleObject module_object) {
     // Set the active segments to being already dropped, since memory.init on
     // a dropped passive segment and an active segment have the same
     // behavior.
-    data_segment_sizes().set(static_cast<int>(i),
-                             segment.active ? 0 : source_bytes.length());
+    data_segment_sizes()->set(static_cast<int>(i),
+                              segment.active ? 0 : source_bytes.length());
   }
 }
 
@@ -1849,7 +1849,7 @@ bool WasmTagObject::MatchesSignature(uint32_t expected_canonical_type_index) {
 }
 
 const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
-  WasmCapiFunctionData function_data = shared().wasm_capi_function_data();
+  WasmCapiFunctionData function_data = shared()->wasm_capi_function_data();
   return wasm::SerializedSignatureHelper::DeserializeSignature(
       zone, function_data.serialized_signature());
 }
@@ -2389,7 +2389,7 @@ wasm::Suspend WasmJSFunction::GetSuspend() const {
 }
 
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) const {
-  WasmJSFunctionData function_data = shared().wasm_js_function_data();
+  WasmJSFunctionData function_data = shared()->wasm_js_function_data();
   return wasm::SerializedSignatureHelper::DeserializeSignature(
       zone, function_data.serialized_signature());
 }

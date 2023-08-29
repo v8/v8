@@ -199,8 +199,8 @@ class ObjectPostProcessor final {
   V(Code)                         \
   V(SharedFunctionInfo)
 
-  void PostProcessIfNeeded(HeapObject o) {
-    const InstanceType itype = o.map(isolate_).instance_type();
+  void PostProcessIfNeeded(Tagged<HeapObject> o) {
+    const InstanceType itype = o->map(isolate_)->instance_type();
 #define V(TYPE)                               \
   if (InstanceTypeChecker::Is##TYPE(itype)) { \
     return PostProcess##TYPE(TYPE::cast(o));  \
@@ -248,23 +248,23 @@ class ObjectPostProcessor final {
     external_pointer_slots_.emplace_back(slot, tag);
 #endif  // V8_ENABLE_SANDBOX
   }
-  void PostProcessAccessorInfo(AccessorInfo o) {
+  void PostProcessAccessorInfo(Tagged<AccessorInfo> o) {
     DecodeExternalPointerSlot(
-        o.RawExternalPointerField(AccessorInfo::kSetterOffset),
+        o->RawExternalPointerField(AccessorInfo::kSetterOffset),
         kAccessorInfoSetterTag);
     DecodeExternalPointerSlot(
-        o.RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
+        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
         kAccessorInfoGetterTag);
-    if (USE_SIMULATOR_BOOL) o.init_getter_redirection(isolate_);
+    if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
   }
-  void PostProcessCallHandlerInfo(CallHandlerInfo o) {
+  void PostProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
     DecodeExternalPointerSlot(
-        o.RawExternalPointerField(
+        o->RawExternalPointerField(
             CallHandlerInfo::kMaybeRedirectedCallbackOffset),
         kCallHandlerInfoCallbackTag);
-    if (USE_SIMULATOR_BOOL) o.init_callback_redirection(isolate_);
+    if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
-  void PostProcessCode(Code o) {
+  void PostProcessCode(Tagged<Code> o) {
     o->init_instruction_start(isolate_, kNullAddress);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.
@@ -274,9 +274,9 @@ class ObjectPostProcessor final {
         isolate_,
         EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
   }
-  void PostProcessSharedFunctionInfo(SharedFunctionInfo o) {
+  void PostProcessSharedFunctionInfo(Tagged<SharedFunctionInfo> o) {
     // Reset the id to avoid collisions - it must be unique in this isolate.
-    o.set_unique_id(isolate_->GetAndIncNextUniqueSfiId());
+    o->set_unique_id(isolate_->GetAndIncNextUniqueSfiId());
   }
 
   Isolate* const isolate_;
@@ -304,11 +304,11 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #endif  // V8_COMPRESS_POINTERS
   ObjectPostProcessor post_processor(isolate());
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
-  for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (should_rehash()) {
       const InstanceType instance_type = o->map(cage_base)->instance_type();
       if (InstanceTypeChecker::IsString(instance_type)) {
-        String str = String::cast(o);
+        Tagged<String> str = String::cast(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
         PushObjectToRehash(handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {

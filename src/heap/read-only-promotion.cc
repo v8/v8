@@ -117,7 +117,7 @@ class Committee final {
   // adding new object types here.
 
   static bool IsPromoCandidate(Isolate* isolate, HeapObject o) {
-    const InstanceType itype = o.map(isolate).instance_type();
+    const InstanceType itype = o.map(isolate)->instance_type();
 #define V(TYPE)                                            \
   if (InstanceTypeChecker::Is##TYPE(itype)) {              \
     return IsPromoCandidate##TYPE(isolate, TYPE::cast(o)); \

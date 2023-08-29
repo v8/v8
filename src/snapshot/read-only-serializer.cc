@@ -27,7 +27,7 @@ class ObjectPreProcessor final {
   V(Code)
 
   void PreProcessIfNeeded(HeapObject o) {
-    const InstanceType itype = o.map(isolate_).instance_type();
+    const InstanceType itype = o.map(isolate_)->instance_type();
 #define V(TYPE)                               \
   if (InstanceTypeChecker::Is##TYPE(itype)) { \
     return PreProcess##TYPE(TYPE::cast(o));   \

@@ -119,12 +119,12 @@ class ClassBoilerplate : public FixedArray {
 
   DECL_BOOLEAN_ACCESSORS(install_class_name_accessor)
   DECL_INT_ACCESSORS(arguments_count)
-  DECL_ACCESSORS(static_properties_template, Object)
-  DECL_ACCESSORS(static_elements_template, Object)
-  DECL_ACCESSORS(static_computed_properties, FixedArray)
-  DECL_ACCESSORS(instance_properties_template, Object)
-  DECL_ACCESSORS(instance_elements_template, Object)
-  DECL_ACCESSORS(instance_computed_properties, FixedArray)
+  DECL_ACCESSORS(static_properties_template, Tagged<Object>)
+  DECL_ACCESSORS(static_elements_template, Tagged<Object>)
+  DECL_ACCESSORS(static_computed_properties, Tagged<FixedArray>)
+  DECL_ACCESSORS(instance_properties_template, Tagged<Object>)
+  DECL_ACCESSORS(instance_elements_template, Tagged<Object>)
+  DECL_ACCESSORS(instance_computed_properties, Tagged<FixedArray>)
 
   template <typename IsolateT, typename Dictionary>
   static void AddToPropertiesTemplate(IsolateT* isolate,

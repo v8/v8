@@ -100,22 +100,22 @@ CAST_ACCESSOR(ClassBoilerplate)
 SMI_ACCESSORS(ClassBoilerplate, arguments_count,
               FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
 
-ACCESSORS(ClassBoilerplate, static_properties_template, Object,
+ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,
           FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))
 
-ACCESSORS(ClassBoilerplate, static_elements_template, Object,
+ACCESSORS(ClassBoilerplate, static_elements_template, Tagged<Object>,
           FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex))
 
-ACCESSORS(ClassBoilerplate, static_computed_properties, FixedArray,
+ACCESSORS(ClassBoilerplate, static_computed_properties, Tagged<FixedArray>,
           FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex))
 
-ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
+ACCESSORS(ClassBoilerplate, instance_properties_template, Tagged<Object>,
           FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex))
 
-ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
+ACCESSORS(ClassBoilerplate, instance_elements_template, Tagged<Object>,
           FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex))
 
-ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
+ACCESSORS(ClassBoilerplate, instance_computed_properties, Tagged<FixedArray>,
           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex))
 
 //

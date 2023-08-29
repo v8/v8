@@ -300,7 +300,7 @@ void InstallFunc(Isolate* isolate, Handle<JSObject> holder,
   Handle<String> function_name = factory->NewStringFromAsciiChecked(name);
   Handle<JSFunction> function =
       CreateFunc(isolate, func, function_name, is_constructor);
-  function->shared().set_length(num_parameters);
+  function->shared()->set_length(num_parameters);
   JSObject::AddProperty(isolate, holder, function_name, function, NONE);
 }
 

@@ -88,23 +88,23 @@ class JSFunction : public TorqueGeneratedJSFunction<
                        JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, Tagged<HeapObject>)
 
   // [shared]: The information about the function that can be shared by
   // instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
-  DECL_RELAXED_GETTER(shared, SharedFunctionInfo)
+  DECL_ACCESSORS(shared, Tagged<SharedFunctionInfo>)
+  DECL_RELAXED_GETTER(shared, Tagged<SharedFunctionInfo>)
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBindAndWrap = 2;
 
   // [context]: The context for this function.
   inline Context context();
-  DECL_RELAXED_GETTER(context, Context)
+  DECL_RELAXED_GETTER(context, Tagged<Context>)
   inline bool has_context() const;
   using TorqueGeneratedClass::context;
   using TorqueGeneratedClass::set_context;
-  DECL_RELEASE_ACQUIRE_ACCESSORS(context, Context)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -119,14 +119,14 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_ACCESSORS(code, Code)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+  DECL_ACCESSORS(code, Tagged<Code>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Tagged<Code>)
 
   // Returns the raw content of the Code field. When reading from a background
   // thread, the code field may still be uninitialized, in which case the field
   // contains Smi::zero().
-  inline Object raw_code() const;
-  inline Object raw_code(AcquireLoadTag) const;
+  inline Tagged<Object> raw_code() const;
+  inline Tagged<Object> raw_code(AcquireLoadTag) const;
 
   // Returns the address of the function code's instruction start.
   inline Address instruction_start() const;
@@ -209,17 +209,17 @@ class JSFunction : public TorqueGeneratedJSFunction<
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
+  DECL_ACCESSORS(raw_feedback_cell, Tagged<FeedbackCell>)
 
   // [raw_feedback_cell] (synchronized version) When this is initialized from a
   // newly allocated object (instead of a root sentinel), it should
   // be written with release store semantics.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_feedback_cell, FeedbackCell)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_feedback_cell, Tagged<FeedbackCell>)
 
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
   // available after compile when lazily allocating feedback vectors.
-  DECL_GETTER(feedback_vector, FeedbackVector)
+  DECL_GETTER(feedback_vector, Tagged<FeedbackVector>)
   DECL_GETTER(has_feedback_vector, bool)
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
       Isolate* isolate, Handle<JSFunction> function,
@@ -268,7 +268,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(has_prototype_slot, bool)
 
   // The initial map for an object created by this constructor.
-  DECL_GETTER(initial_map, Map)
+  DECL_GETTER(initial_map, Tagged<Map>)
 
   static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
                             Handle<Map> map, Handle<HeapObject> prototype);
@@ -303,8 +303,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // until an initial map is needed.
   DECL_GETTER(has_prototype, bool)
   DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Object)
-  DECL_GETTER(instance_prototype, HeapObject)
+  DECL_GETTER(prototype, Tagged<Object>)
+  DECL_GETTER(instance_prototype, Tagged<HeapObject>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
@@ -361,10 +361,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
   static const int kHeaderSize;
 
   // Hide generated accessors; custom accessors are called "shared".
-  DECL_ACCESSORS(shared_function_info, SharedFunctionInfo)
+  DECL_ACCESSORS(shared_function_info, Tagged<SharedFunctionInfo>)
 
   // Hide generated accessors; custom accessors are called "raw_feedback_cell".
-  DECL_ACCESSORS(feedback_cell, FeedbackCell)
+  DECL_ACCESSORS(feedback_cell, Tagged<FeedbackCell>)
 
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.

@@ -952,7 +952,7 @@ class MapWord {
   static inline MapWord FromMap(const Map map);
 
   // View this map word as a map pointer.
-  inline Map ToMap() const;
+  inline Tagged<Map> ToMap() const;
 
   // Scavenge collection: the map word of live objects in the from space
   // contains a forwarding address (a heap object pointer in the to space).

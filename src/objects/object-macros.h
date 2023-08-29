@@ -248,6 +248,9 @@
   inline type holder::name() const {                                  \
     return TorqueGeneratedClass::torque_name();                       \
   }                                                                   \
+  inline type holder::name(PtrComprCageBase cage_base) const {        \
+    return TorqueGeneratedClass::torque_name(cage_base);              \
+  }                                                                   \
   inline void holder::set_##name(type value, WriteBarrierMode mode) { \
     TorqueGeneratedClass::set_##torque_name(value, mode);             \
   }

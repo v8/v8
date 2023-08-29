@@ -667,7 +667,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
 
   if (shared_info->HasBaselineCode()) {
     shared_info->baseline_code(kAcquireLoad)
-        .set_bytecode_or_interpreter_data(*interpreter_data);
+        ->set_bytecode_or_interpreter_data(*interpreter_data);
   } else {
     // IsBytecodeArray
     shared_info->set_interpreter_data(*interpreter_data);

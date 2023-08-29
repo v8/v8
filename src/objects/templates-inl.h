@@ -56,9 +56,11 @@ void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
 }
 
 // static
-FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
+Tagged<FunctionTemplateRareData>
+FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  HeapObject extra = function_template_info->rare_data(isolate, kAcquireLoad);
+  Tagged<HeapObject> extra =
+      function_template_info->rare_data(isolate, kAcquireLoad);
   if (IsUndefined(extra, isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
@@ -67,16 +69,17 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 }
 
 #define RARE_ACCESSORS(Name, CamelName, Type, Default)                         \
-  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                     \
-    HeapObject extra = rare_data(cage_base, kAcquireLoad);                     \
-    HeapObject undefined = GetReadOnlyRoots(cage_base).undefined_value();      \
+  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<Type>) {             \
+    Tagged<HeapObject> extra = rare_data(cage_base, kAcquireLoad);             \
+    Tagged<Undefined> undefined =                                              \
+        GetReadOnlyRoots(cage_base).undefined_value();                         \
     return extra == undefined ? Default                                        \
                               : FunctionTemplateRareData::cast(extra)->Name(); \
   }                                                                            \
   inline void FunctionTemplateInfo::Set##CamelName(                            \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,   \
       Handle<Type> Name) {                                                     \
-    FunctionTemplateRareData rare_data =                                       \
+    Tagged<FunctionTemplateRareData> rare_data =                               \
         EnsureFunctionTemplateRareData(isolate, function_template_info);       \
     rare_data->set_##Name(*Name);                                              \
   }
@@ -94,7 +97,7 @@ RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
                undefined)
 RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
 RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
-               *GetReadOnlyRoots(cage_base).empty_fixed_array())
+               GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
 
 int FunctionTemplateInfo::InstanceType() const {

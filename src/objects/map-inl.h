@@ -39,11 +39,11 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
 
-ACCESSORS(Map, instance_descriptors, DescriptorArray,
+ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
           kInstanceDescriptorsOffset)
-RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+RELAXED_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                   kInstanceDescriptorsOffset)
-RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                           kInstanceDescriptorsOffset)
 
 // A freshly allocated layout descriptor can be set on an existing map.
@@ -54,19 +54,19 @@ WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
 RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
                                kTransitionsOrPrototypeInfoOffset)
 
-ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
+ACCESSORS_CHECKED2(Map, prototype, Tagged<HeapObject>, kPrototypeOffset, true,
                    IsNull(value) || IsJSProxy(value) || IsWasmObject(value) ||
                        (IsJSObject(value) &&
                         (value.InWritableSharedSpace() ||
                          value->map()->is_prototype_map())))
 
-DEF_GETTER(Map, prototype_info, Object) {
+DEF_GETTER(Map, prototype_info, Tagged<Object>) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
       cage_base, *this);
   DCHECK(this->is_prototype_map());
   return value;
 }
-RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
+RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Tagged<Object>,
                           kTransitionsOrPrototypeInfoOffset)
 
 void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
@@ -127,13 +127,13 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
-DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
+DEF_GETTER(Map, GetNamedInterceptor, Tagged<InterceptorInfo>) {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
   return InterceptorInfo::cast(info->GetNamedPropertyHandler(cage_base));
 }
 
-DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
+DEF_GETTER(Map, GetIndexedInterceptor, Tagged<InterceptorInfo>) {
   DCHECK(has_indexed_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
   return InterceptorInfo::cast(info->GetIndexedPropertyHandler(cage_base));
@@ -793,7 +793,7 @@ bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
                                      GetReadOnlyRoots(cage_base).meta_map();
 }
 
-DEF_GETTER(Map, GetBackPointer, HeapObject) {
+DEF_GETTER(Map, GetBackPointer, Tagged<HeapObject>) {
   Map back_pointer;
   if (TryGetBackPointer(cage_base, &back_pointer)) {
     return back_pointer;
@@ -832,25 +832,25 @@ Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
-ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
-RELAXED_ACCESSORS(Map, prototype_validity_cell, Object,
+ACCESSORS(Map, dependent_code, Tagged<DependentCode>, kDependentCodeOffset)
+RELAXED_ACCESSORS(Map, prototype_validity_cell, Tagged<Object>,
                   kPrototypeValidityCellOffset)
-ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
+ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Tagged<Object>,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(*this), IsNull(value) || !IsContextMap(*this))
-RELAXED_ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
+RELAXED_ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Tagged<Object>,
                            kConstructorOrBackPointerOrNativeContextOffset,
                            !IsContextMap(*this),
                            IsNull(value) || !IsContextMap(*this))
-ACCESSORS_CHECKED(Map, native_context, NativeContext,
+ACCESSORS_CHECKED(Map, native_context, Tagged<NativeContext>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsContextMap(*this))
-ACCESSORS_CHECKED(Map, native_context_or_null, Object,
+ACCESSORS_CHECKED(Map, native_context_or_null, Tagged<Object>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   (IsNull(value) || IsNativeContext(value)) &&
                       IsContextMap(*this))
 #if V8_ENABLE_WEBASSEMBLY
-ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
+ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsWasmStructMap(*this) || IsWasmArrayMap(*this) ||
                       IsWasmInternalFunctionMap(*this))
@@ -867,7 +867,7 @@ bool Map::IsPrototypeValidityCellValid() const {
   return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
-DEF_GETTER(Map, GetConstructorRaw, Object) {
+DEF_GETTER(Map, GetConstructorRaw, Tagged<Object>) {
   Object maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.
   while (ConcurrentIsMap(cage_base, maybe_constructor)) {
@@ -877,7 +877,7 @@ DEF_GETTER(Map, GetConstructorRaw, Object) {
   return maybe_constructor;
 }
 
-DEF_GETTER(Map, GetNonInstancePrototype, Object) {
+DEF_GETTER(Map, GetNonInstancePrototype, Tagged<Object>) {
   DCHECK(has_non_instance_prototype());
   Object raw_constructor = GetConstructorRaw(cage_base);
   CHECK(IsTuple2(raw_constructor));
@@ -890,7 +890,7 @@ DEF_GETTER(Map, GetNonInstancePrototype, Object) {
   return result;
 }
 
-DEF_GETTER(Map, GetConstructor, Object) {
+DEF_GETTER(Map, GetConstructor, Tagged<Object>) {
   Object maybe_constructor = GetConstructorRaw(cage_base);
   if (IsTuple2(maybe_constructor)) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.
@@ -914,7 +914,7 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
   return maybe_constructor;
 }
 
-DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
+DEF_GETTER(Map, GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>) {
   Object constructor = GetConstructor(cage_base);
   if (IsJSFunction(constructor, cage_base)) {
     SharedFunctionInfo sfi = JSFunction::cast(constructor)->shared(cage_base);

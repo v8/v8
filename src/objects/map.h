@@ -238,8 +238,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Map map, Context native_context);
 
   // Retrieve interceptors.
-  DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
-  DECL_GETTER(GetIndexedInterceptor, InterceptorInfo)
+  DECL_GETTER(GetNamedInterceptor, Tagged<InterceptorInfo>)
+  DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
 
   // Instance type.
   DECL_PRIMITIVE_ACCESSORS(instance_type, InstanceType)
@@ -467,8 +467,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
-  DECL_GETTER(prototype_info, Object)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info, Object)
+  DECL_GETTER(prototype_info, Tagged<Object>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info, Tagged<Object>)
   // PrototypeInfo is created lazily using this helper (which installs it on
   // the given prototype's map).
   static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
@@ -573,7 +573,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_BOOLEAN_ACCESSORS(is_access_check_needed)
 
   // [prototype]: implicit prototype object.
-  DECL_ACCESSORS(prototype, HeapObject)
+  DECL_ACCESSORS(prototype, Tagged<HeapObject>)
   // TODO(jkummerow): make set_prototype private.
   V8_EXPORT_PRIVATE static void SetPrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
@@ -593,22 +593,22 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // FunctionTemplateInfo available.
   // The field also overlaps with the native context pointer for context maps,
   // and with the Wasm type info for WebAssembly object maps.
-  DECL_ACCESSORS(constructor_or_back_pointer, Object)
-  DECL_RELAXED_ACCESSORS(constructor_or_back_pointer, Object)
-  DECL_ACCESSORS(native_context, NativeContext)
-  DECL_ACCESSORS(native_context_or_null, Object)
-  DECL_ACCESSORS(wasm_type_info, WasmTypeInfo)
+  DECL_ACCESSORS(constructor_or_back_pointer, Tagged<Object>)
+  DECL_RELAXED_ACCESSORS(constructor_or_back_pointer, Tagged<Object>)
+  DECL_ACCESSORS(native_context, Tagged<NativeContext>)
+  DECL_ACCESSORS(native_context_or_null, Tagged<Object>)
+  DECL_ACCESSORS(wasm_type_info, Tagged<WasmTypeInfo>)
 
   // Gets |constructor_or_back_pointer| field value from the root map.
   // The result might be null, JSFunction, FunctionTemplateInfo or a Tuple2
   // for JSFunctions with non-instance prototypes.
-  DECL_GETTER(GetConstructorRaw, Object)
+  DECL_GETTER(GetConstructorRaw, Tagged<Object>)
 
   // Gets constructor value from the root map. Unwraps Tuple2 in case of
   // JSFunction map with non-instance prototype.
   // The result returned might be null, JSFunction or FunctionTemplateInfo.
-  DECL_GETTER(GetConstructor, Object)
-  DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
+  DECL_GETTER(GetConstructor, Tagged<Object>)
+  DECL_GETTER(GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>)
   inline void SetConstructor(Object constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Constructor getter that performs at most the given number of steps
@@ -618,20 +618,20 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Gets non-instance prototype value which is stored in Tuple2 in a
   // root map's |constructor_or_back_pointer| field.
-  DECL_GETTER(GetNonInstancePrototype, Object)
+  DECL_GETTER(GetNonInstancePrototype, Tagged<Object>)
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  DECL_GETTER(GetBackPointer, HeapObject)
+  DECL_GETTER(GetBackPointer, Tagged<HeapObject>)
   inline void SetBackPointer(HeapObject value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool TryGetBackPointer(PtrComprCageBase cage_base,
                                 Map* back_pointer) const;
 
   // [instance descriptors]: describes the object.
-  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
-  DECL_RELAXED_ACCESSORS(instance_descriptors, DescriptorArray)
-  DECL_ACQUIRE_GETTER(instance_descriptors, DescriptorArray)
+  DECL_ACCESSORS(instance_descriptors, Tagged<DescriptorArray>)
+  DECL_RELAXED_ACCESSORS(instance_descriptors, Tagged<DescriptorArray>)
+  DECL_ACQUIRE_GETTER(instance_descriptors, Tagged<DescriptorArray>)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);
@@ -642,7 +642,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                     DescriptorArray descriptors);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Smi(0) if uninitialized.
@@ -656,7 +656,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // For non-prototype maps which are used as transitioning store handlers this
   // field contains the validity cell which guards modifications of this map's
   // prototype.
-  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Object)
+  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Tagged<Object>)
 
   // Returns true if prototype validity cell value represents "valid" prototype
   // chain state.
@@ -983,11 +983,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                  const Object& object) const;
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
+  DECL_RELEASE_SETTER(instance_descriptors, Tagged<DescriptorArray>)
 
   // Hide inherited accessors from the generated superclass.
-  DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Object)
-  DECL_ACCESSORS(transitions_or_prototype_info, Object)
+  DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Tagged<Object>)
+  DECL_ACCESSORS(transitions_or_prototype_info, Tagged<Object>)
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;

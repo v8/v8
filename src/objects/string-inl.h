@@ -323,7 +323,7 @@ DEF_GETTER(String, IsTwoByteRepresentation, bool) {
 }
 
 // static
-bool String::IsOneByteRepresentationUnderneath(String string) {
+bool String::IsOneByteRepresentationUnderneath(Tagged<String> string) {
   while (true) {
     uint32_t type = string->map()->instance_type();
     static_assert(kIsIndirectStringTag != 0);
@@ -543,7 +543,7 @@ bool String::IsEqualToImpl(
   DisallowGarbageCollection no_gc;
 
   int slice_offset = 0;
-  String string = *this;
+  Tagged<String> string = *this;
   const Char* data = str.data();
   while (true) {
     int32_t type = string->map(cage_base)->instance_type();
@@ -1118,7 +1118,7 @@ bool ConsString::IsFlat(PtrComprCageBase cage_base) const {
   return second(cage_base)->length() == 0;
 }
 
-DEF_GETTER(ThinString, unchecked_actual, HeapObject) {
+DEF_GETTER(ThinString, unchecked_actual, Tagged<HeapObject>) {
   return TaggedField<HeapObject, kActualOffset>::load(cage_base, *this);
 }
 
@@ -1520,7 +1520,7 @@ void SeqTwoByteString::clear_padding_destructively(int length) {
 }
 
 // static
-bool String::IsInPlaceInternalizable(String string) {
+bool String::IsInPlaceInternalizable(Tagged<String> string) {
   return IsInPlaceInternalizable(string->map()->instance_type());
 }
 

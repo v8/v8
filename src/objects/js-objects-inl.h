@@ -55,22 +55,23 @@ NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
 CAST_ACCESSOR(JSIteratorResult)
 
-DEF_GETTER(JSObject, elements, FixedArrayBase) {
+DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
 
-FixedArrayBase JSObject::elements(RelaxedLoadTag tag) const {
+Tagged<FixedArrayBase> JSObject::elements(RelaxedLoadTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return elements(cage_base, tag);
 }
 
-FixedArrayBase JSObject::elements(PtrComprCageBase cage_base,
-                                  RelaxedLoadTag) const {
+Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase cage_base,
+                                          RelaxedLoadTag) const {
   return TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Load(cage_base,
                                                                     *this);
 }
 
-void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
+void JSObject::set_elements(Tagged<FixedArrayBase> value,
+                            WriteBarrierMode mode) {
   // Note the relaxed atomic store.
   TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kElementsOffset, value, mode);
@@ -150,8 +151,9 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
   return true;
 }
 
-ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
-RELAXED_ACCESSORS(JSReceiver, raw_properties_or_hash, Object,
+ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
+          kPropertiesOrHashOffset)
+RELAXED_ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
                   kPropertiesOrHashOffset)
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
@@ -262,11 +264,11 @@ void JSObject::initialize_elements() {
   set_elements(elements, SKIP_WRITE_BARRIER);
 }
 
-DEF_GETTER(JSObject, GetIndexedInterceptor, InterceptorInfo) {
+DEF_GETTER(JSObject, GetIndexedInterceptor, Tagged<InterceptorInfo>) {
   return map(cage_base)->GetIndexedInterceptor(cage_base);
 }
 
-DEF_GETTER(JSObject, GetNamedInterceptor, InterceptorInfo) {
+DEF_GETTER(JSObject, GetNamedInterceptor, Tagged<InterceptorInfo>) {
   return map(cage_base)->GetNamedInterceptor(cage_base);
 }
 
@@ -522,8 +524,8 @@ Object JSObject::RawFastPropertyAtCompareAndSwapInternal(FieldIndex index,
   if (index.is_inobject()) {
     return RawFastInobjectPropertyAtCompareAndSwap(index, expected, value, tag);
   }
-  return property_array().CompareAndSwap(index.outobject_array_index(),
-                                         expected, value, tag);
+  return property_array()->CompareAndSwap(index.outobject_array_index(),
+                                          expected, value, tag);
 }
 
 int JSObject::GetInObjectPropertyOffset(int index) {
@@ -604,7 +606,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
-DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
+DEF_GETTER(JSGlobalObject, native_context_unchecked, Tagged<Object>) {
   return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,
                                                                  *this);
 }
@@ -643,8 +645,8 @@ void JSMessageObject::set_type(MessageTemplate value) {
   set_raw_type(static_cast<int>(value));
 }
 
-ACCESSORS(JSMessageObject, shared_info, Object, kSharedInfoOffset)
-ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
+ACCESSORS(JSMessageObject, shared_info, Tagged<Object>, kSharedInfoOffset)
+ACCESSORS(JSMessageObject, bytecode_offset, Tagged<Smi>, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
@@ -761,7 +763,7 @@ DEF_GETTER(JSObject, HasSlowStringWrapperElements, bool) {
 }
 
 DEF_GETTER(JSObject, HasTypedArrayOrRabGsabTypedArrayElements, bool) {
-  DCHECK(!elements(cage_base).is_null());
+  DCHECK(!elements(cage_base)->is_null());
   return map(cage_base)->has_typed_array_or_rab_gsab_typed_array_elements();
 }
 
@@ -783,10 +785,11 @@ DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
 }
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
-                                   GlobalDictionary, kPropertiesOrHashOffset,
+                                   Tagged<GlobalDictionary>,
+                                   kPropertiesOrHashOffset,
                                    !HasFastProperties(cage_base), true)
 
-DEF_GETTER(JSObject, element_dictionary, NumberDictionary) {
+DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
   DCHECK(HasDictionaryElements(cage_base) ||
          HasSlowStringWrapperElements(cage_base));
   return NumberDictionary::cast(elements(cage_base));
@@ -822,7 +825,7 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
   return !map(cage_base)->is_dictionary_map();
 }
 
-DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
+DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
   DCHECK(!IsJSGlobalObject(*this, cage_base));
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
@@ -834,7 +837,7 @@ DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
   return NameDictionary::cast(prop);
 }
 
-DEF_GETTER(JSReceiver, property_dictionary_swiss, SwissNameDictionary) {
+DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
   DCHECK(!IsJSGlobalObject(*this, cage_base));
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
@@ -848,7 +851,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, SwissNameDictionary) {
 
 // TODO(gsathya): Pass isolate directly to this function and access
 // the heap from this.
-DEF_GETTER(JSReceiver, property_array, PropertyArray) {
+DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   DCHECK(HasFastProperties(cage_base));
   Object prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop) || prop == GetReadOnlyRoots(cage_base).empty_fixed_array()) {
@@ -922,7 +925,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
 }
 
 bool JSGlobalObject::IsDetached() {
-  return global_proxy().IsDetachedFrom(*this);
+  return global_proxy()->IsDetachedFrom(*this);
 }
 
 bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {
@@ -935,8 +938,8 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kHeaderSize + embedder_field_count * kEmbedderDataSlotSize;
 }
 
-ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
-ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
+ACCESSORS(JSIteratorResult, value, Tagged<Object>, kValueOffset)
+ACCESSORS(JSIteratorResult, done, Tagged<Object>, kDoneOffset)
 
 // If the fast-case backing storage takes up much more memory than a dictionary
 // backing storage would, the object should have slow elements.

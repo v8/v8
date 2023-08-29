@@ -488,7 +488,7 @@ int32_t memory_init_wrapper(Address data) {
   uint64_t mem_size = instance->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  uint32_t seg_size = instance->data_segment_sizes().get(seg_index);
+  uint32_t seg_size = instance->data_segment_sizes()->get(seg_index);
   if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
   uint8_t* seg_start = reinterpret_cast<uint8_t*>(

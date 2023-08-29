@@ -355,17 +355,17 @@ class ConstantInDictionaryPrototypeChainDependency final
     enum class ValidationResult { kFoundCorrect, kFoundIncorrect, kNotFound };
     auto try_load = [&](auto dictionary) -> ValidationResult {
       InternalIndex entry =
-          dictionary.FindEntry(isolate, property_name_.object());
+          dictionary->FindEntry(isolate, property_name_.object());
       if (entry.is_not_found()) {
         return ValidationResult::kNotFound;
       }
 
-      PropertyDetails details = dictionary.DetailsAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.constness() != PropertyConstness::kConst) {
         return ValidationResult::kFoundIncorrect;
       }
 
-      Object dictionary_value = dictionary.ValueAt(entry);
+      Object dictionary_value = dictionary->ValueAt(entry);
       Object value;
       // We must be able to detect the case that the property |property_name_|
       // of |holder_| was originally a plain function |constant_| (when creating

@@ -46,15 +46,15 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  DECL_GETTER(property_array, PropertyArray)
+  DECL_GETTER(property_array, Tagged<PropertyArray>)
 
   // Gets slow properties for non-global objects (if
   // v8_enable_swiss_name_dictionary is not set).
-  DECL_GETTER(property_dictionary, NameDictionary)
+  DECL_GETTER(property_dictionary, Tagged<NameDictionary>)
 
   // Gets slow properties for non-global objects (if
   // v8_enable_swiss_name_dictionary is set).
-  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
+  DECL_GETTER(property_dictionary_swiss, Tagged<SwissNameDictionary>)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -78,8 +78,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
-  DECL_ACCESSORS(raw_properties_or_hash, Object)
-  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Object)
+  DECL_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
+  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
 
   inline void initialize_properties(Isolate* isolate);
 
@@ -314,7 +314,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
  private:
   // Hide generated accessors; custom accessors are called
   // "raw_properties_or_hash".
-  DECL_ACCESSORS(properties_or_hash, Object)
+  DECL_ACCESSORS(properties_or_hash, Tagged<Object>)
 
   TQ_OBJECT_CONSTRUCTORS(JSReceiver)
 };
@@ -340,8 +340,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
 
-  DECL_ACCESSORS(elements, FixedArrayBase)
-  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+  DECL_ACCESSORS(elements, Tagged<FixedArrayBase>)
+  DECL_RELAXED_GETTER(elements, Tagged<FixedArrayBase>)
 
   // Acquire/release semantics on this field are explicitly forbidden to avoid
   // confusion, since the default setter uses relaxed semantics. If
@@ -411,7 +411,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   bool HasEnumerableElements();
 
   // Gets slow elements.
-  DECL_GETTER(element_dictionary, NumberDictionary)
+  DECL_GETTER(element_dictionary, Tagged<NumberDictionary>)
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -524,8 +524,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.
-  DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
-  DECL_GETTER(GetIndexedInterceptor, InterceptorInfo)
+  DECL_GETTER(GetNamedInterceptor, Tagged<InterceptorInfo>)
+  DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
 
   // Used from JSReceiver.
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
@@ -1041,9 +1041,9 @@ class JSDataPropertyDescriptor : public JSObject {
 // as specified by ES6 section 25.1.1.3 The IteratorResult Interface.
 class JSIteratorResult : public JSObject {
  public:
-  DECL_ACCESSORS(value, Object)
+  DECL_ACCESSORS(value, Tagged<Object>)
 
-  DECL_ACCESSORS(done, Object)
+  DECL_ACCESSORS(done, Tagged<Object>)
 
   // Layout description.
 #define JS_ITERATOR_RESULT_FIELDS(V) \
@@ -1092,7 +1092,7 @@ class JSGlobalProxy
 class JSGlobalObject
     : public TorqueGeneratedJSGlobalObject<JSGlobalObject, JSSpecialObject> {
  public:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, Tagged<GlobalDictionary>)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
@@ -1101,7 +1101,7 @@ class JSGlobalObject
 
   // May be called by the concurrent GC when the global object is not
   // fully initialized.
-  DECL_GETTER(native_context_unchecked, Object)
+  DECL_GETTER(native_context_unchecked, Tagged<Object>)
 
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalObject)
@@ -1252,11 +1252,11 @@ class JSMessageObject
 
   // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
   // source position if not available when the message was generated.
-  DECL_ACCESSORS(shared_info, Object)
+  DECL_ACCESSORS(shared_info, Tagged<Object>)
 
   // [bytecode_offset]: optional offset using along with |shared| to generation
   // source positions.
-  DECL_ACCESSORS(bytecode_offset, Smi)
+  DECL_ACCESSORS(bytecode_offset, Tagged<Smi>)
 
   // [start_position]: the start position in the script for the error message.
   DECL_INT_ACCESSORS(start_position)

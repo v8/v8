@@ -25,7 +25,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
 
-ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
+ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::type_tag() const {
   Object data = this->data();

@@ -75,16 +75,21 @@ std::string Type::SimpleName() const {
 std::string Type::HandlifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return "Handle<" + UnhandlifiedCppTypeName() + ">";
+    return "Handle<" + GetConstexprGeneratedTypeName() + ">";
   } else {
-    return UnhandlifiedCppTypeName();
+    return GetConstexprGeneratedTypeName();
   }
 }
 
-std::string Type::UnhandlifiedCppTypeName() const {
+std::string Type::TagglifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
-  if (this == TypeOracle::GetObjectType()) return "Object";
-  return GetConstexprGeneratedTypeName();
+  // TODO(leszeks): Changee this to GetTaggedType once there's a Maybe version
+  // of Tagged<T>.
+  if (IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
+    return "Tagged<" + GetConstexprGeneratedTypeName() + ">";
+  } else {
+    return GetConstexprGeneratedTypeName();
+  }
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {

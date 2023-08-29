@@ -480,7 +480,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::Suspend suspend = static_cast<wasm::Suspend>(ref->suspend());
   wasm::WasmCodeRefScope code_ref_scope;
 
-  wasm::NativeModule* native_module = instance->module_object().native_module();
+  wasm::NativeModule* native_module =
+      instance->module_object()->native_module();
 
   wasm::WasmImportData resolved({}, -1, callable, &sig, canonical_sig_index);
   wasm::ImportCallKind kind = resolved.kind();
@@ -492,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
     expected_arity = Handle<JSFunction>::cast(callable)
                          ->shared()
-                         .internal_formal_parameter_count_without_receiver();
+                         ->internal_formal_parameter_count_without_receiver();
   }
 
   wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
@@ -526,14 +527,14 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   } else {
     // Indirect function table index.
     int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
-    int table_count = instance->indirect_function_tables().length();
+    int table_count = instance->indirect_function_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
       Handle<WasmIndirectFunctionTable> table =
           instance->GetIndirectFunctionTable(isolate, table_index);
-      if (table->refs().get(entry_index) == *ref) {
+      if (table->refs()->get(entry_index) == *ref) {
         table->targets()
-            .set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
+            ->set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
                 entry_index, isolate, wasm_code->instruction_start());
         // {ref} is used in at most one table.
         break;
@@ -991,7 +992,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
 
     if (!base::IsInBounds<uint32_t>(
             offset, length_in_bytes,
-            instance->data_segment_sizes().get(segment_index))) {
+            instance->data_segment_sizes()->get(segment_index))) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
@@ -1055,7 +1056,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     if (!base::IsInBounds<uint32_t>(
             segment_offset, length_in_bytes,
-            instance->data_segment_sizes().get(segment_index))) {
+            instance->data_segment_sizes()->get(segment_index))) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
@@ -1323,7 +1324,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
   uint32_t length = args.positive_smi_value_at(3);
 
   if (!base::IsInBounds<uint32_t>(
-          offset, length, instance->data_segment_sizes().get(segment_index))) {
+          offset, length, instance->data_segment_sizes()->get(segment_index))) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }

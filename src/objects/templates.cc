@@ -121,7 +121,8 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
 }
 
 // static
-FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
+Tagged<FunctionTemplateRareData>
+FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(IsUndefined(function_template_info->rare_data(kAcquireLoad), isolate));
   Handle<FunctionTemplateRareData> rare_data =

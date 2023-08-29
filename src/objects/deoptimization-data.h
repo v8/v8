@@ -150,17 +150,18 @@ class DeoptimizationData : public FixedArray {
   inline type name() const;                \
   inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(FrameTranslation, DeoptimizationFrameTranslation)
-  DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-  DECL_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
-  DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
-  DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-  DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
-  DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-  DECL_ELEMENT_ACCESSORS(EagerDeoptCount, Smi)
-  DECL_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
+  DECL_ELEMENT_ACCESSORS(FrameTranslation,
+                         Tagged<DeoptimizationFrameTranslation>)
+  DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(LiteralArray, Tagged<DeoptimizationLiteralArray>)
+  DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
+  DECL_ELEMENT_ACCESSORS(InliningPositions, Tagged<PodArray<InliningPosition>>)
+  DECL_ELEMENT_ACCESSORS(DeoptExitStart, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(EagerDeoptCount, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(LazyDeoptCount, Tagged<Smi>)
 
 #undef DECL_ELEMENT_ACCESSORS
 
@@ -169,11 +170,11 @@ class DeoptimizationData : public FixedArray {
   inline type name(int i) const;         \
   inline void Set##name(int i, type value);
 
-  DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
-  DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
-  DECL_ENTRY_ACCESSORS(Pc, Smi)
+  DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Tagged<Smi>)
+  DECL_ENTRY_ACCESSORS(TranslationIndex, Tagged<Smi>)
+  DECL_ENTRY_ACCESSORS(Pc, Tagged<Smi>)
 #ifdef DEBUG
-  DECL_ENTRY_ACCESSORS(NodeId, Smi)
+  DECL_ENTRY_ACCESSORS(NodeId, Tagged<Smi>)
 #endif  // DEBUG
 
 #undef DECL_ENTRY_ACCESSORS

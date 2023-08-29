@@ -157,14 +157,14 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
   }
 }
 
-void FixedArrayBuilder::Add(Object value) {
+void FixedArrayBuilder::Add(Tagged<Object> value) {
   DCHECK(!IsSmi(value));
   array_->set(length_, value);
   length_++;
   has_non_smi_elements_ = true;
 }
 
-void FixedArrayBuilder::Add(Smi value) {
+void FixedArrayBuilder::Add(Tagged<Smi> value) {
   DCHECK(IsSmi(value));
   array_->set(length_, value);
   length_++;

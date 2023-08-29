@@ -56,11 +56,11 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   using TorqueGeneratedAccessorPair::getter;
   using TorqueGeneratedAccessorPair::set_getter;
-  DECL_RELEASE_ACQUIRE_ACCESSORS(getter, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(getter, Tagged<Object>)
 
   using TorqueGeneratedAccessorPair::set_setter;
   using TorqueGeneratedAccessorPair::setter;
-  DECL_RELEASE_ACQUIRE_ACCESSORS(setter, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(setter, Tagged<Object>)
 
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,

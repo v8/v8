@@ -380,17 +380,17 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
 
 template <typename Dictionary>
 PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
-                                                  Dictionary dictionary,
+                                                  Tagged<Dictionary> dictionary,
                                                   JSFunction fun,
                                                   PrimitiveHeapObject name) {
   ReadOnlyRoots roots(isolate);
-  for (auto i : dictionary.IterateEntries()) {
+  for (auto i : dictionary->IterateEntries()) {
     Object key;
-    if (!dictionary.ToKey(roots, i, &key)) continue;
+    if (!dictionary->ToKey(roots, i, &key)) continue;
     if (IsSymbol(key)) continue;
-    auto details = dictionary.DetailsAt(i);
+    auto details = dictionary->DetailsAt(i);
     if (details.IsDontEnum()) continue;
-    auto value = dictionary.ValueAt(i);
+    auto value = dictionary->ValueAt(i);
     if (value != fun) {
       if (!IsAccessorPair(value)) continue;
       auto pair = AccessorPair::cast(value);

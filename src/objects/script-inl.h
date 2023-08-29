@@ -26,12 +26,12 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
 NEVER_READ_ONLY_SPACE_IMPL(Script)
 
 #if V8_ENABLE_WEBASSEMBLY
-ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
+ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == Type::kWasm)
-ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
+ACCESSORS_CHECKED(Script, wasm_managed_native_module, Tagged<Object>,
                   kEvalFromPositionOffset, this->type() == Type::kWasm)
-ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
+ACCESSORS_CHECKED(Script, wasm_weak_instance_list, Tagged<WeakArrayList>,
                   kSharedFunctionInfosOffset, this->type() == Type::kWasm)
 #define CHECK_SCRIPT_NOT_WASM this->type() != Type::kWasm
 #else
@@ -47,14 +47,14 @@ void Script::set_type(Type value) {
       *this, Smi::FromInt(static_cast<int>(value)));
 }
 
-ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
+ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Tagged<Object>,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   CHECK_SCRIPT_NOT_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
 
-ACCESSORS(Script, compiled_lazy_function_positions, Object,
+ACCESSORS(Script, compiled_lazy_function_positions, Tagged<Object>,
           kCompiledLazyFunctionPositionsOffset)
 
 bool Script::is_wrapped() const {
@@ -65,28 +65,29 @@ bool Script::has_eval_from_shared() const {
   return IsSharedFunctionInfo(eval_from_shared_or_wrapped_arguments());
 }
 
-void Script::set_eval_from_shared(SharedFunctionInfo shared,
+void Script::set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
                                   WriteBarrierMode mode) {
   DCHECK(!is_wrapped());
   set_eval_from_shared_or_wrapped_arguments(shared, mode);
 }
 
-SharedFunctionInfo Script::eval_from_shared() const {
+Tagged<SharedFunctionInfo> Script::eval_from_shared() const {
   DCHECK(has_eval_from_shared());
   return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
 }
 
-void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
+void Script::set_wrapped_arguments(Tagged<FixedArray> value,
+                                   WriteBarrierMode mode) {
   DCHECK(!has_eval_from_shared());
   set_eval_from_shared_or_wrapped_arguments(value, mode);
 }
 
-FixedArray Script::wrapped_arguments() const {
+Tagged<FixedArray> Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
   return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
 }
 
-DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
+DEF_GETTER(Script, shared_function_infos, Tagged<WeakFixedArray>) {
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Type::kWasm) {
     return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
@@ -95,7 +96,7 @@ DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
   return TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::load(*this);
 }
 
-void Script::set_shared_function_infos(WeakFixedArray value,
+void Script::set_shared_function_infos(Tagged<WeakFixedArray> value,
                                        WriteBarrierMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(Type::kWasm, type());

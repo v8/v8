@@ -210,13 +210,13 @@ RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
   int slot = args.smi_value_at(1);
   auto reason = String::cast(args[2]);
 
-  int slot_count = function->feedback_vector().metadata().slot_count();
+  int slot_count = function->feedback_vector()->metadata()->slot_count();
 
   StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
   ShortPrint(function->shared(), os);
   os << " updated to ";
-  function->feedback_vector().FeedbackSlotPrint(os, FeedbackSlot(slot));
+  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
   os << " - ";
 
   StringCharacterStream stream(reason);

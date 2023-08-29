@@ -542,7 +542,7 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(isolate).IsSortedNoDuplicates());
+  SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());

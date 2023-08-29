@@ -773,7 +773,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                                   value_type);
     } else if (expected_representation.IsHeapObject() &&
                !target->instance_descriptors(isolate())
-                    .GetFieldType(descriptor_index)
+                    ->GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
           Object::OptimalType(*value, isolate(), expected_representation);
@@ -785,7 +785,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     }
 
     DCHECK(target->instance_descriptors(isolate())
-               .GetFieldType(descriptor_index)
+               ->GetFieldType(descriptor_index)
                .NowContains(value));
     map = target;
     descriptor++;
@@ -836,7 +836,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (property.string.is_index()) continue;
       InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          raw_map->instance_descriptors(isolate()).GetDetails(descriptor_index);
+          raw_map->instance_descriptors(isolate())->GetDetails(
+              descriptor_index);
       FieldIndex index = FieldIndex::ForDetails(raw_map, details);
       Object value = *property.value;
       descriptor++;

@@ -3103,9 +3103,9 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         }
         Map parent = Map::cast(map->constructor_or_back_pointer());
         bool parent_is_alive = non_atomic_marking_state_->IsMarked(parent);
-        DescriptorArray descriptors =
+        Tagged<DescriptorArray> descriptors =
             parent_is_alive ? parent->instance_descriptors(isolate)
-                            : DescriptorArray();
+                            : Tagged<DescriptorArray>();
         bool descriptors_owner_died =
             CompactTransitionArray(parent, array, descriptors);
         if (descriptors_owner_died) {
@@ -4520,7 +4520,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                                              MemoryChunk* chunk, TSlot slot) {
     HeapObject heap_object;
 
-    if (!slot.load(cage_base).GetHeapObject(&heap_object)) {
+    if (!slot.load(cage_base)->GetHeapObject(&heap_object)) {
       return;
     }
 

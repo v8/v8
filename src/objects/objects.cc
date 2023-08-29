@@ -2110,7 +2110,7 @@ bool HeapObject::CanBeRehashed(PtrComprCageBase cage_base) const {
 
 template <typename IsolateT>
 void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
-  switch (map(isolate).instance_type()) {
+  switch (map(isolate)->instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
     case NAME_DICTIONARY_TYPE:
@@ -3692,7 +3692,8 @@ void FixedArray::Shrink(Isolate* isolate, int new_length) {
   }
 }
 
-void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
+void FixedArray::CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
+                        int len) const {
   DisallowGarbageCollection no_gc;
   // Return early if len == 0 so that we don't try to read the write barrier off
   // a canonical read-only empty fixed array.
@@ -3721,7 +3722,7 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Smi obj1) {
+                                 Tagged<Smi> obj1) {
   int length = array->Length();
   array = EnsureSpace(isolate, array, length + 1);
   // Check that GC didn't remove elements from the array.
@@ -3753,8 +3754,8 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj1, Smi obj2, Smi obj3,
-                                 Smi obj4) {
+                                 Handle<Object> obj1, Tagged<Smi> obj2,
+                                 Tagged<Smi> obj3, Tagged<Smi> obj4) {
   int length = array->Length();
   array = EnsureSpace(isolate, array, length + 4);
   // Check that GC didn't remove elements from the array.
@@ -3835,7 +3836,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
                                               MaybeObjectHandle value1,
-                                              Smi value2) {
+                                              Tagged<Smi> value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
   {
@@ -5021,7 +5022,7 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
 }
 
 // static
-bool JSArray::MayHaveReadOnlyLength(Map js_array_map) {
+bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
   DCHECK(IsJSArrayMap(js_array_map));
   if (js_array_map->is_dictionary_map()) return true;
 

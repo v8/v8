@@ -54,8 +54,8 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // and DebugBytecodeArray returns the instrumented bytecode.
   inline bool HasInstrumentedBytecodeArray();
 
-  inline BytecodeArray OriginalBytecodeArray();
-  inline BytecodeArray DebugBytecodeArray();
+  inline Tagged<BytecodeArray> OriginalBytecodeArray();
+  inline Tagged<BytecodeArray> DebugBytecodeArray();
 
   // --- Break points ---
   // --------------------
@@ -237,9 +237,9 @@ class ErrorStackData
   NEVER_READ_ONLY_SPACE
 
   inline bool HasFormattedStack() const;
-  DECL_ACCESSORS(formatted_stack, Object)
+  DECL_ACCESSORS(formatted_stack, Tagged<Object>)
   inline bool HasCallSiteInfos() const;
-  DECL_ACCESSORS(call_site_infos, FixedArray)
+  DECL_ACCESSORS(call_site_infos, Tagged<FixedArray>)
 
   static void EnsureStackFrameInfos(Isolate* isolate,
                                     Handle<ErrorStackData> error_stack);
