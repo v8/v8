@@ -103,7 +103,7 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -293,9 +293,13 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+  }
 }
 
 template <typename Adapter>
@@ -664,27 +668,39 @@ void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Emit(kRiscvFloat64InsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
+void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Emit(kRiscvFloat64InsertLowWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.UseRegister(right));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Emit(kRiscvFloat64InsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
+void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Emit(kRiscvFloat64InsertHighWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.UseRegister(right));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitMemoryBarrier(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvSync, g.NoOutput());
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvSync, g.NoOutput());
+  }
 }
 
 template <typename Adapter>
