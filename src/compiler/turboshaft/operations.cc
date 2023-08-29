@@ -454,6 +454,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   os << "[";
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
+  if (kind.with_trap_handler) os << ", protected";
   os << ", " << loaded_rep;
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
@@ -498,6 +499,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << "[";
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
+  if (kind.with_trap_handler) os << ", protected";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
   if (element_size_log2 != 0)
@@ -1350,6 +1352,29 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
       break;
   }
   os << ", " << static_cast<int32_t>(lane) << "]";
+}
+
+void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
+  os << "[" << (mode == Mode::kLoad ? "Load" : "Store") << ", ";
+  if (kind.maybe_unaligned) os << "unaligned, ";
+  if (kind.with_trap_handler) os << "protected, ";
+  switch (lane_kind) {
+    case LaneKind::k8:
+      os << "8";
+      break;
+    case LaneKind::k16:
+      os << "16";
+      break;
+    case LaneKind::k32:
+      os << "32";
+      break;
+    case LaneKind::k64:
+      os << "64";
+      break;
+  }
+  os << "bit, lane: " << static_cast<int>(lane);
+  if (offset != 0) os << ", offset: " << offset;
+  os << "]";
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY

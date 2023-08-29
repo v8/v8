@@ -1641,6 +1641,41 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ReplaceLaneOp& op) {
 
   return AddNode(o, {GetNode(op.into()), GetNode(op.new_lane())});
 }
+
+Node* ScheduleBuilder::ProcessOperation(const Simd128LaneMemoryOp& op) {
+  DCHECK_EQ(op.offset, 0);
+  MemoryAccessKind access =
+      op.kind.with_trap_handler ? MemoryAccessKind::kProtected
+      : op.kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
+                                : MemoryAccessKind::kNormal;
+
+  MachineType type;
+  switch (op.lane_kind) {
+    case Simd128LaneMemoryOp::LaneKind::k8:
+      type = MachineType::Int8();
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k16:
+      type = MachineType::Int16();
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k32:
+      type = MachineType::Int32();
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k64:
+      type = MachineType::Int64();
+      break;
+  }
+
+  const Operator* o = nullptr;
+  if (op.mode == Simd128LaneMemoryOp::Mode::kLoad) {
+    o = machine.LoadLane(access, type, op.lane);
+  } else {
+    o = machine.StoreLane(access, type.representation(), op.lane);
+  }
+
+  return AddNode(
+      o, {GetNode(op.base()), GetNode(op.index()), GetNode(op.value())});
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace

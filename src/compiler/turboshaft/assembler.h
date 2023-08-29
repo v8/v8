@@ -3201,6 +3201,18 @@ class AssemblerOpInterface {
     return stack().ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
   }
 
+  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<WordPtr> value,
+                            Simd128LaneMemoryOp::Mode mode,
+                            Simd128LaneMemoryOp::Kind kind,
+                            Simd128LaneMemoryOp::LaneKind lane_kind,
+                            uint8_t lane, int offset) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128LaneMemory(base, index, value, mode, kind,
+                                           lane_kind, lane, offset);
+  }
+
 #endif
 
   template <typename Rep>

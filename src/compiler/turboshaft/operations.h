@@ -111,7 +111,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128Splat)                         \
   V(Simd128Ternary)                       \
   V(Simd128ExtractLane)                   \
-  V(Simd128ReplaceLane)
+  V(Simd128ReplaceLane)                   \
+  V(Simd128LaneMemory)
 
 #define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
   V(RttCanon)                                \
@@ -6678,6 +6679,66 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
   }
 };
 
+// If `mode` is `kLoad`, load a value from `base() + index() + offset`, whose
+// size is determinded by `lane_kind`, and return the Simd128 `value()` with
+// the lane specified by `lane_kind` and `lane` replaced with the loaded value.
+// If `mode` is `kStore`, extract the lane specified by `lane` with size
+// `lane_kind` from `value()`, and store it to `base() + index() + offset`.
+struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
+  enum class Mode : bool { kLoad, kStore };
+  using Kind = LoadOp::Kind;
+  enum class LaneKind : uint8_t { k8, k16, k32, k64 };
+
+  Mode mode;
+  Kind kind;
+  LaneKind lane_kind;
+  uint8_t lane;
+  int offset;
+
+  OpEffects Effects() const {
+    OpEffects effects = mode == Mode::kLoad ? OpEffects().CanReadMemory()
+                                            : OpEffects().CanWriteMemory();
+    effects = effects.CanDependOnChecks();
+    if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return mode == Mode::kLoad ? RepVector<RegisterRepresentation::Simd128()>()
+                               : RepVector<>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::PointerSized(),
+                          RegisterRepresentation::PointerSized(),
+                          RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128LaneMemoryOp(OpIndex base, OpIndex index, OpIndex value, Mode mode,
+                      Kind kind, LaneKind lane_kind, uint8_t lane, int offset)
+      : Base(base, index, value),
+        mode(mode),
+        kind(kind),
+        lane_kind(lane_kind),
+        lane(lane),
+        offset(offset) {}
+
+  OpIndex base() const { return input(0); }
+  OpIndex index() const { return input(1); }
+  OpIndex value() const { return input(2); }
+
+  void Validate(const Graph& graph) {
+    DCHECK(kind ==
+           any_of(Kind::RawAligned(), Kind::RawUnaligned(), Kind::Protected()));
+  }
+
+  auto options() const {
+    return std::tuple{mode, kind, lane_kind, lane, offset};
+  }
+  void PrintOptions(std::ostream& os) const;
+};
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define OPERATION_EFFECTS_CASE(Name) Name##Op::EffectsIfStatic(),
@@ -6738,6 +6799,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<CallOp>().Effects();
     case Opcode::kAtomicRMW:
       return Cast<AtomicRMWOp>().Effects();
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kSimd128LaneMemory:
+      return Cast<Simd128LaneMemoryOp>().Effects();
+#endif
     default:
       UNREACHABLE();
   }

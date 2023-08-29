@@ -606,7 +606,51 @@ class TurboshaftGraphBuildingInterface {
   void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
                 const Value& index, const MemoryAccessImmediate& imm,
                 const uint8_t laneidx, Value* result) {
+    using compiler::turboshaft::Simd128LaneMemoryOp;
+#if defined(V8_TARGET_BIG_ENDIAN)
+    // TODO(14108): Implement for big endian.
     Bailout(decoder);
+#endif
+
+    MemoryRepresentation repr =
+        MemoryRepresentation::FromMachineType(type.mem_type());
+
+    auto [final_index, strategy] =
+        BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+    Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
+
+    Simd128LaneMemoryOp::LaneKind lane_kind;
+
+    switch (repr) {
+      case MemoryRepresentation::Int8():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k8;
+        break;
+      case MemoryRepresentation::Int16():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k16;
+        break;
+      case MemoryRepresentation::Int32():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k32;
+        break;
+      case MemoryRepresentation::Int64():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k64;
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    // TODO(14108): If `offset` is in int range, use it as static offset, or
+    // consider using a larger type as offset.
+    OpIndex load = asm_.Simd128LaneMemory(
+        asm_.WordPtrAdd(MemStart(imm.mem_index), imm.offset), final_index,
+        value.op, Simd128LaneMemoryOp::Mode::kLoad, kind, lane_kind, laneidx,
+        0);
+
+    if (v8_flags.trace_wasm_memory) {
+      TraceMemoryOperation(false, repr, final_index, imm.offset);
+    }
+
+    result->op = load;
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
@@ -648,7 +692,53 @@ class TurboshaftGraphBuildingInterface {
   void StoreLane(FullDecoder* decoder, StoreType type,
                  const MemoryAccessImmediate& imm, const Value& index,
                  const Value& value, const uint8_t laneidx) {
+    using compiler::turboshaft::Simd128LaneMemoryOp;
+#if defined(V8_TARGET_BIG_ENDIAN)
+    // TODO(14108): Implement for big endian.
     Bailout(decoder);
+#endif
+
+    MemoryRepresentation repr =
+        MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
+
+    auto [final_index, strategy] =
+        BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
+                       kPartialOOBWritesAreNoops
+                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+    Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
+
+    Simd128LaneMemoryOp::LaneKind lane_kind;
+
+    switch (repr) {
+      // TODO(manoskouk): Why use unsigned representations here as opposed to
+      // LoadLane?
+      case MemoryRepresentation::Uint8():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k8;
+        break;
+      case MemoryRepresentation::Uint16():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k16;
+        break;
+      case MemoryRepresentation::Uint32():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k32;
+        break;
+      case MemoryRepresentation::Uint64():
+        lane_kind = Simd128LaneMemoryOp::LaneKind::k64;
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    // TODO(14108): If `offset` is in int range, use it as static offset, or
+    // consider using a larger type as offset.
+    asm_.Simd128LaneMemory(asm_.WordPtrAdd(MemStart(imm.mem_index), imm.offset),
+                           final_index, value.op,
+                           Simd128LaneMemoryOp::Mode::kStore, kind, lane_kind,
+                           laneidx, 0);
+
+    if (v8_flags.trace_wasm_memory) {
+      TraceMemoryOperation(true, repr, final_index, imm.offset);
+    }
   }
 
   void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,

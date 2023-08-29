@@ -1052,6 +1052,12 @@ class GraphVisitor {
                                                 MapToNewGraph(op.new_lane()),
                                                 op.kind, op.lane);
   }
+  OpIndex AssembleOutputGraphSimd128LaneMemory(const Simd128LaneMemoryOp& op) {
+    return assembler().ReduceSimd128LaneMemory(
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.mode, op.kind, op.lane_kind, op.lane,
+        op.offset);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
