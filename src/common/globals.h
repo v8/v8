@@ -1351,7 +1351,11 @@ enum class CodeFlushMode {
   kStressFlushCode,
 };
 
-enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
+enum class ExternalBackingStoreType {
+  kArrayBuffer,
+  kExternalString,
+  kNumValues
+};
 
 bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
   return mode.contains(CodeFlushMode::kFlushBaselineCode);

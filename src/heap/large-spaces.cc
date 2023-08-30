@@ -202,10 +202,11 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   page->set_owner(this);
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        IncrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
 }
 
 void LargeObjectSpace::RemovePage(LargePage* page) {
@@ -214,10 +215,11 @@ void LargeObjectSpace::RemovePage(LargePage* page) {
   page_count_--;
   memory_chunk_list_.Remove(page);
   page->set_owner(nullptr);
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        DecrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
 }
 
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
@@ -285,11 +287,8 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify(Isolate* isolate,
                               SpaceVerificationVisitor* visitor) const {
-  size_t external_backing_store_bytes[kNumTypes];
-
-  for (int i = 0; i < kNumTypes; i++) {
-    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
+  size_t external_backing_store_bytes[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
 
   PtrComprCageBase cage_base(isolate);
   for (const LargePage* chunk = first_page(); chunk != nullptr;
@@ -339,17 +338,21 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     // Invoke visitor on each object.
     visitor->VerifyObject(object);
 
-    for (int i = 0; i < kNumTypes; i++) {
-      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-      external_backing_store_bytes[t] += chunk->ExternalBackingStoreBytes(t);
-    }
+    ForAll<ExternalBackingStoreType>(
+        [chunk, &external_backing_store_bytes](ExternalBackingStoreType type,
+                                               int index) {
+          external_backing_store_bytes[index] +=
+              chunk->ExternalBackingStoreBytes(type);
+        });
 
     visitor->VerifyPageDone(chunk);
   }
-  for (int i = 0; i < kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, external_backing_store_bytes](ExternalBackingStoreType type,
+                                           int index) {
+        CHECK_EQ(external_backing_store_bytes[index],
+                 ExternalBackingStoreBytes(type));
+      });
 }
 #endif
 

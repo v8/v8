@@ -4,6 +4,8 @@
 
 #include "src/heap/new-spaces.h"
 
+#include <atomic>
+
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
@@ -265,10 +267,11 @@ void SemiSpace::RemovePage(Page* page) {
   memory_chunk_list_.Remove(page);
   AccountUncommitted(Page::kPageSize);
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        DecrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
 }
 
 void SemiSpace::PrependPage(Page* page) {
@@ -278,10 +281,11 @@ void SemiSpace::PrependPage(Page* page) {
   current_capacity_ += Page::kPageSize;
   AccountCommitted(Page::kPageSize);
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        IncrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
 }
 
 void SemiSpace::MovePageToTheEnd(Page* page) {
@@ -305,8 +309,17 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->age_mark_, to->age_mark_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
-  std::swap(from->external_backing_store_bytes_,
-            to->external_backing_store_bytes_);
+  ForAll<ExternalBackingStoreType>(
+      [from, to](ExternalBackingStoreType type, int index) {
+        const size_t tmp = from->external_backing_store_bytes_[index].load(
+            std::memory_order_relaxed);
+        from->external_backing_store_bytes_[index].store(
+            to->external_backing_store_bytes_[index].load(
+                std::memory_order_relaxed),
+            std::memory_order_relaxed);
+        to->external_backing_store_bytes_[index].store(
+            tmp, std::memory_order_relaxed);
+      });
   std::swap(from->committed_physical_memory_, to->committed_physical_memory_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
@@ -361,11 +374,8 @@ void SemiSpace::Print() {}
 #ifdef VERIFY_HEAP
 void SemiSpace::VerifyPageMetadata() const {
   bool is_from_space = (id_ == kFromSpace);
-  size_t external_backing_store_bytes[kNumTypes];
-
-  for (int i = 0; i < kNumTypes; i++) {
-    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
+  size_t external_backing_store_bytes[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
 
   int actual_pages = 0;
   size_t computed_committed_physical_memory = 0;
@@ -389,10 +399,12 @@ void SemiSpace::VerifyPageMetadata() const {
             !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
     }
-    for (int i = 0; i < kNumTypes; i++) {
-      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-      external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
-    }
+    ForAll<ExternalBackingStoreType>(
+        [&external_backing_store_bytes, page](ExternalBackingStoreType type,
+                                              int index) {
+          external_backing_store_bytes[index] +=
+              page->ExternalBackingStoreBytes(type);
+        });
 
     computed_committed_physical_memory += page->CommittedPhysicalMemory();
 
@@ -402,11 +414,12 @@ void SemiSpace::VerifyPageMetadata() const {
   }
   CHECK_EQ(actual_pages * size_t(Page::kPageSize), CommittedMemory());
   CHECK_EQ(computed_committed_physical_memory, CommittedPhysicalMemory());
-
-  for (int i = 0; i < kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, external_backing_store_bytes](ExternalBackingStoreType type,
+                                           int index) {
+        CHECK_EQ(external_backing_store_bytes[index],
+                 ExternalBackingStoreBytes(type));
+      });
 }
 #endif  // VERIFY_HEAP
 
@@ -700,11 +713,8 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate,
 // that it works (it depends on the invariants we are checking).
 void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
                                       SpaceVerificationVisitor* visitor) const {
-  size_t external_space_bytes[kNumTypes];
-  for (int i = 0; i < kNumTypes; i++) {
-    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
-
+  size_t external_space_bytes[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
   for (const Page* page = to_space_.first_page(); page;
        page = page->next_page()) {
@@ -724,8 +734,8 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
       if (IsExternalString(object, cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
         size_t string_size = external_string->ExternalPayloadSize();
-        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
-            string_size;
+        external_space_bytes[static_cast<int>(
+            ExternalBackingStoreType::kExternalString)] += string_size;
       }
 
       current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
@@ -734,11 +744,13 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
     visitor->VerifyPageDone(page);
   }
 
-  for (int i = 0; i < kNumTypes; i++) {
-    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, external_space_bytes](ExternalBackingStoreType type, int index) {
+        if (type == ExternalBackingStoreType::kArrayBuffer) {
+          return;
+        }
+        CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
+      });
 
   if (!v8_flags.concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();

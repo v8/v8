@@ -176,7 +176,7 @@ class MemoryChunk : public BasicMemoryChunk {
                                                  size_t amount);
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[type];
+    return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
   Space* owner() const {
@@ -323,7 +323,8 @@ class MemoryChunk : public BasicMemoryChunk {
       ConcurrentSweepingState::kDone};
 
   // Tracks off-heap memory used by this memory chunk.
-  std::atomic<size_t> external_backing_store_bytes_[kNumTypes] = {0};
+  std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
 
   heap::ListNode<MemoryChunk> list_node_;
 

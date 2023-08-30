@@ -53,40 +53,35 @@ class SemiSpace;
 #define DCHECK_CODEOBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= MemoryChunkLayout::MaxRegularCodeObjectSize()))
 
+template <typename Enum, typename Callback>
+void ForAll(Callback callback) {
+  for (int i = 0; i < static_cast<int>(Enum::kNumValues); i++) {
+    callback(static_cast<Enum>(i), i);
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not
 // sealed after startup (i.e. not ReadOnlySpace).
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
+  static inline void MoveExternalBackingStoreBytes(
+      ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
+
   Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
         AllocationCounter& allocation_counter)
       : BaseSpace(heap, id),
         free_list_(std::move(free_list)),
-        allocation_counter_(allocation_counter) {
-    external_backing_store_bytes_ =
-        new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
-    external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
-    external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
-        0;
-  }
+        allocation_counter_(allocation_counter) {}
+
+  ~Space() override = default;
 
   Space(const Space&) = delete;
   Space& operator=(const Space&) = delete;
 
-  static inline void MoveExternalBackingStoreBytes(
-      ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
-
-  ~Space() override {
-    delete[] external_backing_store_bytes_;
-    external_backing_store_bytes_ = nullptr;
-  }
-
   virtual void AddAllocationObserver(AllocationObserver* observer);
-
   virtual void RemoveAllocationObserver(AllocationObserver* observer);
-
   virtual void PauseAllocationObservers() {}
-
   virtual void ResumeAllocationObservers() {}
 
   // Returns size of objects. Can differ from the allocated size
@@ -110,14 +105,13 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
-
   inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
 
   // Returns amount of off-heap memory in-use by objects in this Space.
   virtual size_t ExternalBackingStoreBytes(
       ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[type];
+    return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
   virtual MemoryChunk* first_page() { return memory_chunk_list_.front(); }
@@ -151,7 +145,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   // The List manages the pages that belong to the given space.
   heap::List<MemoryChunk> memory_chunk_list_;
   // Tracks off-heap memory used by this space.
-  std::atomic<size_t>* external_backing_store_bytes_;
+  std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
   std::unique_ptr<FreeList> free_list_;
   AllocationCounter& allocation_counter_;
 };

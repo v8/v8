@@ -236,10 +236,11 @@ void PagedSpaceBase::AddPageImpl(Page* page) {
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
   IncreaseAllocatedBytes(page->allocated_bytes(), page);
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        IncrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
@@ -266,10 +267,11 @@ void PagedSpaceBase::RemovePage(Page* page) {
   }
   DecreaseCapacity(page->area_size());
   AccountUncommitted(page->size());
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, page](ExternalBackingStoreType type, int index) {
+        DecrementExternalBackingStoreBytes(
+            type, page->ExternalBackingStoreBytes(type));
+      });
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
@@ -633,22 +635,16 @@ void PagedSpaceBase::Verify(Isolate* isolate,
 
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
-  size_t external_space_bytes[kNumTypes];
-  size_t external_page_bytes[kNumTypes];
-
-  for (int i = 0; i < kNumTypes; i++) {
-    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
-
+  size_t external_space_bytes[static_cast<int>(
+      ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
   for (const Page* page : *this) {
+    size_t external_page_bytes[static_cast<int>(
+        ExternalBackingStoreType::kNumValues)] = {0};
+
     CHECK_EQ(page->owner(), this);
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
-
-    for (int i = 0; i < kNumTypes; i++) {
-      external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-    }
 
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
@@ -671,23 +667,27 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       if (IsExternalString(object, cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
         size_t payload_size = external_string->ExternalPayloadSize();
-        external_page_bytes[ExternalBackingStoreType::kExternalString] +=
-            payload_size;
+        external_page_bytes[static_cast<int>(
+            ExternalBackingStoreType::kExternalString)] += payload_size;
       }
     }
-    for (int i = 0; i < kNumTypes; i++) {
-      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-      CHECK_EQ(external_page_bytes[t], page->ExternalBackingStoreBytes(t));
-      external_space_bytes[t] += external_page_bytes[t];
-    }
+    ForAll<ExternalBackingStoreType>(
+        [page, external_page_bytes, &external_space_bytes](
+            ExternalBackingStoreType type, int index) {
+          CHECK_EQ(external_page_bytes[index],
+                   page->ExternalBackingStoreBytes(type));
+          external_space_bytes[index] += external_page_bytes[index];
+        });
 
     visitor->VerifyPageDone(page);
   }
-  for (int i = 0; i < kNumTypes; i++) {
-    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
-  }
+  ForAll<ExternalBackingStoreType>(
+      [this, external_space_bytes](ExternalBackingStoreType type, int index) {
+        if (type == ExternalBackingStoreType::kArrayBuffer) {
+          return;
+        }
+        CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
+      });
   CHECK(allocation_pointer_found_in_space);
 
   if (!v8_flags.concurrent_array_buffer_sweeping) {

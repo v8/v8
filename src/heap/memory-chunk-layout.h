@@ -36,7 +36,8 @@ using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
   static constexpr int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
-  static constexpr int kNumTypes = ExternalBackingStoreType::kNumTypes;
+  static constexpr int kNumTypes =
+      static_cast<int>(ExternalBackingStoreType::kNumValues);
   static constexpr int kMemoryChunkAlignment = sizeof(size_t);
 #define FIELD(Type, Name) \
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1

@@ -55,13 +55,15 @@ ConstPageRange::ConstPageRange(Address start, Address limit)
 
 void Space::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                size_t amount) {
-  base::CheckedIncrement(&external_backing_store_bytes_[type], amount);
+  base::CheckedIncrement(&external_backing_store_bytes_[static_cast<int>(type)],
+                         amount);
   heap()->IncrementExternalBackingStoreBytes(type, amount);
 }
 
 void Space::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                size_t amount) {
-  base::CheckedDecrement(&external_backing_store_bytes_[type], amount);
+  base::CheckedDecrement(&external_backing_store_bytes_[static_cast<int>(type)],
+                         amount);
   heap()->DecrementExternalBackingStoreBytes(type, amount);
 }
 
@@ -70,8 +72,10 @@ void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                           size_t amount) {
   if (from == to) return;
 
-  base::CheckedDecrement(&(from->external_backing_store_bytes_[type]), amount);
-  base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
+  base::CheckedDecrement(
+      &(from->external_backing_store_bytes_[static_cast<int>(type)]), amount);
+  base::CheckedIncrement(
+      &(to->external_backing_store_bytes_[static_cast<int>(type)]), amount);
 }
 
 PageRange::PageRange(Page* page) : PageRange(page, page->next_page()) {}

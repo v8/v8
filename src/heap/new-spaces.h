@@ -245,10 +245,10 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;
-    for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-      result +=
-          ExternalBackingStoreBytes(static_cast<ExternalBackingStoreType>(i));
-    }
+    ForAll<ExternalBackingStoreType>(
+        [this, &result](ExternalBackingStoreType type, int index) {
+          result += ExternalBackingStoreBytes(type);
+        });
     return result;
   }
 
@@ -587,7 +587,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->YoungArrayBufferBytes();
-    return external_backing_store_bytes_[type];
+    return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
 #ifdef VERIFY_HEAP
