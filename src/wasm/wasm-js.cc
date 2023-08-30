@@ -1229,7 +1229,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0,
                                    i::wasm::max_table_init_entries())) {
-    DCHECK(i_isolate->has_pending_exception() || thrower.error());
+    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
   // The descriptor's 'maximum'.
@@ -1239,7 +1239,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                   v8_str(isolate, "maximum"), &has_maximum,
                                   &maximum, initial,
                                   std::numeric_limits<uint32_t>::max())) {
-    DCHECK(i_isolate->has_pending_exception() || thrower.error());
+    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
 
@@ -1324,7 +1324,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Value> index_value;
   if (!descriptor->Get(context, v8_str(isolate, "index"))
            .ToLocal(&index_value)) {
-    DCHECK(i_isolate->has_pending_exception());
+    DCHECK(i_isolate->has_scheduled_exception());
     return;
   }
 
