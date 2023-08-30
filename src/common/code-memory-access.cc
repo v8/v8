@@ -124,13 +124,20 @@ void ThreadIsolation::Initialize(
 }
 
 // static
-ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
-                                                                 size_t size) {
-  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPageLocked(
+    Address addr, size_t size) {
+  trusted_data_.jit_pages_mutex_->AssertHeld();
   base::Optional<JitPageReference> jit_page =
       TryLookupJitPageLocked(addr, size);
   CHECK(jit_page.has_value());
   return std::move(jit_page.value());
+}
+
+// static
+ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
+                                                                 size_t size) {
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+  return LookupJitPageLocked(addr, size);
 }
 
 // static
@@ -145,6 +152,9 @@ base::Optional<ThreadIsolation::JitPageReference>
 ThreadIsolation::TryLookupJitPageLocked(Address addr, size_t size) {
   trusted_data_.jit_pages_mutex_->AssertHeld();
 
+  Address end = addr + size;
+  CHECK_GT(end, addr);
+
   // upper_bound gives us an iterator to the position after address.
   auto it = trusted_data_.jit_pages_->upper_bound(addr);
 
@@ -152,25 +162,49 @@ ThreadIsolation::TryLookupJitPageLocked(Address addr, size_t size) {
   if (it == trusted_data_.jit_pages_->begin()) {
     return {};
   }
+
   it--;
 
   JitPageReference jit_page(it->second, it->first);
-  size_t start_offset = addr - it->first;
-  size_t end_offset = start_offset + size;
 
   // If the address is not in the range of the jit page, return.
-  if (jit_page.Size() <= start_offset) {
+  if (jit_page.End() <= addr) {
     return {};
   }
 
-  // Check that the page includes the whole range.
-  CHECK_GT(end_offset, start_offset);
-  CHECK_GE(jit_page.Size(), end_offset);
+  if (jit_page.End() >= end) {
+    return jit_page;
+  }
+
+  // It's possible that the allocation spans multiple pages, merge them.
+  auto to_delete_start = ++it;
+  for (; jit_page.End() < end && it != trusted_data_.jit_pages_->end(); it++) {
+    {
+      JitPageReference next_page(it->second, it->first);
+      CHECK_EQ(next_page.Address(), jit_page.End());
+      jit_page.Merge(next_page);
+    }
+    Delete(it->second);
+  }
+
+  trusted_data_.jit_pages_->erase(to_delete_start, it);
+
+  if (jit_page.End() < end) {
+    return {};
+  }
 
   return jit_page;
 }
 
 namespace {
+
+size_t GetSize(ThreadIsolation::JitPage* jit_page) {
+  return ThreadIsolation::JitPageReference(jit_page, 0).Size();
+}
+
+size_t GetSize(ThreadIsolation::JitAllocation allocation) {
+  return allocation.Size();
+}
 
 template <class T>
 void CheckForRegionOverlap(const T& map, Address addr, size_t size) {
@@ -196,7 +230,7 @@ void CheckForRegionOverlap(const T& map, Address addr, size_t size) {
     Address prev_addr = it->first;
     const typename T::value_type::second_type& prev_entry = it->second;
     Address offset = addr - prev_addr;
-    CHECK_LE(prev_entry.Size(), offset);
+    CHECK_LE(GetSize(prev_entry), offset);
   }
 }
 
@@ -327,52 +361,11 @@ bool ThreadIsolation::JitPageReference::HasAllocation(base::Address address,
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
 
-  // Wasm code can allocate memory that spans jit page registrations, so we
-  // merge them here too.
   base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
-  auto it = trusted_data_.jit_pages_->upper_bound(address);
-  base::Optional<JitPageReference> jit_page, next_page;
-  bool is_begin = it == trusted_data_.jit_pages_->begin();
-  bool is_end = it == trusted_data_.jit_pages_->end();
-
-  Address end = address + size;
-  CHECK_GT(end, address);
-
-  // Check for overlap first since we might extend the previous page below.
-  if (!is_end) {
-    next_page.emplace(it->second, it->first);
-    CHECK_LE(end, next_page->Address());
-  }
-
-  // Check if we can expand the previous page instead of creating a new one.
-  bool expanded_previous = false;
-  if (!is_begin) {
-    it--;
-    jit_page.emplace(it->second, it->first);
-    CHECK_LE(jit_page->End(), address);
-    if (jit_page->End() == address) {
-      jit_page->Expand(size);
-      expanded_previous = true;
-    }
-  }
-
-  // Expanding didn't work, create a new region.
-  if (!expanded_previous) {
-    JitPage* new_jit_page;
-    ConstructNew(&new_jit_page, size);
-    trusted_data_.jit_pages_->emplace(address, new_jit_page);
-    jit_page.emplace(new_jit_page, address);
-  }
-  DCHECK(jit_page.has_value());
-
-  // Check if we should merge with the next page.
-  if (next_page && jit_page->End() == next_page->Address()) {
-    jit_page->Merge(*next_page);
-    trusted_data_.jit_pages_->erase(next_page->Address());
-    JitPage* to_delete = next_page->JitPage();
-    next_page.reset();
-    Delete(to_delete);
-  }
+  CheckForRegionOverlap(*trusted_data_.jit_pages_, address, size);
+  JitPage* jit_page;
+  ConstructNew(&jit_page, size);
+  trusted_data_.jit_pages_->emplace(address, jit_page);
 }
 
 void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
@@ -381,10 +374,7 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
   JitPage* to_delete;
   {
     base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
-    base::Optional<JitPageReference> jit_page_lookup =
-        TryLookupJitPageLocked(address, size);
-    CHECK(jit_page_lookup.has_value());
-    JitPageReference jit_page = std::move(jit_page_lookup.value());
+    JitPageReference jit_page = LookupJitPageLocked(address, size);
 
     // We're merging jit pages together, so potentially split them back up
     // if we're only freeing a subrange.
@@ -472,7 +462,10 @@ void ThreadIsolation::RegisterJitAllocations(Address start,
     total_size += size;
   }
 
-  JitPageReference page_ref = LookupJitPage(start, total_size);
+  constexpr size_t kSplitThreshold = 0x40000;
+  JitPageReference page_ref = total_size >= kSplitThreshold
+                                  ? SplitJitPage(start, total_size)
+                                  : LookupJitPage(start, total_size);
 
   for (auto size : sizes) {
     page_ref.RegisterAllocation(start, size, type);
@@ -516,6 +509,32 @@ void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
   LookupJitPage(addr, size).UnregisterAllocation(addr);
+}
+
+ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPage(Address addr,
+                                                                size_t size) {
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+
+  JitPageReference jit_page = LookupJitPageLocked(addr, size);
+
+  // Split the JitPage into upto three pages.
+  size_t head_size = addr - jit_page.Address();
+  size_t tail_size = jit_page.Size() - size - head_size;
+  if (tail_size > 0) {
+    JitPage* tail;
+    ConstructNew(&tail, tail_size);
+    jit_page.Shrink(tail);
+    trusted_data_.jit_pages_->emplace(addr + size, tail);
+  }
+  if (head_size > 0) {
+    JitPage* mid;
+    ConstructNew(&mid, size);
+    jit_page.Shrink(mid);
+    trusted_data_.jit_pages_->emplace(addr, mid);
+    return JitPageReference(mid, addr);
+  }
+
+  return jit_page;
 }
 
 // static

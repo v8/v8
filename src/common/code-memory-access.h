@@ -410,12 +410,19 @@ class V8_EXPORT ThreadIsolation {
   static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
                                                      JitAllocationType type);
 
+  // Lookup a JitPage that spans a given range. Note that JitPages are not
+  // required to align with OS pages. There are no minimum size requirements and
+  // we can split and merge them under the hood for performance optimizations.
+  // IOW, the returned JitPage is guaranteed to span the given range, but
+  // doesn't need to be the exact previously registered JitPage.
   static JitPageReference LookupJitPage(Address addr, size_t size);
+  static JitPageReference LookupJitPageLocked(Address addr, size_t size);
   static base::Optional<JitPageReference> TryLookupJitPage(Address addr,
                                                            size_t size);
   // The caller needs to hold a lock of the jit_pages_mutex_
   static base::Optional<JitPageReference> TryLookupJitPageLocked(Address addr,
                                                                  size_t size);
+  static JitPageReference SplitJitPage(Address addr, size_t size);
 
   template <class T>
   friend struct StlAllocator;
