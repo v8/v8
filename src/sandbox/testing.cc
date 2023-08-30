@@ -289,7 +289,7 @@ Handle<JSFunction> CreateFunc(Isolate* isolate, FunctionCallback func,
                                                  : ConstructorBehavior::kThrow;
   Handle<FunctionTemplateInfo> function_template =
       NewFunctionTemplate(isolate, func, constructor_behavior);
-  return ApiNatives::InstantiateFunction(function_template, name)
+  return ApiNatives::InstantiateFunction(isolate, function_template, name)
       .ToHandleChecked();
 }
 
