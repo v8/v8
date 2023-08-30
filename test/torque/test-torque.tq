@@ -1232,7 +1232,8 @@ macro TestFullyGeneratedClassWithElements(): void {
     data: 0,
     object: Undefined,
     entries: ...SmiGeneratorIterator {
-      value: 11
+      value:
+        11
     }
   };
   dcheck(object1.length == 3);
@@ -1252,7 +1253,8 @@ macro TestFullyGeneratedClassWithElements(): void {
     object: Undefined,
     entries: ...SmiGeneratorIterator{value: 3},
     more_entries: ...InternalClassStructElementGeneratorIterator {
-      value: 1
+      value:
+        1
     }
   };
 

@@ -126,7 +126,8 @@ macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyIndexPair {
-      key: Undefined, index: 0
+      key:
+        Undefined, index: 0
     }
   };
 }
@@ -136,7 +137,8 @@ macro NewOrderedHashSetIterator(table: OrderedHashSet):
   return OrderedHashSetIterator{
     table: table,
     current: KeyIndexPair {
-      key: Undefined, index: 0
+      key:
+        Undefined, index: 0
     }
   };
 }
@@ -209,7 +211,8 @@ macro NewUnmodifiedOrderedHashMapIterator(table: OrderedHashMap):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyValueIndexTuple {
-      key: Undefined, value: Undefined, index: 0
+      key:
+        Undefined, value: Undefined, index: 0
     }
   };
 }
