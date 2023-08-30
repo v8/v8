@@ -90,8 +90,8 @@ Protocol.Profiler.onConsoleProfileFinished(e => {
   // There are two different kinds of js-to-wasm-wrappers, so there are two
   // possible positive traces.
   const expected = [
-    ['fib'], ['wasm-to-js:i:i'], ['imp'],
-    ['GenericJSToWasmWrapper', 'js-to-wasm:i:i'], ['fib']
+    ['fib'], ['wasm-to-js', 'wasm-to-js:i:i'], ['imp'],
+    ['js-to-wasm', 'js-to-wasm:i:i'], ['fib']
   ];
   if (!addSeenProfile(function_names)) return;
   for (let i = 0; i <= function_names.length - expected.length; ++i) {

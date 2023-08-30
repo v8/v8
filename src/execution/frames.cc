@@ -833,6 +833,16 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   }
 #endif
 
+  // We use unauthenticated_pc because it may come from
+  // fast_c_call_caller_pc_address, for which authentication does not work.
+  const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
+#if V8_ENABLE_WEBASSEMBLY
+  Code wrapper = isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
+  if (pc >= wrapper.instruction_start() && pc <= wrapper.instruction_end()) {
+    return StackFrame::WASM_TO_JS;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
       kSystemPointerSize);
@@ -846,9 +856,6 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return SafeStackFrameType(StackFrame::MarkerToType(marker));
   }
 
-  // We use unauthenticated_pc because it may come from
-  // fast_c_call_caller_pc_address, for which authentication does not work.
-  const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
   Object maybe_function = Object(
