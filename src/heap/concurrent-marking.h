@@ -183,6 +183,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   std::vector<std::unique_ptr<TaskState>> task_state_;
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
+  base::Optional<uint64_t> current_job_trace_id_;
 
   friend class Heap;
 };
