@@ -49,8 +49,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsFromFunction(&shared);
   flags.SetFlagsForFunctionFromScript(script);
+  flags.SetFlagsFromFunction(&shared);
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 
@@ -151,6 +151,10 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
   DCHECK_EQ(script_id(), script->id());
 
   set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
+  if (is_eval()) {
+    DCHECK(script->has_eval_from_shared());
+    set_outer_language_mode(script.eval_from_shared()->language_mode());
+  }
   set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
