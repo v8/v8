@@ -6216,36 +6216,33 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     MarkReachableObjects();
   }
 
-  ~UnreachableObjectsFilter() override {
-    for (auto it : reachable_) {
-      delete it.second;
-      it.second = nullptr;
-    }
-  }
+  ~UnreachableObjectsFilter() override = default;
 
   bool SkipObject(Tagged<HeapObject> object) override {
-    if (IsFreeSpaceOrFiller(object)) return true;
-    Address chunk = object.ptr() & ~kLogicalChunkAlignmentMask;
+    // Space object iterators should skip free space or filler objects.
+    DCHECK(!IsFreeSpaceOrFiller(object));
+    // If the bucket corresponding to the object's chunk does not exist, or the
+    // object is not found in the bucket, return true.
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
 
  private:
+  using BucketType = std::unordered_set<HeapObject, Object::Hasher>;
+
   bool MarkAsReachable(Tagged<HeapObject> object) {
-    Address chunk = object.ptr() & ~kLogicalChunkAlignmentMask;
+    // If the bucket corresponding to the object's chunk does not exist, then
+    // create an empty bucket.
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) {
-      reachable_[chunk] = new std::unordered_set<HeapObject, Object::Hasher>();
+      reachable_[chunk] = std::make_unique<BucketType>();
     }
+    // Insert the object if not present; return whether it was indeed inserted.
     if (reachable_[chunk]->count(object)) return false;
     reachable_[chunk]->insert(object);
     return true;
   }
-
-  static constexpr intptr_t kLogicalChunkAlignment =
-      (static_cast<uintptr_t>(1) << kPageSizeBits);
-
-  static constexpr intptr_t kLogicalChunkAlignmentMask =
-      kLogicalChunkAlignment - 1;
 
   class MarkingVisitor : public ObjectVisitorWithCageBases, public RootVisitor {
    public:
@@ -6339,7 +6336,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   Heap* heap_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
-  std::unordered_map<Address, std::unordered_set<HeapObject, Object::Hasher>*>
+  std::unordered_map<BasicMemoryChunk*, std::unique_ptr<BucketType>,
+                     base::hash<BasicMemoryChunk*>>
       reachable_;
 };
 
@@ -6363,63 +6361,47 @@ HeapObjectIterator::HeapObjectIterator(
     HeapObjectsFiltering filtering)
     : heap_(heap),
       safepoint_scope_(safepoint_scope_or_nullptr),
-      filtering_(filtering) {
+      space_iterator_(heap_) {
   heap_->MakeHeapIterable();
-  // Start the iteration.
-  space_iterator_ = new SpaceIterator(heap_);
-  switch (filtering_) {
+  switch (filtering) {
     case kFilterUnreachable:
-      filter_ = new UnreachableObjectsFilter(heap_);
+      filter_ = std::make_unique<UnreachableObjectsFilter>(heap_);
       break;
     default:
       break;
   }
-  CHECK(space_iterator_->HasNext());
-  object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
+  // Start the iteration.
+  CHECK(space_iterator_.HasNext());
+  object_iterator_ = space_iterator_.Next()->GetObjectIterator(heap_);
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) heap_->tp_heap_->ResetIterator();
 }
 
-HeapObjectIterator::~HeapObjectIterator() {
-#ifdef DEBUG
-  // Assert that in filtering mode we have iterated through all
-  // objects. Otherwise, heap will be left in an inconsistent state.
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL && filtering_ != kNoFiltering) {
-    DCHECK_NULL(object_iterator_);
-  }
-#endif
-  delete space_iterator_;
-  delete filter_;
-}
+HeapObjectIterator::~HeapObjectIterator() = default;
 
 Tagged<HeapObject> HeapObjectIterator::Next() {
-  if (filter_ == nullptr) return NextObject();
+  if (!filter_) return NextObject();
 
   Tagged<HeapObject> obj = NextObject();
-  while (!obj.is_null() && (filter_->SkipObject(obj))) obj = NextObject();
+  while (!obj.is_null() && filter_->SkipObject(obj)) obj = NextObject();
   return obj;
 }
 
 Tagged<HeapObject> HeapObjectIterator::NextObject() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return heap_->tp_heap_->NextObject();
   // No iterator means we are done.
-  if (object_iterator_.get() == nullptr) return HeapObject();
+  if (!object_iterator_) return Tagged<HeapObject>();
 
-  Tagged<HeapObject> obj = object_iterator_.get()->Next();
-  if (!obj.is_null()) {
-    // If the current iterator has more objects we are fine.
-    return obj;
-  } else {
-    // Go though the spaces looking for one that has objects.
-    while (space_iterator_->HasNext()) {
-      object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
-      obj = object_iterator_.get()->Next();
-      if (!obj.is_null()) {
-        return obj;
-      }
-    }
+  Tagged<HeapObject> obj = object_iterator_->Next();
+  // If the current iterator has more objects we are fine.
+  if (!obj.is_null()) return obj;
+  // Go though the spaces looking for one that has objects.
+  while (space_iterator_.HasNext()) {
+    object_iterator_ = space_iterator_.Next()->GetObjectIterator(heap_);
+    obj = object_iterator_->Next();
+    if (!obj.is_null()) return obj;
   }
   // Done with the last space.
-  object_iterator_.reset(nullptr);
+  object_iterator_.reset();
   return Tagged<HeapObject>();
 }
 

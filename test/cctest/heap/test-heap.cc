@@ -1037,7 +1037,7 @@ TEST(Iteration) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  // Array of objects to scan haep for.
+  // Array of objects to scan heap for.
   const int objs_count = 6;
   Handle<Object> objs[objs_count];
   int next_objs_index = 0;

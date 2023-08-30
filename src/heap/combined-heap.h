@@ -16,8 +16,7 @@ namespace internal {
 
 // This class allows iteration over the entire heap (Heap and ReadOnlyHeap). It
 // uses the HeapObjectIterator to iterate over non-read-only objects and accepts
-// the same filtering option. (Interrupting iteration while filtering
-// unreachable objects is still forbidden)
+// the same filtering option.
 class V8_EXPORT_PRIVATE CombinedHeapObjectIterator final {
  public:
   CombinedHeapObjectIterator(

@@ -2579,10 +2579,7 @@ class V8_EXPORT_PRIVATE PagedSpaceIterator {
 // an embedded DisallowGarbageCollection instance).
 //
 // HeapObjectIterator can skip free list nodes (that is, de-allocated heap
-// objects that still remain in the heap). As implementation of free nodes
-// filtering uses GC marks, it can't be used during MS/MC GC phases. Also, it is
-// forbidden to interrupt iteration in this mode, as this will leave heap
-// objects marked (and thus, unusable).
+// objects that still remain in the heap).
 //
 // See ReadOnlyHeapObjectIterator if you need to iterate over read-only space
 // objects, or CombinedHeapObjectIterator if you need to iterate over both
@@ -2607,18 +2604,17 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   Tagged<HeapObject> NextObject();
 
   Heap* heap_;
+  DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
+
   // The safepoint scope pointer is null if a scope already existed when the
   // iterator was created (i.e. when using the constructor that passes a
   // safepoint_scope reference).
   std::unique_ptr<SafepointScope> safepoint_scope_;  // nullable
-  HeapObjectsFiltering filtering_;
-  HeapObjectsFilter* filter_ = nullptr;
+  std::unique_ptr<HeapObjectsFilter> filter_;
   // Space iterator for iterating all the spaces.
-  SpaceIterator* space_iterator_ = nullptr;
+  SpaceIterator space_iterator_;
   // Object iterator for the space currently being iterated.
-  std::unique_ptr<ObjectIterator> object_iterator_ = nullptr;
-
-  DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
+  std::unique_ptr<ObjectIterator> object_iterator_;
 };
 
 // Abstract base class for checking whether a weak object should be retained.

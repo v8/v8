@@ -224,21 +224,15 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
 }
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
-  HeapObject object;
   CombinedHeapObjectIterator iterator(heap(),
                                       HeapObjectIterator::kFilterUnreachable);
-  // Make sure that object with the given id is still reachable.
+  // Make sure that the object with the given id is still reachable.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (ids_->FindEntry(obj.address()) == id) {
-      DCHECK(object.is_null());
-      object = obj;
-      // Can't break -- kFilterUnreachable requires full heap traversal.
-    }
+    if (ids_->FindEntry(obj.address()) == id)
+      return Handle<HeapObject>(obj, isolate());
   }
-
-  return !object.is_null() ? Handle<HeapObject>(object, isolate())
-                           : Handle<HeapObject>();
+  return Handle<HeapObject>();
 }
 
 

@@ -2209,7 +2209,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   CombinedHeapObjectIterator iterator(heap_);
   PtrComprCageBase cage_base(heap_->isolate());
-  // Heap iteration with filtering must be finished in any case.
+  // Heap iteration need not be finished but progress reporting may depend on
+  // it being finished.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next(), progress_->ProgressStep()) {
     if (interrupted) continue;
