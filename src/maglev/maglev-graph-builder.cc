@@ -3725,14 +3725,20 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     // the (potential) backing store growth would normalize and thus
     // the elements kind of the {receiver} would change to slow mode.
     //
-    // For PACKED_*_ELEMENTS the {index} must be within the range
+    // For JSArray PACKED_*_ELEMENTS the {index} must be within the range
     // [0,length+1[ to be valid. In case {index} equals {length},
     // the {receiver} will be extended, but kept packed.
+    //
+    // Non-JSArray PACKED_*_ELEMENTS always grow by adding holes because they
+    // lack the magical length property, which requires a map transition.
+    // So we can assume that this did not happen if we did not see this map.
     ValueNode* limit =
         IsHoleyElementsKind(elements_kind)
             ? AddNewNode<Int32AddWithOverflow>(
                   {elements_array_length, GetInt32Constant(JSObject::kMaxGap)})
-            : AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)});
+            : is_jsarray
+                ? AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)})
+                : elements_array_length;
     AddNewNode<CheckBounds>({index, limit});
 
     // Grow backing store if necessary and handle COW.

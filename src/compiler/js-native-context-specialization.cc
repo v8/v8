@@ -3446,15 +3446,21 @@ JSNativeContextSpecialization::BuildElementAccess(
       // the (potential) backing store growth would normalize and thus
       // the elements kind of the {receiver} would change to slow mode.
       //
-      // For PACKED_*_ELEMENTS the {index} must be within the range
+      // For JSArray PACKED_*_ELEMENTS the {index} must be within the range
       // [0,length+1[ to be valid. In case {index} equals {length},
       // the {receiver} will be extended, but kept packed.
+      //
+      // Non-JSArray PACKED_*_ELEMENTS always grow by adding holes because they
+      // lack the magical length property, which requires a map transition.
+      // So we can assume that this did not happen if we did not see this map.
       Node* limit =
           IsHoleyElementsKind(elements_kind)
               ? graph()->NewNode(simplified()->NumberAdd(), elements_length,
                                  jsgraph()->Constant(JSObject::kMaxGap))
-              : graph()->NewNode(simplified()->NumberAdd(), length,
-                                 jsgraph()->OneConstant());
+          : receiver_is_jsarray
+              ? graph()->NewNode(simplified()->NumberAdd(), length,
+                                 jsgraph()->OneConstant())
+              : elements_length;
       index = effect = graph()->NewNode(
           simplified()->CheckBounds(
               FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
