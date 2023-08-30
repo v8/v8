@@ -99,77 +99,6 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  // TODO(mliedtke): Move to private section.
-  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, V<Tagged> rtt,
-                                 WasmTypeCheckConfig config) {
-    int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-    bool object_can_be_null = config.from.is_nullable();
-    bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
-    bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
-
-    Label<Word32> end_label(&Asm());
-
-    // If we are casting from any and null results in check failure, then the
-    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-    // an explicit null check now.
-    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
-      const int kResult = config.to.is_nullable() ? 1 : 0;
-      GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
-              __ Word32Constant(kResult));
-    }
-
-    if (object_can_be_i31) {
-      GOTO_IF(__ IsSmi(object), end_label, __ Word32Constant(0));
-    }
-
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
-    V<Map> map = __ LoadMapField(object);
-
-    if (module_->types[config.to.ref_index()].is_final) {
-      GOTO(end_label, __ TaggedEqual(map, rtt));
-    } else {
-      // First, check if types happen to be equal. This has been shown to give
-      // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label,
-              __ Word32Constant(1));
-
-      // Check if map instance type identifies a wasm object.
-      if (is_cast_from_any) {
-        V<Word32> is_wasm_obj = IsDataRefMap(map);
-        GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
-      }
-
-      V<Tagged> type_info = LoadWasmTypeInfo(map);
-      DCHECK_GE(rtt_depth, 0);
-      // If the depth of the rtt is known to be less that the minimum supertype
-      // array length, we can access the supertype without bounds-checking the
-      // supertype array.
-      if (static_cast<uint32_t>(rtt_depth) >=
-          wasm::kMinimumSupertypeArraySize) {
-        // TODO(mliedtke): Why do we convert to word size and not just do a 32
-        // bit operation? (The same applies for WasmTypeCast below.)
-        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
-            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                    MemoryRepresentation::TaggedSigned(),
-                    WasmTypeInfo::kSupertypesLengthOffset));
-        GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(__ IntPtrConstant(rtt_depth),
-                                              supertypes_length)),
-                    end_label, __ Word32Constant(0));
-      }
-
-      V<Tagged> maybe_match =
-          __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::TaggedPointer(),
-                  WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
-
-      GOTO(end_label, __ TaggedEqual(maybe_match, rtt));
-    }
-
-    BIND(end_label, result);
-    return result;
-  }
-
   OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, V<Tagged> rtt,
                                WasmTypeCheckConfig config) {
     if (rtt != OpIndex::Invalid()) {
@@ -177,81 +106,6 @@ class WasmLoweringReducer : public Next {
     } else {
       return ReduceWasmTypeCastAbstract(object, config);
     }
-  }
-
-  // TODO(mliedtke): Move to private section.
-  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, V<Tagged> rtt,
-                                WasmTypeCheckConfig config) {
-    int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-    bool object_can_be_null = config.from.is_nullable();
-    bool object_can_be_i31 =
-        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
-
-    Label<> end_label(&Asm());
-    bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
-
-    // If we are casting from any and null results in check failure, then the
-    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
-    // an explicit null check now.
-    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
-      V<Word32> is_null = __ IsNull(object, wasm::kWasmAnyRef);
-      if (config.to.is_nullable()) {
-        GOTO_IF(UNLIKELY(is_null), end_label);
-      } else if (!v8_flags.experimental_wasm_skip_null_checks) {
-        __ TrapIf(is_null, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
-      }
-    }
-
-    if (object_can_be_i31) {
-      __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
-    }
-
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
-    V<Map> map = __ LoadMapField(object);
-
-    if (module_->types[config.to.ref_index()].is_final) {
-      __ TrapIfNot(__ TaggedEqual(map, rtt), OpIndex::Invalid(),
-                   TrapId::kTrapIllegalCast);
-      GOTO(end_label);
-    } else {
-      // First, check if types happen to be equal. This has been shown to give
-      // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label);
-
-      // Check if map instance type identifies a wasm object.
-      if (is_cast_from_any) {
-        V<Word32> is_wasm_obj = IsDataRefMap(map);
-        __ TrapIfNot(is_wasm_obj, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
-      }
-
-      V<Tagged> type_info = LoadWasmTypeInfo(map);
-      DCHECK_GE(rtt_depth, 0);
-      // If the depth of the rtt is known to be less that the minimum supertype
-      // array length, we can access the supertype without bounds-checking the
-      // supertype array.
-      if (static_cast<uint32_t>(rtt_depth) >=
-          wasm::kMinimumSupertypeArraySize) {
-        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
-            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                    MemoryRepresentation::TaggedSigned(),
-                    WasmTypeInfo::kSupertypesLengthOffset));
-        __ TrapIfNot(
-            __ UintPtrLessThan(__ IntPtrConstant(rtt_depth), supertypes_length),
-            OpIndex::Invalid(), TrapId::kTrapIllegalCast);
-      }
-
-      V<Tagged> maybe_match =
-          __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::TaggedPointer(),
-                  WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
-
-      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt), OpIndex::Invalid(),
-                   TrapId::kTrapIllegalCast);
-      GOTO(end_label);
-    }
-
-    BIND(end_label);
-    return object;
   }
 
  private:
@@ -413,6 +267,150 @@ class WasmLoweringReducer : public Next {
     GOTO(end_label);
     BIND(end_label);
     return object;
+  }
+
+  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, V<Tagged> rtt,
+                                WasmTypeCheckConfig config) {
+    int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+    bool object_can_be_null = config.from.is_nullable();
+    bool object_can_be_i31 =
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+
+    Label<> end_label(&Asm());
+    bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
+
+    // If we are casting from any and null results in check failure, then the
+    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
+    // an explicit null check now.
+    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+      V<Word32> is_null = __ IsNull(object, wasm::kWasmAnyRef);
+      if (config.to.is_nullable()) {
+        GOTO_IF(UNLIKELY(is_null), end_label);
+      } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+        __ TrapIf(is_null, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+      }
+    }
+
+    if (object_can_be_i31) {
+      __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+    }
+
+    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
+    V<Map> map = __ LoadMapField(object);
+
+    if (module_->types[config.to.ref_index()].is_final) {
+      __ TrapIfNot(__ TaggedEqual(map, rtt), OpIndex::Invalid(),
+                   TrapId::kTrapIllegalCast);
+      GOTO(end_label);
+    } else {
+      // First, check if types happen to be equal. This has been shown to give
+      // large speedups.
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label);
+
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        __ TrapIfNot(is_wasm_obj, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+      }
+
+      V<Tagged> type_info = LoadWasmTypeInfo(map);
+      DCHECK_GE(rtt_depth, 0);
+      // If the depth of the rtt is known to be less that the minimum supertype
+      // array length, we can access the supertype without bounds-checking the
+      // supertype array.
+      if (static_cast<uint32_t>(rtt_depth) >=
+          wasm::kMinimumSupertypeArraySize) {
+        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
+            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                    MemoryRepresentation::TaggedSigned(),
+                    WasmTypeInfo::kSupertypesLengthOffset));
+        __ TrapIfNot(
+            __ UintPtrLessThan(__ IntPtrConstant(rtt_depth), supertypes_length),
+            OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+      }
+
+      V<Tagged> maybe_match =
+          __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
+
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt), OpIndex::Invalid(),
+                   TrapId::kTrapIllegalCast);
+      GOTO(end_label);
+    }
+
+    BIND(end_label);
+    return object;
+  }
+
+  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, V<Tagged> rtt,
+                                 WasmTypeCheckConfig config) {
+    int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+    bool object_can_be_null = config.from.is_nullable();
+    bool object_can_be_i31 =
+        wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+    bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
+
+    Label<Word32> end_label(&Asm());
+
+    // If we are casting from any and null results in check failure, then the
+    // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
+    // an explicit null check now.
+    if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+      const int kResult = config.to.is_nullable() ? 1 : 0;
+      GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
+              __ Word32Constant(kResult));
+    }
+
+    if (object_can_be_i31) {
+      GOTO_IF(__ IsSmi(object), end_label, __ Word32Constant(0));
+    }
+
+    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
+    V<Map> map = __ LoadMapField(object);
+
+    if (module_->types[config.to.ref_index()].is_final) {
+      GOTO(end_label, __ TaggedEqual(map, rtt));
+    } else {
+      // First, check if types happen to be equal. This has been shown to give
+      // large speedups.
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label,
+              __ Word32Constant(1));
+
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
+      }
+
+      V<Tagged> type_info = LoadWasmTypeInfo(map);
+      DCHECK_GE(rtt_depth, 0);
+      // If the depth of the rtt is known to be less that the minimum supertype
+      // array length, we can access the supertype without bounds-checking the
+      // supertype array.
+      if (static_cast<uint32_t>(rtt_depth) >=
+          wasm::kMinimumSupertypeArraySize) {
+        // TODO(mliedtke): Why do we convert to word size and not just do a 32
+        // bit operation? (The same applies for WasmTypeCast below.)
+        V<WordPtr> supertypes_length = ChangeSmiToWordPtr(
+            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                    MemoryRepresentation::TaggedSigned(),
+                    WasmTypeInfo::kSupertypesLengthOffset));
+        GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(__ IntPtrConstant(rtt_depth),
+                                              supertypes_length)),
+                    end_label, __ Word32Constant(0));
+      }
+
+      V<Tagged> maybe_match =
+          __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
+
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt));
+    }
+
+    BIND(end_label, result);
+    return result;
   }
 
   V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
