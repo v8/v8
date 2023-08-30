@@ -3181,40 +3181,50 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   __ ret(0);
 }
 
-void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
-  // TODO(v8:10701): Implement for this platform.
-  __ Trap();
+void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
+  Register zero = eax;
+  __ Move(zero, Smi::zero());
+  __ mov(MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset), zero);
+  __ mov(MemOperand(ebp, StackSwitchFrameConstants::kResultArrayOffset), zero);
 }
 
-void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
+void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::JS_TO_WASM);
+
+  constexpr int kNumSpillSlots = StackSwitchFrameConstants::kNumSpillSlots;
+  __ sub(esp, Immediate(kNumSpillSlots * kSystemPointerSize));
+  ResetStackSwitchFrameStackSlots(masm);
+
   Register wrapper_buffer =
-      WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister();
+      WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
   // Push the wrapper_buffer stack, it's needed later for the results.
-  __ push(wrapper_buffer);
+  __ mov(MemOperand(ebp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset),
+         wrapper_buffer);
   Register result_size = eax;
-  __ mov(result_size,
-         MemOperand(
-             wrapper_buffer,
-             JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferSize));
+  __ mov(
+      result_size,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize));
   __ shl(result_size, kSystemPointerSizeLog2);
   __ sub(esp, result_size);
-  __ mov(MemOperand(
-             wrapper_buffer,
-             JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferStart),
-         esp);
+  __ mov(
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart),
+      esp);
   Register params_start = eax;
   __ mov(params_start,
          MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferParamStart));
+                    JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
   Register params_end = esi;
   __ mov(params_end,
          MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferParamEnd));
+                    JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
   Register call_target = edi;
   __ mov(call_target,
          MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferCallTarget));
+                    JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
 
   Register last_stack_param = ecx;
 
@@ -3267,7 +3277,7 @@ void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
   DCHECK_EQ(params_start, wasm::kGpParamRegisters[1]);
 
   __ mov(kWasmInstanceRegister,
-         MemOperand(ebp, JSToWasmWrapperConstants::kInstanceOffset));
+         MemOperand(ebp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
 
   __ call(call_target);
 
@@ -3278,29 +3288,34 @@ void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
   thread_in_wasm_flag_addr = no_reg;
 
   wrapper_buffer = esi;
-  __ mov(wrapper_buffer, MemOperand(ebp, -2 * kSystemPointerSize));
+  __ mov(wrapper_buffer,
+         MemOperand(ebp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
 
-  __ Movsd(
-      MemOperand(wrapper_buffer,
-                 JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister1),
-      wasm::kFpReturnRegisters[0]);
-  __ Movsd(
-      MemOperand(wrapper_buffer,
-                 JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister2),
-      wasm::kFpReturnRegisters[1]);
-  __ mov(MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister1),
+  __ Movsd(MemOperand(
+               wrapper_buffer,
+               JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1),
+           wasm::kFpReturnRegisters[0]);
+  __ Movsd(MemOperand(
+               wrapper_buffer,
+               JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2),
+           wasm::kFpReturnRegisters[1]);
+  __ mov(MemOperand(
+             wrapper_buffer,
+             JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1),
          wasm::kGpReturnRegisters[0]);
-  __ mov(MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister2),
+  __ mov(MemOperand(
+             wrapper_buffer,
+             JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2),
          wasm::kGpReturnRegisters[1]);
 
   // Call the return value builtin with
   // eax: wasm instance.
   // ecx: the result JSArray for multi-return.
   // edx: pointer to the wrapper buffer which contains all parameters.
-  __ mov(eax, MemOperand(ebp, JSToWasmWrapperConstants::kInstanceOffset));
-  __ mov(ecx, MemOperand(ebp, JSToWasmWrapperConstants::kResultArrayOffset));
+  __ mov(eax,
+         MemOperand(ebp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+  __ mov(ecx, MemOperand(
+                  ebp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
   __ mov(edx, wrapper_buffer);
   __ Call(BUILTIN_CODE(masm->isolate(), JSToWasmHandleReturns),
           RelocInfo::CODE_TARGET);
@@ -3309,7 +3324,7 @@ void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
   __ ret(0);
 }
 
-void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   // TODO(v8:12191): Implement for this platform.
   __ Trap();
 }

@@ -692,7 +692,7 @@ constexpr Register RunMicrotasksDescriptor::MicrotaskQueueRegister() {
 
 // static
 constexpr inline Register
-WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister() {
+WasmJSToWasmWrapperDescriptor::WrapperBufferRegister() {
   return std::get<kWrapperBuffer>(registers());
 }
 

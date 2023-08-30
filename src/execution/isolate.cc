@@ -1994,7 +1994,7 @@ Object Isolate::UnwindAndFindHandler() {
 #if V8_ENABLE_WEBASSEMBLY
     if (v8_flags.experimental_wasm_stack_switching &&
         iter.frame()->type() == StackFrame::STACK_SWITCH) {
-      Code code = builtins()->code(Builtin::kWasmReturnPromiseOnSuspend);
+      Code code = builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
       HandlerTable table(code);
       Address instruction_start =
           code->InstructionStart(this, iter.frame()->pc());

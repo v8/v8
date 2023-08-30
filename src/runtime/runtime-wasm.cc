@@ -1142,7 +1142,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
 
-  isolate->SyncStackLimit();
+  // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
   wasm::JumpBuffer* jmpbuf = reinterpret_cast<wasm::JumpBuffer*>(
       parent->ReadExternalPointerField<kWasmContinuationJmpbufTag>(
           WasmContinuationObject::kJmpbufOffset, isolate));

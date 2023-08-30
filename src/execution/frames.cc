@@ -790,7 +790,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       return StackFrame::TURBOFAN;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
-      if (lookup_result->builtin_id() == Builtin::kGenericJSToWasmWrapper) {
+      if (lookup_result->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
         return StackFrame::JS_TO_WASM;
       }
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
@@ -3073,41 +3073,9 @@ WasmInstanceObject WasmToJsFrame::wasm_instance() const {
 }
 
 void JsToWasmFrame::Iterate(RootVisitor* v) const {
-  auto builtin = GetContainingCode(isolate(), pc())->builtin_id();
-  if (builtin == Builtin::kNewGenericJSToWasmWrapper) {
-    // This builtin does not have to scan anything.
-    return;
-  }
-
-  DCHECK_EQ(builtin, Builtin::kGenericJSToWasmWrapper);
-
-  //  GenericJSToWasmWrapper stack layout
-  //  ------+-----------------+----------------------
-  //        |  return addr    |
-  //    fp  |- - - - - - - - -|  -------------------|
-  //        |       fp        |                     |
-  //   fp-p |- - - - - - - - -|                     |
-  //        |  frame marker   |                     | no GC scan
-  //  fp-2p |- - - - - - - - -|                     |
-  //        |   scan_count    |                     |
-  //  fp-3p |- - - - - - - - -|  -------------------|
-  //        |      ....       | <- spill_slot_limit |
-  //        |   spill slots   |                     | GC scan scan_count slots
-  //        |      ....       | <- spill_slot_base--|
-  //        |- - - - - - - - -|                     |
-  // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a value
-  // indicating how many values should be scanned from the top.
-  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
-      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-
-  FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
-  FullObjectSlot spill_slot_limit(
-      &Memory<Address>(sp() + scan_count * kSystemPointerSize));
-  v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
-                       spill_slot_limit);
-  FullObjectSlot function_data(&Memory<Address>(
-      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
-  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
+  // WrapperBuffer slot is RawPtr pointing to a stack.
+  // Wasm instance and JS result array are passed as stack params.
+  // So there is no need to visit them.
 }
 
 void StackSwitchFrame::Iterate(RootVisitor* v) const {
@@ -3117,7 +3085,7 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
   // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
   // value indicating how many values should be scanned from the top.
   intptr_t scan_count = *reinterpret_cast<intptr_t*>(
-      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+      fp() + StackSwitchFrameConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
@@ -3125,12 +3093,12 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
   // Also visit fixed spill slots that contain references.
-  FullObjectSlot suspender_slot(
-      &Memory<Address>(fp() + BuiltinWasmWrapperConstants::kSuspenderOffset));
-  v->VisitRootPointer(Root::kStackRoots, nullptr, suspender_slot);
-  FullObjectSlot function_data(&Memory<Address>(
-      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
-  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
+  FullObjectSlot instance_slot(
+      &Memory<Address>(fp() + StackSwitchFrameConstants::kInstanceOffset));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
+  FullObjectSlot result_array_slot(
+      &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
 }
 
 // static

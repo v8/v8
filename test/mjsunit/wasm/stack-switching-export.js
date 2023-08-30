@@ -523,7 +523,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertThrowsAsync(main(17), TypeError);
+  assertThrows(() => main(17), TypeError);
 })();
 
 (function testGenericWrapper1I64Return() {

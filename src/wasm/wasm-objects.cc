@@ -2097,7 +2097,6 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   JSFunction js_function = JSFunction::cast(object);
   Code code = js_function->code();
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
-      code->builtin_id() != Builtin::kGenericJSToWasmWrapper &&
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
       code->builtin_id() != Builtin::kWasmReturnPromiseOnSuspend) {
     return false;
@@ -2159,8 +2158,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   DCHECK(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
-       (export_wrapper->builtin_id() == Builtin::kGenericJSToWasmWrapper ||
-        export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
         export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
   Factory* factory = isolate->factory();
   const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
