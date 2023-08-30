@@ -27,9 +27,6 @@ namespace internal {
 //     Apple Silicon where we can't have RW- pages in the RWX space.
 // - CodePageMemoryModificationScope:
 //     Allows access to the allocation area of the CodeSpace pages.
-// - CodePageMemoryModificationScopeForPerf:
-//     A scope to mark places where we switch permissions more broadly for
-//     performance reasons.
 // - CodePageMemoryModificationScopeForDebugging:
 //     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
@@ -449,14 +446,6 @@ class V8_NODISCARD NopRwxMemoryWriteScope final {
     // Define a constructor to avoid unused variable warnings.
   }
 };
-
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-using CodePageMemoryModificationScopeForPerf = RwxMemoryWriteScope;
-#else
-// Without per-thread write permissions, we only use permission switching for
-// debugging and the perf impact of this doesn't matter.
-using CodePageMemoryModificationScopeForPerf = NopRwxMemoryWriteScope;
-#endif
 
 // Same as the RwxMemoryWriteScope but without inlining the code.
 // This is a workaround for component build issue (crbug/1316800), when

@@ -121,9 +121,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   Handle<ByteArray> reloc_info =
       NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
-  CodePageMemoryModificationScopeForPerf memory_write_scope(
-      "Temporary performance optimization to prevent frequent permission "
-      "switching.");
+  CodePageHeaderModificationScope memory_write_scope(
+      "Write barriers need to access the IStreams' page headers.");
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
