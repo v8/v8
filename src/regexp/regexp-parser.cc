@@ -2554,7 +2554,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassSetOperand(
       zone()->template New<ZoneList<CharacterRange>>(1, zone());
   CharacterClassStrings* strings =
       zone()->template New<CharacterClassStrings>(zone());
-  base::uc32 character = '\0';
+  base::uc32 character;
   RegExpTree* tree = ParseClassSetOperand(builder, type_out, ranges, strings,
                                           &character CHECK_FAILED);
   DCHECK_IMPLIES(*type_out != ClassSetOperandType::kNestedClass,
@@ -2563,8 +2563,6 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassSetOperand(
                  ranges->is_empty());
   DCHECK_IMPLIES(*type_out == ClassSetOperandType::kClassSetCharacter,
                  strings->empty());
-  DCHECK_IMPLIES(*type_out == ClassSetOperandType::kClassSetCharacter,
-                 character != '\0');
   DCHECK_IMPLIES(*type_out == ClassSetOperandType::kNestedClass,
                  ranges->is_empty());
   DCHECK_IMPLIES(*type_out == ClassSetOperandType::kNestedClass,
@@ -2922,7 +2920,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
     ClassSetOperandType operand_type;
     CharacterClassStrings* strings =
         zone()->template New<CharacterClassStrings>(zone());
-    base::uc32 character = '\0';
+    base::uc32 character;
     RegExpTree* operand = ParseClassSetOperand(
         builder, &operand_type, ranges, strings, &character CHECK_FAILED);
     switch (current()) {
