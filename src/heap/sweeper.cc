@@ -308,6 +308,12 @@ void Sweeper::SweepingState<scope>::StartConcurrentSweeping() {
 }
 
 template <Sweeper::SweepingScope scope>
+void Sweeper::SweepingState<scope>::JoinSweeping() {
+  DCHECK(in_progress_);
+  if (HasValidJob()) job_handle_->Join();
+}
+
+template <Sweeper::SweepingScope scope>
 void Sweeper::SweepingState<scope>::FinishSweeping() {
   DCHECK(in_progress_);
 
@@ -696,6 +702,27 @@ Sweeper::SweptList Sweeper::GetAllSweptPagesSafe(PagedSpaceBase* space) {
   return list;
 }
 
+void Sweeper::FinishMajorJobs() {
+  if (!major_sweeping_in_progress()) return;
+
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    if (space == NEW_SPACE) return;
+    main_thread_local_sweeper_.ParallelSweepSpace(
+        space, SweepingMode::kLazyOrConcurrent, 0);
+  });
+
+  // Join all concurrent tasks.
+  major_sweeping_state_.JoinSweeping();
+  // All jobs are done but we still remain in sweeping state here.
+  DCHECK(major_sweeping_in_progress());
+
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    if (space == NEW_SPACE) return;
+    CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
+    DCHECK(IsSweepingDoneForSpace(space));
+  });
+}
+
 void Sweeper::EnsureMajorCompleted() {
   AssertMainThreadOrSharedMainThread(heap_);
 
@@ -717,23 +744,12 @@ void Sweeper::EnsureMajorCompleted() {
         ThreadKind::kMain,
         GetTraceIdForFlowEvent(GCTracer::Scope::MC_COMPLETE_SWEEPING),
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-    ForAllSweepingSpaces([this](AllocationSpace space) {
-      if (space == NEW_SPACE) return;
-      main_thread_local_sweeper_.ParallelSweepSpace(
-          space, SweepingMode::kLazyOrConcurrent, 0);
-    });
-
+    FinishMajorJobs();
     major_sweeping_state_.FinishSweeping();
-
-    ForAllSweepingSpaces([this](AllocationSpace space) {
-      if (space == NEW_SPACE) return;
-      CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
-      DCHECK(IsSweepingDoneForSpace(space));
-    });
   }
 }
 
-void Sweeper::EnsureMinorCompleted() {
+void Sweeper::FinishMinorJobs() {
   if (!minor_sweeping_in_progress()) return;
 
   main_thread_local_sweeper_.ParallelSweepSpace(
@@ -742,16 +758,27 @@ void Sweeper::EnsureMinorCompleted() {
   // Wait until it has finished iterating.
   main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
 
-  minor_sweeping_state_.FinishSweeping();
+  // Join all concurrent tasks.
+  minor_sweeping_state_.JoinSweeping();
+  // All jobs are done but we still remain in sweeping state here.
+  DCHECK(minor_sweeping_in_progress());
 
   CHECK(sweeping_list_[GetSweepSpaceIndex(NEW_SPACE)].empty());
   DCHECK(IsSweepingDoneForSpace(NEW_SPACE));
 
   DCHECK_EQ(promoted_pages_for_iteration_count_,
             iterated_promoted_pages_count_);
+  CHECK(sweeping_list_for_promoted_page_iteration_.empty());
+}
+
+void Sweeper::EnsureMinorCompleted() {
+  if (!minor_sweeping_in_progress()) return;
+
+  FinishMinorJobs();
+  minor_sweeping_state_.FinishSweeping();
+
   promoted_pages_for_iteration_count_ = 0;
   iterated_promoted_pages_count_ = 0;
-  CHECK(sweeping_list_for_promoted_page_iteration_.empty());
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {

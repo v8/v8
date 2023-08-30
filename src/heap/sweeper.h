@@ -126,8 +126,19 @@ class Sweeper {
   void InitializeMinorSweeping();
   V8_EXPORT_PRIVATE void StartMajorSweeperTasks();
   V8_EXPORT_PRIVATE void StartMinorSweeperTasks();
+
+  // Finishes all major sweeping tasks/work without changing the sweeping state.
+  void FinishMajorJobs();
+  // Finishes all major sweeping tasks/work and resets sweeping state to NOT in
+  // progress.
   void EnsureMajorCompleted();
+
+  // Finishes all minor sweeping tasks/work without changing the sweeping state.
+  void FinishMinorJobs();
+  // Finishes all minor sweeping tasks/work and resets sweeping state to NOT in
+  // progress.
   void EnsureMinorCompleted();
+
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
   bool AreMinorSweeperTasksRunning();
@@ -259,6 +270,7 @@ class Sweeper {
     void StartConcurrentSweeping();
     void StopConcurrentSweeping();
     void FinishSweeping();
+    void JoinSweeping();
 
     bool HasValidJob() const;
     bool HasActiveJob() const;
