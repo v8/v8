@@ -37,6 +37,11 @@ namespace compiler {
     UNIMPLEMENTED();                                      \
   }
 
+namespace {
+const turboshaft::EffectDimensions::Bits kTurboshaftEffectLevelMask =
+    turboshaft::OpEffects().CanReadMemory().produces.bits();
+}
+
 Smi NumberConstantToSmi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
   const double d = OpParameter<double>(node->op());
@@ -329,18 +334,30 @@ bool InstructionSelectorT<Adapter>::CanCover(node_t user, node_t node) const {
   if (this->block(schedule(), node) != current_block_) {
     return false;
   }
-  // 2. Pure {node}s must be owned by the {user}.
-  if constexpr (Adapter::IsTurbofan) {
-    // For Turboshaft, this should be subsumed by check 4.
+
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Operation& op = this->Get(node);
+    // 2. If node does not produce anything, it can be covered.
+    if (op.Effects().consumes.bits() == 0) {
+      this->is_exclusive_user_of(user, node);
+    }
+    // If it does produce something outside the {kTurboshaftEffectLevelMask}, it
+    // can never be covered.
+    if ((op.Effects().consumes.bits() & ~kTurboshaftEffectLevelMask) != 0) {
+      return false;
+    }
+  } else {
+    // 2. Pure {node}s must be owned by the {user}.
     if (node->op()->HasProperty(Operator::kPure)) {
       return node->OwnedBy(user);
     }
   }
-  // 3. Impure {node}s must match the effect level of {user}.
+
+  // 3. Otherwise, the {node}'s effect level must match the {user}'s.
   if (GetEffectLevel(node) != current_effect_level_) {
-    // TODO(nicohartmann@): We should revisit CanCover for Turboshaft.
     return false;
   }
+
   // 4. Only {node} must have value edges pointing to {user}.
   return this->is_exclusive_user_of(user, node);
 }
@@ -1555,7 +1572,8 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
 }
 
 namespace {
-bool increment_effect_level_for_opcode(IrOpcode::Value opcode) {
+bool increment_effect_level_for_node(TurbofanAdapter* adapter, Node* node) {
+  const IrOpcode::Value opcode = node->opcode();
   return opcode == IrOpcode::kStore || opcode == IrOpcode::kUnalignedStore ||
          opcode == IrOpcode::kCall || opcode == IrOpcode::kProtectedStore ||
          opcode == IrOpcode::kStoreTrapOnNull ||
@@ -1565,9 +1583,12 @@ bool increment_effect_level_for_opcode(IrOpcode::Value opcode) {
                  opcode == IrOpcode::kMemoryBarrier;
 }
 
-bool increment_effect_level_for_opcode(turboshaft::Opcode opcode) {
-  // TODO(nicohartmann@): Implement this.
-  return true;
+bool increment_effect_level_for_node(TurboshaftAdapter* adapter,
+                                     turboshaft::OpIndex node) {
+  // We need to increment the effect level if the operation consumes any of the
+  // dimensions of the {kTurboshaftEffectLevelMask}.
+  const turboshaft::Operation& op = adapter->Get(node);
+  return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask) != 0;
 }
 }  // namespace
 
@@ -1585,7 +1606,7 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
   for (node_t node : this->nodes(block)) {
     SetEffectLevel(node, effect_level);
     current_effect_level_ = effect_level;
-    if (increment_effect_level_for_opcode(this->opcode(node))) {
+    if (increment_effect_level_for_node(this, node)) {
       ++effect_level;
     }
   }

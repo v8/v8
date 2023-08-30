@@ -3228,6 +3228,28 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
   return true;
 }
 
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    turboshaft::OpIndex node, size_t projection_index) {
+  // TODO(nicohartmann@): We need to make sure to emit canoncial projections
+  // right after all operations with multiple outputs for this to work
+  // correctly.
+  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
+    if (const turboshaft::ProjectionOp* projection =
+            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
+      DCHECK_EQ(projection->input(), node);
+      if (projection->index == projection_index) return use;
+    }
+  }
+  return turboshaft::OpIndex::Invalid();
+}
+
 namespace {
 
 template <typename Adapter>
@@ -3920,15 +3942,14 @@ void VisitAtomicCompareExchange(InstructionSelectorT<TurbofanAdapter>* selector,
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
-  for (const turboshaft::EqualOp* equal =
-           this->turboshaft_graph()->Get(value).TryCast<turboshaft::EqualOp>();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  for (const EqualOp* equal =
+           this->turboshaft_graph()->Get(value).TryCast<EqualOp>();
        equal != nullptr && CanCover(user, value);) {
-    const turboshaft::ConstantOp* right_constant =
-        this->turboshaft_graph()
-            ->Get(equal->right())
-            .TryCast<turboshaft::ConstantOp>();
+    const ConstantOp* right_constant =
+        this->turboshaft_graph()->Get(equal->right()).TryCast<ConstantOp>();
     if (right_constant == nullptr) break;
-    if (right_constant->kind != turboshaft::ConstantOp::Kind::kWord32) break;
+    if (right_constant->kind != ConstantOp::Kind::kWord32) break;
     if (right_constant->word32() != 0) break;
 
     user = value;
@@ -3937,7 +3958,153 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
   }
 
   if (CanCover(user, value)) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
+    const Operation& value_op = this->Get(value);
+    if (const EqualOp* equal = value_op.TryCast<EqualOp>()) {
+      switch (equal->rep.value()) {
+        case RegisterRepresentation::Word32():
+          cont->OverwriteAndNegateIfEqual(kEqual);
+          return VisitWord32EqualImpl(this, value, cont);
+        case RegisterRepresentation::Word64(): {
+          cont->OverwriteAndNegateIfEqual(kEqual);
+          if (this->MatchIntegralZero(equal->right())) {
+            // Try to combine the branch with a comparison.
+            if (CanCover(value, equal->left())) {
+              const Operation& left_op = this->Get(equal->left());
+              if (left_op.Is<Opmask::kWord64Sub>()) {
+                return VisitWordCompare(this, equal->left(), kX64Cmp, cont);
+              } else if (left_op.Is<Opmask::kWord64BitwiseAnd>()) {
+                return VisitWordCompare(this, equal->left(), kX64Test, cont);
+              }
+            }
+            return VisitCompareZero(this, value, equal->left(), kX64Cmp, cont);
+          }
+          return VisitWord64EqualImpl(this, value, cont);
+        }
+        case RegisterRepresentation::Float32():
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat32Compare(this, value, cont);
+
+        case RegisterRepresentation::Float64():
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat64Compare(this, value, cont);
+        default:
+          break;
+      }
+    } else if (const ComparisonOp* comparison =
+                   value_op.TryCast<ComparisonOp>()) {
+      switch (comparison->rep.value()) {
+        case RegisterRepresentation::Word32(): {
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+              return VisitWordCompare(this, value, kX64Cmp32, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+              return VisitWordCompare(this, value, kX64Cmp32, cont);
+            case ComparisonOp::Kind::kUnsignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+              return VisitWordCompare(this, value, kX64Cmp32, cont);
+            case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+              return VisitWordCompare(this, value, kX64Cmp32, cont);
+          }
+        }
+        case RegisterRepresentation::Word64(): {
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+              return VisitWordCompare(this, value, kX64Cmp, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+              return VisitWordCompare(this, value, kX64Cmp, cont);
+            case ComparisonOp::Kind::kUnsignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+              return VisitWordCompare(this, value, kX64Cmp, cont);
+            case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+              return VisitWordCompare(this, value, kX64Cmp, cont);
+          }
+        }
+        case RegisterRepresentation::Float32():
+          if (comparison->kind == ComparisonOp::Kind::kSignedLessThan) {
+            cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+            return VisitFloat32Compare(this, value, cont);
+          } else {
+            DCHECK_EQ(comparison->kind,
+                      ComparisonOp::Kind::kSignedLessThanOrEqual);
+            cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+            return VisitFloat32Compare(this, value, cont);
+          }
+        case RegisterRepresentation::Float64():
+          if (comparison->kind == ComparisonOp::Kind::kSignedLessThan) {
+            if (MatchZero(comparison->left())) {
+              const Operation& right = this->Get(comparison->right());
+              if (right.Is<Opmask::kFloat64Abs>()) {
+                // This matches the pattern
+                //
+                //   Float64LessThan(#0.0, Float64Abs(x))
+                //
+                // which TurboFan generates for NumberToBoolean in the general
+                // case, and which evaluates to false if x is 0, -0 or NaN. We
+                // can compile this to a simple (v)ucomisd using not_equal flags
+                // condition, which avoids the costly Float64Abs.
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                InstructionCode const opcode =
+                    IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+                return VisitCompare(this, opcode, comparison->left(),
+                                    right.Cast<FloatUnaryOp>().input(), cont,
+                                    false);
+              }
+            }
+            cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+            return VisitFloat64Compare(this, value, cont);
+          } else {
+            DCHECK_EQ(comparison->kind,
+                      ComparisonOp::Kind::kSignedLessThanOrEqual);
+            cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+            return VisitFloat64Compare(this, value, cont);
+          }
+        default:
+          break;
+      }
+    } else if (value_op.Is<Opmask::kWord32Sub>()) {
+      return VisitWordCompare(this, value, kX64Cmp32, cont);
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
+      return VisitWordCompare(this, value, kX64Test32, cont);
+    } else if (const ProjectionOp* projection =
+                   value_op.TryCast<ProjectionOp>()) {
+      // Check if this is the overflow output projection of an
+      // OverflowCheckedBinop operation.
+      if (projection->index == 1u) {
+        // We cannot combine the OverflowCheckedBinop operation with this branch
+        // unless the 0th projection (the use of the actual value of the
+        // operation is either {OpIndex::Invalid()}, which means there's no use
+        // of the actual value, or was already defined, which means it is
+        // scheduled *AFTER* this branch).
+        OpIndex node = projection->input();
+        OpIndex result = FindProjection(node, 0);
+        if (!result.valid() || IsDefined(result)) {
+          if (const OverflowCheckedBinopOp* binop =
+                  this->TryCast<OverflowCheckedBinopOp>(node)) {
+            const bool is64 = binop->rep == WordRepresentation::Word64();
+            cont->OverwriteAndNegateIfEqual(kOverflow);
+            switch (binop->kind) {
+              case OverflowCheckedBinopOp::Kind::kSignedAdd:
+                return VisitBinop(this, node, is64 ? kX64Add : kX64Add32, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedSub:
+                return VisitBinop(this, node, is64 ? kX64Sub : kX64Sub32, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedMul:
+                return VisitBinop(this, node, is64 ? kX64Imul : kX64Imul32,
+                                  cont);
+            }
+            UNREACHABLE();
+          }
+        }
+      }
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      return VisitStackPointerGreaterThan(value, cont);
+    }
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
@@ -4228,25 +4395,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord64Equal(node_t node) {
     }
   }
   VisitWord64EqualImpl(this, node, &cont);
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    turboshaft::OpIndex node, size_t projection_index) {
-  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
-    if (const turboshaft::ProjectionOp* projection =
-            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
-      DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) return use;
-    }
-  }
-  return turboshaft::OpIndex::Invalid();
 }
 
 template <typename Adapter>

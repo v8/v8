@@ -63,7 +63,7 @@ class OperationMatching {
     return assembler().output_graph().Get(op_idx).template Cast<Op>();
   }
 
-  const Operation& Get(OpIndex op_idx) {
+  const Operation& Get(OpIndex op_idx) const {
     return assembler().output_graph().Get(op_idx);
   }
 
@@ -801,6 +801,9 @@ class OperationMatching {
 
  private:
   Assembler& assembler() { return *static_cast<Assembler*>(this); }
+  const Assembler& assembler() const {
+    return *static_cast<const Assembler*>(this);
+  }
 };
 
 }  // namespace v8::internal::compiler::turboshaft

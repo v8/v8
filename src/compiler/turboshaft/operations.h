@@ -1327,6 +1327,10 @@ using WordBinopMask =
     MaskBuilder<WordBinopOp, FIELD(WordBinopOp, kind), FIELD(WordBinopOp, rep)>;
 
 namespace Opmask {
+using kWord32Sub =
+    WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word32()>;
+using kWord32BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
+                                             WordRepresentation::Word32()>;
 using kWord64Sub =
     WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word64()>;
 using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
