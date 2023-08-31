@@ -247,7 +247,7 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
-  // [rip + disp/r]
+  // [disp/r]
   explicit Operand(Label* label) {
     set_modrm(0, ebp);
     set_dispr(reinterpret_cast<intptr_t>(label), RelocInfo::INTERNAL_REFERENCE);
@@ -642,6 +642,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void inc(Operand dst);
 
   void lea(Register dst, Operand src);
+  void lea(Register dst, Register src, Label* lbl);
 
   // Unsigned multiply instruction.
   void mul(Register src);  // edx:eax = eax * reg.

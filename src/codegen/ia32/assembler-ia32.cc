@@ -1070,6 +1070,22 @@ void Assembler::lea(Register dst, Operand src) {
   emit_operand(dst, src);
 }
 
+void Assembler::lea(Register dst, Register src, Label* lbl) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x8D);
+
+  // ModRM byte for dst,[src]+disp32.
+  EMIT(((0x2) << 6) | (dst.code() << 3) | src.code());
+
+  if (lbl->is_bound()) {
+    int offs = lbl->pos() - (pc_offset() + sizeof(int32_t));
+    DCHECK_LE(offs, 0);
+    emit(offs);
+  } else {
+    emit_disp(lbl, Displacement::OTHER);
+  }
+}
+
 void Assembler::mul(Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF7);

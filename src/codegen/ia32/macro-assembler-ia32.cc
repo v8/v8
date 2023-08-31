@@ -1969,6 +1969,8 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments,
 void MacroAssembler::PushPC() {
   // Push the current PC onto the stack as "return address" via calling
   // the next instruction.
+  // This does not pollute the RAS:
+  // see https://blog.stuffedcow.net/2018/04/ras-microbenchmarks/#call0.
   Label get_pc;
   call(&get_pc);
   bind(&get_pc);
@@ -2110,6 +2112,26 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   jmp(code_object, rmode);
+}
+
+void MacroAssembler::LoadLabelAddress(Register dst, Label* lbl) {
+  // An lea of a label using position independent code
+  // The instruction delta 10 is the difference between the
+  // value of PC we obtain, from that what we need
+  // which is just after the lea instruction itself.
+  //
+
+  // The byte distance between acquired PC and end of sequence.
+  const int kInsDelta = 10;
+  PushPC();
+#ifdef DEBUG
+  const int kStart = pc_offset();
+#endif
+  pop(dst);
+  add(dst,
+      Immediate(kInsDelta));  // distance to displacement in next instruction
+  lea(dst, dst, lbl);
+  DCHECK(pc_offset() - kStart == kInsDelta);
 }
 
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
