@@ -4930,6 +4930,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       TURBOSHAFT_WASM_GC_OPERATION_LIST(UNIMPLEMENTED_CASE)
       TURBOSHAFT_SIMD_OPERATION_LIST(UNIMPLEMENTED_CASE)
 #undef UNIMPLEMENTED_CASE
+    case Opcode::kAtomicWord32Pair:
     case Opcode::kAtomicRMW: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());

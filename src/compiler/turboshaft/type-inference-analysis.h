@@ -193,6 +193,7 @@ class TypeInferenceAnalysis {
           ProcessWordBinop(index, op.Cast<WordBinopOp>());
           break;
         case Opcode::kWord32PairBinop:
+        case Opcode::kAtomicWord32Pair:
         case Opcode::kPendingLoopPhi:
           // Input graph must not contain these op codes.
           UNREACHABLE();

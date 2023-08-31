@@ -899,6 +899,53 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }
+
+Node* ScheduleBuilder::ProcessOperation(const AtomicWord32PairOp& op) {
+  DCHECK(!Is64());
+  Node* index;
+  if (op.index().valid() && op.offset) {
+    index = AddNode(machine.Int32Add(),
+                    {GetNode(op.index()), IntPtrConstant(op.offset)});
+  } else if (op.index().valid()) {
+    index = GetNode(op.index());
+  } else {
+    index = IntPtrConstant(op.offset);
+  }
+#define BINOP_CASE(OP)                                                 \
+  if (op.op_kind == AtomicWord32PairOp::OpKind::k##OP) {               \
+    return AddNode(                                                    \
+        machine.Word32AtomicPair##OP(),                                \
+        {GetNode(op.base()),                                           \
+         op.index().valid() ? GetNode(op.index()) : IntPtrConstant(0), \
+         GetNode(op.value_low()), GetNode(op.value_high())});          \
+  }
+#define ATOMIC_BINOPS(V) \
+  V(Add)                 \
+  V(Sub)                 \
+  V(And)                 \
+  V(Or)                  \
+  V(Xor)                 \
+  V(Exchange)
+  ATOMIC_BINOPS(BINOP_CASE)
+#undef ATOMIC_BINOPS
+#undef BINOP_CASE
+
+  if (op.op_kind == AtomicWord32PairOp::OpKind::kLoad) {
+    return AddNode(machine.Word32AtomicPairLoad(AtomicMemoryOrder::kSeqCst),
+                   {GetNode(op.base()), index});
+  }
+  if (op.op_kind == AtomicWord32PairOp::OpKind::kStore) {
+    return AddNode(machine.Word32AtomicPairStore(AtomicMemoryOrder::kSeqCst),
+                   {GetNode(op.base()), index, GetNode(op.value_low()),
+                    GetNode(op.value_high())});
+  }
+  DCHECK_EQ(op.op_kind, AtomicWord32PairOp::OpKind::kCompareExchange);
+  return AddNode(machine.Word32AtomicPairCompareExchange(),
+                 {GetNode(op.base()), index, GetNode(op.expected_low()),
+                  GetNode(op.expected_high()), GetNode(op.value_low()),
+                  GetNode(op.value_high())});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
 #define ATOMIC_BINOPS(V) \
   V(Add)                 \

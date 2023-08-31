@@ -1727,6 +1727,15 @@ class AssemblerOpInterface {
                                    result_rep, input_rep, memory_access_kind);
   }
 
+  OpIndex AtomicWord32Pair(V<WordPtr> base, V<WordPtr> index,
+                           V<Word32> value_low, V<Word32> value_high,
+                           V<Word32> expected_low, V<Word32> expected_high,
+                           AtomicWord32PairOp::OpKind op_kind, int32_t offset) {
+    return stack().ReduceAtomicWord32Pair(base, index, value_low, value_high,
+                                          expected_low, expected_high, op_kind,
+                                          offset);
+  }
+
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
                RegisterRepresentation result_rep, int32_t offset = 0,

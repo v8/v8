@@ -233,7 +233,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Projection)                              \
   V(DebugBreak)                              \
   V(AssumeMap)                               \
-  V(AtomicRMW)
+  V(AtomicRMW)                               \
+  V(AtomicWord32Pair)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -2723,6 +2724,157 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
 };
 
 std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp kind);
+
+struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
+  enum class OpKind : uint8_t {
+    kAdd,
+    kSub,
+    kAnd,
+    kOr,
+    kXor,
+    kExchange,
+    kCompareExchange,
+    kLoad,
+    kStore
+  };
+
+  static OpKind OpKindFromBinOp(AtomicRMWOp::BinOp bin_op) {
+    switch (bin_op) {
+      case AtomicRMWOp::BinOp::kAdd:
+        return OpKind::kAdd;
+      case AtomicRMWOp::BinOp::kSub:
+        return OpKind::kSub;
+      case AtomicRMWOp::BinOp::kAnd:
+        return OpKind::kAnd;
+      case AtomicRMWOp::BinOp::kOr:
+        return OpKind::kOr;
+      case AtomicRMWOp::BinOp::kXor:
+        return OpKind::kXor;
+      case AtomicRMWOp::BinOp::kExchange:
+        return OpKind::kExchange;
+      case AtomicRMWOp::BinOp::kCompareExchange:
+        return OpKind::kCompareExchange;
+    }
+  }
+
+  OpKind op_kind;
+  int32_t offset;
+  bool has_index;
+  OpEffects Effects() const {
+    OpEffects effects = OpEffects().CanDependOnChecks();
+    if (op_kind == OpKind::kLoad) {
+      return effects.CanReadMemory();
+    }
+    if (op_kind == OpKind::kStore) {
+      return effects.CanWriteMemory();
+    }
+    return effects.CanReadMemory().CanWriteMemory();
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    if (op_kind == OpKind::kStore) return {};
+    return RepVector<RegisterRepresentation::Word32(),
+                     RegisterRepresentation::Word32()>();
+  }
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    storage.resize(input_count);
+    int idx = 0;
+    storage[idx++] = RegisterRepresentation::PointerSized();  // base
+    if (has_index) {
+      storage[idx++] = RegisterRepresentation::PointerSized();  // index
+    }
+    if (op_kind != OpKind::kLoad) {
+      storage[idx++] = RegisterRepresentation::Word32();  // value_low
+      storage[idx++] = RegisterRepresentation::Word32();  // value_high
+    }
+    if (op_kind == OpKind::kCompareExchange) {
+      storage[idx++] = RegisterRepresentation::Word32();  // expected_low
+      storage[idx++] = RegisterRepresentation::Word32();  // expected_high
+    }
+    DCHECK_EQ(idx, input_count);
+    return base::VectorOf(storage);
+  }
+
+  V<WordPtr> base() const { return input(0); }
+  V<WordPtr> index() const { return has_index ? input(1) : OpIndex::Invalid(); }
+  V<Word32> value_low() const {
+    return (input_count > 1 + has_index) ? input(1 + has_index)
+                                         : OpIndex::Invalid();
+  }
+  V<Word32> value_high() const {
+    return (input_count > 2 + has_index) ? input(2 + has_index)
+                                         : OpIndex::Invalid();
+  }
+  V<Word32> expected_low() const {
+    return (input_count > 3 + has_index) ? input(3 + has_index)
+                                         : OpIndex::Invalid();
+  }
+  V<Word32> expected_high() const {
+    return (input_count > 4 + has_index) ? input(4 + has_index)
+                                         : OpIndex::Invalid();
+  }
+
+  void Validate(const Graph& graph) const {
+    if (op_kind == OpKind::kLoad) {
+      DCHECK_EQ(input_count, 1 + has_index);
+    }
+    DCHECK_EQ(op_kind == OpKind::kLoad, input_count == 1 + has_index);
+    DCHECK_EQ(op_kind == OpKind::kCompareExchange,
+              input_count == 5 + has_index);
+    DCHECK_EQ(op_kind != OpKind::kCompareExchange && op_kind != OpKind::kLoad,
+              input_count == 3 + has_index);
+  }
+
+  AtomicWord32PairOp(V<WordPtr> base, V<WordPtr> index, V<Word32> value_low,
+                     V<Word32> value_high, V<Word32> expected_low,
+                     V<Word32> expected_high, OpKind op_kind, int32_t offset)
+      : Base(1 + index.valid() + value_low.valid() + value_high.valid() +
+             expected_low.valid() + expected_high.valid()),
+        op_kind(op_kind),
+        offset(offset) {
+    DCHECK_EQ(value_low.valid(), value_high.valid());
+    DCHECK_EQ(expected_low.valid(), expected_high.valid());
+    has_index = index.valid();
+    input(0) = base;
+    if (index.valid()) {
+      input(1) = index;
+    }
+    if (value_low.valid()) {
+      input(1 + has_index) = value_low;
+    }
+    if (value_high.valid()) {
+      input(2 + has_index) = value_high;
+    }
+    if (expected_low.valid()) {
+      input(3 + has_index) = expected_low;
+    }
+    if (expected_high.valid()) {
+      input(4 + has_index) = expected_high;
+    }
+  }
+
+  static AtomicWord32PairOp& New(Graph* graph, V<WordPtr> base,
+                                 V<WordPtr> index, V<Word32> value_low,
+                                 V<Word32> value_high, V<Word32> expected_low,
+                                 V<Word32> expected_high, OpKind op_kind,
+                                 int32_t offset) {
+    return Base::New(graph,
+                     1 + index.valid() + value_low.valid() +
+                         value_high.valid() + expected_low.valid() +
+                         expected_high.valid(),
+                     base, index, value_low, value_high, expected_low,
+                     expected_high, op_kind, offset);
+  }
+
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
+
+  void PrintOptions(std::ostream& os) const;
+
+  auto options() const { return std::tuple{op_kind, offset}; }
+};
+
+std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::OpKind kind);
 
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,

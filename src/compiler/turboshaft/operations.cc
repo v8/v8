@@ -354,6 +354,29 @@ std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::OpKind bin_op) {
+  switch (bin_op) {
+    case AtomicWord32PairOp::OpKind::kAdd:
+      return os << "add";
+    case AtomicWord32PairOp::OpKind::kSub:
+      return os << "sub";
+    case AtomicWord32PairOp::OpKind::kAnd:
+      return os << "and";
+    case AtomicWord32PairOp::OpKind::kOr:
+      return os << "or";
+    case AtomicWord32PairOp::OpKind::kXor:
+      return os << "xor";
+    case AtomicWord32PairOp::OpKind::kExchange:
+      return os << "exchange";
+    case AtomicWord32PairOp::OpKind::kCompareExchange:
+      return os << "compare-exchange";
+    case AtomicWord32PairOp::OpKind::kLoad:
+      return os << "load";
+    case AtomicWord32PairOp::OpKind::kStore:
+      return os << "store";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
   switch (kind) {
     case FrameConstantOp::Kind::kStackCheckOffset:
@@ -479,6 +502,32 @@ void AtomicRMWOp::PrintOptions(std::ostream& os) const {
   os << "["
      << "binop: " << bin_op << ", result_rep: " << result_rep
      << ", input_rep: " << input_rep << "]";
+}
+
+void AtomicWord32PairOp::PrintInputs(std::ostream& os,
+                                     const std::string& op_index_prefix) const {
+  os << " *(" << op_index_prefix << base().id();
+  if (index().valid()) {
+    os << " + " << op_index_prefix << index().id();
+  }
+  if (offset) {
+    os << " + offset=" << offset;
+  }
+  os << ").atomic_word32_pair_" << op_kind << "(";
+  if (op_kind == OpKind::kCompareExchange) {
+    os << "expected: {lo: " << op_index_prefix << value_low().id()
+       << ", hi: " << op_index_prefix << value_high();
+    os << "}, value: {lo: " << op_index_prefix << value_low().id()
+       << ", hi: " << op_index_prefix << value_high() << "}";
+  } else if (op_kind != OpKind::kLoad) {
+    os << "lo: " << op_index_prefix << value_low().id()
+       << ", hi: " << op_index_prefix << value_high();
+  }
+  os << ")";
+}
+
+void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
+  os << "[opkind: " << op_kind << "]";
 }
 
 void StoreOp::PrintInputs(std::ostream& os,

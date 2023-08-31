@@ -1537,19 +1537,6 @@ class TurboshaftGraphBuildingInterface {
     };
 
     AtomicOpInfo info = AtomicOpInfo::Get(opcode);
-    if (!Is64() && info.result_rep.is_valid() &&
-        info.result_rep == RegisterRepresentation::Word64()) {
-      // The int64 lowering for atomic instructions is not yet finished.
-      Bailout(decoder);
-      return;
-    }
-    if (!Is64() && info.op_type == kStore &&
-        asm_.output_graph().Get(args[1].op).outputs_rep()[0] ==
-            RegisterRepresentation::Word64()) {
-      // The int64 lowering for atomic instructions is not yet finished.
-      Bailout(decoder);
-      return;
-    }
 
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;

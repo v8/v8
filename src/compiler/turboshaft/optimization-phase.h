@@ -685,6 +685,16 @@ class GraphVisitor {
         MapToNewGraph(op.value()), MapToNewGraphIfValid(op.expected()),
         op.bin_op, op.result_rep, op.input_rep, op.memory_access_kind);
   }
+
+  OpIndex AssembleOutputGraphAtomicWord32Pair(const AtomicWord32PairOp& op) {
+    return assembler().ReduceAtomicWord32Pair(
+        MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
+        MapToNewGraphIfValid(op.value_low()),
+        MapToNewGraphIfValid(op.value_high()),
+        MapToNewGraphIfValid(op.expected_low()),
+        MapToNewGraphIfValid(op.expected_high()), op.op_kind, op.offset);
+  }
+
   OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
     return assembler().ReduceLoad(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()), op.kind,
