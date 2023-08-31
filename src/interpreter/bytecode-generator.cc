@@ -2422,8 +2422,16 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_backbranch(zone());
-    VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
-                 TestFallthrough::kThen);
+    if (!loop_builder.break_labels()->empty()) {
+      // The test may be conditionally executed if there was a break statement
+      // inside the loop body, and therefore requires its own elision scope.
+      HoleCheckElisionScope elider(this);
+      VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
+                   TestFallthrough::kThen);
+    } else {
+      VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
+                   TestFallthrough::kThen);
+    }
     loop_backbranch.Bind(builder());
   }
 }
