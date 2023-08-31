@@ -1313,12 +1313,6 @@ void Genesis::CreateRoots() {
 
   AddToWeakNativeContextList(isolate(), *native_context());
   isolate()->set_context(*native_context());
-
-  // Allocate the message listeners object.
-  {
-    Handle<TemplateList> list = TemplateList::New(isolate(), 1);
-    native_context()->set_message_listeners(*list);
-  }
 }
 
 void Genesis::InstallGlobalThisBinding() {

@@ -178,7 +178,7 @@ void Heap::SetRootScriptList(Tagged<Object> value) {
   roots_table()[RootIndex::kScriptList] = value.ptr();
 }
 
-void Heap::SetMessageListeners(Tagged<TemplateList> value) {
+void Heap::SetMessageListeners(Tagged<ArrayList> value) {
   roots_table()[RootIndex::kMessageListeners] = value.ptr();
 }
 

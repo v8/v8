@@ -425,7 +425,9 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
       Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj1,
       Tagged<Smi> obj2, Tagged<Smi> obj3, Tagged<Smi> obj4);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> New(Isolate* isolate, int size);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> New(
+      Isolate* isolate, int size,
+      AllocationType allocation = AllocationType::kOld);
 
   // Returns the number of elements in the list, not the allocated size, which
   // is length(). Lower and upper case length() return different results!

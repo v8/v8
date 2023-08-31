@@ -164,9 +164,8 @@ void MessageHandler::ReportMessageNoExceptions(
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
   int error_level = api_message_obj->ErrorLevel();
 
-  Handle<TemplateList> global_listeners =
-      isolate->factory()->message_listeners();
-  int global_length = global_listeners->length();
+  Handle<ArrayList> global_listeners = isolate->factory()->message_listeners();
+  int global_length = global_listeners->Length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
     if (isolate->has_scheduled_exception()) {
@@ -175,8 +174,8 @@ void MessageHandler::ReportMessageNoExceptions(
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (IsUndefined(global_listeners->get(i), isolate)) continue;
-      FixedArray listener = FixedArray::cast(global_listeners->get(i));
+      if (IsUndefined(global_listeners->Get(i), isolate)) continue;
+      FixedArray listener = FixedArray::cast(global_listeners->Get(i));
       Foreign callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));

@@ -162,8 +162,9 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 // static
-Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
-  return isolate->factory()->NewArrayList(size);
+Handle<ArrayList> ArrayList::New(Isolate* isolate, int size,
+                                 AllocationType allocation) {
+  return isolate->factory()->NewArrayList(size, allocation);
 }
 
 Handle<FixedArray> ArrayList::Elements(Isolate* isolate,

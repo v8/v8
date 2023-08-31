@@ -852,7 +852,7 @@ class Heap final {
   V8_INLINE void SetRootMaterializedObjects(Tagged<FixedArray> objects);
   V8_INLINE void SetRootScriptList(Tagged<Object> value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Tagged<Object> value);
-  V8_INLINE void SetMessageListeners(Tagged<TemplateList> value);
+  V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
 

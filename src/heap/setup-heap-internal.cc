@@ -1203,10 +1203,8 @@ bool Heap::CreateReadOnlyObjects() {
 }
 
 void Heap::CreateMutableApiObjects() {
-  Isolate* isolate = this->isolate();
-  HandleScope scope(isolate);
-
-  set_message_listeners(*TemplateList::New(isolate, 2));
+  HandleScope scope(isolate());
+  set_message_listeners(*ArrayList::New(isolate(), 2));
 }
 
 void Heap::CreateReadOnlyApiObjects() {

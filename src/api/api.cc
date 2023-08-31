@@ -1698,14 +1698,18 @@ i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   if (getter != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter);
   if (setter != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter);
   if (query != nullptr) SET_FIELD_WRAPPED(i_isolate, obj, set_query, query);
-  if (descriptor != nullptr)
+  if (descriptor != nullptr) {
     SET_FIELD_WRAPPED(i_isolate, obj, set_descriptor, descriptor);
-  if (remover != nullptr)
+  }
+  if (remover != nullptr) {
     SET_FIELD_WRAPPED(i_isolate, obj, set_deleter, remover);
-  if (enumerator != nullptr)
+  }
+  if (enumerator != nullptr) {
     SET_FIELD_WRAPPED(i_isolate, obj, set_enumerator, enumerator);
-  if (definer != nullptr)
+  }
+  if (definer != nullptr) {
     SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer);
+  }
   obj->set_can_intercept_symbols(
       !(static_cast<int>(flags) &
         static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
@@ -10111,7 +10115,7 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::TemplateList> list = i_isolate->factory()->message_listeners();
+  i::Handle<i::ArrayList> list = i_isolate->factory()->message_listeners();
   i::Handle<i::FixedArray> listener = i_isolate->factory()->NewFixedArray(3);
   i::Handle<i::Foreign> foreign =
       i_isolate->factory()->NewForeign(FUNCTION_ADDR(that));
@@ -10120,7 +10124,7 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
                        ? i::ReadOnlyRoots(i_isolate).undefined_value()
                        : *Utils::OpenHandle(*data));
   listener->set(2, i::Smi::FromInt(message_levels));
-  list = i::TemplateList::Add(i_isolate, list, listener);
+  list = i::ArrayList::Add(i_isolate, list, listener);
   i_isolate->heap()->SetMessageListeners(*list);
   return true;
 }
@@ -10130,14 +10134,15 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::DisallowGarbageCollection no_gc;
-  i::TemplateList listeners = i_isolate->heap()->message_listeners();
-  for (int i = 0; i < listeners->length(); i++) {
-    if (i::IsUndefined(listeners->get(i), i_isolate))
+  i::ArrayList listeners = i_isolate->heap()->message_listeners();
+  for (int i = 0; i < listeners->Length(); i++) {
+    if (i::IsUndefined(listeners->Get(i), i_isolate)) {
       continue;  // skip deleted ones
-    i::FixedArray listener = i::FixedArray::cast(listeners->get(i));
+    }
+    i::FixedArray listener = i::FixedArray::cast(listeners->Get(i));
     i::Foreign callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
-      listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
+      listeners->Set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
     }
   }
 }
