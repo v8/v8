@@ -95,12 +95,19 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_WEBASSEMBLY
+// These operations should be lowered to Machine operations during
+// WasmLoweringPhase.
 #define TURBOSHAFT_WASM_OPERATION_LIST(V) \
   V(GlobalGet)                            \
   V(GlobalSet)                            \
   V(IsNull)                               \
   V(Null)                                 \
-  V(AssertNotNull)
+  V(AssertNotNull)                        \
+  V(RttCanon)                             \
+  V(WasmTypeCheck)                        \
+  V(WasmTypeCast)                         \
+  V(StructGet)                            \
+  V(StructSet)
 
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
@@ -116,15 +123,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128LoadTransform)                 \
   V(Simd128Shuffle)
 
-#define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
-  V(RttCanon)                                \
-  V(WasmTypeCheck)                           \
-  V(WasmTypeCast)
-
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V)
-#define TURBOSHAFT_WASM_GC_OPERATION_LIST(V)
 #endif
 
 #define TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(V) \
@@ -247,7 +248,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
   TURBOSHAFT_SIMD_OPERATION_LIST(V)                       \
-  TURBOSHAFT_WASM_GC_OPERATION_LIST(V)                    \
   TURBOSHAFT_MACHINE_OPERATION_LIST(V)                    \
   TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V)                 \
   TURBOSHAFT_OTHER_OPERATION_LIST(V)
@@ -6202,7 +6202,6 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
-
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{type_index}; }
@@ -6288,6 +6287,99 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
+};
+
+struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
+  const wasm::StructType* type;
+  int field_index;
+  bool is_signed;  // `false` only for unsigned packed type accesses.
+  CheckForNull null_check;
+
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null check.
+            .CanDependOnChecks()
+            .CanReadMemory();
+    if (null_check == kWithNullCheck) {
+      // This may trap.
+      result = result.CanLeaveCurrentFunction();
+    }
+    return result;
+  }
+
+  StructGetOp(OpIndex object, const wasm::StructType* type, int field_index,
+              bool is_signed, CheckForNull null_check)
+      : Base(object),
+        type(type),
+        field_index(field_index),
+        is_signed(is_signed),
+        null_check(null_check) {}
+
+  OpIndex object() const { return input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_LT(field_index, type->field_count());
+    DCHECK_IMPLIES(!is_signed, type->field(field_index).is_packed());
+  }
+
+  auto options() const {
+    return std::tuple{type, field_index, is_signed, null_check};
+  }
+};
+
+struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
+  const wasm::StructType* type;
+  int field_index;
+  CheckForNull null_check;
+
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null check.
+            .CanDependOnChecks()
+            .CanWriteMemory();
+    if (null_check == kWithNullCheck) {
+      // This may trap.
+      result = result.CanLeaveCurrentFunction();
+    }
+    return result;
+  }
+
+  StructSetOp(OpIndex object, OpIndex value, const wasm::StructType* type,
+              int field_index, CheckForNull null_check)
+      : Base(object, value),
+        type(type),
+        field_index(field_index),
+        null_check(null_check) {}
+
+  OpIndex object() const { return input(0); }
+  OpIndex value() const { return input(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    storage.resize(2);
+    storage[0] = RegisterRepresentation::Tagged();
+    storage[1] = RepresentationFor(type->field(field_index));
+    return base::VectorOf(storage);
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_LT(field_index, type->field_count());
+  }
+
+  auto options() const { return std::tuple{type, field_index, null_check}; }
 };
 
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
@@ -7072,6 +7164,10 @@ inline OpEffects Operation::Effects() const {
     case Opcode::kAtomicRMW:
       return Cast<AtomicRMWOp>().Effects();
 #if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kStructGet:
+      return Cast<StructGetOp>().Effects();
+    case Opcode::kStructSet:
+      return Cast<StructSetOp>().Effects();
     case Opcode::kSimd128LaneMemory:
       return Cast<Simd128LaneMemoryOp>().Effects();
     case Opcode::kSimd128LoadTransform:

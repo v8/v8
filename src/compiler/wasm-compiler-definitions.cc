@@ -101,4 +101,9 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       return_slots);                      // return slot count
 }
 
+std::ostream& operator<<(std::ostream& os, CheckForNull null_check) {
+  return os << (null_check == kWithoutNullCheck ? "no null check"
+                                                : "null check");
+}
+
 }  // namespace v8::internal::compiler

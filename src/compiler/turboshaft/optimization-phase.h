@@ -1020,6 +1020,18 @@ class GraphVisitor {
         MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
   }
 
+  OpIndex AssembleOutputGraphStructGet(const StructGetOp& op) {
+    return assembler().ReduceStructGet(MapToNewGraph(op.object()), op.type,
+                                       op.field_index, op.is_signed,
+                                       op.null_check);
+  }
+
+  OpIndex AssembleOutputGraphStructSet(const StructSetOp& op) {
+    return assembler().ReduceStructSet(MapToNewGraph(op.object()),
+                                       MapToNewGraph(op.value()), op.type,
+                                       op.field_index, op.null_check);
+  }
+
   OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
     return assembler().ReduceSimd128Constant(op.value);
   }

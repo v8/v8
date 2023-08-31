@@ -108,6 +108,50 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  OpIndex REDUCE(StructGet)(OpIndex object, const wasm::StructType* type,
+                            int field_index, bool is_signed,
+                            CheckForNull null_check) {
+    auto [explicit_null_check, implicit_null_check] =
+        null_checks_for_struct_op(null_check, field_index);
+
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), OpIndex::Invalid(),
+                TrapId::kTrapNullDereference);
+    }
+
+    LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
+                                                 : LoadOp::Kind::TaggedBase();
+    MemoryRepresentation repr =
+        RepresentationFor(type->field(field_index), is_signed);
+
+    return __ Load(object, load_kind, repr, field_offset(type, field_index));
+  }
+
+  OpIndex REDUCE(StructSet)(OpIndex object, OpIndex value,
+                            const wasm::StructType* type, int field_index,
+                            CheckForNull null_check) {
+    auto [explicit_null_check, implicit_null_check] =
+        null_checks_for_struct_op(null_check, field_index);
+
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), OpIndex::Invalid(),
+                TrapId::kTrapNullDereference);
+    }
+
+    StoreOp::Kind store_kind = implicit_null_check
+                                   ? StoreOp::Kind::TrapOnNull()
+                                   : StoreOp::Kind::TaggedBase();
+    MemoryRepresentation repr =
+        RepresentationFor(type->field(field_index), true);
+
+    __ Store(object, value, store_kind, repr,
+             type->field(field_index).is_reference() ? kFullWriteBarrier
+                                                     : kNoWriteBarrier,
+             field_offset(type, field_index));
+
+    return OpIndex::Invalid();
+  }
+
  private:
   enum class GlobalMode { kLoad, kStore };
 
@@ -115,9 +159,34 @@ class WasmLoweringReducer : public Next {
       V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
                              : MemoryRepresentation::PointerSized();
 
-  MemoryRepresentation RepresentationFor(wasm::ValueType type) {
-    return MemoryRepresentation::FromRegisterRepresentation(
-        turboshaft::RepresentationFor(type), true);
+  MemoryRepresentation RepresentationFor(wasm::ValueType type, bool is_signed) {
+    switch (type.kind()) {
+      case wasm::kI8:
+        return is_signed ? MemoryRepresentation::Int8()
+                         : MemoryRepresentation::Uint8();
+      case wasm::kI16:
+        return is_signed ? MemoryRepresentation::Int16()
+                         : MemoryRepresentation::Uint16();
+      case wasm::kI32:
+        return is_signed ? MemoryRepresentation::Int32()
+                         : MemoryRepresentation::Uint32();
+      case wasm::kI64:
+        return is_signed ? MemoryRepresentation::Int64()
+                         : MemoryRepresentation::Uint64();
+      case wasm::kF32:
+        return MemoryRepresentation::Float32();
+      case wasm::kF64:
+        return MemoryRepresentation::Float64();
+      case wasm::kS128:
+        return MemoryRepresentation::Simd128();
+      case wasm::kRtt:
+      case wasm::kRef:
+      case wasm::kRefNull:
+        return MemoryRepresentation::AnyTagged();
+      case wasm::kVoid:
+      case wasm::kBottom:
+        UNREACHABLE();
+    }
   }
 
   OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,
@@ -458,10 +527,10 @@ class WasmLoweringReducer : public Next {
                                kMaybeSandboxedPointer, field_offset);
         if (mode == GlobalMode::kLoad) {
           return __ Load(base, LoadOp::Kind::RawAligned(),
-                         RepresentationFor(global->type), 0);
+                         RepresentationFor(global->type, true), 0);
         } else {
           __ Store(base, value, StoreOp::Kind::RawAligned(),
-                   RepresentationFor(global->type),
+                   RepresentationFor(global->type, true),
                    WriteBarrierKind::kNoWriteBarrier, 0);
           return OpIndex::Invalid();
         }
@@ -484,10 +553,10 @@ class WasmLoweringReducer : public Next {
           LOAD_INSTANCE_FIELD(instance, GlobalsStart, kMaybeSandboxedPointer);
       if (mode == GlobalMode::kLoad) {
         return __ Load(base, LoadOp::Kind::RawAligned(),
-                       RepresentationFor(global->type), global->offset);
+                       RepresentationFor(global->type, true), global->offset);
       } else {
         __ Store(base, value, StoreOp::Kind::RawAligned(),
-                 RepresentationFor(global->type),
+                 RepresentationFor(global->type, true),
                  WriteBarrierKind::kNoWriteBarrier, global->offset);
         return OpIndex::Invalid();
       }
@@ -524,6 +593,21 @@ class WasmLoweringReducer : public Next {
     int offset = Map::kConstructorOrBackPointerOrNativeContextOffset;
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedPointer(), offset);
+  }
+
+  std::pair<bool, bool> null_checks_for_struct_op(CheckForNull null_check,
+                                                  int field_index) {
+    bool explicit_null_check =
+        null_check == kWithNullCheck &&
+        (null_check_strategy_ == NullCheckStrategy::kExplicit ||
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+    bool implicit_null_check =
+        null_check == kWithNullCheck && !explicit_null_check;
+    return {explicit_null_check, implicit_null_check};
+  }
+
+  int field_offset(const wasm::StructType* type, int field_index) {
+    return WasmStruct::kHeaderSize + type->field_offset(field_index);
   }
 
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();

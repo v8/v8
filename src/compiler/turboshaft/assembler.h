@@ -3134,6 +3134,23 @@ class AssemblerOpInterface {
     return stack().ReduceWasmTypeCheck(object, rtt, config);
   }
 
+  OpIndex StructGet(V<Tagged> object, const wasm::StructType* type,
+                    int field_index, bool is_signed, CheckForNull null_check) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceStructGet(object, type, field_index, is_signed,
+                                   null_check);
+  }
+
+  void StructSet(V<Tagged> object, OpIndex value, const wasm::StructType* type,
+                 int field_index, CheckForNull null_check) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceStructSet(object, value, type, field_index, null_check);
+  }
+
   V<Tagged> WasmTypeCast(V<Tagged> object, V<Map> rtt,
                          WasmTypeCheckConfig config) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
