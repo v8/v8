@@ -180,6 +180,38 @@ handlers: [
 snippet: "
   {
     f = function f(a) {
+  do { x; break; } while (y);
+  x; y;
+    }
+    let w, x, y, z;
+    f();
+  }
+"
+frame size: 0
+parameter count: 2
+bytecode array length: 16
+bytecodes: [
+  /*   29 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   32 S> */ B(Jump), U8(2),
+  /*   52 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(0),
+  /*   55 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+                B(ThrowReferenceErrorIfHole), U8(1),
+                B(LdaUndefined),
+  /*   60 S> */ B(Return),
+]
+constant pool: [
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  {
+    f = function f(a) {
   for (x; y; z) { w; }
   x; y; z; w;
     }

@@ -3265,6 +3265,10 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
     "do { x; } while (y);\n"
     "x; y;\n",
 
+    // do-while with break
+    "do { x; break; } while (y);\n"
+    "x; y;\n",
+
     // C-style for
     "for (x; y; z) { w; }\n"
     "x; y; z; w;\n",
