@@ -23,6 +23,7 @@ using HeapObjectSet =
 using HeapObjectMap = std::unordered_map<HeapObject, HeapObject, Object::Hasher,
                                          Object::KeyEqualSafe>;
 bool Contains(const HeapObjectSet& s, HeapObject o) { return s.count(o) != 0; }
+bool Contains(const HeapObjectMap& s, HeapObject o) { return s.count(o) != 0; }
 
 class Committee final {
  public:
@@ -54,6 +55,7 @@ class Committee final {
       HeapObjectSet accepted_subgraph;  // Either all are accepted or none.
       HeapObjectSet visited;            // Cycle detection.
       if (!EvaluateSubgraph(o, &accepted_subgraph, &visited)) continue;
+      if (accepted_subgraph.empty()) continue;
 
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion)) {
         LogAcceptedPromotionSet(accepted_subgraph);
@@ -106,13 +108,14 @@ class Committee final {
   }
 
 #define PROMO_CANDIDATE_TYPE_LIST(V) \
+  V(AccessCheckInfo)                 \
   V(AccessorInfo)                    \
   V(CallHandlerInfo)                 \
   V(Code)                            \
-  V(FunctionTemplateInfo)            \
-  V(FunctionTemplateRareData)        \
+  V(InterceptorInfo)                 \
   V(ScopeInfo)                       \
-  V(SharedFunctionInfo)
+  V(SharedFunctionInfo)              \
+  V(Symbol)
   // TODO(jgruber): Don't forget to extend ReadOnlyPromotionImpl::Verify when
   // adding new object types here.
 
@@ -132,45 +135,20 @@ class Committee final {
   }
 #undef PROMO_CANDIDATE_TYPE_LIST
 
-  static bool IsPromoCandidateAccessorInfo(Isolate* isolate, AccessorInfo o) {
-    return true;
-  }
-  static bool IsPromoCandidateCallHandlerInfo(Isolate* isolate,
-                                              CallHandlerInfo o) {
-    return true;
-  }
+#define DEF_PROMO_CANDIDATE(Type) \
+  static bool IsPromoCandidate##Type(Isolate* isolate, Type o) { return true; }
+
+  DEF_PROMO_CANDIDATE(AccessCheckInfo)
+  DEF_PROMO_CANDIDATE(AccessorInfo)
+  DEF_PROMO_CANDIDATE(CallHandlerInfo)
   static bool IsPromoCandidateCode(Isolate* isolate, Code o) {
-#if !defined(V8_SHORT_BUILTIN_CALLS) || \
-    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
-    // Builtins have a single unique shared entry point per process. The
-    // embedded builtins region may be remapped into the process-wide code
-    // range, but that happens before RO space is deserialized. Their Code
-    // objects can be shared in RO space.
-    static_assert(Builtins::kCodeObjectsAreInROSpace);
-    return o.is_builtin();
-#else
-    // Builtins may be remapped more than once per process and thus their Code
-    // objects cannot be shared.
-    static_assert(!Builtins::kCodeObjectsAreInROSpace);
-    return false;
-#endif
+    return Builtins::kCodeObjectsAreInROSpace && o.is_builtin();
   }
-  static bool IsPromoCandidateFunctionTemplateInfo(Isolate* isolate,
-                                                   FunctionTemplateInfo o) {
-    // TODO(jgruber): Enable once we have a solution for the mutable
-    // shared_function_info field.
-    return false;
-  }
-  static bool IsPromoCandidateFunctionTemplateRareData(
-      Isolate* isolate, FunctionTemplateRareData o) {
-    return true;
-  }
-  static bool IsPromoCandidateScopeInfo(Isolate* isolate, ScopeInfo o) {
-    return true;
-  }
+  DEF_PROMO_CANDIDATE(InterceptorInfo)
+  DEF_PROMO_CANDIDATE(ScopeInfo)
   static bool IsPromoCandidateSharedFunctionInfo(Isolate* isolate,
                                                  SharedFunctionInfo o) {
-    // Only internal builtin SFIs are guaranteed to remain immutable.
+    // Only internal SFIs are guaranteed to remain immutable.
     if (o.has_script(kAcquireLoad)) return false;
     // kIllegal is used for js_global_object_function, which is created during
     // bootstrapping but never rooted. We currently assumed that all objects in
@@ -182,6 +160,9 @@ class Committee final {
     // pre-serialization? Implement a RO GC pass pre-serialization?
     return o.HasBuiltinId() && o.builtin_id() != Builtin::kIllegal;
   }
+  DEF_PROMO_CANDIDATE(Symbol)
+
+#undef DEF_PROMO_CANDIDATE
 
   // Recurses into all tagged slots of an object and tracks whether predicates
   // failed on any part of the subgraph.
@@ -301,10 +282,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     UpdatePointersVisitor v(isolate, &moves);
 
     // Iterate all roots.
-    heap->IterateRoots(&v, base::EnumSet<SkipRoot>{
-                               SkipRoot::kUnserializable,
-                               SkipRoot::kWeak,
-                           });
+    EmbedderStackStateScope stack_scope(
+        isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+    heap->IterateRoots(&v, base::EnumSet<SkipRoot>{});
 
     // Iterate all objects on the mutable heap.
     // We assume that a full and precise GC has reclaimed all dead objects
@@ -440,6 +421,17 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       UNREACHABLE();
 #endif
     }
+    void VisitRootPointers(Root root, const char* description,
+                           OffHeapObjectSlot start,
+                           OffHeapObjectSlot end) override {
+      // We shouldn't have moved any string table contents (which is what
+      // OffHeapObjectSlot currently refers to).
+      for (OffHeapObjectSlot slot = start; slot < end; slot++) {
+        Object o = slot.load(isolate_);
+        if (!IsHeapObject(o)) continue;
+        CHECK(!Contains(*moves_, HeapObject::cast(o)));
+      }
+    }
 
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
@@ -522,8 +514,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
 // static
 void ReadOnlyPromotion::Promote(Isolate* isolate,
-                                const SafepointScope& safepoint_scope) {
-  DisallowGarbageCollection no_gc;
+                                const SafepointScope& safepoint_scope,
+                                const DisallowGarbageCollection& no_gc) {
   // Visit the mutable heap and determine the set of objects that can be
   // promoted to RO space.
   std::vector<HeapObject> promotees =

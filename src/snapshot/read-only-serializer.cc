@@ -21,9 +21,9 @@ class ObjectPreProcessor final {
   explicit ObjectPreProcessor(Isolate* isolate)
       : isolate_(isolate), extref_encoder_(isolate) {}
 
-#define POST_PROCESS_TYPE_LIST(V) \
-  V(AccessorInfo)                 \
-  V(CallHandlerInfo)              \
+#define PRE_PROCESS_TYPE_LIST(V) \
+  V(AccessorInfo)                \
+  V(CallHandlerInfo)             \
   V(Code)
 
   void PreProcessIfNeeded(HeapObject o) {
@@ -32,11 +32,11 @@ class ObjectPreProcessor final {
   if (InstanceTypeChecker::Is##TYPE(itype)) { \
     return PreProcess##TYPE(TYPE::cast(o));   \
   }
-    POST_PROCESS_TYPE_LIST(V)
+    PRE_PROCESS_TYPE_LIST(V)
 #undef V
     // If we reach here, no preprocessing is needed for this object.
   }
-#undef POST_PROCESS_TYPE_LIST
+#undef PRE_PROCESS_TYPE_LIST
 
  private:
   void EncodeExternalPointerSlot(ExternalPointerSlot slot,

@@ -1072,7 +1072,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
     // serialization. Objects can be promoted if a) they are themselves
     // immutable-after-deserialization and b) all objects in the transitive
     // object graph also satisfy condition a).
-    ReadOnlyPromotion::Promote(isolate_, safepoint_scope);
+    ReadOnlyPromotion::Promote(isolate_, safepoint_scope, no_gc_from_here_on);
     // When creating the snapshot from scratch, we are responsible for sealing
     // the RO heap here. Note we cannot delegate the responsibility e.g. to
     // Isolate::Init since it should still be possible to allocate into RO

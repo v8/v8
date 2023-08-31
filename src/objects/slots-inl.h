@@ -274,20 +274,6 @@ ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
              : isolate->external_pointer_table();
 }
 
-namespace {
-constexpr bool IsMaybeReadOnlyExternalPointerType(ExternalPointerTag tag) {
-  switch (tag) {
-    case kCallHandlerInfoCallbackTag:
-    case kAccessorInfoGetterTag:
-    case kAccessorInfoSetterTag:
-      return true;
-    default:
-      return false;
-  }
-  UNREACHABLE();
-}
-}  // namespace
-
 ExternalPointerTable::Space*
 ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
                                                     ExternalPointerTag tag) {
@@ -296,7 +282,8 @@ ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
     return isolate->shared_external_pointer_space();
   }
   if (V8_UNLIKELY(ReadOnlyHeap::Contains(address()))) {
-    DCHECK(IsMaybeReadOnlyExternalPointerType(tag));
+    DCHECK(tag == kAccessorInfoGetterTag || tag == kAccessorInfoSetterTag ||
+           tag == kCallHandlerInfoCallbackTag);
     return isolate->heap()->read_only_external_pointer_space();
   }
   return isolate->heap()->external_pointer_space();

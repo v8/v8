@@ -185,6 +185,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
   SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+  DisallowGarbageCollection no_gc;
   HandleScope scope(i_isolate);
 
   if (i_isolate->heap()->read_only_space()->writable()) {
@@ -192,7 +193,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
     // serialization. Objects can be promoted if a) they are themselves
     // immutable-after-deserialization and b) all objects in the transitive
     // object graph also satisfy condition a).
-    ReadOnlyPromotion::Promote(i_isolate, safepoint);
+    ReadOnlyPromotion::Promote(i_isolate, safepoint, no_gc);
     // When creating the snapshot from scratch, we are responsible for sealing
     // the RO heap here. Note we cannot delegate the responsibility e.g. to
     // Isolate::Init since it should still be possible to allocate into RO
@@ -201,7 +202,6 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
     i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
   }
 
-  DisallowGarbageCollection no_gc;
   ReadOnlySerializer read_only_serializer(i_isolate,
                                           Snapshot::kDefaultSerializerFlags);
   read_only_serializer.Serialize();
@@ -594,13 +594,14 @@ static void SerializeCustomContext(
     env.Reset();
 
     SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+    DisallowGarbageCollection no_gc;
 
     if (i_isolate->heap()->read_only_space()->writable()) {
       // Promote objects from mutable heap spaces to read-only space prior to
       // serialization. Objects can be promoted if a) they are themselves
       // immutable-after-deserialization and b) all objects in the transitive
       // object graph also satisfy condition a).
-      ReadOnlyPromotion::Promote(i_isolate, safepoint);
+      ReadOnlyPromotion::Promote(i_isolate, safepoint, no_gc);
       // When creating the snapshot from scratch, we are responsible for sealing
       // the RO heap here. Note we cannot delegate the responsibility e.g. to
       // Isolate::Init since it should still be possible to allocate into RO
@@ -609,7 +610,6 @@ static void SerializeCustomContext(
       i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
     }
 
-    DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(i_isolate,
                                             Snapshot::kDefaultSerializerFlags);
