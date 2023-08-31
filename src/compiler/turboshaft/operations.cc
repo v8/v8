@@ -1292,7 +1292,7 @@ namespace {
 void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
   os << "0x" << std::hex << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
-  for (int i = 0; j < kSimd128Size; j++) {
+  for (int i = 0; i < kSimd128Size; i++) {
 #else
   for (int i = kSimd128Size - 1; i >= 0; i--) {
 #endif
