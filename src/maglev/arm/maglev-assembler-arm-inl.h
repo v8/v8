@@ -778,7 +778,24 @@ inline void MaglevAssembler::CallSelf() {
   bl(code_gen_state()->entry_label());
 }
 
-inline void MaglevAssembler::Jump(Label* target, Label::Distance) { b(target); }
+inline void MaglevAssembler::Jump(Label* target, Label::Distance) {
+  // Any eager deopts should go through JumpIf to enable us to support the
+  // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
+  DCHECK(!IsDeoptLabel(target));
+  b(target);
+}
+
+inline void MaglevAssembler::JumpToDeopt(Label* target) {
+  DCHECK(IsDeoptLabel(target));
+  b(target);
+}
+
+inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
+  // TODO(olivf): On arm `--deopt-every-n-times` is currently not supported.
+  // Supporting it would require to implement this method, additionally handle
+  // deopt branches in Cbz, and handle all cases where we fall through to the
+  // deopt branch (like Int32Divide).
+}
 
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance) {

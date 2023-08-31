@@ -559,8 +559,8 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   // Check that the result of the float64->int32->float64 is equal to
   // the input (i.e. that the conversion didn't truncate).
   VFPCompareAndSetFlags(value, converted_back);
-  JumpIf(kEqual, success);
-  Jump(fail);
+  JumpIf(kNotEqual, fail);
+  Jump(success);
 }
 
 }  // namespace maglev

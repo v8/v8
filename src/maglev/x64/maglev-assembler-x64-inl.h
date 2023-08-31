@@ -747,11 +747,55 @@ inline void MaglevAssembler::CallSelf() {
 }
 
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
+  // Any eager deopts should go through JumpIf to enable us to support the
+  // `--deopt-every-n-times` stress mode. See EmitEagerDeoptStress.
+  DCHECK(!IsDeoptLabel(target));
   jmp(target, distance);
+}
+
+inline void MaglevAssembler::JumpToDeopt(Label* target) {
+  DCHECK(IsDeoptLabel(target));
+  jmp(target);
+}
+
+inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
+  if (V8_LIKELY(v8_flags.deopt_every_n_times <= 0)) {
+    return;
+  }
+
+  ExternalReference counter = ExternalReference::stress_deopt_count(isolate());
+
+  Label fallthrough;
+  pushfq();
+  pushq(rax);
+  load_rax(counter);
+  decl(rax);
+  JumpIf(not_zero, &fallthrough, Label::kNear);
+
+  RecordComment("-- deopt_every_n_times hit, jump to eager deopt");
+  Move(rax, v8_flags.deopt_every_n_times);
+  store_rax(counter);
+  popq(rax);
+  popfq();
+  JumpToDeopt(target);
+
+  bind(&fallthrough);
+  store_rax(counter);
+  popq(rax);
+  popfq();
 }
 
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance distance) {
+  // The least common denominator of all eager deopts is that they eventually
+  // (should) bottom out in `JumpIf`. We use the opportunity here to trigger
+  // extra eager deoptimizations with the `--deopt-every-n-times` stress mode.
+  // Since `IsDeoptLabel` is slow we duplicate the test for the flag here.
+  if (V8_UNLIKELY(v8_flags.deopt_every_n_times > 0)) {
+    if (IsDeoptLabel(target)) {
+      EmitEagerDeoptStress(target);
+    }
+  }
   j(cond, target, distance);
 }
 

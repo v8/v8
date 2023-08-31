@@ -279,7 +279,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ JumpIf(ne, *done);
         __ cmp(right, Operand(-1));
         __ JumpIf(ne, *done);
-        __ Jump(deopt);
+        __ JumpToDeopt(deopt);
       },
       done, left, right, this);
   __ bind(*done);

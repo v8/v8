@@ -387,8 +387,8 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   // the input (i.e. that the conversion didn't truncate).
   Ucomisd(value, converted_back);
   JumpIf(parity_even, fail);
-  JumpIf(kEqual, success);
-  Jump(fail);
+  JumpIf(kNotEqual, fail);
+  Jump(success);
 }
 
 void MaglevAssembler::OSRPrologue(Graph* graph) {
