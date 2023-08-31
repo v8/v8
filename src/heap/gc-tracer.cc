@@ -107,7 +107,7 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     Counters* counters = heap->isolate()->counters();
     const bool in_background = heap->isolate()->IsIsolateInBackground();
-    const bool is_incremental = heap->incremental_marking()->IsStopped();
+    const bool is_incremental = !heap->incremental_marking()->IsStopped();
     mode_ = Mode::None;
     // The following block selects histogram counters to emit. The trace event
     // name should be changed when metrics are updated.
