@@ -824,7 +824,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Put the return address in a stack slot.
         Register scratch = eax;
         __ push(scratch);
-        __ LoadLabelAddress(scratch, &return_location);
+        __ PushPC();
+        int pc = __ pc_offset();
+        __ pop(scratch);
+        __ sub(scratch,
+               Immediate(pc + InstructionStream::kHeaderSize - kHeapObjectTag));
+        __ add(scratch, Immediate::CodeRelativeOffset(&return_location));
         __ mov(MemOperand(ebp, WasmExitFrameConstants::kCallingPCOffset),
                scratch);
         __ pop(scratch);
