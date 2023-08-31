@@ -246,14 +246,28 @@ class Committee final {
 
   static void LogRejectedPromotionForFailedPredicate(HeapObject o) {
     std::cout << "ro-promotion: rejected due to failed predicate "
-              << reinterpret_cast<void*>(o.ptr()) << "\n";
+              << reinterpret_cast<void*>(o.ptr()) << " ("
+              << o.map()->instance_type() << ")"
+              << "\n";
   }
 
-  static void LogRejectedPromotionForInvalidSubgraph(
-      HeapObject o, int first_rejected_slot_offset) {
+  void LogRejectedPromotionForInvalidSubgraph(HeapObject o,
+                                              int first_rejected_slot_offset) {
     std::cout << "ro-promotion: rejected due to rejected subgraph "
-              << reinterpret_cast<void*>(o.ptr()) << " at slot offset "
-              << first_rejected_slot_offset << "\n";
+              << reinterpret_cast<void*>(o.ptr()) << " ("
+              << o.map()->instance_type() << ")"
+              << " at slot offset " << first_rejected_slot_offset << " ";
+
+    MaybeObjectSlot slot = o.RawMaybeWeakField(first_rejected_slot_offset);
+    MaybeObject maybe_object = slot.load(isolate_);
+    HeapObject heap_object;
+    if (maybe_object.GetHeapObject(&heap_object)) {
+      std::cout << reinterpret_cast<void*>(heap_object.ptr()) << " ("
+                << heap_object.map()->instance_type() << ")"
+                << "\n";
+    } else {
+      std::cout << "<cleared weak object>\n";
+    }
   }
 
   Isolate* const isolate_;
