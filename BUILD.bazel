@@ -1833,6 +1833,7 @@ filegroup(
         "src/objects/field-index-inl.h",
         "src/objects/field-type.cc",
         "src/objects/field-type.h",
+        "src/objects/fixed-array.cc",
         "src/objects/fixed-array.h",
         "src/objects/fixed-array-inl.h",
         "src/objects/foreign.h",

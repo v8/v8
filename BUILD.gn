@@ -5184,6 +5184,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/embedder-data-array.cc",
     "src/objects/feedback-vector.cc",
     "src/objects/field-type.cc",
+    "src/objects/fixed-array.cc",
     "src/objects/instruction-stream.cc",
     "src/objects/intl-objects.cc",
     "src/objects/js-array-buffer.cc",

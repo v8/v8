@@ -17,54 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
-  V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
-  V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
-  V(CODE_STUBS_TABLE_SUB_TYPE)                   \
-  V(COMPILATION_CACHE_TABLE_SUB_TYPE)            \
-  V(CONTEXT_SUB_TYPE)                            \
-  V(COPY_ON_WRITE_SUB_TYPE)                      \
-  V(DEOPTIMIZATION_DATA_SUB_TYPE)                \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)                   \
-  V(EMBEDDED_OBJECT_SUB_TYPE)                    \
-  V(ENUM_CACHE_SUB_TYPE)                         \
-  V(ENUM_INDICES_CACHE_SUB_TYPE)                 \
-  V(DEPENDENT_CODE_SUB_TYPE)                     \
-  V(DICTIONARY_ELEMENTS_SUB_TYPE)                \
-  V(DICTIONARY_PROPERTIES_SUB_TYPE)              \
-  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)        \
-  V(PACKED_ELEMENTS_SUB_TYPE)                    \
-  V(FAST_PROPERTIES_SUB_TYPE)                    \
-  V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(HANDLER_TABLE_SUB_TYPE)                      \
-  V(JS_COLLECTION_SUB_TYPE)                      \
-  V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
-  V(NUMBER_STRING_CACHE_SUB_TYPE)                \
-  V(OBJECT_TO_CODE_SUB_TYPE)                     \
-  V(OPTIMIZED_CODE_LITERALS_SUB_TYPE)            \
-  V(OPTIMIZED_CODE_MAP_SUB_TYPE)                 \
-  V(PROTOTYPE_USERS_SUB_TYPE)                    \
-  V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)              \
-  V(RETAINED_MAPS_SUB_TYPE)                      \
-  V(SCOPE_INFO_SUB_TYPE)                         \
-  V(SCRIPT_LIST_SUB_TYPE)                        \
-  V(SERIALIZED_OBJECTS_SUB_TYPE)                 \
-  V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
-  V(SINGLE_CHARACTER_STRING_TABLE_SUB_TYPE)      \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
-  V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(FEEDBACK_METADATA_SUB_TYPE)                  \
-  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
-
-enum FixedArraySubInstanceType {
-#define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
-#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-      LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
-};
-
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Common superclass for FixedArrays that allow implementations to share

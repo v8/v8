@@ -611,10 +611,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
     kSizeOfCODE_TYPE_##name,
     CODE_KIND_LIST(COUNTER_ID)
 #undef COUNTER_ID
-#define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
-    kSizeOfFIXED_ARRAY__##name,
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
-#undef COUNTER_ID
     stats_counter_count
   };
   // clang-format on
