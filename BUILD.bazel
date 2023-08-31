@@ -3401,6 +3401,8 @@ filegroup(
         "src/heap/base/bytes.h",
         "src/heap/base/incremental-marking-schedule.cc",
         "src/heap/base/incremental-marking-schedule.h",
+        "src/heap/base/memory-tagging.h",
+        "src/heap/base/memory-tagging.cc",
         "src/heap/base/stack.cc",
         "src/heap/base/stack.h",
         "src/heap/base/worklist.cc",
