@@ -1376,9 +1376,8 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
             Register map = temps.GetDefaultScratchRegister();
             Label check_string;
             __ LoadMap(map, object);
-            __ JumpIfNotRoot(
-                map, RootIndex::kHeapNumberMap, &check_string,
-                v8_flags.deopt_every_n_times > 0 ? Label::kFar : Label::kNear);
+            __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, &check_string,
+                             Label::kNear);
             {
               DoubleRegister number_value = temps.AcquireDouble();
               __ LoadHeapNumberValue(number_value, object);
@@ -1408,10 +1407,8 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                 // No need for safepoint since this is a fast C call.
                 __ Move(result_reg, kReturnRegister0);
               }
-              __ CompareInt32AndJumpIf(
-                  result_reg, 0, kLessThan,
-                  __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32));
-              __ Jump(*done);
+              __ CompareInt32AndJumpIf(result_reg, 0, kGreaterThanEqual, *done);
+              __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
             }
           },
           object, result_reg, done, this));
@@ -2480,7 +2477,6 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
   Register object_map = temps.Acquire();
   Label done;
   Label is_number;
-  Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap);
 
   __ JumpIfSmi(object, &is_number);
   __ LoadMap(object_map, object);
@@ -2520,7 +2516,6 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
       __ bind(&is_number);
     }
     __ bind(&map_found);
-    __ EmitEagerDeoptStress(deopt);
     f(masm, node, access_info, object, object_map, std::forward<Args>(args)...);
     __ Jump(&done);
 
@@ -2534,7 +2529,7 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
   }
 
   // No map matched!
-  __ JumpToDeopt(deopt);
+  __ EmitEagerDeopt(node, DeoptimizeReason::kWrongMap);
   __ bind(&done);
 }
 
@@ -2795,8 +2790,8 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
           // correct register set.
           __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
         }
-        __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
-        __ Jump(*end);
+        __ JumpIf(kEqual, *end);
+        __ EmitEagerDeopt(node, DeoptimizeReason::kWrongValue);
       },
       this, end);
 

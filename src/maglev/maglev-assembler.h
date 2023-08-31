@@ -304,8 +304,6 @@ class MaglevAssembler : public MacroAssembler {
                              Label::Distance distance = Label::kFar);
   template <typename NodeT>
   inline Label* GetDeoptLabel(NodeT* node, DeoptimizeReason reason);
-  inline bool IsDeoptLabel(Label* label);
-  inline void EmitEagerDeoptStress(Label* label);
   template <typename NodeT>
   inline void EmitEagerDeopt(NodeT* node, DeoptimizeReason reason);
   template <typename NodeT>
@@ -420,7 +418,6 @@ class MaglevAssembler : public MacroAssembler {
   inline void CallRuntime(Runtime::FunctionId fid, int num_args);
 
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
-  inline void JumpToDeopt(Label* target);
   inline void JumpIf(Condition cond, Label* target,
                      Label::Distance distance = Label::kFar);
 
@@ -622,15 +619,6 @@ ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
 // Deopt
 // ---
 
-inline bool MaglevAssembler::IsDeoptLabel(Label* label) {
-  for (auto deopt : code_gen_state_->eager_deopts()) {
-    if (deopt->deopt_entry_label() == label) {
-      return true;
-    }
-  }
-  return false;
-}
-
 template <typename NodeT>
 inline Label* MaglevAssembler::GetDeoptLabel(NodeT* node,
                                              DeoptimizeReason reason) {
@@ -649,8 +637,8 @@ inline Label* MaglevAssembler::GetDeoptLabel(NodeT* node,
 template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
                                             DeoptimizeReason reason) {
-  RecordComment("-- jump to eager deopt");
-  JumpToDeopt(GetDeoptLabel(node, reason));
+  RecordComment("-- Jump to eager deopt");
+  Jump(GetDeoptLabel(node, reason));
 }
 
 template <typename NodeT>
