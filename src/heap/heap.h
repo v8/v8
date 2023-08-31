@@ -31,6 +31,7 @@
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
+#include "src/heap/minor-gc-job.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/sweeper.h"
 #include "src/init/heap-symbols.h"
@@ -106,7 +107,6 @@ class MemoryBalancer;
 class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
-class MinorGCJob;
 class MinorMarkSweepCollector;
 class NativeContext;
 class NopRwxMemoryWriteScope;
@@ -1946,6 +1946,8 @@ class Heap final {
   void ScheduleMinorGCTaskIfNeeded();
   V8_EXPORT_PRIVATE void StartMinorMSIncrementalMarkingIfNeeded();
   bool MinorMSSizeTaskTriggerReached() const;
+
+  MinorGCJob* minor_gc_job() { return minor_gc_job_.get(); }
 
   // ===========================================================================
   // Allocation methods. =======================================================

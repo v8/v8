@@ -89,7 +89,8 @@ void IncrementalMarkingJob::ScheduleTask(TaskType task_type) {
 
 void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8",
+                                "V8.IncrementalMarkingJob.Task");
 
   isolate()->stack_guard()->ClearStartIncrementalMarking();
 

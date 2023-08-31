@@ -5933,11 +5933,15 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
     load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
   }
   rail_mode_.store(rail_mode);
-  auto* job = heap()->incremental_marking()->incremental_marking_job();
-  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD &&
-      job) {
-    // Schedule a task to start incremental marking.
-    job->ScheduleTask();
+  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
+    if (auto* job = heap()->incremental_marking()->incremental_marking_job()) {
+      // The task will start incremental marking (if needed not already started)
+      // and advance marking if incremental marking is active.
+      job->ScheduleTask();
+    }
+    if (auto* job = heap()->minor_gc_job()) {
+      job->SchedulePreviouslyRequestedTask();
+    }
   }
   if (v8_flags.trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
