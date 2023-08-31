@@ -152,6 +152,43 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  OpIndex REDUCE(ArrayGet)(OpIndex array, OpIndex index,
+                           wasm::ValueType element_type, bool is_signed) {
+    return __ Load(array, __ ChangeInt32ToIntPtr(index),
+                   LoadOp::Kind::TaggedBase(),
+                   RepresentationFor(element_type, is_signed),
+                   WasmArray::kHeaderSize, element_type.value_kind_size_log2());
+  }
+
+  OpIndex REDUCE(ArraySet)(OpIndex array, OpIndex index, OpIndex value,
+                           wasm::ValueType element_type) {
+    __ Store(array, __ ChangeInt32ToIntPtr(index), value,
+             LoadOp::Kind::TaggedBase(), RepresentationFor(element_type, true),
+             element_type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier,
+             WasmArray::kHeaderSize, element_type.value_kind_size_log2());
+    return OpIndex::Invalid();
+  }
+
+  OpIndex REDUCE(ArrayLength)(OpIndex array, CheckForNull null_check) {
+    bool explicit_null_check =
+        null_check == kWithNullCheck &&
+        null_check_strategy_ == NullCheckStrategy::kExplicit;
+    bool implicit_null_check =
+        null_check == kWithNullCheck &&
+        null_check_strategy_ == NullCheckStrategy::kTrapHandler;
+
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef), OpIndex::Invalid(),
+                TrapId::kTrapNullDereference);
+    }
+
+    LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
+                                                 : LoadOp::Kind::TaggedBase();
+
+    return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
+                   WasmArray::kLengthOffset);
+  }
+
  private:
   enum class GlobalMode { kLoad, kStore };
 

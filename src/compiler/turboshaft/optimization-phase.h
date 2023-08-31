@@ -1032,6 +1032,23 @@ class GraphVisitor {
                                        op.field_index, op.null_check);
   }
 
+  OpIndex AssembleOutputGraphArrayGet(const ArrayGetOp& op) {
+    return assembler().ReduceArrayGet(MapToNewGraph(op.array()),
+                                      MapToNewGraph(op.index()),
+                                      op.element_type, op.is_signed);
+  }
+
+  OpIndex AssembleOutputGraphArraySet(const ArraySetOp& op) {
+    return assembler().ReduceArraySet(
+        MapToNewGraph(op.array()), MapToNewGraph(op.index()),
+        MapToNewGraph(op.value()), op.element_type);
+  }
+
+  OpIndex AssembleOutputGraphArrayLength(const ArrayLengthOp& op) {
+    return assembler().ReduceArrayLength(MapToNewGraph(op.array()),
+                                         op.null_check);
+  }
+
   OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
     return assembler().ReduceSimd128Constant(op.value);
   }

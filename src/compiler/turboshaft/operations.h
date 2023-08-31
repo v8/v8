@@ -107,7 +107,10 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmTypeCheck)                        \
   V(WasmTypeCast)                         \
   V(StructGet)                            \
-  V(StructSet)
+  V(StructSet)                            \
+  V(ArrayGet)                             \
+  V(ArraySet)                             \
+  V(ArrayLength)
 
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
@@ -6382,6 +6385,109 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   auto options() const { return std::tuple{type, field_index, null_check}; }
 };
 
+struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
+  wasm::ValueType element_type;
+  bool is_signed;
+
+  // ArrayGetOp may never trap as it is always protected by a length check.
+  static constexpr OpEffects effects =
+      OpEffects()
+          // This should not float above a protective null/length check.
+          .CanDependOnChecks()
+          .CanReadMemory();
+
+  ArrayGetOp(OpIndex array, OpIndex index, wasm::ValueType element_type,
+             bool is_signed)
+      : Base(array, index), element_type(element_type), is_signed(is_signed) {}
+
+  OpIndex array() const { return input(0); }
+  OpIndex index() const { return input(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(element_type), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, array(), RegisterRepresentation::Tagged()));
+    DCHECK(ValidOpInputRep(graph, index(), RegisterRepresentation::Word32()));
+  }
+
+  auto options() const { return std::tuple{element_type, is_signed}; }
+};
+
+struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
+  wasm::ValueType element_type;
+
+  // ArraySetOp may never trap as it is always protected by a length check.
+  static constexpr OpEffects effects =
+      OpEffects()
+          // This should not float above a protective null/length check.
+          .CanDependOnChecks()
+          .CanWriteMemory();
+
+  ArraySetOp(OpIndex array, OpIndex index, OpIndex value,
+             wasm::ValueType element_type)
+      : Base(array, index, value), element_type(element_type) {}
+
+  OpIndex array() const { return input(0); }
+  OpIndex index() const { return input(1); }
+  OpIndex value() const { return input(2); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
+                                  RegisterRepresentation::Word32(),
+                                  RepresentationFor(element_type)});
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{element_type}; }
+};
+
+struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
+  CheckForNull null_check;
+
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null check.
+            .CanDependOnChecks()
+            .CanReadMemory();
+    if (null_check == kWithNullCheck) {
+      // This may trap.
+      result = result.CanLeaveCurrentFunction();
+    }
+    return result;
+  }
+
+  explicit ArrayLengthOp(OpIndex array, CheckForNull null_check)
+      : Base(array), null_check(null_check) {}
+
+  OpIndex array() const { return input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{null_check}; }
+};
+
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   uint8_t value[kSimd128Size];
 
@@ -7168,6 +7274,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructGetOp>().Effects();
     case Opcode::kStructSet:
       return Cast<StructSetOp>().Effects();
+    case Opcode::kArrayLength:
+      return Cast<ArrayLengthOp>().Effects();
     case Opcode::kSimd128LaneMemory:
       return Cast<Simd128LaneMemoryOp>().Effects();
     case Opcode::kSimd128LoadTransform:

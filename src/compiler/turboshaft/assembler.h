@@ -3134,7 +3134,15 @@ class AssemblerOpInterface {
     return stack().ReduceWasmTypeCheck(object, rtt, config);
   }
 
-  OpIndex StructGet(V<Tagged> object, const wasm::StructType* type,
+  V<Tagged> WasmTypeCast(V<Tagged> object, V<Map> rtt,
+                         WasmTypeCheckConfig config) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceWasmTypeCast(object, rtt, config);
+  }
+
+  OpIndex StructGet(V<HeapObject> object, const wasm::StructType* type,
                     int field_index, bool is_signed, CheckForNull null_check) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -3143,20 +3151,36 @@ class AssemblerOpInterface {
                                    null_check);
   }
 
-  void StructSet(V<Tagged> object, OpIndex value, const wasm::StructType* type,
-                 int field_index, CheckForNull null_check) {
+  void StructSet(V<HeapObject> object, OpIndex value,
+                 const wasm::StructType* type, int field_index,
+                 CheckForNull null_check) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
     stack().ReduceStructSet(object, value, type, field_index, null_check);
   }
 
-  V<Tagged> WasmTypeCast(V<Tagged> object, V<Map> rtt,
-                         WasmTypeCheckConfig config) {
+  OpIndex ArrayGet(V<HeapObject> array, V<Word32> index,
+                   wasm::ValueType element_type, bool is_signed) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceWasmTypeCast(object, rtt, config);
+    return stack().ReduceArrayGet(array, index, element_type, is_signed);
+  }
+
+  void ArraySet(V<HeapObject> array, V<Word32> index, OpIndex value,
+                wasm::ValueType element_type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceArraySet(array, index, value, element_type);
+  }
+
+  V<Word32> ArrayLength(V<HeapObject> array, CheckForNull null_check) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceArrayLength(array, null_check);
   }
 
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {

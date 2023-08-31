@@ -1772,17 +1772,24 @@ class TurboshaftGraphBuildingInterface {
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
-    Bailout(decoder);
+    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
+    result->op = asm_.ArrayGet(array_obj.op, index.op,
+                               imm.array_type->element_type(), is_signed);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
-    Bailout(decoder);
+    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
+    asm_.ArraySet(array_obj.op, index.op, value.op,
+                  imm.array_type->element_type());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    Bailout(decoder);
+    result->op =
+        asm_.ArrayLength(array_obj.op, array_obj.type.is_nullable()
+                                           ? compiler::kWithNullCheck
+                                           : compiler::kWithoutNullCheck);
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
@@ -4207,6 +4214,20 @@ class TurboshaftGraphBuildingInterface {
     asm_.Bind(done);
     return asm_.Phi(base::VectorOf({loaded_value, default_value}),
                     repr.ToRegisterRepresentation());
+  }
+
+  void BoundsCheckArray(OpIndex array, OpIndex index, ValueType array_type) {
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+      if (array_type.is_nullable()) {
+        asm_.AssertNotNull(array, array_type, TrapId::kTrapNullDereference);
+      }
+    } else {
+      OpIndex length = asm_.ArrayLength(
+          array, array_type.is_nullable() ? compiler::kWithNullCheck
+                                          : compiler::kWithoutNullCheck);
+      asm_.TrapIfNot(asm_.Uint32LessThan(index, length), OpIndex::Invalid(),
+                     TrapId::kTrapArrayOutOfBounds);
+    }
   }
 
   V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {

@@ -310,6 +310,9 @@ class TypeInferenceAnalysis {
         case Opcode::kWasmTypeCast:
         case Opcode::kStructGet:
         case Opcode::kStructSet:
+        case Opcode::kArrayGet:
+        case Opcode::kArraySet:
+        case Opcode::kArrayLength:
         case Opcode::kSimd128Constant:
         case Opcode::kSimd128Binop:
         case Opcode::kSimd128Unary:
