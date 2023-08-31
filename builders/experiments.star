@@ -165,14 +165,14 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 gcc",
         triggered_by = ["v8-trigger"],
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
         name = "V8 Linux64 gcc - debug builder",
         triggered_by = ["v8-trigger"],
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),

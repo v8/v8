@@ -160,7 +160,7 @@ try_builder(
     name = "v8_linux64_gcc_compile_dbg",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "strong", "os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+    dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 5400,
 )
 
@@ -171,7 +171,7 @@ try_builder(
     # TODO(https://crbug.com/v8/13005): Block branch CQ as soon as M105 is
     # extended stable.
     cq_branch_properties = CQ.EXP_100_PERCENT,
-    dimensions = {"host_class": "strong", "os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+    dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["v8_gcc_light"]},
 )
