@@ -4109,15 +4109,17 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
     turbofan_data->InitializeFrameData(call_descriptor);
   }
 
-  // Produce special RPO numbering.
-  Run<turboshaft::SpecialRPOSchedulingPhase>();
-
-  turboshaft_scope->Value().InitializeInstructionSequence(call_descriptor);
-
   // Select and schedule instructions covering the scheduled graph.
+  CodeTracer* code_tracer = nullptr;
+  if (turbofan_data->info()->trace_turbo_graph()) {
+    // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
+    // because it may not yet be initialized then and doing so from the
+    // background thread is not threadsafe.
+    code_tracer = turbofan_data->GetCodeTracer();
+  }
   if (base::Optional<BailoutReason> bailout =
-          Run<turboshaft::InstructionSelectionPhase>(call_descriptor,
-                                                     linkage)) {
+          Run<turboshaft::InstructionSelectionPhase>(call_descriptor, linkage,
+                                                     code_tracer)) {
     info()->AbortOptimization(*bailout);
     turbofan_data->EndPhaseKind();
     return false;

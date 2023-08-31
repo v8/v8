@@ -339,7 +339,7 @@ bool InstructionSelectorT<Adapter>::CanCover(node_t user, node_t node) const {
     const turboshaft::Operation& op = this->Get(node);
     // 2. If node does not produce anything, it can be covered.
     if (op.Effects().produces.bits() == 0) {
-      this->is_exclusive_user_of(user, node);
+      return this->is_exclusive_user_of(user, node);
     }
     // If it does produce something outside the {kTurboshaftEffectLevelMask}, it
     // can never be covered.

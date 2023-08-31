@@ -405,6 +405,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
       case Opcode::kCheckException:
         return true;
       default:
+        DCHECK_LE(SuccessorBlocks(*this, graph).size(), 1);
         return false;
     }
   }
@@ -422,8 +423,30 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   explicit Block(Kind kind) : kind_(kind) {}
 
-  uint32_t& custom_data() { return custom_data_; }
-  const uint32_t& custom_data() const { return custom_data_; }
+  enum class CustomDataKind {
+    kUnset,  // No custom data has been set for this block.
+    kPhiInputIndex,
+    kDeferredInSchedule,
+  };
+
+  void set_custom_data(uint32_t data, CustomDataKind kind_for_debug_check) {
+    custom_data_ = data;
+#ifdef DEBUG
+    custom_data_kind_for_debug_check_ = kind_for_debug_check;
+#endif
+  }
+
+  uint32_t get_custom_data(CustomDataKind kind_for_debug_check) const {
+    DCHECK_EQ(custom_data_kind_for_debug_check_, kind_for_debug_check);
+    return custom_data_;
+  }
+
+  void clear_custom_data() {
+    custom_data_ = 0;
+#ifdef DEBUG
+    custom_data_kind_for_debug_check_ = CustomDataKind::kUnset;
+#endif
+  }
 
  private:
   // AddPredecessor should never be called directly except from Assembler's
@@ -455,6 +478,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   // after previous uses.
   uint32_t custom_data_ = 0;
 #ifdef DEBUG
+  CustomDataKind custom_data_kind_for_debug_check_ = CustomDataKind::kUnset;
   size_t graph_generation_ = 0;
 #endif
 };
@@ -517,6 +541,7 @@ class Graph {
 
   void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count.SetToZero(); }
 
+  Block& StartBlock() { return Get(BlockIndex(0)); }
   const Block& StartBlock() const { return Get(BlockIndex(0)); }
 
   Block& Get(BlockIndex i) {

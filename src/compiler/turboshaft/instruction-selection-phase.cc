@@ -9,6 +9,8 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/sidetable.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -300,19 +302,65 @@ class TurboshaftSpecialRPONumberer {
   Zone* zone_;
 };
 
-void SpecialRPOSchedulingPhase::Run(Zone* temp_zone) {
-  Graph& graph = PipelineData::Get().graph();
-
-  TurboshaftSpecialRPONumberer numberer(graph, temp_zone);
-  auto schedule = numberer.ComputeSpecialRPO();
-  graph.ReorderBlocks(base::VectorOf(schedule));
-}
-
 base::Optional<BailoutReason> InstructionSelectionPhase::Run(
-    Zone* temp_zone, const CallDescriptor* call_descriptor, Linkage* linkage) {
+    Zone* temp_zone, const CallDescriptor* call_descriptor, Linkage* linkage,
+    CodeTracer* code_tracer) {
   PipelineData* data = &PipelineData::Get();
   Graph& graph = PipelineData::Get().graph();
 
+  // Compute special RPO order....
+  TurboshaftSpecialRPONumberer numberer(graph, temp_zone);
+  auto schedule = numberer.ComputeSpecialRPO();
+  graph.ReorderBlocks(base::VectorOf(schedule));
+
+  // Determine deferred blocks.
+  graph.StartBlock().set_custom_data(
+      0, Block::CustomDataKind::kDeferredInSchedule);
+  for (Block& block : graph.blocks()) {
+    const Block* predecessor = block.LastPredecessor();
+    if (predecessor == nullptr) {
+      continue;
+    } else if (block.IsLoop()) {
+      // We only consider the forward edge for loop headers.
+      predecessor = predecessor->NeighboringPredecessor();
+      DCHECK_NOT_NULL(predecessor);
+      DCHECK_EQ(predecessor->NeighboringPredecessor(), nullptr);
+      block.set_custom_data(predecessor->get_custom_data(
+                                Block::CustomDataKind::kDeferredInSchedule),
+                            Block::CustomDataKind::kDeferredInSchedule);
+    } else if (predecessor->NeighboringPredecessor() == nullptr) {
+      // This block has only a single predecessor. Due to edge-split form, those
+      // are the only blocks that can be the target of a branch-like op which
+      // might potentially provide a BranchHint to defer this block.
+      const bool is_deferred =
+          predecessor->get_custom_data(
+              Block::CustomDataKind::kDeferredInSchedule) ||
+          IsUnlikelySuccessor(predecessor, &block, graph);
+      block.set_custom_data(is_deferred,
+                            Block::CustomDataKind::kDeferredInSchedule);
+    } else {
+      block.set_custom_data(true, Block::CustomDataKind::kDeferredInSchedule);
+      for (; predecessor; predecessor = predecessor->NeighboringPredecessor()) {
+        // If there is a single predecessor that is not deferred, then block is
+        // also not deferred.
+        if (!predecessor->get_custom_data(
+                Block::CustomDataKind::kDeferredInSchedule)) {
+          block.set_custom_data(false,
+                                Block::CustomDataKind::kDeferredInSchedule);
+          break;
+        }
+      }
+    }
+  }
+
+  // Print graph once before instruction selection.
+  turboshaft::PrintTurboshaftGraph(temp_zone, code_tracer,
+                                   "before instruction selection");
+
+  // Initialize an instruction sequence.
+  data->InitializeInstructionSequence(call_descriptor);
+
+  // Run the actual instruction selection.
   InstructionSelector selector = InstructionSelector::ForTurboshaft(
       temp_zone, graph.op_id_count(), linkage, data->sequence(), &graph,
       data->frame(),

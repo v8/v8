@@ -14,6 +14,7 @@
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/phase.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/sidetable.h"
 
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name)                  \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Turboshaft##Name,       \

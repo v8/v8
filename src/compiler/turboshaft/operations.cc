@@ -1535,4 +1535,47 @@ class InputsRepFactoryCheck : InputsRepFactory {
 };
 }  // namespace
 
+bool IsUnlikelySuccessor(const Block* block, const Block* successor,
+                         const Graph& graph) {
+  DCHECK(base::contains(successor->Predecessors(), block));
+  const Operation& terminator = block->LastOperation(graph);
+  switch (terminator.opcode) {
+    case Opcode::kCheckException: {
+      const CheckExceptionOp& check_exception =
+          terminator.Cast<CheckExceptionOp>();
+      return successor == check_exception.catch_block;
+    }
+    case Opcode::kGoto:
+      return false;
+    case Opcode::kBranch: {
+      const BranchOp& branch = terminator.Cast<BranchOp>();
+      return (branch.hint == BranchHint::kTrue &&
+              successor == branch.if_false) ||
+             (branch.hint == BranchHint::kFalse && successor == branch.if_true);
+    }
+    case Opcode::kSwitch: {
+      const SwitchOp& swtch = terminator.Cast<SwitchOp>();
+      if (successor == swtch.default_case) {
+        return swtch.default_hint == BranchHint::kFalse;
+      }
+      auto it = std::find_if(swtch.cases.begin(), swtch.cases.end(),
+                             [successor](const SwitchOp::Case& c) {
+                               return c.destination == successor;
+                             });
+      DCHECK_NE(it, swtch.cases.end());
+      return it->hint == BranchHint::kFalse;
+    }
+    case Opcode::kDeoptimize:
+    case Opcode::kTailCall:
+    case Opcode::kUnreachable:
+    case Opcode::kReturn:
+      UNREACHABLE();
+
+#define NON_TERMINATOR_CASE(op) case Opcode::k##op:
+      TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(NON_TERMINATOR_CASE)
+      UNREACHABLE();
+#undef NON_TERMINATOR_CASE
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft

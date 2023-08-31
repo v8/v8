@@ -3774,7 +3774,6 @@ struct fast_hash<SwitchOp::Case> {
 };
 
 inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
-  DCHECK(op.IsBlockTerminator());
   switch (op.opcode) {
     case Opcode::kCheckException: {
       auto& casted = op.Cast<CheckExceptionOp>();
@@ -3802,8 +3801,10 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
       result.push_back(casted.default_case);
       return result;
     }
-    default:
+#define NON_TERMINATOR_CASE(op) case Opcode::k##op:
+      TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(NON_TERMINATOR_CASE)
       UNREACHABLE();
+#undef NON_TERMINATOR_CASE
   }
 }
 
@@ -7331,6 +7332,9 @@ inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
 #undef CASE
   }
 }
+
+bool IsUnlikelySuccessor(const Block* block, const Block* successor,
+                         const Graph& graph);
 
 #undef FIELD
 

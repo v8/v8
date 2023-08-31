@@ -719,15 +719,22 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const turboshaft::Graph& graph,
                                              const turboshaft::Block* block) {
-  bool is_handler =
-      block->FirstOperation(graph).Is<turboshaft::CatchBlockBeginOp>();
   // TODO(nicohartmann@): Properly get the loop_header.
   turboshaft::Block* loop_header = nullptr;  // block->loop_header()
-  // TODO(nicohartmann@): Properly get the deferred.
-  bool deferred = false;
+  bool is_handler =
+      block->FirstOperation(graph).Is<turboshaft::CatchBlockBeginOp>();
+  bool deferred = block->get_custom_data(
+      turboshaft::Block::CustomDataKind::kDeferredInSchedule);
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
       GetRpo(block->GetDominator()), deferred, is_handler);
+  if (block->HasExactlyNPredecessors(1)) {
+    const turboshaft::Block* predecessor = block->LastPredecessor();
+    if (V8_UNLIKELY(
+            predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
+      instr_block->set_switch_target(true);
+    }
+  }
   // Map successors and predecessors.
   base::SmallVector<turboshaft::Block*, 4> succs =
       turboshaft::SuccessorBlocks(block->LastOperation(graph));
@@ -742,12 +749,6 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   }
   std::reverse(instr_block->predecessors().begin(),
                instr_block->predecessors().end());
-  if (block->HasExactlyNPredecessors(1)) {
-    const turboshaft::Block* predecessor = block->LastPredecessor();
-    if (predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>()) {
-      instr_block->set_switch_target(true);
-    }
-  }
   return instr_block;
 }
 

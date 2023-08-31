@@ -445,17 +445,15 @@ class GraphVisitor {
 
 #ifdef DEBUG
       // To check that indices are set properly, we zap them in debug builds.
-      const uint32_t invalid_custom_data = std::numeric_limits<uint32_t>::max();
       for (auto& block : assembler().modifiable_input_graph().blocks()) {
-        block.custom_data() = invalid_custom_data;
+        block.clear_custom_data();
       }
 #endif
       uint32_t pos = current_input_block_->PredecessorCount() - 1;
       for (old_pred = current_input_block_->LastPredecessor();
            old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
         // Store the current index of the {old_pred}.
-        DCHECK_EQ(old_pred->custom_data(), invalid_custom_data);
-        old_pred->custom_data() = pos--;
+        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
       }
 
       // Filling {new_inputs}: we iterate the new predecessors, and, for each
@@ -467,8 +465,8 @@ class GraphVisitor {
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->OriginForBlockEnd();
         DCHECK_NOT_NULL(origin);
-        DCHECK_NE(origin->custom_data(), invalid_custom_data);
-        OpIndex input = old_inputs[origin->custom_data()];
+        OpIndex input = old_inputs[origin->get_custom_data(
+            Block::CustomDataKind::kPhiInputIndex)];
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable

@@ -3943,11 +3943,10 @@ template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
-  for (const EqualOp* equal =
-           this->turboshaft_graph()->Get(value).TryCast<EqualOp>();
-       equal != nullptr && CanCover(user, value);) {
+  const EqualOp* equal = this->TryCast<EqualOp>(value);
+  while (equal != nullptr && CanCover(user, value)) {
     const ConstantOp* right_constant =
-        this->turboshaft_graph()->Get(equal->right()).TryCast<ConstantOp>();
+        this->TryCast<ConstantOp>(equal->right());
     if (right_constant == nullptr) break;
     if (right_constant->kind != ConstantOp::Kind::kWord32) break;
     if (right_constant->word32() != 0) break;
@@ -3955,6 +3954,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     user = value;
     value = equal->left();
     cont->Negate();
+    equal = this->TryCast<EqualOp>(value);
   }
 
   if (CanCover(user, value)) {
