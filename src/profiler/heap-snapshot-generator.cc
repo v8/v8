@@ -394,8 +394,6 @@ const char* HeapEntry::TypeAsString() const {
       return "/bigint/";
     case kObjectShape:
       return "/object shape/";
-    case kWasmObject:
-      return "/wasm object/";
     default: return "???";
   }
 }
@@ -908,15 +906,10 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
                                      ->native_module()
                                      ->GetNamesProvider();
     wasm::StringBuilder sb;
-    if (InstanceTypeChecker::IsWasmStruct(instance_type)) {
-      sb << "wasm struct / ";
-    } else {
-      sb << "wasm array / ";
-    }
     names->PrintTypeName(sb, info->type_index());
-    sb << '\0';
+    sb << " (wasm)" << '\0';
     const char* name = names_->GetCopy(sb.start());
-    return AddEntry(object, HeapEntry::kWasmObject, name);
+    return AddEntry(object, HeapEntry::kObject, name);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return AddEntry(object, GetSystemEntryType(object),
@@ -3186,8 +3179,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("sliced string") ","
             JSON_S("symbol") ","
             JSON_S("bigint") ","
-            JSON_S("object shape") ","
-            JSON_S("wasm object")) ","
+            JSON_S("object shape")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

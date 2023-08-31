@@ -120,7 +120,6 @@ class HeapEntry {
     kSymbol = v8::HeapGraphNode::kSymbol,
     kBigInt = v8::HeapGraphNode::kBigInt,
     kObjectShape = v8::HeapGraphNode::kObjectShape,
-    kWasmObject = v8::HeapGraphNode::kWasmObject,
     kNumTypes,
   };
 
