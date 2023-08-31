@@ -206,6 +206,12 @@
   'runtime/evaluate-async': [SKIP],
 }], # asan == True
 
+##############################################################################
+['full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'runtime/console-messages-limits': [SKIP],
+}],  # 'full_debug'
+
 ################################################################################
 ['third_party_heap', {
   # Requires a second isolate

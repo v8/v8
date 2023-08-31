@@ -550,9 +550,12 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'es6/super-ic': [SKIP],
+  'regress/regress-1122': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
+  'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################

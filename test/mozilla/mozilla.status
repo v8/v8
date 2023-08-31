@@ -479,7 +479,7 @@
 
   # This fails because we don't have stack space for Function.prototype.apply
   # with very large numbers of arguments.  The test uses 2^24 arguments.
-  'js1_5/Array/regress-350256-03': [FAIL_OK],
+  'js1_5/Array/regress-350256-03': [FAIL_OK, SLOW],
 
 
   # Extra arguments not handled properly in String.prototype.match
