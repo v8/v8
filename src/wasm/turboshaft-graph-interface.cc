@@ -1136,7 +1136,7 @@ class TurboshaftGraphBuildingInterface {
   void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    Bailout(decoder);
+    result->op = asm_.Simd128Shuffle(input0.op, input1.op, imm.value);
   }
 
   void Try(FullDecoder* decoder, Control* block) {

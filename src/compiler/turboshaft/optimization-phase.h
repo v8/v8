@@ -1074,7 +1074,11 @@ class GraphVisitor {
         MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.load_kind,
         op.transform_kind, op.offset);
   }
-#endif
+  OpIndex AssembleOutputGraphSimd128Shuffle(const Simd128ShuffleOp& op) {
+    return assembler().ReduceSimd128Shuffle(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.shuffle);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if constexpr (reducer_list_contains<typename Assembler::ReducerList,

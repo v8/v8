@@ -113,7 +113,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128ExtractLane)                   \
   V(Simd128ReplaceLane)                   \
   V(Simd128LaneMemory)                    \
-  V(Simd128LoadTransform)
+  V(Simd128LoadTransform)                 \
+  V(Simd128Shuffle)
 
 #define TURBOSHAFT_WASM_GC_OPERATION_LIST(V) \
   V(RttCanon)                                \
@@ -6313,6 +6314,7 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   }
 
   auto options() const { return std::tuple{value}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 #define FOREACH_SIMD_128_BINARY_OPCODE(V) \
@@ -6976,6 +6978,39 @@ struct Simd128LoadTransformOp
   void PrintOptions(std::ostream& os) const;
 };
 
+// Takes two Simd128 inputs and generates a Simd128 value. The 8-bit lanes of
+// both inputs are numbered 0-31, and each output 8-bit lane is selected from
+// among the input lanes according to `shuffle`.
+struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
+  uint8_t shuffle[kSimd128Size];
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128(),
+                          RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128ShuffleOp(OpIndex left, OpIndex right,
+                   const uint8_t incoming_shuffle[kSimd128Size])
+      : Base(left, right) {
+    std::copy(incoming_shuffle, incoming_shuffle + kSimd128Size, shuffle);
+  }
+
+  OpIndex left() const { return input(0); }
+  OpIndex right() const { return input(1); }
+
+  void Validate(const Graph& graph) {}
+
+  auto options() const { return std::tuple{shuffle}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define OPERATION_EFFECTS_CASE(Name) Name##Op::EffectsIfStatic(),
@@ -7039,6 +7074,8 @@ inline OpEffects Operation::Effects() const {
 #if V8_ENABLE_WEBASSEMBLY
     case Opcode::kSimd128LaneMemory:
       return Cast<Simd128LaneMemoryOp>().Effects();
+    case Opcode::kSimd128LoadTransform:
+      return Cast<Simd128LoadTransformOp>().Effects();
 #endif
     default:
       UNREACHABLE();

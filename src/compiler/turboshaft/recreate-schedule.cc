@@ -1756,6 +1756,11 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128LoadTransformOp& op) {
   return AddNode(o, {GetNode(op.base()), GetNode(op.index())});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
+  return AddNode(machine.I8x16Shuffle(op.shuffle),
+                 {GetNode(op.left()), GetNode(op.right())});
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace

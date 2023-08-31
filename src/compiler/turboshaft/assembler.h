@@ -3233,7 +3233,15 @@ class AssemblerOpInterface {
                                               transform_kind, offset);
   }
 
-#endif
+  V<Simd128> Simd128Shuffle(V<Simd128> left, V<Simd128> right,
+                            const uint8_t shuffle[kSimd128Size]) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Shuffle(left, right, shuffle);
+  }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {

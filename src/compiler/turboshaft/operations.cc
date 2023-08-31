@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/operations.h"
 
 #include <atomic>
+#include <iomanip>
 #include <sstream>
 
 #include "src/base/logging.h"
@@ -1287,6 +1288,24 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
   }
 }
 
+namespace {
+void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
+  os << "0x" << std::hex << std::setfill('0');
+#ifdef V8_TARGET_BIG_ENDIAN
+  for (int i = 0; j < kSimd128Size; j++) {
+#else
+  for (int i = kSimd128Size - 1; i >= 0; i--) {
+#endif
+    os << std::setw(2) << static_cast<int>(value[i]);
+  }
+  os << std::dec << std::setfill(' ');
+}
+}  // namespace
+
+void Simd128ConstantOp::PrintOptions(std::ostream& os) const {
+  PrintSimd128Value(os, value);
+}
+
 std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(kind)              \
@@ -1441,6 +1460,10 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
   }
 
   os << ", offset: " << offset << "]";
+}
+
+void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
+  PrintSimd128Value(os, shuffle);
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY
