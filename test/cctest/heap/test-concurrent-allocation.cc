@@ -51,14 +51,20 @@ const int kMediumObjectSize = 8 * KB;
 
 void AllocateSomeObjects(LocalHeap* local_heap) {
   for (int i = 0; i < kNumIterations; i++) {
-    Address address = local_heap->AllocateRawOrFail(
+    AllocationResult result = local_heap->AllocateRaw(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kTaggedAligned);
-    CreateFixedArray(local_heap->heap(), address, kSmallObjectSize);
-    address = local_heap->AllocateRawOrFail(
-        kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kTaggedAligned);
-    CreateFixedArray(local_heap->heap(), address, kMediumObjectSize);
+    if (!result.IsFailure()) {
+      CreateFixedArray(local_heap->heap(), result.ToAddress(),
+                       kSmallObjectSize);
+    }
+    result = local_heap->AllocateRaw(kMediumObjectSize, AllocationType::kOld,
+                                     AllocationOrigin::kRuntime,
+                                     AllocationAlignment::kTaggedAligned);
+    if (!result.IsFailure()) {
+      CreateFixedArray(local_heap->heap(), result.ToAddress(),
+                       kMediumObjectSize);
+    }
     if (i % 10 == 0) {
       local_heap->Safepoint();
     }

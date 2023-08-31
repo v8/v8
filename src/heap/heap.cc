@@ -492,6 +492,11 @@ bool Heap::CanExpandOldGeneration(size_t size) const {
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
+bool Heap::IsOldGenerationExpansionAllowed(
+    size_t size, const base::MutexGuard& expansion_mutex_guard) const {
+  return OldGenerationCapacity() + size <= max_old_generation_size();
+}
+
 namespace {
 bool IsIsolateDeserializationActive(LocalHeap* local_heap) {
   return local_heap && !local_heap->heap()->deserialization_complete();

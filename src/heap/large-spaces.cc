@@ -159,6 +159,13 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
 
 LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
                                                Executability executable) {
+  base::MutexGuard expansion_guard(heap_->heap_expansion_mutex());
+
+  if (identity() != NEW_LO_SPACE &&
+      !heap()->IsOldGenerationExpansionAllowed(object_size, expansion_guard)) {
+    return nullptr;
+  }
+
   LargePage* page = heap()->memory_allocator()->AllocateLargePage(
       this, object_size, executable);
   if (page == nullptr) return nullptr;
