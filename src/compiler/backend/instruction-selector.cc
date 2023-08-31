@@ -63,7 +63,8 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
     InstructionSelector::EnableRootsRelativeAddressing
         enable_roots_relative_addressing,
     InstructionSelector::EnableTraceTurboJson trace_turbo)
-    : zone_(zone),
+    : Adapter(schedule),
+      zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
       source_positions_(source_positions),
@@ -117,8 +118,6 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
 template <typename Adapter>
 base::Optional<BailoutReason>
 InstructionSelectorT<Adapter>::SelectInstructions() {
-  Adapter::InitializeAdapter(schedule_);
-
   // Mark the inputs of all phis in loop headers as used.
   block_range_t blocks = this->rpo_order(schedule());
   for (const block_t block : blocks) {

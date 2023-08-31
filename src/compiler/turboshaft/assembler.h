@@ -25,7 +25,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/operation-matching.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
@@ -3488,7 +3488,7 @@ class AssemblerOpInterface {
 template <class Reducers>
 class Assembler : public GraphVisitor<Assembler<Reducers>>,
                   public reducer_stack_type<Reducers>::type,
-                  public OperationMatching<Assembler<Reducers>>,
+                  public OperationMatcher,
                   public AssemblerOpInterface<Assembler<Reducers>> {
   using Stack = typename reducer_stack_type<Reducers>::type;
 
@@ -3498,7 +3498,8 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
                      compiler::NodeOriginTable* origins)
       : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone, origins),
-        Stack() {
+        Stack(),
+        OperationMatcher(output_graph) {
     SupportedOperations::Initialize();
   }
 

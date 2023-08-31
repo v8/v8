@@ -3329,7 +3329,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-reducer.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
-    "src/compiler/turboshaft/operation-matching.h",
+    "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/optimize-phase.h",

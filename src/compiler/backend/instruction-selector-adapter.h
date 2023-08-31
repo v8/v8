@@ -14,7 +14,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/operation-matching.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/use-map.h"
 
@@ -63,6 +63,8 @@ struct TurbofanAdapter {
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
   using source_position_table_t = SourcePositionTable;
+
+  explicit TurbofanAdapter(Schedule*) {}
 
   class ConstantView {
    public:
@@ -347,8 +349,6 @@ struct TurbofanAdapter {
   StoreView store_view(node_t node) { return StoreView(node); }
   DeoptimizeView deoptimize_view(node_t node) { return DeoptimizeView(node); }
 
-  void InitializeAdapter(schedule_t) {}
-
   block_t block(schedule_t schedule, node_t node) const {
     return schedule->block(node);
   }
@@ -473,8 +473,7 @@ struct TurbofanAdapter {
   }
 };
 
-struct TurboshaftAdapter
-    : public turboshaft::OperationMatching<TurboshaftAdapter> {
+struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   static constexpr bool IsTurbofan = false;
   static constexpr bool IsTurboshaft = true;
   static constexpr bool AllowsImplicitWord64ToWord32Truncation = true;
@@ -488,10 +487,8 @@ struct TurboshaftAdapter
   using id_t = uint32_t;
   using source_position_table_t = turboshaft::GrowingSidetable<SourcePosition>;
 
-  bool Matches(node_t node,
-               const turboshaft::MatchOrBind<node_t>& pattern) const {
-    return pattern.MatchesWith(graph_, node);
-  }
+  explicit TurboshaftAdapter(turboshaft::Graph* graph)
+      : turboshaft::OperationMatcher(*graph), graph_(graph) {}
 
   class ConstantView {
     using Kind = turboshaft::ConstantOp::Kind;
@@ -785,7 +782,6 @@ struct TurboshaftAdapter
     return DeoptimizeView(graph_, node);
   }
 
-  void InitializeAdapter(schedule_t schedule) { graph_ = schedule; }
   turboshaft::Graph* turboshaft_graph() const { return graph_; }
 
   block_t block(schedule_t schedule, node_t node) const {
@@ -959,10 +955,6 @@ struct TurboshaftAdapter
   }
 
  private:
-  friend class turboshaft::OperationMatching<TurboshaftAdapter>;
-  // Provide access to the graph for the OpMatcher.
-  const turboshaft::Graph& output_graph() const { return *graph_; }
-
   turboshaft::Graph* graph_;
 };
 

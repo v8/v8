@@ -100,9 +100,7 @@ class OperandGeneratorT : public Adapter {
   using node_t = typename Adapter::node_t;
 
   explicit OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
-      : selector_(selector) {
-    Adapter::InitializeAdapter(selector->schedule());
-  }
+      : Adapter(selector->schedule()), selector_(selector) {}
 
   InstructionOperand NoOutput() {
     return InstructionOperand();  // Generates an invalid operand.
