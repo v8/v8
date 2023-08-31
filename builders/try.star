@@ -167,7 +167,7 @@ try_builder(
 try_builder(
     name = "v8_linux64_gcc_light_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.BLOCK,
     # TODO(https://crbug.com/v8/13005): Block branch CQ as soon as M105 is
     # extended stable.
     cq_branch_properties = CQ.EXP_100_PERCENT,
