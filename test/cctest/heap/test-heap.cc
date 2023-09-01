@@ -1740,7 +1740,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     bool root_sfi_still_exists = false;
     MaybeObject maybe_root_sfi =
         script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
-    if (HeapObject sfi_or_undefined;
+    if (Tagged<HeapObject> sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
       root_sfi_still_exists = !IsUndefined(sfi_or_undefined);
     }

@@ -303,12 +303,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                    int* offsets_vector, int offsets_vector_length,
                    int previous_index, Isolate* isolate);
 
-  V8_EXPORT_PRIVATE static int ExecuteForTesting(String input, int start_offset,
-                                                 const uint8_t* input_start,
-                                                 const uint8_t* input_end,
-                                                 int* output, int output_size,
-                                                 Isolate* isolate,
-                                                 JSRegExp regexp);
+  V8_EXPORT_PRIVATE static int ExecuteForTesting(
+      Tagged<String> input, int start_offset, const uint8_t* input_start,
+      const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
+      Tagged<JSRegExp> regexp);
 
   bool CanReadUnaligned() const override;
 
@@ -332,8 +330,8 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   RegExp::CallOrigin call_origin,
                                   Address* return_address,
-                                  InstructionStream re_code, Address* subject,
-                                  const uint8_t** input_start,
+                                  Tagged<InstructionStream> re_code,
+                                  Address* subject, const uint8_t** input_start,
                                   const uint8_t** input_end);
 
   static Address word_character_map_address() {
@@ -350,9 +348,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
  private:
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Execute(String input, int start_offset, const uint8_t* input_start,
-                     const uint8_t* input_end, int* output, int output_size,
-                     Isolate* isolate, JSRegExp regexp);
+  static int Execute(Tagged<String> input, int start_offset,
+                     const uint8_t* input_start, const uint8_t* input_end,
+                     int* output, int output_size, Isolate* isolate,
+                     Tagged<JSRegExp> regexp);
 
   ZoneUnorderedMap<uint32_t, Handle<FixedUInt16Array>> range_array_cache_;
 };

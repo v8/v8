@@ -108,7 +108,7 @@ std::string LogFile::file_name() const { return file_name_; }
 LogFile::MessageBuilder::MessageBuilder(LogFile* log)
     : log_(log), lock_guard_(&log_->mutex_) {}
 
-void LogFile::MessageBuilder::AppendString(String str,
+void LogFile::MessageBuilder::AppendString(Tagged<String> str,
                                            base::Optional<int> length_limit) {
   if (str.is_null()) return;
 
@@ -192,7 +192,7 @@ void LogFile::MessageBuilder::AppendCharacter(char c) {
   }
 }
 
-void LogFile::MessageBuilder::AppendSymbolName(Symbol symbol) {
+void LogFile::MessageBuilder::AppendSymbolName(Tagged<Symbol> symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
@@ -204,7 +204,7 @@ void LogFile::MessageBuilder::AppendSymbolName(Symbol symbol) {
   os << "hash " << std::hex << symbol->hash() << std::dec << ")";
 }
 
-void LogFile::MessageBuilder::AppendSymbolNameDetails(String str,
+void LogFile::MessageBuilder::AppendSymbolNameDetails(Tagged<String> str,
                                                       bool show_impl_info) {
   if (str.is_null()) return;
 
@@ -273,26 +273,6 @@ template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<char>(char c) {
   this->AppendCharacter(c);
   return *this;
-}
-
-template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<String>(
-    String string) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return operator<<(Tagged(string));
-}
-
-template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Symbol>(
-    Symbol symbol) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return operator<<(Tagged(symbol));
-}
-
-template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Name>(Name name) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return operator<<(Tagged(name));
 }
 
 template <>

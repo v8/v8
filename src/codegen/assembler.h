@@ -322,7 +322,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
-  static void QuietNaN(HeapObject nan) {}
+  static void QuietNaN(Tagged<HeapObject> nan) {}
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 

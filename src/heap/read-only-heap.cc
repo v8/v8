@@ -282,7 +282,7 @@ bool ReadOnlyHeap::Contains(Address address) {
 }
 
 // static
-bool ReadOnlyHeap::Contains(HeapObject object) {
+bool ReadOnlyHeap::Contains(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
@@ -334,7 +334,7 @@ ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
   DCHECK_LT(current_addr, page->GetAreaStart() + page->area_size());
 }
 
-HeapObject ReadOnlyPageObjectIterator::Next() {
+Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
   if (page_ == nullptr) return HeapObject();
 
   Address end = page_->GetAreaStart() + page_->area_size();
@@ -342,7 +342,7 @@ HeapObject ReadOnlyPageObjectIterator::Next() {
     DCHECK_LE(current_addr_, end);
     if (current_addr_ == end) return HeapObject();
 
-    HeapObject object = HeapObject::FromAddress(current_addr_);
+    Tagged<HeapObject> object = HeapObject::FromAddress(current_addr_);
     const int object_size = object->Size();
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 

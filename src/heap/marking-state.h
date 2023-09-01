@@ -35,12 +35,12 @@ class MarkingStateBase {
 #endif  // V8_COMPRESS_POINTERS
   }
 
-  V8_INLINE bool TryMark(HeapObject obj);
+  V8_INLINE bool TryMark(Tagged<HeapObject> obj);
   // Helper method for fully marking an object and accounting its live bytes.
   // Should be used to mark individual objects in one-off cases.
-  V8_INLINE bool TryMarkAndAccountLiveBytes(HeapObject obj);
-  V8_INLINE bool IsMarked(const HeapObject obj) const;
-  V8_INLINE bool IsUnmarked(const HeapObject obj) const;
+  V8_INLINE bool TryMarkAndAccountLiveBytes(Tagged<HeapObject> obj);
+  V8_INLINE bool IsMarked(const Tagged<HeapObject> obj) const;
+  V8_INLINE bool IsUnmarked(const Tagged<HeapObject> obj) const;
 
  private:
 #if V8_COMPRESS_POINTERS

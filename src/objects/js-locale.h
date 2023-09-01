@@ -79,7 +79,7 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
   // Help function to check well-formed "3alpha"
   static bool Is3Alpha(const std::string& value);
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
 
   DECL_PRINTER(JSLocale)
 

@@ -137,7 +137,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
  private:
   // Get the break point info object for a source position.
-  Object GetBreakPointInfo(Isolate* isolate, int source_position);
+  Tagged<Object> GetBreakPointInfo(Isolate* isolate, int source_position);
 
   TQ_OBJECT_CONSTRUCTORS(DebugInfo)
 };
@@ -211,7 +211,7 @@ class StackFrameInfo
   static int GetSourcePosition(Handle<StackFrameInfo> info);
 
   // The script for the stack frame.
-  inline Script script() const;
+  inline Tagged<Script> script() const;
 
   // The bytecode offset or source position for the stack frame.
   DECL_INT_ACCESSORS(bytecode_offset_or_source_position)

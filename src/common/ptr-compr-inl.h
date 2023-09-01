@@ -271,7 +271,7 @@ V8_INLINE PtrComprCageBase GetPtrComprCageBase() { return PtrComprCageBase(); }
 
 #endif  // V8_COMPRESS_POINTERS
 
-V8_INLINE PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
+V8_INLINE PtrComprCageBase GetPtrComprCageBase(Tagged<HeapObject> object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
 

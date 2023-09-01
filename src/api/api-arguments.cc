@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 
 PropertyCallbackArguments::PropertyCallbackArguments(
-    Isolate* isolate, Object data, Object self, JSObject holder,
-    Maybe<ShouldThrow> should_throw)
+    Isolate* isolate, Tagged<Object> data, Tagged<Object> self,
+    Tagged<JSObject> holder, Maybe<ShouldThrow> should_throw)
     : Super(isolate)
 #ifdef DEBUG
       ,
@@ -29,7 +29,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
   // Here the hole is set as default value.
   // It cannot escape into js as it's removed in Call below.
-  HeapObject the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
   slot_at(T::kUnusedIndex).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
@@ -37,8 +37,10 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Object data, internal::Object holder,
-    internal::HeapObject new_target, internal::Address* argv, int argc)
+    internal::Isolate* isolate, internal::Tagged<internal::Object> data,
+    internal::Tagged<internal::Object> holder,
+    internal::Tagged<internal::HeapObject> new_target, internal::Address* argv,
+    int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kDataIndex).store(data);
   slot_at(T::kHolderIndex).store(holder);
@@ -47,7 +49,7 @@ FunctionCallbackArguments::FunctionCallbackArguments(
   // Here the hole is set as default value. It's converted to and not
   // directly exposed to js.
   // TODO(cbruni): Remove and/or use custom sentinel value.
-  HeapObject the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
   slot_at(T::kUnusedIndex).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));

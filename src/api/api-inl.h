@@ -19,7 +19,7 @@
 namespace v8 {
 
 template <typename T>
-inline T ToCData(v8::internal::Object obj) {
+inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
@@ -27,7 +27,8 @@ inline T ToCData(v8::internal::Object obj) {
 }
 
 template <>
-inline v8::internal::Address ToCData(v8::internal::Object obj) {
+inline v8::internal::Address ToCData(
+    v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
   return v8::internal::Foreign::cast(obj)->foreign_address();
 }
@@ -191,7 +192,7 @@ class V8_NODISCARD CallDepthScope {
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
       i::DisallowGarbageCollection no_gc;
-      i::Context env = *Utils::OpenHandle(*context);
+      i::Tagged<i::Context> env = *Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
       if (isolate->context().is_null() ||
           isolate->context()->native_context() != env->native_context()) {
@@ -276,7 +277,7 @@ class V8_NODISCARD InternalEscapableScope : public EscapableHandleScope {
 
 template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
-                                  i::FixedArray elements) {
+                                  i::Tagged<i::FixedArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
     double value = i::Object::Number(elements->get(static_cast<int>(i)));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
@@ -287,7 +288,7 @@ void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
 
 template <typename T>
 void CopyDoubleElementsToTypedBuffer(T* dst, uint32_t length,
-                                     i::FixedDoubleArray elements) {
+                                     i::Tagged<i::FixedDoubleArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
     double value = elements->get_scalar(static_cast<int>(i));
     // TODO(mslekova): There are certain cases, e.g. double->double, in which
@@ -311,13 +312,13 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   }
 
   i::DisallowGarbageCollection no_gc;
-  i::JSArray obj = *reinterpret_cast<i::JSArray*>(*src);
+  i::Tagged<i::JSArray> obj = *reinterpret_cast<i::JSArray*>(*src);
   if (i::Object::IterationHasObservableEffects(obj)) {
     // The array has a custom iterator.
     return false;
   }
 
-  i::FixedArrayBase elements = obj->elements();
+  i::Tagged<i::FixedArrayBase> elements = obj->elements();
   switch (obj->GetElementsKind()) {
     case i::PACKED_SMI_ELEMENTS:
       CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
@@ -349,14 +350,15 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
 
 namespace internal {
 
-void HandleScopeImplementer::EnterContext(NativeContext context) {
+void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.push_back(context);
   is_microtask_context_.push_back(0);
 }
 
-void HandleScopeImplementer::EnterMicrotaskContext(NativeContext context) {
+void HandleScopeImplementer::EnterMicrotaskContext(
+    Tagged<NativeContext> context) {
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.push_back(context);

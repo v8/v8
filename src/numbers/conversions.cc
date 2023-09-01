@@ -1448,7 +1448,8 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
   return FlatStringToDouble(*flattened, flags, empty_string_val);
 }
 
-double FlatStringToDouble(String string, int flags, double empty_string_val) {
+double FlatStringToDouble(Tagged<String> string, int flags,
+                          double empty_string_val) {
   DisallowGarbageCollection no_gc;
   DCHECK(string->IsFlat());
   String::FlatContent flat = string->GetFlatContent(no_gc);
@@ -1501,7 +1502,7 @@ base::Optional<double> TryStringToInt(LocalIsolate* isolate,
   }
 }
 
-bool IsSpecialIndex(String string) {
+bool IsSpecialIndex(Tagged<String> string) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
   const int kBufferSize = 24;
   const int length = string->length();

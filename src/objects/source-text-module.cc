@@ -86,7 +86,7 @@ struct SourceTextModule::AsyncEvaluatingOrdinalCompare {
   }
 };
 
-SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
+Tagged<SharedFunctionInfo> SourceTextModule::GetSharedFunctionInfo() const {
   DisallowGarbageCollection no_gc;
   switch (status()) {
     case kUnlinked:
@@ -105,7 +105,7 @@ SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
   UNREACHABLE();
 }
 
-Script SourceTextModule::GetScript() const {
+Tagged<Script> SourceTextModule::GetScript() const {
   DisallowGarbageCollection no_gc;
   return Script::cast(GetSharedFunctionInfo()->script());
 }
@@ -147,9 +147,9 @@ void SourceTextModule::CreateExport(Isolate* isolate,
   module->set_exports(*exports);
 }
 
-Cell SourceTextModule::GetCell(int cell_index) {
+Tagged<Cell> SourceTextModule::GetCell(int cell_index) {
   DisallowGarbageCollection no_gc;
-  Object cell;
+  Tagged<Object> cell;
   switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
     case SourceTextModuleDescriptor::kImport:
       cell = regular_imports()->get(ImportIndex(cell_index));
@@ -577,7 +577,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
     for (InternalIndex index : requested_exports->IterateEntries()) {
-      Object key;
+      Tagged<Object> key;
       if (!requested_exports->ToKey(roots, index, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
@@ -686,7 +686,7 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
 bool SourceTextModule::MaybeHandleEvaluationException(
     Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack) {
   DisallowGarbageCollection no_gc;
-  Object pending_exception = isolate->pending_exception();
+  Tagged<Object> pending_exception = isolate->pending_exception();
   if (isolate->is_catchable_by_javascript(pending_exception)) {
     //  a. For each Cyclic Module Record m in stack, do
     for (Handle<SourceTextModule>& descendant : *stack) {
@@ -1264,13 +1264,13 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
     return;
   }
   // The module isn't what we are looking for, continue looking in the graph.
-  FixedArray requested = requested_modules();
+  Tagged<FixedArray> requested = requested_modules();
   int length = requested->length();
   for (int i = 0; i < length; ++i) {
-    Module requested_module = Module::cast(requested->get(i));
+    Tagged<Module> requested_module = Module::cast(requested->get(i));
     if (IsSourceTextModule(requested_module) &&
         visited->insert(handle(requested_module, isolate)).second) {
-      SourceTextModule source_text_module =
+      Tagged<SourceTextModule> source_text_module =
           SourceTextModule::cast(requested_module);
       source_text_module->InnerGetStalledTopLevelAwaitModule(isolate, visited,
                                                              result);

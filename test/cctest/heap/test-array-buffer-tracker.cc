@@ -37,7 +37,7 @@ bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
   return in_young || in_old;
 }
 
-bool IsTracked(i::Heap* heap, i::JSArrayBuffer buffer) {
+bool IsTracked(i::Heap* heap, i::Tagged<i::JSArrayBuffer> buffer) {
   return IsTracked(heap, buffer->extension());
 }
 
@@ -266,7 +266,7 @@ TEST(ArrayBuffer_LivePromotion) {
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
-  JSArrayBuffer raw_ab;
+  Tagged<JSArrayBuffer> raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
     Handle<FixedArray> root =

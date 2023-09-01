@@ -130,7 +130,7 @@ bool MacroAssemblerBase::IsAddressableThroughRootRegister(
 Tagged_t MacroAssemblerBase::ReadOnlyRootPtr(RootIndex index,
                                              Isolate* isolate) {
   DCHECK(CanBeImmediate(index));
-  Object obj = isolate->root(index);
+  Tagged<Object> obj = isolate->root(index);
   CHECK(IsHeapObject(obj));
   return V8HeapCompressionScheme::CompressObject(obj.ptr());
 }

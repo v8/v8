@@ -762,7 +762,9 @@ bool BaseConsumedPreparseData<Data>::VerifyDataStart() {
 }
 #endif
 
-PreparseData OnHeapConsumedPreparseData::GetScopeData() { return *data_; }
+Tagged<PreparseData> OnHeapConsumedPreparseData::GetScopeData() {
+  return *data_;
+}
 
 ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
                                                                int index) {
@@ -773,7 +775,9 @@ ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
 
 OnHeapConsumedPreparseData::OnHeapConsumedPreparseData(
     LocalIsolate* isolate, Handle<PreparseData> data)
-    : BaseConsumedPreparseData<PreparseData>(), isolate_(isolate), data_(data) {
+    : BaseConsumedPreparseData<Tagged<PreparseData>>(),
+      isolate_(isolate),
+      data_(data) {
   DCHECK_NOT_NULL(isolate);
   DCHECK(IsPreparseData(*data));
   DCHECK(VerifyDataStart());

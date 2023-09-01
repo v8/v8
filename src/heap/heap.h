@@ -1128,21 +1128,15 @@ class Heap final {
   // ===========================================================================
 
   // Returns whether the object resides in new space.
-  static inline bool InYoungGeneration(Object object);
+  static inline bool InYoungGeneration(Tagged<Object> object);
   static inline bool InYoungGeneration(MaybeObject object);
-  static inline bool InYoungGeneration(HeapObject heap_object);
-  template <typename T>
-  static inline bool InYoungGeneration(Tagged<T> object);
-  static inline bool InFromPage(Object object);
+  static inline bool InYoungGeneration(Tagged<HeapObject> heap_object);
+  static inline bool InFromPage(Tagged<Object> object);
   static inline bool InFromPage(MaybeObject object);
-  static inline bool InFromPage(HeapObject heap_object);
-  template <typename T>
-  static inline bool InFromPage(Tagged<T> object);
-  static inline bool InToPage(Object object);
+  static inline bool InFromPage(Tagged<HeapObject> heap_object);
+  static inline bool InToPage(Tagged<Object> object);
   static inline bool InToPage(MaybeObject object);
-  static inline bool InToPage(HeapObject heap_object);
-  template <typename T>
-  static inline bool InToPage(Tagged<T> object);
+  static inline bool InToPage(Tagged<HeapObject> heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Tagged<Object> object);
@@ -1452,12 +1446,8 @@ class Heap final {
   // Check if the given object was recently allocated and its fields may appear
   // as uninitialized to background threads.
   // This predicate may be invoked from a background thread.
-  inline bool IsPendingAllocation(HeapObject object);
-  inline bool IsPendingAllocation(Object object);
-  template <typename T>
-  inline bool IsPendingAllocation(Tagged<T> object) {
-    return IsPendingAllocation(*object);
-  }
+  inline bool IsPendingAllocation(Tagged<HeapObject> object);
+  inline bool IsPendingAllocation(Tagged<Object> object);
 
   // Notifies that all previously allocated objects are properly initialized
   // and ensures that IsPendingAllocation returns false for them. This function
@@ -1491,9 +1481,9 @@ class Heap final {
   // ===========================================================================
 
   // Searches for a Code object by the given interior pointer.
-  V8_EXPORT_PRIVATE Code FindCodeForInnerPointer(Address inner_pointer);
+  V8_EXPORT_PRIVATE Tagged<Code> FindCodeForInnerPointer(Address inner_pointer);
   // Use the GcSafe family of functions if called while GC is in progress.
-  GcSafeCode GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  Tagged<GcSafeCode> GcSafeFindCodeForInnerPointer(Address inner_pointer);
   base::Optional<GcSafeCode> GcSafeTryFindCodeForInnerPointer(
       Address inner_pointer);
   base::Optional<InstructionStream>
@@ -1806,11 +1796,11 @@ class Heap final {
 
   // Casts a heap object to an InstructionStream, DCHECKs that the
   // inner_pointer is within the object, and returns the attached Code object.
-  GcSafeCode GcSafeGetCodeFromInstructionStream(
+  Tagged<GcSafeCode> GcSafeGetCodeFromInstructionStream(
       Tagged<HeapObject> instruction_stream, Address inner_pointer);
   // Returns the map of a HeapObject. Can be used during garbage collection,
   // i.e. it supports a forwarded map.
-  Map GcSafeMapOfHeapObject(Tagged<HeapObject> object);
+  Tagged<Map> GcSafeMapOfHeapObject(Tagged<HeapObject> object);
 
   // ===========================================================================
   // Actual GC. ================================================================
@@ -1975,10 +1965,10 @@ class Heap final {
   // otherwise it falls back to a slower path indicated by the mode.
   enum AllocationRetryMode { kLightRetry, kRetryOrFail };
   template <AllocationRetryMode mode>
-  V8_WARN_UNUSED_RESULT V8_INLINE HeapObject
-  AllocateRawWith(int size, AllocationType allocation,
-                  AllocationOrigin origin = AllocationOrigin::kRuntime,
-                  AllocationAlignment alignment = kTaggedAligned);
+  V8_WARN_UNUSED_RESULT V8_INLINE Tagged<HeapObject> AllocateRawWith(
+      int size, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kTaggedAligned);
 
   // Call AllocateRawWith with kRetryOrFail. Matches the method in LocalHeap.
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
@@ -2522,7 +2512,8 @@ using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
 class V8_NODISCARD CodePageMemoryModificationScope {
  public:
   explicit inline CodePageMemoryModificationScope(BasicMemoryChunk* chunk);
-  explicit inline CodePageMemoryModificationScope(InstructionStream object);
+  explicit inline CodePageMemoryModificationScope(
+      Tagged<InstructionStream> object);
   inline ~CodePageMemoryModificationScope();
 
  private:

@@ -59,12 +59,12 @@ inline DeoptimizationLiteralArray::DeoptimizationLiteralArray(Address ptr)
   // No type check is possible beyond that for WeakFixedArray.
 }
 
-inline Object DeoptimizationLiteralArray::get(int index) const {
+inline Tagged<Object> DeoptimizationLiteralArray::get(int index) const {
   return get(GetPtrComprCageBase(*this), index);
 }
 
-inline Object DeoptimizationLiteralArray::get(PtrComprCageBase cage_base,
-                                              int index) const {
+inline Tagged<Object> DeoptimizationLiteralArray::get(
+    PtrComprCageBase cage_base, int index) const {
   MaybeObject maybe = Get(cage_base, index);
 
   // Slots in the DeoptimizationLiteralArray should only be cleared when there
@@ -81,7 +81,7 @@ inline Object DeoptimizationLiteralArray::get(PtrComprCageBase cage_base,
   return maybe.GetHeapObjectOrSmi();
 }
 
-inline void DeoptimizationLiteralArray::set(int index, Object value) {
+inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
   MaybeObject maybe = MaybeObject::FromObject(value);
   if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
     maybe = MaybeObject::MakeWeak(maybe);

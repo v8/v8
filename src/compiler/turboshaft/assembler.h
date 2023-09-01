@@ -37,6 +37,7 @@
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1383,7 +1384,7 @@ class AssemblerOpInterface {
     return WordConstant(static_cast<uint64_t>(value),
                         WordRepresentation::PointerSized());
   }
-  V<Object> SmiConstant(Smi value) {
+  V<Object> SmiConstant(i::Tagged<Smi> value) {
     return V<Smi>::Cast(UintPtrConstant(value.ptr()));
   }
   V<Float32> Float32Constant(float value) {

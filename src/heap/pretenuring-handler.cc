@@ -38,8 +38,9 @@ double GetPretenuringRatioThreshold(size_t new_space_capacity) {
 }
 
 inline bool MakePretenureDecision(
-    AllocationSite site, AllocationSite::PretenureDecision current_decision,
-    double ratio, bool new_space_capacity_was_above_pretenuring_threshold,
+    Tagged<AllocationSite> site,
+    AllocationSite::PretenureDecision current_decision, double ratio,
+    bool new_space_capacity_was_above_pretenuring_threshold,
     size_t new_space_capacity) {
   // Here we just allow state transitions from undecided or maybe tenure
   // to don't tenure, maybe tenure, or tenure.
@@ -64,13 +65,13 @@ inline bool MakePretenureDecision(
 }
 
 // Clear feedback calculation fields until the next gc.
-inline void ResetPretenuringFeedback(AllocationSite site) {
+inline void ResetPretenuringFeedback(Tagged<AllocationSite> site) {
   site->set_memento_found_count(0);
   site->set_memento_create_count(0);
 }
 
 inline bool DigestPretenuringFeedback(
-    Isolate* isolate, AllocationSite site,
+    Isolate* isolate, Tagged<AllocationSite> site,
     bool new_space_capacity_was_above_pretenuring_threshold,
     size_t new_space_capacity) {
   bool deopt = false;
@@ -103,7 +104,8 @@ inline bool DigestPretenuringFeedback(
   return deopt;
 }
 
-bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
+bool PretenureAllocationSiteManually(Isolate* isolate,
+                                     Tagged<AllocationSite> site) {
   AllocationSite::PretenureDecision current_decision =
       site->pretenure_decision();
   bool deopt = true;
@@ -137,7 +139,7 @@ int PretenuringHandler::GetMinMementoCountForTesting() {
 void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
     const PretenuringFeedbackMap& local_pretenuring_feedback) {
   PtrComprCageBase cage_base(heap_->isolate());
-  AllocationSite site;
+  Tagged<AllocationSite> site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
     MapWord map_word = site->map_word(cage_base, kRelaxedLoad);
@@ -160,7 +162,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
 }
 
 void PretenuringHandler::RemoveAllocationSitePretenuringFeedback(
-    AllocationSite site) {
+    Tagged<AllocationSite> site) {
   global_pretenuring_feedback_.erase(site);
 }
 
@@ -188,7 +190,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
   int allocation_sites = 0;
   int active_allocation_sites = 0;
 
-  AllocationSite site;
+  Tagged<AllocationSite> site;
 
   // Step 1: Digest feedback for recorded allocation sites.
   // This is the pretenuring trigger for allocation sites that are in maybe
@@ -242,16 +244,16 @@ void PretenuringHandler::ProcessPretenuringFeedback(
                               min_new_space_capacity_for_pretenuring) &&
                              !new_space_was_above_pretenuring_threshold;
   if (deopt_maybe_tenured) {
-    heap_->ForeachAllocationSite(
-        heap_->allocation_sites_list(),
-        [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
-          DCHECK(IsAllocationSite(site));
-          allocation_sites++;
-          if (site->IsMaybeTenure()) {
-            site->set_deopt_dependent_code(true);
-            trigger_deoptimization = true;
-          }
-        });
+    heap_->ForeachAllocationSite(heap_->allocation_sites_list(),
+                                 [&allocation_sites, &trigger_deoptimization](
+                                     Tagged<AllocationSite> site) {
+                                   DCHECK(IsAllocationSite(site));
+                                   allocation_sites++;
+                                   if (site->IsMaybeTenure()) {
+                                     site->set_deopt_dependent_code(true);
+                                     trigger_deoptimization = true;
+                                   }
+                                 });
   }
 
   if (trigger_deoptimization) {
@@ -276,7 +278,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
 }
 
 void PretenuringHandler::PretenureAllocationSiteOnNextCollection(
-    AllocationSite site) {
+    Tagged<AllocationSite> site) {
   if (!allocation_sites_to_pretenure_) {
     allocation_sites_to_pretenure_.reset(
         new GlobalHandleVector<AllocationSite>(heap_));

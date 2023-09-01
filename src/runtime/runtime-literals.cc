@@ -18,7 +18,7 @@ namespace internal {
 
 namespace {
 
-bool IsUninitializedLiteralSite(Object literal_site) {
+bool IsUninitializedLiteralSite(Tagged<Object> literal_site) {
   return literal_site == Smi::zero();
 }
 
@@ -112,7 +112,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         FieldIndex index = FieldIndex::ForPropertyIndex(
             copy->map(isolate), details.field_index(),
             details.representation());
-        Object raw = copy->RawFastPropertyAt(isolate, index);
+        Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -130,7 +130,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Handle<SwissNameDictionary> dict(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
-          Object raw = dict->ValueAt(i);
+          Tagged<Object> raw = dict->ValueAt(i);
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -142,7 +142,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Handle<NameDictionary> dict(copy->property_dictionary(isolate),
                                     isolate);
         for (InternalIndex i : dict->IterateEntries()) {
-          Object raw = dict->ValueAt(isolate, i);
+          Tagged<Object> raw = dict->ValueAt(isolate, i);
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -179,7 +179,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Object raw = elements->get(isolate, i);
+          Tagged<Object> raw = elements->get(isolate, i);
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -193,7 +193,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       Handle<NumberDictionary> element_dictionary(
           copy->element_dictionary(isolate), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
-        Object raw = element_dictionary->ValueAt(isolate, i);
+        Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -482,8 +482,8 @@ Handle<JSObject> CreateArrayLiteral(
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
       for (int i = 0; i < fixed_array_values->length(); i++) {
-        Object value = fixed_array_values_copy->get(isolate, i);
-        HeapObject value_heap_object;
+        Tagged<Object> value = fixed_array_values_copy->get(isolate, i);
+        Tagged<HeapObject> value_heap_object;
         if (value.GetHeapObject(isolate, &value_heap_object)) {
           if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
             HandleScope sub_scope(isolate);

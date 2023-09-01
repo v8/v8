@@ -317,9 +317,9 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
   if (IsSlicedString(*source, cage_base)) {
-    SlicedString string = SlicedString::cast(*source);
+    Tagged<SlicedString> string = SlicedString::cast(*source);
     start = string->offset();
-    String parent = string->parent(cage_base);
+    Tagged<String> parent = string->parent(cage_base);
     if (IsThinString(parent, cage_base))
       parent = ThinString::cast(parent)->actual(cage_base);
     source_ = handle(parent, isolate);
@@ -329,13 +329,13 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
 
   if (StringShape(*source_, cage_base).IsExternal()) {
     chars_ = static_cast<const Char*>(
-        SeqExternalString::cast(*source_).GetChars(cage_base));
+        SeqExternalString::cast(*source_)->GetChars(cage_base));
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
     isolate->main_thread_local_heap()->AddGCEpilogueCallback(
         UpdatePointersCallback, this);
-    chars_ = SeqString::cast(*source_).GetChars(no_gc);
+    chars_ = SeqString::cast(*source_)->GetChars(no_gc);
     chars_may_relocate_ = true;
   }
   cursor_ = chars_ + start;
@@ -683,7 +683,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       Handle<FixedArray> elms =
           factory()->NewFixedArrayWithHoles(cont.max_index + 1);
       DisallowGarbageCollection no_gc;
-      FixedArray raw_elements = *elms;
+      Tagged<FixedArray> raw_elements = *elms;
       WriteBarrierMode mode = raw_elements->GetWriteBarrierMode(no_gc);
       DCHECK_EQ(HOLEY_ELEMENTS, map->elements_kind());
 
@@ -774,7 +774,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     } else if (expected_representation.IsHeapObject() &&
                !target->instance_descriptors(isolate())
                     ->GetFieldType(descriptor_index)
-                    .NowContains(value)) {
+                    ->NowContains(value)) {
       Handle<FieldType> value_type =
           Object::OptimalType(*value, isolate(), expected_representation);
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
@@ -786,7 +786,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
     DCHECK(target->instance_descriptors(isolate())
                ->GetFieldType(descriptor_index)
-               .NowContains(value));
+               ->NowContains(value));
     map = target;
     descriptor++;
   }
@@ -839,15 +839,15 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           raw_map->instance_descriptors(isolate())->GetDetails(
               descriptor_index);
       FieldIndex index = FieldIndex::ForDetails(raw_map, details);
-      Object value = *property.value;
+      Tagged<Object> value = *property.value;
       descriptor++;
 
       if (details.representation().IsDouble()) {
         if (IsSmi(value)) {
           if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
             // Write alignment filler.
-            HeapObject filler = HeapObject::FromAddress(filler_address);
-            filler.set_map_after_allocation(roots().one_pointer_filler_map());
+            Tagged<HeapObject> filler = HeapObject::FromAddress(filler_address);
+            filler->set_map_after_allocation(roots().one_pointer_filler_map());
             filler_address += kMutableDoubleSize;
           }
 
@@ -856,8 +856,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           // Allocate simple heapnumber with immortal map, with non-pointer
           // payload, so we can skip notifying object layout change.
 
-          HeapObject hn = HeapObject::FromAddress(mutable_double_address);
-          hn.set_map_after_allocation(roots().heap_number_map());
+          Tagged<HeapObject> hn =
+              HeapObject::FromAddress(mutable_double_address);
+          hn->set_map_after_allocation(roots().heap_number_map());
           HeapNumber::cast(hn)->set_value_as_bits(bits, kRelaxedStore);
           value = hn;
           mutable_double_address +=
@@ -918,7 +919,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
 
   ElementsKind kind = PACKED_SMI_ELEMENTS;
   for (size_t i = start; i < element_stack.size(); i++) {
-    Object value = *element_stack[i];
+    Tagged<Object> value = *element_stack[i];
     if (IsHeapObject(value)) {
       if (IsHeapNumber(HeapObject::cast(value))) {
         kind = PACKED_DOUBLE_ELEMENTS;
@@ -932,13 +933,14 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
   Handle<JSArray> array = factory()->NewJSArray(kind, length, length);
   if (kind == PACKED_DOUBLE_ELEMENTS) {
     DisallowGarbageCollection no_gc;
-    FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
+    Tagged<FixedDoubleArray> elements =
+        FixedDoubleArray::cast(array->elements());
     for (int i = 0; i < length; i++) {
       elements->set(i, Object::Number(*element_stack[start + i]));
     }
   } else {
     DisallowGarbageCollection no_gc;
-    FixedArray elements = FixedArray::cast(array->elements());
+    Tagged<FixedArray> elements = FixedArray::cast(array->elements());
     WriteBarrierMode mode = kind == PACKED_SMI_ELEMENTS
                                 ? SKIP_WRITE_BARRIER
                                 : elements->GetWriteBarrierMode(no_gc);
@@ -1224,7 +1226,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
               IsJSObject(*element_stack.back())) {
-            Map maybe_feedback = JSObject::cast(*element_stack.back())->map();
+            Tagged<Map> maybe_feedback =
+                JSObject::cast(*element_stack.back())->map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.
             if (!maybe_feedback->IsDetached(isolate_)) {

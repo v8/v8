@@ -71,7 +71,7 @@ CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(NameToIndexHashTable)
 CAST_ACCESSOR(ObjectTwoHashTable)
 
-void EphemeronHashTable::set_key(int index, Object value) {
+void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsEphemeronHashTable(*this));
   DCHECK_GE(index, 0);
@@ -81,7 +81,7 @@ void EphemeronHashTable::set_key(int index, Object value) {
   EPHEMERON_KEY_WRITE_BARRIER(*this, offset, value);
 }
 
-void EphemeronHashTable::set_key(int index, Object value,
+void EphemeronHashTable::set_key(int index, Tagged<Object> value,
                                  WriteBarrierMode mode) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsEphemeronHashTable(*this));
@@ -187,7 +187,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
-    Object element = KeyAt(cage_base, entry);
+    Tagged<Object> element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) return InternalIndex::NotFound();
@@ -205,7 +205,7 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 
 // static
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
+bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
   return k != roots.unchecked_undefined_value() &&
          k != roots.unchecked_the_hole_value();
@@ -213,8 +213,8 @@ bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
 
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
-                                      Object* out_k) {
-  Object k = KeyAt(entry);
+                                      Tagged<Object>* out_k) {
+  Tagged<Object> k = KeyAt(entry);
   if (!IsKey(roots, k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
@@ -222,53 +222,55 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::ToKey(PtrComprCageBase cage_base,
-                                      InternalIndex entry, Object* out_k) {
-  Object k = KeyAt(cage_base, entry);
+                                      InternalIndex entry,
+                                      Tagged<Object>* out_k) {
+  Tagged<Object> k = KeyAt(cage_base, entry);
   if (!IsKey(GetReadOnlyRoots(cage_base), k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
+Tagged<Object> HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return KeyAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
-                                        InternalIndex entry) {
+Tagged<Object> HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
+                                                InternalIndex entry) {
   return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry,
-                                        RelaxedLoadTag tag) {
+Tagged<Object> HashTable<Derived, Shape>::KeyAt(InternalIndex entry,
+                                                RelaxedLoadTag tag) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return KeyAt(cage_base, entry, tag);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
-                                        InternalIndex entry,
-                                        RelaxedLoadTag tag) {
+Tagged<Object> HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
+                                                InternalIndex entry,
+                                                RelaxedLoadTag tag) {
   return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex, tag);
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry, Object value,
+void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry,
+                                         Tagged<Object> value,
                                          WriteBarrierMode mode) {
   set_key(EntryToIndex(entry), value, mode);
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::set_key(int index, Object value) {
+void HashTable<Derived, Shape>::set_key(int index, Tagged<Object> value) {
   DCHECK(!IsEphemeronHashTable(*this));
   FixedArray::set(index, value);
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::set_key(int index, Object value,
+void HashTable<Derived, Shape>::set_key(int index, Tagged<Object> value,
                                         WriteBarrierMode mode) {
   DCHECK(!IsEphemeronHashTable(*this));
   FixedArray::set(index, value, mode);
@@ -289,17 +291,18 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
 }
 
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
-  Object hash = Object::GetHash(*key);
+  Tagged<Object> hash = Object::GetHash(*key);
   if (!IsSmi(hash)) return false;
   return FindEntry(isolate, ReadOnlyRoots(isolate), key, Smi::ToInt(hash))
       .is_found();
 }
 
-bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Tagged<Object> other) {
   return Object::SameValue(*key, other);
 }
 
-bool RegisteredSymbolTableShape::IsMatch(Handle<String> key, Object value) {
+bool RegisteredSymbolTableShape::IsMatch(Handle<String> key,
+                                         Tagged<Object> value) {
   DCHECK(IsString(value));
   return key->Equals(String::cast(value));
 }
@@ -310,15 +313,16 @@ uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
 }
 
 uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
-                                                   Object object) {
+                                                   Tagged<Object> object) {
   return String::cast(object)->EnsureHash();
 }
 
-bool NameToIndexShape::IsMatch(Handle<Name> key, Object other) {
+bool NameToIndexShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
   return *key == other;
 }
 
-uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots, Object other) {
+uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots,
+                                         Tagged<Object> other) {
   return Name::cast(other)->hash();
 }
 
@@ -331,7 +335,7 @@ uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
 }
 
 uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
-                                             Object other) {
+                                             Tagged<Object> other) {
   return Smi::ToInt(Object::GetHash(other));
 }
 

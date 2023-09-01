@@ -713,7 +713,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
 
-  void LogWasmCodes(Isolate*, Script);
+  void LogWasmCodes(Isolate*, Tagged<Script>);
 
   CompilationState* compilation_state() const {
     return compilation_state_.get();

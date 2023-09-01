@@ -344,7 +344,7 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                MaybeObjectHandle::Weak(proxy));
 }
 
-bool LoadHandler::CanHandleHolderNotLookupStart(Object handler) {
+bool LoadHandler::CanHandleHolderNotLookupStart(Tagged<Object> handler) {
   if (IsSmi(handler)) {
     auto kind = LoadHandler::KindBits::decode(handler.ToSmi().value());
     return kind == LoadHandler::Kind::kSlow ||
@@ -519,7 +519,7 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
 }  // namespace
 
 // static
-void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
+void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int raw_handler = handler.ToSmi().value();
@@ -559,7 +559,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
   }
 }
 
-void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
+void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int raw_handler = handler.ToSmi().value();

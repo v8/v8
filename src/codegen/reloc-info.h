@@ -300,7 +300,7 @@ class RelocInfo {
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
-      InstructionStream host, Address target,
+      Tagged<InstructionStream> host, Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   // Use this overload only when an InstructionStream host is not available.
@@ -315,17 +315,17 @@ class RelocInfo {
   // can only be called if IsCodeTarget(rmode_)
   V8_INLINE Address target_address();
   // Cage base value is used for decompressing compressed embedded references.
-  V8_INLINE HeapObject target_object(PtrComprCageBase cage_base);
+  V8_INLINE Tagged<HeapObject> target_object(PtrComprCageBase cage_base);
 
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
 
   V8_INLINE void set_target_object(
-      InstructionStream host, HeapObject target,
+      Tagged<InstructionStream> host, Tagged<HeapObject> target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   // Use this overload only when an InstructionStream host is not available.
   V8_INLINE void set_target_object(
-      HeapObject target,
+      Tagged<HeapObject> target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Decodes builtin ID encoded as a PC-relative offset. This encoding is used
@@ -376,7 +376,7 @@ class RelocInfo {
   V8_INLINE void WipeOut();
 
   template <typename ObjectVisitor>
-  void Visit(InstructionStream host, ObjectVisitor* visitor) {
+  void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor) {
     Mode mode = rmode();
     if (IsEmbeddedObjectMode(mode)) {
       visitor->VisitEmbeddedPointer(host, this);
@@ -489,12 +489,12 @@ class V8_EXPORT_PRIVATE RelocIterator {
 
  public:
   // Prefer using this ctor when possible:
-  explicit RelocIterator(Code code, int mode_mask = kAllModesMask);
+  explicit RelocIterator(Tagged<Code> code, int mode_mask = kAllModesMask);
 
   // Relocation during InstructionStream initialization. Pass the instruction
   // stream directly since we want to avoid reading from the Code object for
   // CFI. I.e. the istream lives in trusted memory but the code object doesn't.
-  RelocIterator(InstructionStream istream, Address constant_pool,
+  RelocIterator(Tagged<InstructionStream> istream, Address constant_pool,
                 int mode_mask);
 
   // For when GC may be in progress and thus pointers on the Code object may be
@@ -502,8 +502,9 @@ class V8_EXPORT_PRIVATE RelocIterator {
   // or we're operating on fake objects for some reason. Then, we pass relevant
   // objects explicitly. Note they must all refer to the same underlying
   // {Code,IStream} composite object.
-  explicit RelocIterator(Code code, InstructionStream instruction_stream,
-                         ByteArray relocation_info, int mode_mask);
+  explicit RelocIterator(Tagged<Code> code,
+                         Tagged<InstructionStream> instruction_stream,
+                         Tagged<ByteArray> relocation_info, int mode_mask);
   // For Wasm.
   explicit RelocIterator(base::Vector<uint8_t> instructions,
                          base::Vector<const uint8_t> reloc_info,
@@ -511,7 +512,8 @@ class V8_EXPORT_PRIVATE RelocIterator {
   // For the disassembler.
   explicit RelocIterator(const CodeReference code_reference);
   // For FinalizeEmbeddedCodeTargets when creating embedded builtins.
-  explicit RelocIterator(EmbeddedData* embedded_data, Code code, int mode_mask);
+  explicit RelocIterator(EmbeddedData* embedded_data, Tagged<Code> code,
+                         int mode_mask);
 
   RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
   RelocIterator(const RelocIterator&) = delete;

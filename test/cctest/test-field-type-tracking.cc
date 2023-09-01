@@ -62,8 +62,10 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
 }
 
 // Check cached migration target map after Map::Update() and Map::TryUpdate()
-static void CheckMigrationTarget(Isolate* isolate, Map old_map, Map new_map) {
-  Map target = TransitionsAccessor(isolate, old_map).GetMigrationTarget();
+static void CheckMigrationTarget(Isolate* isolate, Tagged<Map> old_map,
+                                 Tagged<Map> new_map) {
+  Tagged<Map> target =
+      TransitionsAccessor(isolate, old_map).GetMigrationTarget();
   if (target.is_null()) return;
   CHECK_EQ(new_map, target);
   CHECK_EQ(MapUpdater::TryUpdateNoLock(isolate, old_map,
@@ -237,7 +239,8 @@ class Expectations {
     }
   }
 
-  bool Check(DescriptorArray descriptors, InternalIndex descriptor) const {
+  bool Check(Tagged<DescriptorArray> descriptors,
+             InternalIndex descriptor) const {
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
     if (details.kind() != kinds_[descriptor.as_int()]) return false;
@@ -252,10 +255,10 @@ class Expectations {
 
     if (!details.representation().Equals(expected_representation)) return false;
 
-    Object expected_value = *values_[descriptor.as_int()];
+    Tagged<Object> expected_value = *values_[descriptor.as_int()];
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        FieldType type = descriptors->GetFieldType(descriptor);
+        Tagged<FieldType> type = descriptors->GetFieldType(descriptor);
         return FieldType::cast(expected_value) == type;
       } else {
         // kAccessor
@@ -263,22 +266,22 @@ class Expectations {
       }
     } else {
       CHECK_EQ(PropertyKind::kAccessor, details.kind());
-      Object value = descriptors->GetStrongValue(descriptor);
+      Tagged<Object> value = descriptors->GetStrongValue(descriptor);
       if (value == expected_value) return true;
       if (!IsAccessorPair(value)) return false;
-      AccessorPair pair = AccessorPair::cast(value);
+      Tagged<AccessorPair> pair = AccessorPair::cast(value);
       return pair->Equals(expected_value, *setter_values_[descriptor.as_int()]);
     }
     UNREACHABLE();
   }
 
-  bool Check(Map map, int expected_nof) const {
+  bool Check(Tagged<Map> map, int expected_nof) const {
     CHECK_EQ(elements_kind_, map->elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
     CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
     CHECK(!map->is_dictionary_map());
 
-    DescriptorArray descriptors = map->instance_descriptors();
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
     for (InternalIndex i : InternalIndex::Range(expected_nof)) {
       if (!Check(descriptors, i)) {
@@ -292,9 +295,11 @@ class Expectations {
     return true;
   }
 
-  bool Check(Map map) const { return Check(map, number_of_properties_); }
+  bool Check(Tagged<Map> map) const {
+    return Check(map, number_of_properties_);
+  }
 
-  bool CheckNormalized(Map map) const {
+  bool CheckNormalized(Tagged<Map> map) const {
     CHECK(map->is_dictionary_map());
     CHECK_EQ(elements_kind_, map->elements_kind());
     // TODO(leszeks): Iterate over the key/value pairs of the map and compare
@@ -584,7 +589,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   // Check that the property contains |value|.
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), first);
-  Object the_value = obj->RawFastPropertyAt(index);
+  Tagged<Object> the_value = obj->RawFastPropertyAt(index);
   CHECK(IsSmi(the_value));
   CHECK_EQ(42, Smi::ToInt(the_value));
 }
@@ -753,9 +758,9 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
 
   {
     // Check that all previous maps are not stable.
-    Map tmp = *new_map;
+    Tagged<Map> tmp = *new_map;
     while (true) {
-      Object back = tmp->GetBackPointer();
+      Tagged<Object> back = tmp->GetBackPointer();
       if (IsUndefined(back, isolate)) break;
       tmp = Map::cast(back);
       CHECK(!tmp->is_stable());
@@ -1831,7 +1836,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map transitioned_map = map2->FindElementsKindTransitionedMap(
+    Tagged<Map> transitioned_map = map2->FindElementsKindTransitionedMap(
         isolate, map_list, ConcurrencyMode::kSynchronous);
     CHECK_EQ(*updated_map, transitioned_map);
   }

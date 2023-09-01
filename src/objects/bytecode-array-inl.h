@@ -94,7 +94,7 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 bool BytecodeArray::HasSourcePositionTable() const {
-  Object maybe_table = source_position_table(kAcquireLoad);
+  Tagged<Object> maybe_table = source_position_table(kAcquireLoad);
   return !(IsUndefined(maybe_table) || DidSourcePositionGenerationFail());
 }
 
@@ -109,7 +109,7 @@ void BytecodeArray::SetSourcePositionsFailedToCollect() {
 DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
-  Object maybe_table = source_position_table(cage_base, kAcquireLoad);
+  Tagged<Object> maybe_table = source_position_table(cage_base, kAcquireLoad);
   if (IsByteArray(maybe_table, cage_base)) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(IsUndefined(maybe_table, roots) || IsException(maybe_table, roots));
@@ -117,7 +117,7 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
 }
 
 DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
-  Object value =
+  Tagged<Object> value =
       TaggedField<Object>::load(cage_base, *this, kConstantPoolOffset);
   // This field might be 0 during deserialization.
   DCHECK(value == Smi::zero() || IsFixedArray(value));
@@ -125,7 +125,7 @@ DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
 }
 
 DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
-  Object value =
+  Tagged<Object> value =
       TaggedField<Object>::load(cage_base, *this, kHandlerTableOffset);
   // This field might be 0 during deserialization.
   DCHECK(value == Smi::zero() || IsByteArray(value));
@@ -133,7 +133,7 @@ DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
 }
 
 DEF_GETTER(BytecodeArray, raw_source_position_table, Tagged<Object>) {
-  Object value =
+  Tagged<Object> value =
       TaggedField<Object>::load(cage_base, *this, kSourcePositionTableOffset);
   // This field might be 0 during deserialization.
   DCHECK(value == Smi::zero() || IsByteArray(value) || IsUndefined(value) ||
@@ -145,19 +145,19 @@ int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 
 DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
-  Object maybe_constant_pool = raw_constant_pool(cage_base);
+  Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
   if (IsFixedArray(maybe_constant_pool)) {
     size += FixedArray::cast(maybe_constant_pool)->Size(cage_base);
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
-  Object maybe_handler_table = raw_handler_table(cage_base);
+  Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
   if (IsByteArray(maybe_handler_table)) {
     size += ByteArray::cast(maybe_handler_table)->Size();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
-  Object maybe_table = raw_source_position_table(cage_base);
+  Tagged<Object> maybe_table = raw_source_position_table(cage_base);
   if (IsByteArray(maybe_table)) {
     size += ByteArray::cast(maybe_table)->Size();
   }

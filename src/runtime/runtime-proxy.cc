@@ -14,7 +14,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Object obj = args[0];
+  Tagged<Object> obj = args[0];
   return isolate->heap()->ToBoolean(IsJSProxy(obj));
 }
 

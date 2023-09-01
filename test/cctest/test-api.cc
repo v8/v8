@@ -10659,7 +10659,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   // slow_stub bailout which would mean a trip to the runtime on all
   // subsequent stores, and a lack of feedback for the optimizing
   // compiler downstream.
-  i::HeapObject heap_object;
+  i::Tagged<i::HeapObject> heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(IsPropertyCell(heap_object));
 }
@@ -10703,7 +10703,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
   CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
-  i::HeapObject heap_object;
+  i::Tagged<i::HeapObject> heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(IsPropertyCell(heap_object));
 }
@@ -12654,7 +12654,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
             .IsEmpty());
 
   // Side-effect-free version is not supported.
-  i::FunctionTemplateInfo cons = i::FunctionTemplateInfo::cast(
+  i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
       v8::Utils::OpenHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::CallHandlerInfo handler_info =
@@ -14859,7 +14859,8 @@ static void MorphAString(i::String string,
     CHECK(string->map() == roots.external_one_byte_string_map());
     // Morph external string to be TwoByte string.
     string->set_map(roots.external_two_byte_string_map());
-    i::ExternalTwoByteString morphed = i::ExternalTwoByteString::cast(string);
+    i::Tagged<i::ExternalTwoByteString> morphed =
+        i::ExternalTwoByteString::cast(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, uc16_resource);
   } else {
@@ -14867,7 +14868,8 @@ static void MorphAString(i::String string,
     CHECK(string->map() == roots.external_two_byte_string_map());
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
-    i::ExternalOneByteString morphed = i::ExternalOneByteString::cast(string);
+    i::Tagged<i::ExternalOneByteString> morphed =
+        i::ExternalOneByteString::cast(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, one_byte_resource);
   }

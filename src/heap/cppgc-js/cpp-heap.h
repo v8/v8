@@ -146,7 +146,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
-  void WriteBarrier(JSObject);
+  void WriteBarrier(Tagged<JSObject>);
 
   bool ShouldFinalizeIncrementalMarking() const;
 
@@ -180,7 +180,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   size_t epoch() const override;
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
-      v8::internal::JSObject host_obj, void* value);
+      v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
   template <typename F>
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
@@ -252,7 +252,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 };
 
 void CppHeap::RememberCrossHeapReferenceIfNeeded(
-    v8::internal::JSObject host_obj, void* value) {
+    v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value) {
   if (!generational_gc_supported()) return;
   DCHECK(isolate_);
   cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,

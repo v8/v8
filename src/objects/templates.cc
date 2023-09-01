@@ -25,7 +25,7 @@ bool FunctionTemplateInfo::HasInstanceType() {
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     Isolate* isolate, Handle<FunctionTemplateInfo> info,
     MaybeHandle<Name> maybe_name) {
-  Object current_info = info->shared_function_info();
+  Tagged<Object> current_info = info->shared_function_info();
   if (IsSharedFunctionInfo(current_info)) {
     return handle(SharedFunctionInfo::cast(current_info), isolate);
   }
@@ -59,7 +59,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   return sfi;
 }
 
-bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
+bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   RCS_SCOPE(
       LocalHeap::Current() == nullptr
           ? GetIsolateChecked()->counters()->runtime_call_stats()
@@ -80,10 +80,10 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   }
 
   // Fetch the constructor function of the object.
-  Object cons_obj = map->GetConstructor();
-  Object type;
+  Tagged<Object> cons_obj = map->GetConstructor();
+  Tagged<Object> type;
   if (IsJSFunction(cons_obj)) {
-    JSFunction fun = JSFunction::cast(cons_obj);
+    Tagged<JSFunction> fun = JSFunction::cast(cons_obj);
     type = fun->shared()->function_data(kAcquireLoad);
   } else if (IsFunctionTemplateInfo(cons_obj)) {
     type = FunctionTemplateInfo::cast(cons_obj);
@@ -100,7 +100,8 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   return false;
 }
 
-bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
+bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
+    Tagged<Object> object) const {
   i::DisallowGarbageCollection no_gc;
 
   if (!IsJSApiObject(object)) {
@@ -108,8 +109,8 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
   }
 
   bool result = false;
-  Map map = HeapObject::cast(object)->map();
-  Object constructor_obj = map->GetConstructor();
+  Tagged<Map> map = HeapObject::cast(object)->map();
+  Tagged<Object> constructor_obj = map->GetConstructor();
   if (IsJSFunction(constructor_obj)) {
     JSFunction fun = JSFunction::cast(constructor_obj);
     result = (*this == fun->shared()->function_data(kAcquireLoad));
@@ -131,8 +132,8 @@ FunctionTemplateInfo::AllocateFunctionTemplateRareData(
   return *rare_data;
 }
 
-base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
-    Isolate* isolate, Object getter) {
+base::Optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
+    Isolate* isolate, Tagged<Object> getter) {
   DisallowGarbageCollection no_gc;
   if (!IsFunctionTemplateInfo(getter)) {
     if (!IsJSFunction(getter)) return {};
@@ -141,7 +142,7 @@ base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
     getter = info->api_func_data();
   }
   // Check if the accessor uses a cached property.
-  Object maybe_name =
+  Tagged<Object> maybe_name =
       FunctionTemplateInfo::cast(getter)->cached_property_name();
   if (IsTheHole(maybe_name, isolate)) return {};
   return Name::cast(maybe_name);

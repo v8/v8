@@ -34,7 +34,7 @@ static Handle<Object> GetGlobalProperty(const char* name) {
       .ToHandleChecked();
 }
 
-static void SetGlobalProperty(const char* name, Object value) {
+static void SetGlobalProperty(const char* name, Tagged<Object> value) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
@@ -299,7 +299,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   FeedbackSlot slot_for_a(0);
   MaybeObject object = feedback_vector->Get(slot_for_a);
   {
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     EXPECT_TRUE(object->GetHeapObjectIfWeak(&heap_object));
     EXPECT_TRUE(IsJSFunction(heap_object));
   }
@@ -311,7 +311,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   EXPECT_TRUE(f->HasAttachedOptimizedCode());
   object = f->feedback_vector()->Get(slot_for_a);
   {
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     EXPECT_TRUE(object->GetHeapObjectIfWeak(&heap_object));
     EXPECT_TRUE(IsJSFunction(heap_object));
   }

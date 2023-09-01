@@ -181,18 +181,19 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 #endif  // DEBUG
 
   // Returns the handle from root index table for read only heap objects.
-  Handle<Object> GetRootHandle(Object object);
+  Handle<Object> GetRootHandle(Tagged<Object> object);
 
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object> object,
                               GetOrCreateDataFlags flags = {});
-  ObjectData* GetOrCreateData(Object object, GetOrCreateDataFlags flags = {});
+  ObjectData* GetOrCreateData(Tagged<Object> object,
+                              GetOrCreateDataFlags flags = {});
 
   // Gets data only if we have it. However, thin wrappers will be created for
   // smis, read-only objects and never-serialized objects.
   ObjectData* TryGetOrCreateData(Handle<Object> object,
                                  GetOrCreateDataFlags flags = {});
-  ObjectData* TryGetOrCreateData(Object object,
+  ObjectData* TryGetOrCreateData(Tagged<Object> object,
                                  GetOrCreateDataFlags flags = {});
 
   // Check if {object} is any native context's %ArrayPrototype% or
@@ -291,7 +292,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       }
     }
 
-    Object obj(address);
+    Tagged<Object> obj(address);
     auto find_result = canonical_handles_->FindOrInsert(obj);
     if (find_result.already_exists) return Handle<T>(*find_result.entry);
 
@@ -304,12 +305,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       *find_result.entry = Handle<T>(object, isolate()).location();
     }
     return Handle<T>(*find_result.entry);
-  }
-
-  template <typename T>
-  Handle<T> CanonicalPersistentHandle(T object) {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return CanonicalPersistentHandle<T>(Tagged<T>(object));
   }
 
   template <typename T>
@@ -378,8 +373,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // thus safe to read from a memory safety perspective. The converse does not
   // necessarily hold.
   bool ObjectMayBeUninitialized(Handle<Object> object) const;
-  bool ObjectMayBeUninitialized(Object object) const;
-  bool ObjectMayBeUninitialized(HeapObject object) const;
+  bool ObjectMayBeUninitialized(Tagged<Object> object) const;
+  bool ObjectMayBeUninitialized(Tagged<HeapObject> object) const;
 
   void set_dependencies(CompilationDependencies* dependencies) {
     DCHECK_NOT_NULL(dependencies);

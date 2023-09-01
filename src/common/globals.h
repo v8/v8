@@ -900,7 +900,7 @@ static const intptr_t kPageAlignmentMask = (intptr_t{1} << kPageSizeBits) - 1;
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
 constexpr uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 
-enum class HeapObjectReferenceType {
+enum class V8_EXPORT_ENUM HeapObjectReferenceType {
   WEAK,
   STRONG,
 };

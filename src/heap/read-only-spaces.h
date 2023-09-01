@@ -218,7 +218,7 @@ class ReadOnlySpace : public BaseSpace {
   bool writable() const { return !is_marked_read_only_; }
 
   bool Contains(Address a) = delete;
-  bool Contains(Object o) = delete;
+  bool Contains(Tagged<Object> o) = delete;
 
   V8_EXPORT_PRIVATE
   AllocationResult AllocateRaw(int size_in_bytes,
@@ -294,8 +294,8 @@ class ReadOnlySpace : public BaseSpace {
   AllocationResult AllocateRawUnaligned(int size_in_bytes);
   AllocationResult AllocateRawAligned(int size_in_bytes,
                                       AllocationAlignment alignment);
-  HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
-                                        AllocationAlignment alignment);
+  Tagged<HeapObject> TryAllocateLinearlyAligned(int size_in_bytes,
+                                                AllocationAlignment alignment);
 
   // Return the index within pages_ of the newly allocated page.
   size_t AllocateNextPage();

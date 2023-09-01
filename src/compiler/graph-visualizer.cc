@@ -93,7 +93,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   int end = 0;
   if (!script.is_null() && !IsUndefined(*script, isolate) &&
       !shared.is_null()) {
-    Object source_name = script->name();
+    Tagged<Object> source_name = script->name();
     os << ", \"sourceName\": \"";
     if (IsString(source_name)) {
       std::ostringstream escaped_name;
@@ -115,7 +115,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
         }
 #if V8_ENABLE_WEBASSEMBLY
       } else if (shared->HasWasmExportedFunctionData()) {
-        WasmExportedFunctionData function_data =
+        Tagged<WasmExportedFunctionData> function_data =
             shared->wasm_exported_function_data();
         Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
         const wasm::WasmModule* module = instance->module();
@@ -331,9 +331,10 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   bool source_available = false;
   if (v8_flags.trace_file_names && info->has_shared_info() &&
       IsScript(info->shared_info()->script())) {
-    Object source_name = Script::cast(info->shared_info()->script())->name();
+    Tagged<Object> source_name =
+        Script::cast(info->shared_info()->script())->name();
     if (IsString(source_name)) {
-      String str = String::cast(source_name);
+      Tagged<String> str = String::cast(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),

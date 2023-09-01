@@ -6258,34 +6258,36 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     explicit MarkingVisitor(UnreachableObjectsFilter* filter)
         : ObjectVisitorWithCageBases(filter->heap_), filter_(filter) {}
 
-    void VisitMapPointer(HeapObject object) override {
+    void VisitMapPointer(Tagged<HeapObject> object) override {
       MarkHeapObject(Map::unchecked_cast(object->map(cage_base())));
     }
-    void VisitPointers(HeapObject host, ObjectSlot start,
+    void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                        ObjectSlot end) override {
       MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
     }
 
-    void VisitPointers(HeapObject host, MaybeObjectSlot start,
+    void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                        MaybeObjectSlot end) final {
       MarkPointers(start, end);
     }
 
-    void VisitInstructionStreamPointer(Code host,
+    void VisitInstructionStreamPointer(Tagged<Code> host,
                                        InstructionStreamSlot slot) override {
       Tagged<Object> maybe_code = slot.load(code_cage_base());
-      HeapObject heap_object;
+      Tagged<HeapObject> heap_object;
       if (maybe_code->GetHeapObject(&heap_object)) {
         MarkHeapObject(heap_object);
       }
     }
 
-    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
+    void VisitCodeTarget(Tagged<InstructionStream> host,
+                         RelocInfo* rinfo) final {
       Tagged<InstructionStream> target =
           InstructionStream::FromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
-    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
+    void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                              RelocInfo* rinfo) final {
       MarkHeapObject(rinfo->target_object(cage_base()));
     }
 
@@ -6317,7 +6319,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       // Treat weak references as strong.
       for (TSlot p = start; p < end; ++p) {
         typename TSlot::TObject object = p.load(cage_base());
-        HeapObject heap_object;
+        Tagged<HeapObject> heap_object;
         if (object.GetHeapObject(&heap_object)) {
           MarkHeapObject(heap_object);
         }
@@ -6791,7 +6793,7 @@ void Heap::CreateObjectStats() {
   }
 }
 
-Map Heap::GcSafeMapOfHeapObject(Tagged<HeapObject> object) {
+Tagged<Map> Heap::GcSafeMapOfHeapObject(Tagged<HeapObject> object) {
   PtrComprCageBase cage_base(isolate());
   MapWord map_word = object->map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
@@ -6800,9 +6802,9 @@ Map Heap::GcSafeMapOfHeapObject(Tagged<HeapObject> object) {
   return map_word.ToMap();
 }
 
-GcSafeCode Heap::GcSafeGetCodeFromInstructionStream(
+Tagged<GcSafeCode> Heap::GcSafeGetCodeFromInstructionStream(
     Tagged<HeapObject> instruction_stream, Address inner_pointer) {
-  InstructionStream istream =
+  Tagged<InstructionStream> istream =
       InstructionStream::unchecked_cast(instruction_stream);
   DCHECK(!istream.is_null());
   DCHECK(GcSafeInstructionStreamContains(istream, inner_pointer));
@@ -6858,11 +6860,11 @@ base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
   return GcSafeGetCodeFromInstructionStream(*maybe_istream, inner_pointer);
 }
 
-Code Heap::FindCodeForInnerPointer(Address inner_pointer) {
+Tagged<Code> Heap::FindCodeForInnerPointer(Address inner_pointer) {
   return GcSafeFindCodeForInnerPointer(inner_pointer)->UnsafeCastToCode();
 }
 
-GcSafeCode Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+Tagged<GcSafeCode> Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   base::Optional<GcSafeCode> maybe_code =
       GcSafeTryFindCodeForInnerPointer(inner_pointer);
   // Callers expect that the code object is found.
@@ -6972,7 +6974,7 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page,
 
   for (TSlot slot = start_slot; slot < end_slot; ++slot) {
     typename TSlot::TObject value = *slot;
-    HeapObject value_heap_object;
+    Tagged<HeapObject> value_heap_object;
     if (!value.GetHeapObject(&value_heap_object)) continue;
 
     if (kModeMask & kDoGenerationalOrShared) {

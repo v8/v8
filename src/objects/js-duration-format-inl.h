@@ -22,7 +22,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDurationFormat)
 
-ACCESSORS(JSDurationFormat, icu_locale, Managed<icu::Locale>, kIcuLocaleOffset)
+ACCESSORS(JSDurationFormat, icu_locale, Tagged<Managed<icu::Locale>>,
+          kIcuLocaleOffset)
 
 #define IMPL_INLINE_SETTER_GETTER(T, n, B, f, M)           \
   inline void JSDurationFormat::set_##n(T value) {         \
@@ -96,7 +97,7 @@ inline int32_t JSDurationFormat::fractional_digits() const {
 }
 
 ACCESSORS(JSDurationFormat, icu_number_formatter,
-          Managed<icu::number::LocalizedNumberFormatter>,
+          Tagged<Managed<icu::number::LocalizedNumberFormatter>>,
           kIcuNumberFormatterOffset)
 }  // namespace internal
 }  // namespace v8

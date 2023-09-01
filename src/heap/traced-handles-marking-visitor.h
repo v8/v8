@@ -25,7 +25,7 @@ class ConservativeTracedHandlesMarkingVisitor final
   ~ConservativeTracedHandlesMarkingVisitor() override = default;
 
   void VisitPointer(const void*) override;
-  bool ShouldMarkObject(HeapObject object) const;
+  bool ShouldMarkObject(Tagged<HeapObject> object) const;
 
  private:
   Heap& heap_;

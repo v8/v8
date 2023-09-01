@@ -80,17 +80,19 @@ class OrderedHashTable : public FixedArray {
   static Handle<Derived> Clear(Isolate* isolate, Handle<Derived> table);
 
   // Returns true if the OrderedHashTable contains the key
-  static bool HasKey(Isolate* isolate, Derived table, Object key);
+  static bool HasKey(Isolate* isolate, Tagged<Derived> table,
+                     Tagged<Object> key);
 
   // Returns whether a potential key |k| returned by KeyAt is a real
   // key (meaning that it is not a hole).
-  static inline bool IsKey(ReadOnlyRoots roots, Object k);
+  static inline bool IsKey(ReadOnlyRoots roots, Tagged<Object> k);
 
   // Returns a true value if the OrderedHashTable contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived table, Object key);
+  static bool Delete(Isolate* isolate, Tagged<Derived> table,
+                     Tagged<Object> key);
 
-  InternalIndex FindEntry(Isolate* isolate, Object key);
+  InternalIndex FindEntry(Isolate* isolate, Tagged<Object> key);
 
   int NumberOfElements() const {
     return Smi::ToInt(get(NumberOfElementsIndex()));
@@ -117,19 +119,20 @@ class OrderedHashTable : public FixedArray {
   }
 
   // use IsKey to check if this is a deleted entry.
-  Object KeyAt(InternalIndex entry) {
+  Tagged<Object> KeyAt(InternalIndex entry) {
     DCHECK_LT(entry.as_int(), this->UsedCapacity());
     return get(EntryToIndex(entry));
   }
 
   // Similar to KeyAt, but indicates whether the given entry is valid
   // (not deleted one)
-  inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_key);
+  inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry,
+                    Tagged<Object>* out_key);
 
   bool IsObsolete() { return !IsSmi(get(NextTableIndex())); }
 
   // The next newer table. This is only valid if the table is obsolete.
-  Derived NextTable() { return Derived::cast(get(NextTableIndex())); }
+  Tagged<Derived> NextTable() { return Derived::cast(get(NextTableIndex())); }
 
   // When the table is obsolete we store the indexes of the removed holes.
   int RemovedIndexAt(int index) {
@@ -214,7 +217,7 @@ class OrderedHashTable : public FixedArray {
 
   int HashToEntryRaw(int hash) {
     int bucket = HashToBucket(hash);
-    Object entry = this->get(HashTableStartIndex() + bucket);
+    Tagged<Object> entry = this->get(HashTableStartIndex() + bucket);
     int entry_int = Smi::ToInt(entry);
     DCHECK(entry_int == kNotFound || entry_int >= 0);
     return entry_int;
@@ -222,7 +225,7 @@ class OrderedHashTable : public FixedArray {
 
   int NextChainEntryRaw(int entry) {
     DCHECK_LT(entry, this->UsedCapacity());
-    Object next_entry = get(EntryToIndexRaw(entry) + kChainOffset);
+    Tagged<Object> next_entry = get(EntryToIndexRaw(entry) + kChainOffset);
     int next_entry_int = Smi::ToInt(next_entry);
     DCHECK(next_entry_int == kNotFound || next_entry_int >= 0);
     return next_entry_int;
@@ -291,7 +294,7 @@ class V8_EXPORT_PRIVATE OrderedHashSet
   static MaybeHandle<OrderedHashSet> AllocateEmpty(
       Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
 
-  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
+  static Tagged<HeapObject> GetEmpty(ReadOnlyRoots ro_roots);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
   static const int kPrefixSize = 0;
@@ -328,15 +331,15 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<OrderedHashMap> table);
 
-  void SetEntry(InternalIndex entry, Object key, Object value);
+  void SetEntry(InternalIndex entry, Tagged<Object> key, Tagged<Object> value);
 
-  Object ValueAt(InternalIndex entry);
+  Tagged<Object> ValueAt(InternalIndex entry);
 
   // This takes and returns raw Address values containing tagged Object
   // pointers because it is called via ExternalReference.
   static Address GetHash(Isolate* isolate, Address raw_key);
 
-  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
+  static Tagged<HeapObject> GetEmpty(ReadOnlyRoots ro_roots);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
 
@@ -414,14 +417,15 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Returns a true value if the table contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived table, Object key);
+  static bool Delete(Isolate* isolate, Tagged<Derived> table,
+                     Tagged<Object> key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element. Returns empty handle if
   // we've already reached MaxCapacity.
   static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
-  InternalIndex FindEntry(Isolate* isolate, Object key);
+  InternalIndex FindEntry(Isolate* isolate, Tagged<Object> key);
   static Handle<Derived> Shrink(Isolate* isolate, Handle<Derived> table);
 
   // Iterates only fields in the DataTable.
@@ -468,7 +472,7 @@ class SmallOrderedHashTable : public HeapObject {
 
   int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
 
-  V8_INLINE Object KeyAt(InternalIndex entry) const;
+  V8_INLINE Tagged<Object> KeyAt(InternalIndex entry) const;
 
   InternalIndex::Range IterateEntries() {
     return InternalIndex::Range(UsedCapacity());
@@ -504,7 +508,7 @@ class SmallOrderedHashTable : public HeapObject {
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
-  void SetDataEntry(int entry, int relative_index, Object value);
+  void SetDataEntry(int entry, int relative_index, Tagged<Object> value);
 
   // TODO(gsathya): Calculate all the various possible values for this
   // at compile time since capacity can only be 4 different values.
@@ -552,7 +556,7 @@ class SmallOrderedHashTable : public HeapObject {
     return getByte(GetChainTableOffset(), entry);
   }
 
-  V8_INLINE Object GetDataEntry(int entry, int relative_index);
+  V8_INLINE Tagged<Object> GetDataEntry(int entry, int relative_index);
 
   int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
 
@@ -659,7 +663,8 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   V8_EXPORT_PRIVATE static MaybeHandle<SmallOrderedHashSet> Add(
       Isolate* isolate, Handle<SmallOrderedHashSet> table, Handle<Object> key);
   V8_EXPORT_PRIVATE static bool Delete(Isolate* isolate,
-                                       SmallOrderedHashSet table, Object key);
+                                       Tagged<SmallOrderedHashSet> table,
+                                       Tagged<Object> key);
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, Handle<Object> key);
 
   static inline bool Is(Handle<HeapObject> table);
@@ -693,7 +698,8 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
       Isolate* isolate, Handle<SmallOrderedHashMap> table, Handle<Object> key,
       Handle<Object> value);
   V8_EXPORT_PRIVATE static bool Delete(Isolate* isolate,
-                                       SmallOrderedHashMap table, Object key);
+                                       Tagged<SmallOrderedHashMap> table,
+                                       Tagged<Object> key);
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
@@ -765,11 +771,11 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
       Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
       Handle<Object> value, PropertyDetails details);
 
-  void SetEntry(InternalIndex entry, Object key, Object value,
+  void SetEntry(InternalIndex entry, Tagged<Object> key, Tagged<Object> value,
                 PropertyDetails details);
 
   template <typename IsolateT>
-  InternalIndex FindEntry(IsolateT* isolate, Object key);
+  InternalIndex FindEntry(IsolateT* isolate, Tagged<Object> key);
 
   // This is to make the interfaces of NameDictionary::FindEntry and
   // OrderedNameDictionary::FindEntry compatible.
@@ -796,13 +802,13 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
       Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);
 
   // Returns the value for entry.
-  inline Object ValueAt(InternalIndex entry);
+  inline Tagged<Object> ValueAt(InternalIndex entry);
 
   // Like KeyAt, but casts to Name
-  inline Name NameAt(InternalIndex entry);
+  inline Tagged<Name> NameAt(InternalIndex entry);
 
   // Set the value for entry.
-  inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
@@ -813,7 +819,7 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
   inline void SetHash(int hash);
   inline int Hash();
 
-  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
+  static Tagged<HeapObject> GetEmpty(ReadOnlyRoots ro_roots);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
 
@@ -844,30 +850,34 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
   static Handle<HeapObject> DeleteEntry(Isolate* isolate,
                                         Handle<HeapObject> table,
                                         InternalIndex entry);
-  static InternalIndex FindEntry(Isolate* isolate, HeapObject table, Name key);
-  static void SetEntry(HeapObject table, InternalIndex entry, Object key,
-                       Object value, PropertyDetails details);
+  static InternalIndex FindEntry(Isolate* isolate, Tagged<HeapObject> table,
+                                 Tagged<Name> key);
+  static void SetEntry(Tagged<HeapObject> table, InternalIndex entry,
+                       Tagged<Object> key, Tagged<Object> value,
+                       PropertyDetails details);
 
   // Returns the value for entry.
-  static Object ValueAt(HeapObject table, InternalIndex entry);
+  static Tagged<Object> ValueAt(Tagged<HeapObject> table, InternalIndex entry);
 
   // Set the value for entry.
-  static void ValueAtPut(HeapObject table, InternalIndex entry, Object value);
+  static void ValueAtPut(Tagged<HeapObject> table, InternalIndex entry,
+                         Tagged<Object> value);
 
   // Returns the property details for the property at entry.
-  static PropertyDetails DetailsAt(HeapObject table, InternalIndex entry);
+  static PropertyDetails DetailsAt(Tagged<HeapObject> table,
+                                   InternalIndex entry);
 
   // Set the details for entry.
-  static void DetailsAtPut(HeapObject table, InternalIndex entry,
+  static void DetailsAtPut(Tagged<HeapObject> table, InternalIndex entry,
                            PropertyDetails value);
 
-  static Name KeyAt(HeapObject table, InternalIndex entry);
+  static Tagged<Name> KeyAt(Tagged<HeapObject> table, InternalIndex entry);
 
-  static void SetHash(HeapObject table, int hash);
-  static int Hash(HeapObject table);
+  static void SetHash(Tagged<HeapObject> table, int hash);
+  static int Hash(Tagged<HeapObject> table);
 
-  static int NumberOfElements(HeapObject table);
-  static int Capacity(HeapObject table);
+  static int NumberOfElements(Tagged<HeapObject> table);
+  static int Capacity(Tagged<HeapObject> table);
 
  protected:
   static MaybeHandle<OrderedNameDictionary> AdjustRepresentation(
@@ -883,7 +893,7 @@ class SmallOrderedNameDictionary
   DECL_VERIFIER(SmallOrderedNameDictionary)
 
   // Returns the value for entry.
-  inline Object ValueAt(InternalIndex entry);
+  inline Tagged<Object> ValueAt(InternalIndex entry);
 
   static Handle<SmallOrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
@@ -894,7 +904,7 @@ class SmallOrderedNameDictionary
       InternalIndex entry);
 
   // Set the value for entry.
-  inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
@@ -918,7 +928,8 @@ class SmallOrderedNameDictionary
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       Handle<Name> key, Handle<Object> value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE void SetEntry(InternalIndex entry, Object key, Object value,
+  V8_EXPORT_PRIVATE void SetEntry(InternalIndex entry, Tagged<Object> key,
+                                  Tagged<Object> value,
                                   PropertyDetails details);
 
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);

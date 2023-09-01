@@ -141,13 +141,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool has_context() const;
-  Context context() const;
+  Tagged<Context> context() const;
 
   bool has_native_context() const;
-  NativeContext native_context() const;
+  Tagged<NativeContext> native_context() const;
 
   bool has_global_object() const;
-  JSGlobalObject global_object() const;
+  Tagged<JSGlobalObject> global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const {
@@ -169,12 +169,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     DCHECK_NULL(canonical_handles_);
     canonical_handles_ = std::move(canonical_handles);
     DCHECK_NOT_NULL(canonical_handles_);
-  }
-
-  template <typename T>
-  Handle<T> CanonicalHandle(T object, Isolate* isolate) {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return CanonicalHandle(Tagged<T>(object), isolate);
   }
 
   template <typename T>

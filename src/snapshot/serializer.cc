@@ -58,7 +58,8 @@ Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
 void Serializer::PopStack() { stack_.Pop(); }
 #endif
 
-void Serializer::CountAllocation(Map map, int size, SnapshotSpace space) {
+void Serializer::CountAllocation(Tagged<Map> map, int size,
+                                 SnapshotSpace space) {
   DCHECK(v8_flags.serialization_statistics);
 
   const int space_number = static_cast<int>(space);
@@ -166,7 +167,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   SerializeObjectImpl(obj, slot_type);
 }
 
-bool Serializer::MustBeDeferred(HeapObject object) { return false; }
+bool Serializer::MustBeDeferred(Tagged<HeapObject> object) { return false; }
 
 void Serializer::VisitRootPointers(Root root, const char* description,
                                    FullObjectSlot start, FullObjectSlot end) {
@@ -195,7 +196,7 @@ void Serializer::PrintStack(std::ostream& out) {
 }
 #endif  // DEBUG
 
-bool Serializer::SerializeRoot(HeapObject obj) {
+bool Serializer::SerializeRoot(Tagged<HeapObject> obj) {
   RootIndex root_index;
   // Derived serializers are responsible for determining if the root has
   // actually been serialized before calling this.
@@ -206,7 +207,7 @@ bool Serializer::SerializeRoot(HeapObject obj) {
   return false;
 }
 
-bool Serializer::SerializeHotObject(HeapObject obj) {
+bool Serializer::SerializeHotObject(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
   // Encode a reference to a hot object by its index in the working set.
   int index = hot_objects_.Find(obj);
@@ -221,7 +222,7 @@ bool Serializer::SerializeHotObject(HeapObject obj) {
   return true;
 }
 
-bool Serializer::SerializeBackReference(HeapObject obj) {
+bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
   const SerializerReference* reference = reference_map_.LookupReference(obj);
   if (reference == nullptr) return false;
@@ -249,7 +250,7 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
   return true;
 }
 
-bool Serializer::SerializePendingObject(HeapObject obj) {
+bool Serializer::SerializePendingObject(Tagged<HeapObject> obj) {
   PendingObjectReferences* refs_to_object =
       forward_refs_per_pending_object_.Find(obj);
   if (refs_to_object == nullptr) {
@@ -259,7 +260,7 @@ bool Serializer::SerializePendingObject(HeapObject obj) {
   return true;
 }
 
-bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
+bool Serializer::ObjectIsBytecodeHandler(Tagged<HeapObject> obj) const {
   if (!IsCode(obj)) return false;
   return (Code::cast(obj)->kind() == CodeKind::BYTECODE_HANDLER);
 }
@@ -267,7 +268,7 @@ bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
 void Serializer::PutRoot(RootIndex root) {
   DisallowGarbageCollection no_gc;
   int root_index = static_cast<int>(root);
-  HeapObject object = HeapObject::cast(isolate()->root(root));
+  Tagged<HeapObject> object = HeapObject::cast(isolate()->root(root));
   if (v8_flags.trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
     ShortPrint(object);
@@ -306,7 +307,7 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   sink_.PutRaw(raw_value_as_bytes, bytes_to_output, "Bytes");
 }
 
-void Serializer::PutBackReference(HeapObject object,
+void Serializer::PutBackReference(Tagged<HeapObject> object,
                                   SerializerReference reference) {
   DCHECK_EQ(object, *back_refs_[reference.back_ref_index()]);
   sink_.PutUint30(reference.back_ref_index(), "BackRefIndex");
@@ -372,7 +373,7 @@ ExternalReferenceEncoder::Value Serializer::EncodeExternalReference(
   return result.FromJust();
 }
 
-void Serializer::RegisterObjectIsPending(HeapObject obj) {
+void Serializer::RegisterObjectIsPending(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
   if (IsNotMappedSymbol(obj)) return;
 
@@ -389,7 +390,7 @@ void Serializer::RegisterObjectIsPending(HeapObject obj) {
                  CanBeDeferred(obj, SlotType::kAnySlot));
 }
 
-void Serializer::ResolvePendingObject(HeapObject obj) {
+void Serializer::ResolvePendingObject(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
   if (IsNotMappedSymbol(obj)) return;
 
@@ -422,7 +423,8 @@ void Serializer::InitializeCodeAddressMap() {
   code_address_map_ = std::make_unique<CodeAddressMap>(isolate_);
 }
 
-InstructionStream Serializer::CopyCode(InstructionStream istream) {
+Tagged<InstructionStream> Serializer::CopyCode(
+    Tagged<InstructionStream> istream) {
   code_buffer_.clear();  // Clear buffer without deleting backing store.
   // Add InstructionStream padding which is usually added by the allocator.
   // While this doesn't guarantee the exact same alignment, it's enough to
@@ -440,7 +442,8 @@ InstructionStream Serializer::CopyCode(InstructionStream istream) {
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
-                                                     int size, Map map) {
+                                                     int size,
+                                                     Tagged<Map> map) {
   if (serializer_->code_address_map_) {
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
@@ -661,7 +664,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   DCHECK(IsExternalString(*object_, cage_base));
   Handle<ExternalString> string = Handle<ExternalString>::cast(object_);
   int length = string->length();
-  Map map;
+  Tagged<Map> map;
   int content_size;
   int allocation_size;
   const uint8_t* resource;
@@ -717,7 +720,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 // TODO(all): replace this with proper iteration of weak slots in serializer.
 class V8_NODISCARD UnlinkWeakNextScope {
  public:
-  explicit UnlinkWeakNextScope(Heap* heap, HeapObject object) {
+  explicit UnlinkWeakNextScope(Heap* heap, Tagged<HeapObject> object) {
     Isolate* isolate = heap->isolate();
     if (IsAllocationSite(object, isolate) &&
         AllocationSite::cast(object)->HasWeakNext()) {
@@ -734,7 +737,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
   }
 
  private:
-  HeapObject object_;
+  Tagged<HeapObject> object_;
   Object next_ = Smi::zero();
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
@@ -744,7 +747,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
 
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *object_;
+    Tagged<HeapObject> raw = *object_;
     // Defer objects as "pending" if they cannot be serialized now, or if we
     // exceed a certain recursion depth. Some objects cannot be deferred.
     bool should_defer =
@@ -813,7 +816,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
 }
 
 namespace {
-SnapshotSpace GetSnapshotSpace(HeapObject object) {
+SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     if (IsInstructionStream(object)) {
       return SnapshotSpace::kCode;
@@ -856,7 +859,7 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
 }  // namespace
 
 void Serializer::ObjectSerializer::SerializeObject() {
-  Map map = object_->map(serializer_->cage_base());
+  Tagged<Map> map = object_->map(serializer_->cage_base());
   int size = object_->SizeFromMap(map);
 
   // Descriptor arrays have complex element weakness, that is dependent on the
@@ -899,8 +902,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   Serialize(SlotType::kAnySlot);
 }
 
-void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
-  HeapObject raw = *object_;
+void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {
+  Tagged<HeapObject> raw = *object_;
   UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
   // Iterate references first.
   raw->IterateBody(map, size, this);
@@ -908,13 +911,13 @@ void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   OutputRawData(raw.address() + size);
 }
 
-void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
+void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
                                                  ObjectSlot start,
                                                  ObjectSlot end) {
   VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
-void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
+void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
   HandleScope scope(isolate());
@@ -931,12 +934,12 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     }
     // TODO(ishell): Revisit this change once we stick to 32-bit compressed
     // tagged values.
-    while (current < end && current.load(cage_base).IsCleared()) {
+    while (current < end && current.load(cage_base)->IsCleared()) {
       sink_->Put(kClearedWeakReference, "ClearedWeakReference");
       bytes_processed_so_far_ += kTaggedSize;
       ++current;
     }
-    HeapObject current_contents;
+    Tagged<HeapObject> current_contents;
     HeapObjectReferenceType reference_type;
     while (current < end && current.load(cage_base)->GetHeapObject(
                                 &current_contents, &reference_type)) {
@@ -983,34 +986,34 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 }
 
 void Serializer::ObjectSerializer::VisitInstructionStreamPointer(
-    Code host, InstructionStreamSlot slot) {
+    Tagged<Code> host, InstructionStreamSlot slot) {
   DCHECK(!host->has_instruction_stream());
 }
 
 // All of these visitor functions are unreachable since we don't serialize
 // InstructionStream objects anymore.
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(InstructionStream host,
-                                                        RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitInternalReference(
-    InstructionStream host, RelocInfo* rinfo) {
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   UNREACHABLE();
 }
 
-void Serializer::ObjectSerializer::VisitOffHeapTarget(InstructionStream host,
-                                                      RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitOffHeapTarget(
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   UNREACHABLE();
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(InstructionStream host,
-                                                   RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCodeTarget(
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   UNREACHABLE();
 }
 
@@ -1073,7 +1076,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
 }
 
 void Serializer::ObjectSerializer::VisitExternalPointer(
-    HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+    Tagged<HeapObject> host, ExternalPointerSlot slot, ExternalPointerTag tag) {
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object_->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsForeign(instance_type) ||
@@ -1110,7 +1113,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 }
 
 void Serializer::ObjectSerializer::VisitIndirectPointer(
-    HeapObject host, IndirectPointerSlot slot, IndirectPointerMode mode) {
+    Tagged<HeapObject> host, IndirectPointerSlot slot,
+    IndirectPointerMode mode) {
   DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
 
   // The slot must be properly initialized at this point, so will always contain
@@ -1258,7 +1262,7 @@ Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
   return externals;
 }
 
-bool Serializer::SerializeReadOnlyObjectReference(HeapObject obj,
+bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                                   SnapshotByteSink* sink) {
   if (!ReadOnlyHeap::Contains(obj)) return false;
 

@@ -104,13 +104,12 @@ class StringStream final {
         : FmtElm(LC_STR) {
       data_.u_lc_str_ = &value;
     }
-    FmtElm(Object value) : FmtElm(Tagged(value)) {  // NOLINT
-      static_assert(kTaggedCanConvertToRawObjects);
-    }
-    FmtElm(Tagged<Object> value) : FmtElm(OBJ) {  // NOLINT
+    template <typename T>
+    FmtElm(Tagged<T> value) : FmtElm(OBJ) {  // NOLINT
       data_.u_obj_ = value.ptr();
     }
-    FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
+    template <typename T>
+    FmtElm(Handle<T> value) : FmtElm(HANDLE) {  // NOLINT
       data_.u_handle_ = value.location();
     }
     FmtElm(void* value) : FmtElm(POINTER) {  // NOLINT

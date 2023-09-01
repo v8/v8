@@ -91,7 +91,7 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return kPointerSize; }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
@@ -106,7 +106,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return origin->relative_code_target_object_handle_at(pc_);
 }
 
-void RelocInfo::set_target_object(HeapObject target,
+void RelocInfo::set_target_object(Tagged<HeapObject> target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
@@ -167,7 +167,7 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
+Operand::Operand(Tagged<Smi> value) : rmode_(RelocInfo::NO_INFO) {
   value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 
@@ -187,7 +187,7 @@ void Assembler::emit(Instr x) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Code code, Address target) {
+    Address constant_pool_entry, Tagged<Code> code, Address target) {
   DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));
   Memory<Address>(constant_pool_entry) = target;
 }

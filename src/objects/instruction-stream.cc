@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 void InstructionStream::Relocate(intptr_t delta) {
-  Code code;
+  Tagged<Code> code;
   if (!TryGetCodeUnchecked(&code, kAcquireLoad)) return;
   // This is called during evacuation and code.instruction_stream() will point
   // to the old object. So pass *this directly to the RelocIterator.
@@ -51,7 +51,8 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(IsCode(*p));
-      InstructionStream target_istream = Code::cast(*p)->instruction_stream();
+      Tagged<InstructionStream> target_istream =
+          Code::cast(*p)->instruction_stream();
       it.rinfo()->set_target_address(*this, target_istream->instruction_start(),
                                      UNSAFE_SKIP_WRITE_BARRIER,
                                      SKIP_ICACHE_FLUSH);
@@ -102,11 +103,11 @@ void InstructionStream::RelocateFromDescWriteBarriers(
 
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
-      HeapObject p = it.rinfo()->target_object(heap->isolate());
+      Tagged<HeapObject> p = it.rinfo()->target_object(heap->isolate());
       WriteBarrierForCode(*this, it.rinfo(), p, UPDATE_WRITE_BARRIER);
       write_barrier_promise.ResolveAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
-      InstructionStream target_istream =
+      Tagged<InstructionStream> target_istream =
           InstructionStream::FromTargetAddress(it.rinfo()->target_address());
       WriteBarrierForCode(*this, it.rinfo(), target_istream,
                           UPDATE_WRITE_BARRIER);

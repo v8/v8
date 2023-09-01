@@ -20,11 +20,12 @@
 namespace v8 {
 namespace internal {
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, Tagged<Code> code)
     : SafepointTable(code->InstructionStart(isolate, pc),
                      code->safepoint_table_address()) {}
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc, GcSafeCode code)
+SafepointTable::SafepointTable(Isolate* isolate, Address pc,
+                               Tagged<GcSafeCode> code)
     : SafepointTable(code->InstructionStart(isolate, pc),
                      code->safepoint_table_address()) {}
 
@@ -78,8 +79,8 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
 }
 
 // static
-SafepointEntry SafepointTable::FindEntry(Isolate* isolate, GcSafeCode code,
-                                         Address pc) {
+SafepointEntry SafepointTable::FindEntry(Isolate* isolate,
+                                         Tagged<GcSafeCode> code, Address pc) {
   SafepointTable table(isolate, pc, code);
   return table.FindEntry(pc);
 }

@@ -30,25 +30,25 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
 
   virtual const MarkingBitmap* bitmap(const MemoryChunk* chunk) = 0;
 
-  virtual void VerifyMap(Map map) = 0;
+  virtual void VerifyMap(Tagged<Map> map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
   virtual void VerifyCodePointer(InstructionStreamSlot slot) = 0;
   virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
-  virtual bool IsMarked(HeapObject object) = 0;
+  virtual bool IsMarked(Tagged<HeapObject> object) = 0;
 
-  void VisitPointers(HeapObject host, ObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitInstructionStreamPointer(Code host,
+  void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
     VerifyCodePointer(slot);
   }
@@ -58,7 +58,7 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
     VerifyRootPointers(start, end);
   }
 
-  void VisitMapPointer(HeapObject object) override;
+  void VisitMapPointer(Tagged<HeapObject> object) override;
 
   void VerifyRoots();
   void VerifyMarkingOnPage(const Page* page, Address start, Address end);

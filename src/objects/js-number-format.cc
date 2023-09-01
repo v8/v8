@@ -2104,7 +2104,7 @@ MaybeHandle<JSArray> FormatRangeToJSArray(
 
 Maybe<icu::number::LocalizedNumberRangeFormatter>
 JSNumberFormat::GetRangeFormatter(
-    Isolate* isolate, String locale,
+    Isolate* isolate, Tagged<String> locale,
     const icu::number::LocalizedNumberFormatter& number_formatter) {
   UErrorCode status = U_ZERO_ERROR;
   UParseError perror;

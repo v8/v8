@@ -18,19 +18,19 @@ namespace internal {
 
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
-  JSFunction fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = JSFunction::cast(function());
   return fun == fun->native_context()->promise_all();
 }
 
 bool CallSiteInfo::IsPromiseAllSettled() const {
   if (!IsAsync()) return false;
-  JSFunction fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = JSFunction::cast(function());
   return fun == fun->native_context()->promise_all_settled();
 }
 
 bool CallSiteInfo::IsPromiseAny() const {
   if (!IsAsync()) return false;
-  JSFunction fun = JSFunction::cast(function());
+  Tagged<JSFunction> fun = JSFunction::cast(function());
   return fun == fun->native_context()->promise_any();
 }
 
@@ -173,21 +173,21 @@ int CallSiteInfo::GetScriptId() const {
   return Message::kNoScriptIdInfo;
 }
 
-Object CallSiteInfo::GetScriptName() const {
+Tagged<Object> CallSiteInfo::GetScriptName() const {
   if (auto script = GetScript()) {
     return script->name();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object CallSiteInfo::GetScriptNameOrSourceURL() const {
+Tagged<Object> CallSiteInfo::GetScriptNameOrSourceURL() const {
   if (auto script = GetScript()) {
     return script->GetNameOrSourceURL();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object CallSiteInfo::GetScriptSource() const {
+Tagged<Object> CallSiteInfo::GetScriptSource() const {
   if (auto script = GetScript()) {
     if (script->HasValidSource()) {
       return script->source();
@@ -196,7 +196,7 @@ Object CallSiteInfo::GetScriptSource() const {
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object CallSiteInfo::GetScriptSourceMappingURL() const {
+Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
   if (auto script = GetScript()) {
     return script->source_mapping_url();
   }
@@ -355,7 +355,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     if (IsSymbol(key)) continue;
     auto details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
-    Object value;
+    Tagged<Object> value;
     if (details.location() == PropertyLocation::kField) {
       auto field_index = FieldIndex::ForPropertyIndex(
           map, details.field_index(), details.representation());
@@ -379,13 +379,12 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
 }
 
 template <typename Dictionary>
-PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
-                                                  Tagged<Dictionary> dictionary,
-                                                  JSFunction fun,
-                                                  PrimitiveHeapObject name) {
+Tagged<PrimitiveHeapObject> InferMethodNameFromDictionary(
+    Isolate* isolate, Tagged<Dictionary> dictionary, Tagged<JSFunction> fun,
+    Tagged<PrimitiveHeapObject> name) {
   ReadOnlyRoots roots(isolate);
   for (auto i : dictionary->IterateEntries()) {
-    Object key;
+    Tagged<Object> key;
     if (!dictionary->ToKey(roots, i, &key)) continue;
     if (IsSymbol(key)) continue;
     auto details = dictionary->DetailsAt(i);
@@ -394,7 +393,7 @@ PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
     if (value != fun) {
       if (!IsAccessorPair(value)) continue;
       auto pair = AccessorPair::cast(value);
-      if (pair.getter() != fun && pair.setter() != fun) continue;
+      if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
       name = IsUndefined(name, isolate)
@@ -405,11 +404,12 @@ PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
   return name;
 }
 
-PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
-                                    JSFunction fun) {
+Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
+                                            Tagged<JSReceiver> receiver,
+                                            Tagged<JSFunction> fun) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate);
-  PrimitiveHeapObject name = roots.undefined_value();
+  Tagged<PrimitiveHeapObject> name = roots.undefined_value();
   for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
        it.Advance()) {
     auto current = it.GetCurrent();
@@ -524,7 +524,7 @@ uint32_t CallSiteInfo::GetWasmFunctionIndex() const {
   return Smi::ToInt(Smi::cast(function()));
 }
 
-WasmInstanceObject CallSiteInfo::GetWasmInstance() const {
+Tagged<WasmInstanceObject> CallSiteInfo::GetWasmInstance() const {
   DCHECK(IsWasm());
   return WasmInstanceObject::cast(receiver_or_instance());
 }
@@ -622,12 +622,12 @@ base::Optional<Script> CallSiteInfo::GetScript() const {
     return base::nullopt;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Object script = GetSharedFunctionInfo()->script();
+  Tagged<Object> script = GetSharedFunctionInfo()->script();
   if (IsScript(script)) return Script::cast(script);
   return base::nullopt;
 }
 
-SharedFunctionInfo CallSiteInfo::GetSharedFunctionInfo() const {
+Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasm());
   DCHECK(!IsBuiltin());

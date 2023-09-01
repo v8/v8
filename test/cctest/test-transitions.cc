@@ -71,8 +71,8 @@ TEST(TransitionArray_SimpleFieldTransitions) {
                                                  attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
-      Name key = transitions.GetKey(i);
-      Map target = transitions.GetTarget(i);
+      Tagged<Name> key = transitions.GetKey(i);
+      Tagged<Map> target = transitions.GetTarget(i);
       CHECK((key == *name1 && target == *map1) ||
             (key == *name2 && target == *map2));
     }
@@ -134,8 +134,8 @@ TEST(TransitionArray_FullFieldTransitions) {
                                                  attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
-      Name key = transitions.GetKey(i);
-      Map target = transitions.GetTarget(i);
+      Tagged<Name> key = transitions.GetKey(i);
+      Tagged<Map> target = transitions.GetTarget(i);
       CHECK((key == *name1 && target == *map1) ||
             (key == *name2 && target == *map2));
     }
@@ -180,8 +180,8 @@ TEST(TransitionArray_DifferentFieldNames) {
                            *names[i], PropertyKind::kData, attributes));
   }
   for (int i = 0; i < PROPS_COUNT; i++) {
-    Name key = transitions.GetKey(i);
-    Map target = transitions.GetTarget(i);
+    Tagged<Name> key = transitions.GetKey(i);
+    Tagged<Map> target = transitions.GetTarget(i);
     for (int j = 0; j < PROPS_COUNT; j++) {
       if (*names[i] == key) {
         CHECK_EQ(*maps[i], target);
@@ -296,8 +296,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   // Ensure that info about the other fields still valid.
   CHECK_EQ(PROPS_COUNT + ATTRS_COUNT, transitions.NumberOfTransitions());
   for (int i = 0; i < PROPS_COUNT + ATTRS_COUNT; i++) {
-    Name key = transitions.GetKey(i);
-    Map target = transitions.GetTarget(i);
+    Tagged<Name> key = transitions.GetKey(i);
+    Tagged<Map> target = transitions.GetTarget(i);
     if (key == *name) {
       // Attributes transition.
       PropertyAttributes attributes =

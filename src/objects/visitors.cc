@@ -27,7 +27,8 @@ const char* RootVisitor::RootName(Root root) {
   UNREACHABLE();
 }
 
-void ObjectVisitor::VisitRelocInfo(InstructionStream host, RelocIterator* it) {
+void ObjectVisitor::VisitRelocInfo(Tagged<InstructionStream> host,
+                                   RelocIterator* it) {
   // RelocInfo iteration is only valid for fully-initialized InstructionStream
   // objects. Callers must ensure this.
   DCHECK_NE(host->raw_code(kAcquireLoad), Smi::zero());

@@ -256,7 +256,7 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
                                    ElementsKind elements_kind,
                                    int inobject_properties) {
   static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  HeapObject result;
+  Tagged<HeapObject> result;
   DCHECK_EQ(allocation_type, IsMutableMap(instance_type, elements_kind)
                                  ? AllocationType::kMap
                                  : AllocationType::kReadOnly);
@@ -265,7 +265,7 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
 
   result->set_map_after_allocation(ReadOnlyRoots(this).meta_map(),
                                    SKIP_WRITE_BARRIER);
-  Map map = isolate()->factory()->InitializeMap(
+  Tagged<Map> map = isolate()->factory()->InitializeMap(
       Map::cast(result), instance_type, instance_size, elements_kind,
       inobject_properties, this);
 
@@ -274,12 +274,12 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
-  Object result;
+  Tagged<Object> result;
   AllocationResult allocation =
       AllocateRaw(Map::kSize, AllocationType::kReadOnly);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
-  Map map = Map::unchecked_cast(result);
+  Tagged<Map> map = Map::unchecked_cast(result);
   map->set_map_after_allocation(
       Map::unchecked_cast(isolate()->root(RootIndex::kMetaMap)),
       SKIP_WRITE_BARRIER);
@@ -316,7 +316,7 @@ AllocationResult Heap::Allocate(Handle<Map> map,
                                 AllocationType allocation_type) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
-  HeapObject result;
+  Tagged<HeapObject> result;
   AllocationResult allocation = AllocateRaw(size, allocation_type);
   if (!allocation.To(&result)) return allocation;
   // New space objects are allocated white.
@@ -330,13 +330,13 @@ AllocationResult Heap::Allocate(Handle<Map> map,
 bool Heap::CreateEarlyReadOnlyMaps() {
   // Setup maps which are used often, or used in CreateImportantReadOnlyObjects.
   ReadOnlyRoots roots(this);
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   {
     AllocationResult allocation = AllocatePartialMap(MAP_TYPE, Map::kSize);
     if (!allocation.To(&obj)) return false;
   }
   // Map::cast cannot be used due to uninitialized map field.
-  Map new_meta_map = Map::unchecked_cast(obj);
+  Tagged<Map> new_meta_map = Map::unchecked_cast(obj);
   set_meta_map(new_meta_map);
   new_meta_map->set_map_after_allocation(new_meta_map);
 
@@ -367,7 +367,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
       if (!is_important_struct(entry.type)) continue;
-      Map map;
+      Tagged<Map> map;
       if (!AllocatePartialMap(entry.type, entry.size).To(&map)) return false;
       roots_table()[entry.index] = map.ptr();
     }
@@ -446,7 +446,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     if (!AllocateRaw(size, AllocationType::kReadOnly).To(&obj)) return false;
     obj->set_map_after_allocation(roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
-    DescriptorArray array = DescriptorArray::cast(obj);
+    Tagged<DescriptorArray> array = DescriptorArray::cast(obj);
     array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0,
                       DescriptorArrayMarkingState::kInitialGCState);
   }
@@ -517,7 +517,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
                            Context::SYMBOL_FUNCTION_INDEX)
 
     for (const StringTypeInit& entry : kStringTypeTable) {
-      Map map;
+      Tagged<Map> map;
       if (!AllocateMap(AllocationType::kReadOnly, entry.type, entry.size)
                .To(&map)) {
         return false;
@@ -546,7 +546,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
-      Smi value = Smi::FromInt(Map::kPrototypeChainInvalid);
+      Tagged<Smi> value = Smi::FromInt(Map::kPrototypeChainInvalid);
       AllocationResult alloc =
           AllocateRaw(Cell::kSize, AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
@@ -600,7 +600,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     // Setup the struct maps.
     for (const StructInit& entry : kStructTable) {
       if (is_important_struct(entry.type)) continue;
-      Map map;
+      Tagged<Map> map;
       if (!AllocateMap(AllocationType::kReadOnly, entry.type, entry.size)
                .To(&map))
         return false;
@@ -693,7 +693,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
   // Shared space object maps are immutable and can be in RO space.
   {
-    Map shared_array_map;
+    Tagged<Map> shared_array_map;
     if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
                      JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
                      JSSharedArray::kInObjectFieldCount)
@@ -737,7 +737,7 @@ void Heap::StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj,
     CHECK_LT(obj_size, required);
     int filler_size = required - obj_size;
 
-    HeapObject filler =
+    Tagged<HeapObject> filler =
         allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
             AllocationAlignment::kTaggedAligned);
@@ -751,7 +751,7 @@ void Heap::StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj,
 
 bool Heap::CreateImportantReadOnlyObjects() {
   // Allocate some objects early to get addresses to fit as arm64 immediates.
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   ReadOnlyRoots roots(isolate());
 
   // Bools
@@ -876,7 +876,7 @@ bool Heap::CreateReadOnlyObjects() {
   HandleScope initial_objects_handle_scope(isolate());
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
-  HeapObject obj;
+  Tagged<HeapObject> obj;
 
   // Empty elements
   {
@@ -1172,7 +1172,7 @@ bool Heap::CreateReadOnlyObjects() {
     // TODO(v8:7748) Depending on where we end up this might actually not hold,
     // in which case we would need to use a one or two-word filler.
     CHECK(filler_size > 2 * kTaggedSize);
-    HeapObject filler =
+    Tagged<HeapObject> filler =
         allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
             AllocationAlignment::kTaggedAligned);
@@ -1186,7 +1186,7 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Finally, allocate the wasm-null object.
   {
-    HeapObject obj;
+    Tagged<HeapObject> obj;
     CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
     // No need to initialize the payload since it's either empty or unmapped.
     CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),

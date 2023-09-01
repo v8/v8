@@ -422,14 +422,14 @@ void MacroAssembler::Push(Handle<HeapObject> handle) {
   push(scratch);
 }
 
-void MacroAssembler::Push(Smi smi) {
+void MacroAssembler::Push(Tagged<Smi> smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   mov(scratch, Operand(smi));
   push(scratch);
 }
 
-void MacroAssembler::Push(TaggedIndex index) {
+void MacroAssembler::Push(Tagged<TaggedIndex> index) {
   // TaggedIndex is the same as Smi for 32 bit archs.
   Push(Smi::FromIntptr(index.value()));
 }
@@ -464,7 +464,9 @@ void MacroAssembler::PushArray(Register array, Register size, Register scratch,
   }
 }
 
-void MacroAssembler::Move(Register dst, Smi smi) { mov(dst, Operand(smi)); }
+void MacroAssembler::Move(Register dst, Tagged<Smi> smi) {
+  mov(dst, Operand(smi));
+}
 
 void MacroAssembler::Move(Register dst, Handle<HeapObject> value) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating

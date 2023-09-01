@@ -211,7 +211,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
-    SharedFunctionInfo shared = frame->function()->shared();
+    Tagged<SharedFunctionInfo> shared = frame->function()->shared();
     SnapshotObjectId id =
         ids_->FindOrAddEntry(shared.address(), shared->Size(),
                              HeapObjectsMap::MarkEntryAccessed::kNo);
@@ -236,7 +236,7 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
   return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
-unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
+unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
                                             SnapshotObjectId id) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
@@ -245,9 +245,9 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
     info->name = names_->GetCopy(shared->DebugNameCStr().get());
     info->function_id = id;
     if (IsScript(shared->script())) {
-      Script script = Script::cast(shared->script());
+      Tagged<Script> script = Script::cast(shared->script());
       if (IsName(script->name())) {
-        Name name = Name::cast(script->name());
+        Tagged<Name> name = Name::cast(script->name());
         info->script_name = names_->GetName(name);
       }
       info->script_id = script->id();
@@ -274,7 +274,7 @@ unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   return info_index_for_other_state_;
 }
 
-AllocationTracker::UnresolvedLocation::UnresolvedLocation(Script script,
+AllocationTracker::UnresolvedLocation::UnresolvedLocation(Tagged<Script> script,
                                                           int start,
                                                           FunctionInfo* info)
     : start_position_(start), info_(info) {

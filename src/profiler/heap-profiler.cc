@@ -127,12 +127,10 @@ bool HeapProfiler::StartSamplingHeapProfiler(
   return true;
 }
 
-
 void HeapProfiler::StopSamplingHeapProfiler() {
   sampling_heap_profiler_.reset();
   MaybeClearStringsStorage();
 }
-
 
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
   if (sampling_heap_profiler_.get()) {
@@ -141,7 +139,6 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
     return nullptr;
   }
 }
-
 
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
@@ -218,7 +215,6 @@ void HeapProfiler::AllocationEvent(Address addr, int size) {
   }
 }
 
-
 void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
   ids_->UpdateObjectSize(addr, size);
 }
@@ -227,14 +223,13 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   CombinedHeapObjectIterator iterator(heap(),
                                       HeapObjectIterator::kFilterUnreachable);
   // Make sure that the object with the given id is still reachable.
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (ids_->FindEntry(obj.address()) == id)
       return Handle<HeapObject>(obj, isolate());
   }
   return Handle<HeapObject>();
 }
-
 
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
@@ -246,7 +241,6 @@ void HeapProfiler::ClearHeapObjectMap() {
     heap()->isolate()->UpdateLogObjectRelocation();
   }
 }
-
 
 Heap* HeapProfiler::heap() const { return ids_->heap(); }
 
@@ -264,8 +258,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
       std::vector<Handle<JSTypedArray>> on_heap_typed_arrays;
       CombinedHeapObjectIterator heap_iterator(
           heap(), HeapObjectIterator::kFilterUnreachable);
-      for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
-           heap_obj = heap_iterator.Next()) {
+      for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
+           !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
         if (IsFeedbackVector(heap_obj)) {
           FeedbackVector::cast(heap_obj)->ClearSlots(isolate());
         } else if (IsJSTypedArray(heap_obj) &&
@@ -288,8 +282,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
     CombinedHeapObjectIterator heap_iterator(
         heap(), HeapObjectIterator::kFilterUnreachable);
     PtrComprCageBase cage_base(isolate());
-    for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
-         heap_obj = heap_iterator.Next()) {
+    for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
+         !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
       if (!IsJSObject(heap_obj, cage_base) ||
           IsJSExternalObject(heap_obj, cage_base))
         continue;

@@ -249,9 +249,11 @@ void Snapshot::ClearReconstructableDataForSerialization(
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
     {
       i::HeapObjectIterator it(isolate->heap());
-      for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+      for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null();
+           o = it.Next()) {
         if (clear_recompilable_data && IsSharedFunctionInfo(o, cage_base)) {
-          i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
+          i::Tagged<i::SharedFunctionInfo> shared =
+              i::SharedFunctionInfo::cast(o);
           if (IsScript(shared->script(cage_base), cage_base) &&
               Script::cast(shared->script(cage_base))->type() ==
                   Script::Type::kExtension) {
@@ -261,7 +263,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
             sfis_to_clear.emplace_back(shared, isolate);
           }
         } else if (IsJSRegExp(o, cage_base)) {
-          i::JSRegExp regexp = i::JSRegExp::cast(o);
+          i::Tagged<i::JSRegExp> regexp = i::JSRegExp::cast(o);
           if (regexp->HasCompiledCode()) {
             regexp->DiscardCompiledCodeForSerialization();
           }
@@ -289,13 +291,13 @@ void Snapshot::ClearReconstructableDataForSerialization(
   // Clear JSFunctions.
   {
     i::HeapObjectIterator it(isolate->heap());
-    for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
       if (!IsJSFunction(o, cage_base)) continue;
 
-      i::JSFunction fun = i::JSFunction::cast(o);
+      i::Tagged<i::JSFunction> fun = i::JSFunction::cast(o);
       fun->CompleteInobjectSlackTrackingIfActive();
 
-      i::SharedFunctionInfo shared = fun->shared();
+      i::Tagged<i::SharedFunctionInfo> shared = fun->shared();
       if (IsScript(shared->script(cage_base), cage_base) &&
           Script::cast(shared->script(cage_base))->type() ==
               Script::Type::kExtension) {
@@ -342,9 +344,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
     // for the generic wrapper at all.
     i::HeapObjectIterator it(isolate->heap(),
                              HeapObjectIterator::kFilterUnreachable);
-    for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
       if (IsJSFunction(o)) {
-        i::JSFunction fun = i::JSFunction::cast(o);
+        i::Tagged<i::JSFunction> fun = i::JSFunction::cast(o);
         if (fun->shared()->HasAsmWasmData()) {
           FATAL("asm.js functions are not supported in snapshots");
         }

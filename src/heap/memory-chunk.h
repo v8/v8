@@ -60,7 +60,7 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(HeapObject o) {
+  static MemoryChunk* FromHeapObject(Tagged<HeapObject> o) {
     return cast(BasicMemoryChunk::FromHeapObject(o));
   }
 

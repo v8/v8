@@ -100,7 +100,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     for (int i = 0; i < 100; i++) {
       Handle<JSReceiver> key = factory->NewJSArray(7);
       CHECK_EQ(table->Lookup(key), roots.the_hole_value());
-      Object identity_hash = key->GetIdentityHash();
+      Tagged<Object> identity_hash = key->GetIdentityHash();
       CHECK_EQ(roots.undefined_value(), identity_hash);
     }
   }
@@ -161,7 +161,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     for (int i = 0; i < 100; i++) {
       Handle<JSReceiver> key = factory->NewJSArray(7);
       CHECK(!table->Has(isolate(), key));
-      Object identity_hash = key->GetIdentityHash();
+      Tagged<Object> identity_hash = key->GetIdentityHash();
       CHECK_EQ(ReadOnlyRoots(heap()).undefined_value(), identity_hash);
     }
   }
@@ -228,9 +228,9 @@ TEST_F(DictionaryTest, HashSet) {
   TestHashSet(ObjectHashSet::New(isolate(), 23));
 }
 
-class ObjectHashTableTest : public ObjectHashTable {
+class ObjectHashTableTest {
  public:
-  explicit ObjectHashTableTest(ObjectHashTable o) : ObjectHashTable(o) {}
+  explicit ObjectHashTableTest(Tagged<ObjectHashTable> o) : table_(o) {}
 
   // For every object, add a `->` operator which returns a pointer to this
   // object. This will allow smoother transition between T and Tagged<T>.
@@ -238,16 +238,21 @@ class ObjectHashTableTest : public ObjectHashTable {
   const ObjectHashTableTest* operator->() const { return this; }
 
   void insert(InternalIndex entry, int key, int value) {
-    set(EntryToIndex(entry), Smi::FromInt(key));
-    set(EntryToIndex(entry) + 1, Smi::FromInt(value));
+    table_->set(table_->EntryToIndex(entry), Smi::FromInt(key));
+    table_->set(table_->EntryToIndex(entry) + 1, Smi::FromInt(value));
   }
 
   int lookup(int key, Isolate* isolate) {
     Handle<Object> key_obj(Smi::FromInt(key), isolate);
-    return Smi::ToInt(Lookup(key_obj));
+    return Smi::ToInt(table_->Lookup(key_obj));
   }
 
-  int capacity() { return Capacity(); }
+  int capacity() { return table_->Capacity(); }
+
+  void Rehash(Isolate* isolate) { table_->Rehash(isolate); }
+
+ private:
+  Tagged<ObjectHashTable> table_;
 };
 
 TEST_F(DictionaryTest, HashTableRehash) {

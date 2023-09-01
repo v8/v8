@@ -57,14 +57,14 @@ namespace v8 {
 namespace internal {
 
 template <typename T>
-T ForwardingAddress(T heap_obj) {
-  MapWord map_word = heap_obj.map_word(kRelaxedLoad);
+Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
+  MapWord map_word = heap_obj->map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    return T::cast(map_word.ToForwardingAddress(heap_obj));
+    return Tagged<T>::cast(map_word.ToForwardingAddress(heap_obj));
   } else if (Heap::InFromPage(heap_obj)) {
     DCHECK(!v8_flags.minor_ms);
-    return T();
+    return Tagged<T>();
   } else {
     return heap_obj;
   }
@@ -273,19 +273,19 @@ Address Heap::NewSpaceTop() {
   return new_space_ ? new_space_->top() : kNullAddress;
 }
 
-bool Heap::InYoungGeneration(Object object) {
+bool Heap::InYoungGeneration(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return IsHeapObject(object) && InYoungGeneration(HeapObject::cast(object));
 }
 
 // static
 bool Heap::InYoungGeneration(MaybeObject object) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   return object->GetHeapObject(&heap_object) && InYoungGeneration(heap_object);
 }
 
 // static
-bool Heap::InYoungGeneration(HeapObject heap_object) {
+bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   bool result =
       BasicMemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
@@ -303,65 +303,44 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
 }
 
 // static
-template <typename T>
-inline bool Heap::InYoungGeneration(Tagged<T> object) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return InYoungGeneration(*object);
-}
-
-// static
 bool Heap::InWritableSharedSpace(MaybeObject object) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   return object->GetHeapObject(&heap_object) &&
          heap_object.InWritableSharedSpace();
 }
 
 // static
-bool Heap::InFromPage(Object object) {
+bool Heap::InFromPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return IsHeapObject(object) && InFromPage(HeapObject::cast(object));
 }
 
 // static
 bool Heap::InFromPage(MaybeObject object) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   return object->GetHeapObject(&heap_object) && InFromPage(heap_object);
 }
 
 // static
-bool Heap::InFromPage(HeapObject heap_object) {
+bool Heap::InFromPage(Tagged<HeapObject> heap_object) {
   return BasicMemoryChunk::FromHeapObject(heap_object)->IsFromPage();
 }
 
 // static
-template <typename T>
-inline bool Heap::InFromPage(Tagged<T> object) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return InFromPage(*object);
-}
-
-// static
-bool Heap::InToPage(Object object) {
+bool Heap::InToPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return IsHeapObject(object) && InToPage(HeapObject::cast(object));
 }
 
 // static
 bool Heap::InToPage(MaybeObject object) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   return object->GetHeapObject(&heap_object) && InToPage(heap_object);
 }
 
 // static
-bool Heap::InToPage(HeapObject heap_object) {
+bool Heap::InToPage(Tagged<HeapObject> heap_object) {
   return BasicMemoryChunk::FromHeapObject(heap_object)->IsToPage();
-}
-
-// static
-template <typename T>
-inline bool Heap::InToPage(Tagged<T> object) {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return InToPage(*object);
 }
 
 bool Heap::InOldSpace(Tagged<Object> object) {
@@ -449,7 +428,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   UNREACHABLE();
 }
 
-bool Heap::IsPendingAllocation(HeapObject object) {
+bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {
   bool result = IsPendingAllocationInternal(object);
   if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
@@ -458,7 +437,7 @@ bool Heap::IsPendingAllocation(HeapObject object) {
   return result;
 }
 
-bool Heap::IsPendingAllocation(Object object) {
+bool Heap::IsPendingAllocation(Tagged<Object> object) {
   return IsHeapObject(object) && IsPendingAllocation(HeapObject::cast(object));
 }
 
@@ -489,8 +468,8 @@ Tagged<Boolean> Heap::ToBoolean(bool condition) {
 
 int Heap::NextScriptId() {
   FullObjectSlot last_script_id_slot(&roots_table()[RootIndex::kLastScriptId]);
-  Smi last_id = Smi::cast(last_script_id_slot.Relaxed_Load());
-  Smi new_id, last_id_before_cas;
+  Tagged<Smi> last_id = Smi::cast(last_script_id_slot.Relaxed_Load());
+  Tagged<Smi> new_id, last_id_before_cas;
   do {
     if (last_id.value() == Smi::kMaxValue) {
       static_assert(v8::UnboundScript::kNoScriptId == 0);
@@ -585,7 +564,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
 }
 #else
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
-    InstructionStream code)
+    Tagged<InstructionStream> code)
     : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
 #endif
 

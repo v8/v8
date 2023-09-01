@@ -123,7 +123,8 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   return true;
 }
 
-base::Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
+base::Vector<RegExpInstruction> AsInstructionSequence(
+    Tagged<ByteArray> raw_bytes) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
   int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
@@ -134,9 +135,9 @@ base::Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
 namespace {
 
 int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
-                    ByteArray bytecode, String subject, int capture_count,
-                    int32_t* output_registers, int32_t output_register_count,
-                    int32_t subject_index) {
+                    Tagged<ByteArray> bytecode, Tagged<String> subject,
+                    int capture_count, int32_t* output_registers,
+                    int32_t output_register_count, int32_t subject_index) {
   DisallowGarbageCollection no_gc;
   // TODO(cbruni): remove once gcmole is fixed.
   DisableGCMole no_gc_mole;
@@ -156,12 +157,10 @@ int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
 }  // namespace
 
 // Returns the number of matches.
-int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
-                                    RegExp::CallOrigin call_origin,
-                                    JSRegExp regexp, String subject,
-                                    int32_t* output_registers,
-                                    int32_t output_register_count,
-                                    int32_t subject_index) {
+int32_t ExperimentalRegExp::ExecRaw(
+    Isolate* isolate, RegExp::CallOrigin call_origin, Tagged<JSRegExp> regexp,
+    Tagged<String> subject, int32_t* output_registers,
+    int32_t output_register_count, int32_t subject_index) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DisallowGarbageCollection no_gc;
 
@@ -171,7 +170,7 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
   }
 
   static constexpr bool kIsLatin1 = true;
-  ByteArray bytecode = ByteArray::cast(regexp->bytecode(kIsLatin1));
+  Tagged<ByteArray> bytecode = ByteArray::cast(regexp->bytecode(kIsLatin1));
 
   return ExecRawImpl(isolate, call_origin, bytecode, subject,
                      regexp->capture_count(), output_registers,
@@ -192,9 +191,9 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  String subject_string = String::cast(Object(subject));
+  Tagged<String> subject_string = String::cast(Object(subject));
 
-  JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
+  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Object(regexp));
 
   return ExecRaw(isolate, RegExp::kFromJs, regexp_obj, subject_string,
                  output_registers, output_register_count, start_position);

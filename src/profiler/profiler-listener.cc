@@ -294,8 +294,8 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(InstructionStream from,
-                                     InstructionStream to) {
+void ProfilerListener::CodeMoveEvent(Tagged<InstructionStream> from,
+                                     Tagged<InstructionStream> to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
@@ -304,7 +304,8 @@ void ProfilerListener::CodeMoveEvent(InstructionStream from,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+void ProfilerListener::BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                                         Tagged<BytecodeArray> to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
@@ -367,14 +368,16 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
   return GetName(null_terminated.begin());
 }
 
-Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
+Tagged<Name> ProfilerListener::InferScriptName(
+    Tagged<Name> name, Tagged<SharedFunctionInfo> info) {
   if (IsString(name) && String::cast(name)->length()) return name;
   if (!IsScript(info->script())) return name;
-  Object source_url = Script::cast(info->script())->source_url();
+  Tagged<Object> source_url = Script::cast(info->script())->source_url();
   return IsName(source_url) ? Name::cast(source_url) : name;
 }
 
-const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
+const char* ProfilerListener::GetFunctionName(
+    Tagged<SharedFunctionInfo> shared) {
   switch (naming_mode_) {
     case kDebugNaming:
       return GetName(shared->DebugNameCStr().get());

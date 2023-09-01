@@ -1392,8 +1392,8 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
   NoExtendBuilder<DestChar> no_extend(
       reinterpret_cast<DestChar*>(part_ptr_) + current_index_, &current_index_);
   no_extend.Append('"');
-  base::Vector<const uint8_t> chars(SeqOneByteString::cast(key).GetChars(no_gc),
-                                    copy_length);
+  base::Vector<const uint8_t> chars(
+      SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
             key.address() + key.Size(isolate_));
 #if DEBUG

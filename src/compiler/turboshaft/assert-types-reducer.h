@@ -38,7 +38,9 @@ class AssertTypesReducer
 
   using Adapter = UniformReducerAdapter<AssertTypesReducer, Next>;
 
-  Smi NoContextConstant() { return Smi::FromInt(Context::kNoContext); }
+  i::Tagged<Smi> NoContextConstant() {
+    return Smi::FromInt(Context::kNoContext);
+  }
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
@@ -75,7 +77,7 @@ class AssertTypesReducer
         [this](Builtin builtin, OpIndex original_value,
                base::SmallVector<OpIndex, 6> actual_value_indices,
                const Type& type) {
-          Smi op_id = Smi::FromInt(original_value.id());
+          i::Tagged<Smi> op_id = Smi::FromInt(original_value.id());
           // Add expected type and operation id.
           Handle<TurboshaftType> expected_type = type.AllocateOnHeap(factory());
           actual_value_indices.push_back(__ HeapConstant(expected_type));

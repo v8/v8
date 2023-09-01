@@ -279,7 +279,7 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
 
   DCHECK_GE(result->second, aligned_size_in_bytes);
 
-  HeapObject object = HeapObject::FromAddress(result->first);
+  Tagged<HeapObject> object = HeapObject::FromAddress(result->first);
   if (requested_filler_size > 0) {
     object = owning_heap()->AlignWithFillerBackground(
         object, size_in_bytes, static_cast<int>(result->second), alignment);

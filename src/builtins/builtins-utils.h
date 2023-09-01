@@ -26,7 +26,7 @@ class BuiltinArguments : public JavaScriptArguments {
     DCHECK(Object((*at(0)).ptr()).IsObject());
   }
 
-  Object operator[](int index) const {
+  Tagged<Object> operator[](int index) const {
     DCHECK_LT(index, length());
     return Object(*address_of_arg_at(index + kArgsOffset));
   }
@@ -37,7 +37,7 @@ class BuiltinArguments : public JavaScriptArguments {
     return Handle<S>(address_of_arg_at(index + kArgsOffset));
   }
 
-  inline void set_at(int index, Object value) {
+  inline void set_at(int index, Tagged<Object> value) {
     DCHECK_LT(index, length());
     *address_of_arg_at(index + kArgsOffset) = value.ptr();
   }

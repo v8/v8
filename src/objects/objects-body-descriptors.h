@@ -23,49 +23,53 @@ namespace internal {
 class BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
-  static inline void IteratePointers(HeapObject obj, int start_offset,
+  static inline void IteratePointers(Tagged<HeapObject> obj, int start_offset,
                                      int end_offset, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  static inline void IteratePointer(HeapObject obj, int offset,
+  static inline void IteratePointer(Tagged<HeapObject> obj, int offset,
                                     ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  static inline void IterateCustomWeakPointers(HeapObject obj, int start_offset,
-                                               int end_offset,
+  static inline void IterateCustomWeakPointers(Tagged<HeapObject> obj,
+                                               int start_offset, int end_offset,
                                                ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  static inline void IterateCustomWeakPointer(HeapObject obj, int offset,
+  static inline void IterateCustomWeakPointer(Tagged<HeapObject> obj,
+                                              int offset, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateEphemeron(Tagged<HeapObject> obj, int index,
+                                      int key_offset, int value_offset,
+                                      ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateMaybeWeakPointers(Tagged<HeapObject> obj,
+                                              int start_offset, int end_offset,
                                               ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  static inline void IterateEphemeron(HeapObject obj, int index, int key_offset,
-                                      int value_offset, ObjectVisitor* v);
-
-  template <typename ObjectVisitor>
-  static inline void IterateMaybeWeakPointers(HeapObject obj, int start_offset,
-                                              int end_offset, ObjectVisitor* v);
-
-  template <typename ObjectVisitor>
-  static inline void IterateMaybeWeakPointer(HeapObject obj, int offset,
+  static inline void IterateMaybeWeakPointer(Tagged<HeapObject> obj, int offset,
                                              ObjectVisitor* v);
 
   // Visits a field that contains either an indirect pointer (if the sandbox is
   // enabled) or a regular/tagged pointer (otherwise).
   template <typename ObjectVisitor>
-  static void IterateMaybeIndirectPointer(HeapObject obj, int offset,
+  static void IterateMaybeIndirectPointer(Tagged<HeapObject> obj, int offset,
                                           ObjectVisitor* visitor,
                                           IndirectPointerMode mode);
 
  protected:
   // Returns true for all header and embedder fields.
-  static inline bool IsValidEmbedderJSObjectSlotImpl(Map map, HeapObject obj,
+  static inline bool IsValidEmbedderJSObjectSlotImpl(Tagged<Map> map,
+                                                     Tagged<HeapObject> obj,
                                                      int offset);
 
   // Treats all header and embedder fields in the range as tagged.
   template <typename ObjectVisitor>
-  static inline void IterateJSObjectBodyImpl(Map map, HeapObject obj,
+  static inline void IterateJSObjectBodyImpl(Tagged<Map> map,
+                                             Tagged<HeapObject> obj,
                                              int start_offset, int end_offset,
                                              ObjectVisitor* v);
 };
@@ -80,18 +84,19 @@ class FixedRangeBodyDescriptor : public BodyDescriptorBase {
   static const int kEndOffset = end_offset;
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 ObjectVisitor* v) {
     IteratePointers(obj, start_offset, end_offset, v);
   }
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
     IterateBody(map, obj, v);
   }
 
  private:
-  static inline int SizeOf(Map map, HeapObject object) {
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     // Has to be implemented by the subclass.
     UNREACHABLE();
   }
@@ -106,7 +111,9 @@ class FixedBodyDescriptor
     : public FixedRangeBodyDescriptor<start_offset, end_offset> {
  public:
   static const int kSize = size;
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
 };
 
 // This class describes a body of an object in which all pointer fields are
@@ -118,13 +125,13 @@ class SuffixRangeBodyDescriptor : public BodyDescriptorBase {
   static const int kStartOffset = start_offset;
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
     IteratePointers(obj, start_offset, object_size, v);
   }
 
  private:
-  static inline int SizeOf(Map map, HeapObject object) {
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     // Has to be implemented by the subclass.
     UNREACHABLE();
   }
@@ -137,7 +144,7 @@ class SuffixRangeBodyDescriptor : public BodyDescriptorBase {
 template <int start_offset>
 class FlexibleBodyDescriptor : public SuffixRangeBodyDescriptor<start_offset> {
  public:
-  static inline int SizeOf(Map map, HeapObject object);
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object);
 };
 
 // A forward-declacable descriptor body alias for most of the Struct successors.
@@ -155,13 +162,13 @@ class SuffixRangeWeakBodyDescriptor : public BodyDescriptorBase {
   static const int kStartOffset = start_offset;
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
     IterateMaybeWeakPointers(obj, start_offset, object_size, v);
   }
 
  private:
-  static inline int SizeOf(Map map, HeapObject object) {
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     // Has to be implemented by the subclass.
     UNREACHABLE();
   }
@@ -175,18 +182,18 @@ template <int start_offset>
 class FlexibleWeakBodyDescriptor
     : public SuffixRangeWeakBodyDescriptor<start_offset> {
  public:
-  static inline int SizeOf(Map map, HeapObject object);
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object);
 };
 
 // This class describes a body of an object without any pointers.
 class DataOnlyBodyDescriptor : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {}
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {}
 
  private:
-  static inline int SizeOf(Map map, HeapObject object) {
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     // Has to be implemented by the subclass.
     UNREACHABLE();
   }
@@ -206,19 +213,20 @@ class SubclassBodyDescriptor final : public BodyDescriptorBase {
                 ChildBodyDescriptor::kStartOffset);
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 ObjectVisitor* v) {
     ParentBodyDescriptor::IterateBody(map, obj, v);
     ChildBodyDescriptor::IterateBody(map, obj, v);
   }
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
     ParentBodyDescriptor::IterateBody(map, obj, object_size, v);
     ChildBodyDescriptor::IterateBody(map, obj, object_size, v);
   }
 
-  static inline int SizeOf(Map map, HeapObject object) {
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     // The child should know its full size.
     return ChildBodyDescriptor::SizeOf(map, object);
   }

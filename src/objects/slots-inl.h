@@ -26,9 +26,6 @@ namespace internal {
 // FullObjectSlot implementation.
 //
 
-FullObjectSlot::FullObjectSlot(Object* object)
-    : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
-
 FullObjectSlot::FullObjectSlot(TaggedBase* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
@@ -40,13 +37,17 @@ bool FullObjectSlot::Relaxed_ContainsMapValue(Address raw_value) const {
   return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
-Object FullObjectSlot::operator*() const { return Object(*location()); }
+Tagged<Object> FullObjectSlot::operator*() const { return Object(*location()); }
 
-Object FullObjectSlot::load(PtrComprCageBase cage_base) const { return **this; }
+Tagged<Object> FullObjectSlot::load(PtrComprCageBase cage_base) const {
+  return **this;
+}
 
-void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
+void FullObjectSlot::store(Tagged<Object> value) const {
+  *location() = value.ptr();
+}
 
-void FullObjectSlot::store_map(Map map) const {
+void FullObjectSlot::store_map(Tagged<Map> map) const {
 #ifdef V8_MAP_PACKING
   *location() = MapWord::Pack(map.ptr());
 #else
@@ -54,7 +55,7 @@ void FullObjectSlot::store_map(Map map) const {
 #endif
 }
 
-Map FullObjectSlot::load_map() const {
+Tagged<Map> FullObjectSlot::load_map() const {
 #ifdef V8_MAP_PACKING
   return Map::unchecked_cast(Object(MapWord::Unpack(*location())));
 #else
@@ -62,37 +63,39 @@ Map FullObjectSlot::load_map() const {
 #endif
 }
 
-Object FullObjectSlot::Acquire_Load() const {
+Tagged<Object> FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-Object FullObjectSlot::Acquire_Load(PtrComprCageBase cage_base) const {
+Tagged<Object> FullObjectSlot::Acquire_Load(PtrComprCageBase cage_base) const {
   return Acquire_Load();
 }
 
-Object FullObjectSlot::Relaxed_Load() const {
+Tagged<Object> FullObjectSlot::Relaxed_Load() const {
   return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-Object FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
+Tagged<Object> FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
   return Relaxed_Load();
 }
 
-void FullObjectSlot::Relaxed_Store(Object value) const {
+void FullObjectSlot::Relaxed_Store(Tagged<Object> value) const {
   base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
 
-void FullObjectSlot::Release_Store(Object value) const {
+void FullObjectSlot::Release_Store(Tagged<Object> value) const {
   base::AsAtomicPointer::Release_Store(location(), value.ptr());
 }
 
-Object FullObjectSlot::Relaxed_CompareAndSwap(Object old, Object target) const {
+Tagged<Object> FullObjectSlot::Relaxed_CompareAndSwap(
+    Tagged<Object> old, Tagged<Object> target) const {
   Address result = base::AsAtomicPointer::Relaxed_CompareAndSwap(
       location(), old.ptr(), target.ptr());
   return Object(result);
 }
 
-Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
+Tagged<Object> FullObjectSlot::Release_CompareAndSwap(
+    Tagged<Object> old, Tagged<Object> target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
       location(), old.ptr(), target.ptr());
   return Object(result);
@@ -149,13 +152,13 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
   *location() = value.ptr();
 }
 
-HeapObject FullHeapObjectSlot::ToHeapObject() const {
+Tagged<HeapObject> FullHeapObjectSlot::ToHeapObject() const {
   TData value = *location();
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
   return HeapObject::cast(Object(value));
 }
 
-void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
+void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
   *location() = value.ptr();
 }
 
@@ -290,11 +293,13 @@ ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
 }
 #endif  // V8_ENABLE_SANDBOX
 
-Object IndirectPointerSlot::load() const { return Relaxed_Load(); }
+Tagged<Object> IndirectPointerSlot::load() const { return Relaxed_Load(); }
 
-void IndirectPointerSlot::store(Code code) const { return Relaxed_Store(code); }
+void IndirectPointerSlot::store(Tagged<Code> code) const {
+  return Relaxed_Store(code);
+}
 
-Object IndirectPointerSlot::Relaxed_Load() const {
+Tagged<Object> IndirectPointerSlot::Relaxed_Load() const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   IndirectPointerHandle handle = Relaxed_LoadHandle();
   // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
@@ -307,7 +312,7 @@ Object IndirectPointerSlot::Relaxed_Load() const {
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-Object IndirectPointerSlot::Acquire_Load() const {
+Tagged<Object> IndirectPointerSlot::Acquire_Load() const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   IndirectPointerHandle handle = Acquire_LoadHandle();
   // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
@@ -320,22 +325,22 @@ Object IndirectPointerSlot::Acquire_Load() const {
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-void IndirectPointerSlot::Relaxed_Store(Code value) const {
+void IndirectPointerSlot::Relaxed_Store(Tagged<Code> value) const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   // The Code objects owns its entry in the CodePointerTable, so here we only
   // need to copy the handle.
   IndirectPointerHandle handle =
-      value.ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
+      value->ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
   Relaxed_StoreHandle(handle);
 #else
   UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-void IndirectPointerSlot::Release_Store(Code value) const {
+void IndirectPointerSlot::Release_Store(Tagged<Code> value) const {
 #ifdef V8_CODE_POINTER_SANDBOXING
   IndirectPointerHandle handle =
-      value.ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
+      value->ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
   Release_StoreHandle(handle);
 #else
   UNREACHABLE();
@@ -373,7 +378,8 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 }
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(Tagged_t* start, Object value, size_t counter) {
+inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
+                         size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   // CompressAny since many callers pass values which are not valid objects.
   Tagged_t raw_value = V8HeapCompressionScheme::CompressAny(value.ptr());
@@ -386,14 +392,15 @@ inline void MemsetTagged(Tagged_t* start, Object value, size_t counter) {
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 template <typename T>
-inline void MemsetTagged(SlotBase<T, Tagged_t> start, Object value,
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<Object> value,
                          size_t counter) {
   MemsetTagged(start.location(), value, counter);
 }
 
 // Sets |counter| number of kSystemPointerSize-sized values starting at |start|
 // slot.
-inline void MemsetPointer(FullObjectSlot start, Object value, size_t counter) {
+inline void MemsetPointer(FullObjectSlot start, Tagged<Object> value,
+                          size_t counter) {
   MemsetPointer(start.location(), value.ptr(), counter);
 }
 

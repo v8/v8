@@ -65,12 +65,12 @@ class FreeListCategory {
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  V8_EXPORT_PRIVATE FreeSpace PickNodeFromList(size_t minimum_size,
-                                               size_t* node_size);
+  V8_EXPORT_PRIVATE Tagged<FreeSpace> PickNodeFromList(size_t minimum_size,
+                                                       size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
-  FreeSpace SearchForNodeInList(size_t minimum_size, size_t* node_size);
+  Tagged<FreeSpace> SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline bool is_linked(FreeList* owner) const;
   bool is_empty() { return top().is_null(); }
@@ -81,7 +81,7 @@ class FreeListCategory {
 
   template <typename Callback>
   void IterateNodesForTesting(Callback callback) {
-    for (FreeSpace cur_node = top(); !cur_node.is_null();
+    for (Tagged<FreeSpace> cur_node = top(); !cur_node.is_null();
          cur_node = cur_node->next()) {
       callback(cur_node);
     }
@@ -96,8 +96,8 @@ class FreeListCategory {
   // allocation of size |allocation_size|.
   inline void UpdateCountersAfterAllocation(size_t allocation_size);
 
-  FreeSpace top() { return top_; }
-  void set_top(FreeSpace top) { top_ = top; }
+  Tagged<FreeSpace> top() { return top_; }
+  void set_top(Tagged<FreeSpace> top) { top_ = top; }
   FreeListCategory* prev() { return prev_; }
   void set_prev(FreeListCategory* prev) { prev_ = prev; }
   FreeListCategory* next() { return next_; }
@@ -155,9 +155,8 @@ class FreeList {
   // bytes. Returns the actual node size in node_size which can be bigger than
   // size_in_bytes. This method returns null if the allocation request cannot be
   // handled by the free list.
-  virtual V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                                   size_t* node_size,
-                                                   AllocationOrigin origin) = 0;
+  virtual V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
+      size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) = 0;
 
   // Returns a page containing an entry for a given type, or nullptr otherwise.
   V8_EXPORT_PRIVATE virtual Page* GetPageForSize(size_t size_in_bytes) = 0;
@@ -242,12 +241,12 @@ class FreeList {
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller
   // than minimum_size.
-  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                          size_t* node_size);
+  Tagged<FreeSpace> TryFindNodeIn(FreeListCategoryType type,
+                                  size_t minimum_size, size_t* node_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
-  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t minimum_size,
-                                size_t* node_size);
+  Tagged<FreeSpace> SearchForNodeInList(FreeListCategoryType type,
+                                        size_t minimum_size, size_t* node_size);
 
   // Returns the smallest category in which an object of |size_in_bytes| could
   // fit.
@@ -294,9 +293,9 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   FreeListMany();
   ~FreeListMany() override;
 
-  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                           size_t* node_size,
-                                           AllocationOrigin origin) override;
+  V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
+      size_t size_in_bytes, size_t* node_size,
+      AllocationOrigin origin) override;
 
  protected:
   static const size_t kMinBlockSize = 3 * kTaggedSize;
@@ -350,9 +349,9 @@ class V8_EXPORT_PRIVATE FreeListManyCached : public FreeListMany {
  public:
   FreeListManyCached();
 
-  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                           size_t* node_size,
-                                           AllocationOrigin origin) override;
+  V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
+      size_t size_in_bytes, size_t* node_size,
+      AllocationOrigin origin) override;
 
   size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
 
@@ -437,9 +436,9 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPathBase
     }
   }
 
-  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                           size_t* node_size,
-                                           AllocationOrigin origin) override;
+  V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
+      size_t size_in_bytes, size_t* node_size,
+      AllocationOrigin origin) override;
 
  protected:
   // Objects in the 18th category are at least 2048 bytes
@@ -501,9 +500,9 @@ class FreeListManyCachedFastPathForNewSpace
 class V8_EXPORT_PRIVATE FreeListManyCachedOrigin
     : public FreeListManyCachedFastPath {
  public:
-  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
-                                           size_t* node_size,
-                                           AllocationOrigin origin) override;
+  V8_WARN_UNUSED_RESULT Tagged<FreeSpace> Allocate(
+      size_t size_in_bytes, size_t* node_size,
+      AllocationOrigin origin) override;
 };
 
 }  // namespace internal

@@ -22,7 +22,8 @@
 namespace v8 {
 namespace internal {
 
-bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Tagged<SharedFunctionInfo> shared) {
   DisallowGarbageCollection no_gc;
 
   // Check that baseline compiler is enabled.

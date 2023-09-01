@@ -36,7 +36,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
 }
 
 void ManualOptimizationTable::CheckMarkedForManualOptimization(
-    Isolate* isolate, JSFunction function) {
+    Isolate* isolate, Tagged<JSFunction> function) {
   if (!IsMarkedForManualOptimization(isolate, function)) {
     PrintF("Error: Function ");
     ShortPrint(function);
@@ -50,7 +50,7 @@ void ManualOptimizationTable::CheckMarkedForManualOptimization(
 }
 
 bool ManualOptimizationTable::IsMarkedForManualOptimization(
-    Isolate* isolate, JSFunction function) {
+    Isolate* isolate, Tagged<JSFunction> function) {
   DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);
 
   Handle<Object> table = handle(

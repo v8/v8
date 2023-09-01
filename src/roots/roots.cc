@@ -48,10 +48,10 @@ void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
 #ifdef DEBUG
 void ReadOnlyRoots::VerifyNameForProtectors() {
   DisallowGarbageCollection no_gc;
-  Name prev;
+  Tagged<Name> prev;
   for (RootIndex root_index = RootIndex::kFirstNameForProtector;
        root_index <= RootIndex::kLastNameForProtector; ++root_index) {
-    Name current = Name::cast(object_at(root_index));
+    Tagged<Name> current = Name::cast(object_at(root_index));
     DCHECK(IsNameForProtector(current));
     if (root_index != RootIndex::kFirstNameForProtector) {
       // Make sure the objects are adjacent in memory.

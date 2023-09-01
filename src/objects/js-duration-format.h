@@ -162,9 +162,9 @@ class JSDurationFormat
   static_assert(MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
   static_assert(NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
   DECL_ACCESSORS(icu_number_formatter,
-                 Managed<icu::number::LocalizedNumberFormatter>)
+                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
 
   DECL_PRINTER(JSDurationFormat)
 

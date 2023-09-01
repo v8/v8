@@ -22,15 +22,16 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo other, bool is_live_edit_compare) const {
+bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
+                       bool is_live_edit_compare) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
     if (is_live_edit_compare && HasPositionInfo() &&
         index >= PositionInfoIndex() && index <= PositionInfoIndex() + 1) {
       continue;
     }
-    Object entry = get(index);
-    Object other_entry = other->get(index);
+    Tagged<Object> entry = get(index);
+    Tagged<Object> other_entry = other->get(index);
     if (IsSmi(entry)) {
       if (entry != other_entry) return false;
     } else {
@@ -205,7 +206,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   int index = kVariablePartIndex;
   {
     DisallowGarbageCollection no_gc;
-    ScopeInfo scope_info = *scope_info_handle;
+    Tagged<ScopeInfo> scope_info = *scope_info_handle;
     WriteBarrierMode mode = scope_info->GetWriteBarrierMode(no_gc);
 
     bool has_simple_parameters = false;
@@ -373,7 +374,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     if (has_function_name) {
       Variable* var = scope->AsDeclarationScope()->function_var();
       int var_index = -1;
-      Object name = Smi::zero();
+      Tagged<Object> name = Smi::zero();
       if (var != nullptr) {
         var_index = var->index();
         name = *var->name();
@@ -598,33 +599,34 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   return scope_info;
 }
 
-Object ScopeInfo::get(int index) const {
+Tagged<Object> ScopeInfo::get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index);
 }
 
-Object ScopeInfo::get(PtrComprCageBase cage_base, int index) const {
+Tagged<Object> ScopeInfo::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
-void ScopeInfo::set(int index, Smi value) {
+void ScopeInfo::set(int index, Tagged<Smi> value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(IsSmi(Object(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
 
-void ScopeInfo::set(int index, Object value, WriteBarrierMode mode) {
+void ScopeInfo::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void ScopeInfo::CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
-                             int src_index, int len, WriteBarrierMode mode) {
+void ScopeInfo::CopyElements(Isolate* isolate, int dst_index,
+                             Tagged<ScopeInfo> src, int src_index, int len,
+                             WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(src_index + len, src->length());
   DisallowGarbageCollection no_gc;
@@ -677,7 +679,7 @@ Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
   return scope_info;
 }
 
-ScopeInfo ScopeInfo::Empty(Isolate* isolate) {
+Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
   return ReadOnlyRoots(isolate).empty_scope_info();
 }
 
@@ -786,14 +788,14 @@ bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-void ScopeInfo::SetFunctionName(Object name) {
+void ScopeInfo::SetFunctionName(Tagged<Object> name) {
   DCHECK(HasFunctionName());
   DCHECK(IsString(name) || name == SharedFunctionInfo::kNoSharedNameSentinel);
   DCHECK_IMPLIES(HasContextAllocatedFunctionName(), IsInternalizedString(name));
   set_function_variable_info_name(name);
 }
 
-void ScopeInfo::SetInferredFunctionName(String name) {
+void ScopeInfo::SetInferredFunctionName(Tagged<String> name) {
   DCHECK(HasInferredFunctionName());
   set_inferred_function_name(name);
 }
@@ -824,26 +826,26 @@ bool ScopeInfo::HasLocalsBlockList() const {
   return HasLocalsBlockListBit::decode(Flags());
 }
 
-StringSet ScopeInfo::LocalsBlockList() const {
+Tagged<StringSet> ScopeInfo::LocalsBlockList() const {
   DCHECK(HasLocalsBlockList());
   return StringSet::cast(locals_block_list());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
-Object ScopeInfo::FunctionName() const {
+Tagged<Object> ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return function_variable_info_name();
 }
 
-Object ScopeInfo::InferredFunctionName() const {
+Tagged<Object> ScopeInfo::InferredFunctionName() const {
   DCHECK(HasInferredFunctionName());
   return inferred_function_name();
 }
 
-String ScopeInfo::FunctionDebugName() const {
+Tagged<String> ScopeInfo::FunctionDebugName() const {
   if (!HasFunctionName()) return GetReadOnlyRoots().empty_string();
-  Object name = FunctionName();
+  Tagged<Object> name = FunctionName();
   if (IsString(name) && String::cast(name)->length() > 0) {
     return String::cast(name);
   }
@@ -871,23 +873,23 @@ void ScopeInfo::SetPositionInfo(int start, int end) {
   set_position_info_end(end);
 }
 
-ScopeInfo ScopeInfo::OuterScopeInfo() const {
+Tagged<ScopeInfo> ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   return ScopeInfo::cast(outer_scope_info());
 }
 
-SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
+Tagged<SourceTextModuleInfo> ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
   return SourceTextModuleInfo::cast(module_info());
 }
 
-String ScopeInfo::ContextInlinedLocalName(int var) const {
+Tagged<String> ScopeInfo::ContextInlinedLocalName(int var) const {
   DCHECK(HasInlinedLocalNames());
   return context_local_names(var);
 }
 
-String ScopeInfo::ContextInlinedLocalName(PtrComprCageBase cage_base,
-                                          int var) const {
+Tagged<String> ScopeInfo::ContextInlinedLocalName(PtrComprCageBase cage_base,
+                                                  int var) const {
   DCHECK(HasInlinedLocalNames());
   return context_local_names(cage_base, var);
 }
@@ -924,7 +926,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
 }
 
 // static
-bool ScopeInfo::VariableIsSynthetic(String name) {
+bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
@@ -938,7 +940,7 @@ int ScopeInfo::ModuleVariableCount() const {
   return module_variable_count();
 }
 
-int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
+int ScopeInfo::ModuleIndex(Tagged<String> name, VariableMode* mode,
                            InitializationFlag* init_flag,
                            MaybeAssignedFlag* maybe_assigned_flag) {
   DisallowGarbageCollection no_gc;
@@ -950,7 +952,7 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 
   int module_vars_count = module_variable_count();
   for (int i = 0; i < module_vars_count; ++i) {
-    String var_name = module_variables_name(i);
+    Tagged<String> var_name = module_variables_name(i);
     if (name->Equals(var_name)) {
       int index;
       ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
@@ -961,7 +963,7 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
   return 0;
 }
 
-int ScopeInfo::InlinedLocalNamesLookup(String name) {
+int ScopeInfo::InlinedLocalNamesLookup(Tagged<String> name) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   int local_count = context_local_count();
@@ -1011,14 +1013,14 @@ std::pair<String, int> ScopeInfo::SavedClassVariable() const {
     int index = saved_class_variable_info() - Context::MIN_CONTEXT_SLOTS;
     DCHECK_GE(index, 0);
     DCHECK_LT(index, ContextLocalCount());
-    String name = ContextInlinedLocalName(index);
+    Tagged<String> name = ContextInlinedLocalName(index);
     return std::make_pair(name, index);
   } else {
     // The saved class variable info corresponds to the offset in the hash
     // table storage.
     InternalIndex entry(saved_class_variable_info());
     NameToIndexHashTable table = context_local_names_hashtable();
-    Object name = table->KeyAt(entry);
+    Tagged<Object> name = table->KeyAt(entry);
     DCHECK(IsString(name));
     return std::make_pair(String::cast(name), table->IndexAt(entry));
   }
@@ -1040,7 +1042,7 @@ int ScopeInfo::ParametersStartIndex() const {
   return ContextHeaderLength();
 }
 
-int ScopeInfo::FunctionContextSlotIndex(String name) const {
+int ScopeInfo::FunctionContextSlotIndex(Tagged<String> name) const {
   DCHECK(IsInternalizedString(name));
   if (HasContextAllocatedFunctionName()) {
     DCHECK_IMPLIES(HasFunctionName(), IsInternalizedString(FunctionName()));
@@ -1099,7 +1101,7 @@ int ScopeInfo::ModuleVariablesIndex() const {
   return ConvertOffsetToIndex(ModuleVariablesOffset());
 }
 
-void ScopeInfo::ModuleVariable(int i, String* name, int* index,
+void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
                                VariableMode* mode,
                                InitializationFlag* init_flag,
                                MaybeAssignedFlag* maybe_assigned_flag) {
@@ -1276,7 +1278,7 @@ int SourceTextModuleInfo::RegularExportCount() const {
   return regular_exports()->length() / kRegularExportLength;
 }
 
-String SourceTextModuleInfo::RegularExportLocalName(int i) const {
+Tagged<String> SourceTextModuleInfo::RegularExportLocalName(int i) const {
   return String::cast(regular_exports()->get(i * kRegularExportLength +
                                              kRegularExportLocalNameOffset));
 }
@@ -1286,7 +1288,7 @@ int SourceTextModuleInfo::RegularExportCellIndex(int i) const {
                                            kRegularExportCellIndexOffset));
 }
 
-FixedArray SourceTextModuleInfo::RegularExportExportNames(int i) const {
+Tagged<FixedArray> SourceTextModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }

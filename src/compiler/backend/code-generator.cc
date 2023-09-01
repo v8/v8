@@ -1263,7 +1263,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kSystemPointerSize);
-          Smi smi(static_cast<Address>(constant.ToInt32()));
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt32()));
           DCHECK(IsSmi(smi));
           literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         } else if (type.representation() == MachineRepresentation::kBit) {
@@ -1307,7 +1307,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           // When pointers are 8 bytes, we can use int64 constants to represent
           // Smis.
           DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
-          Smi smi(static_cast<Address>(constant.ToInt64()));
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt64()));
           DCHECK(IsSmi(smi));
           literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         }

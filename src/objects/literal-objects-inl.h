@@ -28,31 +28,31 @@ CAST_ACCESSOR(ObjectBoilerplateDescription)
 SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
 
-Object ObjectBoilerplateDescription::name(int index) const {
+Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return name(cage_base, index);
 }
 
-Object ObjectBoilerplateDescription::name(PtrComprCageBase cage_base,
-                                          int index) const {
+Tagged<Object> ObjectBoilerplateDescription::name(PtrComprCageBase cage_base,
+                                                  int index) const {
   // get() already checks for out of bounds access, but we do not want to allow
   // access to the last element, if it is the number of properties.
   DCHECK_NE(size(), index);
   return get(cage_base, 2 * index + kDescriptionStartIndex);
 }
 
-Object ObjectBoilerplateDescription::value(int index) const {
+Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return value(cage_base, index);
 }
 
-Object ObjectBoilerplateDescription::value(PtrComprCageBase cage_base,
-                                           int index) const {
+Tagged<Object> ObjectBoilerplateDescription::value(PtrComprCageBase cage_base,
+                                                   int index) const {
   return get(cage_base, 2 * index + 1 + kDescriptionStartIndex);
 }
 
-void ObjectBoilerplateDescription::set_key_value(int index, Object key,
-                                                 Object value) {
+void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
+                                                 Tagged<Object> value) {
   DCHECK_LT(index, size());
   DCHECK_GE(index, 0);
   set(2 * index + kDescriptionStartIndex, key);

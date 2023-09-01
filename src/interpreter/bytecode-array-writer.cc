@@ -82,7 +82,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
+int BytecodeArrayWriter::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
   int mismatches = false;
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const uint8_t* bytecode_ptr = &bytecodes()->front();

@@ -34,51 +34,53 @@ class HeapObject : public Object {
   // [map]: Contains a map which contains the object's reflective
   // information.
   DECL_GETTER(map, Tagged<Map>)
-  inline void set_map(Map value);
+  inline void set_map(Tagged<Map> value);
 
   // This method behaves the same as `set_map` but marks the map transition as
   // safe for the concurrent marker (object layout doesn't change) during
   // verification.
-  inline void set_map_safe_transition(Map value);
+  inline void set_map_safe_transition(Tagged<Map> value);
 
   inline ObjectSlot map_slot() const;
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Map value,
+  inline void set_map_no_write_barrier(Tagged<Map> value,
                                        RelaxedStoreTag = kRelaxedStore);
-  inline void set_map_no_write_barrier(Map value, ReleaseStoreTag);
+  inline void set_map_no_write_barrier(Tagged<Map> value, ReleaseStoreTag);
   inline void set_map_safe_transition_no_write_barrier(
-      Map value, RelaxedStoreTag = kRelaxedStore);
-  inline void set_map_safe_transition_no_write_barrier(Map value,
+      Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
+  inline void set_map_safe_transition_no_write_barrier(Tagged<Map> value,
                                                        ReleaseStoreTag);
 
   // Access the map using acquire load and release store.
   DECL_ACQUIRE_GETTER(map, Tagged<Map>)
-  inline void set_map(Map value, ReleaseStoreTag);
-  inline void set_map_safe_transition(Map value, ReleaseStoreTag);
+  inline void set_map(Tagged<Map> value, ReleaseStoreTag);
+  inline void set_map_safe_transition(Tagged<Map> value, ReleaseStoreTag);
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
   inline bool release_compare_and_swap_map_word_forwarded(
-      MapWord old_map_word, HeapObject new_target_object);
+      MapWord old_map_word, Tagged<HeapObject> new_target_object);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
-      Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
   DECL_RELAXED_GETTER(map_word, MapWord)
-  inline void set_map_word(Map map, RelaxedStoreTag);
-  inline void set_map_word_forwarded(HeapObject target_object, RelaxedStoreTag);
+  inline void set_map_word(Tagged<Map> map, RelaxedStoreTag);
+  inline void set_map_word_forwarded(Tagged<HeapObject> target_object,
+                                     RelaxedStoreTag);
 
   // Access the map word using acquire load and release store.
   DECL_ACQUIRE_GETTER(map_word, MapWord)
-  inline void set_map_word(Map map, ReleaseStoreTag);
-  inline void set_map_word_forwarded(HeapObject target_object, ReleaseStoreTag);
+  inline void set_map_word(Tagged<Map> map, ReleaseStoreTag);
+  inline void set_map_word_forwarded(Tagged<HeapObject> target_object,
+                                     ReleaseStoreTag);
 
   // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to
@@ -117,10 +119,10 @@ class HeapObject : public Object {
   inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateFast(Map map, ObjectVisitor* v);
+  inline void IterateFast(Tagged<Map> map, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateFast(Map map, int object_size, ObjectVisitor* v);
+  inline void IterateFast(Tagged<Map> map, int object_size, ObjectVisitor* v);
 
   // Iterates over all pointers contained in the object except the
   // first map pointer.  The object type is given in the first
@@ -129,13 +131,14 @@ class HeapObject : public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v);
-  void IterateBody(Map map, int object_size, ObjectVisitor* v);
+  void IterateBody(Tagged<Map> map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
+  inline void IterateBodyFast(Tagged<Map> map, int object_size,
+                              ObjectVisitor* v);
 
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
@@ -143,7 +146,7 @@ class HeapObject : public Object {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  V8_EXPORT_PRIVATE int SizeFromMap(Map map) const;
+  V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
 
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
                                                  std::is_enum<T>::value,
@@ -180,8 +183,8 @@ class HeapObject : public Object {
   // Atomically compares and swaps a field using seq cst memory ordering.
   // Contains the required logic to properly handle number comparison.
   template <typename CompareAndSwapImpl>
-  static Object SeqCst_CompareAndSwapField(
-      Object expected_value, Object new_value,
+  static Tagged<Object> SeqCst_CompareAndSwapField(
+      Tagged<Object> expected_value, Tagged<Object> new_value,
       CompareAndSwapImpl compare_and_swap_impl);
 
   //
@@ -224,13 +227,13 @@ class HeapObject : public Object {
   //
   // IndirectPointer field accessors.
   //
-  inline Object ReadIndirectPointerField(size_t offset) const;
+  inline Tagged<Object> ReadIndirectPointerField(size_t offset) const;
 
   //
   // CodePointer field accessors.
   //
   inline void InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
-                                             Code owning_code,
+                                             Tagged<Code> owning_code,
                                              Address entrypoint);
   inline Address ReadCodeEntrypointField(size_t offset) const;
   inline void WriteCodeEntrypointField(size_t offset, Address value);
@@ -269,11 +272,11 @@ class HeapObject : public Object {
 
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
-  static void VerifyHeapPointer(Isolate* isolate, Object p);
-  static void VerifyCodePointer(Isolate* isolate, Object p);
+  static void VerifyHeapPointer(Isolate* isolate, Tagged<Object> p);
+  static void VerifyCodePointer(Isolate* isolate, Tagged<Object> p);
 #endif
 
-  static inline AllocationAlignment RequiredAlignment(Map map);
+  static inline AllocationAlignment RequiredAlignment(Tagged<Map> map);
   bool inline CheckRequiredAlignment(PtrComprCageBase cage_base) const;
 
   // Whether the object needs rehashing. That is the case if the object's
@@ -325,7 +328,8 @@ class HeapObject : public Object {
   };
 
   template <EmitWriteBarrier emit_write_barrier, typename MemoryOrder>
-  V8_INLINE void set_map(Map value, MemoryOrder order, VerificationMode mode);
+  V8_INLINE void set_map(Tagged<Map> value, MemoryOrder order,
+                         VerificationMode mode);
 };
 
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)

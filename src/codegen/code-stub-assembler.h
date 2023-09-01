@@ -980,13 +980,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> SelectIntPtrConstant(TNode<BoolT> condition, int true_value,
                                       int false_value);
   TNode<Boolean> SelectBooleanConstant(TNode<BoolT> condition);
-  TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, Smi true_value,
-                               Smi false_value);
+  TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, Tagged<Smi> true_value,
+                               Tagged<Smi> false_value);
   TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, int true_value,
-                               Smi false_value) {
+                               Tagged<Smi> false_value) {
     return SelectSmiConstant(condition, Smi::FromInt(true_value), false_value);
   }
-  TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, Smi true_value,
+  TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, Tagged<Smi> true_value,
                                int false_value) {
     return SelectSmiConstant(condition, true_value, Smi::FromInt(false_value));
   }

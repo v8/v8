@@ -15,7 +15,7 @@ namespace internal {
 // owning code object as well as to the entrypoint.
 V8_INLINE void InitCodePointerTableEntryField(Address field_address,
                                               Isolate* isolate,
-                                              HeapObject owning_code,
+                                              Tagged<HeapObject> owning_code,
                                               Address entrypoint);
 
 // If the sandbox is enabled: reads the CodePointerHandle from the field and

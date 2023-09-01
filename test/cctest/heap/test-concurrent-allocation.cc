@@ -35,10 +35,10 @@ namespace internal {
 
 namespace {
 void CreateFixedArray(Heap* heap, Address start, int size) {
-  HeapObject object = HeapObject::FromAddress(start);
+  Tagged<HeapObject> object = HeapObject::FromAddress(start);
   object->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
-  FixedArray array = FixedArray::cast(object);
+  Tagged<FixedArray> array = FixedArray::cast(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
   array->set_length(length);
   MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
@@ -404,7 +404,7 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
 
   for (int i = 0; i < kNumIterations * kObjectsAllocatedPerIteration; i++) {
     Address address = objects[i];
-    HeapObject object = HeapObject::FromAddress(address);
+    Tagged<HeapObject> object = HeapObject::FromAddress(address);
 
     if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
       CHECK(heap->marking_state()->IsUnmarked(object));
@@ -418,8 +418,8 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
 
 class ConcurrentWriteBarrierThread final : public v8::base::Thread {
  public:
-  ConcurrentWriteBarrierThread(Heap* heap, FixedArray fixed_array,
-                               HeapObject value)
+  ConcurrentWriteBarrierThread(Heap* heap, Tagged<FixedArray> fixed_array,
+                               Tagged<HeapObject> value)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         fixed_array_(fixed_array),
@@ -450,8 +450,8 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
 
-  FixedArray fixed_array;
-  HeapObject value;
+  Tagged<FixedArray> fixed_array;
+  Tagged<HeapObject> value;
   {
     HandleScope handle_scope(i_isolate);
     Handle<FixedArray> fixed_array_handle(
@@ -482,7 +482,8 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
 class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
  public:
-  ConcurrentRecordRelocSlotThread(Heap* heap, Code code, HeapObject value)
+  ConcurrentRecordRelocSlotThread(Heap* heap, Tagged<Code> code,
+                                  Tagged<HeapObject> value)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         code_(code),
@@ -494,7 +495,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     // Modification of InstructionStream object requires write access.
     RwxMemoryWriteScopeForTesting rwx_write_scope;
     DisallowGarbageCollection no_gc;
-    InstructionStream istream = code_->instruction_stream();
+    Tagged<InstructionStream> istream = code_->instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     CodePageMemoryModificationScope memory_modification_scope(istream);
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
@@ -524,8 +525,8 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
   {
-    Code code;
-    HeapObject value;
+    Tagged<Code> code;
+    Tagged<HeapObject> value;
     {
       HandleScope handle_scope(i_isolate);
       uint8_t buffer[i::Assembler::kDefaultBufferSize];

@@ -107,7 +107,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
-  HeapObject object = page->GetObject();
+  Tagged<HeapObject> object = page->GetObject();
   UpdatePendingObject(object);
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap()->GCFlagsForIncrementalMarking(),
@@ -145,7 +145,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
-  HeapObject object = page->GetObject();
+  Tagged<HeapObject> object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
   if (heap()->incremental_marking()->black_allocation()) {
     heap()->marking_state()->TryMarkAndAccountLiveBytes(object);
@@ -176,7 +176,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
     AddPage(page, object_size);
   }
 
-  HeapObject object = page->GetObject();
+  Tagged<HeapObject> object = page->GetObject();
 
   heap()->CreateFillerObjectAt(object.address(), object_size);
   return page;
@@ -230,7 +230,7 @@ void LargeObjectSpace::RemovePage(LargePage* page) {
 }
 
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
-                                              HeapObject object,
+                                              Tagged<HeapObject> object,
                                               size_t object_size) {
 #ifdef DEBUG
   PtrComprCageBase cage_base(heap()->isolate());
@@ -266,7 +266,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
   DCHECK_EQ(object_size, page->area_size());
 }
 
-bool LargeObjectSpace::Contains(HeapObject object) const {
+bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
 
   bool owned = (chunk->owner() == this);
@@ -304,7 +304,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
 
     // Each chunk contains an object that starts at the large object page's
     // object area start.
-    HeapObject object = chunk->GetObject();
+    Tagged<HeapObject> object = chunk->GetObject();
     Page* page = Page::FromHeapObject(object);
     CHECK(object.address() == page->area_start());
 
@@ -367,13 +367,13 @@ void LargeObjectSpace::Verify(Isolate* isolate,
 void LargeObjectSpace::Print() {
   StdoutStream os;
   LargeObjectSpaceObjectIterator it(this);
-  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
+  for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     i::Print(obj, os);
   }
 }
 #endif  // DEBUG
 
-void LargeObjectSpace::UpdatePendingObject(HeapObject object) {
+void LargeObjectSpace::UpdatePendingObject(Tagged<HeapObject> object) {
   base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
   pending_object_.store(object.address(), std::memory_order_release);
 }
@@ -407,7 +407,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   // The size of the first object may exceed the capacity.
   capacity_ = std::max(capacity_, SizeOfObjects());
 
-  HeapObject result = page->GetObject();
+  Tagged<HeapObject> result = page->GetObject();
   page->SetYoungGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
   page->SetFlag(MemoryChunk::TO_PAGE);
@@ -436,7 +436,7 @@ void NewLargeObjectSpace::Flip() {
 }
 
 void NewLargeObjectSpace::FreeDeadObjects(
-    const std::function<bool(HeapObject)>& is_dead) {
+    const std::function<bool(Tagged<HeapObject>)>& is_dead) {
   bool is_marking = heap()->incremental_marking()->IsMarking();
   DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking);
   DCHECK_IMPLIES(is_marking, heap()->incremental_marking()->IsMajorMarking());
@@ -445,7 +445,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
   for (auto it = begin(); it != end();) {
     LargePage* page = *it;
     it++;
-    HeapObject object = page->GetObject();
+    Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,

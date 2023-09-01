@@ -44,10 +44,10 @@ void HeapObjectRange::iterator::AdvanceToNextObject() {
     Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
     cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
     DCHECK_LE(cur_addr_ + cur_size_, cur_end_);
-    if (IsFreeSpaceOrFiller(*obj, cage_base())) {
+    if (IsFreeSpaceOrFiller(obj, cage_base())) {
       cur_addr_ += cur_size_;
     } else {
-      if (IsInstructionStream(*obj, cage_base())) {
+      if (IsInstructionStream(obj, cage_base())) {
         DCHECK_EQ(Page::FromHeapObject(obj)->owner_identity(), CODE_SPACE);
         DCHECK_CODEOBJECT_SIZE(cur_size_);
       } else {
@@ -79,7 +79,7 @@ bool PagedSpaceBase::Contains(Address addr) const {
   return Page::FromAddress(addr)->owner() == this;
 }
 
-bool PagedSpaceBase::Contains(Object o) const {
+bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   if (!IsHeapObject(o)) return false;
   return Page::FromAddress(o.ptr())->owner() == this;
 }

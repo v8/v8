@@ -127,17 +127,18 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
-                                                  Derived table, Object key) {
+                                                  Tagged<Derived> table,
+                                                  Tagged<Object> key) {
   DCHECK_IMPLIES(entrysize == 1, IsOrderedHashSet(table));
   DCHECK_IMPLIES(entrysize == 2, IsOrderedHashMap(table));
   DisallowGarbageCollection no_gc;
-  InternalIndex entry = table.FindEntry(isolate, key);
+  InternalIndex entry = table->FindEntry(isolate, key);
   return entry.is_found();
 }
 
 template <class Derived, int entrysize>
-InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
-                                                              Object key) {
+InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(
+    Isolate* isolate, Tagged<Object> key) {
   if (NumberOfElements() == 0) {
     // This is not just an optimization but also ensures that we do the right
     // thing if Capacity() == 0
@@ -152,7 +153,7 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
     raw_entry = HashToEntryRaw(hash & Smi::kMaxValue);
   } else {
     HandleScope scope(isolate);
-    Object hash = Object::GetHash(key);
+    Tagged<Object> hash = Object::GetHash(key);
     // If the object does not have an identity hash, it was never used as a key
     if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
     raw_entry = HashToEntryRaw(Smi::ToInt(hash));
@@ -160,7 +161,7 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
 
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
-    Object candidate_key = KeyAt(InternalIndex(raw_entry));
+    Tagged<Object> candidate_key = KeyAt(InternalIndex(raw_entry));
     if (Object::SameValueZero(candidate_key, key))
       return InternalIndex(raw_entry);
     raw_entry = NextChainEntryRaw(raw_entry);
@@ -182,7 +183,8 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
       int raw_entry = raw_table->HashToEntryRaw(hash);
       // Walk the chain of the bucket and try finding the key.
       while (raw_entry != kNotFound) {
-        Object candidate_key = raw_table->KeyAt(InternalIndex(raw_entry));
+        Tagged<Object> candidate_key =
+            raw_table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
         if (Object::SameValueZero(candidate_key, raw_key)) return table;
         raw_entry = raw_table->NextChainEntryRaw(raw_entry);
@@ -225,7 +227,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
       isolate->heap()->MaxNumberToStringCacheSize();
   for (int i = 0; i < length; i++) {
     int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
-    Object key = table->get(index);
+    Tagged<Object> key = table->get(index);
     uint32_t index_value;
     if (convert == GetKeysConversion::kConvertToString) {
       if (Object::ToArrayIndex(key, &index_value)) {
@@ -243,11 +245,11 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   return FixedArray::ShrinkOrEmpty(isolate, result, length);
 }
 
-HeapObject OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {
+Tagged<HeapObject> OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {
   return ro_roots.empty_ordered_hash_set();
 }
 
-HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
+Tagged<HeapObject> OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
   return ro_roots.empty_ordered_hash_map();
 }
 
@@ -279,20 +281,20 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
 
   for (InternalIndex old_entry : table->IterateEntries()) {
     int old_entry_raw = old_entry.as_int();
-    Object key = table->KeyAt(old_entry);
+    Tagged<Object> key = table->KeyAt(old_entry);
     if (IsTheHole(key, isolate)) {
       table->SetRemovedIndexAt(removed_holes_index++, old_entry_raw);
       continue;
     }
 
-    Object hash = Object::GetHash(key);
+    Tagged<Object> hash = Object::GetHash(key);
     int bucket = Smi::ToInt(hash) & (new_buckets - 1);
-    Object chain_entry = new_table->get(HashTableStartIndex() + bucket);
+    Tagged<Object> chain_entry = new_table->get(HashTableStartIndex() + bucket);
     new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
     int new_index = new_table->EntryToIndexRaw(new_entry);
     int old_index = table->EntryToIndexRaw(old_entry_raw);
     for (int i = 0; i < entrysize; ++i) {
-      Object value = table->get(old_index + i);
+      Tagged<Object> value = table->get(old_index + i);
       new_table->set(new_index + i, value);
     }
     new_table->set(new_index + kChainOffset, chain_entry);
@@ -345,30 +347,31 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
 
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
-                                                  Derived table, Object key) {
+                                                  Tagged<Derived> table,
+                                                  Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
-  InternalIndex entry = table.FindEntry(isolate, key);
+  InternalIndex entry = table->FindEntry(isolate, key);
   if (entry.is_not_found()) return false;
 
-  int nof = table.NumberOfElements();
-  int nod = table.NumberOfDeletedElements();
-  int index = table.EntryToIndex(entry);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int index = table->EntryToIndex(entry);
 
-  Object hole = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<Object> hole = ReadOnlyRoots(isolate).the_hole_value();
   for (int i = 0; i < entrysize; ++i) {
-    table.set(index + i, hole);
+    table->set(index + i, hole);
   }
 
-  table.SetNumberOfElements(nof - 1);
-  table.SetNumberOfDeletedElements(nod + 1);
+  table->SetNumberOfElements(nof - 1);
+  table->SetNumberOfDeletedElements(nod + 1);
 
   return true;
 }
 
 Address OrderedHashMap::GetHash(Isolate* isolate, Address raw_key) {
   DisallowGarbageCollection no_gc;
-  Object key(raw_key);
-  Object hash = Object::GetHash(key);
+  Tagged<Object> key(raw_key);
+  Tagged<Object> hash = Object::GetHash(key);
   // If the object does not have an identity hash, it was never used as a key
   if (IsUndefined(hash, isolate)) return Smi::FromInt(-1).ptr();
   DCHECK(IsSmi(hash));
@@ -386,9 +389,9 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
     // Walk the chain of the bucket and try finding the key.
     {
       DisallowGarbageCollection no_gc;
-      Object raw_key = *key;
+      Tagged<Object> raw_key = *key;
       while (raw_entry != kNotFound) {
-        Object candidate_key = table->KeyAt(InternalIndex(raw_entry));
+        Tagged<Object> candidate_key = table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
         if (Object::SameValueZero(candidate_key, raw_key)) return table;
         raw_entry = table->NextChainEntryRaw(raw_entry);
@@ -419,7 +422,8 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
-void OrderedHashMap::SetEntry(InternalIndex entry, Object key, Object value) {
+void OrderedHashMap::SetEntry(InternalIndex entry, Tagged<Object> key,
+                              Tagged<Object> value) {
   DisallowGarbageCollection no_gc;
   int index = EntryToIndex(entry);
   this->set(index, key);
@@ -427,11 +431,12 @@ void OrderedHashMap::SetEntry(InternalIndex entry, Object key, Object value) {
 }
 
 template <typename IsolateT>
-InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
+InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate,
+                                               Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
 
   DCHECK(IsUniqueName(key));
-  Name raw_key = Name::cast(key);
+  Tagged<Name> raw_key = Name::cast(key);
 
   if (NumberOfElements() == 0) {
     // This is not just an optimization but also ensures that we do the right
@@ -442,7 +447,7 @@ InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   int raw_entry = HashToEntryRaw(raw_key->hash());
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
-    Object candidate_key = KeyAt(entry);
+    Tagged<Object> candidate_key = KeyAt(entry);
     DCHECK(IsTheHole(candidate_key) || IsUniqueName(Name::cast(candidate_key)));
     if (candidate_key == raw_key) return entry;
 
@@ -491,8 +496,9 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
   return table;
 }
 
-void OrderedNameDictionary::SetEntry(InternalIndex entry, Object key,
-                                     Object value, PropertyDetails details) {
+void OrderedNameDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
+                                     Tagged<Object> value,
+                                     PropertyDetails details) {
   DisallowGarbageCollection gc;
   DCHECK_IMPLIES(!IsName(key), IsTheHole(key));
   DisallowGarbageCollection no_gc;
@@ -511,7 +517,7 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::DeleteEntry(
     InternalIndex entry) {
   DCHECK(entry.is_found());
 
-  Object hole = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<Object> hole = ReadOnlyRoots(isolate).the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
   table->SetEntry(entry, hole, hole, details);
 
@@ -587,13 +593,14 @@ template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashSet> OrderedHashSet::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation);
 
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
-    Isolate* isolate, OrderedHashSet table, Object key);
+    Isolate* isolate, Tagged<OrderedHashSet> table, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashSet, 1>::Delete(
-    Isolate* isolate, OrderedHashSet table, Object key);
+    Isolate* isolate, Tagged<OrderedHashSet> table, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE InternalIndex
-OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate, Object key);
+OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
+                                               Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, 2>::EnsureCapacityForAdding(
@@ -611,13 +618,14 @@ template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashMap> OrderedHashMap::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation);
 
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
-    Isolate* isolate, OrderedHashMap table, Object key);
+    Isolate* isolate, Tagged<OrderedHashMap> table, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashMap, 2>::Delete(
-    Isolate* isolate, OrderedHashMap table, Object key);
+    Isolate* isolate, Tagged<OrderedHashMap> table, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE InternalIndex
-OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate, Object key);
+OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
+                                               Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::Shrink(
@@ -628,10 +636,10 @@ OrderedHashTable<OrderedNameDictionary, 3>::EnsureCapacityForAdding(
     Isolate* isolate, Handle<OrderedNameDictionary> table);
 
 template V8_EXPORT_PRIVATE InternalIndex
-OrderedNameDictionary::FindEntry(Isolate* isolate, Object key);
+OrderedNameDictionary::FindEntry(Isolate* isolate, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE InternalIndex
-OrderedNameDictionary::FindEntry(LocalIsolate* isolate, Object key);
+OrderedNameDictionary::FindEntry(LocalIsolate* isolate, Tagged<Object> key);
 
 template <>
 Handle<SmallOrderedHashSet>
@@ -727,8 +735,9 @@ MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
   return table;
 }
 
-bool SmallOrderedHashSet::Delete(Isolate* isolate, SmallOrderedHashSet table,
-                                 Object key) {
+bool SmallOrderedHashSet::Delete(Isolate* isolate,
+                                 Tagged<SmallOrderedHashSet> table,
+                                 Tagged<Object> key) {
   return SmallOrderedHashTable<SmallOrderedHashSet>::Delete(isolate, table,
                                                             key);
 }
@@ -772,8 +781,9 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
   return table;
 }
 
-bool SmallOrderedHashMap::Delete(Isolate* isolate, SmallOrderedHashMap table,
-                                 Object key) {
+bool SmallOrderedHashMap::Delete(Isolate* isolate,
+                                 Tagged<SmallOrderedHashMap> table,
+                                 Tagged<Object> key) {
   return SmallOrderedHashTable<SmallOrderedHashMap>::Delete(isolate, table,
                                                             key);
 }
@@ -784,18 +794,18 @@ bool SmallOrderedHashMap::HasKey(Isolate* isolate, Handle<Object> key) {
 
 template <>
 InternalIndex V8_EXPORT_PRIVATE
-SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(Isolate* isolate,
-                                                             Object key) {
+SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
+    Isolate* isolate, Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsUniqueName(key));
-  Name raw_key = Name::cast(key);
+  Tagged<Name> raw_key = Name::cast(key);
 
   int raw_entry = HashToFirstEntry(raw_key->hash());
 
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
-    Object candidate_key = KeyAt(entry);
+    Tagged<Object> candidate_key = KeyAt(entry);
     if (candidate_key == key) return entry;
     raw_entry = GetNextEntry(raw_entry);
   }
@@ -845,8 +855,9 @@ MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
   return table;
 }
 
-void SmallOrderedNameDictionary::SetEntry(InternalIndex entry, Object key,
-                                          Object value,
+void SmallOrderedNameDictionary::SetEntry(InternalIndex entry,
+                                          Tagged<Object> key,
+                                          Tagged<Object> value,
                                           PropertyDetails details) {
   int raw_entry = entry.as_int();
   DCHECK_IMPLIES(!IsName(key), IsTheHole(key));
@@ -867,22 +878,23 @@ bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
 }
 
 template <class Derived>
-bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived table,
-                                            Object key) {
+bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate,
+                                            Tagged<Derived> table,
+                                            Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
-  InternalIndex entry = table.FindEntry(isolate, key);
+  InternalIndex entry = table->FindEntry(isolate, key);
   if (entry.is_not_found()) return false;
 
-  int nof = table.NumberOfElements();
-  int nod = table.NumberOfDeletedElements();
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
 
-  Object hole = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<Object> hole = ReadOnlyRoots(isolate).the_hole_value();
   for (int j = 0; j < Derived::kEntrySize; j++) {
-    table.SetDataEntry(entry.as_int(), j, hole);
+    table->SetDataEntry(entry.as_int(), j, hole);
   }
 
-  table.SetNumberOfElements(nof - 1);
-  table.SetNumberOfDeletedElements(nod + 1);
+  table->SetNumberOfElements(nof - 1);
+  table->SetNumberOfDeletedElements(nod + 1);
 
   return true;
 }
@@ -893,7 +905,7 @@ Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::DeleteEntry(
   DCHECK(entry.is_found());
   {
     DisallowGarbageCollection no_gc;
-    Object hole = ReadOnlyRoots(isolate).the_hole_value();
+    Tagged<Object> hole = ReadOnlyRoots(isolate).the_hole_value();
     PropertyDetails details = PropertyDetails::Empty();
     table->SetEntry(entry, hole, hole, details);
 
@@ -920,7 +932,7 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
   {
     DisallowGarbageCollection no_gc;
     for (InternalIndex old_entry : table->IterateEntries()) {
-      Object key = table->KeyAt(old_entry);
+      Tagged<Object> key = table->KeyAt(old_entry);
       if (IsTheHole(key, isolate)) continue;
 
       int hash = Smi::ToInt(Object::GetHash(key));
@@ -931,7 +943,7 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
       new_table->SetNextEntry(new_entry, chain);
 
       for (int i = 0; i < Derived::kEntrySize; ++i) {
-        Object value = table->GetDataEntry(old_entry.as_int(), i);
+        Tagged<Object> value = table->GetDataEntry(old_entry.as_int(), i);
         new_table->SetDataEntry(new_entry, i, value);
       }
 
@@ -1003,9 +1015,9 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
 
 template <class Derived>
 InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
-                                                        Object key) {
+                                                        Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
-  Object hash = Object::GetHash(key);
+  Tagged<Object> hash = Object::GetHash(key);
 
   if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
   int raw_entry = HashToFirstEntry(Smi::ToInt(hash));
@@ -1013,7 +1025,7 @@ InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
-    Object candidate_key = KeyAt(entry);
+    Tagged<Object> candidate_key = KeyAt(entry);
     if (Object::SameValueZero(candidate_key, key)) return entry;
     raw_entry = GetNextEntry(raw_entry);
   }
@@ -1036,9 +1048,8 @@ template V8_EXPORT_PRIVATE void
 SmallOrderedHashTable<SmallOrderedHashSet>::Initialize(Isolate* isolate,
                                                        int capacity);
 template V8_EXPORT_PRIVATE bool
-SmallOrderedHashTable<SmallOrderedHashSet>::Delete(Isolate* isolate,
-                                                   SmallOrderedHashSet table,
-                                                   Object key);
+SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
+    Isolate* isolate, Tagged<SmallOrderedHashSet> table, Tagged<Object> key);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool SmallOrderedHashTable<
     SmallOrderedHashMap>::HasKey(Isolate* isolate, Handle<Object> key);
@@ -1056,9 +1067,8 @@ SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(Isolate* isolate,
                                                        int capacity);
 
 template V8_EXPORT_PRIVATE bool
-SmallOrderedHashTable<SmallOrderedHashMap>::Delete(Isolate* isolate,
-                                                   SmallOrderedHashMap table,
-                                                   Object key);
+SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
+    Isolate* isolate, Tagged<SmallOrderedHashMap> table, Tagged<Object> key);
 
 template V8_EXPORT_PRIVATE void
 SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(Isolate* isolate,
@@ -1284,9 +1294,10 @@ MaybeHandle<HeapObject> OrderedNameDictionaryHandler::Add(
       isolate, Handle<OrderedNameDictionary>::cast(table), key, value, details);
 }
 
-void OrderedNameDictionaryHandler::SetEntry(HeapObject table,
-                                            InternalIndex entry, Object key,
-                                            Object value,
+void OrderedNameDictionaryHandler::SetEntry(Tagged<HeapObject> table,
+                                            InternalIndex entry,
+                                            Tagged<Object> key,
+                                            Tagged<Object> value,
                                             PropertyDetails details) {
   DisallowGarbageCollection no_gc;
   if (IsSmallOrderedNameDictionary(table)) {
@@ -1300,8 +1311,8 @@ void OrderedNameDictionaryHandler::SetEntry(HeapObject table,
 }
 
 InternalIndex OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
-                                                      HeapObject table,
-                                                      Name key) {
+                                                      Tagged<HeapObject> table,
+                                                      Tagged<Name> key) {
   DisallowGarbageCollection no_gc;
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->FindEntry(isolate, key);
@@ -1311,8 +1322,8 @@ InternalIndex OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
   return OrderedNameDictionary::cast(table)->FindEntry(isolate, key);
 }
 
-Object OrderedNameDictionaryHandler::ValueAt(HeapObject table,
-                                             InternalIndex entry) {
+Tagged<Object> OrderedNameDictionaryHandler::ValueAt(Tagged<HeapObject> table,
+                                                     InternalIndex entry) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->ValueAt(entry);
   }
@@ -1321,9 +1332,9 @@ Object OrderedNameDictionaryHandler::ValueAt(HeapObject table,
   return OrderedNameDictionary::cast(table)->ValueAt(entry);
 }
 
-void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table,
+void OrderedNameDictionaryHandler::ValueAtPut(Tagged<HeapObject> table,
                                               InternalIndex entry,
-                                              Object value) {
+                                              Tagged<Object> value) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
   }
@@ -1332,8 +1343,8 @@ void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table,
   OrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
 }
 
-PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
-                                                        InternalIndex entry) {
+PropertyDetails OrderedNameDictionaryHandler::DetailsAt(
+    Tagged<HeapObject> table, InternalIndex entry) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->DetailsAt(entry);
   }
@@ -1342,7 +1353,7 @@ PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
   return OrderedNameDictionary::cast(table)->DetailsAt(entry);
 }
 
-void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table,
+void OrderedNameDictionaryHandler::DetailsAtPut(Tagged<HeapObject> table,
                                                 InternalIndex entry,
                                                 PropertyDetails details) {
   if (IsSmallOrderedNameDictionary(table)) {
@@ -1354,7 +1365,7 @@ void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table,
   OrderedNameDictionary::cast(table)->DetailsAtPut(entry, details);
 }
 
-int OrderedNameDictionaryHandler::Hash(HeapObject table) {
+int OrderedNameDictionaryHandler::Hash(Tagged<HeapObject> table) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->Hash();
   }
@@ -1363,7 +1374,7 @@ int OrderedNameDictionaryHandler::Hash(HeapObject table) {
   return OrderedNameDictionary::cast(table)->Hash();
 }
 
-void OrderedNameDictionaryHandler::SetHash(HeapObject table, int hash) {
+void OrderedNameDictionaryHandler::SetHash(Tagged<HeapObject> table, int hash) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->SetHash(hash);
   }
@@ -1372,8 +1383,8 @@ void OrderedNameDictionaryHandler::SetHash(HeapObject table, int hash) {
   OrderedNameDictionary::cast(table)->SetHash(hash);
 }
 
-Name OrderedNameDictionaryHandler::KeyAt(HeapObject table,
-                                         InternalIndex entry) {
+Tagged<Name> OrderedNameDictionaryHandler::KeyAt(Tagged<HeapObject> table,
+                                                 InternalIndex entry) {
   if (IsSmallOrderedNameDictionary(table)) {
     return Name::cast(SmallOrderedNameDictionary::cast(table)->KeyAt(entry));
   }
@@ -1382,7 +1393,7 @@ Name OrderedNameDictionaryHandler::KeyAt(HeapObject table,
       OrderedNameDictionary::cast(table)->KeyAt(InternalIndex(entry)));
 }
 
-int OrderedNameDictionaryHandler::NumberOfElements(HeapObject table) {
+int OrderedNameDictionaryHandler::NumberOfElements(Tagged<HeapObject> table) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->NumberOfElements();
   }
@@ -1390,7 +1401,7 @@ int OrderedNameDictionaryHandler::NumberOfElements(HeapObject table) {
   return OrderedNameDictionary::cast(table)->NumberOfElements();
 }
 
-int OrderedNameDictionaryHandler::Capacity(HeapObject table) {
+int OrderedNameDictionaryHandler::Capacity(Tagged<HeapObject> table) {
   if (IsSmallOrderedNameDictionary(table)) {
     return SmallOrderedNameDictionary::cast(table)->Capacity();
   }
@@ -1429,23 +1440,23 @@ Handle<HeapObject> OrderedNameDictionaryHandler::DeleteEntry(
 template <class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {
   DisallowGarbageCollection no_gc;
-  TableType table = TableType::cast(this->table());
-  if (!table.IsObsolete()) return;
+  Tagged<TableType> table = TableType::cast(this->table());
+  if (!table->IsObsolete()) return;
 
   int index = Smi::ToInt(this->index());
   DCHECK_LE(0, index);
-  while (table.IsObsolete()) {
-    TableType next_table = table.NextTable();
+  while (table->IsObsolete()) {
+    Tagged<TableType> next_table = table->NextTable();
 
     if (index > 0) {
-      int nod = table.NumberOfDeletedElements();
+      int nod = table->NumberOfDeletedElements();
 
       if (nod == TableType::kClearedTableSentinel) {
         index = 0;
       } else {
         int old_index = index;
         for (int i = 0; i < nod; ++i) {
-          int removed_index = table.RemovedIndexAt(i);
+          int removed_index = table->RemovedIndexAt(i);
           if (removed_index >= old_index) break;
           --index;
         }
@@ -1468,10 +1479,10 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
-  int used_capacity = table.UsedCapacity();
+  int used_capacity = table->UsedCapacity();
 
   while (index < used_capacity &&
-         IsTheHole(table.KeyAt(InternalIndex(index)), ro_roots)) {
+         IsTheHole(table->KeyAt(InternalIndex(index)), ro_roots)) {
     index++;
   }
 
@@ -1489,7 +1500,7 @@ OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::HasMore();
 template void
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::MoveNext();
 
-template Object
+template Tagged<Object>
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::CurrentKey();
 
 template void
@@ -1501,7 +1512,7 @@ OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::HasMore();
 template void
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::MoveNext();
 
-template Object
+template Tagged<Object>
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::CurrentKey();
 
 template void

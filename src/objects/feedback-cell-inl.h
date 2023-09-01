@@ -32,14 +32,14 @@ void FeedbackCell::clear_padding() {
 }
 
 void FeedbackCell::reset_feedback_vector(
-    base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                      HeapObject target)>>
+    base::Optional<std::function<void(
+        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
   clear_interrupt_budget();
   if (IsUndefined(value()) || IsClosureFeedbackCellArray(value())) return;
 
   CHECK(IsFeedbackVector(value()));
-  ClosureFeedbackCellArray closure_feedback_cell_array =
+  Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array =
       FeedbackVector::cast(value())->closure_feedback_cell_array();
   set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {

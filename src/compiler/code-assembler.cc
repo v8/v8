@@ -273,7 +273,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   }
 }
 
-TNode<Smi> CodeAssembler::SmiConstant(Smi value) {
+TNode<Smi> CodeAssembler::SmiConstant(Tagged<Smi> value) {
   return UncheckedCast<Smi>(BitcastWordToTaggedSigned(
       IntPtrConstant(static_cast<intptr_t>(value.ptr()))));
 }
@@ -347,7 +347,7 @@ bool CodeAssembler::TryToInt64Constant(TNode<IntegralT> node,
   return m.HasResolvedValue();
 }
 
-bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Smi* out_value) {
+bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Tagged<Smi>* out_value) {
   Node* node = tnode;
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
@@ -355,7 +355,8 @@ bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Smi* out_value) {
   return TryToSmiConstant(ReinterpretCast<IntPtrT>(tnode), out_value);
 }
 
-bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node, Smi* out_value) {
+bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node,
+                                     Tagged<Smi>* out_value) {
   IntPtrMatcher m(node);
   if (m.HasResolvedValue()) {
     intptr_t value = m.ResolvedValue();

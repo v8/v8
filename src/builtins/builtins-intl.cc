@@ -146,7 +146,7 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
 template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSDateTimeFormat>,
                                        Handle<Object>, Handle<Object>,
                                        const char* const)>
-V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
+V8_WARN_UNUSED_RESULT Tagged<Object> DateTimeFormatRange(
     BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let dtf be this value.
   // 2. Perform ? RequireInternalSlot(dtf, [[InitializedDateTimeFormat]]).
@@ -214,10 +214,10 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
  * NumberFormatConstrutor
  */
 template <class T>
-Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
-                               v8::Isolate::UseCounterFeature feature,
-                               Handle<Object> constructor,
-                               const char* method_name) {
+Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
+                                       v8::Isolate::UseCounterFeature feature,
+                                       Handle<Object> constructor,
+                                       const char* method_name) {
   isolate->CountUsage(feature);
   Handle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
@@ -288,9 +288,9 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
  * Segmenter
  */
 template <class T>
-Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
-                               v8::Isolate::UseCounterFeature feature,
-                               const char* method_name) {
+Tagged<Object> DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
+                                       v8::Isolate::UseCounterFeature feature,
+                                       const char* method_name) {
   isolate->CountUsage(feature);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
@@ -321,8 +321,9 @@ Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
  * Common code shared by Collator and V8BreakIterator
  */
 template <class T>
-Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate,
-                                  const char* method_name) {
+Tagged<Object> CallOrConstructConstructor(BuiltinArguments args,
+                                          Isolate* isolate,
+                                          const char* method_name) {
   Handle<JSReceiver> new_target;
 
   if (IsUndefined(*args.new_target(), isolate)) {
@@ -512,9 +513,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 // Common code for NumberFormatPrototypeFormtRange(|ToParts)
 template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSNumberFormat>,
                                        Handle<Object>, Handle<Object>)>
-V8_WARN_UNUSED_RESULT Object NumberFormatRange(BuiltinArguments args,
-                                               Isolate* isolate,
-                                               const char* const method_name) {
+V8_WARN_UNUSED_RESULT Tagged<Object> NumberFormatRange(
+    BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let nf be this value.
   // 2. Perform ? RequireInternalSlot(nf, [[InitializedNumberFormat]]).
   CHECK_RECEIVER(JSNumberFormat, nf, method_name);
@@ -965,7 +965,7 @@ BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
   return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
 }
 
-bool IsFastLocale(Object maybe_locale) {
+bool IsFastLocale(Tagged<Object> maybe_locale) {
   DisallowGarbageCollection no_gc;
   if (!IsSeqOneByteString(maybe_locale)) {
     return false;

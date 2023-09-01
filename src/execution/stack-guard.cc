@@ -278,7 +278,7 @@ class V8_NODISCARD ShouldBeZeroOnReturnScope final {
 
 }  // namespace
 
-Object StackGuard::HandleInterrupts(InterruptLevel level) {
+Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
   TRACE_EVENT0("v8.execute", "V8.HandleInterrupts");
 
 #if DEBUG

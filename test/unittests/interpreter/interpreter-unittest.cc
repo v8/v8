@@ -4763,7 +4763,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared()->HasBytecodeArray());
-  i::Code code = f->shared()->GetCode(i_isolate());
+  i::Tagged<i::Code> code = f->shared()->GetCode(i_isolate());
   i::Handle<i::Code> interpreter_entry_trampoline =
       BUILTIN_CODE(i_isolate(), InterpreterEntryTrampoline);
 
@@ -4779,24 +4779,24 @@ TEST_F(InterpreterTest, InterpreterGetBytecodeHandler) {
   Interpreter* interpreter = i_isolate()->interpreter();
 
   // Test that single-width bytecode handlers deserializer correctly.
-  Code wide_handler =
+  Tagged<Code> wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
   CHECK_EQ(wide_handler->builtin_id(), Builtin::kWideHandler);
 
-  Code add_handler =
+  Tagged<Code> add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
   CHECK_EQ(add_handler->builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
-  Code wide_wide_handler =
+  Tagged<Code> wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
   CHECK_EQ(wide_wide_handler->builtin_id(), Builtin::kIllegalHandler);
 
-  Code add_wide_handler =
+  Tagged<Code> add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler->builtin_id(), Builtin::kAddWideHandler);
@@ -4821,7 +4821,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
 
   Compiler::CollectSourcePositions(i_isolate(), sfi);
 
-  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  Tagged<ByteArray> source_position_table =
+      bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
   CHECK_GT(source_position_table->length(), 0);
 }
@@ -4849,7 +4850,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
   i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition());
   Compiler::CollectSourcePositions(i_isolate(), sfi);
   // Stack overflowed so source position table can be returned but is empty.
-  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  Tagged<ByteArray> source_position_table =
+      bytecode_array->SourcePositionTable();
   CHECK(!bytecode_array->HasSourcePositionTable());
   CHECK_EQ(source_position_table->length(), 0);
 
@@ -4983,21 +4985,22 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   }
 
   CHECK(bytecode_array->HasSourcePositionTable());
-  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  Tagged<ByteArray> source_position_table =
+      bytecode_array->SourcePositionTable();
   CHECK_GT(source_position_table->length(), 0);
 }
 
 TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {
   Interpreter* interpreter = i_isolate()->interpreter();
-  Code ldaLookupSlot = interpreter->GetBytecodeHandler(Bytecode::kLdaLookupSlot,
-                                                       OperandScale::kSingle);
+  Tagged<Code> ldaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kSingle);
   CheckStringEqual("LdaLookupSlotHandler",
                    Builtins::name(ldaLookupSlot->builtin_id()));
-  Code wideLdaLookupSlot = interpreter->GetBytecodeHandler(
+  Tagged<Code> wideLdaLookupSlot = interpreter->GetBytecodeHandler(
       Bytecode::kLdaLookupSlot, OperandScale::kDouble);
   CheckStringEqual("LdaLookupSlotWideHandler",
                    Builtins::name(wideLdaLookupSlot->builtin_id()));
-  Code extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
+  Tagged<Code> extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
       Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
   CheckStringEqual("LdaLookupSlotExtraWideHandler",
                    Builtins::name(extraWideLdaLookupSlot->builtin_id()));

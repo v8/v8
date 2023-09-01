@@ -350,7 +350,7 @@ class ConstantInDictionaryPrototypeChainDependency final
     Isolate* isolate = broker->isolate();
 
     Handle<Object> holder;
-    HeapObject prototype = receiver_map_.object()->prototype();
+    Tagged<HeapObject> prototype = receiver_map_.object()->prototype();
 
     enum class ValidationResult { kFoundCorrect, kFoundIncorrect, kNotFound };
     auto try_load = [&](auto dictionary) -> ValidationResult {
@@ -365,8 +365,8 @@ class ConstantInDictionaryPrototypeChainDependency final
         return ValidationResult::kFoundIncorrect;
       }
 
-      Object dictionary_value = dictionary->ValueAt(entry);
-      Object value;
+      Tagged<Object> dictionary_value = dictionary->ValueAt(entry);
+      Tagged<Object> value;
       // We must be able to detect the case that the property |property_name_|
       // of |holder_| was originally a plain function |constant_| (when creating
       // this dependency) and has since become an accessor whose getter is
@@ -395,7 +395,7 @@ class ConstantInDictionaryPrototypeChainDependency final
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that
       // AccessInfoFactory::ComputePropertyAccessInfo allows.
-      JSObject object = JSObject::cast(prototype);
+      Tagged<JSObject> object = JSObject::cast(prototype);
 
       // We only support dictionary mode prototypes on the chain for this kind
       // of dependency.
@@ -459,8 +459,8 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
       return false;
     }
     DisallowGarbageCollection no_heap_allocation;
-    Object current_value = holder_.object()->RawFastPropertyAt(index_);
-    Object used_value = *value_.object();
+    Tagged<Object> current_value = holder_.object()->RawFastPropertyAt(index_);
+    Tagged<Object> used_value = *value_.object();
     if (representation_.IsDouble()) {
       // Compare doubles by bit pattern.
       if (!IsHeapNumber(current_value) || !IsHeapNumber(used_value) ||
@@ -530,7 +530,7 @@ class OwnConstantDictionaryPropertyDependency final
       return false;
     }
 
-    base::Optional<Object> maybe_value = JSObject::DictionaryPropertyAt(
+    base::Optional<Tagged<Object>> maybe_value = JSObject::DictionaryPropertyAt(
         holder_.object(), index_, broker->isolate()->heap());
 
     if (!maybe_value) {
@@ -893,7 +893,7 @@ class ObjectSlotValueDependency final : public CompilationDependency {
 
   bool IsValid(JSHeapBroker* broker) const override {
     PtrComprCageBase cage_base = GetPtrComprCageBase(*object_);
-    Object current_value =
+    Tagged<Object> current_value =
         offset_ == HeapObject::kMapOffset
             ? object_->map()
             : TaggedField<Object>::Relaxed_Load(cage_base, *object_, offset_);
@@ -967,8 +967,8 @@ class OwnConstantElementDependency final : public CompilationDependency {
 
   bool IsValid(JSHeapBroker* broker) const override {
     DisallowGarbageCollection no_gc;
-    JSObject holder = *holder_.object();
-    base::Optional<Object> maybe_element =
+    Tagged<JSObject> holder = *holder_.object();
+    base::Optional<Tagged<Object>> maybe_element =
         holder_.GetOwnConstantElementFromHeap(
             broker, holder->elements(), holder->GetElementsKind(), index_);
     if (!maybe_element.has_value()) return false;

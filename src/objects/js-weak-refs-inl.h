@@ -44,8 +44,8 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
       Object::GetOrCreateHash(weak_cell->unregister_token(), isolate).value();
   InternalIndex entry = key_map->FindEntry(isolate, key);
   if (entry.is_found()) {
-    Object value = key_map->ValueAt(entry);
-    WeakCell existing_weak_cell = WeakCell::cast(value);
+    Tagged<Object> value = key_map->ValueAt(entry);
+    Tagged<WeakCell> existing_weak_cell = WeakCell::cast(value);
     existing_weak_cell->set_key_list_prev(*weak_cell);
     weak_cell->set_key_list_next(existing_weak_cell);
   }
@@ -61,12 +61,12 @@ bool JSFinalizationRegistry::Unregister(
   // its FinalizationRegistry; remove it from there.
   return finalization_registry->RemoveUnregisterToken(
       *unregister_token, isolate, kRemoveMatchedCellsFromRegistry,
-      [](HeapObject, ObjectSlot, Object) {});
+      [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {});
 }
 
 template <typename GCNotifyUpdatedSlotCallback>
 bool JSFinalizationRegistry::RemoveUnregisterToken(
-    HeapObject unregister_token, Isolate* isolate,
+    Tagged<HeapObject> unregister_token, Isolate* isolate,
     RemoveUnregisterTokenMode removal_mode,
     GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // This method is called from both FinalizationRegistry#unregister and for
@@ -77,11 +77,11 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
     return false;
   }
 
-  SimpleNumberDictionary key_map =
+  Tagged<SimpleNumberDictionary> key_map =
       SimpleNumberDictionary::cast(this->key_map());
   // If the token doesn't have a hash, it was not used as a key inside any hash
   // tables.
-  Object hash = Object::GetHash(unregister_token);
+  Tagged<Object> hash = Object::GetHash(unregister_token);
   if (IsUndefined(hash, isolate)) {
     return false;
   }
@@ -91,16 +91,16 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
     return false;
   }
 
-  Object value = key_map->ValueAt(entry);
+  Tagged<Object> value = key_map->ValueAt(entry);
   bool was_present = false;
-  HeapObject undefined = ReadOnlyRoots(isolate).undefined_value();
-  HeapObject new_key_list_head = undefined;
-  HeapObject new_key_list_prev = undefined;
+  Tagged<HeapObject> undefined = ReadOnlyRoots(isolate).undefined_value();
+  Tagged<HeapObject> new_key_list_head = undefined;
+  Tagged<HeapObject> new_key_list_prev = undefined;
   // Compute a new key list that doesn't have unregister_token. Because
   // unregister tokens are held weakly, key_map is keyed using the tokens'
   // identity hashes, and identity hashes may collide.
   while (!IsUndefined(value, isolate)) {
-    WeakCell weak_cell = WeakCell::cast(value);
+    Tagged<WeakCell> weak_cell = WeakCell::cast(value);
     DCHECK(!ObjectInYoungGeneration(weak_cell));
     value = weak_cell->key_list_next();
     if (weak_cell->unregister_token() == unregister_token) {
@@ -130,7 +130,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
         new_key_list_head = weak_cell;
       } else {
         DCHECK(IsWeakCell(new_key_list_head));
-        WeakCell prev_cell = WeakCell::cast(new_key_list_prev);
+        Tagged<WeakCell> prev_cell = WeakCell::cast(new_key_list_prev);
         prev_cell->set_key_list_next(weak_cell);
         gc_notify_updated_slot(
             prev_cell, prev_cell->RawField(WeakCell::kKeyListNextOffset),
@@ -155,11 +155,11 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return IsWeakCell(cleared_cells());
 }
 
-HeapObject WeakCell::relaxed_target() const {
+Tagged<HeapObject> WeakCell::relaxed_target() const {
   return TaggedField<HeapObject>::Relaxed_Load(*this, kTargetOffset);
 }
 
-HeapObject WeakCell::relaxed_unregister_token() const {
+Tagged<HeapObject> WeakCell::relaxed_unregister_token() const {
   return TaggedField<HeapObject>::Relaxed_Load(*this, kUnregisterTokenOffset);
 }
 
@@ -174,11 +174,11 @@ void WeakCell::Nullify(Isolate* isolate,
   DCHECK(Object::CanBeHeldWeakly(target()));
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  JSFinalizationRegistry fr =
+  Tagged<JSFinalizationRegistry> fr =
       JSFinalizationRegistry::cast(finalization_registry());
   if (IsWeakCell(prev())) {
     DCHECK_NE(fr->active_cells(), *this);
-    WeakCell prev_cell = WeakCell::cast(prev());
+    Tagged<WeakCell> prev_cell = WeakCell::cast(prev());
     prev_cell->set_next(next());
     gc_notify_updated_slot(prev_cell,
                            prev_cell->RawField(WeakCell::kNextOffset), next());
@@ -189,16 +189,16 @@ void WeakCell::Nullify(Isolate* isolate,
         fr, fr->RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
   }
   if (IsWeakCell(next())) {
-    WeakCell next_cell = WeakCell::cast(next());
+    Tagged<WeakCell> next_cell = WeakCell::cast(next());
     next_cell->set_prev(prev());
     gc_notify_updated_slot(next_cell,
                            next_cell->RawField(WeakCell::kPrevOffset), prev());
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
-  Object cleared_head = fr->cleared_cells();
+  Tagged<Object> cleared_head = fr->cleared_cells();
   if (IsWeakCell(cleared_head)) {
-    WeakCell cleared_head_cell = WeakCell::cast(cleared_head);
+    Tagged<WeakCell> cleared_head_cell = WeakCell::cast(cleared_head);
     cleared_head_cell->set_prev(*this);
     gc_notify_updated_slot(cleared_head_cell,
                            cleared_head_cell->RawField(WeakCell::kPrevOffset),
@@ -220,7 +220,7 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
   DCHECK(IsUndefined(target()) || Object::CanBeHeldWeakly(target()));
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  JSFinalizationRegistry fr =
+  Tagged<JSFinalizationRegistry> fr =
       JSFinalizationRegistry::cast(finalization_registry());
   if (fr->active_cells() == *this) {
     DCHECK(IsUndefined(prev(), isolate));
@@ -230,11 +230,11 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
     fr->set_cleared_cells(next());
   } else {
     DCHECK(IsWeakCell(prev()));
-    WeakCell prev_cell = WeakCell::cast(prev());
+    Tagged<WeakCell> prev_cell = WeakCell::cast(prev());
     prev_cell->set_next(next());
   }
   if (IsWeakCell(next())) {
-    WeakCell next_cell = WeakCell::cast(next());
+    Tagged<WeakCell> next_cell = WeakCell::cast(next());
     next_cell->set_prev(prev());
   }
   set_prev(ReadOnlyRoots(isolate).undefined_value());

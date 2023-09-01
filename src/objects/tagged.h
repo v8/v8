@@ -127,6 +127,17 @@ class Tagged<Object> : public TaggedBase {
   // Allow Tagged<Object> to be created from any address.
   constexpr explicit Tagged(Address o) : TaggedBase(o) {}
 
+  // Allow explicit uninitialized initialization. In debug mode this is zapped.
+  // TODO(leszeks): Mark this somehow as uninitialized, so that we get some
+  // warning if it is used before initialization.
+  constexpr Tagged()
+      : TaggedBase(
+#ifdef DEBUG
+            kZapValue
+#endif
+        ) {
+  }
+
   // Implicit conversion for subclasses -- all classes are subclasses of Object,
   // so allow all tagged pointers.
   // NOLINTNEXTLINE
@@ -175,6 +186,9 @@ class Tagged<Smi> : public TaggedBase {
     return Tagged<Smi>(other.ptr());
   }
 
+  constexpr Tagged() = default;
+  constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
+
   // No implicit conversions from other tagged pointers.
 
   constexpr bool IsHeapObject() const { return false; }
@@ -200,8 +214,6 @@ class Tagged<Smi> : public TaggedBase {
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandle<Smi>;
 #endif
-
-  using TaggedBase::TaggedBase;
 };
 
 // Specialization for TaggedIndex disallowing any implicit creation or access
@@ -224,6 +236,9 @@ class Tagged<TaggedIndex> : public TaggedBase {
   static constexpr Tagged<TaggedIndex> unchecked_cast(TaggedBase other) {
     return Tagged<TaggedIndex>(other.ptr());
   }
+
+  constexpr Tagged() = default;
+  constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
 
   // No implicit conversions from other tagged pointers.
 
@@ -254,8 +269,6 @@ class Tagged<TaggedIndex> : public TaggedBase {
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandle<TaggedIndex>;
 #endif
-
-  using TaggedBase::TaggedBase;
 };
 
 // Specialization for HeapObject, to group together functions shared between all
@@ -332,6 +345,9 @@ class Tagged<HeapObject> : public TaggedBase {
 
   Address address() const { return this->ptr() - kHeapObjectTag; }
 
+ protected:
+  constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+
  private:
   friend class HeapObject;
   // Handles of the same type are allowed to access the Address constructor.
@@ -340,7 +356,6 @@ class Tagged<HeapObject> : public TaggedBase {
   friend class DirectHandle<HeapObject>;
 #endif
 
-  using Base::Base;
   constexpr HeapObject ToRawPtr() const;
 };
 
@@ -414,13 +429,14 @@ class Tagged : public detail::BaseForTagged<T>::type {
   }
 
  private:
+  friend T;
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<T>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandle<T>;
 #endif
 
-  using Base::Base;
+  constexpr explicit Tagged(Address ptr) : Base(ptr) {}
   constexpr T ToRawPtr() const {
     return T(this->ptr(), typename T::SkipTypeCheckTag{});
   }

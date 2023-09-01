@@ -636,7 +636,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
 
   // Print function every time the compilation unit changes.
   bool needs_function_print = provenance.unit != existing_provenance.unit;
-  Script script;
+  Tagged<Script> script;
   Script::PositionInfo position_info;
   bool has_position_info = false;
 

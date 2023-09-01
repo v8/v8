@@ -108,7 +108,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
   DisallowGarbageCollection no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
@@ -438,7 +438,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
-    Token::Value op, Smi literal, int feedback_slot) {
+    Token::Value op, Tagged<Smi> literal, int feedback_slot) {
   switch (op) {
     case Token::Value::ADD:
       OutputAddSmi(literal.value(), feedback_slot);
@@ -614,7 +614,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Tagged<Smi> smi) {
   int32_t raw_smi = smi.value();
   if (raw_smi == 0) {
     OutputLdaZero();

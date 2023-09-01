@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Allocate an uninitialized object.
   enum AllocationRetryMode { kLightRetry, kRetryOrFail };
   template <AllocationRetryMode mode>
-  HeapObject AllocateRawWith(
+  Tagged<HeapObject> AllocateRawWith(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
@@ -168,7 +168,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  void NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+  void NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
+                              int new_size,
                               ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }

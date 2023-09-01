@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     bool paused_ = false;
   };
 
-  V8_INLINE void TransferColor(HeapObject from, HeapObject to);
+  V8_INLINE void TransferColor(Tagged<HeapObject> from, Tagged<HeapObject> to);
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
@@ -132,7 +132,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool IsBelowActivationThresholds() const;
 
-  void MarkBlackBackground(HeapObject obj, int object_size);
+  void MarkBlackBackground(Tagged<HeapObject> obj, int object_size);
 
   void MarkRootsForTesting();
 
@@ -175,7 +175,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void MarkRoots();
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
-  bool WhiteToGreyAndPush(HeapObject obj);
+  bool WhiteToGreyAndPush(Tagged<HeapObject> obj);
   void PublishWriteBarrierWorklists();
 
   // Fetches marked byte counters from the concurrent marker.

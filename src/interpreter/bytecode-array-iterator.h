@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   template <typename IsolateT>
   Handle<Object> GetConstantAtIndex(int offset, IsolateT* isolate) const;
   bool IsConstantAtIndexSmi(int offset) const;
-  Smi GetConstantAtIndexAsSmi(int offset) const;
+  Tagged<Smi> GetConstantAtIndexAsSmi(int offset) const;
   template <typename IsolateT>
   Handle<Object> GetConstantForIndexOperand(int operand_index,
                                             IsolateT* isolate) const;

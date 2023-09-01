@@ -77,12 +77,12 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
 
   // Set-up flags for a compiling a particular function (either a lazy compile
   // or a recompile).
-  static UnoptimizedCompileFlags ForFunctionCompile(Isolate* isolate,
-                                                    SharedFunctionInfo shared);
+  static UnoptimizedCompileFlags ForFunctionCompile(
+      Isolate* isolate, Tagged<SharedFunctionInfo> shared);
 
   // Set-up flags for a full compilation of a given script.
   static UnoptimizedCompileFlags ForScriptCompile(Isolate* isolate,
-                                                  Script script);
+                                                  Tagged<Script> script);
 
   // Set-up flags for a parallel toplevel function compilation, based on the
   // flags of an existing toplevel compilation.
@@ -146,7 +146,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
                                   LanguageMode language_mode,
                                   REPLMode repl_mode, ScriptType type,
                                   bool lazy);
-  void SetFlagsForFunctionFromScript(Script script);
+  void SetFlagsForFunctionFromScript(Tagged<Script> script);
 
   uint32_t flags_;
   int script_id_;
@@ -339,7 +339,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     source_range_map_ = source_range_map;
   }
 
-  void CheckFlagsForFunctionFromScript(Script script);
+  void CheckFlagsForFunctionFromScript(Tagged<Script> script);
 
   bool is_background_compilation() const { return is_background_compilation_; }
 
@@ -369,7 +369,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
             ReusableUnoptimizedCompileState* reusable_state,
             uintptr_t stack_limit, RuntimeCallStats* runtime_call_stats);
 
-  void CheckFlagsForToplevelCompileFromScript(Script script);
+  void CheckFlagsForToplevelCompileFromScript(Tagged<Script> script);
 
   //------------- Inputs to parsing and scope analysis -----------------------
   const UnoptimizedCompileFlags flags_;

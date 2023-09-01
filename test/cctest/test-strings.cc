@@ -307,7 +307,7 @@ void ConsStringGenerationData::Reset() {
   rng_.init();
 }
 
-void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
+void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
   int left_length = cons_string->first()->length();
   int right_length = cons_string->second()->length();
   CHECK(cons_string->length() == left_length + right_length);
@@ -344,11 +344,11 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   stats->chars_ += cons_string->length();
 }
 
-void AccumulateStatsWithOperator(ConsString cons_string,
+void AccumulateStatsWithOperator(Tagged<ConsString> cons_string,
                                  ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
   int offset;
-  for (String string = iter.Next(&offset); !string.is_null();
+  for (Tagged<String> string = iter.Next(&offset); !string.is_null();
        string = iter.Next(&offset)) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
@@ -611,7 +611,8 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, flat->length());
 }
 
-static void VerifyCharacterStream(String flat_string, String cons_string) {
+static void VerifyCharacterStream(Tagged<String> flat_string,
+                                  Tagged<String> cons_string) {
   // Do not want to test ConString traversal on flat string.
   CHECK(flat_string->IsFlat() && !IsConsString(flat_string));
   CHECK(IsConsString(cons_string));
@@ -677,7 +678,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     VerifyConsString(cons_string, &data);
     // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
     static_assert(kTaggedCanConvertToRawObjects);
-    String flat_string_ptr =
+    Tagged<String> flat_string_ptr =
         IsConsString(*flat_string)
             ? Tagged(Tagged<ConsString>::cast(*flat_string)->first())
             : *flat_string;

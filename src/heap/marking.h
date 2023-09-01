@@ -23,12 +23,12 @@ class MarkBit final {
   static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
   V8_ALLOW_UNUSED static inline MarkBit From(Address);
-  V8_ALLOW_UNUSED static inline MarkBit From(HeapObject);
+  V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
 
   // These methods are meant to be used from the debugger and therefore
   // intentionally not inlined such that they are always available.
   V8_ALLOW_UNUSED static MarkBit FromForTesting(Address);
-  V8_ALLOW_UNUSED static MarkBit FromForTesting(HeapObject);
+  V8_ALLOW_UNUSED static MarkBit FromForTesting(Tagged<HeapObject>);
 
   // The function returns true if it succeeded to
   // transition the bit from 0 to 1.

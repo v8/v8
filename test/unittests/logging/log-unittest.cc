@@ -903,7 +903,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   i::HeapObjectIterator iterator(heap);
   i::DisallowGarbageCollection no_gc;
   size_t i = 0;
-  for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+  for (i::Tagged<i::HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!IsMap(obj)) continue;
     i++;

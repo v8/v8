@@ -44,23 +44,24 @@ inline void ClientRootVisitor<Visitor>::VisitRunningCode(
     FullObjectSlot code_slot, FullObjectSlot maybe_istream_slot) {
 #if DEBUG
   DCHECK(!HeapObject::cast(*code_slot).InWritableSharedSpace());
-  Object maybe_istream = *maybe_istream_slot;
+  Tagged<Object> maybe_istream = *maybe_istream_slot;
   DCHECK(maybe_istream == Smi::zero() ||
          !HeapObject::cast(maybe_istream).InWritableSharedSpace());
 #endif
 }
 
 template <typename Visitor>
-inline void ClientObjectVisitor<Visitor>::VisitMapPointer(HeapObject host) {
-  if (!IsSharedHeapObject(host.map(cage_base()))) return;
+inline void ClientObjectVisitor<Visitor>::VisitMapPointer(
+    Tagged<HeapObject> host) {
+  if (!IsSharedHeapObject(host->map(cage_base()))) return;
   actual_visitor_->VisitMapPointer(host);
 }
 
 template <typename Visitor>
 inline void ClientObjectVisitor<Visitor>::VisitCodeTarget(
-    InstructionStream host, RelocInfo* rinfo) {
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
 #if DEBUG
-  InstructionStream target =
+  Tagged<InstructionStream> target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
   DCHECK(!target.InWritableSharedSpace());
 #endif
@@ -68,7 +69,7 @@ inline void ClientObjectVisitor<Visitor>::VisitCodeTarget(
 
 template <typename Visitor>
 inline void ClientObjectVisitor<Visitor>::VisitEmbeddedPointer(
-    InstructionStream host, RelocInfo* rinfo) {
+    Tagged<InstructionStream> host, RelocInfo* rinfo) {
   if (!IsSharedHeapObject(rinfo->target_object(cage_base()))) return;
   actual_visitor_->VisitEmbeddedPointer(host, rinfo);
 }

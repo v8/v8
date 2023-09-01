@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Push(Register src) { push(src); }
 
   void Push(Handle<HeapObject> handle);
-  void Push(Smi smi);
-  void Push(TaggedIndex index);
+  void Push(Tagged<Smi> smi);
+  void Push(Tagged<TaggedIndex> index);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -501,7 +501,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                  NeonMemOperand dst);
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi smi);
+  void Move(Register dst, Tagged<Smi> smi);
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);

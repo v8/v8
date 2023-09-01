@@ -115,7 +115,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   ConstantsMap::IteratableScope it_scope(&map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
-    Object value = it.key();
+    Tagged<Object> value = it.key();
     if (IsCode(value) && Code::cast(value)->kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.

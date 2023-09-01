@@ -65,7 +65,7 @@ class SerializedHandleChecker : public RootVisitor {
   bool CheckGlobalAndEternalHandles();
 
  private:
-  void AddToSet(FixedArray serialized);
+  void AddToSet(Tagged<FixedArray> serialized);
 
   Isolate* isolate_;
   std::unordered_set<Object, Object::Hasher> serialized_;

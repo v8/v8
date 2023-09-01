@@ -105,7 +105,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // allocation during its lifetime. This is useful if there is no handle
   // scope around.
   explicit SourcePositionTableIterator(
-      ByteArray byte_array, IterationFilter iteration_filter = kJavaScriptOnly,
+      Tagged<ByteArray> byte_array,
+      IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
   // Handle-safe iterator based on an a vector located outside the garbage

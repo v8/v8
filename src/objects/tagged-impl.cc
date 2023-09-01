@@ -42,10 +42,10 @@ void ShortPrint(TaggedImpl<kRefType, StorageType> ptr, FILE* out) {
   OFStream os(out);
   os << Brief(ptr);
 }
-template void ShortPrint(
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
     TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr, FILE* out);
-template void ShortPrint(TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr,
-                         FILE* out);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
+    TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr, FILE* out);
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void ShortPrint(TaggedImpl<kRefType, StorageType> ptr,
@@ -54,20 +54,21 @@ void ShortPrint(TaggedImpl<kRefType, StorageType> ptr,
   os << Brief(ptr);
   accumulator->Add(os.str().c_str());
 }
-template void ShortPrint(
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
     TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr,
     StringStream* accumulator);
-template void ShortPrint(TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr,
-                         StringStream* accumulator);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
+    TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr,
+    StringStream* accumulator);
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void ShortPrint(TaggedImpl<kRefType, StorageType> ptr, std::ostream& os) {
   os << Brief(ptr);
 }
-template void ShortPrint(
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
     TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr, std::ostream& os);
-template void ShortPrint(TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr,
-                         std::ostream& os);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ShortPrint(
+    TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr, std::ostream& os);
 
 #ifdef OBJECT_PRINT
 template <HeapObjectReferenceType kRefType, typename StorageType>
@@ -76,13 +77,15 @@ void Print(TaggedImpl<kRefType, StorageType> ptr) {
   Print(ptr, os);
   os << std::flush;
 }
-template void Print(TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr);
-template void Print(TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Print(
+    TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Print(
+    TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr);
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void Print(TaggedImpl<kRefType, StorageType> ptr, std::ostream& os) {
-  Smi smi(0);
-  HeapObject heap_object;
+  Tagged<Smi> smi;
+  Tagged<HeapObject> heap_object;
   if (ptr.ToSmi(&smi)) {
     os << "Smi: " << std::hex << "0x" << smi.value();
     os << std::dec << " (" << smi.value() << ")\n";
@@ -97,10 +100,10 @@ void Print(TaggedImpl<kRefType, StorageType> ptr, std::ostream& os) {
     UNREACHABLE();
   }
 }
-template void Print(TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr,
-                    std::ostream& os);
-template void Print(TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr,
-                    std::ostream& os);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Print(
+    TaggedImpl<HeapObjectReferenceType::STRONG, Address> ptr, std::ostream& os);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Print(
+    TaggedImpl<HeapObjectReferenceType::WEAK, Address> ptr, std::ostream& os);
 #endif  // OBJECT_PRINT
 
 // Explicit instantiation declarations.

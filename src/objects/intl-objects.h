@@ -358,7 +358,8 @@ class Intl {
   static const uint8_t* AsciiCollationWeightsL3();
   static const int kAsciiCollationWeightsLength;
 
-  static String ConvertOneByteToLower(String src, String dst);
+  static Tagged<String> ConvertOneByteToLower(Tagged<String> src,
+                                              Tagged<String> dst);
 
   static const std::set<std::string>& GetAvailableLocales();
 

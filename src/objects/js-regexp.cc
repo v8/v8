@@ -150,9 +150,9 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-Object JSRegExp::code(bool is_latin1) const {
+Tagged<Object> JSRegExp::code(bool is_latin1) const {
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  Object value = DataAt(code_index(is_latin1));
+  Tagged<Object> value = DataAt(code_index(is_latin1));
   DCHECK(IsSmi(value) || IsCode(value));
   return value;
 }
@@ -161,7 +161,7 @@ void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
   SetDataAt(code_index(is_latin1), *code);
 }
 
-Object JSRegExp::bytecode(bool is_latin1) const {
+Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
   DCHECK(type_tag() == JSRegExp::IRREGEXP ||
          type_tag() == JSRegExp::EXPERIMENTAL);
   return DataAt(bytecode_index(is_latin1));
@@ -413,8 +413,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
 
-  Map map = regexp->map();
-  Object constructor = map->GetConstructor();
+  Tagged<Map> map = regexp->map();
+  Tagged<Object> constructor = map->GetConstructor();
   if (IsJSFunction(constructor) &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.

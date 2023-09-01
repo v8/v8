@@ -69,17 +69,18 @@ class InstructionStream : public HeapObject {
   //
   // Set to Smi::zero() during initialization. Heap iterators may see
   // InstructionStream objects in this state.
-  inline Code code(AcquireLoadTag tag) const;
-  inline void set_code(Code value, ReleaseStoreTag tag);
-  inline Object raw_code(AcquireLoadTag tag) const;
+  inline Tagged<Code> code(AcquireLoadTag tag) const;
+  inline void set_code(Tagged<Code> value, ReleaseStoreTag tag);
+  inline Tagged<Object> raw_code(AcquireLoadTag tag) const;
   // Use when the InstructionStream may be uninitialized:
-  inline bool TryGetCode(Code* code_out, AcquireLoadTag tag) const;
-  inline bool TryGetCodeUnchecked(Code* code_out, AcquireLoadTag tag) const;
+  inline bool TryGetCode(Tagged<Code>* code_out, AcquireLoadTag tag) const;
+  inline bool TryGetCodeUnchecked(Tagged<Code>* code_out,
+                                  AcquireLoadTag tag) const;
 
   // [relocation_info]: InstructionStream relocation information.
-  inline ByteArray relocation_info() const;
+  inline Tagged<ByteArray> relocation_info() const;
   // Unchecked accessor to be used during GC.
-  inline ByteArray unchecked_relocation_info() const;
+  inline Tagged<ByteArray> unchecked_relocation_info() const;
 
   inline uint8_t* relocation_start() const;
   inline uint8_t* relocation_end() const;
@@ -99,18 +100,18 @@ class InstructionStream : public HeapObject {
   }
   inline int Size() const;
 
-  static inline InstructionStream FromTargetAddress(Address address);
-  static inline InstructionStream FromEntryAddress(Address location_of_address);
+  static inline Tagged<InstructionStream> FromTargetAddress(Address address);
+  static inline Tagged<InstructionStream> FromEntryAddress(
+      Address location_of_address);
 
   // Relocate the code by delta bytes.
   void Relocate(intptr_t delta);
 
-  static V8_INLINE InstructionStream Initialize(Tagged<HeapObject> self,
-                                                Tagged<Map> map,
-                                                uint32_t body_size,
-                                                ByteArray reloc_info);
-  V8_INLINE void Finalize(Code code, ByteArray reloc_info, CodeDesc desc,
-                          Heap* heap);
+  static V8_INLINE Tagged<InstructionStream> Initialize(
+      Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
+      Tagged<ByteArray> reloc_info);
+  V8_INLINE void Finalize(Tagged<Code> code, Tagged<ByteArray> reloc_info,
+                          CodeDesc desc, Heap* heap);
 
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)

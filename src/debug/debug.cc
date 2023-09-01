@@ -174,13 +174,14 @@ void BreakLocation::AllAtCurrentStatement(
   }
 }
 
-JSGeneratorObject BreakLocation::GetGeneratorObjectForSuspendedFrame(
+Tagged<JSGeneratorObject> BreakLocation::GetGeneratorObjectForSuspendedFrame(
     JavaScriptFrame* frame) const {
   DCHECK(IsSuspend());
   DCHECK_GE(generator_obj_reg_index_, 0);
 
-  Object generator_obj = UnoptimizedFrame::cast(frame)->ReadInterpreterRegister(
-      generator_obj_reg_index_);
+  Tagged<Object> generator_obj =
+      UnoptimizedFrame::cast(frame)->ReadInterpreterRegister(
+          generator_obj_reg_index_);
 
   return JSGeneratorObject::cast(generator_obj);
 }
@@ -291,7 +292,7 @@ void BreakIterator::Next() {
 }
 
 DebugBreakType BreakIterator::GetDebugBreakType() {
-  BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
+  Tagged<BytecodeArray> bytecode_array = debug_info_->OriginalBytecodeArray();
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
@@ -340,8 +341,8 @@ void BreakIterator::ClearDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   if (debug_break_type == DEBUGGER_STATEMENT) return;
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  BytecodeArray bytecode_array = debug_info_->DebugBytecodeArray();
-  BytecodeArray original = debug_info_->OriginalBytecodeArray();
+  Tagged<BytecodeArray> bytecode_array = debug_info_->DebugBytecodeArray();
+  Tagged<BytecodeArray> original = debug_info_->OriginalBytecodeArray();
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
@@ -357,7 +358,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // index that holds the generator object by reading it directly off the
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
-    BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
+    Tagged<BytecodeArray> bytecode_array = debug_info_->OriginalBytecodeArray();
     interpreter::BytecodeArrayIterator iterator(
         handle(bytecode_array, isolate()), code_offset());
 
@@ -458,7 +459,8 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
                       FullObjectSlot(&thread_local_data->promise_stack_));
 }
 
-void DebugInfoCollection::Insert(SharedFunctionInfo sfi, DebugInfo debug_info) {
+void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
+                                 Tagged<DebugInfo> debug_info) {
   DisallowGarbageCollection no_gc;
   base::SharedMutexGuard<base::kExclusive> mutex_guard(
       isolate_->shared_function_info_access());
@@ -473,7 +475,7 @@ void DebugInfoCollection::Insert(SharedFunctionInfo sfi, DebugInfo debug_info) {
   DCHECK_EQ(list_.size(), map_.size());
 }
 
-bool DebugInfoCollection::Contains(SharedFunctionInfo sfi) const {
+bool DebugInfoCollection::Contains(Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return false;
   DCHECK_EQ(DebugInfo::cast(Object(*it->second))->shared(), sfi);
@@ -481,18 +483,18 @@ bool DebugInfoCollection::Contains(SharedFunctionInfo sfi) const {
 }
 
 base::Optional<DebugInfo> DebugInfoCollection::Find(
-    SharedFunctionInfo sfi) const {
+    Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return {};
-  DebugInfo di = DebugInfo::cast(Object(*it->second));
+  Tagged<DebugInfo> di = DebugInfo::cast(Object(*it->second));
   DCHECK_EQ(di->shared(), sfi);
   return di;
 }
 
-void DebugInfoCollection::DeleteSlow(SharedFunctionInfo sfi) {
+void DebugInfoCollection::DeleteSlow(Tagged<SharedFunctionInfo> sfi) {
   DebugInfoCollection::Iterator it(this);
   for (; it.HasNext(); it.Advance()) {
-    DebugInfo debug_info = it.Next();
+    Tagged<DebugInfo> debug_info = it.Next();
     if (debug_info->shared() != sfi) continue;
     it.DeleteNext();
     return;
@@ -500,7 +502,7 @@ void DebugInfoCollection::DeleteSlow(SharedFunctionInfo sfi) {
   UNREACHABLE();
 }
 
-DebugInfo DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
+Tagged<DebugInfo> DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
   DCHECK_LT(index, list_.size());
   return DebugInfo::cast(Object(*list_[index]));
 }
@@ -509,8 +511,8 @@ void DebugInfoCollection::DeleteIndex(size_t index) {
   base::SharedMutexGuard<base::kExclusive> mutex_guard(
       isolate_->shared_function_info_access());
 
-  DebugInfo debug_info = EntryAsDebugInfo(index);
-  SharedFunctionInfo sfi = debug_info->shared();
+  Tagged<DebugInfo> debug_info = EntryAsDebugInfo(index);
+  Tagged<SharedFunctionInfo> sfi = debug_info->shared();
   DCHECK(Contains(sfi));
 
   auto it = map_.find(sfi->unique_id());
@@ -919,10 +921,10 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     debug_info->SetBreakAtEntry();
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
-    FixedArray break_points = debug_info->break_points();
+    Tagged<FixedArray> break_points = debug_info->break_points();
     for (int i = 0; i < break_points->length(); i++) {
       if (IsUndefined(break_points->get(i), isolate_)) continue;
-      BreakPointInfo info = BreakPointInfo::cast(break_points->get(i));
+      Tagged<BreakPointInfo> info = BreakPointInfo::cast(break_points->get(i));
       if (info->GetBreakPointCount(isolate_) == 0) continue;
       DCHECK(debug_info->HasInstrumentedBytecodeArray());
       BreakIterator it(debug_info);
@@ -1055,7 +1057,7 @@ void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
     DisallowGarbageCollection no_gc;
     for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
          --idx) {
-      HeapObject wasm_script;
+      Tagged<HeapObject> wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &wasm_script) &&
           wasm_script == *script) {
@@ -1087,10 +1089,10 @@ void Debug::ClearAllBreakPoints() {
     DisallowGarbageCollection no_gc;
     for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
          --idx) {
-      HeapObject raw_wasm_script;
+      Tagged<HeapObject> raw_wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &raw_wasm_script)) {
-        Script wasm_script = Script::cast(raw_wasm_script);
+        Tagged<Script> wasm_script = Script::cast(raw_wasm_script);
         WasmScript::ClearAllBreakpoints(wasm_script);
         wasm_script->wasm_native_module()->GetDebugInfo()->RemoveIsolate(
             isolate_);
@@ -1484,7 +1486,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
   int count = 0;
   for (int i = 0; i < debug_info->break_points()->length(); ++i) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
-      BreakPointInfo break_point_info =
+      Tagged<BreakPointInfo> break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       int break_points = break_point_info->GetBreakPointCount(isolate);
       if (break_points == 0) continue;
@@ -1535,7 +1537,7 @@ void Debug::ClearOneShot() {
 namespace {
 class DiscardBaselineCodeVisitor : public ThreadVisitor {
  public:
-  explicit DiscardBaselineCodeVisitor(SharedFunctionInfo shared)
+  explicit DiscardBaselineCodeVisitor(Tagged<SharedFunctionInfo> shared)
       : shared_(shared) {}
   DiscardBaselineCodeVisitor() : shared_(SharedFunctionInfo()) {}
 
@@ -1589,7 +1591,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 };
 }  // namespace
 
-void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
+void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(shared->HasBaselineCode());
   DiscardBaselineCodeVisitor visitor(shared);
@@ -1599,10 +1601,10 @@ void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
   HeapObjectIterator iterator(isolate_->heap());
   auto trampoline = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   shared->FlushBaselineCode();
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsJSFunction(obj)) {
-      JSFunction fun = JSFunction::cast(obj);
+      Tagged<JSFunction> fun = JSFunction::cast(obj);
       if (fun->shared() == shared && fun->ActiveTierIsBaseline()) {
         fun->set_code(*trampoline);
       }
@@ -1617,15 +1619,15 @@ void Debug::DiscardAllBaselineCode() {
   HeapObjectIterator iterator(isolate_->heap());
   auto trampoline = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   isolate_->thread_manager()->IterateArchivedThreads(&visitor);
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsJSFunction(obj)) {
-      JSFunction fun = JSFunction::cast(obj);
+      Tagged<JSFunction> fun = JSFunction::cast(obj);
       if (fun->ActiveTierIsBaseline()) {
         fun->set_code(*trampoline);
       }
     } else if (IsSharedFunctionInfo(obj)) {
-      SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
+      Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(obj);
       if (shared->HasBaselineCode()) {
         shared->FlushBaselineCode();
       }
@@ -1686,7 +1688,8 @@ void Debug::PrepareFunctionForDebugExecution(
 
 namespace {
 
-bool IsJSFunctionAndNeedsTrampoline(Isolate* isolate, Object maybe_function) {
+bool IsJSFunctionAndNeedsTrampoline(Isolate* isolate,
+                                    Tagged<Object> maybe_function) {
   if (!IsJSFunction(maybe_function)) return false;
   base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(
       JSFunction::cast(maybe_function)->shared());
@@ -1707,7 +1710,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
   DebugInfoCollection::Iterator it(&debug_infos_);
   for (; it.HasNext(); it.Advance()) {
-    DebugInfo debug_info = it.Next();
+    Tagged<DebugInfo> debug_info = it.Next();
     if (debug_info->CanBreakAtEntry()) {
       needs_to_use_trampoline = true;
       if (debug_info->shared()->IsApiFunction()) {
@@ -1730,29 +1733,29 @@ void Debug::InstallDebugBreakTrampoline() {
     std::set<AccessorPair> recorded;
     HeapObjectIterator iterator(isolate_->heap());
     DisallowGarbageCollection no_gc;
-    for (HeapObject obj = iterator.Next(); !obj.is_null();
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && IsFeedbackVector(obj)) {
         FeedbackVector::cast(obj)->ClearSlots(isolate_);
         continue;
       } else if (IsJSFunctionAndNeedsTrampoline(isolate_, obj)) {
-        JSFunction fun = JSFunction::cast(obj);
+        Tagged<JSFunction> fun = JSFunction::cast(obj);
         if (!fun->is_compiled()) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun->set_code(*trampoline);
         }
       } else if (IsJSObject(obj)) {
-        JSObject object = JSObject::cast(obj);
-        DescriptorArray descriptors =
+        Tagged<JSObject> object = JSObject::cast(obj);
+        Tagged<DescriptorArray> descriptors =
             object->map()->instance_descriptors(kRelaxedLoad);
 
         for (InternalIndex i : object->map()->IterateOwnDescriptors()) {
           if (descriptors->GetDetails(i).kind() == PropertyKind::kAccessor) {
-            Object value = descriptors->GetStrongValue(i);
+            Tagged<Object> value = descriptors->GetStrongValue(i);
             if (!IsAccessorPair(value)) continue;
 
-            AccessorPair accessor_pair = AccessorPair::cast(value);
+            Tagged<AccessorPair> accessor_pair = AccessorPair::cast(value);
             if (!IsFunctionTemplateInfo(accessor_pair->getter()) &&
                 !IsFunctionTemplateInfo(accessor_pair->setter())) {
               continue;
@@ -1874,8 +1877,8 @@ class SharedFunctionInfoFinder {
       : current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
-  void NewCandidate(SharedFunctionInfo shared,
-                    JSFunction closure = JSFunction()) {
+  void NewCandidate(Tagged<SharedFunctionInfo> shared,
+                    Tagged<JSFunction> closure = JSFunction()) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
@@ -1914,9 +1917,9 @@ class SharedFunctionInfoFinder {
     current_candidate_closure_ = closure;
   }
 
-  SharedFunctionInfo Result() { return current_candidate_; }
+  Tagged<SharedFunctionInfo> Result() { return current_candidate_; }
 
-  JSFunction ResultClosure() { return current_candidate_closure_; }
+  Tagged<JSFunction> ResultClosure() { return current_candidate_closure_; }
 
  private:
   SharedFunctionInfo current_candidate_;
@@ -1927,12 +1930,11 @@ class SharedFunctionInfoFinder {
 };
 
 namespace {
-SharedFunctionInfo FindSharedFunctionInfoCandidate(int position,
-                                                   Handle<Script> script,
-                                                   Isolate* isolate) {
+Tagged<SharedFunctionInfo> FindSharedFunctionInfoCandidate(
+    int position, Handle<Script> script, Isolate* isolate) {
   SharedFunctionInfoFinder finder(position);
   SharedFunctionInfo::ScriptIterator iterator(isolate, *script);
-  for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
+  for (Tagged<SharedFunctionInfo> info = iterator.Next(); !info.is_null();
        info = iterator.Next()) {
     finder.NewCandidate(info);
   }
@@ -1990,7 +1992,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-      for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
+      for (Tagged<SharedFunctionInfo> info = iterator.Next(); !info.is_null();
            info = iterator.Next()) {
         if (info->EndPosition() < start_position ||
             info->StartPosition() >= end_position) {
@@ -2009,7 +2011,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
       DCHECK_LE(script->shared_function_info_count(),
                 script->shared_function_infos()->length());
       MaybeObject maybeToplevel = script->shared_function_infos()->Get(0);
-      HeapObject heap_object;
+      Tagged<HeapObject> heap_object;
       const bool topLevelInfoExists =
           maybeToplevel->GetHeapObject(&heap_object) &&
           !IsUndefined(heap_object);
@@ -2062,7 +2064,7 @@ Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
     // If there is no shared function info for this script at all, there is
     // no point in looking for it by walking the heap.
 
-    SharedFunctionInfo shared;
+    Tagged<SharedFunctionInfo> shared;
     IsCompiledScope is_compiled_scope;
     {
       shared = FindSharedFunctionInfoCandidate(position, script, isolate_);
@@ -2236,7 +2238,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   int length = 0;
   {
     Script::Iterator iterator(isolate_);
-    for (Script script = iterator.Next(); !script.is_null();
+    for (Tagged<Script> script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
       if (script->HasValidSource()) results->set(length++, script);
     }
@@ -2244,36 +2246,37 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   return FixedArray::ShrinkOrEmpty(isolate_, results, length);
 }
 
-base::Optional<DebugInfo> Debug::TryGetDebugInfo(SharedFunctionInfo sfi) {
+base::Optional<DebugInfo> Debug::TryGetDebugInfo(
+    Tagged<SharedFunctionInfo> sfi) {
   return debug_infos_.Find(sfi);
 }
 
-bool Debug::HasDebugInfo(SharedFunctionInfo sfi) {
+bool Debug::HasDebugInfo(Tagged<SharedFunctionInfo> sfi) {
   return TryGetDebugInfo(sfi).has_value();
 }
 
-bool Debug::HasCoverageInfo(SharedFunctionInfo sfi) {
+bool Debug::HasCoverageInfo(Tagged<SharedFunctionInfo> sfi) {
   if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info->HasCoverageInfo();
   }
   return false;
 }
 
-bool Debug::HasBreakInfo(SharedFunctionInfo sfi) {
+bool Debug::HasBreakInfo(Tagged<SharedFunctionInfo> sfi) {
   if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info->HasBreakInfo();
   }
   return false;
 }
 
-bool Debug::BreakAtEntry(SharedFunctionInfo sfi) {
+bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
   if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info->BreakAtEntry();
   }
   return false;
 }
 
-base::Optional<Object> Debug::OnThrow(Handle<Object> exception) {
+base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
   // Temporarily clear any scheduled_exception to allow evaluating
@@ -2440,7 +2443,7 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   std::vector<int> inspector_break_points_hit;
   // This array contains breakpoints installed using JS debug API.
   for (int i = 0; i < break_points_hit->length(); ++i) {
-    BreakPoint break_point = BreakPoint::cast(break_points_hit->get(i));
+    Tagged<BreakPoint> break_point = BreakPoint::cast(break_points_hit->get(i));
     inspector_break_points_hit.push_back(break_point->id());
   }
   {
@@ -3073,8 +3076,8 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   using interpreter::Bytecode;
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-  SharedFunctionInfo shared = frame->function()->shared();
-  BytecodeArray bytecode_array = shared->GetBytecodeArray(isolate_);
+  Tagged<SharedFunctionInfo> shared = frame->function()->shared();
+  Tagged<BytecodeArray> bytecode_array = shared->GetBytecodeArray(isolate_);
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayIterator bytecode_iterator(
       handle(bytecode_array, isolate_), offset);

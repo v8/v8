@@ -179,9 +179,9 @@ BUILTIN(AtomicsNotify) {
   return FutexEmulation::Wake(array_buffer, wake_addr, c);
 }
 
-Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
-              Handle<Object> array, Handle<Object> index, Handle<Object> value,
-              Handle<Object> timeout) {
+Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
+                      Handle<Object> array, Handle<Object> index,
+                      Handle<Object> value, Handle<Object> timeout) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

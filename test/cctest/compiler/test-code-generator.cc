@@ -284,7 +284,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       os << Object::Number(*value);
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray vector = FixedArray::cast(*value);
+      Tagged<FixedArray> vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
         os << Smi::cast(vector->get(lane)).value();
@@ -774,7 +774,7 @@ class TestEnvironment : public HandleAndZoneScope {
     return static_cast<int>(std::distance(layout.cbegin(), it));
   }
 
-  Object GetMoveSource(Handle<FixedArray> state, MoveOperands* move) {
+  Tagged<Object> GetMoveSource(Handle<FixedArray> state, MoveOperands* move) {
     InstructionOperand from = move->source();
     if (from.IsConstant()) {
       Constant constant = instructions_.GetConstant(
@@ -823,7 +823,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
-      Object source = GetMoveSource(state_out, move);
+      Tagged<Object> source = GetMoveSource(state_out, move);
       state_out->set(to_index, source);
     }
     return state_out;
@@ -838,7 +838,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
-      Object source = GetMoveSource(state_in, move);
+      Tagged<Object> source = GetMoveSource(state_in, move);
       state_out->set(to_index, source);
     }
     // If we generated redundant moves, they were eliminated automatically and

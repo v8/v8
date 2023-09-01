@@ -128,7 +128,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a) const;
-  inline bool Contains(Object o) const;
+  inline bool Contains(Tagged<Object> o) const;
   bool ContainsSlow(Address addr) const;
 
   // Does the space need executable memory?

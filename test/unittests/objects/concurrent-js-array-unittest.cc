@@ -63,7 +63,7 @@ class BackgroundThread final : public v8::base::Thread {
         continue;
       }
 
-      base::Optional<Object> result =
+      base::Optional<Tagged<Object>> result =
           ConcurrentLookupIterator::TryGetOwnCowElement(
               isolate, FixedArray::cast(*elements), elements_kind,
               Smi::ToInt(x->length(isolate, kRelaxedLoad)), kIndex);

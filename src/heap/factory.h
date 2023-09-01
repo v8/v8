@@ -481,9 +481,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Initializes the fields of a newly created Map using roots from the
   // passed-in Heap. Exposed for tests and heap setup; other code should just
   // call NewMap which takes care of it.
-  Map InitializeMap(Tagged<Map> map, InstanceType type, int instance_size,
-                    ElementsKind elements_kind, int inobject_properties,
-                    Heap* roots);
+  Tagged<Map> InitializeMap(Tagged<Map> map, InstanceType type,
+                            int instance_size, ElementsKind elements_kind,
+                            int inobject_properties, Heap* roots);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.

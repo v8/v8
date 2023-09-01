@@ -153,7 +153,7 @@ bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   return Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
-bool IsNewObjectInCorrectGeneration(HeapObject object);
+bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object);
 
 template <typename GlobalOrPersistent>
 bool IsNewObjectInCorrectGeneration(v8::Isolate* isolate,

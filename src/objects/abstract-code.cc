@@ -12,10 +12,10 @@ namespace internal {
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {
   CHECK_NE(kind(cage_base), CodeKind::BASELINE);
-  Object maybe_table = SourcePositionTableInternal(cage_base);
+  Tagged<Object> maybe_table = SourcePositionTableInternal(cage_base);
   if (IsException(maybe_table)) return kNoSourcePosition;
 
-  ByteArray source_position_table = ByteArray::cast(maybe_table);
+  Tagged<ByteArray> source_position_table = ByteArray::cast(maybe_table);
   // Subtract one because the current PC is one instruction after the call site.
   if (IsCode(*this, cage_base)) offset--;
   int position = 0;

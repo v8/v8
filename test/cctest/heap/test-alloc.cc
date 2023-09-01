@@ -50,7 +50,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   AlwaysAllocateScopeForTesting scope(heap);
   int size = FixedArray::SizeFor(100);
   // Young generation.
-  HeapObject obj =
+  Tagged<HeapObject> obj =
       heap->AllocateRaw(size, AllocationType::kYoung).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.

@@ -125,7 +125,7 @@ Address ReadOnlyRoots::last_name_for_protector() const {
   return address_at(RootIndex::kLastNameForProtector);
 }
 
-bool ReadOnlyRoots::IsNameForProtector(HeapObject object) const {
+bool ReadOnlyRoots::IsNameForProtector(Tagged<HeapObject> object) const {
   return base::IsInRange(object.ptr(), first_name_for_protector(),
                          last_name_for_protector());
 }

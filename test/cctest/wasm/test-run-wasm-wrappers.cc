@@ -33,12 +33,12 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
   return maybe_instance.ToHandleChecked();
 }
 
-bool IsGeneric(Code wrapper) {
+bool IsGeneric(Tagged<Code> wrapper) {
   return wrapper->is_builtin() &&
          wrapper->builtin_id() == Builtin::kJSToWasmWrapper;
 }
 
-bool IsSpecific(Code wrapper) {
+bool IsSpecific(Tagged<Code> wrapper) {
   return wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION;
 }
 
@@ -175,7 +175,7 @@ TEST(WrapperReplacement) {
     }
 
     // Get the wrapper-code object after the wrapper replacement.
-    Code wrapper_after_call = main_function_data->wrapper_code();
+    Tagged<Code> wrapper_after_call = main_function_data->wrapper_code();
 
     // Verify that the budget has been exhausted.
     CHECK_EQ(main_function_data->wrapper_budget(), 0);

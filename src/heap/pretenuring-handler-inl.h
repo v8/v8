@@ -17,7 +17,8 @@ namespace v8 {
 namespace internal {
 
 void PretenuringHandler::UpdateAllocationSite(
-    Map map, HeapObject object, PretenuringFeedbackMap* pretenuring_feedback) {
+    Tagged<Map> map, Tagged<HeapObject> object,
+    PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
@@ -29,7 +30,7 @@ void PretenuringHandler::UpdateAllocationSite(
       !AllocationSite::CanTrack(map->instance_type())) {
     return;
   }
-  AllocationMemento memento_candidate =
+  Tagged<AllocationMemento> memento_candidate =
       FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate.is_null()) return;
   DCHECK(IsJSObjectMap(map));
@@ -42,8 +43,8 @@ void PretenuringHandler::UpdateAllocationSite(
 }
 
 template <PretenuringHandler::FindMementoMode mode>
-AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
-                                                            HeapObject object) {
+Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
+    Tagged<Map> map, Tagged<HeapObject> object) {
   Address object_address = object.address();
   Address memento_address =
       object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object->SizeFromMap(map));
@@ -59,7 +60,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
   if (mode != FindMementoMode::kForGC && !object_page->SweepingDone())
     return AllocationMemento();
 
-  HeapObject candidate = HeapObject::FromAddress(memento_address);
+  Tagged<HeapObject> candidate = HeapObject::FromAddress(memento_address);
   ObjectSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
@@ -84,7 +85,8 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
     }
   }
 
-  AllocationMemento memento_candidate = AllocationMemento::cast(candidate);
+  Tagged<AllocationMemento> memento_candidate =
+      AllocationMemento::cast(candidate);
 
   // Depending on what the memento is used for, we might need to perform
   // additional checks.

@@ -46,35 +46,38 @@ class YoungGenerationMarkingVisitor final
     return marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent;
   }
 
-  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
+  V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
-  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+  V8_INLINE void VisitPointer(Tagged<HeapObject> host,
+                              MaybeObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
 
   // Visitation specializations used for unified heap young gen marking.
-  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
-  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
+  V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
+                                   Tagged<JSArrayBuffer> object);
   V8_INLINE int VisitJSDataViewOrRabGsabDataView(
-      Map map, JSDataViewOrRabGsabDataView object);
-  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
+      Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object);
+  V8_INLINE int VisitJSTypedArray(Tagged<Map> map, Tagged<JSTypedArray> object);
 
   // Visitation specializations used for collecting pretenuring feedback.
-  V8_INLINE int VisitJSObject(Map map, JSObject object);
-  V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
+  V8_INLINE int VisitJSObject(Tagged<Map> map, Tagged<JSObject> object);
+  V8_INLINE int VisitJSObjectFast(Tagged<Map> map, Tagged<JSObject> object);
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE int VisitJSObjectSubclass(Map map, T object);
+  V8_INLINE int VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
 
-  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable table);
+  V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
+                                        Tagged<EphemeronHashTable> table);
 
   template <ObjectVisitationMode visitation_mode,
             SlotTreatmentMode slot_treatment_mode, typename TSlot>
@@ -97,19 +100,21 @@ class YoungGenerationMarkingVisitor final
  private:
   using Parent = NewSpaceVisitor<YoungGenerationMarkingVisitor<marking_mode>>;
 
-  bool TryMark(HeapObject obj) {
+  bool TryMark(Tagged<HeapObject> obj) {
     return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
   }
 
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+  V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
+                                   TSlot end);
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
   V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
 #endif  // V8_MINORMS_STRING_SHORTCUTTING
 
   template <typename T>
-  int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
+  int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
+                                                      Tagged<T> object);
 
   static constexpr size_t kNumEntries = 128;
   static constexpr size_t kEntriesMask = kNumEntries - 1;

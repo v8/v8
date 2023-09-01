@@ -214,7 +214,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
   array = EnsureSpace(isolate, array, length + 1);
   {
     DisallowGarbageCollection no_gc;
-    WeakArrayList raw = *array;
+    Tagged<WeakArrayList> raw = *array;
     // Reload length; GC might have removed elements from the array.
     length = raw->length();
     raw->Set(length, *value);
@@ -231,7 +231,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
   array = EnsureSpace(isolate, array, length + 2);
   {
     DisallowGarbageCollection no_gc;
-    WeakArrayList raw = *array;
+    Tagged<WeakArrayList> raw = *array;
     // Reload length; GC might have removed elements from the array.
     length = array->length();
     raw->Set(length, *value1);
@@ -250,7 +250,7 @@ Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
   int new_length = 0;
   {
     DisallowGarbageCollection no_gc;
-    WeakArrayList raw = *array;
+    Tagged<WeakArrayList> raw = *array;
     length = raw->length();
 
     if (length < raw->capacity()) {
@@ -283,7 +283,7 @@ Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
 
   {
     DisallowGarbageCollection no_gc;
-    WeakArrayList raw = *array;
+    Tagged<WeakArrayList> raw = *array;
     // Reload length, allocation might have killed some weak refs.
     int index = raw->length();
     raw->Set(index, *value);

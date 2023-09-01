@@ -39,7 +39,7 @@ class Page : public MemoryChunk {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
-  static Page* FromHeapObject(HeapObject o) {
+  static Page* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }

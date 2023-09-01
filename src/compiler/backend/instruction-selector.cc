@@ -42,10 +42,10 @@ const turboshaft::EffectDimensions::Bits kTurboshaftEffectLevelMask =
     turboshaft::OpEffects().CanReadMemory().produces.bits();
 }
 
-Smi NumberConstantToSmi(Node* node) {
+Tagged<Smi> NumberConstantToSmi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
   const double d = OpParameter<double>(node->op());
-  Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+  Tagged<Smi> smi = Smi::FromInt(static_cast<int32_t>(d));
   CHECK_EQ(smi.value(), d);
   return smi;
 }
@@ -589,7 +589,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       case Kind::kNumber:
         if (rep == MachineRepresentation::kWord32) {
           const double d = constant->number();
-          Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+          Tagged<Smi> smi = Smi::FromInt(static_cast<int32_t>(d));
           CHECK_EQ(smi.value(), d);
           return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
         }
@@ -649,7 +649,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       return g->UseImmediate(input);
     case IrOpcode::kNumberConstant:
       if (rep == MachineRepresentation::kWord32) {
-        Smi smi = NumberConstantToSmi(input);
+        Tagged<Smi> smi = NumberConstantToSmi(input);
         return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
       } else {
         return g->UseImmediate(input);
@@ -2375,35 +2375,34 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
       opcode = kArchTailCallAddress;
       break;
 #if V8_ENABLE_WEBASSEMBLY
-      case CallDescriptor::kCallWasmFunction:
-        DCHECK(!caller->IsJSFunctionCall());
-        opcode = kArchTailCallWasm;
-        break;
+    case CallDescriptor::kCallWasmFunction:
+      DCHECK(!caller->IsJSFunctionCall());
+      opcode = kArchTailCallWasm;
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-      default:
-        UNREACHABLE();
+    default:
+      UNREACHABLE();
   }
-    opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
+  opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
-    Emit(kArchPrepareTailCall, g.NoOutput());
+  Emit(kArchPrepareTailCall, g.NoOutput());
 
-    // Add an immediate operand that represents the offset to the first slot
-    // that is unused with respect to the stack pointer that has been updated
-    // for the tail call instruction. Backends that pad arguments can write the
-    // padding value at this offset from the stack.
-    const int optional_padding_offset =
-        callee->GetOffsetToFirstUnusedStackSlot() - 1;
-    buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
+  // Add an immediate operand that represents the offset to the first slot
+  // that is unused with respect to the stack pointer that has been updated
+  // for the tail call instruction. Backends that pad arguments can write the
+  // padding value at this offset from the stack.
+  const int optional_padding_offset =
+      callee->GetOffsetToFirstUnusedStackSlot() - 1;
+  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
 
-    const int first_unused_slot_offset =
-        kReturnAddressStackSlotCount + stack_param_delta;
-    buffer.instruction_args.push_back(
-        g.TempImmediate(first_unused_slot_offset));
+  const int first_unused_slot_offset =
+      kReturnAddressStackSlotCount + stack_param_delta;
+  buffer.instruction_args.push_back(g.TempImmediate(first_unused_slot_offset));
 
-    // Emit the tailcall instruction.
-    Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
-         &buffer.instruction_args.front(), temps.size(),
-         temps.empty() ? nullptr : &temps.front());
+  // Emit the tailcall instruction.
+  Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
+       &buffer.instruction_args.front(), temps.size(),
+       temps.empty() ? nullptr : &temps.front());
 }
 
 template <typename Adapter>

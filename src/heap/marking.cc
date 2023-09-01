@@ -142,7 +142,7 @@ MarkBit MarkBit::FromForTesting(Address address) {
 }
 
 // static
-MarkBit MarkBit::FromForTesting(HeapObject heap_object) {
+MarkBit MarkBit::FromForTesting(Tagged<HeapObject> heap_object) {
   return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 

@@ -66,7 +66,8 @@ class MaglevSafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc,
+                                Tagged<Code> code);
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;
   MaglevSafepointTable& operator=(const MaglevSafepointTable&) = delete;
 
@@ -107,13 +108,13 @@ class MaglevSafepointTable {
 
   // Returns the entry for the given pc.
   MaglevSafepointEntry FindEntry(Address pc) const;
-  static MaglevSafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
-                                        Address pc);
+  static MaglevSafepointEntry FindEntry(Isolate* isolate,
+                                        Tagged<GcSafeCode> code, Address pc);
 
   void Print(std::ostream&) const;
 
  private:
-  MaglevSafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+  MaglevSafepointTable(Isolate* isolate, Address pc, Tagged<GcSafeCode> code);
 
   // Layout information.
   static constexpr int kLengthOffset = 0;

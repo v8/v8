@@ -32,7 +32,7 @@ namespace v8 {
 namespace internal {
 
 template <VisitorId visitor_id>
-inline bool ContainsReadOnlyMap(PtrComprCageBase, HeapObject) {
+inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   return false;
 }
 
@@ -82,7 +82,7 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, HeapObject) {
 #define DEFINE_READ_ONLY_MAP_SPECIALIZATION(VisitorIdType)                    \
   template <>                                                                 \
   inline bool ContainsReadOnlyMap<VisitorId::kVisit##VisitorIdType>(          \
-      PtrComprCageBase cage_base, HeapObject object) {                        \
+      PtrComprCageBase cage_base, Tagged<HeapObject> object) {                \
     /* If you see this DCHECK fail we encountered a Map with a VisitorId that \
      * should have only ever appeared in read-only space. */                  \
     DCHECK(object->map(cage_base).InReadOnlySpace());                         \
@@ -107,18 +107,20 @@ HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(Heap* heap)
 
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
-T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
+Tagged<T> HeapVisitor<ResultType, ConcreteVisitor>::Cast(
+    Tagged<HeapObject> object) {
   return T::cast(object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject object) {
-  return Visit(object.map(cage_base()), object);
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
+    Tagged<HeapObject> object) {
+  return Visit(object->map(cage_base()), object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
-                                                           HeapObject object) {
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
+    Tagged<Map> map, Tagged<HeapObject> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (map->visitor_id()) {
 #define CASE(TypeName)               \
@@ -155,8 +157,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 template <typename ResultType, typename ConcreteVisitor>
 template <VisitorId visitor_id>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
-    HeapObject host) {
-  DCHECK(!host.map_word(cage_base(), kRelaxedLoad).IsForwardingAddress());
+    Tagged<HeapObject> host) {
+  DCHECK(!host->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress());
   if constexpr (!ConcreteVisitor::ShouldVisitMapPointer()) {
     return;
   }
@@ -192,13 +194,13 @@ TORQUE_VISITOR_ID_LIST(VISIT)
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
-    Map map, ConsString object) {
+    Tagged<Map> map, Tagged<ConsString> object) {
   return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
-    Map map, HeapObject object) {
+    Tagged<Map> map, Tagged<HeapObject> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
@@ -216,20 +218,20 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
-    Map map, JSObject object) {
+    Tagged<Map> map, Tagged<JSObject> object) {
   return VisitJSObjectSubclass<JSObject, JSObject::FastBodyDescriptor>(map,
                                                                        object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
-    Map map, JSObject object) {
+    Tagged<Map> map, Tagged<JSObject> object) {
   return VisitJSObjectSubclass<JSObject, JSObject::BodyDescriptor>(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
-    Map map, HeapObject object) {
+    Tagged<Map> map, Tagged<HeapObject> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitStruct>(object);
@@ -239,7 +241,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
-    Map map, FreeSpace object) {
+    Tagged<Map> map, Tagged<FreeSpace> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFreeSpace>(object);
   return static_cast<ResultType>(object->size(kRelaxedLoad));
@@ -248,7 +250,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T, typename TBodyDescriptor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
-    Map map, T object) {
+    Tagged<Map> map, Tagged<T> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
   const int size = TBodyDescriptor::SizeOf(map, object);
@@ -270,14 +272,16 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::ConcurrentHeapVisitor(
 
 template <typename T>
 struct ConcurrentVisitorCastHelper {
-  static V8_INLINE T Cast(HeapObject object) { return T::cast(object); }
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object) {
+    return T::cast(object);
+  }
 };
 
-#define UNCHECKED_CAST(VisitorId, TypeName)                       \
-  template <>                                                     \
-  V8_INLINE TypeName ConcurrentVisitorCastHelper<TypeName>::Cast( \
-      HeapObject object) {                                        \
-    return TypeName::unchecked_cast(object);                      \
+#define UNCHECKED_CAST(VisitorId, TypeName)                               \
+  template <>                                                             \
+  V8_INLINE Tagged<TypeName> ConcurrentVisitorCastHelper<TypeName>::Cast( \
+      Tagged<HeapObject> object) {                                        \
+    return TypeName::unchecked_cast(object);                              \
   }
 SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
 // Casts are also needed for unsafe ones for the initial dispatch in
@@ -287,7 +291,8 @@ UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
 
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
-T ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
+Tagged<T> ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(
+    Tagged<HeapObject> object) {
   if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {
     return ConcurrentVisitorCastHelper<T>::Cast(object);
   }
@@ -298,7 +303,7 @@ T ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
   template <typename ResultType, typename ConcreteVisitor>                    \
   ResultType                                                                  \
       ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(    \
-          Map map, TypeName object) {                                         \
+          Tagged<Map> map, Tagged<TypeName> object) {                         \
     if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {            \
       return VisitStringLocked(object);                                       \
     }                                                                         \
@@ -311,14 +316,15 @@ UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 
 template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
-ResultType ConcurrentHeapVisitor<ResultType,
-                                 ConcreteVisitor>::VisitStringLocked(T object) {
+ResultType
+ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::VisitStringLocked(
+    Tagged<T> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   SharedObjectLockGuard guard(object);
   // The object has been locked. At this point shared read access is
   // guaranteed but we must re-read the map and check whether the string has
   // transitioned.
-  Map map = object.map(visitor->cage_base());
+  Tagged<Map> map = object->map(visitor->cage_base());
   int size;
   switch (map->visitor_id()) {
 #define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorIdType, TypeName)         \

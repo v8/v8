@@ -99,14 +99,14 @@ class JSFunction : public TorqueGeneratedJSFunction<
   static const int kMinDescriptorsForFastBindAndWrap = 2;
 
   // [context]: The context for this function.
-  inline Context context();
+  inline Tagged<Context> context();
   DECL_RELAXED_GETTER(context, Tagged<Context>)
   inline bool has_context() const;
   using TorqueGeneratedClass::context;
   using TorqueGeneratedClass::set_context;
   DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
-  inline JSGlobalProxy global_proxy();
-  inline NativeContext native_context();
+  inline Tagged<JSGlobalProxy> global_proxy();
+  inline Tagged<NativeContext> native_context();
   inline int length();
 
   static Handle<String> GetName(Isolate* isolate, Handle<JSFunction> function);
@@ -134,7 +134,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Get the abstract code associated with the function, which will either be
   // a InstructionStream object or a BytecodeArray.
   template <typename IsolateT>
-  inline AbstractCode abstract_code(IsolateT* isolate);
+  inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -233,7 +233,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // cell arrays after compile, when we want to allocate feedback vectors
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
-  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
+  inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
   static void EnsureClosureFeedbackCellArray(
       Handle<JSFunction> function, bool reset_budget_for_feedback_allocation);
 
@@ -252,8 +252,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode();
   inline void ResetIfCodeFlushed(
-      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                        HeapObject target)>>
+      base::Optional<
+          std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                             Tagged<HeapObject> target)>>
           gc_notify_updated_slot = base::nullopt);
 
   // Returns if the closure's code field has to be updated because it has

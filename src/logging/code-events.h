@@ -90,8 +90,10 @@ class LogEventListener {
   virtual void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                      Handle<String> source) = 0;
   // Not handlified as this happens during GC. No allocation allowed.
-  virtual void CodeMoveEvent(InstructionStream from, InstructionStream to) = 0;
-  virtual void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) = 0;
+  virtual void CodeMoveEvent(Tagged<InstructionStream> from,
+                             Tagged<InstructionStream> to) = 0;
+  virtual void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                                 Tagged<BytecodeArray> to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
@@ -215,13 +217,14 @@ class Logger {
       listener->RegExpCodeCreateEvent(code, source);
     }
   }
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) {
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeMoveEvent(from, to);
     }
   }
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from, Tagged<BytecodeArray> to) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->BytecodeMoveEvent(from, to);

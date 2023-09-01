@@ -54,14 +54,14 @@ void ICStats::Dump() {
   Reset();
 }
 
-const char* ICStats::GetOrCacheScriptName(Script script) {
+const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
   Address script_ptr = script.ptr();
   if (script_name_map_.find(script_ptr) != script_name_map_.end()) {
     return script_name_map_[script_ptr].get();
   }
-  Object script_name_raw = script->name();
+  Tagged<Object> script_name_raw = script->name();
   if (IsString(script_name_raw)) {
-    String script_name = String::cast(script_name_raw);
+    Tagged<String> script_name = String::cast(script_name_raw);
     char* c_script_name =
         script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
             .release();
@@ -74,7 +74,7 @@ const char* ICStats::GetOrCacheScriptName(Script script) {
   return nullptr;
 }
 
-const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
+const char* ICStats::GetOrCacheFunctionName(Tagged<JSFunction> function) {
   Address function_ptr = function.ptr();
   // Lookup the function name or add a null unique_ptr if no entry exists.
   std::unique_ptr<char[]>& function_name = function_name_map_[function_ptr];

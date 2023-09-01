@@ -50,9 +50,10 @@ class TaggedIndex : public Object {
   }
 
   // Convert a value to a TaggedIndex object.
-  static inline TaggedIndex FromIntptr(intptr_t value) {
+  static inline Tagged<TaggedIndex> FromIntptr(intptr_t value) {
     DCHECK(TaggedIndex::IsValid(value));
-    return TaggedIndex((static_cast<Address>(value) << kSmiTagSize) | kSmiTag);
+    return Tagged<TaggedIndex>((static_cast<Address>(value) << kSmiTagSize) |
+                               kSmiTag);
   }
 
   // Returns whether value can be represented in a TaggedIndex.
@@ -73,6 +74,29 @@ class TaggedIndex : public Object {
 };
 
 CAST_ACCESSOR(TaggedIndex)
+
+// Defined Tagged<TaggedIndex> now that TaggedIndex exists.
+
+// Implicit conversions to/from raw pointers
+// TODO(leszeks): Remove once we're using Tagged everywhere.
+// NOLINTNEXTLINE
+constexpr Tagged<TaggedIndex>::Tagged(TaggedIndex raw) : TaggedBase(raw.ptr()) {
+  static_assert(kTaggedCanConvertToRawObjects);
+}
+// NOLINTNEXTLINE
+constexpr Tagged<TaggedIndex>::operator TaggedIndex() {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return TaggedIndex(ptr());
+}
+
+// Access via ->, remove once TaggedIndex doesn't have its own address.
+constexpr TaggedIndex Tagged<TaggedIndex>::operator*() const {
+  return TaggedIndex(ptr());
+}
+constexpr detail::TaggedOperatorArrowRef<TaggedIndex>
+Tagged<TaggedIndex>::operator->() {
+  return detail::TaggedOperatorArrowRef<TaggedIndex>(TaggedIndex(ptr()));
+}
 
 }  // namespace internal
 }  // namespace v8

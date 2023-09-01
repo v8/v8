@@ -313,7 +313,7 @@ void MacroAssembler::StoreTaggedField(Operand dst_field_operand,
 }
 
 void MacroAssembler::StoreTaggedSignedField(Operand dst_field_operand,
-                                            Smi value) {
+                                            Tagged<Smi> value) {
   if (SmiValuesAre32Bits()) {
     Move(kScratchRegister, value);
     movq(dst_field_operand, kScratchRegister);
@@ -1564,7 +1564,7 @@ void MacroAssembler::S256Select(YMMRegister dst, YMMRegister mask,
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
 
-Register MacroAssembler::GetSmiConstant(Smi source) {
+Register MacroAssembler::GetSmiConstant(Tagged<Smi> source) {
   Move(kScratchRegister, source);
   return kScratchRegister;
 }
@@ -1909,12 +1909,12 @@ void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   cmp_tagged(smi1, smi2);
 }
 
-void MacroAssembler::SmiCompare(Register dst, Smi src) {
+void MacroAssembler::SmiCompare(Register dst, Tagged<Smi> src) {
   AssertSmi(dst);
   Cmp(dst, src);
 }
 
-void MacroAssembler::Cmp(Register dst, Smi src) {
+void MacroAssembler::Cmp(Register dst, Tagged<Smi> src) {
   if (src.value() == 0) {
     test_tagged(dst, dst);
   } else if (COMPRESS_POINTERS_BOOL) {
@@ -1938,7 +1938,7 @@ void MacroAssembler::SmiCompare(Operand dst, Register src) {
   cmp_tagged(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Smi src) {
+void MacroAssembler::SmiCompare(Operand dst, Tagged<Smi> src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
     cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src.value()));
@@ -1948,7 +1948,7 @@ void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   }
 }
 
-void MacroAssembler::Cmp(Operand dst, Smi src) {
+void MacroAssembler::Cmp(Operand dst, Tagged<Smi> src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
@@ -1985,7 +1985,7 @@ void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
+void MacroAssembler::SmiAddConstant(Operand dst, Tagged<Smi> constant) {
   if (constant.value() != 0) {
     if (SmiValuesAre32Bits()) {
       addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant.value()));
@@ -2056,7 +2056,7 @@ void MacroAssembler::Switch(Register scratch, Register reg, int case_value_base,
   bind(&fallthrough);
 }
 
-void MacroAssembler::Push(Smi source) {
+void MacroAssembler::Push(Tagged<Smi> source) {
   intptr_t smi = static_cast<intptr_t>(source.ptr());
   if (is_int32(smi)) {
     Push(Immediate(static_cast<int32_t>(smi)));
@@ -2077,7 +2077,7 @@ void MacroAssembler::Push(Smi source) {
 
 // ----------------------------------------------------------------------------
 
-void MacroAssembler::Move(Register dst, Smi source) {
+void MacroAssembler::Move(Register dst, Tagged<Smi> source) {
   static_assert(kSmiTag == 0);
   int value = source.value();
   if (value == 0) {

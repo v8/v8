@@ -9,8 +9,8 @@
 
 namespace v8::internal {
 
-void EphemeronRememberedSet::RecordEphemeronKeyWrite(EphemeronHashTable table,
-                                                     Address slot) {
+void EphemeronRememberedSet::RecordEphemeronKeyWrite(
+    Tagged<EphemeronHashTable> table, Address slot) {
   DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
   int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
   InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
@@ -19,8 +19,8 @@ void EphemeronRememberedSet::RecordEphemeronKeyWrite(EphemeronHashTable table,
   it.first->second.insert(entry.as_int());
 }
 
-void EphemeronRememberedSet::RecordEphemeronKeyWrites(EphemeronHashTable table,
-                                                      IndicesSet indices) {
+void EphemeronRememberedSet::RecordEphemeronKeyWrites(
+    Tagged<EphemeronHashTable> table, IndicesSet indices) {
   base::MutexGuard guard(&insertion_mutex_);
   auto it = tables_.find(table);
   if (it != tables_.end()) {

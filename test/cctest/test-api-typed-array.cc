@@ -18,7 +18,7 @@ namespace {
 
 void CheckElementValue(i::Isolate* isolate, int expected,
                        i::Handle<i::Object> obj, int offset) {
-  i::Object element =
+  i::Tagged<i::Object> element =
       *i::Object::GetElement(isolate, obj, offset).ToHandleChecked();
   CHECK_EQ(expected, i::Smi::ToInt(element));
 }

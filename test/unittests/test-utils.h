@@ -511,10 +511,10 @@ class V8_NODISCARD SaveFlags {
 };
 
 // For GTest.
-inline void PrintTo(Object o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Object> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
-inline void PrintTo(Smi o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Smi> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
 
@@ -527,7 +527,7 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map)
+  TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
   TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
       : TransitionsAccessor(isolate, *map) {}
@@ -542,7 +542,9 @@ class TestTransitionsAccessor : public TransitionsAccessor {
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
 
-  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
+  Tagged<TransitionArray> transitions() {
+    return TransitionsAccessor::transitions();
+  }
 };
 
 // Helper class that allows to write tests in a slot size independent manner.
@@ -583,14 +585,15 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
   explicit FakeCodeEventLogger(i::Isolate* isolate)
       : CodeEventLogger(isolate) {}
 
-  void CodeMoveEvent(i::InstructionStream from,
-                     i::InstructionStream to) override {}
-  void BytecodeMoveEvent(i::BytecodeArray from, i::BytecodeArray to) override {}
+  void CodeMoveEvent(i::Tagged<i::InstructionStream> from,
+                     i::Tagged<i::InstructionStream> to) override {}
+  void BytecodeMoveEvent(i::Tagged<i::BytecodeArray> from,
+                         i::Tagged<i::BytecodeArray> to) override {}
   void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
                            i::Handle<i::SharedFunctionInfo> shared) override {}
 
  private:
-  void LogRecordedBuffer(i::AbstractCode code,
+  void LogRecordedBuffer(i::Tagged<i::AbstractCode> code,
                          i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override {}
 #if V8_ENABLE_WEBASSEMBLY

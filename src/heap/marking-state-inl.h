@@ -14,27 +14,28 @@ namespace internal {
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsMarked(
-    const HeapObject obj) const {
+    const Tagged<HeapObject> obj) const {
   return MarkBit::From(obj).template Get<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsUnmarked(
-    const HeapObject obj) const {
+    const Tagged<HeapObject> obj) const {
   return !IsMarked(obj);
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::TryMark(HeapObject obj) {
+bool MarkingStateBase<ConcreteState, access_mode>::TryMark(
+    Tagged<HeapObject> obj) {
   return MarkBit::From(obj).template Set<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
-    HeapObject obj) {
+    Tagged<HeapObject> obj) {
   if (TryMark(obj)) {
     MemoryChunk::FromHeapObject(obj)->IncrementLiveBytesAtomically(
-        ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
+        ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base())));
     return true;
   }
   return false;

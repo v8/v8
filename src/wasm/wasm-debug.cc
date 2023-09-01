@@ -863,15 +863,16 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
   return 0;
 }
 
-void SetBreakOnEntryFlag(Script script, bool enabled) {
+void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
   if (script->break_on_entry() == enabled) return;
 
   script->set_break_on_entry(enabled);
   // Update the "break_on_entry" flag on all live instances.
-  i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
+  i::Tagged<i::WeakArrayList> weak_instance_list =
+      script->wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     if (weak_instance_list->Get(i)->IsCleared()) continue;
-    i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
+    i::Tagged<i::WasmInstanceObject> instance = i::WasmInstanceObject::cast(
         weak_instance_list->Get(i)->GetHeapObject());
     instance->set_break_on_entry(enabled);
   }
@@ -946,7 +947,8 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
 
 namespace {
 
-int GetBreakpointPos(Isolate* isolate, Object break_point_info_or_undef) {
+int GetBreakpointPos(Isolate* isolate,
+                     Tagged<Object> break_point_info_or_undef) {
   if (IsUndefined(break_point_info_or_undef, isolate)) return kMaxInt;
   return BreakPointInfo::cast(break_point_info_or_undef)->source_position();
 }
@@ -963,7 +965,7 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
   int right = breakpoint_infos->length();  // exclusive
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    Object mid_obj = breakpoint_infos->get(mid);
+    Tagged<Object> mid_obj = breakpoint_infos->get(mid);
     if (GetBreakpointPos(isolate, mid_obj) <= position) {
       left = mid;
     } else {
@@ -998,7 +1000,7 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
   if (info->GetBreakPointCount(isolate) == 0) {
     // Update array by moving breakpoints up one position.
     for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
-      Object entry = breakpoint_infos->get(i + 1);
+      Tagged<Object> entry = breakpoint_infos->get(i + 1);
       breakpoint_infos->set(i, entry);
       if (IsUndefined(entry, isolate)) break;
     }
@@ -1050,7 +1052,7 @@ bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
 }
 
 // static
-void WasmScript::ClearAllBreakpoints(Script script) {
+void WasmScript::ClearAllBreakpoints(Tagged<Script> script) {
   script->set_wasm_breakpoint_infos(
       ReadOnlyRoots(script->GetIsolate()).empty_fixed_array());
   SetBreakOnEntryFlag(script, false);
@@ -1098,7 +1100,7 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
 
   // Move elements [insert_pos, ...] up by one.
   for (int i = breakpoint_infos->length() - 1; i >= insert_pos; --i) {
-    Object entry = breakpoint_infos->get(i);
+    Tagged<Object> entry = breakpoint_infos->get(i);
     if (IsUndefined(entry, isolate)) continue;
     new_breakpoint_infos->set(i + 1, entry);
   }

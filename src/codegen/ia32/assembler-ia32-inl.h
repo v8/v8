@@ -80,7 +80,7 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
@@ -90,7 +90,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
 }
 
-void RelocInfo::set_target_object(HeapObject target,
+void RelocInfo::set_target_object(Tagged<HeapObject> target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   WriteUnalignedValue(pc_, target.ptr());
@@ -220,7 +220,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code->constant_pool() : kNullAddress,
                         target);

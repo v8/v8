@@ -113,7 +113,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   InstanceType instance_type;
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
+    Tagged<HeapObject> raw = *obj;
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
@@ -128,13 +128,13 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<Object> context_data;
     {
       DisallowGarbageCollection no_gc;
-      Script script_obj = Script::cast(*obj);
+      Tagged<Script> script_obj = Script::cast(*obj);
       DCHECK_NE(script_obj->compilation_type(), Script::CompilationType::kEval);
       // We want to differentiate between undefined and uninitialized_symbol for
       // context_data for now. It is hack to allow debugging for scripts that
       // are included as a part of custom snapshot. (see
       // debug::Script::IsEmbedded())
-      Object raw_context_data = script_obj->context_data();
+      Tagged<Object> raw_context_data = script_obj->context_data();
       if (raw_context_data != roots.undefined_value() &&
           raw_context_data != roots.uninitialized_symbol()) {
         script_obj->set_context_data(roots.undefined_value());
@@ -148,7 +148,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     SerializeGeneric(obj, slot_type);
     {
       DisallowGarbageCollection no_gc;
-      Script script_obj = Script::cast(*obj);
+      Tagged<Script> script_obj = Script::cast(*obj);
       script_obj->set_host_defined_options(*host_options);
       script_obj->set_context_data(*context_data);
     }
@@ -158,7 +158,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     bool restore_bytecode = false;
     {
       DisallowGarbageCollection no_gc;
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
       DCHECK(!sfi->IsApiFunction());
 #if V8_ENABLE_WEBASSEMBLY
       // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
@@ -178,7 +178,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     SerializeGeneric(obj, slot_type);
     if (restore_bytecode) {
       DisallowGarbageCollection no_gc;
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
       sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
     }
     return;
@@ -248,13 +248,13 @@ void CreateInterpreterDataForDeserializedCode(
   Handle<Script> script(Script::cast(result_sfi->script()), isolate);
   if (log_code_creation) Script::InitLineEnds(isolate, script);
 
-  String name = ReadOnlyRoots(isolate).empty_string();
+  Tagged<String> name = ReadOnlyRoots(isolate).empty_string();
   if (IsString(script->name())) name = String::cast(script->name());
   Handle<String> name_handle(name, isolate);
 
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
-  for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
-       shared_info = iter.Next()) {
+  for (Tagged<SharedFunctionInfo> shared_info = iter.Next();
+       !shared_info.is_null(); shared_info = iter.Next()) {
     IsCompiledScope is_compiled(shared_info, isolate);
     if (!is_compiled.is_compiled()) continue;
     DCHECK(shared_info->HasBytecodeArray());
@@ -357,7 +357,7 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
-  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+  for (Tagged<SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (!info->is_compiled()) continue;
     Handle<SharedFunctionInfo> shared_info(info, isolate);
@@ -377,13 +377,14 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 }
 
-void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
+void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate,
+                                             Tagged<Script> script) {
   // Here is main thread, we trigger early baseline compilation only in
   // concurrent sparkplug and baseline batch compilation mode which consumes
   // little main thread execution time.
   if (v8_flags.concurrent_sparkplug && v8_flags.baseline_batch_compilation) {
     SharedFunctionInfo::ScriptIterator iter(isolate, script);
-    for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+    for (Tagged<SharedFunctionInfo> info = iter.Next(); !info.is_null();
          info = iter.Next()) {
       if (info->sparkplug_compiled() && CanCompileWithBaseline(isolate, info)) {
         isolate->baseline_batch_compiler()->EnqueueSFI(info);

@@ -404,8 +404,8 @@ class ScriptContextTable : public FixedArray {
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
                                            int i);
-  inline Context get_context(int i) const;
-  inline Context get_context(int i, AcquireLoadTag tag) const;
+  inline Tagged<Context> get_context(int i) const;
+  inline Tagged<Context> get_context(int i, AcquireLoadTag tag) const;
 
   DECL_ACCESSORS(names_to_context_index, Tagged<NameToIndexHashTable>)
 
@@ -495,15 +495,15 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.
   // TODO(jgruber): Make that explicit through tags.
-  V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Object value,
+  V8_INLINE Tagged<Object> get(int index) const;
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
+  V8_INLINE void set(int index, Tagged<Object> value,
                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Accessors with acquire-release semantics.
-  V8_INLINE Object get(int index, AcquireLoadTag) const;
-  V8_INLINE Object get(PtrComprCageBase cage_base, int index,
-                       AcquireLoadTag) const;
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+  V8_INLINE Tagged<Object> get(int index, AcquireLoadTag) const;
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               AcquireLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      ReleaseStoreTag);
 
   static const int kScopeInfoOffset = kElementsOffset;
@@ -595,41 +595,41 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   // Direct slot access.
   DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)
 
-  inline Object unchecked_previous() const;
-  inline Context previous() const;
+  inline Tagged<Object> unchecked_previous() const;
+  inline Tagged<Context> previous() const;
 
-  inline Object next_context_link() const;
+  inline Tagged<Object> next_context_link() const;
 
   inline bool has_extension() const;
-  inline HeapObject extension() const;
+  inline Tagged<HeapObject> extension() const;
   V8_EXPORT_PRIVATE void set_extension(
-      HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  JSObject extension_object() const;
-  JSReceiver extension_receiver() const;
+      Tagged<HeapObject> object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  Tagged<JSObject> extension_object() const;
+  Tagged<JSReceiver> extension_receiver() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
-  SourceTextModule module() const;
+  Tagged<SourceTextModule> module() const;
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
-  Context declaration_context() const;
+  Tagged<Context> declaration_context() const;
   bool is_declaration_context() const;
 
   // Get the next closure's context on the context chain.
-  Context closure_context() const;
+  Tagged<Context> closure_context() const;
 
   // Returns a JSGlobalProxy object or null.
-  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy() const;
+  V8_EXPORT_PRIVATE Tagged<JSGlobalProxy> global_proxy() const;
 
   // Get the JSGlobalObject object.
-  V8_EXPORT_PRIVATE JSGlobalObject global_object() const;
+  V8_EXPORT_PRIVATE Tagged<JSGlobalObject> global_object() const;
 
   // Get the script context by traversing the context chain.
-  Context script_context() const;
+  Tagged<Context> script_context() const;
 
   // Compute the native context.
-  inline NativeContext native_context() const;
+  inline Tagged<NativeContext> native_context() const;
   inline bool IsDetached() const;
 
   // Predicates for context types.  IsNativeContext is already defined on
@@ -644,7 +644,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;
 
-  inline bool HasSameSecurityTokenAs(Context that) const;
+  inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
   Handle<Object> ErrorMessageForWasmCodeGeneration();
@@ -696,7 +696,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     return int{elements_kind} + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
-  inline Map GetInitialJSArrayMap(ElementsKind kind) const;
+  inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
   static const int kNotFound = -1;
 
@@ -707,17 +707,18 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   class BodyDescriptor;
 
 #ifdef VERIFY_HEAP
-  V8_EXPORT_PRIVATE void VerifyExtensionSlot(HeapObject extension);
+  V8_EXPORT_PRIVATE void VerifyExtensionSlot(Tagged<HeapObject> extension);
 #endif
 
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
+  static bool IsBootstrappingOrValidParentContext(Tagged<Object> object,
+                                                  Tagged<Context> kid);
 #endif
 
   friend class Factory;
-  inline void set_previous(Context context,
+  inline void set_previous(Tagged<Context> context,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   TQ_OBJECT_CONSTRUCTORS(Context)
@@ -733,16 +734,16 @@ class NativeContext : public Context {
   // thus we hide the non-atomic setter. Note this doesn't protect fully since
   // one could still use Context::set and/or write directly using offsets (e.g.
   // from CSA/Torque).
-  void set(int index, Object value, WriteBarrierMode mode) = delete;
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+  void set(int index, Tagged<Object> value, WriteBarrierMode mode) = delete;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
 
   inline void synchronized_set_script_context_table(
-      ScriptContextTable script_context_table);
-  inline ScriptContextTable synchronized_script_context_table() const;
+      Tagged<ScriptContextTable> script_context_table);
+  inline Tagged<ScriptContextTable> synchronized_script_context_table() const;
 
   // Caution, hack: this getter ignores the AcquireLoadTag. The global_object
   // slot is safe to read concurrently since it is immutable after
@@ -750,17 +751,18 @@ class NativeContext : public Context {
   // than heap-refs.cc.
   // TODO(jgruber): Remove this function after NativeContextRef is actually
   // never serialized and BROKER_NATIVE_CONTEXT_FIELDS is removed.
-  JSGlobalObject global_object() { return Context::global_object(); }
-  JSGlobalObject global_object(AcquireLoadTag) {
+  Tagged<JSGlobalObject> global_object() { return Context::global_object(); }
+  Tagged<JSGlobalObject> global_object(AcquireLoadTag) {
     return Context::global_object();
   }
 
-  inline Map TypedArrayElementsKindToCtorMap(ElementsKind element_kind) const;
-
-  inline Map TypedArrayElementsKindToRabGsabCtorMap(
+  inline Tagged<Map> TypedArrayElementsKindToCtorMap(
       ElementsKind element_kind) const;
 
-  bool HasTemplateLiteralObject(JSArray array);
+  inline Tagged<Map> TypedArrayElementsKindToRabGsabCtorMap(
+      ElementsKind element_kind) const;
+
+  bool HasTemplateLiteralObject(Tagged<JSArray> array);
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

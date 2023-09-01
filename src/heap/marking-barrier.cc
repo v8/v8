@@ -39,8 +39,8 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
-void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
-                           HeapObject value) {
+void MarkingBarrier::Write(Tagged<HeapObject> host, HeapObjectSlot slot,
+                           Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
@@ -56,7 +56,7 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   }
 }
 
-void MarkingBarrier::Write(HeapObject host, IndirectPointerSlot slot) {
+void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
@@ -66,7 +66,7 @@ void MarkingBarrier::Write(HeapObject host, IndirectPointerSlot slot) {
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
-  HeapObject value = HeapObject::cast(slot.load());
+  Tagged<HeapObject> value = HeapObject::cast(slot.load());
   MarkValue(host, value);
 
   // We don't emit generational- and shared write barriers for indirect
@@ -83,7 +83,7 @@ void MarkingBarrier::Write(HeapObject host, IndirectPointerSlot slot) {
   // take care of updating the pointer to itself if it is relocated.
 }
 
-void MarkingBarrier::WriteWithoutHost(HeapObject value) {
+void MarkingBarrier::WriteWithoutHost(Tagged<HeapObject> value) {
   DCHECK(is_main_thread_barrier_);
   DCHECK(is_activated_);
 
@@ -99,8 +99,8 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   MarkValueLocal(value);
 }
 
-void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
-                           HeapObject value) {
+void MarkingBarrier::Write(Tagged<InstructionStream> host,
+                           RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InWritableSharedSpace());
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
@@ -123,7 +123,7 @@ void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
   }
 }
 
-void MarkingBarrier::Write(JSArrayBuffer host,
+void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InWritableSharedSpace());
@@ -142,7 +142,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
   }
 }
 
-void MarkingBarrier::Write(DescriptorArray descriptor_array,
+void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array->map()));
@@ -186,8 +186,9 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   }
 }
 
-void MarkingBarrier::RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                                     HeapObject target) {
+void MarkingBarrier::RecordRelocSlot(Tagged<InstructionStream> host,
+                                     RelocInfo* rinfo,
+                                     Tagged<HeapObject> target) {
   DCHECK(IsCurrentMarkingBarrier(host));
   if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
 
@@ -448,7 +449,7 @@ void MarkingBarrier::PublishSharedIfNeeded() {
 }
 
 bool MarkingBarrier::IsCurrentMarkingBarrier(
-    HeapObject verification_candidate) {
+    Tagged<HeapObject> verification_candidate) {
   return WriteBarrier::CurrentMarkingBarrier(verification_candidate) == this;
 }
 

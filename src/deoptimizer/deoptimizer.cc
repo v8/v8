@@ -44,7 +44,7 @@ class DeoptimizableCodeIterator {
   DeoptimizableCodeIterator(const DeoptimizableCodeIterator&) = delete;
   DeoptimizableCodeIterator& operator=(const DeoptimizableCodeIterator&) =
       delete;
-  Code Next();
+  Tagged<Code> Next();
 
  private:
   Isolate* const isolate_;
@@ -65,9 +65,9 @@ DeoptimizableCodeIterator::DeoptimizableCodeIterator(Isolate* isolate)
           isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
       state_(kIteratingCodeSpace) {}
 
-Code DeoptimizableCodeIterator::Next() {
+Tagged<Code> DeoptimizableCodeIterator::Next() {
   while (true) {
-    HeapObject object = object_iterator_->Next();
+    Tagged<HeapObject> object = object_iterator_->Next();
     if (object.is_null()) {
       // No objects left in the current iterator, try to move to the next space
       // based on the state.
@@ -92,8 +92,8 @@ Code DeoptimizableCodeIterator::Next() {
           return Code();
       }
     }
-    InstructionStream istream = InstructionStream::cast(object);
-    Code code;
+    Tagged<InstructionStream> istream = InstructionStream::cast(object);
+    Tagged<Code> code;
     if (!istream->TryGetCode(&code, kAcquireLoad)) continue;
     if (!CodeKindCanDeoptimize(code->kind())) continue;
     return code;
@@ -125,7 +125,7 @@ class FrameWriter {
     }
   }
 
-  void PushRawObject(Object obj, const char* debug_hint) {
+  void PushRawObject(Tagged<Object> obj, const char* debug_hint) {
     intptr_t value = obj.ptr();
     PushValue(value);
     if (trace_scope_ != nullptr) {
@@ -162,7 +162,7 @@ class FrameWriter {
 
   void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
                            const char* debug_hint = "") {
-    Object obj = iterator->GetRawValue();
+    Tagged<Object> obj = iterator->GetRawValue();
     PushRawObject(obj, debug_hint);
     if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
@@ -222,7 +222,7 @@ class FrameWriter {
 #endif
   }
 
-  void DebugPrintOutputObject(Object obj, unsigned output_offset,
+  void DebugPrintOutputObject(Tagged<Object> obj, unsigned output_offset,
                               const char* debug_hint = "") {
     if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
@@ -248,7 +248,7 @@ class FrameWriter {
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               Address from, int fp_to_sp_delta,
                               Isolate* isolate) {
-  JSFunction function = JSFunction::cast(Object(raw_function));
+  Tagged<JSFunction> function = JSFunction::cast(Object(raw_function));
   Deoptimizer* deoptimizer =
       new Deoptimizer(isolate, function, kind, from, fp_to_sp_delta);
   isolate->set_current_deoptimizer(deoptimizer);
@@ -297,7 +297,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
-  ActivationsFinder(GcSafeCode topmost_optimized_code,
+  ActivationsFinder(Tagged<GcSafeCode> topmost_optimized_code,
                     bool safe_to_deopt_topmost_optimized_code) {
 #ifdef DEBUG
     topmost_ = topmost_optimized_code;
@@ -311,7 +311,7 @@ class ActivationsFinder : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->is_optimized()) {
-        GcSafeCode code = it.frame()->GcSafeLookupCode();
+        Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
         if (CodeKindCanDeoptimize(code->kind()) &&
             code->marked_for_deoptimization()) {
           // Obtain the trampoline to the deoptimizer call.
@@ -351,7 +351,7 @@ class ActivationsFinder : public ThreadVisitor {
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  GcSafeCode topmost_optimized_code;
+  Tagged<GcSafeCode> topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
@@ -360,8 +360,8 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
        it.Advance()) {
     if (it.frame()->is_optimized()) {
-      GcSafeCode code = it.frame()->GcSafeLookupCode();
-      JSFunction function =
+      Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
+      Tagged<JSFunction> function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       TraceFoundActivation(isolate, function);
       bool safe_if_deopt_triggered;
@@ -407,7 +407,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   // Mark all code, then deoptimize.
   {
     DeoptimizableCodeIterator it(isolate);
-    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+    for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
       code->set_marked_for_deoptimization(true);
     }
   }
@@ -416,7 +416,8 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 }
 
 // static
-void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
+void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
+                                     Tagged<Code> code) {
   Isolate* isolate = function->GetIsolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
@@ -452,7 +453,7 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
   bool any_marked = false;
   {
     DeoptimizableCodeIterator it(isolate);
-    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+    for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
       if (code->Inlines(*function)) {
         code->set_marked_for_deoptimization(true);
         any_marked = true;
@@ -477,7 +478,7 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   }
 }
 
-Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
+Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                          DeoptimizeKind kind, Address from, int fp_to_sp_delta)
     : isolate_(isolate),
       function_(function),
@@ -539,7 +540,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   // Calculate the deopt exit index from return address.
   DCHECK_GT(kEagerDeoptExitSize, 0);
   DCHECK_GT(kLazyDeoptExitSize, 0);
-  DeoptimizationData deopt_data =
+  Tagged<DeoptimizationData> deopt_data =
       DeoptimizationData::cast(compiled_code_->deoptimization_data());
   Address deopt_start = compiled_code_->instruction_start() +
                         deopt_data->DeoptExitStart().value();
@@ -669,15 +670,16 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 }
 
 // static
-void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate, Code code,
+void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
+                                             Tagged<Code> code,
                                              const char* reason) {
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
-  Object maybe_data = code->deoptimization_data();
+  Tagged<Object> maybe_data = code->deoptimization_data();
   if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
 
-  DeoptimizationData deopt_data = DeoptimizationData::cast(maybe_data);
+  Tagged<DeoptimizationData> deopt_data = DeoptimizationData::cast(maybe_data);
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");
@@ -702,9 +704,8 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate, Code code,
 }
 
 // static
-void Deoptimizer::TraceEvictFromOptimizedCodeCache(Isolate* isolate,
-                                                   SharedFunctionInfo sfi,
-                                                   const char* reason) {
+void Deoptimizer::TraceEvictFromOptimizedCodeCache(
+    Isolate* isolate, Tagged<SharedFunctionInfo> sfi, const char* reason) {
   if (!v8_flags.trace_deopt_verbose) return;
 
   DisallowGarbageCollection no_gc;
@@ -718,7 +719,8 @@ void Deoptimizer::TraceEvictFromOptimizedCodeCache(Isolate* isolate,
 
 #ifdef DEBUG
 // static
-void Deoptimizer::TraceFoundActivation(Isolate* isolate, JSFunction function) {
+void Deoptimizer::TraceFoundActivation(Isolate* isolate,
+                                       Tagged<JSFunction> function) {
   if (!v8_flags.trace_deopt_verbose) return;
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   PrintF(scope.file(), "[deoptimizer found activation of function: ");
@@ -747,7 +749,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
-  DeoptimizationData input_data =
+  Tagged<DeoptimizationData> input_data =
       DeoptimizationData::cast(compiled_code_->deoptimization_data());
 
   {
@@ -924,7 +926,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 // static
 bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
-                                           JSFunction function,
+                                           Tagged<JSFunction> function,
                                            BytecodeOffset deopt_exit_offset,
                                            BytecodeOffset osr_offset) {
   DisallowGarbageCollection no_gc;
@@ -982,7 +984,7 @@ Builtin DispatchBuiltinFor(bool deopt_to_baseline, bool advance_bc,
 void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                             int frame_index,
                                             bool goto_catch_handler) {
-  SharedFunctionInfo shared = translated_frame->raw_shared_info();
+  Tagged<SharedFunctionInfo> shared = translated_frame->raw_shared_info();
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const bool is_bottommost = (0 == frame_index);
   const bool is_topmost = (output_count_ - 1 == frame_index);
@@ -1009,7 +1011,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
-  BytecodeArray bytecode_array;
+  Tagged<BytecodeArray> bytecode_array;
   base::Optional<DebugInfo> debug_info = shared->TryGetDebugInfo(isolate());
   if (debug_info.has_value() && debug_info->HasBreakInfo()) {
     bytecode_array = debug_info->DebugBytecodeArray();
@@ -1041,7 +1043,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool deopt_to_baseline =
       shared->HasBaselineCode() && v8_flags.deopt_to_baseline;
   const bool restart_frame = goto_catch_handler && is_restart_frame();
-  Code dispatch_builtin = builtins->code(
+  Tagged<Code> dispatch_builtin = builtins->code(
       DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame));
 
   if (verbose_tracing_enabled()) {
@@ -1140,7 +1142,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     }
   }
   // Read the context from the translations.
-  Object context = context_pos->GetRawValue();
+  Tagged<Object> context = context_pos->GetRawValue();
   output_frame->SetContext(static_cast<intptr_t>(context.ptr()));
   frame_writer.PushTranslatedValue(context_pos, "context");
 
@@ -1166,7 +1168,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
   const int raw_bytecode_offset =
       BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
-  Smi smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
+  Tagged<Smi> smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   frame_writer.PushRawObject(smi_bytecode_offset, "bytecode offset\n");
 
   if (verbose_tracing_enabled()) {
@@ -1282,7 +1284,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
     // Set the continuation for the topmost frame.
-    Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
+    Tagged<Code> continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->instruction_start()));
   }
@@ -1460,7 +1462,7 @@ void Deoptimizer::DoComputeConstructCreateStubFrame(
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
-  Code construct_stub =
+  Tagged<Code> construct_stub =
       isolate_->builtins()->code(Builtin::kJSConstructStubGeneric);
   Address start = construct_stub->instruction_start();
   const int pc_offset =
@@ -1497,7 +1499,8 @@ void Deoptimizer::DoComputeConstructCreateStubFrame(
 
     // Set the continuation for the topmost frame.
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code continuation = isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
+    Tagged<Code> continuation =
+        isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->instruction_start()));
   }
@@ -1589,7 +1592,7 @@ void Deoptimizer::DoComputeConstructInvokeStubFrame(
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
-  Code construct_stub = isolate_->builtins()->code(
+  Tagged<Code> construct_stub = isolate_->builtins()->code(
       Builtin::kInterpreterPushArgsThenFastConstructFunction);
   Address start = construct_stub->instruction_start();
   const int pc_offset =
@@ -1626,7 +1629,8 @@ void Deoptimizer::DoComputeConstructInvokeStubFrame(
 
     // Set the continuation for the topmost frame.
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code continuation = isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
+    Tagged<Code> continuation =
+        isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->instruction_start()));
   }
@@ -1928,7 +1932,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // sure that it's harvested from the translation and copied into the register
   // set (it was automatically added at the end of the FrameState by the
   // instruction selector).
-  Object context = value_iterator->GetRawValue();
+  Tagged<Object> context = value_iterator->GetRawValue();
   const intptr_t value = context.ptr();
   TranslatedFrame::iterator context_register_value = value_iterator++;
   register_values[kContextRegister.code()] = context_register_value;
@@ -2050,7 +2054,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // For JSToWasmBuiltinContinuations use ContinueToCodeStubBuiltin, and not
   // ContinueToCodeStubBuiltinWithResult because we don't want to overwrite the
   // return value that we have already set.
-  Code continue_to_builtin =
+  Tagged<Code> continue_to_builtin =
       isolate()->builtins()->code(TrampolineForBuiltinContinuation(
           mode, frame_info.frame_has_result_stack_slot() &&
                     !is_js_to_wasm_builtin_continuation));
@@ -2067,7 +2071,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
         static_cast<intptr_t>(continue_to_builtin->instruction_start()));
   }
 
-  Code continuation = isolate()->builtins()->code(Builtin::kNotifyDeoptimized);
+  Tagged<Code> continuation =
+      isolate()->builtins()->code(Builtin::kNotifyDeoptimized);
   output_frame->SetContinuation(
       static_cast<intptr_t>(continuation->instruction_start()));
 }
@@ -2113,7 +2118,7 @@ void Deoptimizer::MaterializeHeapObjects() {
 }
 
 void Deoptimizer::QueueValueForMaterialization(
-    Address output_address, Object obj,
+    Address output_address, Tagged<Object> obj,
     const TranslatedFrame::iterator& iterator) {
   if (obj == ReadOnlyRoots(isolate_).arguments_marker()) {
     values_to_materialize_.push_back({output_address, iterator});
@@ -2136,10 +2141,10 @@ namespace {
 // points to immediately after the deopt call).
 //
 // See also the Deoptimizer constructor.
-Address GetDeoptCallPCFromReturnPC(Address return_pc, Code code) {
+Address GetDeoptCallPCFromReturnPC(Address return_pc, Tagged<Code> code) {
   DCHECK_GT(Deoptimizer::kEagerDeoptExitSize, 0);
   DCHECK_GT(Deoptimizer::kLazyDeoptExitSize, 0);
-  DeoptimizationData deopt_data =
+  Tagged<DeoptimizationData> deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
   Address deopt_start =
       code->instruction_start() + deopt_data->DeoptExitStart().value();
@@ -2197,12 +2202,14 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 // static
-unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
+unsigned Deoptimizer::ComputeIncomingArgumentSize(
+    Tagged<SharedFunctionInfo> shared) {
   int parameter_slots = shared->internal_formal_parameter_count_with_receiver();
   return parameter_slots * kSystemPointerSize;
 }
 
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
+                                                 Address pc) {
   CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;

@@ -319,7 +319,7 @@ class NodeBase {
   }
 
   // Publishes all internal state to be consumed by other threads.
-  Handle<Object> Publish(Object object) {
+  Handle<Object> Publish(Tagged<Object> object) {
     DCHECK(!AsChild()->IsInUse());
     data_.parameter = nullptr;
     AsChild()->MarkAsUsed();
@@ -335,7 +335,7 @@ class NodeBase {
     DCHECK(!AsChild()->IsInUse());
   }
 
-  Object object() const { return Object(object_); }
+  Tagged<Object> object() const { return Object(object_); }
   FullObjectSlot location() { return FullObjectSlot(&object_); }
   Handle<Object> handle() { return Handle<Object>(&object_); }
   Address raw_object() const { return object_; }
@@ -407,7 +407,8 @@ class NodeBase {
 
 namespace {
 
-void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
+void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
+                           int len) {
   int field_count = jsobject->GetEmbedderFieldCount();
   Isolate* isolate = GetIsolateForSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
@@ -614,7 +615,7 @@ GlobalHandles::~GlobalHandles() = default;
 namespace {
 
 template <typename NodeType>
-bool NeedsTrackingInYoungNodes(Object value, NodeType* node) {
+bool NeedsTrackingInYoungNodes(Tagged<Object> value, NodeType* node) {
   return ObjectInYoungGeneration(value) && !node->is_in_young_list();
 }
 
@@ -1038,10 +1039,11 @@ void EternalHandles::PostGarbageCollectionProcessing() {
   young_node_indices_.resize(last);
 }
 
-void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
+void EternalHandles::Create(Isolate* isolate, Tagged<Object> object,
+                            int* index) {
   DCHECK_EQ(kInvalidIndex, *index);
   if (object == Object()) return;
-  Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
   DCHECK_NE(the_hole, object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;

@@ -20,7 +20,7 @@ namespace {
 // marking visitor.
 class ReferenceSummarizerMarkingState final {
  public:
-  explicit ReferenceSummarizerMarkingState(HeapObject object)
+  explicit ReferenceSummarizerMarkingState(Tagged<HeapObject> object)
       : primary_object_(object),
         local_marking_worklists_(&marking_worklists_),
         local_weak_objects_(&weak_objects_) {}
@@ -43,20 +43,21 @@ class ReferenceSummarizerMarkingState final {
   }
 
   // Standard marking visitor functions:
-  bool TryMark(HeapObject obj) { return true; }
-  bool IsUnmarked(HeapObject obj) const { return true; }
-  bool IsMarked(HeapObject obj) const { return false; }
+  bool TryMark(Tagged<HeapObject> obj) { return true; }
+  bool IsUnmarked(Tagged<HeapObject> obj) const { return true; }
+  bool IsMarked(Tagged<HeapObject> obj) const { return false; }
 
   // Adds a retaining relationship found by the marking visitor.
-  void AddStrongReferenceForReferenceSummarizer(HeapObject host,
-                                                HeapObject obj) {
+  void AddStrongReferenceForReferenceSummarizer(Tagged<HeapObject> host,
+                                                Tagged<HeapObject> obj) {
     AddReference(host, obj, references_.strong_references());
   }
 
   // Adds a non-retaining weak reference found by the marking visitor. The value
   // in an ephemeron hash table entry is also included here, since it is not
   // known to be strong without further information about the key.
-  void AddWeakReferenceForReferenceSummarizer(HeapObject host, HeapObject obj) {
+  void AddWeakReferenceForReferenceSummarizer(Tagged<HeapObject> host,
+                                              Tagged<HeapObject> obj) {
     AddReference(host, obj, references_.weak_references());
   }
 
@@ -68,7 +69,7 @@ class ReferenceSummarizerMarkingState final {
   WeakObjects::Local* local_weak_objects() { return &local_weak_objects_; }
 
  private:
-  void AddReference(HeapObject host, HeapObject obj,
+  void AddReference(Tagged<HeapObject> host, Tagged<HeapObject> obj,
                     ReferenceSummary::UnorderedHeapObjectSet& references) {
     // It's possible that the marking visitor handles multiple objects at once,
     // such as a Map and its DescriptorArray, but we're only interested in
@@ -99,18 +100,19 @@ class ReferenceSummarizerMarkingVisitor
         marking_state_(marking_state) {}
 
   template <typename TSlot>
-  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
+  void RecordSlot(Tagged<HeapObject> object, TSlot slot,
+                  Tagged<HeapObject> target) {}
 
-  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                       HeapObject target) {}
+  void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
+                       Tagged<HeapObject> target) {}
 
-  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
-                                                          HeapObject obj) {
+  V8_INLINE void AddStrongReferenceForReferenceSummarizer(
+      Tagged<HeapObject> host, Tagged<HeapObject> obj) {
     marking_state_->AddStrongReferenceForReferenceSummarizer(host, obj);
   }
 
-  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
-                                                        HeapObject obj) {
+  V8_INLINE void AddWeakReferenceForReferenceSummarizer(
+      Tagged<HeapObject> host, Tagged<HeapObject> obj) {
     marking_state_->AddWeakReferenceForReferenceSummarizer(host, obj);
   }
 
@@ -121,8 +123,8 @@ class ReferenceSummarizerMarkingVisitor
   constexpr bool CanUpdateValuesInHeap() { return false; }
 
   // Standard marking visitor functions:
-  bool TryMark(HeapObject obj) { return true; }
-  bool IsMarked(HeapObject obj) const { return false; }
+  bool TryMark(Tagged<HeapObject> obj) { return true; }
+  bool IsMarked(Tagged<HeapObject> obj) const { return false; }
 
  private:
   ReferenceSummarizerMarkingState* marking_state_;
@@ -130,8 +132,8 @@ class ReferenceSummarizerMarkingVisitor
 
 }  // namespace
 
-ReferenceSummary ReferenceSummary::SummarizeReferencesFrom(Heap* heap,
-                                                           HeapObject obj) {
+ReferenceSummary ReferenceSummary::SummarizeReferencesFrom(
+    Heap* heap, Tagged<HeapObject> obj) {
   ReferenceSummarizerMarkingState marking_state(obj);
 
   ReferenceSummarizerMarkingVisitor visitor(heap, &marking_state);

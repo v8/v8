@@ -66,7 +66,7 @@ class SlotAccessorForHeapObject {
     CombinedWriteBarrier(*object_, current_slot, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
-  int Write(HeapObject value, HeapObjectReferenceType ref_type,
+  int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     return Write(HeapObjectReference::From(value, ref_type), slot_offset);
   }
@@ -75,7 +75,7 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset);
   }
 
-  int WriteIndirect(HeapObject value) {
+  int WriteIndirect(Tagged<HeapObject> value) {
     // TODO(saelo): currently, only Code objects can be referenced indirectly
     // through a pointer table, and so here we directly downcast to Code
     // because we need to know the offset at which the object has its pointer
@@ -87,7 +87,7 @@ class SlotAccessorForHeapObject {
     // and simply copy the handle into the slot. For that we don't even need to
     // know which table the object uses.
     CHECK(IsCode(value));
-    Code code = Code::cast(value);
+    Tagged<Code> code = Code::cast(value);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_);
     dest.store(code);
     IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
@@ -119,7 +119,7 @@ class SlotAccessorForRootSlots {
     current_slot.Relaxed_Store(value);
     return 1;
   }
-  int Write(HeapObject value, HeapObjectReferenceType ref_type,
+  int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     return Write(HeapObjectReference::From(value, ref_type), slot_offset);
   }
@@ -127,7 +127,7 @@ class SlotAccessorForRootSlots {
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
   }
-  int WriteIndirect(HeapObject value) { UNREACHABLE(); }
+  int WriteIndirect(Tagged<HeapObject> value) { UNREACHABLE(); }
 
  private:
   const FullMaybeObjectSlot slot_;
@@ -147,7 +147,7 @@ class SlotAccessorForHandle {
   int offset() const { UNREACHABLE(); }
 
   int Write(MaybeObject value, int slot_offset = 0) { UNREACHABLE(); }
-  int Write(HeapObject value, HeapObjectReferenceType ref_type,
+  int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
@@ -161,7 +161,7 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
-  int WriteIndirect(HeapObject value) { UNREACHABLE(); }
+  int WriteIndirect(Tagged<HeapObject> value) { UNREACHABLE(); }
 
  private:
   Handle<HeapObject>* handle_;
@@ -171,7 +171,7 @@ class SlotAccessorForHandle {
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
-                                             HeapObject heap_object,
+                                             Tagged<HeapObject> heap_object,
                                              ReferenceDescriptor descr) {
   if (descr.is_indirect_pointer) {
     return slot_accessor.WriteIndirect(heap_object);
@@ -315,7 +315,7 @@ void Deserializer<IsolateT>::WeakenDescriptorArrays() {
 }
 
 template <typename IsolateT>
-void Deserializer<IsolateT>::LogScriptEvents(Script script) {
+void Deserializer<IsolateT>::LogScriptEvents(Tagged<Script> script) {
   DisallowGarbageCollection no_gc;
   LOG(isolate(), ScriptEvent(ScriptEventType::kDeserialize, script->id()));
   LOG(isolate(), ScriptDetails(script));
@@ -323,7 +323,7 @@ void Deserializer<IsolateT>::LogScriptEvents(Script script) {
 
 namespace {
 template <typename IsolateT>
-uint32_t ComputeRawHashField(IsolateT* isolate, String string) {
+uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
   // Make sure raw_hash_field() is computed.
   string->EnsureHash(SharedStringAccessGuardIfNeeded(isolate));
   return string->raw_hash_field();
@@ -353,13 +353,15 @@ StringTableInsertionKey::StringTableInsertionKey(
 }
 
 template <typename IsolateT>
-bool StringTableInsertionKey::IsMatch(IsolateT* isolate, String string) {
+bool StringTableInsertionKey::IsMatch(IsolateT* isolate,
+                                      Tagged<String> string) {
   // We want to compare the content of two strings here.
   return string_->SlowEquals(string, SharedStringAccessGuardIfNeeded(isolate));
 }
-template bool StringTableInsertionKey::IsMatch(Isolate* isolate, String string);
+template bool StringTableInsertionKey::IsMatch(Isolate* isolate,
+                                               Tagged<String> string);
 template bool StringTableInsertionKey::IsMatch(LocalIsolate* isolate,
-                                               String string);
+                                               Tagged<String> string);
 
 namespace {
 
@@ -371,7 +373,8 @@ void NoExternalReferencesCallback() {
   FATAL("No external references provided via API");
 }
 
-void PostProcessExternalString(ExternalString string, Isolate* isolate) {
+void PostProcessExternalString(Tagged<ExternalString> string,
+                               Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   uint32_t index = string->GetResourceRefForDeserialization();
   Address address =
@@ -387,7 +390,7 @@ void PostProcessExternalString(ExternalString string, Isolate* isolate) {
 
 // Should be called only on the main thread (not thread safe).
 template <>
-void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
+void Deserializer<Isolate>::PostProcessNewJSReceiver(Tagged<Map> map,
                                                      Handle<JSReceiver> obj,
                                                      InstanceType instance_type,
                                                      SnapshotSpace space) {
@@ -450,7 +453,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
 
 template <>
 void Deserializer<LocalIsolate>::PostProcessNewJSReceiver(
-    Map map, Handle<JSReceiver> obj, InstanceType instance_type,
+    Tagged<Map> map, Handle<JSReceiver> obj, InstanceType instance_type,
     SnapshotSpace space) {
   UNREACHABLE();
 }
@@ -460,15 +463,15 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                   Handle<HeapObject> obj,
                                                   SnapshotSpace space) {
   DisallowGarbageCollection no_gc;
-  Map raw_map = *map;
+  Tagged<Map> raw_map = *map;
   DCHECK_EQ(raw_map, obj->map(isolate_));
   InstanceType instance_type = raw_map->instance_type();
-  HeapObject raw_obj = *obj;
+  Tagged<HeapObject> raw_obj = *obj;
   DCHECK_IMPLIES(deserializing_user_code(), should_rehash());
   if (should_rehash()) {
     if (InstanceTypeChecker::IsString(instance_type)) {
       // Uninitialize hash field as we need to recompute the hash.
-      String string = String::cast(raw_obj);
+      Tagged<String> string = String::cast(raw_obj);
       string->set_raw_hash_field(String::kEmptyHashField);
       // Rehash strings before read-only space is sealed. Strings outside
       // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
@@ -492,10 +495,11 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         StringTableInsertionKey key(
             isolate(), string,
             DeserializingUserCodeOption::kIsDeserializingUserCode);
-        String result = *isolate()->string_table()->LookupKey(isolate(), &key);
+        Tagged<String> result =
+            *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
-          String::cast(raw_obj).MakeThin(isolate(), result);
+          String::cast(raw_obj)->MakeThin(isolate(), result);
           // Mutate the given object handle so that the backreference entry is
           // also updated.
           obj.PatchValue(result);
@@ -526,20 +530,20 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       new_code_objects_.push_back(Handle<InstructionStream>::cast(obj));
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
-    Code code = Code::cast(raw_obj);
-    code.init_instruction_start(main_thread_isolate(), kNullAddress);
+    Tagged<Code> code = Code::cast(raw_obj);
+    code->init_instruction_start(main_thread_isolate(), kNullAddress);
     if (!code->has_instruction_stream()) {
-      code.SetInstructionStartForOffHeapBuiltin(
+      code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
                                      .InstructionStartOf(code->builtin_id()));
     } else {
-      code.UpdateInstructionStart(main_thread_isolate(),
-                                  code->instruction_stream());
+      code->UpdateInstructionStart(main_thread_isolate(),
+                                   code->instruction_stream());
     }
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    SharedFunctionInfo sfi = SharedFunctionInfo::cast(raw_obj);
+    Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(raw_obj);
     // Reset the id to avoid collisions - it must be unique in this isolate.
-    sfi.set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
+    sfi->set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {
       // Keep track of all seen Maps to log them later since they might be only
@@ -669,12 +673,12 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //     before fields with objects.
   //     - We ensure this is the case by DCHECKing on object allocation that the
   //       previously allocated object has a valid size (see `Allocate`).
-  HeapObject raw_obj =
+  Tagged<HeapObject> raw_obj =
       Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
   raw_obj->set_map_after_allocation(*map);
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
-  DCHECK(raw_obj.CheckRequiredAlignment(isolate()));
+  DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
@@ -684,10 +688,10 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
     // Make sure EphemeronHashTables have valid HeapObject keys, so that the
     // marker does not break when marking EphemeronHashTable, see
     // MarkingVisitorBase::VisitEphemeronHashTable.
-    EphemeronHashTable table = EphemeronHashTable::cast(raw_obj);
-    MemsetTagged(table->RawField(table.kElementsStartOffset),
+    Tagged<EphemeronHashTable> table = EphemeronHashTable::cast(raw_obj);
+    MemsetTagged(table->RawField(table->kElementsStartOffset),
                  ReadOnlyRoots(isolate()).undefined_value(),
-                 (size_in_bytes - table.kElementsStartOffset) / kTaggedSize);
+                 (size_in_bytes - table->kElementsStartOffset) / kTaggedSize);
   }
 
 #ifdef DEBUG
@@ -695,7 +699,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // We want to make sure that all embedder pointers are initialized to null.
   if (IsJSObject(raw_obj, cage_base) &&
       JSObject::cast(raw_obj)->MayHaveEmbedderFields()) {
-    JSObject js_obj = JSObject::cast(raw_obj);
+    Tagged<JSObject> js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj->GetEmbedderFieldCount(); ++i) {
       void* pointer;
       CHECK(EmbedderDataSlot(js_obj, i).ToAlignedPointer(main_thread_isolate(),
@@ -703,7 +707,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
       CHECK_NULL(pointer);
     }
   } else if (IsEmbedderDataArray(raw_obj, cage_base)) {
-    EmbedderDataArray array = EmbedderDataArray::cast(raw_obj);
+    Tagged<EmbedderDataArray> array = EmbedderDataArray::cast(raw_obj);
     EmbedderDataSlot start(array, 0);
     EmbedderDataSlot end(array, array->length());
     for (EmbedderDataSlot slot = start; slot < end; ++slot) {
@@ -738,12 +742,12 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   const int size_in_bytes = Map::kSize;
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
-  HeapObject raw_obj =
+  Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
   raw_obj->set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
-  DCHECK(raw_obj.CheckRequiredAlignment(isolate()));
+  DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
 
   Handle<HeapObject> obj = handle(raw_obj, isolate());
   back_refs_.push_back(obj);
@@ -941,7 +945,7 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
   ReadOnlyPage* page = read_only_space->pages()[chunk_index];
   Address address = page->OffsetToAddress(chunk_offset);
-  HeapObject heap_object = HeapObject::FromAddress(address);
+  Tagged<HeapObject> heap_object = HeapObject::FromAddress(address);
 
   return WriteHeapPointer(slot_accessor, heap_object,
                           GetAndResetNextReferenceDescriptor());
@@ -971,7 +975,7 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
   int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the startup_object_cache
   // entry as a Handle backing?
-  HeapObject heap_object = HeapObject::cast(
+  Tagged<HeapObject> heap_object = HeapObject::cast(
       main_thread_isolate()->startup_object_cache()->at(cache_index));
   return WriteHeapPointer(slot_accessor, heap_object,
                           GetAndResetNextReferenceDescriptor());
@@ -986,7 +990,7 @@ int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
   int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
-  HeapObject heap_object = HeapObject::cast(
+  Tagged<HeapObject> heap_object = HeapObject::cast(
       main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
   DCHECK(SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(heap_object));
   return WriteHeapPointer(slot_accessor, heap_object,
@@ -1271,8 +1275,8 @@ ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
 }
 
 template <typename IsolateT>
-HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
-                                            AllocationAlignment alignment) {
+Tagged<HeapObject> Deserializer<IsolateT>::Allocate(
+    AllocationType allocation, int size, AllocationAlignment alignment) {
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to
@@ -1282,8 +1286,9 @@ HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
   }
 #endif
 
-  HeapObject obj = HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
-      size, allocation, AllocationOrigin::kRuntime, alignment));
+  Tagged<HeapObject> obj =
+      HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
+          size, allocation, AllocationOrigin::kRuntime, alignment));
 
 #ifdef DEBUG
   previous_allocation_obj_ = handle(obj, isolate());

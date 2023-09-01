@@ -12,7 +12,8 @@
 namespace v8 {
 namespace internal {
 
-void RelocInfo::set_target_object(InstructionStream host, HeapObject target,
+void RelocInfo::set_target_object(Tagged<InstructionStream> host,
+                                  Tagged<HeapObject> target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   set_target_object(target, icache_flush_mode);

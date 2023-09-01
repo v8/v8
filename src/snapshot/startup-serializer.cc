@@ -95,7 +95,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 #endif  // DEBUG
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
+    Tagged<HeapObject> raw = *obj;
     DCHECK(!IsInstructionStream(raw));
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
@@ -139,7 +139,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // This comes right after serialization of the context snapshot, where we
   // add entries to the startup object cache of the startup snapshot. Add
   // one entry with 'undefined' to terminate the startup object cache.
-  Object undefined = ReadOnlyRoots(isolate()).undefined_value();
+  Tagged<Object> undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
@@ -196,7 +196,7 @@ void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
       isolate->heap()->dirty_js_finalization_registries_list_tail(), isolate));
 }
 
-void SerializedHandleChecker::AddToSet(FixedArray serialized) {
+void SerializedHandleChecker::AddToSet(Tagged<FixedArray> serialized) {
   int length = serialized->length();
   for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
 }

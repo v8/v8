@@ -88,7 +88,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
 RUNTIME_FUNCTION(Runtime_IsFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Object object = args[0];
+  Tagged<Object> object = args[0];
   return isolate->heap()->ToBoolean(IsFunction(object));
 }
 

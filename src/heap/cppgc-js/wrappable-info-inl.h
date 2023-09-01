@@ -14,7 +14,7 @@ namespace v8::internal {
 
 // static
 base::Optional<WrappableInfo> WrappableInfo::From(
-    Isolate* isolate, JSObject wrapper,
+    Isolate* isolate, Tagged<JSObject> wrapper,
     const WrapperDescriptor& wrapper_descriptor) {
   DCHECK(wrapper->MayHaveEmbedderFields());
   return wrapper->GetEmbedderFieldCount() < 2

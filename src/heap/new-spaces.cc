@@ -723,7 +723,7 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
     Address current_address = page->area_start();
 
     while (!Page::IsAlignedToPageSize(current_address)) {
-      HeapObject object = HeapObject::FromAddress(current_address);
+      Tagged<HeapObject> object = HeapObject::FromAddress(current_address);
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
@@ -732,7 +732,7 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
       visitor->VerifyObject(object);
 
       if (IsExternalString(object, cage_base)) {
-        ExternalString external_string = ExternalString::cast(object);
+        Tagged<ExternalString> external_string = ExternalString::cast(object);
         size_t string_size = external_string->ExternalPayloadSize();
         external_space_bytes[static_cast<int>(
             ExternalBackingStoreType::kExternalString)] += string_size;

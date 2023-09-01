@@ -573,7 +573,7 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester, uint32_t count) {
   return old_head->NotifyAllInList();
 }
 
-Object JSAtomicsCondition::NumWaitersForTesting(Isolate* isolate) {
+Tagged<Object> JSAtomicsCondition::NumWaitersForTesting(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   std::atomic<StateT>* state = AtomicStatePtr();
   StateT current_state = state->load(std::memory_order_relaxed);

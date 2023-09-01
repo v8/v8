@@ -359,7 +359,8 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   }
 
   if constexpr (kind == ArrayIndexOfIncludesKind::DOUBLE) {
-    FixedDoubleArray fixed_array = FixedDoubleArray::cast(Object(array_start));
+    Tagged<FixedDoubleArray> fixed_array =
+        FixedDoubleArray::cast(Object(array_start));
     double* array = static_cast<double*>(
         fixed_array->RawField(FixedDoubleArray::OffsetOfElementAt(0))
             .ToVoidPtr());
@@ -394,7 +395,7 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   }
 
   if constexpr (kind == ArrayIndexOfIncludesKind::OBJECTORSMI) {
-    FixedArray fixed_array = FixedArray::cast(Object(array_start));
+    Tagged<FixedArray> fixed_array = FixedArray::cast(Object(array_start));
     Tagged_t* array =
         static_cast<Tagged_t*>(fixed_array->data_start().ToVoidPtr());
 

@@ -26,7 +26,7 @@ void IC::update_lookup_start_object_map(Handle<Object> object) {
 }
 
 bool IC::IsHandler(MaybeObject object) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   return (IsSmi(object) && (object.ptr() != kNullAddress)) ||
          (object->GetHeapObjectIfWeak(&heap_object) &&
           (IsMap(heap_object) || IsPropertyCell(heap_object) ||

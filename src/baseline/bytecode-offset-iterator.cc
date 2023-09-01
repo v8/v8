@@ -26,8 +26,8 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
   Initialize();
 }
 
-BytecodeOffsetIterator::BytecodeOffsetIterator(ByteArray mapping_table,
-                                               BytecodeArray bytecodes)
+BytecodeOffsetIterator::BytecodeOffsetIterator(Tagged<ByteArray> mapping_table,
+                                               Tagged<BytecodeArray> bytecodes)
     : data_start_address_(mapping_table->GetDataStartAddress()),
       data_length_(mapping_table->length()),
       current_index_(0),

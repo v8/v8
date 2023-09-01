@@ -360,11 +360,11 @@ class V8_EXPORT_PRIVATE CpuProfiler {
       const char* title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   CpuProfilingResult StartProfiling(
-      String title, CpuProfilingOptions options = {},
+      Tagged<String> title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(String title);
+  CpuProfile* StopProfiling(Tagged<String> title);
   CpuProfile* StopProfiling(ProfilerId id);
 
   int GetProfilesCount();

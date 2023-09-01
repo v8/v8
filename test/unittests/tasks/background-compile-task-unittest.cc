@@ -111,7 +111,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Smi value = Smi::cast(*RunJS("f(100);"));
+  Tagged<Smi> value = Smi::cast(*RunJS("f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 }
 

@@ -29,14 +29,14 @@ class SerializerDeserializer : public RootVisitor {
     kAnySlot,
     kMapSlot,
   };
-  static bool CanBeDeferred(HeapObject o, SlotType slot_type);
+  static bool CanBeDeferred(Tagged<HeapObject> o, SlotType slot_type);
 
   void RestoreExternalReferenceRedirector(Isolate* isolate,
-                                          AccessorInfo accessor_info);
-  void RestoreExternalReferenceRedirector(Isolate* isolate,
-                                          CallHandlerInfo call_handler_info);
+                                          Tagged<AccessorInfo> accessor_info);
+  void RestoreExternalReferenceRedirector(
+      Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info);
 
-// clang-format off
+  // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x10..0x1f */                                     \
   V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                         \

@@ -26,7 +26,7 @@ class LargePage : public MemoryChunk {
     return cast(MemoryChunk::cast(chunk));
   }
 
-  static LargePage* FromHeapObject(HeapObject o) {
+  static LargePage* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return cast(MemoryChunk::FromHeapObject(o));
   }

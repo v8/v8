@@ -78,7 +78,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DCHECK(IsMap(HeapObject::FromAddress(soon_object)->map(isolate_), isolate_));
 
   HandleScope scope(isolate_);
-  HeapObject heap_object = HeapObject::FromAddress(soon_object);
+  Tagged<HeapObject> heap_object = HeapObject::FromAddress(soon_object);
   Handle<Object> obj(heap_object, isolate_);
 
   // Since soon_object can be in code space we can't use v8::Utils::ToLocal.
@@ -161,7 +161,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     // in the top frames of the stack). The allocations made in this
     // sensitive moment belong to the formerly optimized frame anyway.
     if (IsJSFunction(frame->unchecked_function())) {
-      SharedFunctionInfo shared = frame->function()->shared();
+      Tagged<SharedFunctionInfo> shared = frame->function()->shared();
       stack.push_back(shared);
       frames_captured++;
     } else {
@@ -207,11 +207,11 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   // We need to process the stack in reverse order as the top of the stack is
   // the first element in the list.
   for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
-    SharedFunctionInfo shared = *it;
+    Tagged<SharedFunctionInfo> shared = *it;
     const char* name = this->names()->GetCopy(shared->DebugNameCStr().get());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (IsScript(shared->script())) {
-      Script script = Script::cast(shared->script());
+      Tagged<Script> script = Script::cast(shared->script());
       script_id = script->id();
     }
     node = FindOrAddChildNode(node, name, script_id, shared->StartPosition());
@@ -242,7 +242,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     if (script_iterator != scripts.end()) {
       Handle<Script> script = script_iterator->second;
       if (IsName(script->name())) {
-        Name name = Name::cast(script->name());
+        Tagged<Name> name = Name::cast(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }
@@ -284,7 +284,7 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   std::map<int, Handle<Script>> scripts;
   {
     Script::Iterator iterator(isolate_);
-    for (Script script = iterator.Next(); !script.is_null();
+    for (Tagged<Script> script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
       scripts[script->id()] = handle(script, isolate_);
     }

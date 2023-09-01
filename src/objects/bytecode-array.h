@@ -80,7 +80,7 @@ class BytecodeArray
   V8_EXPORT_PRIVATE static void Disassemble(Handle<BytecodeArray> handle,
                                             std::ostream& os);
 
-  void CopyBytecodesTo(BytecodeArray to);
+  void CopyBytecodesTo(Tagged<BytecodeArray> to);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.

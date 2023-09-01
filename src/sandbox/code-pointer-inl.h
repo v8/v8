@@ -16,7 +16,7 @@ namespace internal {
 
 V8_INLINE void InitCodePointerTableEntryField(Address field_address,
                                               Isolate* isolate,
-                                              HeapObject owning_code,
+                                              Tagged<HeapObject> owning_code,
                                               Address entrypoint) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   CodePointerTable::Space* space =

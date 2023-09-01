@@ -89,7 +89,7 @@ void Page::MarkNeverAllocateForTesting() {
 namespace {
 // Skips filler starting from the given filler until the end address.
 // Returns the first address after the skipped fillers.
-Address SkipFillers(PtrComprCageBase cage_base, HeapObject filler,
+Address SkipFillers(PtrComprCageBase cage_base, Tagged<HeapObject> filler,
                     Address end) {
   Address addr = filler.address();
   while (addr < end) {
@@ -110,7 +110,7 @@ size_t Page::ShrinkToHighWaterMark() {
 
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
-  HeapObject filler = HeapObject::FromAddress(HighWaterMark());
+  Tagged<HeapObject> filler = HeapObject::FromAddress(HighWaterMark());
   if (filler.address() == area_end()) return 0;
   PtrComprCageBase cage_base(heap()->isolate());
   CHECK(IsFreeSpaceOrFiller(filler, cage_base));

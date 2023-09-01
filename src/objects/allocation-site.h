@@ -175,7 +175,7 @@ class AllocationMemento
   DECL_ACCESSORS(allocation_site, Tagged<Object>)
 
   inline bool IsValid() const;
-  inline AllocationSite GetAllocationSite() const;
+  inline Tagged<AllocationSite> GetAllocationSite() const;
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)

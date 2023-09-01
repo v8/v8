@@ -23,26 +23,28 @@ namespace {
 // Returns the holder JSObject if the function can legally be called with this
 // receiver.  Returns nullptr if the call is illegal.
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
-JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
-                                 JSReceiver receiver) {
+Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
+                                         Tagged<FunctionTemplateInfo> info,
+                                         Tagged<JSReceiver> receiver) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kGetCompatibleReceiver);
-  Object recv_type = info->signature();
+  Tagged<Object> recv_type = info->signature();
   // No signature, return holder.
   if (!IsFunctionTemplateInfo(recv_type)) return receiver;
   // A Proxy cannot have been created from the signature template.
   if (!IsJSObject(receiver)) return JSReceiver();
 
-  JSObject js_obj_receiver = JSObject::cast(receiver);
-  FunctionTemplateInfo signature = FunctionTemplateInfo::cast(recv_type);
+  Tagged<JSObject> js_obj_receiver = JSObject::cast(receiver);
+  Tagged<FunctionTemplateInfo> signature =
+      FunctionTemplateInfo::cast(recv_type);
 
   // Check the receiver.
   if (signature->IsTemplateFor(js_obj_receiver)) return receiver;
 
   // The JSGlobalProxy might have a hidden prototype.
   if (V8_UNLIKELY(IsJSGlobalProxy(js_obj_receiver))) {
-    HeapObject prototype = js_obj_receiver->map()->prototype();
+    Tagged<HeapObject> prototype = js_obj_receiver->map()->prototype();
     if (!IsNull(prototype, isolate)) {
-      JSObject js_obj_prototype = JSObject::cast(prototype);
+      Tagged<JSObject> js_obj_prototype = JSObject::cast(prototype);
       if (signature->IsTemplateFor(js_obj_prototype)) return js_obj_prototype;
     }
   }
@@ -58,7 +60,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Handle<FunctionTemplateInfo> fun_data, Handle<Object> receiver,
     Address* argv, int argc) {
   Handle<JSReceiver> js_receiver;
-  JSReceiver raw_holder;
+  Tagged<JSReceiver> raw_holder;
   if (is_construct) {
     DCHECK(IsTheHole(*receiver, isolate));
     if (IsUndefined(fun_data->GetInstanceTemplate(), isolate)) {
@@ -101,11 +103,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  Object raw_call_data = fun_data->call_code(kAcquireLoad);
+  Tagged<Object> raw_call_data = fun_data->call_code(kAcquireLoad);
   if (!IsUndefined(raw_call_data, isolate)) {
     DCHECK(IsCallHandlerInfo(raw_call_data));
-    CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
-    Object data_obj = call_data->data();
+    Tagged<CallHandlerInfo> call_data = CallHandlerInfo::cast(raw_call_data);
+    Tagged<Object> data_obj = call_data->data();
 
     FunctionCallbackArguments custom(isolate, data_obj, raw_holder, *new_target,
                                      argv, argc);
@@ -119,7 +121,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     // Rebox the result.
     {
       DisallowGarbageCollection no_gc;
-      Object raw_result = *result;
+      Tagged<Object> raw_result = *result;
       DCHECK(IsApiCallResultType(raw_result));
       if (!is_construct || IsJSReceiver(raw_result))
         return handle(raw_result, isolate);
@@ -204,17 +206,17 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-V8_WARN_UNUSED_RESULT static Object
+V8_WARN_UNUSED_RESULT static Tagged<Object>
 HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
                                              bool is_construct_call,
                                              BuiltinArguments args) {
   Handle<Object> receiver = args.receiver();
 
   // Get the object called.
-  JSObject obj = JSObject::cast(*receiver);
+  Tagged<JSObject> obj = JSObject::cast(*receiver);
 
   // Set the new target.
-  HeapObject new_target;
+  Tagged<HeapObject> new_target;
   if (is_construct_call) {
     // TODO(adamk): This should be passed through in args instead of
     // being patched in here. We need to set a non-undefined value
@@ -228,15 +230,16 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
   DCHECK(obj->map()->is_callable());
-  JSFunction constructor = JSFunction::cast(obj->map()->GetConstructor());
+  Tagged<JSFunction> constructor =
+      JSFunction::cast(obj->map()->GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
-  Object handler =
+  Tagged<Object> handler =
       constructor->shared()->api_func_data()->GetInstanceCallHandler();
   DCHECK(!IsUndefined(handler, isolate));
-  CallHandlerInfo call_data = CallHandlerInfo::cast(handler);
+  Tagged<CallHandlerInfo> call_data = CallHandlerInfo::cast(handler);
 
   // Get the data for the call and perform the callback.
-  Object result;
+  Tagged<Object> result;
   {
     HandleScope scope(isolate);
     FunctionCallbackArguments custom(

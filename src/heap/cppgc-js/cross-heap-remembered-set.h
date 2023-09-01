@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE CrossHeapRememberedSet final {
   CrossHeapRememberedSet(const CrossHeapRememberedSet&) = delete;
   CrossHeapRememberedSet(CrossHeapRememberedSet&&) = delete;
 
-  void RememberReferenceIfNeeded(Isolate& isolate, JSObject host_obj,
+  void RememberReferenceIfNeeded(Isolate& isolate, Tagged<JSObject> host_obj,
                                  void* cppgc_object);
   void Reset(Isolate& isolate);
 

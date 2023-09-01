@@ -151,7 +151,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // The InstructionStream object has not been fully initialized yet. We
     // rely on the fact that no allocation will happen from this point on.
     DisallowGarbageCollection no_gc;
-    InstructionStream raw_istream = InstructionStream::Initialize(
+    Tagged<InstructionStream> raw_istream = InstructionStream::Initialize(
         istream_allocation,
         ReadOnlyRoots(local_isolate_).instruction_stream_map(),
         code_desc_.body_size(), *reloc_info);
@@ -2098,9 +2098,10 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                 isolate());
 }
 
-Map Factory::InitializeMap(Tagged<Map> map, InstanceType type,
-                           int instance_size, ElementsKind elements_kind,
-                           int inobject_properties, Heap* roots) {
+Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
+                                   int instance_size,
+                                   ElementsKind elements_kind,
+                                   int inobject_properties, Heap* roots) {
   DisallowGarbageCollection no_gc;
   map->set_bit_field(0);
   map->set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -3630,7 +3631,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
 
   // Check to see whether there is a matching element in the cache.
   MaybeObject result = cache->Get(number_of_properties);
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   if (result.GetHeapObjectIfWeak(&heap_object)) {
     Tagged<Map> map = Tagged<Map>::cast(heap_object);
     DCHECK(!map->is_dictionary_map());

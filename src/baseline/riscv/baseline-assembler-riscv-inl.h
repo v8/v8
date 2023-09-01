@@ -158,7 +158,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   __ LoadWord(temp, operand);
   __ Branch(target, cc, value, Operand(temp), distance);
 }
-void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
+void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
                                   Label* target, Label::Distance distance) {
   __ CompareTaggedAndBranch(target, cc, value, Operand(smi));
 }
@@ -195,7 +195,7 @@ void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
   Move(RegisterFrameOperand(output), source);
 }
-void BaselineAssembler::Move(Register output, TaggedIndex value) {
+void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
   __ li(output, Operand(value.ptr()));
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
@@ -341,7 +341,7 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
   __ Lb(output, FieldMemOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
-                                               Smi value) {
+                                               Tagged<Smi> value) {
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
@@ -484,7 +484,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
   ASM_CODE_COMMENT(masm_);
   if (SmiValuesAre31Bits()) {
     __ Add32(lhs, lhs, Operand(rhs));

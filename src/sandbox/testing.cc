@@ -173,7 +173,7 @@ void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  auto IsLocatedInMappedMemory = [&](HeapObject obj) {
+  auto IsLocatedInMappedMemory = [&](Tagged<HeapObject> obj) {
     // Note that IsOutsideAllocatedSpace is imprecise and may return false for
     // some addresses outside the allocated space. However, it's probably good
     // enough for our purposes.
@@ -182,7 +182,7 @@ void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   bool is_valid = false;
   if (IsLocatedInMappedMemory(obj)) {
-    Map map = obj->map();
+    Tagged<Map> map = obj->map();
     if (IsLocatedInMappedMemory(map)) {
       is_valid = IsMap(map);
     }

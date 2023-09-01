@@ -253,7 +253,7 @@ MarkBit MarkBit::From(Address address) {
 }
 
 // static
-MarkBit MarkBit::From(HeapObject heap_object) {
+MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
   return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 

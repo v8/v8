@@ -120,7 +120,7 @@ void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
     }
   }
   DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
+  Tagged<FixedArray> cache = *number_string_cache();
   cache->set(hash * 2, *number);
   cache->set(hash * 2 + 1, *js_string);
 }

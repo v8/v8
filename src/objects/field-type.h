@@ -14,11 +14,11 @@ namespace internal {
 
 class FieldType : public Object {
  public:
-  static FieldType None();
-  static FieldType Any();
+  static Tagged<FieldType> None();
+  static Tagged<FieldType> Any();
   V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FieldType> Any(Isolate* isolate);
-  V8_EXPORT_PRIVATE static FieldType Class(Map map);
+  V8_EXPORT_PRIVATE static Tagged<FieldType> Class(Tagged<Map> map);
   V8_EXPORT_PRIVATE static Handle<FieldType> Class(Handle<Map> map,
                                                    Isolate* isolate);
   V8_EXPORT_PRIVATE static Tagged<FieldType> cast(Tagged<Object> object);
@@ -26,16 +26,16 @@ class FieldType : public Object {
     return Tagged<FieldType>(object.ptr());
   }
 
-  bool NowContains(Object value) const;
+  bool NowContains(Tagged<Object> value) const;
 
   bool NowContains(Handle<Object> value) const { return NowContains(*value); }
 
-  Map AsClass() const;
+  Tagged<Map> AsClass() const;
   bool NowStable() const;
-  bool NowIs(FieldType other) const;
+  bool NowIs(Tagged<FieldType> other) const;
   bool NowIs(Handle<FieldType> other) const;
 
-  V8_EXPORT_PRIVATE bool Equals(FieldType other) const;
+  V8_EXPORT_PRIVATE bool Equals(Tagged<FieldType> other) const;
   V8_EXPORT_PRIVATE void PrintTo(std::ostream& os) const;
 
  private:

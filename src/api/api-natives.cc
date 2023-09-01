@@ -172,7 +172,7 @@ class V8_NODISCARD AccessCheckDisableScope {
   Handle<JSObject> obj_;
 };
 
-Object GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
+Tagged<Object> GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
   Handle<Context> native_context = isolate->native_context();
   DCHECK(!native_context.is_null());
   switch (intrinsic) {
@@ -197,7 +197,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int max_number_of_properties = 0;
   TemplateInfoT info = *data;
   while (!info.is_null()) {
-    Object props = info.property_accessors();
+    Tagged<Object> props = info.property_accessors();
     if (!IsUndefined(props, isolate)) {
       max_number_of_properties += TemplateList::cast(props)->length();
     }
@@ -213,7 +213,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     for (Handle<TemplateInfoT> temp(*data, isolate); !temp->is_null();
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
-      Object maybe_properties = temp->property_accessors();
+      Tagged<Object> maybe_properties = temp->property_accessors();
       if (!IsUndefined(maybe_properties, isolate)) {
         valid_descriptors = AccessorInfo::AppendUnique(
             isolate, handle(maybe_properties, isolate), array,
@@ -231,7 +231,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     }
   }
 
-  Object maybe_property_list = data->property_list();
+  Tagged<Object> maybe_property_list = data->property_list();
   if (IsUndefined(maybe_property_list, isolate)) return obj;
   Handle<TemplateList> properties(TemplateList::cast(maybe_property_list),
                                   isolate);
@@ -240,7 +240,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
     auto name = handle(Name::cast(properties->get(i++)), isolate);
-    Object bit = properties->get(i++);
+    Tagged<Object> bit = properties->get(i++);
     if (IsSmi(bit)) {
       PropertyDetails details(Smi::cast(bit));
       PropertyAttributes attributes = details.attributes();
@@ -297,7 +297,7 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
   }
 
   if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
-    FixedArray fast_cache =
+    Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
     Handle<Object> object{fast_cache->get(serial_number), isolate};
     if (IsTheHole(*object, isolate)) return {};
@@ -305,7 +305,7 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
   }
   if (caching_mode == CachingMode::kUnlimited ||
       (serial_number < TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    SimpleNumberDictionary slow_cache =
+    Tagged<SimpleNumberDictionary> slow_cache =
         native_context->slow_template_instantiations_cache();
     InternalIndex entry = slow_cache->FindEntry(isolate, serial_number);
     if (entry.is_found()) {
@@ -361,7 +361,7 @@ void UncacheTemplateInstantiation(Isolate* isolate,
   if (serial_number < 0) return;
 
   if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
-    FixedArray fast_cache =
+    Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
     DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
     fast_cache->set_undefined(serial_number);
@@ -379,12 +379,12 @@ void UncacheTemplateInstantiation(Isolate* isolate,
   }
 }
 
-bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
-                           JSReceiver new_target) {
+bool IsSimpleInstantiation(Isolate* isolate, Tagged<ObjectTemplateInfo> info,
+                           Tagged<JSReceiver> new_target) {
   DisallowGarbageCollection no_gc;
 
   if (!IsJSFunction(new_target)) return false;
-  JSFunction fun = JSFunction::cast(new_target);
+  Tagged<JSFunction> fun = JSFunction::cast(new_target);
   if (fun->shared()->function_data(kAcquireLoad) != info->constructor())
     return false;
   if (info->immutable_proto()) return false;
@@ -417,7 +417,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   }
 
   if (constructor.is_null()) {
-    Object maybe_constructor_info = info->constructor();
+    Tagged<Object> maybe_constructor_info = info->constructor();
     if (IsUndefined(maybe_constructor_info, isolate)) {
       constructor = isolate->object_function();
     } else {
@@ -559,7 +559,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
 
 void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
-  Object maybe_list = templ->property_list();
+  Tagged<Object> maybe_list = templ->property_list();
   Handle<TemplateList> list;
   if (IsUndefined(maybe_list, isolate)) {
     list = TemplateList::New(isolate, length);
@@ -677,7 +677,7 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
 void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<TemplateInfo> info,
                                        Handle<AccessorInfo> property) {
-  Object maybe_list = info->property_accessors();
+  Tagged<Object> maybe_list = info->property_accessors();
   Handle<TemplateList> list;
   if (IsUndefined(maybe_list, isolate)) {
     list = TemplateList::New(isolate, 1);

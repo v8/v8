@@ -22,15 +22,17 @@ namespace v8::internal {
 class EphemeronRememberedSet final {
  public:
   static constexpr int kEphemeronTableListSegmentSize = 128;
-  using TableList = ::heap::base::Worklist<EphemeronHashTable,
+  using TableList = ::heap::base::Worklist<Tagged<EphemeronHashTable>,
                                            kEphemeronTableListSegmentSize>;
 
   using IndicesSet = std::unordered_set<int>;
-  using TableMap =
-      std::unordered_map<EphemeronHashTable, IndicesSet, Object::Hasher>;
+  using TableMap = std::unordered_map<Tagged<EphemeronHashTable>, IndicesSet,
+                                      Object::Hasher>;
 
-  void RecordEphemeronKeyWrite(EphemeronHashTable table, Address key_slot);
-  void RecordEphemeronKeyWrites(EphemeronHashTable table, IndicesSet indices);
+  void RecordEphemeronKeyWrite(Tagged<EphemeronHashTable> table,
+                               Address key_slot);
+  void RecordEphemeronKeyWrites(Tagged<EphemeronHashTable> table,
+                                IndicesSet indices);
 
   TableMap* tables() { return &tables_; }
 

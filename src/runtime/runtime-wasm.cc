@@ -365,7 +365,7 @@ void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
   Handle<JSFunction> exported_function =
       WasmInternalFunction::GetOrCreateExternal(internal);
   exported_function->set_code(*wrapper_code);
-  WasmExportedFunctionData function_data =
+  Tagged<WasmExportedFunctionData> function_data =
       exported_function->shared()->wasm_exported_function_data();
   function_data->set_wrapper_code(*wrapper_code);
 }

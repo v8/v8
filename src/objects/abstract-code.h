@@ -32,8 +32,8 @@ class AbstractCode : public HeapObject {
   inline int InstructionSize(PtrComprCageBase cage_base);
 
   // Return the source position table for interpreter code.
-  inline ByteArray SourcePositionTable(Isolate* isolate,
-                                       SharedFunctionInfo sfi);
+  inline Tagged<ByteArray> SourcePositionTable(Isolate* isolate,
+                                               Tagged<SharedFunctionInfo> sfi);
 
   void DropStackFrameCache(PtrComprCageBase cage_base);
 
@@ -52,11 +52,12 @@ class AbstractCode : public HeapObject {
 
   DECL_CAST(AbstractCode)
 
-  inline Code GetCode();
-  inline BytecodeArray GetBytecodeArray();
+  inline Tagged<Code> GetCode();
+  inline Tagged<BytecodeArray> GetBytecodeArray();
 
  private:
-  inline ByteArray SourcePositionTableInternal(PtrComprCageBase cage_base);
+  inline Tagged<ByteArray> SourcePositionTableInternal(
+      PtrComprCageBase cage_base);
 
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };

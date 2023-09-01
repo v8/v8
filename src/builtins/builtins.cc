@@ -179,14 +179,14 @@ FullObjectSlot Builtins::builtin_tier0_slot(Builtin builtin) {
   return FullObjectSlot(location);
 }
 
-void Builtins::set_code(Builtin builtin, Code code) {
+void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
   DCHECK_EQ(builtin, code->builtin_id());
   DCHECK(Internals::HasHeapObjectTag(code.ptr()));
   // The given builtin may be uninitialized thus we cannot check its type here.
   isolate_->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
 }
 
-Code Builtins::code(Builtin builtin) {
+Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
   return Code::cast(Object(ptr));
 }
@@ -291,7 +291,7 @@ void Builtins::PrintBuiltinCode() {
                      base::CStrVector(v8_flags.print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Code builtin_code = code(builtin);
+      Tagged<Code> builtin_code = code(builtin);
       builtin_code->Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
@@ -305,7 +305,7 @@ void Builtins::PrintBuiltinSize() {
        ++builtin) {
     const char* builtin_name = name(builtin);
     const char* kind = KindNameOf(builtin);
-    Code code = Builtins::code(builtin);
+    Tagged<Code> code = Builtins::code(builtin);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
            code->instruction_size());
   }
@@ -318,7 +318,7 @@ Address Builtins::CppEntryOf(Builtin builtin) {
 }
 
 // static
-bool Builtins::IsBuiltin(const Code code) {
+bool Builtins::IsBuiltin(const Tagged<Code> code) {
   return Builtins::IsBuiltinId(code->builtin_id());
 }
 
@@ -334,7 +334,7 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 }
 
 // static
-bool Builtins::IsIsolateIndependentBuiltin(Code code) {
+bool Builtins::IsIsolateIndependentBuiltin(Tagged<Code> code) {
   Builtin builtin = code->builtin_id();
   return Builtins::IsBuiltinId(builtin) &&
          Builtins::IsIsolateIndependent(builtin);
@@ -397,7 +397,7 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
 
-  Code code = isolate->builtins()->code(
+  Tagged<Code> code = isolate->builtins()->code(
       Builtin::kInterpreterEntryTrampolineForProfiling);
 
   CodeDesc desc;

@@ -214,11 +214,6 @@ struct ImmediateInitializer<Tagged<Smi>> {
 };
 
 template <>
-struct ImmediateInitializer<Smi> : ImmediateInitializer<Tagged<Smi>> {
-  static_assert(kTaggedCanConvertToRawObjects);
-};
-
-template <>
 struct ImmediateInitializer<ExternalReference> {
   static inline RelocInfo::Mode rmode_for(ExternalReference t) {
     return RelocInfo::EXTERNAL_REFERENCE;
@@ -557,7 +552,7 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Code code,
+                                                      Tagged<Code> code,
                                                       Address target) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -664,13 +659,13 @@ Address RelocInfo::constant_pool_entry_address() {
   return Assembler::target_pointer_address_at(pc_);
 }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(
+    Tagged<Object> obj(
         V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
     // Embedding of compressed InstructionStream objects must not happen when
     // external code space is enabled, because Codes must be used
@@ -693,7 +688,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(HeapObject target,
+void RelocInfo::set_target_object(Tagged<HeapObject> target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {

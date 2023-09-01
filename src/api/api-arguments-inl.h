@@ -41,21 +41,21 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   // Check the ReturnValue.
   FullObjectSlot slot = slot_at(kReturnValueIndex);
   // Nothing was set, return empty handle as per previous behaviour.
-  Object raw_object = *slot;
+  Tagged<Object> raw_object = *slot;
   if (IsTheHole(raw_object, isolate)) return Handle<V>();
   DCHECK(IsApiCallResultType(raw_object));
   return Handle<V>::cast(Handle<Object>(slot.location()));
 }
 
-inline JSObject PropertyCallbackArguments::holder() const {
+inline Tagged<JSObject> PropertyCallbackArguments::holder() const {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
-inline Object PropertyCallbackArguments::receiver() const {
+inline Tagged<Object> PropertyCallbackArguments::receiver() const {
   return *slot_at(T::kThisIndex);
 }
 
-inline JSReceiver FunctionCallbackArguments::holder() const {
+inline Tagged<JSReceiver> FunctionCallbackArguments::holder() const {
   return JSReceiver::cast(*slot_at(T::kHolderIndex));
 }
 
@@ -84,7 +84,8 @@ inline JSReceiver FunctionCallbackArguments::holder() const {
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));         \
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
-Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
+Handle<Object> FunctionCallbackArguments::Call(
+    Tagged<CallHandlerInfo> handler) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =

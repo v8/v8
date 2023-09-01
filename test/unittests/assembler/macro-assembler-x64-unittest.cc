@@ -165,9 +165,9 @@ TEST_F(MacroAssemblerX64Test, Smi) {
     bool is_in_range = number >= Smi::kMinValue && number <= Smi::kMaxValue;
     CHECK_EQ(is_in_range, is_valid);
     if (is_valid) {
-      Smi smi_from_intptr = Smi::FromIntptr(number);
+      Tagged<Smi> smi_from_intptr = Smi::FromIntptr(number);
       if (static_cast<int>(number) == number) {  // Is a 32-bit int.
-        Smi smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
+        Tagged<Smi> smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
       int64_t smi_value = smi_from_intptr.value();
@@ -176,7 +176,8 @@ TEST_F(MacroAssemblerX64Test, Smi) {
   }
 }
 
-static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
+static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id,
+                        Tagged<Smi> value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
   __ Move(rdx, static_cast<intptr_t>(value.ptr()));
@@ -545,7 +546,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 #endif
   using myF0 = Address();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
-  Object result = Object(f.Call());
+  Tagged<Object> result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.

@@ -49,9 +49,9 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
   NEVER_READ_ONLY_SPACE
   static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 
-  inline Object get(AccessorComponent component);
-  inline void set(AccessorComponent component, Object value);
-  inline void set(AccessorComponent component, Object value,
+  inline Tagged<Object> get(AccessorComponent component);
+  inline void set(AccessorComponent component, Tagged<Object> value);
+  inline void set(AccessorComponent component, Tagged<Object> value,
                   ReleaseStoreTag tag);
 
   using TorqueGeneratedAccessorPair::getter;
@@ -69,9 +69,9 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
                                      AccessorComponent component);
 
   // Set both components, skipping arguments which are a JavaScript null.
-  inline void SetComponents(Object getter, Object setter);
+  inline void SetComponents(Tagged<Object> getter, Tagged<Object> setter);
 
-  inline bool Equals(Object getter_value, Object setter_value);
+  inline bool Equals(Tagged<Object> getter_value, Tagged<Object> setter_value);
 
   using BodyDescriptor = StructBodyDescriptor;
 

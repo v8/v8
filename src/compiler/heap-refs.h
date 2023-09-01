@@ -536,9 +536,9 @@ class JSObjectRef : public JSReceiverRef {
   // The direct-read implementation of the above, extracted into a helper since
   // it's also called from compilation-dependency validation. This helper is
   // guaranteed to not create new Ref instances.
-  base::Optional<Object> GetOwnConstantElementFromHeap(
-      JSHeapBroker* broker, FixedArrayBase elements, ElementsKind elements_kind,
-      uint32_t index) const;
+  base::Optional<Tagged<Object>> GetOwnConstantElementFromHeap(
+      JSHeapBroker* broker, Tagged<FixedArrayBase> elements,
+      ElementsKind elements_kind, uint32_t index) const;
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.

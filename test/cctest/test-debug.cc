@@ -162,7 +162,7 @@ void CheckDebuggerUnloaded() {
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapObjectIterator iterator(CcTest::heap());
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(!IsDebugInfo(obj));
   }
@@ -3352,7 +3352,7 @@ TEST(DebugScriptLineEndsAreAscending) {
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(CcTest::i_isolate(), new_script);
-    v8::internal::FixedArray ends =
+    v8::internal::Tagged<v8::internal::FixedArray> ends =
         v8::internal::FixedArray::cast(new_script->line_ends());
     CHECK_GT(ends->length(), 0);
 
@@ -4601,10 +4601,10 @@ TEST(DebugEvaluateNoSideEffect) {
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapObjectIterator iterator(isolate->heap());
-    for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+    for (i::Tagged<i::HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (!IsJSFunction(obj)) continue;
-      i::JSFunction fun = i::JSFunction::cast(obj);
+      i::Tagged<i::JSFunction> fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }
@@ -4696,7 +4696,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     {
       i::DisallowGarbageCollection no_gc;
       i::Script::Iterator iterator(i_isolate);
-      for (i::Script script = iterator.Next(); !script.is_null();
+      for (i::Tagged<i::Script> script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
         if (script->type() == i::Script::Type::kNative &&
             IsUndefined(script->name(), i_isolate)) {

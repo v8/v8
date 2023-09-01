@@ -27,7 +27,8 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate,
   if (where_to_start == kStartAtPrototype) Advance();
 }
 
-PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver receiver,
+PrototypeIterator::PrototypeIterator(Isolate* isolate,
+                                     Tagged<JSReceiver> receiver,
                                      WhereToStart where_to_start,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),
@@ -38,7 +39,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver receiver,
   if (where_to_start == kStartAtPrototype) Advance();
 }
 
-PrototypeIterator::PrototypeIterator(Isolate* isolate, Map receiver_map,
+PrototypeIterator::PrototypeIterator(Isolate* isolate, Tagged<Map> receiver_map,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),
       object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
@@ -47,7 +48,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Map receiver_map,
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(IsJSReceiver(object_));
-    Map map = JSReceiver::cast(object_)->map();
+    Tagged<Map> map = JSReceiver::cast(object_)->map();
     is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
@@ -62,7 +63,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(IsJSReceiver(*handle_));
-    Map map = JSReceiver::cast(*handle_)->map();
+    Tagged<Map> map = JSReceiver::cast(*handle_)->map();
     is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
@@ -92,10 +93,10 @@ void PrototypeIterator::Advance() {
 }
 
 void PrototypeIterator::AdvanceIgnoringProxies() {
-  Object object = handle_.is_null() ? object_ : *handle_;
-  Map map = HeapObject::cast(object)->map();
+  Tagged<Object> object = handle_.is_null() ? object_ : *handle_;
+  Tagged<Map> map = HeapObject::cast(object)->map();
 
-  HeapObject prototype = map->prototype();
+  Tagged<HeapObject> prototype = map->prototype();
   is_at_end_ = IsNull(prototype, isolate_) ||
                (where_to_end_ == END_AT_NON_HIDDEN && !IsJSGlobalProxyMap(map));
 

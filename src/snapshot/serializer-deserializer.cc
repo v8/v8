@@ -41,7 +41,8 @@ void SerializerDeserializer::IterateSharedHeapObjectCache(
                      Root::kSharedHeapObjectCache, visitor);
 }
 
-bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
+bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
+                                           SlotType slot_type) {
   // HeapObjects' map slots cannot be deferred as objects are expected to have a
   // valid map immediately.
   if (slot_type == SlotType::kMapSlot) {
@@ -65,13 +66,13 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, AccessorInfo accessor_info) {
+    Isolate* isolate, Tagged<AccessorInfo> accessor_info) {
   DisallowGarbageCollection no_gc;
   accessor_info->init_getter_redirection(isolate);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, CallHandlerInfo call_handler_info) {
+    Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info) {
   DisallowGarbageCollection no_gc;
   call_handler_info->init_callback_redirection(isolate);
 }

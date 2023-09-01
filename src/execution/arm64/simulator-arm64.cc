@@ -3945,7 +3945,7 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       int64_t value;
       StdoutStream os;
       if (GetValue(arg1, &value)) {
-        Object obj(value);
+        Tagged<Object> obj(value);
         os << arg1 << ": \n";
 #ifdef DEBUG
         Print(obj, os);
@@ -4003,7 +4003,7 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
              reinterpret_cast<uint64_t>(cur), *cur, *cur);
       if (!skip_obj_print) {
-        Object obj(*cur);
+        Tagged<Object> obj(*cur);
         Heap* current_heap = isolate_->heap();
         if (IsSmi(obj) ||
             IsValidHeapObject(current_heap, HeapObject::cast(obj))) {

@@ -44,12 +44,14 @@ class PropertyCell
   // For protectors:
   void InvalidateProtector();
 
-  static PropertyCellType InitialType(Isolate* isolate, Object value);
+  static PropertyCellType InitialType(Isolate* isolate, Tagged<Object> value);
 
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the details.
-  static PropertyCellType UpdatedType(Isolate* isolate, PropertyCell cell,
-                                      Object value, PropertyDetails details);
+  static PropertyCellType UpdatedType(Isolate* isolate,
+                                      Tagged<PropertyCell> cell,
+                                      Tagged<Object> value,
+                                      PropertyDetails details);
 
   // Prepares property cell at given entry for receiving given value and sets
   // that value.  As a result the old cell could be invalidated and/or dependent
@@ -66,7 +68,8 @@ class PropertyCell
 
   // Whether or not the {details} and {value} fit together. This is an
   // approximation with false positives.
-  static bool CheckDataIsCompatible(PropertyDetails details, Object value);
+  static bool CheckDataIsCompatible(PropertyDetails details,
+                                    Tagged<Object> value);
 
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
@@ -87,7 +90,8 @@ class PropertyCell
 #ifdef DEBUG
   // Whether the property cell can transition to the given state. This is an
   // approximation with false positives.
-  bool CanTransitionTo(PropertyDetails new_details, Object new_value) const;
+  bool CanTransitionTo(PropertyDetails new_details,
+                       Tagged<Object> new_value) const;
 #endif  // DEBUG
 };
 

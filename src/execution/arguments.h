@@ -38,7 +38,7 @@ class Arguments {
   class ChangeValueScope {
    public:
     inline ChangeValueScope(Isolate* isolate, Arguments* args, int index,
-                            Object value);
+                            Tagged<Object> value);
     ~ChangeValueScope() { *location_ = old_value_->ptr(); }
 
    private:
@@ -51,7 +51,7 @@ class Arguments {
     DCHECK_GE(length_, 0);
   }
 
-  V8_INLINE Object operator[](int index) const {
+  V8_INLINE Tagged<Object> operator[](int index) const {
     return Object(*address_of_arg_at(index));
   }
 

@@ -77,11 +77,11 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   return AddOrDisposeString(str.begin(), len);
 }
 
-const char* StringsStorage::GetSymbol(Symbol sym) {
+const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
   if (!IsString(sym->description())) {
     return "<symbol>";
   }
-  String description = String::cast(sym->description());
+  Tagged<String> description = String::cast(sym->description());
   int length = std::min(v8_flags.heap_snapshot_string_limit.value(),
                         description->length());
   auto data = description->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0,
@@ -95,9 +95,9 @@ const char* StringsStorage::GetSymbol(Symbol sym) {
   return AddOrDisposeString(str_result, str_length - 1);
 }
 
-const char* StringsStorage::GetName(Name name) {
+const char* StringsStorage::GetName(Tagged<Name> name) {
   if (IsString(name)) {
-    String str = String::cast(name);
+    Tagged<String> str = String::cast(name);
     int length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
     int actual_length = 0;
@@ -114,9 +114,9 @@ const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }
 
-const char* StringsStorage::GetConsName(const char* prefix, Name name) {
+const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
   if (IsString(name)) {
-    String str = String::cast(name);
+    Tagged<String> str = String::cast(name);
     int length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
     int actual_length = 0;

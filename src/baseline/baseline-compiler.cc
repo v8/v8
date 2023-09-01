@@ -79,7 +79,7 @@ namespace detail {
 bool Clobbers(Register target, Register reg) { return target == reg; }
 bool Clobbers(Register target, Handle<Object> handle) { return false; }
 bool Clobbers(Register target, Smi smi) { return false; }
-bool Clobbers(Register target, TaggedIndex index) { return false; }
+bool Clobbers(Register target, Tagged<TaggedIndex> index) { return false; }
 bool Clobbers(Register target, int32_t imm) { return false; }
 bool Clobbers(Register target, RootIndex index) { return false; }
 bool Clobbers(Register target, interpreter::Register reg) { return false; }
@@ -95,9 +95,9 @@ bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
 bool MachineTypeMatches(MachineType type, Smi handle) {
   return type.IsTagged() && !type.IsTaggedPointer();
 }
-bool MachineTypeMatches(MachineType type, TaggedIndex handle) {
-  // TaggedIndex doesn't have a separate type, so check for the same type as for
-  // Smis.
+bool MachineTypeMatches(MachineType type, Tagged<TaggedIndex> handle) {
+  // Tagged<TaggedIndex> doesn't have a separate type, so check for the same
+  // type as for Smis.
   return type.IsTagged() && !type.IsTaggedPointer();
 }
 bool MachineTypeMatches(MachineType type, int32_t imm) {
@@ -356,7 +356,7 @@ MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
   return code_builder.TryBuild();
 }
 
-int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
+int BaselineCompiler::EstimateInstructionSize(Tagged<BytecodeArray> bytecode) {
   return bytecode->length() * kAverageBytecodeToInstructionRatio;
 }
 
@@ -390,7 +390,7 @@ Handle<Type> BaselineCompiler::Constant(int operand_index) {
   return Handle<Type>::cast(
       iterator().GetConstantForIndexOperand(operand_index, local_isolate_));
 }
-Smi BaselineCompiler::ConstantSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::ConstantSmi(int operand_index) {
   return iterator().GetConstantAtIndexAsSmi(operand_index);
 }
 template <typename Type>
@@ -415,22 +415,22 @@ uint32_t BaselineCompiler::Flag16(int operand_index) {
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
   return iterator().GetRegisterCountOperand(operand_index);
 }
-TaggedIndex BaselineCompiler::IndexAsTagged(int operand_index) {
+Tagged<TaggedIndex> BaselineCompiler::IndexAsTagged(int operand_index) {
   return TaggedIndex::FromIntptr(Index(operand_index));
 }
-TaggedIndex BaselineCompiler::UintAsTagged(int operand_index) {
+Tagged<TaggedIndex> BaselineCompiler::UintAsTagged(int operand_index) {
   return TaggedIndex::FromIntptr(Uint(operand_index));
 }
-Smi BaselineCompiler::IndexAsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::IndexAsSmi(int operand_index) {
   return Smi::FromInt(Index(operand_index));
 }
-Smi BaselineCompiler::IntAsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::IntAsSmi(int operand_index) {
   return Smi::FromInt(Int(operand_index));
 }
-Smi BaselineCompiler::Flag8AsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::Flag8AsSmi(int operand_index) {
   return Smi::FromInt(Flag8(operand_index));
 }
-Smi BaselineCompiler::Flag16AsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::Flag16AsSmi(int operand_index) {
   return Smi::FromInt(Flag16(operand_index));
 }
 

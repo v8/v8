@@ -161,12 +161,13 @@ void FillPageInPagedSpace(Page* page,
   // Collect all free list block sizes
   page->ForAllFreeListCategories(
       [&available_sizes](FreeListCategory* category) {
-        category->IterateNodesForTesting([&available_sizes](FreeSpace node) {
-          int node_size = node->Size();
-          if (node_size >= kMaxRegularHeapObjectSize) {
-            available_sizes.push_back(node_size);
-          }
-        });
+        category->IterateNodesForTesting(
+            [&available_sizes](Tagged<FreeSpace> node) {
+              int node_size = node->Size();
+              if (node_size >= kMaxRegularHeapObjectSize) {
+                available_sizes.push_back(node_size);
+              }
+            });
       });
 
   Isolate* isolate = heap->isolate();
@@ -194,11 +195,12 @@ void FillPageInPagedSpace(Page* page,
         remaining_sizes.push_back({});
         std::vector<int>& sizes_in_category =
             remaining_sizes[remaining_sizes.size() - 1];
-        category->IterateNodesForTesting([&sizes_in_category](FreeSpace node) {
-          int node_size = node->Size();
-          DCHECK_LT(0, FixedArrayLenFromSize(node_size));
-          sizes_in_category.push_back(node_size);
-        });
+        category->IterateNodesForTesting(
+            [&sizes_in_category](Tagged<FreeSpace> node) {
+              int node_size = node->Size();
+              DCHECK_LT(0, FixedArrayLenFromSize(node_size));
+              sizes_in_category.push_back(node_size);
+            });
       });
   for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
     std::vector<int> sizes_in_category = *it;
@@ -392,7 +394,7 @@ void ForceEvacuationCandidate(Page* page) {
   }
 }
 
-bool InCorrectGeneration(HeapObject object) {
+bool InCorrectGeneration(Tagged<HeapObject> object) {
   return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
                                     : i::Heap::InYoungGeneration(object);
 }

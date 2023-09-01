@@ -56,10 +56,11 @@ class Consts {
 };
 
 template <typename T>
-inline T ToCData(v8::internal::Object obj);
+inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj);
 
 template <>
-inline v8::internal::Address ToCData(v8::internal::Object obj);
+inline v8::internal::Address ToCData(
+    v8::internal::Tagged<v8::internal::Object> obj);
 
 template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(
@@ -341,20 +342,20 @@ class HandleScopeImplementer {
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
 
-  inline void EnterContext(NativeContext context);
+  inline void EnterContext(Tagged<NativeContext> context);
   inline void LeaveContext();
-  inline bool LastEnteredContextWas(NativeContext context);
+  inline bool LastEnteredContextWas(Tagged<NativeContext> context);
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
-  inline void EnterMicrotaskContext(NativeContext context);
+  inline void EnterMicrotaskContext(Tagged<NativeContext> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
   inline Handle<NativeContext> LastEnteredContext();
   inline Handle<NativeContext> LastEnteredOrMicrotaskContext();
 
-  inline void SaveContext(Context context);
-  inline Context RestoreContext();
+  inline void SaveContext(Tagged<Context> context);
+  inline Tagged<Context> RestoreContext();
   inline bool HasSavedContexts();
 
   inline DetachableVector<Address*>* blocks() { return &blocks_; }
@@ -427,12 +428,12 @@ class HandleScopeImplementer {
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
-void HandleScopeImplementer::SaveContext(Context context) {
+void HandleScopeImplementer::SaveContext(Tagged<Context> context) {
   saved_contexts_.push_back(context);
 }
 
-Context HandleScopeImplementer::RestoreContext() {
-  Context last_context = saved_contexts_.back();
+Tagged<Context> HandleScopeImplementer::RestoreContext() {
+  Tagged<Context> last_context = saved_contexts_.back();
   saved_contexts_.pop_back();
   return last_context;
 }
@@ -449,7 +450,8 @@ void HandleScopeImplementer::LeaveContext() {
   is_microtask_context_.pop_back();
 }
 
-bool HandleScopeImplementer::LastEnteredContextWas(NativeContext context) {
+bool HandleScopeImplementer::LastEnteredContextWas(
+    Tagged<NativeContext> context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == context;
 }
 

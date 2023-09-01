@@ -126,7 +126,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   // stack overflow, then handle the interruption accordingly.
   // Only interrupts that match the given `InterruptLevel` will be handled,
   // leaving other interrupts pending as if this method had not been called.
-  Object HandleInterrupts(InterruptLevel level = InterruptLevel::kAnyEffect);
+  Tagged<Object> HandleInterrupts(
+      InterruptLevel level = InterruptLevel::kAnyEffect);
 
   // Special case of {HandleInterrupts}: checks for termination requests only.
   // This is guaranteed to never cause GC, so can be used to interrupt

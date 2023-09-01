@@ -31,9 +31,9 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
                               HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi zero = Smi::zero();
-  Smi smi_0 = Smi::FromInt(64);
-  Smi smi_1 = Smi::FromInt(-65536);
+  Tagged<Smi> zero = Smi::zero();
+  Tagged<Smi> smi_0 = Smi::FromInt(64);
+  Tagged<Smi> smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);

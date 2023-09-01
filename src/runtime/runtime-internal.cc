@@ -393,9 +393,9 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
 
 namespace {
 
-Object BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
-                                             RuntimeArguments& args,
-                                             CodeKind code_kind) {
+Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
+                                                     RuntimeArguments& args,
+                                                     CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
@@ -410,7 +410,7 @@ Object BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
     // the runtime function call being what overflows the stack.
     return isolate->StackOverflow();
   } else if (check.InterruptRequested()) {
-    Object return_value = isolate->stack_guard()->HandleInterrupts();
+    Tagged<Object> return_value = isolate->stack_guard()->HandleInterrupts();
     if (!IsUndefined(return_value, isolate)) {
       return return_value;
     }
@@ -420,8 +420,8 @@ Object BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-Object BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
-                               CodeKind code_kind) {
+Tagged<Object> BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
+                                       CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);

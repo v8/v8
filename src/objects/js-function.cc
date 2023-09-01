@@ -53,7 +53,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
       !feedback_vector()->optimized_code()->marked_for_deoptimization()) {
-    Code code = feedback_vector()->optimized_code();
+    Tagged<Code> code = feedback_vector()->optimized_code();
     DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
     result |= CodeKindToCodeKindFlag(code->kind());
   }
@@ -1132,7 +1132,7 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
   }
   {
     DisallowHeapAllocation no_alloc;
-    NativeContext context = isolate->context()->native_context();
+    Tagged<NativeContext> context = isolate->context()->native_context();
     int ctor_index =
         TypedArrayElementsKindToConstructorIndex(map->elements_kind());
     if (*new_target == context->get(ctor_index)) {
@@ -1199,13 +1199,13 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
     return false;
   }
   DCHECK(!map->is_dictionary_map());
-  HeapObject value;
+  Tagged<HeapObject> value;
   ReadOnlyRoots roots(isolate);
   auto descriptors = map->instance_descriptors(isolate);
   InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
   if (descriptors->GetKey(kNameIndex) != roots.name_string() ||
       !descriptors->GetValue(kNameIndex)
-           .GetHeapObjectIfStrong(isolate, &value)) {
+           ->GetHeapObjectIfStrong(isolate, &value)) {
     return false;
   }
   return IsAccessorInfo(value);

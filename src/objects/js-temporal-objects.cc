@@ -18705,7 +18705,7 @@ MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
   Factory* factory = isolate->factory();
   // iii. iii. If fieldNames contains nextValue, then
   for (int i = 0; i < fields_name->length(); i++) {
-    Object item = fields_name->get(i);
+    Tagged<Object> item = fields_name->get(i);
     DCHECK(IsString(item));
     if (String::Equals(isolate, next_value,
                        handle(String::cast(item), isolate))) {

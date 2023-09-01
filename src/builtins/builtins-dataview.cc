@@ -125,7 +125,7 @@ BUILTIN(DataViewConstructor) {
     // passes ObjectVerify, which may for example be triggered when allocating
     // error objects below.
     DisallowGarbageCollection no_gc;
-    JSDataViewOrRabGsabDataView raw = *data_view;
+    Tagged<JSDataViewOrRabGsabDataView> raw = *data_view;
 
     for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
       // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot

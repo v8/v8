@@ -26,10 +26,9 @@ DEF_PRIMITIVE_ACCESSORS(InstructionStream, body_size, kBodySizeOffset, uint32_t)
 // through the WritableJitAllocation, e.g. the body_size setter above.
 
 // static
-InstructionStream InstructionStream::Initialize(Tagged<HeapObject> self,
-                                                Tagged<Map> map,
-                                                uint32_t body_size,
-                                                ByteArray reloc_info) {
+Tagged<InstructionStream> InstructionStream::Initialize(
+    Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
+    Tagged<ByteArray> reloc_info) {
   {
     ThreadIsolation::WritableJitAllocation writable_allocation =
         ThreadIsolation::RegisterInstructionStreamAllocation(
@@ -98,7 +97,8 @@ InstructionStream InstructionStream::Initialize(Tagged<HeapObject> self,
 // This is transformed into the on-heap representation, where
 // InstructionStream contains all instructions and inline metadata, and a
 // pointer to the relocation info byte array.
-void InstructionStream::Finalize(Code code, ByteArray reloc_info, CodeDesc desc,
+void InstructionStream::Finalize(Tagged<Code> code,
+                                 Tagged<ByteArray> reloc_info, CodeDesc desc,
                                  Heap* heap) {
   DisallowGarbageCollection no_gc;
   base::Optional<WriteBarrierPromise> promise;
@@ -123,7 +123,8 @@ void InstructionStream::Finalize(Code code, ByteArray reloc_info, CodeDesc desc,
                                  desc.unwinding_info,
                                  static_cast<size_t>(desc.unwinding_info_size));
     DCHECK_EQ(desc.body_size(), desc.instr_size + desc.unwinding_info_size);
-    DCHECK_EQ(code.body_size(), code.instruction_size() + code.metadata_size());
+    DCHECK_EQ(code->body_size(),
+              code->instruction_size() + code->metadata_size());
 
     promise.emplace(RelocateFromDesc(heap, desc, code->constant_pool(), no_gc));
 
@@ -144,42 +145,43 @@ Address InstructionStream::body_end() const {
   return instruction_start() + body_size();
 }
 
-Object InstructionStream::raw_code(AcquireLoadTag tag) const {
+Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
   PtrComprCageBase cage_base = main_cage_base();
-  Object value =
+  Tagged<Object> value =
       TaggedField<Object, kCodeOffset>::Acquire_Load(cage_base, *this);
   DCHECK(!ObjectInYoungGeneration(value));
   return value;
 }
 
-Code InstructionStream::code(AcquireLoadTag tag) const {
+Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
   return Code::cast(raw_code(tag));
 }
 
-void InstructionStream::set_code(Code value, ReleaseStoreTag) {
+void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag) {
   DCHECK(!ObjectInYoungGeneration(value));
   TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, UPDATE_WRITE_BARRIER);
 }
 
-bool InstructionStream::TryGetCode(Code* code_out, AcquireLoadTag tag) const {
-  Object maybe_code = raw_code(tag);
+bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
+                                   AcquireLoadTag tag) const {
+  Tagged<Object> maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
   *code_out = Code::cast(maybe_code);
   return true;
 }
 
-bool InstructionStream::TryGetCodeUnchecked(Code* code_out,
+bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
                                             AcquireLoadTag tag) const {
-  Object maybe_code = raw_code(tag);
+  Tagged<Object> maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
   *code_out = Code::unchecked_cast(maybe_code);
   return true;
 }
 
-ByteArray InstructionStream::relocation_info() const {
+Tagged<ByteArray> InstructionStream::relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
-  ByteArray value =
+  Tagged<ByteArray> value =
       TaggedField<ByteArray, kRelocationInfoOffset>::load(cage_base, *this);
   DCHECK(!ObjectInYoungGeneration(value));
   return value;
@@ -189,7 +191,7 @@ Address InstructionStream::instruction_start() const {
   return field_address(kHeaderSize);
 }
 
-ByteArray InstructionStream::unchecked_relocation_info() const {
+Tagged<ByteArray> InstructionStream::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
@@ -211,7 +213,8 @@ int InstructionStream::relocation_size() const {
 int InstructionStream::Size() const { return SizeFor(body_size()); }
 
 // static
-InstructionStream InstructionStream::FromTargetAddress(Address address) {
+Tagged<InstructionStream> InstructionStream::FromTargetAddress(
+    Address address) {
   {
     // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
     // in the current isolate.
@@ -221,7 +224,7 @@ InstructionStream InstructionStream::FromTargetAddress(Address address) {
     CHECK(address < start || address >= end);
   }
 
-  HeapObject code =
+  Tagged<HeapObject> code =
       HeapObject::FromAddress(address - InstructionStream::kHeaderSize);
   // Unchecked cast because we can't rely on the map currently not being a
   // forwarding pointer.
@@ -229,10 +232,10 @@ InstructionStream InstructionStream::FromTargetAddress(Address address) {
 }
 
 // static
-InstructionStream InstructionStream::FromEntryAddress(
+Tagged<InstructionStream> InstructionStream::FromEntryAddress(
     Address location_of_address) {
   Address code_entry = base::Memory<Address>(location_of_address);
-  HeapObject code =
+  Tagged<HeapObject> code =
       HeapObject::FromAddress(code_entry - InstructionStream::kHeaderSize);
   // Unchecked cast because we can't rely on the map currently not being a
   // forwarding pointer.

@@ -230,9 +230,9 @@ IrregexpInterpreter::Result MaybeThrowStackOverflow(
 template <typename Char>
 void UpdateCodeAndSubjectReferences(
     Isolate* isolate, Handle<ByteArray> code_array,
-    Handle<String> subject_string, ByteArray* code_array_out,
+    Handle<String> subject_string, Tagged<ByteArray>* code_array_out,
     const uint8_t** code_base_out, const uint8_t** pc_out,
-    String* subject_string_out,
+    Tagged<String>* subject_string_out,
     base::Vector<const Char>* subject_string_vector_out) {
   DisallowGarbageCollection no_gc;
 
@@ -253,8 +253,9 @@ void UpdateCodeAndSubjectReferences(
 // necessary.
 template <typename Char>
 IrregexpInterpreter::Result HandleInterrupts(
-    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray* code_array_out,
-    String* subject_string_out, const uint8_t** code_base_out,
+    Isolate* isolate, RegExp::CallOrigin call_origin,
+    Tagged<ByteArray>* code_array_out, Tagged<String>* subject_string_out,
+    const uint8_t** code_base_out,
     base::Vector<const Char>* subject_string_vector_out,
     const uint8_t** pc_out) {
   DisallowGarbageCollection no_gc;
@@ -384,10 +385,10 @@ bool IndexIsInBounds(int index, int length) {
 
 template <typename Char>
 IrregexpInterpreter::Result RawMatch(
-    Isolate* isolate, ByteArray code_array, String subject_string,
-    base::Vector<const Char> subject, int* output_registers,
-    int output_register_count, int total_register_count, int current,
-    uint32_t current_char, RegExp::CallOrigin call_origin,
+    Isolate* isolate, Tagged<ByteArray> code_array,
+    Tagged<String> subject_string, base::Vector<const Char> subject,
+    int* output_registers, int output_register_count, int total_register_count,
+    int current, uint32_t current_char, RegExp::CallOrigin call_origin,
     const uint32_t backtrack_limit) {
   DisallowGarbageCollection no_gc;
 
@@ -1056,13 +1057,13 @@ IrregexpInterpreter::Result RawMatch(
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
-    Isolate* isolate, JSRegExp regexp, String subject_string,
+    Isolate* isolate, Tagged<JSRegExp> regexp, Tagged<String> subject_string,
     int* output_registers, int output_register_count, int start_position,
     RegExp::CallOrigin call_origin) {
   if (v8_flags.regexp_tier_up) regexp->TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  ByteArray code_array = ByteArray::cast(regexp->bytecode(is_one_byte));
+  Tagged<ByteArray> code_array = ByteArray::cast(regexp->bytecode(is_one_byte));
   int total_register_count = regexp->max_register_count();
 
   return MatchInternal(isolate, code_array, subject_string, output_registers,
@@ -1071,10 +1072,10 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
-    Isolate* isolate, ByteArray code_array, String subject_string,
-    int* output_registers, int output_register_count, int total_register_count,
-    int start_position, RegExp::CallOrigin call_origin,
-    uint32_t backtrack_limit) {
+    Isolate* isolate, Tagged<ByteArray> code_array,
+    Tagged<String> subject_string, int* output_registers,
+    int output_register_count, int total_register_count, int start_position,
+    RegExp::CallOrigin call_origin, uint32_t backtrack_limit) {
   DCHECK(subject_string->IsFlat());
 
   // TODO(chromium:1262676): Remove this CHECK once fixed.
@@ -1131,8 +1132,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  String subject_string = String::cast(Object(subject));
-  JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
+  Tagged<String> subject_string = String::cast(Object(subject));
+  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Object(regexp));
 
   if (regexp_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

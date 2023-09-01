@@ -21,14 +21,14 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // SemiSpace
 
-bool SemiSpace::Contains(HeapObject o) const {
+bool SemiSpace::Contains(Tagged<HeapObject> o) const {
   BasicMemoryChunk* memory_chunk = BasicMemoryChunk::FromHeapObject(o);
   if (memory_chunk->IsLargePage()) return false;
   return id_ == kToSpace ? memory_chunk->IsToPage()
                          : memory_chunk->IsFromPage();
 }
 
-bool SemiSpace::Contains(Object o) const {
+bool SemiSpace::Contains(Tagged<Object> o) const {
   return IsHeapObject(o) && Contains(HeapObject::cast(o));
 }
 
@@ -48,18 +48,12 @@ bool SemiSpace::ContainsSlow(Address a) const {
 // --------------------------------------------------------------------------
 // NewSpace
 
-bool NewSpace::Contains(Object o) const {
+bool NewSpace::Contains(Tagged<Object> o) const {
   return IsHeapObject(o) && Contains(HeapObject::cast(o));
 }
 
-bool NewSpace::Contains(HeapObject o) const {
+bool NewSpace::Contains(Tagged<HeapObject> o) const {
   return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
-}
-
-template <typename T>
-inline bool NewSpace::Contains(Tagged<T> o) const {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return Contains(*o);
 }
 
 V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(

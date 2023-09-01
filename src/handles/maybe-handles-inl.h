@@ -22,7 +22,7 @@ MaybeHandle<T>::MaybeHandle(T object, LocalHeap* local_heap)
     : MaybeHandle(handle(object, local_heap)) {}
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, isolate);
@@ -35,7 +35,7 @@ MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object,
                                      LocalHeap* local_heap) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, local_heap);
@@ -49,15 +49,16 @@ MaybeObjectHandle::MaybeObjectHandle(MaybeObject object,
 MaybeObjectHandle::MaybeObjectHandle(Handle<Object> object)
     : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
 
-MaybeObjectHandle::MaybeObjectHandle(Object object, Isolate* isolate)
+MaybeObjectHandle::MaybeObjectHandle(Tagged<Object> object, Isolate* isolate)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, isolate) {}
 
-MaybeObjectHandle::MaybeObjectHandle(Object object, LocalHeap* local_heap)
+MaybeObjectHandle::MaybeObjectHandle(Tagged<Object> object,
+                                     LocalHeap* local_heap)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, local_heap) {}
 
-MaybeObjectHandle::MaybeObjectHandle(Object object,
+MaybeObjectHandle::MaybeObjectHandle(Tagged<Object> object,
                                      HeapObjectReferenceType reference_type,
                                      Isolate* isolate)
     : reference_type_(reference_type), handle_(handle(object, isolate)) {}
@@ -70,7 +71,8 @@ MaybeObjectHandle MaybeObjectHandle::Weak(Handle<Object> object) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK);
 }
 
-MaybeObjectHandle MaybeObjectHandle::Weak(Object object, Isolate* isolate) {
+MaybeObjectHandle MaybeObjectHandle::Weak(Tagged<Object> object,
+                                          Isolate* isolate) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK, isolate);
 }
 
@@ -135,7 +137,7 @@ inline std::ostream& operator<<(std::ostream& os, MaybeDirectHandle<T> handle) {
 
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
                                                  Isolate* isolate) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = direct_handle(heap_object, isolate);
@@ -148,7 +150,7 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
 
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
                                                  LocalHeap* local_heap) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = direct_handle(heap_object, local_heap);

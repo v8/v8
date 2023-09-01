@@ -137,7 +137,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       CHECK_EQ(operand_size, OperandSize::kByte);
     }
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
-      Smi value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
+      Tagged<Smi> value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
       size_t index = builder.CommitReservedEntry(OperandSize::kByte, value);
       CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
@@ -154,13 +154,13 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
 
     // Check all committed values match expected
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
-      Object value = constant_array->get(static_cast<int>(i));
-      Smi smi = Smi::FromInt(static_cast<int>(i));
+      Tagged<Object> value = constant_array->get(static_cast<int>(i));
+      Tagged<Smi> smi = Smi::FromInt(static_cast<int>(i));
       CHECK(Object::SameValue(value, smi));
     }
     for (size_t i = k8BitCapacity; i < 2 * k8BitCapacity + reserved; i++) {
-      Object value = constant_array->get(static_cast<int>(i));
-      Smi smi = Smi::FromInt(static_cast<int>(i - reserved));
+      Tagged<Object> value = constant_array->get(static_cast<int>(i));
+      Tagged<Smi> smi = Smi::FromInt(static_cast<int>(i - reserved));
       CHECK(Object::SameValue(value, smi));
     }
   }
@@ -205,7 +205,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
     CHECK_EQ(constant_array->length(),
              static_cast<int>(k8BitCapacity + reserved));
     for (size_t i = 0; i < k8BitCapacity + reserved; i++) {
-      Object value = constant_array->get(static_cast<int>(i));
+      Tagged<Object> value = constant_array->get(static_cast<int>(i));
       CHECK(Object::SameValue(value,
                               *isolate()->factory()->NewNumberFromSize(i)));
     }
@@ -235,8 +235,9 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(2 * k8BitCapacity));
   for (size_t i = 0; i < k8BitCapacity; i++) {
-    Object original = constant_array->get(static_cast<int>(k8BitCapacity + i));
-    Object duplicate = constant_array->get(static_cast<int>(i));
+    Tagged<Object> original =
+        constant_array->get(static_cast<int>(k8BitCapacity + i));
+    Tagged<Object> duplicate = constant_array->get(static_cast<int>(i));
     CHECK(Object::SameValue(original, duplicate));
     Handle<Object> reference = isolate()->factory()->NewNumberFromSize(i);
     CHECK(Object::SameValue(original, *reference));

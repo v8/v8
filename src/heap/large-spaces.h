@@ -51,11 +51,11 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   int PageCount() const { return page_count_; }
 
-  void ShrinkPageToObjectSize(LargePage* page, HeapObject object,
+  void ShrinkPageToObjectSize(LargePage* page, Tagged<HeapObject> object,
                               size_t object_size);
 
   // Checks whether a heap object is in this space; O(1).
-  bool Contains(HeapObject obj) const;
+  bool Contains(Tagged<HeapObject> obj) const;
   // Checks whether an address is in the object area in this space. Iterates all
   // objects in the space. May be slow.
   bool ContainsSlow(Address addr) const;
@@ -112,7 +112,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   LargePage* AllocateLargePage(int object_size, Executability executable);
 
-  void UpdatePendingObject(HeapObject object);
+  void UpdatePendingObject(Tagged<HeapObject> object);
 
   std::atomic<size_t> size_;  // allocated bytes
   int page_count_;       // number of chunks
@@ -176,7 +176,7 @@ class NewLargeObjectSpace : public LargeObjectSpace {
 
   void Flip();
 
-  void FreeDeadObjects(const std::function<bool(HeapObject)>& is_dead);
+  void FreeDeadObjects(const std::function<bool(Tagged<HeapObject>)>& is_dead);
 
   void SetCapacity(size_t capacity);
 

@@ -117,7 +117,8 @@ class PersistentHandlesThread final : public v8::base::Thread {
  public:
   PersistentHandlesThread(Heap* heap, std::vector<Handle<HeapNumber>> handles,
                           std::unique_ptr<PersistentHandles> ph,
-                          HeapNumber number, base::Semaphore* sema_started,
+                          Tagged<HeapNumber> number,
+                          base::Semaphore* sema_started,
                           base::Semaphore* sema_gc_finished)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),

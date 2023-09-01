@@ -24,7 +24,7 @@ static_assert(Heap::kMinObjectSizeInTaggedWords >= 2);
 MarkingVerifierBase::MarkingVerifierBase(Heap* heap)
     : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
-void MarkingVerifierBase::VisitMapPointer(HeapObject object) {
+void MarkingVerifierBase::VisitMapPointer(Tagged<HeapObject> object) {
   VerifyMap(object->map(cage_base()));
 }
 
@@ -89,7 +89,7 @@ void MarkingVerifierBase::VerifyMarking(PagedSpaceBase* space) {
 void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
   if (!lo_space) return;
   LargeObjectSpaceObjectIterator it(lo_space);
-  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
+  for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsMarked(obj)) {
       obj->Iterate(cage_base(), this);
     }
@@ -105,11 +105,11 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
   DCHECK_EQ(static_cast<int>(root),
             static_cast<int>(Root::kExternalStringsTable));
   NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
-  Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
+  Tagged<Object> the_hole = ReadOnlyRoots(heap_).the_hole_value();
   for (FullObjectSlot p = start; p < end; ++p) {
-    Object o = *p;
+    Tagged<Object> o = *p;
     if (!IsHeapObject(o)) continue;
-    HeapObject heap_object = HeapObject::cast(o);
+    Tagged<HeapObject> heap_object = HeapObject::cast(o);
     // MinorMS doesn't update the young strings set and so it may contain
     // strings that are already in old space.
     if (!marking_state->IsUnmarked(heap_object)) continue;

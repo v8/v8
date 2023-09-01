@@ -1726,42 +1726,44 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   explicit MergeAssumptionChecker(PtrComprCageBase cage_base)
       : cage_base_(cage_base) {}
 
-  void IterateObjects(HeapObject start) {
+  void IterateObjects(Tagged<HeapObject> start) {
     QueueVisit(start, kNormalObject);
     while (to_visit_.size() > 0) {
       std::pair<HeapObject, ObjectKind> pair = to_visit_.top();
       to_visit_.pop();
-      HeapObject current = pair.first;
+      Tagged<HeapObject> current = pair.first;
       // The Script's shared_function_infos list and the constant pools for all
       // BytecodeArrays are expected to contain pointers to SharedFunctionInfos.
       // However, the type of those objects (FixedArray or WeakFixedArray)
       // doesn't have enough information to indicate their usage, so we enqueue
       // those objects here rather than during VisitPointers.
       if (IsScript(current)) {
-        HeapObject sfis = Script::cast(current).shared_function_infos();
+        Tagged<HeapObject> sfis =
+            Script::cast(current)->shared_function_infos();
         QueueVisit(sfis, kScriptSfiList);
       } else if (IsBytecodeArray(current)) {
-        HeapObject constants = BytecodeArray::cast(current).constant_pool();
+        Tagged<HeapObject> constants =
+            BytecodeArray::cast(current)->constant_pool();
         QueueVisit(constants, kConstantPool);
       }
       current_object_kind_ = pair.second;
-      current.IterateBody(cage_base_, this);
-      QueueVisit(current.map(), kNormalObject);
+      current->IterateBody(cage_base_, this);
+      QueueVisit(current->map(), kNormalObject);
     }
   }
 
   // ObjectVisitor implementation:
-  void VisitPointers(HeapObject host, ObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
     MaybeObjectSlot maybe_start(start);
     MaybeObjectSlot maybe_end(end);
     VisitPointers(host, maybe_start, maybe_end);
   }
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     for (MaybeObjectSlot current = start; current != end; ++current) {
       MaybeObject maybe_obj = current.load(cage_base_);
-      HeapObject obj;
+      Tagged<HeapObject> obj;
       bool is_weak = maybe_obj.IsWeak();
       if (maybe_obj.GetHeapObject(&obj)) {
         if (IsSharedFunctionInfo(obj)) {
@@ -1785,14 +1787,16 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   // The object graph for a newly compiled Script shouldn't yet contain any
   // Code. If any of these functions are called, then that would indicate that
   // the graph was not disjoint from the rest of the heap as expected.
-  void VisitInstructionStreamPointer(Code host,
+  void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
     UNREACHABLE();
   }
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+  void VisitCodeTarget(Tagged<InstructionStream> host,
+                       RelocInfo* rinfo) override {
     UNREACHABLE();
   }
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* rinfo) override {
     UNREACHABLE();
   }
 
@@ -1805,7 +1809,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
 
   // If the object hasn't yet been added to the worklist, add it. Subsequent
   // calls with the same object have no effect, even if kind is different.
-  void QueueVisit(HeapObject obj, ObjectKind kind) {
+  void QueueVisit(Tagged<HeapObject> obj, ObjectKind kind) {
     if (visited_.insert(obj).second) {
       to_visit_.push(std::make_pair(obj, kind));
     }
@@ -2002,7 +2006,7 @@ class ConstantPoolPointerForwarder {
     for (int i = 0, length = constant_pool->length(); i < length; ++i) {
       Object obj = constant_pool->get(i);
       if (IsSmi(obj)) continue;
-      HeapObject heap_obj = HeapObject::cast(obj);
+      Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
       if (IsFixedArray(heap_obj, cage_base_)) {
         // Constant pools can have nested fixed arrays, but such relationships
         // are acyclic and never more than a few layers deep, so recursion is

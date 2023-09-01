@@ -42,7 +42,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                                            bool record_slots)
       : scavenger_(scavenger), record_slots_(record_slots) {}
 
-  V8_INLINE void VisitMapPointer(HeapObject host) final {
+  V8_INLINE void VisitMapPointer(Tagged<HeapObject> host) final {
     if (!record_slots_) return;
     MapWord map_word = host->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
@@ -53,17 +53,17 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
   }
 
-  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
-  inline void VisitEphemeron(HeapObject obj, int entry, ObjectSlot key,
+  inline void VisitEphemeron(Tagged<HeapObject> obj, int entry, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(Heap::IsLargeObject(obj) || IsEphemeronHashTable(obj));
     VisitPointer(obj, value);
@@ -79,23 +79,27 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation and thus cannot be found when iterating promoted objects.
-  void VisitInstructionStreamPointer(Code, InstructionStreamSlot) final {
+  void VisitInstructionStreamPointer(Tagged<Code>,
+                                     InstructionStreamSlot) final {
     UNREACHABLE();
   }
-  void VisitCodeTarget(InstructionStream, RelocInfo*) final { UNREACHABLE(); }
-  void VisitEmbeddedPointer(InstructionStream, RelocInfo*) final {
+  void VisitCodeTarget(Tagged<InstructionStream>, RelocInfo*) final {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(Tagged<InstructionStream>, RelocInfo*) final {
     UNREACHABLE();
   }
 
  private:
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+  V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
+                                   TSlot end) {
     using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     // Treat weak references as strong.
     // TODO(marja): Proper weakness handling in the young generation.
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = *slot;
-      HeapObject heap_object;
+      Tagged<HeapObject> heap_object;
       if (object.GetHeapObject(&heap_object)) {
         HandleSlot(host, THeapObjectSlot(slot), heap_object);
       }
@@ -103,8 +107,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   }
 
   template <typename THeapObjectSlot>
-  V8_INLINE void HandleSlot(HeapObject host, THeapObjectSlot slot,
-                            HeapObject target) {
+  V8_INLINE void HandleSlot(Tagged<HeapObject> host, THeapObjectSlot slot,
+                            Tagged<HeapObject> target) {
     static_assert(
         std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
             std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
@@ -158,14 +162,15 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
 namespace {
 
-V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Object object) {
+V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Tagged<Object> object) {
   return Heap::InFromPage(object) && !HeapObject::cast(object)
                                           ->map_word(kRelaxedLoad)
                                           .IsForwardingAddress();
 }
 
 // Same as IsUnscavengedHeapObject() above but specialized for HeapObjects.
-V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, HeapObject heap_object) {
+V8_INLINE bool IsUnscavengedHeapObject(Heap* heap,
+                                       Tagged<HeapObject> heap_object) {
   return Heap::InFromPage(heap_object) &&
          !heap_object->map_word(kRelaxedLoad).IsForwardingAddress();
 }
@@ -278,20 +283,20 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
 
  private:
   void UpdatePointer(FullObjectSlot p) {
-    Object object = *p;
+    Tagged<Object> object = *p;
     DCHECK(!HasWeakHeapObjectTag(object));
     // The object may be in the old generation as global handles over
     // approximates the list of young nodes. This checks also bails out for
     // Smis.
     if (!Heap::InYoungGeneration(object)) return;
 
-    HeapObject heap_object = HeapObject::cast(object);
+    Tagged<HeapObject> heap_object = HeapObject::cast(object);
     // TODO(chromium:1336158): Turn the following CHECKs into DCHECKs after
     // flushing out potential issues.
     CHECK(Heap::InFromPage(heap_object));
     MapWord first_word = heap_object->map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
-    HeapObject dest = first_word.ToForwardingAddress(heap_object);
+    Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
     HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
     CHECK_IMPLIES(Heap::InYoungGeneration(dest),
                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
@@ -459,7 +464,8 @@ void ScavengerCollector::CollectGarbage() {
   // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
-  heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
+  heap_->new_lo_space()->FreeDeadObjects(
+      [](Tagged<HeapObject>) { return true; });
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
@@ -548,8 +554,8 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
 
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
-    HeapObject object = update_info.first;
-    Map map = update_info.second;
+    Tagged<HeapObject> object = update_info.first;
+    Tagged<Map> map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
     object->set_map_word(map, kRelaxedStore);
@@ -638,8 +644,8 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                  heap->incremental_marking()->IsMajorMarking());
 }
 
-void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
-                                                 int size) {
+void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
+                                                 Tagged<Map> map, int size) {
   // We are not collecting slots on new space objects during mutation thus we
   // have to scan for pointers to evacuation candidates when we promote
   // objects. But we should not record any slots in non-black objects. Grey
@@ -660,7 +666,8 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   }
 }
 
-void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int index) {
+void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
+                                          int index) {
   auto indices =
       ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
   indices.first->second.insert(index);
@@ -740,7 +747,7 @@ void Scavenger::Process(JobDelegate* delegate) {
 
     struct PromotionListEntry entry;
     while (promotion_list_local_.Pop(&entry)) {
-      HeapObject target = entry.heap_object;
+      Tagged<HeapObject> target = entry.heap_object;
       IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
@@ -762,16 +769,16 @@ void ScavengerCollector::ProcessWeakReferences(
 // entry has a dead new-space key.
 void ScavengerCollector::ClearYoungEphemerons(
     EphemeronRememberedSet::TableList* ephemeron_table_list) {
-  ephemeron_table_list->Iterate([this](EphemeronHashTable table) {
+  ephemeron_table_list->Iterate([this](Tagged<EphemeronHashTable> table) {
     for (InternalIndex i : table->IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
-      HeapObject key = key_slot.ToHeapObject();
+      Tagged<HeapObject> key = key_slot.ToHeapObject();
       if (IsUnscavengedHeapObject(heap_, key)) {
         table->RemoveEntry(i);
       } else {
-        HeapObject forwarded = ForwardingAddress(key);
+        Tagged<HeapObject> forwarded = ForwardingAddress(key);
         key_slot.StoreHeapObject(forwarded);
       }
     }
@@ -784,18 +791,18 @@ void ScavengerCollector::ClearYoungEphemerons(
 void ScavengerCollector::ClearOldEphemerons() {
   auto* table_map = heap_->ephemeron_remembered_set_->tables();
   for (auto it = table_map->begin(); it != table_map->end();) {
-    EphemeronHashTable table = it->first;
+    Tagged<EphemeronHashTable> table = it->first;
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(table->RawFieldOfElementAt(
           EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-      HeapObject key = key_slot.ToHeapObject();
+      Tagged<HeapObject> key = key_slot.ToHeapObject();
       if (IsUnscavengedHeapObject(heap_, key)) {
         table->RemoveEntry(InternalIndex(*iti));
         iti = indices.erase(iti);
       } else {
-        HeapObject forwarded = ForwardingAddress(key);
+        Tagged<HeapObject> forwarded = ForwardingAddress(key);
         key_slot.StoreHeapObject(forwarded);
         if (!Heap::InYoungGeneration(forwarded)) {
           iti = indices.erase(iti);
@@ -837,7 +844,7 @@ void Scavenger::Publish() {
   promotion_list_local_.Publish();
 }
 
-void Scavenger::AddEphemeronHashTable(EphemeronHashTable table) {
+void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
   ephemeron_table_list_local_.Push(table);
 }
 
@@ -845,7 +852,7 @@ template <typename TSlot>
 void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
                                                   TSlot slot) {
   MaybeObject object = *slot;
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
       heap_object.InWritableSharedSpace()) {
@@ -858,7 +865,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
                                                 SlotType slot_type,
                                                 Address slot_address,
                                                 MaybeObject new_target) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&
       heap_object.InWritableSharedSpace()) {
@@ -888,7 +895,7 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 }
 
 void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
-  Object object = *p;
+  Tagged<Object> object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
   DCHECK(!MapWord::IsPacked(object.ptr()));
   if (Heap::InYoungGeneration(object)) {

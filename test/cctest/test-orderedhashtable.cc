@@ -59,19 +59,20 @@ Handle<OrderedNameDictionary> Add(Isolate* isolate,
 // version for
 // OrderedHashMap, OrderedHashSet
 template <typename T>
-bool HasKey(Isolate* isolate, Handle<T> table, Object key) {
+bool HasKey(Isolate* isolate, Handle<T> table, Tagged<Object> key) {
   return T::HasKey(isolate, *table, key);
 }
 
 template <>
-bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table, Object key) {
+bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table,
+            Tagged<Object> key) {
   return table->FindEntry(isolate, key).is_found();
 }
 
 // version for
 // OrderedHashTable, OrderedHashSet
 template <typename T>
-Handle<T> Delete(Isolate* isolate, Handle<T> table, Object key) {
+Handle<T> Delete(Isolate* isolate, Handle<T> table, Tagged<Object> key) {
   T::Delete(isolate, *table, key);
   return table;
 }
@@ -79,7 +80,7 @@ Handle<T> Delete(Isolate* isolate, Handle<T> table, Object key) {
 template <>
 Handle<OrderedNameDictionary> Delete(Isolate* isolate,
                                      Handle<OrderedNameDictionary> table,
-                                     Object key) {
+                                     Tagged<Object> key) {
   // OrderedNameDictionary doesn't have Delete, but only DeleteEntry, which
   // requires the key to be deleted to be present
   InternalIndex entry = table->FindEntry(isolate, key);
@@ -298,8 +299,8 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   CopyHashCode(key1, key2);
 
   CHECK(!Object::SameValue(*key1, *key2));
-  Object hash1 = Object::GetHash(*key1);
-  Object hash2 = Object::GetHash(*key2);
+  Tagged<Object> hash1 = Object::GetHash(*key1);
+  Tagged<Object> hash2 = Object::GetHash(*key2);
   CHECK_EQ(hash1, hash2);
 
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();

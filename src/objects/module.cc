@@ -27,7 +27,7 @@ namespace internal {
 
 namespace {
 #ifdef DEBUG
-void PrintModuleName(Module module, std::ostream& os) {
+void PrintModuleName(Tagged<Module> module, std::ostream& os) {
   if (IsSourceTextModule(module)) {
     Print(SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL(),
           os);
@@ -39,7 +39,7 @@ void PrintModuleName(Module module, std::ostream& os) {
 #endif  // OBJECT_PRINT
 }
 
-void PrintStatusTransition(Module module, Module::Status old_status) {
+void PrintStatusTransition(Tagged<Module> module, Module::Status old_status) {
   if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Changing module status from " << old_status << " to "
@@ -47,7 +47,7 @@ void PrintStatusTransition(Module module, Module::Status old_status) {
   PrintModuleName(module, os);
 }
 
-void PrintStatusMessage(Module module, const char* message) {
+void PrintStatusMessage(Tagged<Module> module, const char* message) {
   if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Instantiating module ";
@@ -55,14 +55,14 @@ void PrintStatusMessage(Module module, const char* message) {
 }
 #endif  // DEBUG
 
-void SetStatusInternal(Module module, Module::Status new_status) {
+void SetStatusInternal(Tagged<Module> module, Module::Status new_status) {
   DisallowGarbageCollection no_gc;
 #ifdef DEBUG
   Module::Status old_status = static_cast<Module::Status>(module->status());
   module->set_status(new_status);
   PrintStatusTransition(module, old_status);
 #else
-  module.set_status(new_status);
+  module->set_status(new_status);
 #endif  // DEBUG
 }
 
@@ -75,7 +75,7 @@ void Module::SetStatus(Status new_status) {
   SetStatusInternal(*this, new_status);
 }
 
-void Module::RecordError(Isolate* isolate, Object error) {
+void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   DisallowGarbageCollection no_gc;
   // Allow overriding exceptions with termination exceptions.
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
@@ -144,7 +144,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   SetStatusInternal(*module, kUnlinked);
 }
 
-Object Module::GetException() {
+Tagged<Object> Module::GetException() {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!IsTheHole(exception()));
@@ -308,7 +308,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (InternalIndex i : exports->IterateEntries()) {
-    Object key;
+    Tagged<Object> key;
     if (!exports->ToKey(roots, i, &key)) continue;
     names.push_back(handle(String::cast(key), isolate));
   }
@@ -455,7 +455,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
 
   // Only SourceTextModules may be async.
   if (!IsSourceTextModule(*this)) return false;
-  SourceTextModule root = SourceTextModule::cast(*this);
+  Tagged<SourceTextModule> root = SourceTextModule::cast(*this);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const size_t bucket_count = 2;
@@ -465,14 +465,14 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   worklist.push_back(root);
 
   do {
-    SourceTextModule current = worklist.back();
+    Tagged<SourceTextModule> current = worklist.back();
     worklist.pop_back();
     DCHECK_GE(current->status(), kLinked);
 
     if (current->async()) return true;
-    FixedArray requested_modules = current->requested_modules();
+    Tagged<FixedArray> requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-      Module descendant = Module::cast(requested_modules->get(i));
+      Tagged<Module> descendant = Module::cast(requested_modules->get(i));
       if (IsSourceTextModule(descendant)) {
         const bool cycle = !visited.insert(descendant).second;
         if (!cycle) worklist.push_back(SourceTextModule::cast(descendant));

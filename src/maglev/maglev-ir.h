@@ -4184,10 +4184,10 @@ class TaggedIndexConstant
  public:
   using OutputRegister = Register;
 
-  explicit TaggedIndexConstant(uint64_t bitfield, TaggedIndex value)
+  explicit TaggedIndexConstant(uint64_t bitfield, Tagged<TaggedIndex> value)
       : Base(bitfield), value_(value) {}
 
-  TaggedIndex value() const { return value_; }
+  Tagged<TaggedIndex> value() const { return value_; }
 
   bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
 
@@ -4199,7 +4199,7 @@ class TaggedIndexConstant
   Handle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
-  const TaggedIndex value_;
+  const Tagged<TaggedIndex> value_;
 };
 
 class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {

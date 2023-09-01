@@ -81,7 +81,7 @@ bool DebugInfo::CanBreakAtEntry() const {
 bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
   DCHECK(HasBreakInfo());
   // Get the break point info object for this code offset.
-  Object break_point_info = GetBreakPointInfo(isolate, source_position);
+  Tagged<Object> break_point_info = GetBreakPointInfo(isolate, source_position);
 
   // If there is no break point info object or no break points in the break
   // point info object there is no break point at this code offset.
@@ -91,11 +91,12 @@ bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
 }
 
 // Get the break point info object for this source position.
-Object DebugInfo::GetBreakPointInfo(Isolate* isolate, int source_position) {
+Tagged<Object> DebugInfo::GetBreakPointInfo(Isolate* isolate,
+                                            int source_position) {
   DCHECK(HasBreakInfo());
   for (int i = 0; i < break_points()->length(); i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
-      BreakPointInfo break_point_info =
+      Tagged<BreakPointInfo> break_point_info =
           BreakPointInfo::cast(break_points()->get(i));
       if (break_point_info->source_position() == source_position) {
         return break_point_info;
@@ -169,7 +170,7 @@ void DebugInfo::SetBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info,
 Handle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
                                          int source_position) {
   DCHECK(HasBreakInfo());
-  Object break_point_info = GetBreakPointInfo(isolate, source_position);
+  Tagged<Object> break_point_info = GetBreakPointInfo(isolate, source_position);
   if (IsUndefined(break_point_info, isolate)) {
     return isolate->factory()->undefined_value();
   }
@@ -183,7 +184,7 @@ int DebugInfo::GetBreakPointCount(Isolate* isolate) {
   int count = 0;
   for (int i = 0; i < break_points()->length(); i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
-      BreakPointInfo break_point_info =
+      Tagged<BreakPointInfo> break_point_info =
           BreakPointInfo::cast(break_points()->get(i));
       count += break_point_info->GetBreakPointCount(isolate);
     }
@@ -232,7 +233,7 @@ DebugInfo::SideEffectState DebugInfo::GetSideEffectState(Isolate* isolate) {
 }
 
 namespace {
-bool IsEqual(BreakPoint break_point1, BreakPoint break_point2) {
+bool IsEqual(Tagged<BreakPoint> break_point1, Tagged<BreakPoint> break_point2) {
   return break_point1->id() == break_point2->id();
 }
 }  // namespace
@@ -321,7 +322,7 @@ bool BreakPointInfo::HasBreakPoint(Isolate* isolate,
                    *break_point);
   }
   // Multiple break points.
-  FixedArray array = FixedArray::cast(break_point_info->break_points());
+  Tagged<FixedArray> array = FixedArray::cast(break_point_info->break_points());
   for (int i = 0; i < array->length(); i++) {
     if (IsEqual(BreakPoint::cast(array->get(i)), *break_point)) {
           return true;
@@ -339,18 +340,20 @@ MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
   }
   // Single break point.
   if (!IsFixedArray(break_point_info->break_points())) {
-    BreakPoint breakpoint = BreakPoint::cast(break_point_info->break_points());
+    Tagged<BreakPoint> breakpoint =
+        BreakPoint::cast(break_point_info->break_points());
     if (breakpoint->id() == breakpoint_id) {
           return handle(breakpoint, isolate);
     }
   } else {
     // Multiple break points.
-    FixedArray array = FixedArray::cast(break_point_info->break_points());
+    Tagged<FixedArray> array =
+        FixedArray::cast(break_point_info->break_points());
     for (int i = 0; i < array->length(); i++) {
-          BreakPoint breakpoint = BreakPoint::cast(array->get(i));
-          if (breakpoint->id() == breakpoint_id) {
+      Tagged<BreakPoint> breakpoint = BreakPoint::cast(array->get(i));
+      if (breakpoint->id() == breakpoint_id) {
         return handle(breakpoint, isolate);
-          }
+      }
     }
   }
   return MaybeHandle<BreakPoint>();
@@ -461,7 +464,7 @@ void ErrorStackData::EnsureStackFrameInfos(Isolate* isolate,
 // static
 MaybeHandle<JSObject> PromiseOnStack::GetPromise(
     Handle<PromiseOnStack> promise_on_stack) {
-  HeapObject promise;
+  Tagged<HeapObject> promise;
   Isolate* isolate = promise_on_stack->GetIsolate();
   if (promise_on_stack->promise()->GetHeapObjectIfWeak(isolate, &promise)) {
     return handle(JSObject::cast(promise), isolate);

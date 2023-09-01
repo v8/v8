@@ -761,8 +761,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
-  Context context() const { return thread_local_top()->context_; }
-  inline void set_context(Context context);
+  Tagged<Context> context() const { return thread_local_top()->context_; }
+  inline void set_context(Tagged<Context> context);
   Context* context_address() { return &thread_local_top()->context_; }
 
   // Access to current thread id.
@@ -802,25 +802,25 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Interface to pending exception.
   THREAD_LOCAL_TOP_ADDRESS(Object, pending_exception)
-  inline Object pending_exception();
-  inline void set_pending_exception(Object exception_obj);
+  inline Tagged<Object> pending_exception();
+  inline void set_pending_exception(Tagged<Object> exception_obj);
   inline void clear_pending_exception();
   inline bool has_pending_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Object, pending_message)
   inline void clear_pending_message();
-  inline Object pending_message();
+  inline Tagged<Object> pending_message();
   inline bool has_pending_message();
-  inline void set_pending_message(Object message_obj);
+  inline void set_pending_message(Tagged<Object> message_obj);
 
   THREAD_LOCAL_TOP_ADDRESS(Object, scheduled_exception)
-  inline Object scheduled_exception();
+  inline Tagged<Object> scheduled_exception();
   inline bool has_scheduled_exception();
   inline void clear_scheduled_exception();
-  inline void set_scheduled_exception(Object exception);
+  inline void set_scheduled_exception(Tagged<Object> exception);
 
 #ifdef DEBUG
-  inline Object VerifyBuiltinsResult(Object result);
+  inline Tagged<Object> VerifyBuiltinsResult(Tagged<Object> result);
   inline ObjectPair VerifyBuiltinsResult(ObjectPair pair);
 #endif
 
@@ -830,10 +830,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     kNone
   };
 
-  ExceptionHandlerType TopExceptionHandlerType(Object exception);
+  ExceptionHandlerType TopExceptionHandlerType(Tagged<Object> exception);
 
-  inline bool is_catchable_by_javascript(Object exception);
-  inline bool is_catchable_by_wasm(Object exception);
+  inline bool is_catchable_by_javascript(Tagged<Object> exception);
+  inline bool is_catchable_by_wasm(Tagged<Object> exception);
   inline bool is_execution_terminating();
   inline bool is_execution_termination_pending();
 
@@ -977,7 +977,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Tagged<Object> Throw(Object exception) {
+  Tagged<Object> Throw(Tagged<Object> exception) {
     return ThrowInternal(exception, nullptr);
   }
   Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
@@ -1022,12 +1022,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // reporting was handled when the exception was thrown originally.
   // The first overload doesn't set the corresponding pending message, which
   // has to be set separately or be guaranteed to not have changed.
-  Object ReThrow(Object exception);
-  Object ReThrow(Object exception, Object message);
+  Tagged<Object> ReThrow(Tagged<Object> exception);
+  Tagged<Object> ReThrow(Tagged<Object> exception, Tagged<Object> message);
 
   // Find the correct handler for the current pending exception. This also
   // clears and returns the current pending exception.
-  Object UnwindAndFindHandler();
+  Tagged<Object> UnwindAndFindHandler();
 
   // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
@@ -1041,7 +1041,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
   CatchType PredictExceptionCatcher();
 
-  void ScheduleThrow(Object exception);
+  void ScheduleThrow(Tagged<Object> exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
@@ -1050,7 +1050,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void ReportPendingMessages();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Object PromoteScheduledException();
+  Tagged<Object> PromoteScheduledException();
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter. The source location is attached to a
@@ -1074,8 +1074,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Handle<JSMessageObject> CreateMessageFromException(Handle<Object> exception);
 
   // Out of resource exception helpers.
-  Object StackOverflow();
-  Object TerminateExecution();
+  Tagged<Object> StackOverflow();
+  Tagged<Object> TerminateExecution();
   void CancelTerminateExecution();
 
   void RequestInterrupt(InterruptCallback callback, void* data);
@@ -1091,7 +1091,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Returns the current native context.
   inline Handle<NativeContext> native_context();
-  inline NativeContext raw_native_context();
+  inline Tagged<NativeContext> raw_native_context();
 
   Handle<NativeContext> GetIncumbentContext();
 
@@ -1230,7 +1230,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                sizeof(IsolateData));
   }
 
-  Object root(RootIndex index) const { return Object(roots_table()[index]); }
+  Tagged<Object> root(RootIndex index) const {
+    return Object(roots_table()[index]);
+  }
 
   Handle<Object> root_handle(RootIndex index) {
     return Handle<Object>(&roots_table()[index]);
@@ -1493,7 +1495,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // needed anymore. This keeps many feedback vectors alive, but code
   // coverage or type profile are used for debugging only and increase in
   // memory usage is expected.
-  void SetFeedbackVectorsForProfilingTools(Object value);
+  void SetFeedbackVectorsForProfilingTools(Tagged<Object> value);
 
   void MaybeInitializeVectorListFromHeap();
 
@@ -1533,7 +1535,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   enum class KnownPrototype { kNone, kObject, kArray, kString };
 
-  KnownPrototype IsArrayOrObjectOrStringPrototype(Object object);
+  KnownPrototype IsArrayOrObjectOrStringPrototype(Tagged<Object> object);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1555,7 +1557,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Returns true if array is the initial array prototype in any native context.
-  inline bool IsAnyInitialArrayPrototype(JSArray array);
+  inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
@@ -1841,7 +1843,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return lazy_compile_dispatcher_.get();
   }
 
-  bool IsInAnyContext(Object object, uint32_t index);
+  bool IsInAnyContext(Tagged<Object> object, uint32_t index);
 
   void ClearKeptObjects();
 
@@ -2081,7 +2083,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                Handle<ScopeInfo> outer_scope_info,
                                Handle<StringSet> locals_blocklist);
   // Returns either `TheHole` or `StringSet`.
-  Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
+  Tagged<Object> LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
 
   void VerifyStaticRoots();
 
@@ -2211,7 +2213,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void AddCrashKeysForIsolateAndHeapPointers();
 
   // Returns the Exception sentinel.
-  Object ThrowInternal(Object exception, MessageLocation* location);
+  Tagged<Object> ThrowInternal(Tagged<Object> exception,
+                               MessageLocation* location);
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
@@ -2620,7 +2623,7 @@ class V8_EXPORT_PRIVATE SaveContext {
 // constructor.
 class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
  public:
-  SaveAndSwitchContext(Isolate* isolate, Context new_context);
+  SaveAndSwitchContext(Isolate* isolate, Tagged<Context> new_context);
 };
 
 // A scope which sets the given isolate's context to null for its lifetime to

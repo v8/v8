@@ -367,13 +367,13 @@ namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
-  SharedFunctionInfo sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(Object(raw_sfi));
   return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
-  SharedFunctionInfo sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(Object(raw_sfi));
   base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(sfi);
   if (debug_info.has_value() && debug_info->HasCoverageInfo()) {
     return debug_info->coverage_info().ptr();
@@ -796,8 +796,8 @@ namespace {
 static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
                                              int bytecode_offset,
                                              Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
-  BytecodeArray bytecode_array =
+  Tagged<Code> code_obj = Code::cast(Object(raw_code_obj));
+  Tagged<BytecodeArray> bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
                                                        bytecode_array);
@@ -806,8 +806,8 @@ static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
-  BytecodeArray bytecode_array =
+  Tagged<Code> code_obj = Code::cast(Object(raw_code_obj));
+  Tagged<BytecodeArray> bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
@@ -1154,7 +1154,7 @@ Address GetOrCreateHash(Isolate* isolate, Address raw_key) {
 FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
 
 static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
-  JSReceiver key = JSReceiver::cast(Object(raw_key));
+  Tagged<JSReceiver> key = JSReceiver::cast(Object(raw_key));
   return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 
@@ -1229,8 +1229,8 @@ FUNCTION_REFERENCE(array_indexof_includes_double, ArrayIndexOfIncludesDouble)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
                                            Address smi_y) {
-  Smi x(smi_x);
-  Smi y(smi_y);
+  Tagged<Smi> x(smi_x);
+  Tagged<Smi> y(smi_y);
   return Smi::LexicographicCompare(isolate, x, y);
 }
 
@@ -1314,8 +1314,8 @@ FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 #ifdef V8_INTL_SUPPORT
 
 static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
-  String src = String::cast(Object(raw_src));
-  String dst = String::cast(Object(raw_dst));
+  Tagged<String> src = String::cast(Object(raw_src));
+  Tagged<String> dst = String::cast(Object(raw_dst));
   return Intl::ConvertOneByteToLower(src, dst).ptr();
 }
 FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
@@ -1386,7 +1386,7 @@ ExternalReference ExternalReference::runtime_function_table_address(
 }
 
 static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
-  Map map = Map::cast(Object(raw_map));
+  Tagged<Map> map = Map::cast(Object(raw_map));
   return JSObject::InvalidatePrototypeChains(map).ptr();
 }
 
@@ -1675,7 +1675,7 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
 
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {
-  NativeContext context = NativeContext::cast(Object(raw_context));
+  Tagged<NativeContext> context = NativeContext::cast(Object(raw_context));
   hsi->EnterMicrotaskContext(context);
   return 0;
 }

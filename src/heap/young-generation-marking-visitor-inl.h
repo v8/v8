@@ -51,9 +51,9 @@ YoungGenerationMarkingVisitor<marking_mode>::~YoungGenerationMarkingVisitor() {
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T>
-int YoungGenerationMarkingVisitor<
-    marking_mode>::VisitEmbedderTracingSubClassWithEmbedderTracing(Map map,
-                                                                   T object) {
+int YoungGenerationMarkingVisitor<marking_mode>::
+    VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
+                                                    Tagged<T> object) {
   const int size = VisitJSObjectSubclass(map, object);
   if (!marking_worklists_local_.SupportsExtractWrapper()) return size;
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
@@ -68,33 +68,33 @@ int YoungGenerationMarkingVisitor<
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
-    Map map, JSArrayBuffer object) {
+    Tagged<Map> map, Tagged<JSArrayBuffer> object) {
   object->YoungMarkExtension();
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSApiObject(
-    Map map, JSObject object) {
+    Tagged<Map> map, Tagged<JSObject> object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::
-    VisitJSDataViewOrRabGsabDataView(Map map,
-                                     JSDataViewOrRabGsabDataView object) {
+    VisitJSDataViewOrRabGsabDataView(
+        Tagged<Map> map, Tagged<JSDataViewOrRabGsabDataView> object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSTypedArray(
-    Map map, JSTypedArray object) {
+    Tagged<Map> map, Tagged<JSTypedArray> object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObject(
-    Map map, JSObject object) {
+    Tagged<Map> map, Tagged<JSObject> object) {
   int result = Parent::VisitJSObject(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
@@ -104,7 +104,7 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObject(
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectFast(
-    Map map, JSObject object) {
+    Tagged<Map> map, Tagged<JSObject> object) {
   int result = Parent::VisitJSObjectFast(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
@@ -115,7 +115,7 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectFast(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
-    Map map, T object) {
+    Tagged<Map> map, Tagged<T> object) {
   int result =
       Parent::template VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
   DCHECK_LT(0, result);
@@ -126,7 +126,7 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
-    Map map, EphemeronHashTable table) {
+    Tagged<Map> map, Tagged<EphemeronHashTable> table) {
   // Register table with Minor MC, so it can take care of the weak keys later.
   // This allows to only iterate the tables' values, which are treated as strong
   // independently of whether the key is live.
@@ -142,7 +142,7 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename TSlot>
 void YoungGenerationMarkingVisitor<marking_mode>::VisitPointersImpl(
-    HeapObject host, TSlot start, TSlot end) {
+    Tagged<HeapObject> host, TSlot start, TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
     if constexpr (marking_mode ==
                   YoungGenerationMarkingVisitationMode::kConcurrent) {
@@ -181,7 +181,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   typename TSlot::TObject target =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
 
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   // Treat weak references as strong.
   if (!target.GetHeapObject(&heap_object)) {
     return false;
@@ -207,7 +207,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
-    Map map = heap_object->map(isolate_);
+    Tagged<Map> map = heap_object->map(isolate_);
     const int visited_size = Parent::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(

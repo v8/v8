@@ -71,7 +71,7 @@ MicrotaskQueue::~MicrotaskQueue() {
 Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
                                              intptr_t microtask_queue_pointer,
                                              Address raw_microtask) {
-  Microtask microtask = Microtask::cast(Object(raw_microtask));
+  Tagged<Microtask> microtask = Microtask::cast(Object(raw_microtask));
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
   return Smi::zero().ptr();
@@ -97,7 +97,7 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
   EnqueueMicrotask(*microtask);
 }
 
-void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
+void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
   if (size_ == capacity_) {
     // Keep the capacity of |ring_buffer_| power of 2, so that the JIT
     // implementation can calculate the modulo easily.
@@ -252,9 +252,9 @@ void MicrotaskQueue::OnCompleted(Isolate* isolate) const {
   }
 }
 
-Microtask MicrotaskQueue::get(intptr_t index) const {
+Tagged<Microtask> MicrotaskQueue::get(intptr_t index) const {
   DCHECK_LT(index, size_);
-  Object microtask(ring_buffer_[(index + start_) % capacity_]);
+  Tagged<Object> microtask(ring_buffer_[(index + start_) % capacity_]);
   return Microtask::cast(microtask);
 }
 

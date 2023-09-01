@@ -350,7 +350,7 @@ void ValueSerializer::WriteTwoByteString(base::Vector<const base::uc16> chars) {
   WriteRawBytes(chars.begin(), chars.length() * sizeof(base::uc16));
 }
 
-void ValueSerializer::WriteBigIntContents(BigInt bigint) {
+void ValueSerializer::WriteBigIntContents(Tagged<BigInt> bigint) {
   uint32_t bitfield = bigint->GetBitfieldForSerialization();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   WriteVarint<uint32_t>(bitfield);
@@ -488,7 +488,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
   }
 }
 
-void ValueSerializer::WriteOddball(Oddball oddball) {
+void ValueSerializer::WriteOddball(Tagged<Oddball> oddball) {
   SerializationTag tag = SerializationTag::kUndefined;
   switch (oddball->kind()) {
     case Oddball::kUndefined:
@@ -509,18 +509,18 @@ void ValueSerializer::WriteOddball(Oddball oddball) {
   WriteTag(tag);
 }
 
-void ValueSerializer::WriteSmi(Smi smi) {
+void ValueSerializer::WriteSmi(Tagged<Smi> smi) {
   static_assert(kSmiValueSize <= 32, "Expected SMI <= 32 bits.");
   WriteTag(SerializationTag::kInt32);
   WriteZigZag<int32_t>(smi.value());
 }
 
-void ValueSerializer::WriteHeapNumber(HeapNumber number) {
+void ValueSerializer::WriteHeapNumber(Tagged<HeapNumber> number) {
   WriteTag(SerializationTag::kDouble);
   WriteDouble(number->value());
 }
 
-void ValueSerializer::WriteBigInt(BigInt bigint) {
+void ValueSerializer::WriteBigInt(Tagged<BigInt> bigint) {
   WriteTag(SerializationTag::kBigInt);
   WriteBigIntContents(bigint);
 }
@@ -730,7 +730,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     switch (array->GetElementsKind(cage_base)) {
       case PACKED_SMI_ELEMENTS: {
         DisallowGarbageCollection no_gc;
-        FixedArray elements = FixedArray::cast(array->elements());
+        Tagged<FixedArray> elements = FixedArray::cast(array->elements());
         for (i = 0; i < length; i++)
           WriteSmi(Smi::cast(elements->get(cage_base, i)));
         break;
@@ -740,7 +740,8 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
         // is empty. No elements to encode in this case anyhow.
         if (length == 0) break;
         DisallowGarbageCollection no_gc;
-        FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
+        Tagged<FixedDoubleArray> elements =
+            FixedDoubleArray::cast(array->elements());
         for (i = 0; i < length; i++) {
           WriteTag(SerializationTag::kDouble);
           WriteDouble(elements->get_scalar(i));
@@ -818,7 +819,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSDate(JSDate date) {
+void ValueSerializer::WriteJSDate(Tagged<JSDate> date) {
   WriteTag(SerializationTag::kDate);
   WriteDouble(Object::Number(date->value()));
 }
@@ -828,7 +829,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
   PtrComprCageBase cage_base(isolate_);
   {
     DisallowGarbageCollection no_gc;
-    Object inner_value = value->value();
+    Tagged<Object> inner_value = value->value();
     if (IsTrue(inner_value, isolate_)) {
       WriteTag(SerializationTag::kTrueObject);
     } else if (IsFalse(inner_value, isolate_)) {
@@ -864,12 +865,12 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> js_map) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowGarbageCollection no_gc;
-    OrderedHashMap raw_table = *table;
-    FixedArray raw_entries = *entries;
-    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Tagged<OrderedHashMap> raw_table = *table;
+    Tagged<FixedArray> raw_entries = *entries;
+    Tagged<Hole> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table->IterateEntries()) {
-      Object key = raw_table->KeyAt(entry);
+      Tagged<Object> key = raw_table->KeyAt(entry);
       if (key == the_hole) continue;
       raw_entries->set(result_index++, key);
       raw_entries->set(result_index++, raw_table->ValueAt(entry));
@@ -896,12 +897,12 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> js_set) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowGarbageCollection no_gc;
-    OrderedHashSet raw_table = *table;
-    FixedArray raw_entries = *entries;
-    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Tagged<OrderedHashSet> raw_table = *table;
+    Tagged<FixedArray> raw_entries = *entries;
+    Tagged<Hole> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table->IterateEntries()) {
-      Object key = raw_table->KeyAt(entry);
+      Tagged<Object> key = raw_table->KeyAt(entry);
       if (key == the_hole) continue;
       raw_entries->set(result_index++, key);
     }
@@ -971,7 +972,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
+Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
+    Tagged<JSArrayBufferView> view) {
   if (treat_array_buffer_views_as_host_objects_) {
     return WriteHostObject(handle(view, isolate_));
   }
@@ -2187,8 +2189,8 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
-    JSArrayBuffer buffer, uint32_t serialized_flags, bool& is_length_tracking,
-    bool& is_backed_by_rab) {
+    Tagged<JSArrayBuffer> buffer, uint32_t serialized_flags,
+    bool& is_length_tracking, bool& is_backed_by_rab) {
   is_length_tracking =
       JSArrayBufferViewIsLengthTracking::decode(serialized_flags);
   is_backed_by_rab = JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
@@ -2423,7 +2425,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   DCHECK(!object->map()->is_dictionary_map());
 
   DisallowGarbageCollection no_gc;
-  DescriptorArray descriptors = object->map()->instance_descriptors();
+  Tagged<DescriptorArray> descriptors = object->map()->instance_descriptors();
   for (InternalIndex i : InternalIndex::Range(properties.size())) {
     // Initializing store.
     object->WriteToField(i, descriptors->GetDetails(i),
@@ -2431,7 +2433,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   }
 }
 
-static bool IsValidObjectKey(Object value, Isolate* isolate) {
+static bool IsValidObjectKey(Tagged<Object> value, Isolate* isolate) {
   if (IsSmi(value)) return true;
   auto instance_type = HeapObject::cast(value)->map(isolate)->instance_type();
   return InstanceTypeChecker::IsName(instance_type) ||
@@ -2514,7 +2516,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
             if (expected_representation.IsHeapObject() &&
                 !target->instance_descriptors(isolate_)
                      ->GetFieldType(descriptor)
-                     .NowContains(value)) {
+                     ->NowContains(value)) {
               Handle<FieldType> value_type = Object::OptimalType(
                   *value, isolate_, expected_representation);
               MapUpdater::GeneralizeField(isolate_, target, descriptor,
@@ -2523,7 +2525,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
             }
             DCHECK(target->instance_descriptors(isolate_)
                        ->GetFieldType(descriptor)
-                       .NowContains(value));
+                       ->NowContains(value));
             properties.push_back(value);
             map = target;
             continue;
@@ -2594,7 +2596,7 @@ MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
   if (id >= static_cast<unsigned>(id_map_->length())) {
     return MaybeHandle<JSReceiver>();
   }
-  Object value = id_map_->get(id);
+  Tagged<Object> value = id_map_->get(id);
   if (IsTheHole(value, isolate_)) return MaybeHandle<JSReceiver>();
   DCHECK(IsJSReceiver(value));
   return Handle<JSReceiver>(JSReceiver::cast(value), isolate_);

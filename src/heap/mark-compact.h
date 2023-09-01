@@ -75,7 +75,7 @@ class MarkCompactCollector final {
 
   void StartMarking();
 
-  static inline bool IsOnEvacuationCandidate(Object obj) {
+  static inline bool IsOnEvacuationCandidate(Tagged<Object> obj) {
     return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
 
@@ -87,24 +87,27 @@ class MarkCompactCollector final {
     uint32_t offset;
   };
 
-  static bool ShouldRecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                                    HeapObject target);
-  static RecordRelocSlotInfo ProcessRelocInfo(InstructionStream host,
+  static bool ShouldRecordRelocSlot(Tagged<InstructionStream> host,
+                                    RelocInfo* rinfo,
+                                    Tagged<HeapObject> target);
+  static RecordRelocSlotInfo ProcessRelocInfo(Tagged<InstructionStream> host,
                                               RelocInfo* rinfo,
-                                              HeapObject target);
+                                              Tagged<HeapObject> target);
 
-  static void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                              HeapObject target);
-  V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
-                                   HeapObject target);
-  V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
-                                   HeapObject target);
+  static void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
+                              Tagged<HeapObject> target);
+  V8_INLINE static void RecordSlot(Tagged<HeapObject> object, ObjectSlot slot,
+                                   Tagged<HeapObject> target);
+  V8_INLINE static void RecordSlot(Tagged<HeapObject> object,
+                                   HeapObjectSlot slot,
+                                   Tagged<HeapObject> target);
   V8_INLINE static void RecordSlot(MemoryChunk* source_page,
-                                   HeapObjectSlot slot, HeapObject target);
+                                   HeapObjectSlot slot,
+                                   Tagged<HeapObject> target);
 
   bool is_compacting() const { return compacting_; }
 
-  V8_INLINE void AddTransitionArray(TransitionArray array);
+  V8_INLINE void AddTransitionArray(Tagged<TransitionArray> array);
 
   void RecordStrongDescriptorArraysForWeakening(
       GlobalHandleVector<DescriptorArray> strong_descriptor_arrays);
@@ -138,7 +141,7 @@ class MarkCompactCollector final {
   WeakObjects* weak_objects() { return &weak_objects_; }
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
-  void AddNewlyDiscovered(HeapObject object) {
+  void AddNewlyDiscovered(Tagged<HeapObject> object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
 
     if (ephemeron_marking_.newly_discovered.size() <
@@ -180,11 +183,11 @@ class MarkCompactCollector final {
 
   // Marks the object grey and adds it to the marking work list.
   // This is for non-incremental marking only.
-  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
+  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj);
 
   // Marks the object grey and adds it to the marking work list.
   // This is for non-incremental marking only.
-  V8_INLINE void MarkRootObject(Root root, HeapObject obj);
+  V8_INLINE void MarkRootObject(Root root, Tagged<HeapObject> obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor);
@@ -216,7 +219,7 @@ class MarkCompactCollector final {
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool ProcessEphemeron(HeapObject key, HeapObject value);
+  bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value);
 
   // Marks the transitive closure by draining the marking worklist iteratively,
   // applying ephemerons semantics and invoking embedder tracing until a
@@ -247,19 +250,21 @@ class MarkCompactCollector final {
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.
-  void ClearPotentialSimpleMapTransition(Map dead_target);
-  void ClearPotentialSimpleMapTransition(Map map, Map dead_target);
+  void ClearPotentialSimpleMapTransition(Tagged<Map> dead_target);
+  void ClearPotentialSimpleMapTransition(Tagged<Map> map,
+                                         Tagged<Map> dead_target);
 
   // Flushes a weakly held bytecode array from a shared function info.
-  void FlushBytecodeFromSFI(SharedFunctionInfo shared_info);
+  void FlushBytecodeFromSFI(Tagged<SharedFunctionInfo> shared_info);
 
   // Clears bytecode arrays / baseline code that have not been executed for
   // multiple collections.
   void ProcessOldCodeCandidates();
 
-  bool ProcessOldBytecodeSFI(SharedFunctionInfo flushing_candidate);
-  bool ProcessOldBaselineSFI(SharedFunctionInfo flushing_candidate);
-  void FlushSFI(SharedFunctionInfo sfi, bool bytecode_already_decompiled);
+  bool ProcessOldBytecodeSFI(Tagged<SharedFunctionInfo> flushing_candidate);
+  bool ProcessOldBaselineSFI(Tagged<SharedFunctionInfo> flushing_candidate);
+  void FlushSFI(Tagged<SharedFunctionInfo> sfi,
+                bool bytecode_already_decompiled);
 
   void ProcessFlushedBaselineCandidates();
 
@@ -269,11 +274,13 @@ class MarkCompactCollector final {
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
-  void TrimDescriptorArray(Map map, DescriptorArray descriptors);
-  void TrimEnumCache(Map map, DescriptorArray descriptors);
-  bool CompactTransitionArray(Map map, TransitionArray transitions,
-                              DescriptorArray descriptors);
-  bool TransitionArrayNeedsCompaction(TransitionArray transitions,
+  void TrimDescriptorArray(Tagged<Map> map,
+                           Tagged<DescriptorArray> descriptors);
+  void TrimEnumCache(Tagged<Map> map, Tagged<DescriptorArray> descriptors);
+  bool CompactTransitionArray(Tagged<Map> map,
+                              Tagged<TransitionArray> transitions,
+                              Tagged<DescriptorArray> descriptors);
+  bool TransitionArrayNeedsCompaction(Tagged<TransitionArray> transitions,
                                       int num_transitions);
   void WeakenStrongDescriptorArrays();
 
@@ -315,9 +322,10 @@ class MarkCompactCollector final {
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
 
-  void RightTrimDescriptorArray(DescriptorArray array, int descriptors_to_trim);
+  void RightTrimDescriptorArray(Tagged<DescriptorArray> array,
+                                int descriptors_to_trim);
 
-  V8_INLINE bool ShouldMarkObject(HeapObject) const;
+  V8_INLINE bool ShouldMarkObject(Tagged<HeapObject>) const;
 
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);

@@ -20,7 +20,7 @@ class AlwaysSharedSpaceJSObject
                                                       JSObject> {
  public:
   // Prepare a Map to be used as the instance map for shared JS objects.
-  static void PrepareMapNoEnumerableProperties(Map map);
+  static void PrepareMapNoEnumerableProperties(Tagged<Map> map);
   static void PrepareMapWithEnumerableProperties(
       Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
       int enum_length);

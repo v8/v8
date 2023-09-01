@@ -43,7 +43,7 @@ class Map;
 namespace InstanceTypeChecker {
 #define IS_TYPE_FUNCTION_DECL(Type, ...)                         \
   V8_INLINE constexpr bool Is##Type(InstanceType instance_type); \
-  V8_INLINE bool Is##Type(Map map);
+  V8_INLINE bool Is##Type(Tagged<Map> map);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 

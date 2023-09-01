@@ -94,7 +94,7 @@ namespace {
 void SetUncompiledDataJobPointer(LocalIsolate* isolate,
                                  Handle<SharedFunctionInfo> shared_info,
                                  Address job_address) {
-  UncompiledData uncompiled_data = shared_info->uncompiled_data();
+  Tagged<UncompiledData> uncompiled_data = shared_info->uncompiled_data();
   switch (uncompiled_data->map(isolate)->instance_type()) {
     // The easy cases -- we already have a job slot, so can write into it and
     // return.
@@ -183,7 +183,7 @@ void LazyCompileDispatcher::Enqueue(
 bool LazyCompileDispatcher::IsEnqueued(
     Handle<SharedFunctionInfo> function) const {
   Job* job = nullptr;
-  Object function_data = function->function_data(kAcquireLoad);
+  Tagged<Object> function_data = function->function_data(kAcquireLoad);
   if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     job = reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
@@ -369,7 +369,7 @@ void LazyCompileDispatcher::AbortAll() {
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
-  Object function_data = shared->function_data(kAcquireLoad);
+  Tagged<Object> function_data = shared->function_data(kAcquireLoad);
   if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     return reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());

@@ -139,26 +139,27 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
 namespace {
 
 template <class StringClass>
-void MigrateExternalStringResource(Isolate* isolate, ExternalString from,
-                                   StringClass to) {
-  Address to_resource_address = to.resource_as_address();
+void MigrateExternalStringResource(Isolate* isolate,
+                                   Tagged<ExternalString> from,
+                                   Tagged<StringClass> to) {
+  Address to_resource_address = to->resource_as_address();
   if (to_resource_address == kNullAddress) {
-    StringClass cast_from = StringClass::cast(from);
+    Tagged<StringClass> cast_from = StringClass::cast(from);
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
-    to.SetResource(isolate, cast_from.resource());
+    to->SetResource(isolate, cast_from->resource());
     // Zap |from|'s resource pointer to reflect the fact that |from| has
     // relinquished ownership of its resource.
     isolate->heap()->UpdateExternalString(
         from, ExternalString::cast(from)->ExternalPayloadSize(), 0);
-    cast_from.SetResource(isolate, nullptr);
+    cast_from->SetResource(isolate, nullptr);
   } else if (to_resource_address != from->resource_as_address()) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);
   }
 }
 
-void MigrateExternalString(Isolate* isolate, String string,
-                           String internalized) {
+void MigrateExternalString(Isolate* isolate, Tagged<String> string,
+                           Tagged<String> internalized) {
   if (IsExternalOneByteString(internalized)) {
     MigrateExternalStringResource(isolate, ExternalString::cast(string),
                                   ExternalOneByteString::cast(internalized));
@@ -173,14 +174,15 @@ void MigrateExternalString(Isolate* isolate, String string,
   }
 }
 
-void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
+void InitExternalPointerFieldsDuringExternalization(Tagged<String> string,
+                                                    Tagged<Map> new_map,
                                                     Isolate* isolate) {
-  string.InitExternalPointerField<kExternalStringResourceTag>(
+  string->InitExternalPointerField<kExternalStringResourceTag>(
       ExternalString::kResourceOffset, isolate, kNullAddress);
   bool is_uncached = (new_map->instance_type() & kUncachedExternalStringMask) ==
                      kUncachedExternalStringTag;
   if (!is_uncached) {
-    string.InitExternalPointerField<kExternalStringResourceDataTag>(
+    string->InitExternalPointerField<kExternalStringResourceDataTag>(
         ExternalString::kResourceDataOffset, isolate, kNullAddress);
   }
 }
@@ -188,12 +190,12 @@ void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
 }  // namespace
 
 template <typename IsolateT>
-void String::MakeThin(IsolateT* isolate, String internalized) {
+void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(IsInternalizedString(internalized));
 
-  Map initial_map = map(kAcquireLoad);
+  Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
   DCHECK(!initial_shape.IsThin());
@@ -211,9 +213,9 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   bool may_contain_recorded_slots = initial_shape.IsIndirect();
   int old_size = SizeFromMap(initial_map);
   ReadOnlyRoots roots(isolate);
-  Map target_map = internalized.IsOneByteRepresentation()
-                       ? roots.thin_one_byte_string_map()
-                       : roots.thin_two_byte_string_map();
+  Tagged<Map> target_map = internalized->IsOneByteRepresentation()
+                               ? roots.thin_one_byte_string_map()
+                               : roots.thin_two_byte_string_map();
   if (initial_shape.IsExternal()) {
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
@@ -229,7 +231,7 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   // Update actual first and then do release store on the map word. This ensures
   // that the concurrent marker will read the pointer when visiting a
   // ThinString.
-  ThinString thin = ThinString::unchecked_cast(*this);
+  Tagged<ThinString> thin = ThinString::unchecked_cast(*this);
   thin->set_actual(internalized);
 
   DCHECK_GE(old_size, ThinString::kSize);
@@ -256,9 +258,9 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, String internalized);
+    Isolate* isolate, Tagged<String> internalized);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, String internalized);
+    LocalIsolate* isolate, Tagged<String> internalized);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
@@ -296,7 +298,8 @@ bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
 namespace {
 
 template <bool is_one_byte>
-Map ComputeExternalStringMap(Isolate* isolate, String string, int size) {
+Tagged<Map> ComputeExternalStringMap(Isolate* isolate, Tagged<String> string,
+                                     int size) {
   ReadOnlyRoots roots(isolate);
   StringShape shape(string, isolate);
   const bool is_internalized = shape.IsInternalized();
@@ -354,7 +357,8 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   // resort to an uncached external string instead, omitting the field caching
   // the address of the backing store.  When we encounter uncached external
   // strings in generated code, we need to bailout to runtime.
-  Map new_map = ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
+  Tagged<Map> new_map =
+      ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
@@ -379,11 +383,11 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   this->set_map(new_map, kReleaseStore);
 
   if constexpr (is_one_byte) {
-    ExternalOneByteString self = ExternalOneByteString::cast(*this);
-    self.SetResource(isolate, resource);
+    Tagged<ExternalOneByteString> self = ExternalOneByteString::cast(*this);
+    self->SetResource(isolate, resource);
   } else {
-    ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
-    self.SetResource(isolate, resource);
+    Tagged<ExternalTwoByteString> self = ExternalTwoByteString::cast(*this);
+    self->SetResource(isolate, resource);
   }
   isolate->heap()->RegisterExternalString(*this);
 }
@@ -437,7 +441,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // the address of the backing store.  When we encounter uncached external
   // strings in generated code, we need to bailout to runtime.
   constexpr bool is_one_byte = false;
-  Map new_map = ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
+  Tagged<Map> new_map =
+      ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
@@ -468,7 +473,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // the sweeper thread.
   this->set_map(new_map, kReleaseStore);
 
-  ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
+  Tagged<ExternalTwoByteString> self = ExternalTwoByteString::cast(*this);
   self->SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
@@ -524,7 +529,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // the address of the backing store.  When we encounter uncached external
   // strings in generated code, we need to bailout to runtime.
   constexpr bool is_one_byte = true;
-  Map new_map = ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
+  Tagged<Map> new_map =
+      ComputeExternalStringMap<is_one_byte>(isolate, *this, size);
 
   if (!isolate->heap()->IsLargeObject(*this)) {
     // Byte size of the external String object.
@@ -555,7 +561,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // the sweeper thread.
   this->set_map(new_map, kReleaseStore);
 
-  ExternalOneByteString self = ExternalOneByteString::cast(*this);
+  Tagged<ExternalOneByteString> self = ExternalOneByteString::cast(*this);
   self->SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
@@ -589,7 +595,7 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
   }
 
   // Only strings in old space can be externalized.
-  if (Heap::InYoungGeneration(*this)) {
+  if (Heap::InYoungGeneration(Tagged(*this))) {
     return false;
   }
 
@@ -687,7 +693,7 @@ void String::PrintUC16(StringStream* accumulator, int start, int end) {
 
 int32_t String::ToArrayIndex(Address addr) {
   DisallowGarbageCollection no_gc;
-  String key(addr);
+  Tagged<String> key(addr);
 
   uint32_t index;
   if (!key->AsArrayIndex(&index)) return -1;
@@ -794,18 +800,18 @@ String::FlatContent String::SlowGetFlatContent(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  String string = *this;
+  Tagged<String> string = *this;
   StringShape shape(string, cage_base);
   int offset = 0;
 
   // Extract cons- and sliced strings.
   if (shape.IsCons()) {
-    ConsString cons = ConsString::cast(string);
+    Tagged<ConsString> cons = ConsString::cast(string);
     if (!cons->IsFlat(cage_base)) return FlatContent(no_gc);
     string = cons->first(cage_base);
     shape = StringShape(string, cage_base);
   } else if (shape.IsSliced()) {
-    SlicedString slice = SlicedString::cast(string);
+    Tagged<SlicedString> slice = SlicedString::cast(string);
     offset = slice->offset();
     string = slice->parent(cage_base);
     shape = StringShape(string, cage_base);
@@ -816,7 +822,7 @@ String::FlatContent String::SlowGetFlatContent(
 
   // Extract thin strings.
   if (shape.IsThin()) {
-    ThinString thin = ThinString::cast(string);
+    Tagged<ThinString> thin = ThinString::cast(string);
     string = thin->actual(cage_base);
     shape = StringShape(string, cage_base);
   }
@@ -880,7 +886,8 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
 
 // static
 template <typename sinkchar>
-void String::WriteToFlat(String source, sinkchar* sink, int start, int length) {
+void String::WriteToFlat(Tagged<String> source, sinkchar* sink, int start,
+                         int length) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(source));
   return WriteToFlat(source, sink, start, length, GetPtrComprCageBase(source),
                      SharedStringAccessGuardIfNeeded::NotNeeded());
@@ -888,8 +895,8 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length) {
 
 // static
 template <typename sinkchar>
-void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
-                         PtrComprCageBase cage_base,
+void String::WriteToFlat(Tagged<String> source, sinkchar* sink, int start,
+                         int length, PtrComprCageBase cage_base,
                          const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   if (length == 0) return;
@@ -926,8 +933,8 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
         return;
       case kOneByteStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
-        ConsString cons_string = ConsString::cast(source);
-        String first = cons_string->first(cage_base);
+        Tagged<ConsString> cons_string = ConsString::cast(source);
+        Tagged<String> first = cons_string->first(cage_base);
         int boundary = first->length();
         int first_length = boundary - start;
         int second_length = start + length - boundary;
@@ -950,7 +957,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
         } else {
           // Left hand side is longer.  Recurse over right.
           if (second_length > 0) {
-            String second = cons_string->second(cage_base);
+            Tagged<String> second = cons_string->second(cage_base);
             // When repeatedly appending to a string, we get a cons string that
             // is unbalanced to the left, a list, essentially.  We inline the
             // common case of sequential one-byte right child.
@@ -975,7 +982,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
       }
       case kOneByteStringTag | kSlicedStringTag:
       case kTwoByteStringTag | kSlicedStringTag: {
-        SlicedString slice = SlicedString::cast(source);
+        Tagged<SlicedString> slice = SlicedString::cast(source);
         unsigned offset = slice->offset();
         source = slice->parent(cage_base);
         start += offset;
@@ -1059,14 +1066,15 @@ template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
 
-bool String::SlowEquals(String other) const {
+bool String::SlowEquals(Tagged<String> other) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(other));
   return SlowEquals(other, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 bool String::SlowEquals(
-    String other, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    Tagged<String> other,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   DisallowGarbageCollection no_gc;
   // Fast check: negative check with lengths.
   int len = length();
@@ -1097,7 +1105,7 @@ bool String::SlowEquals(
       if (this_hash != other_hash) {
         bool found_difference = false;
         for (int i = 0; i < len; i++) {
-          if (Get(i) != other.Get(i)) {
+          if (Get(i) != other->Get(i)) {
             found_difference = true;
             break;
           }
@@ -1261,7 +1269,7 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
 
 namespace {
 
-uint32_t ToValidIndex(String str, Object number) {
+uint32_t ToValidIndex(Tagged<String> str, Tagged<Object> number) {
   uint32_t index = PositiveNumberToUint32(number);
   uint32_t length_value = static_cast<uint32_t>(str->length());
   if (index > length_value) return length_value;
@@ -1270,8 +1278,8 @@ uint32_t ToValidIndex(String str, Object number) {
 
 }  // namespace
 
-Object String::IndexOf(Isolate* isolate, Handle<Object> receiver,
-                       Handle<Object> search, Handle<Object> position) {
+Tagged<Object> String::IndexOf(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Object> search, Handle<Object> position) {
   if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
@@ -1536,8 +1544,9 @@ int StringMatchBackwards(base::Vector<const schar> subject,
 
 }  // namespace
 
-Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
-                           Handle<Object> search, Handle<Object> position) {
+Tagged<Object> String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
+                                   Handle<Object> search,
+                                   Handle<Object> position) {
   if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
@@ -1646,8 +1655,8 @@ bool String::IsIdentifier(Isolate* isolate, Handle<String> str) {
 namespace {
 
 template <typename Char>
-uint32_t HashString(String string, size_t start, int length, uint64_t seed,
-                    PtrComprCageBase cage_base,
+uint32_t HashString(Tagged<String> string, size_t start, int length,
+                    uint64_t seed, PtrComprCageBase cage_base,
                     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
 
@@ -1666,7 +1675,7 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed,
                         access_guard);
     chars = buffer.get();
   } else {
-    chars = string.GetDirectStringChars<Char>(cage_base, no_gc, access_guard) +
+    chars = string->GetDirectStringChars<Char>(cage_base, no_gc, access_guard) +
             start;
   }
 
@@ -1694,11 +1703,11 @@ uint32_t String::ComputeAndSetRawHash(
   // Store the hash code in the object.
   uint64_t seed = HashSeed(EarlyGetReadOnlyRoots());
   size_t start = 0;
-  String string = *this;
+  Tagged<String> string = *this;
   PtrComprCageBase cage_base = GetPtrComprCageBase(string);
   StringShape shape(string, cage_base);
   if (shape.IsSliced()) {
-    SlicedString sliced = SlicedString::cast(string);
+    Tagged<SlicedString> sliced = SlicedString::cast(string);
     start = sliced->offset();
     string = sliced->parent(cage_base);
     shape = StringShape(string, cage_base);
@@ -1862,16 +1871,16 @@ uint16_t ConsString::Get(
 
   // Check for a flattened cons string
   if (second(cage_base)->length() == 0) {
-    String left = first(cage_base);
+    Tagged<String> left = first(cage_base);
     return left->Get(index);
   }
 
-  String string = String::cast(*this);
+  Tagged<String> string = String::cast(*this);
 
   while (true) {
     if (StringShape(string, cage_base).IsCons()) {
-      ConsString cons_string = ConsString::cast(string);
-      String left = cons_string->first();
+      Tagged<ConsString> cons_string = ConsString::cast(string);
+      Tagged<String> left = cons_string->first();
       if (left->length() > index) {
         string = left;
       } else {
@@ -1926,7 +1935,8 @@ void FlatStringReader::PostGarbageCollection() {
   }
 }
 
-void ConsStringIterator::Initialize(ConsString cons_string, int offset) {
+void ConsStringIterator::Initialize(Tagged<ConsString> cons_string,
+                                    int offset) {
   DCHECK(!cons_string.is_null());
   root_ = cons_string;
   consumed_ = offset;
@@ -1936,11 +1946,11 @@ void ConsStringIterator::Initialize(ConsString cons_string, int offset) {
   DCHECK(StackBlown());
 }
 
-String ConsStringIterator::Continue(int* offset_out) {
+Tagged<String> ConsStringIterator::Continue(int* offset_out) {
   DCHECK_NE(depth_, 0);
   DCHECK_EQ(0, *offset_out);
   bool blew_stack = StackBlown();
-  String string;
+  Tagged<String> string;
   // Get the next leaf if there is one.
   if (!blew_stack) string = NextLeaf(&blew_stack);
   // Restart search from root.
@@ -1953,8 +1963,8 @@ String ConsStringIterator::Continue(int* offset_out) {
   return string;
 }
 
-String ConsStringIterator::Search(int* offset_out) {
-  ConsString cons_string = root_;
+Tagged<String> ConsStringIterator::Search(int* offset_out) {
+  Tagged<ConsString> cons_string = root_;
   // Reset the stack, pushing the root string.
   depth_ = 1;
   maximum_depth_ = 1;
@@ -1963,7 +1973,7 @@ String ConsStringIterator::Search(int* offset_out) {
   int offset = 0;
   while (true) {
     // Loop until the string is found which contains the target offset.
-    String string = cons_string->first();
+    Tagged<String> string = cons_string->first();
     int length = string->length();
     int32_t type;
     if (consumed < offset + length) {
@@ -2012,7 +2022,7 @@ String ConsStringIterator::Search(int* offset_out) {
   UNREACHABLE();
 }
 
-String ConsStringIterator::NextLeaf(bool* blew_stack) {
+Tagged<String> ConsStringIterator::NextLeaf(bool* blew_stack) {
   while (true) {
     // Tree traversal complete.
     if (depth_ == 0) {
@@ -2025,8 +2035,8 @@ String ConsStringIterator::NextLeaf(bool* blew_stack) {
       return String();
     }
     // Go right.
-    ConsString cons_string = frames_[OffsetForDepth(depth_ - 1)];
-    String string = cons_string->second();
+    Tagged<ConsString> cons_string = frames_[OffsetForDepth(depth_ - 1)];
+    Tagged<String> string = cons_string->second();
     int32_t type = string->map()->instance_type();
     if ((type & kStringRepresentationMask) != kConsStringTag) {
       // Pop stack so next iteration is in correct place.
@@ -2061,7 +2071,7 @@ String ConsStringIterator::NextLeaf(bool* blew_stack) {
 const uint8_t* String::AddressOfCharacterAt(
     int start_index, const DisallowGarbageCollection& no_gc) {
   DCHECK(IsFlat());
-  String subject = *this;
+  Tagged<String> subject = *this;
   PtrComprCageBase cage_base = GetPtrComprCageBase(subject);
   StringShape shape(subject, cage_base);
   if (IsConsString(subject, cage_base)) {
@@ -2099,15 +2109,15 @@ const uint8_t* String::AddressOfCharacterAt(
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
-    String source, uint16_t* sink, int from, int to);
+    Tagged<String> source, uint16_t* sink, int from, int to);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
-    String source, uint8_t* sink, int from, int to);
+    Tagged<String> source, uint8_t* sink, int from, int to);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
-    String source, uint16_t* sink, int from, int to, PtrComprCageBase cage_base,
-    const SharedStringAccessGuardIfNeeded&);
+    Tagged<String> source, uint16_t* sink, int from, int to,
+    PtrComprCageBase cage_base, const SharedStringAccessGuardIfNeeded&);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
-    String source, uint8_t* sink, int from, int to, PtrComprCageBase cage_base,
-    const SharedStringAccessGuardIfNeeded&);
+    Tagged<String> source, uint8_t* sink, int from, int to,
+    PtrComprCageBase cage_base, const SharedStringAccessGuardIfNeeded&);
 
 namespace {
 // Check that the constants defined in src/objects/instance-type.h coincides

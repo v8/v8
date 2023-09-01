@@ -73,7 +73,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
     return chunk->marking_bitmap();
   }
 
-  bool IsMarked(HeapObject object) override {
+  bool IsMarked(Tagged<HeapObject> object) override {
     return marking_state_->IsMarked(object);
   }
 
@@ -87,7 +87,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
   }
 
  protected:
-  void VerifyMap(Map map) override { VerifyHeapObjectImpl(map); }
+  void VerifyMap(Tagged<Map> map) override { VerifyHeapObjectImpl(map); }
 
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -103,12 +103,14 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
     UNREACHABLE();
   }
 
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
-    InstructionStream target =
+  void VisitCodeTarget(Tagged<InstructionStream> host,
+                       RelocInfo* rinfo) override {
+    Tagged<InstructionStream> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* rinfo) override {
     VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
@@ -116,7 +118,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
   }
 
  private:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
+  V8_INLINE void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object) {
     CHECK_IMPLIES(Heap::InYoungGeneration(heap_object), IsMarked(heap_object));
   }
 
@@ -126,7 +128,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
         GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
-      HeapObject heap_object;
+      Tagged<HeapObject> heap_object;
       // Minor MS treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
@@ -409,12 +411,12 @@ class YoungStringForwardingTableCleaner final
 
  private:
   void ClearNonLiveYoungObjects(StringForwardingTable::Record* record) {
-    Object original = record->OriginalStringObject(isolate_);
+    Tagged<Object> original = record->OriginalStringObject(isolate_);
     if (!IsHeapObject(original)) {
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
-    String original_string = String::cast(original);
+    Tagged<String> original_string = String::cast(original);
     if (!Heap::InYoungGeneration(original_string)) return;
     if (!marking_state_->IsMarked(original_string)) {
       DisposeExternalResource(record);
@@ -480,13 +482,13 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
     DCHECK_NOT_NULL(ephemeron_table_list_);
     EphemeronRememberedSet::TableList::Local local_ephemeron_table_list(
         *ephemeron_table_list_);
-    EphemeronHashTable table;
+    Tagged<EphemeronHashTable> table;
     while (local_ephemeron_table_list.Pop(&table)) {
       for (InternalIndex i : table->IterateEntries()) {
         // Keys in EphemeronHashTables must be heap objects.
         HeapObjectSlot key_slot(
             table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
-        HeapObject key = key_slot.ToHeapObject();
+        Tagged<HeapObject> key = key_slot.ToHeapObject();
         if (Heap::InYoungGeneration(key) &&
             non_atomic_marking_state_->IsUnmarked(key)) {
           table->RemoveEntry(i);
@@ -504,13 +506,13 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
   // the sweeper during promoted pages iteration.
   auto* table_map = heap_->ephemeron_remembered_set()->tables();
   for (auto it = table_map->begin(); it != table_map->end();) {
-    EphemeronHashTable table = it->first;
+    Tagged<EphemeronHashTable> table = it->first;
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(table->RawFieldOfElementAt(
           EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-      HeapObject key = key_slot.ToHeapObject();
+      Tagged<HeapObject> key = key_slot.ToHeapObject();
       // There may be old generation entries left in the remembered set as
       // MinorMS only promotes pages after clearing non-live references.
       if (!Heap::InYoungGeneration(key)) {
@@ -532,7 +534,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
 }
 
 namespace {
-void VisitObjectWithEmbedderFields(JSObject object,
+void VisitObjectWithEmbedderFields(Tagged<JSObject> object,
                                    MarkingWorklists::Local& worklist) {
   DCHECK(object->MayHaveEmbedderFields());
   DCHECK(!Heap::InYoungGeneration(object));
@@ -555,7 +557,7 @@ void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
     heap_->isolate()->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
         &root_visitor);
     // Visit the V8-to-Oilpan remembered set.
-    cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
+    cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](Tagged<JSObject> obj) {
       VisitObjectWithEmbedderFields(obj, *local_marking_worklists());
     });
   } else {
@@ -681,7 +683,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
 
     PerformWrapperTracing();
 
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     while (marking_worklists_local->Pop(&heap_object)) {
       DCHECK(!IsFreeSpaceOrFiller(heap_object, cage_base));
       DCHECK(IsHeapObject(heap_object));
@@ -689,7 +691,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       DCHECK(!marking_state_->IsUnmarked(heap_object));
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
-      Map map = Map::cast(*heap_object->map_slot());
+      Tagged<Map> map = Map::cast(*heap_object->map_slot());
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(
@@ -851,7 +853,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
   for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
     LargePage* current = *it;
     it++;
-    HeapObject object = current->GetObject();
+    Tagged<HeapObject> object = current->GetObject();
     if (!non_atomic_marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       new_lo_space->RemovePage(current);

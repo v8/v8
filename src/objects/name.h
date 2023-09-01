@@ -62,7 +62,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   inline bool TryGetHash(uint32_t* hash) const;
 
   // Equality operations.
-  inline bool Equals(Name other);
+  inline bool Equals(Tagged<Name> other);
   inline static bool Equals(Isolate* isolate, Handle<Name> one,
                             Handle<Name> two);
 

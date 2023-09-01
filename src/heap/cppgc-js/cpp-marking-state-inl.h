@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 bool CppMarkingState::ExtractEmbedderDataSnapshot(
-    Map map, JSObject object, EmbedderDataSnapshot& snapshot) {
+    Tagged<Map> map, Tagged<JSObject> object, EmbedderDataSnapshot& snapshot) {
   if (JSObject::GetEmbedderFieldCount(map) < 2) return false;
 
   EmbedderDataSlot::PopulateEmbedderDataSnapshot(

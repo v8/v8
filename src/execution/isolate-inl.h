@@ -41,7 +41,7 @@ V8_INLINE Isolate* Isolate::Current() {
 
 bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
 
-void Isolate::set_context(Context context) {
+void Isolate::set_context(Tagged<Context> context) {
   DCHECK(context.is_null() || IsContext(context));
   thread_local_top()->context_ = context;
 }
@@ -51,17 +51,17 @@ Handle<NativeContext> Isolate::native_context() {
   return handle(context()->native_context(), this);
 }
 
-NativeContext Isolate::raw_native_context() {
+Tagged<NativeContext> Isolate::raw_native_context() {
   DCHECK(!context().is_null());
   return context()->native_context();
 }
 
-void Isolate::set_pending_message(Object message_obj) {
+void Isolate::set_pending_message(Tagged<Object> message_obj) {
   DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;
 }
 
-Object Isolate::pending_message() {
+Tagged<Object> Isolate::pending_message() {
   return thread_local_top()->pending_message_;
 }
 
@@ -73,13 +73,13 @@ bool Isolate::has_pending_message() {
   return !IsTheHole(pending_message(), this);
 }
 
-Object Isolate::pending_exception() {
+Tagged<Object> Isolate::pending_exception() {
   CHECK(has_pending_exception());
   DCHECK(!IsException(thread_local_top()->pending_exception_, this));
   return thread_local_top()->pending_exception_;
 }
 
-void Isolate::set_pending_exception(Object exception_obj) {
+void Isolate::set_pending_exception(Tagged<Object> exception_obj) {
   DCHECK(!IsException(exception_obj, this));
   thread_local_top()->pending_exception_ = exception_obj;
 }
@@ -94,7 +94,7 @@ bool Isolate::has_pending_exception() {
   return !IsTheHole(thread_local_top()->pending_exception_, this);
 }
 
-Object Isolate::scheduled_exception() {
+Tagged<Object> Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
   DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
   return thread_local_top()->scheduled_exception_;
@@ -111,7 +111,7 @@ void Isolate::clear_scheduled_exception() {
   set_scheduled_exception(ReadOnlyRoots(this).the_hole_value());
 }
 
-void Isolate::set_scheduled_exception(Object exception) {
+void Isolate::set_scheduled_exception(Tagged<Object> exception) {
   thread_local_top()->scheduled_exception_ = exception;
 }
 
@@ -126,7 +126,7 @@ bool Isolate::is_execution_terminating() {
 }
 
 #ifdef DEBUG
-Object Isolate::VerifyBuiltinsResult(Object result) {
+Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
   DCHECK_EQ(has_pending_exception(), result == ReadOnlyRoots(this).exception());
 #ifdef V8_COMPRESS_POINTERS
   // Check that the returned pointer is actually part of the current isolate,
@@ -162,11 +162,11 @@ ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
 }
 #endif  // DEBUG
 
-bool Isolate::is_catchable_by_javascript(Object exception) {
+bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
-bool Isolate::is_catchable_by_wasm(Object exception) {
+bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;
   // We don't allocate, but the LookupIterator interface expects a handle.
@@ -200,7 +200,7 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
-bool Isolate::IsAnyInitialArrayPrototype(JSArray array) {
+bool Isolate::IsAnyInitialArrayPrototype(Tagged<JSArray> array) {
   DisallowGarbageCollection no_gc;
   return IsInAnyContext(array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
 }

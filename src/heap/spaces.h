@@ -280,7 +280,7 @@ class LocalAllocationBuffer {
   // Returns true if the merge was successful, false otherwise.
   inline bool TryMerge(LocalAllocationBuffer* other);
 
-  inline bool TryFreeLast(HeapObject object, int object_size);
+  inline bool TryFreeLast(Tagged<HeapObject> object, int object_size);
 
   // Close a LAB, effectively invalidating it. Returns the unused area.
   V8_EXPORT_PRIVATE LinearAllocationArea CloseAndMakeIterable();

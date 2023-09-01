@@ -431,8 +431,8 @@ class PromotedPageRecordMigratedSlotVisitor final
            host_chunk->owner_identity() == LO_SPACE);
   }
 
-  void Process(HeapObject object) {
-    Map map = object->map(cage_base());
+  void Process(Tagged<HeapObject> object) {
+    Tagged<Map> map = object->map(cage_base());
     if (Map::ObjectFieldsFrom(map->visitor_id()) == ObjectFields::kDataOnly) {
       return;
     }
@@ -446,33 +446,36 @@ class PromotedPageRecordMigratedSlotVisitor final
   // more unsafe shape changes that happen concurrently.
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return true; }
 
-  V8_INLINE void VisitMapPointer(HeapObject host) final {
+  V8_INLINE void VisitMapPointer(Tagged<HeapObject> host) final {
     VerifyHost(host);
     VisitObjectImpl(host, host->map(cage_base()), host->map_slot().address());
   }
 
-  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
+  V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
-  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+  V8_INLINE void VisitPointer(Tagged<HeapObject> host,
+                              MaybeObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }
-  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
+  V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
+                                   Tagged<JSArrayBuffer> object) {
     object->YoungMarkExtensionPromoted();
     return NewSpaceVisitor<
         PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
   }
 
-  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
+  V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
+                                        Tagged<EphemeronHashTable> table) {
     NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitMapPointerIfNeeded<VisitorId::kVisitEphemeronHashTable>(table);
     EphemeronRememberedSet::IndicesSet indices;
@@ -482,8 +485,8 @@ class PromotedPageRecordMigratedSlotVisitor final
       VisitPointer(table, value_slot);
       ObjectSlot key_slot =
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-      Object key = key_slot.Acquire_Load();
-      HeapObject key_object;
+      Tagged<Object> key = key_slot.Acquire_Load();
+      Tagged<HeapObject> key_object;
       if (!key.GetHeapObject(&key_object)) continue;
 #ifdef THREAD_SANITIZER
       BasicMemoryChunk::FromHeapObject(key_object)->SynchronizedHeapLoad();
@@ -500,9 +503,11 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   // Entries that are skipped for recording.
-  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo) final {}
-  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo) final {}
-  void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+  void VisitExternalReference(Tagged<InstructionStream> host,
+                              RelocInfo* rinfo) final {}
+  void VisitInternalReference(Tagged<InstructionStream> host,
+                              RelocInfo* rinfo) final {}
+  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
                             ExternalPointerTag tag) final {}
 
   // Maps can be shared, so we need to visit them to record old to shared slots.
@@ -512,7 +517,7 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
  private:
-  V8_INLINE void VerifyHost(HeapObject host) {
+  V8_INLINE void VerifyHost(Tagged<HeapObject> host) {
     DCHECK(!host.InWritableSharedSpace());
     DCHECK(!Heap::InYoungGeneration(host));
     DCHECK(!MemoryChunk::FromHeapObject(host)->SweepingDone());
@@ -520,9 +525,9 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   template <typename TObject>
-  V8_INLINE void VisitObjectImpl(HeapObject host, TObject object,
+  V8_INLINE void VisitObjectImpl(Tagged<HeapObject> host, TObject object,
                                  Address slot) {
-    HeapObject value_heap_object;
+    Tagged<HeapObject> value_heap_object;
     if (!object.GetHeapObject(&value_heap_object)) return;
 
     BasicMemoryChunk* value_chunk =
@@ -540,7 +545,8 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+  V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
+                                   TSlot end) {
     VerifyHost(host);
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject target =

@@ -163,7 +163,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
     if (!IsJSReceiverMap(*map_handle)) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      JSFunction constructor =
+      Tagged<JSFunction> constructor =
           Map::GetConstructorFunction(
               *map_handle, *broker()->target_native_context().object())
               .value();

@@ -58,7 +58,7 @@ TEST(WeakReferencesBasic) {
     CHECK(IsCode(*code));
 
     lh->set_data1(HeapObjectReference::Weak(*code));
-    HeapObject code_heap_object;
+    Tagged<HeapObject> code_heap_object;
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
     CHECK_EQ(*code, code_heap_object);
 
@@ -100,7 +100,7 @@ TEST(WeakReferencesOldToOld) {
   heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*fixed_array));
 
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -126,7 +126,7 @@ TEST(WeakReferencesOldToNew) {
 
   heap::InvokeMajorGC(heap);
 
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -152,7 +152,7 @@ TEST(WeakReferencesOldToNewScavenged) {
 
   heap::InvokeMinorGC(heap);
 
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -193,7 +193,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   HandleScope outer_scope(isolate);
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
-  LoadHandler lh_location = *lh;
+  Tagged<LoadHandler> lh_location = *lh;
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
@@ -210,7 +210,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
 
   // Scavenger will move *lh.
   heap::InvokeMinorGC(heap);
-  LoadHandler new_lh_location = *lh;
+  Tagged<LoadHandler> new_lh_location = *lh;
   CHECK_NE(lh_location, new_lh_location);
   CHECK(lh->data1()->IsWeak());
 
@@ -275,7 +275,7 @@ TEST(ObjectWithWeakReferencePromoted) {
   CHECK(heap->InOldSpace(*lh));
   CHECK(heap->InOldSpace(*fixed_array));
 
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -372,7 +372,7 @@ TEST(WeakArraysBasic) {
   CHECK(Heap::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     CHECK(array->Get(i)->GetHeapObjectIfStrong(&heap_object));
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
   }
@@ -404,7 +404,7 @@ TEST(WeakArraysBasic) {
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
   heap::InvokeMinorGC(heap);
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
   CHECK(array->Get(1)->GetHeapObjectIfWeak(&heap_object));
@@ -501,7 +501,7 @@ TEST(WeakArrayListBasic) {
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
   heap::InvokeMinorGC(heap);
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
@@ -711,9 +711,9 @@ TEST(PrototypeUsersBasic) {
 
 namespace {
 
-HeapObject saved_heap_object;
+Tagged<HeapObject> saved_heap_object;
 
-static void TestCompactCallback(HeapObject value, int old_index,
+static void TestCompactCallback(Tagged<HeapObject> value, int old_index,
                                 int new_index) {
   saved_heap_object = value;
   CHECK_EQ(old_index, 2);
@@ -759,7 +759,7 @@ TEST(PrototypeUsersCompacted) {
   CHECK(array->Get(3)->IsCleared());
 
   CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
-  WeakArrayList new_array =
+  Tagged<WeakArrayList> new_array =
       PrototypeUsers::Compact(array, heap, TestCompactCallback);
   CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
   CHECK_EQ(saved_heap_object, *live_map);

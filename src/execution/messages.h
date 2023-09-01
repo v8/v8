@@ -106,12 +106,13 @@ class ErrorUtils : public AllStatic {
   static Handle<JSObject> NewConstructedNonConstructable(Isolate* isolate,
                                                          Handle<Object> source);
   // Returns the Exception sentinel.
-  static Object ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
-                                    Handle<Object> object);
+  static Tagged<Object> ThrowSpreadArgError(Isolate* isolate,
+                                            MessageTemplate id,
+                                            Handle<Object> object);
   // Returns the Exception sentinel.
-  static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                             Handle<Object> object,
-                                             MaybeHandle<Object> key);
+  static Tagged<Object> ThrowLoadFromNullOrUndefined(Isolate* isolate,
+                                                     Handle<Object> object,
+                                                     MaybeHandle<Object> key);
 
   // Returns true if given object has own |error_stack_symbol| property.
   static bool HasErrorStackSymbolOwnProperty(Isolate* isolate,

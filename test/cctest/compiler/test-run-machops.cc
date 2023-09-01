@@ -1172,7 +1172,7 @@ TEST(RunDiamondPhiConst) {
 
 
 TEST(RunDiamondPhiNumber) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
   double false_val = -11.1;
   double true_val = 200.1;
   Node* true_node = m.NumberConstant(true_val);
@@ -1185,7 +1185,7 @@ TEST(RunDiamondPhiNumber) {
 
 
 TEST(RunDiamondPhiString) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
   const char* false_val = "false";
   const char* true_val = "true";
   Node* true_node = m.StringConstant(true_val);
@@ -5179,7 +5179,7 @@ TEST(RunRefDiamond) {
   const int magic = 99644;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("A");
-  String buffer;
+  Tagged<String> buffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* k1 = m.StringConstant("A");
@@ -5214,7 +5214,7 @@ TEST(RunDoubleRefDiamond) {
   double dconstant = 99.99;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AX");
-  String rbuffer;
+  Tagged<String> rbuffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -5255,7 +5255,7 @@ TEST(RunDoubleRefDoubleDiamond) {
   double dconstant = 99.997;
   Handle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AD");
-  String rbuffer;
+  Tagged<String> rbuffer;
 
   RawMachineLabel blocka, blockb, mid, blockd, blocke, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -5760,7 +5760,7 @@ TEST(RunSpillConstantsAndParameters) {
 
 
 TEST(RunNewSpaceConstantsInPhi) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
 
   Isolate* isolate = CcTest::i_isolate();
   Handle<HeapNumber> true_val = isolate->factory()->NewHeapNumber(11.2);

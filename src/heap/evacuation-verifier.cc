@@ -24,20 +24,21 @@ void EvacuationVerifier::Run() {
   if (heap_->shared_space()) VerifyEvacuation(heap_->shared_space());
 }
 
-void EvacuationVerifier::VisitPointers(HeapObject host, ObjectSlot start,
-                                       ObjectSlot end) {
+void EvacuationVerifier::VisitPointers(Tagged<HeapObject> host,
+                                       ObjectSlot start, ObjectSlot end) {
   VerifyPointersImpl(start, end);
 }
 
-void EvacuationVerifier::VisitPointers(HeapObject host, MaybeObjectSlot start,
+void EvacuationVerifier::VisitPointers(Tagged<HeapObject> host,
+                                       MaybeObjectSlot start,
                                        MaybeObjectSlot end) {
   VerifyPointersImpl(start, end);
 }
 
 void EvacuationVerifier::VisitInstructionStreamPointer(
-    Code host, InstructionStreamSlot slot) {
-  Object maybe_code = slot.load(code_cage_base());
-  HeapObject code;
+    Tagged<Code> host, InstructionStreamSlot slot) {
+  Tagged<Object> maybe_code = slot.load(code_cage_base());
+  Tagged<HeapObject> code;
   // The slot might contain smi during Code creation, so skip it.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyHeapObjectImpl(code);
@@ -50,18 +51,18 @@ void EvacuationVerifier::VisitRootPointers(Root root, const char* description,
   VerifyPointersImpl(start, end);
 }
 
-void EvacuationVerifier::VisitMapPointer(HeapObject object) {
+void EvacuationVerifier::VisitMapPointer(Tagged<HeapObject> object) {
   VerifyHeapObjectImpl(object->map(cage_base()));
 }
 
-void EvacuationVerifier::VisitCodeTarget(InstructionStream host,
+void EvacuationVerifier::VisitCodeTarget(Tagged<InstructionStream> host,
                                          RelocInfo* rinfo) {
-  InstructionStream target =
+  Tagged<InstructionStream> target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
 
-void EvacuationVerifier::VisitEmbeddedPointer(InstructionStream host,
+void EvacuationVerifier::VisitEmbeddedPointer(Tagged<InstructionStream> host,
                                               RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
@@ -75,7 +76,7 @@ void EvacuationVerifier::VerifyRoots() {
 void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
-    HeapObject object = HeapObject::FromAddress(current);
+    Tagged<HeapObject> object = HeapObject::FromAddress(current);
     if (!IsFreeSpaceOrFiller(object, cage_base())) {
       object->Iterate(cage_base(), this);
     }

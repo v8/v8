@@ -241,8 +241,8 @@ TNode<Boolean> CodeStubAssembler::SelectBooleanConstant(
 }
 
 TNode<Smi> CodeStubAssembler::SelectSmiConstant(TNode<BoolT> condition,
-                                                Smi true_value,
-                                                Smi false_value) {
+                                                Tagged<Smi> true_value,
+                                                Tagged<Smi> false_value) {
   return SelectConstant<Smi>(condition, SmiConstant(true_value),
                              SmiConstant(false_value));
 }
@@ -314,7 +314,7 @@ TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
 
 bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
     TNode<Smi> maybe_constant, int* value) {
-  Smi smi_constant;
+  Tagged<Smi> smi_constant;
   if (TryToSmiConstant(maybe_constant, &smi_constant)) {
     *value = Smi::ToInt(smi_constant);
     return true;
@@ -2595,7 +2595,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
   if (!v8_flags.fixed_array_bounds_checks) return;
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   TNode<Smi> effective_index;
-  Smi constant_index;
+  Tagged<Smi> constant_index;
   bool index_is_constant = TryToSmiConstant(index, &constant_index);
   if (index_is_constant) {
     effective_index = SmiConstant(Smi::ToInt(constant_index) +
@@ -11297,7 +11297,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
     TNode<Smi> smi_index_node = ReinterpretCast<Smi>(index_node);
     int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
     element_size_shift -= kSmiShiftBits;
-    Smi smi_index;
+    Tagged<Smi> smi_index;
     constant_index = TryToSmiConstant(smi_index_node, &smi_index);
     if (constant_index) {
       index = smi_index.value();

@@ -830,7 +830,7 @@ bool CppHeap::FinishConcurrentMarkingIfNeeded() {
   return marker_->JoinConcurrentMarkingIfNeeded();
 }
 
-void CppHeap::WriteBarrier(JSObject js_object) {
+void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
   DCHECK(js_object->MayHaveEmbedderFields());
   DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
 

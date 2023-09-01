@@ -43,7 +43,7 @@ Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
       isolate->factory()->empty_fixed_array());
 }
 
-SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
+Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
   } else {
@@ -122,7 +122,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
   int const inlined_function_count = InlinedFunctionCount().value();
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
-    Object info = LiteralArray()->get(id);
+    Tagged<Object> info = LiteralArray()->get(id);
     os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
   }
   os << "\n";
@@ -157,7 +157,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
 #endif  // ENABLE_DISASSEMBLER
 
 DeoptimizationFrameTranslation::Iterator::Iterator(
-    DeoptimizationFrameTranslation buffer, int index)
+    Tagged<DeoptimizationFrameTranslation> buffer, int index)
     : buffer_(buffer), index_(index) {
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
@@ -179,7 +179,7 @@ DeoptimizationFrameTranslation::Iterator::Iterator(
   }
 #endif  // V8_USE_ZLIB
   DCHECK(!v8_flags.turbo_compress_frame_translations);
-  DCHECK(index >= 0 && index < buffer.length());
+  DCHECK(index >= 0 && index < buffer->length());
   // Starting at a location other than a BEGIN would make
   // MATCH_PREVIOUS_TRANSLATION instructions not work.
   DCHECK(TranslationOpcodeIsBegin(
@@ -351,7 +351,7 @@ void DeoptimizationFrameTranslation::Iterator::
 
 void DeoptimizationFrameTranslation::PrintFrameTranslation(
     std::ostream& os, int index,
-    DeoptimizationLiteralArray literal_array) const {
+    Tagged<DeoptimizationLiteralArray> literal_array) const {
   DisallowGarbageCollection gc_oh_noes;
 
   DeoptimizationFrameTranslation::Iterator iterator(*this, index);

@@ -177,12 +177,12 @@
   V8_INLINE static Tagged<Type> cast(Tagged<Object> object); \
   V8_INLINE static constexpr Tagged<Type> unchecked_cast(    \
       Tagged<Object> object) {                               \
-    return Tagged<Type>(object.ptr());                       \
+    return Tagged<Type>::unchecked_cast(object);             \
   }
 
 #define CAST_ACCESSOR(Type)                        \
   Tagged<Type> Type::cast(Tagged<Object> object) { \
-    return Tagged<Type>(Type(object.ptr()).ptr()); \
+    return Tagged<Type>(Type(object.ptr()));       \
   }
 
 #define DEF_PRIMITIVE_ACCESSORS(holder, name, offset, type)     \

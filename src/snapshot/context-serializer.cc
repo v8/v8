@@ -22,7 +22,8 @@ namespace {
 // serialization, the original state is restored.
 class V8_NODISCARD SanitizeNativeContextScope final {
  public:
-  SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
+  SanitizeNativeContextScope(Isolate* isolate,
+                             Tagged<NativeContext> native_context,
                              bool allow_active_isolate_for_testing,
                              const DisallowGarbageCollection& no_gc)
       : native_context_(native_context), no_gc_(no_gc) {
@@ -128,7 +129,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
+    Tagged<HeapObject> raw = *obj;
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
@@ -166,7 +167,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       DisallowGarbageCollection no_gc;
       // Unconditionally reset the JSFunction to its SFI's code, since we can't
       // serialize optimized code anyway.
-      JSFunction closure = JSFunction::cast(*obj);
+      Tagged<JSFunction> closure = JSFunction::cast(*obj);
       if (closure->shared()->HasBytecodeArray()) {
         closure->SetInterruptBudget(isolate());
       }
@@ -187,7 +188,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   serializer.Serialize(slot_type);
 }
 
-bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
+bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
   // We can't allow scripts to be part of the context snapshot because they
   // contain a unique ID, and deserializing several context snapshots containing
   // script would cause dupes.
@@ -198,7 +199,7 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
-bool ContextSerializer::ShouldBeInTheSharedObjectCache(HeapObject o) {
+bool ContextSerializer::ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o) {
   // v8_flags.shared_string_table may be true during deserialization, so put
   // internalized strings into the shared object snapshot.
   return IsInternalizedString(o);
@@ -211,7 +212,7 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     Handle<JSObject> obj) {
   DisallowGarbageCollection no_gc;
-  JSObject js_obj = *obj;
+  Tagged<JSObject> js_obj = *obj;
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
@@ -233,7 +234,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     EmbedderDataSlot embedder_data_slot(js_obj, i);
     original_embedder_values.emplace_back(
         embedder_data_slot.load_raw(isolate(), no_gc));
-    Object object = embedder_data_slot.load_tagged();
+    Tagged<Object> object = embedder_data_slot.load_tagged();
     if (IsHeapObject(object)) {
       DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
@@ -303,7 +304,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   return true;
 }
 
-void ContextSerializer::CheckRehashability(HeapObject obj) {
+void ContextSerializer::CheckRehashability(Tagged<HeapObject> obj) {
   if (!can_be_rehashed_) return;
   if (!obj->NeedsRehashing(cage_base())) return;
   if (obj->CanBeRehashed(cage_base())) return;

@@ -41,35 +41,35 @@ struct Module::Hash {
   }
 };
 
-SourceTextModuleInfo SourceTextModule::info() const {
+Tagged<SourceTextModuleInfo> SourceTextModule::info() const {
   return GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
 CAST_ACCESSOR(SourceTextModuleInfo)
 
-FixedArray SourceTextModuleInfo::module_requests() const {
+Tagged<FixedArray> SourceTextModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }
 
-FixedArray SourceTextModuleInfo::special_exports() const {
+Tagged<FixedArray> SourceTextModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::regular_exports() const {
+Tagged<FixedArray> SourceTextModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::regular_imports() const {
+Tagged<FixedArray> SourceTextModuleInfo::regular_imports() const {
   return FixedArray::cast(get(kRegularImportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::namespace_imports() const {
+Tagged<FixedArray> SourceTextModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
 #ifdef DEBUG
-bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
+bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
          special_exports() == other->special_exports() &&

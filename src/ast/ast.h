@@ -953,7 +953,7 @@ class Literal final : public Expression {
     return string_;
   }
 
-  Smi AsSmiLiteral() const {
+  Tagged<Smi> AsSmiLiteral() const {
     DCHECK_EQ(kSmi, type());
     return Smi::FromInt(smi_);
   }
@@ -1865,7 +1865,7 @@ class BinaryOperation final : public Expression {
 
   // Returns true if one side is a Smi literal, returning the other side's
   // sub-expression in |subexpr| and the literal Smi in |literal|.
-  bool IsSmiLiteralOperation(Expression** subexpr, Smi* literal);
+  bool IsSmiLiteralOperation(Expression** subexpr, Tagged<Smi>* literal);
 
  private:
   friend class AstNodeFactory;

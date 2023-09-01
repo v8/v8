@@ -131,7 +131,7 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
   if (!allocation_info_.CanIncrementTop(aligned_size)) {
     return AllocationResult::Failure();
   }
-  HeapObject object =
+  Tagged<HeapObject> object =
       HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
   return filler_size > 0 ? AllocationResult::FromObject(
                                heap_->PrecedeWithFiller(object, filler_size))
@@ -151,7 +151,7 @@ LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
                                                         AllocationResult result,
                                                         intptr_t size) {
   if (result.IsFailure()) return InvalidBuffer();
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   bool ok = result.To(&obj);
   USE(ok);
   DCHECK(ok);
@@ -163,7 +163,8 @@ bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
   return allocation_info_.MergeIfAdjacent(other->allocation_info_);
 }
 
-bool LocalAllocationBuffer::TryFreeLast(HeapObject object, int object_size) {
+bool LocalAllocationBuffer::TryFreeLast(Tagged<HeapObject> object,
+                                        int object_size) {
   if (IsValid()) {
     const Address object_address = object.address();
     return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
@@ -195,7 +196,7 @@ AllocationResult SpaceWithLinearArea::AllocateFastUnaligned(
   if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Failure();
   }
-  HeapObject obj =
+  Tagged<HeapObject> obj =
       HeapObject::FromAddress(allocation_info_.IncrementTop(size_in_bytes));
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
@@ -213,7 +214,7 @@ AllocationResult SpaceWithLinearArea::AllocateFastAligned(
   if (!allocation_info_.CanIncrementTop(aligned_size_in_bytes)) {
     return AllocationResult::Failure();
   }
-  HeapObject obj = HeapObject::FromAddress(
+  Tagged<HeapObject> obj = HeapObject::FromAddress(
       allocation_info_.IncrementTop(aligned_size_in_bytes));
   if (result_aligned_size_in_bytes)
     *result_aligned_size_in_bytes = aligned_size_in_bytes;

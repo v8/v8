@@ -13,10 +13,14 @@ namespace v8 {
 namespace internal {
 
 // static
-FieldType FieldType::None() { return FieldType(Smi::FromInt(2).ptr()); }
+Tagged<FieldType> FieldType::None() {
+  return Tagged<FieldType>(Smi::FromInt(2).ptr());
+}
 
 // static
-FieldType FieldType::Any() { return FieldType(Smi::FromInt(1).ptr()); }
+Tagged<FieldType> FieldType::Any() {
+  return Tagged<FieldType>(Smi::FromInt(1).ptr());
+}
 
 // static
 Handle<FieldType> FieldType::None(Isolate* isolate) {
@@ -29,7 +33,9 @@ Handle<FieldType> FieldType::Any(Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::Class(Map map) { return FieldType::cast(map); }
+Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
+  return FieldType::cast(Tagged<Object>(map));
+}
 
 // static
 Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
@@ -44,7 +50,7 @@ Tagged<FieldType> FieldType::cast(Tagged<Object> object) {
 
 bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }
 
-Map FieldType::AsClass() const {
+Tagged<Map> FieldType::AsClass() const {
   DCHECK(IsClass(*this));
   return Map::cast(*this);
 }
@@ -53,7 +59,7 @@ bool FieldType::NowStable() const {
   return !IsClass(*this) || AsClass()->is_stable();
 }
 
-bool FieldType::NowIs(FieldType other) const {
+bool FieldType::NowIs(Tagged<FieldType> other) const {
   if (IsAny(other)) return true;
   if (IsNone(*this)) return true;
   if (IsNone(other)) return false;
@@ -63,7 +69,7 @@ bool FieldType::NowIs(FieldType other) const {
   return *this == other;
 }
 
-bool FieldType::Equals(FieldType other) const {
+bool FieldType::Equals(Tagged<FieldType> other) const {
   if (IsAny(*this) && IsAny(other)) return true;
   if (IsNone(*this) && IsNone(other)) return true;
   if (IsClass(*this) && IsClass(other)) {
@@ -85,7 +91,7 @@ void FieldType::PrintTo(std::ostream& os) const {
   }
 }
 
-bool FieldType::NowContains(Object value) const {
+bool FieldType::NowContains(Tagged<Object> value) const {
   if (*this == Any()) return true;
   if (*this == None()) return false;
   if (!IsHeapObject(value)) return false;

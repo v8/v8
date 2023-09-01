@@ -2561,9 +2561,7 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
           case PolymorphicAccessInfo::kConstant: {
             Handle<Object> constant = access_info.constant();
             if (IsSmi(*constant)) {
-              // Remove the cast to Tagged<Smi> once Smi::cast returns Tagged.
-              static_assert(kTaggedCanConvertToRawObjects);
-              __ Move(result, Tagged<Smi>(Smi::cast(*constant)));
+              __ Move(result, Smi::cast(*constant));
             } else {
               DCHECK(IsHeapObject(*access_info.constant()));
               __ Move(result, Handle<HeapObject>::cast(constant));
@@ -2629,8 +2627,7 @@ void LoadPolymorphicDoubleField::GenerateCode(MaglevAssembler* masm,
             Handle<Object> constant = access_info.constant();
             if (IsSmi(*constant)) {
               // Remove the cast to Tagged<Smi> once Smi::cast returns Tagged.
-              static_assert(kTaggedCanConvertToRawObjects);
-              __ Move(scratch, Tagged<Smi>(Smi::cast(*constant)));
+              __ Move(scratch, Smi::cast(*constant));
               __ SmiToDouble(result, scratch);
             } else {
               DCHECK(IsHeapNumber(*constant));

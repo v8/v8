@@ -884,10 +884,10 @@ TEST_F(PreParserTest, ProducingAndConsumingByteData) {
     i::ZoneConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, wrapper);
 
-    CHECK_EQ(wrapper.data_length(), kDataSize);
+    CHECK_EQ(wrapper->data_length(), kDataSize);
 
     for (int i = 0; i < kDataSize; i++) {
-      CHECK_EQ(copied_buffer.at(i), wrapper.get(i));
+      CHECK_EQ(copied_buffer.at(i), wrapper->get(i));
     }
 
 #ifdef DEBUG

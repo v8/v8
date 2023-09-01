@@ -15,22 +15,23 @@ namespace v8 {
 namespace internal {
 
 // Record code statistics.
-void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
+void CodeStatistics::RecordCodeAndMetadataStatistics(Tagged<HeapObject> object,
                                                      Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   if (IsScript(object, cage_base)) {
-    Script script = Script::cast(object);
+    Tagged<Script> script = Script::cast(object);
     // Log the size of external source code.
-    Object source = script->source(cage_base);
+    Tagged<Object> source = script->source(cage_base);
     if (IsExternalString(source, cage_base)) {
-      ExternalString external_source_string = ExternalString::cast(source);
+      Tagged<ExternalString> external_source_string =
+          ExternalString::cast(source);
       int size = isolate->external_script_source_size();
       size += external_source_string->ExternalPayloadSize();
       isolate->set_external_script_source_size(size);
     }
   } else if (IsAbstractCode(object, cage_base)) {
     // Record code+metadata statistics.
-    AbstractCode abstract_code = AbstractCode::cast(object);
+    Tagged<AbstractCode> abstract_code = AbstractCode::cast(object);
     int size = abstract_code->SizeIncludingMetadata(cage_base);
     if (IsCode(abstract_code, cage_base)) {
       size += isolate->code_and_metadata_size();
@@ -197,7 +198,7 @@ void CodeStatistics::CollectCommentStatistics(Isolate* isolate,
 }
 
 // Collects code comment statistics.
-void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
+void CodeStatistics::CollectCodeCommentStatistics(Tagged<AbstractCode> obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo.
   PtrComprCageBase cage_base{isolate};

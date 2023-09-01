@@ -42,11 +42,11 @@ class CallHelper {
 
 template <>
 template <typename... Params>
-Object CallHelper<Object>::Call(Params... args) {
+Tagged<Object> CallHelper<Tagged<Object>>::Call(Params... args) {
   CSignature::VerifyParams<Params...>(csig_);
   Address entry = Generate();
   auto fn = GeneratedCode<Address, Params...>::FromAddress(isolate_, entry);
-  return Object(fn.Call(args...));
+  return Tagged<Object>(fn.Call(args...));
 }
 
 // A call helper that calls the given code object assuming C calling convention.

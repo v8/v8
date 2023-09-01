@@ -100,13 +100,13 @@ class JSNumberFormat
 
   V8_WARN_UNUSED_RESULT static Maybe<icu::number::LocalizedNumberRangeFormatter>
   GetRangeFormatter(
-      Isolate* isolate, String locale,
+      Isolate* isolate, Tagged<String> locale,
       const icu::number::LocalizedNumberFormatter& number_formatter);
 
   DECL_PRINTER(JSNumberFormat)
 
   DECL_ACCESSORS(icu_number_formatter,
-                 Managed<icu::number::LocalizedNumberFormatter>)
+                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
 };

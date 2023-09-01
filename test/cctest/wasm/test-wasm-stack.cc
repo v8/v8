@@ -107,7 +107,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   //               whether Script::PositionInfo.column should be the offset
   //               relative to the module or relative to the function.
   // CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
-  String scriptSource = message->GetSource();
+  Tagged<String> scriptSource = message->GetSource();
   CHECK(IsString(scriptSource));
   if (stackFrame->IsWasm()) {
     CHECK_EQ(scriptSource->length(), 0);

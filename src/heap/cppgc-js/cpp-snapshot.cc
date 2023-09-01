@@ -369,7 +369,7 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
       !JSObject::cast(*v8_object)->MayHaveEmbedderFields())
     return nullptr;
 
-  JSObject js_object = JSObject::cast(*v8_object);
+  Tagged<JSObject> js_object = JSObject::cast(*v8_object);
 
   const auto maybe_info =
       WrappableInfo::From(isolate, js_object, cpp_heap.wrapper_descriptor());

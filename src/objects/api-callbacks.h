@@ -63,7 +63,7 @@ class AccessorInfo
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
-  inline bool IsCompatibleReceiver(Object receiver);
+  inline bool IsCompatibleReceiver(Tagged<Object> receiver);
 
   // Append all descriptors to the array that are not already there.
   // Return number added.
@@ -95,7 +95,8 @@ class AccessorInfo
 class AccessCheckInfo
     : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
  public:
-  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
+  static Tagged<AccessCheckInfo> Get(Isolate* isolate,
+                                     Handle<JSObject> receiver);
 
   using BodyDescriptor = StructBodyDescriptor;
 

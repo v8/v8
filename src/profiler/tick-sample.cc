@@ -237,10 +237,10 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     sample_info->embedder_state = embedder_state->GetState();
   }
 
-  Context top_context = isolate->context();
+  Tagged<Context> top_context = isolate->context();
   if (top_context.ptr() != i::Context::kNoContext &&
       top_context.ptr() != i::Context::kInvalidContext) {
-    NativeContext top_native_context = top_context->native_context();
+    Tagged<NativeContext> top_native_context = top_context->native_context();
     sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
   }
 

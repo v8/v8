@@ -72,13 +72,14 @@ static inline Handle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
-static Object GetFieldValue(JSObject obj, int property_index) {
+static Tagged<Object> GetFieldValue(Tagged<JSObject> obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return obj->RawFastPropertyAt(index);
 }
 
-static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
-  Object value = obj->RawFastPropertyAt(field_index);
+static double GetDoubleFieldValue(Tagged<JSObject> obj,
+                                  FieldIndex field_index) {
+  Tagged<Object> value = obj->RawFastPropertyAt(field_index);
   if (IsHeapNumber(value)) {
     return HeapNumber::cast(value)->value();
   } else {
@@ -86,12 +87,12 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   }
 }
 
-static double GetDoubleFieldValue(JSObject obj, int property_index) {
+static double GetDoubleFieldValue(Tagged<JSObject> obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return GetDoubleFieldValue(obj, index);
 }
 
-bool IsObjectShrinkable(JSObject obj) {
+bool IsObjectShrinkable(Tagged<JSObject> obj) {
   Handle<Map> filler_map =
       CcTest::i_isolate()->factory()->one_pointer_filler_map();
 

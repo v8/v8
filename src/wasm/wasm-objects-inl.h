@@ -265,7 +265,8 @@ void WasmInstanceObject::clear_padding() {
   }
 }
 
-WasmMemoryObject WasmInstanceObject::memory_object(int memory_index) const {
+Tagged<WasmMemoryObject> WasmInstanceObject::memory_object(
+    int memory_index) const {
   return WasmMemoryObject::cast(memory_objects()->get(memory_index));
 }
 
@@ -451,7 +452,7 @@ MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
 // Conversions from Numeric objects.
 // static
 template <typename ElementType>
-ElementType WasmObject::FromNumber(Object value) {
+ElementType WasmObject::FromNumber(Tagged<Object> value) {
   // The value must already be prepared for storing to numeric fields.
   DCHECK(IsNumber(value));
   if (IsSmi(value)) {
@@ -525,18 +526,18 @@ void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
   }
 }
 
-wasm::StructType* WasmStruct::type(Map map) {
-  WasmTypeInfo type_info = map->wasm_type_info();
+wasm::StructType* WasmStruct::type(Tagged<Map> map) {
+  Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
   return reinterpret_cast<wasm::StructType*>(type_info->native_type());
 }
 
-wasm::StructType* WasmStruct::GcSafeType(Map map) {
+wasm::StructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
-  HeapObject raw = HeapObject::cast(map->constructor_or_back_pointer());
+  Tagged<HeapObject> raw = HeapObject::cast(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
   // pointer being intact in the old location.
-  WasmTypeInfo type_info = WasmTypeInfo::unchecked_cast(raw);
+  Tagged<WasmTypeInfo> type_info = WasmTypeInfo::unchecked_cast(raw);
   return reinterpret_cast<wasm::StructType*>(type_info->native_type());
 }
 
@@ -550,7 +551,7 @@ int WasmStruct::Size(const wasm::StructType* type) {
 }
 
 // static
-void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Map map) {
+void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   // WasmStructs can be bigger than the {map.instance_size_in_words} field
   // can describe; yet we have to store the instance size somewhere on the
   // map so that the GC can read it without relying on any other objects
@@ -564,12 +565,14 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Map map) {
 }
 
 // static
-int WasmStruct::DecodeInstanceSizeFromMap(Map map) {
+int WasmStruct::DecodeInstanceSizeFromMap(Tagged<Map> map) {
   return (map->WasmByte2() << (8 + kObjectAlignmentBits)) |
          (map->WasmByte1() << kObjectAlignmentBits);
 }
 
-int WasmStruct::GcSafeSize(Map map) { return DecodeInstanceSizeFromMap(map); }
+int WasmStruct::GcSafeSize(Tagged<Map> map) {
+  return DecodeInstanceSizeFromMap(map);
+}
 
 wasm::StructType* WasmStruct::type() const { return type(map()); }
 
@@ -602,25 +605,25 @@ void WasmStruct::SetField(Isolate* isolate, Handle<WasmStruct> obj,
   WriteValueAt(isolate, obj, field_type, offset, value);
 }
 
-wasm::ArrayType* WasmArray::type(Map map) {
+wasm::ArrayType* WasmArray::type(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
-  WasmTypeInfo type_info = map->wasm_type_info();
+  Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
   return reinterpret_cast<wasm::ArrayType*>(type_info->native_type());
 }
 
-wasm::ArrayType* WasmArray::GcSafeType(Map map) {
+wasm::ArrayType* WasmArray::GcSafeType(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
-  HeapObject raw = HeapObject::cast(map->constructor_or_back_pointer());
+  Tagged<HeapObject> raw = HeapObject::cast(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
   // pointer being intact in the old location.
-  WasmTypeInfo type_info = WasmTypeInfo::unchecked_cast(raw);
+  Tagged<WasmTypeInfo> type_info = WasmTypeInfo::unchecked_cast(raw);
   return reinterpret_cast<wasm::ArrayType*>(type_info->native_type());
 }
 
 wasm::ArrayType* WasmArray::type() const { return type(map()); }
 
-int WasmArray::SizeFor(Map map, int length) {
+int WasmArray::SizeFor(Tagged<Map> map, int length) {
   int element_size = DecodeElementSizeFromMap(map);
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
@@ -653,12 +656,14 @@ Handle<Object> WasmArray::GetElement(Isolate* isolate, Handle<WasmArray> array,
 }
 
 // static
-void WasmArray::EncodeElementSizeInMap(int element_size, Map map) {
+void WasmArray::EncodeElementSizeInMap(int element_size, Tagged<Map> map) {
   map->SetWasmByte1(element_size);
 }
 
 // static
-int WasmArray::DecodeElementSizeFromMap(Map map) { return map->WasmByte1(); }
+int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
+  return map->WasmByte1();
+}
 
 EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, jmpbuf, Address,
                            kJmpbufOffset, kWasmContinuationJmpbufTag)

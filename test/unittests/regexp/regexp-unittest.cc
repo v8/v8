@@ -657,11 +657,9 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   return regexp;
 }
 
-static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
-                                                int start_offset,
-                                                Address input_start,
-                                                Address input_end,
-                                                int* captures) {
+static ArchRegExpMacroAssembler::Result Execute(
+    Tagged<JSRegExp> regexp, Tagged<String> input, int start_offset,
+    Address input_start, Address input_end, int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
       NativeRegExpMacroAssembler::ExecuteForTesting(
           input, start_offset, reinterpret_cast<uint8_t*>(input_start),
@@ -2310,8 +2308,8 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
 
   static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
-  Object maybe_code = re->code(kIsNotLatin1);
-  Object maybe_bytecode = re->bytecode(kIsNotLatin1);
+  Tagged<Object> maybe_code = re->code(kIsNotLatin1);
+  Tagged<Object> maybe_bytecode = re->bytecode(kIsNotLatin1);
   if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode)->Size(), kMaxSize);

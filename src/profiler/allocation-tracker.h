@@ -123,12 +123,13 @@ class AllocationTracker {
   AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  unsigned AddFunctionInfo(SharedFunctionInfo info, SnapshotObjectId id);
+  unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info,
+                           SnapshotObjectId id);
   unsigned functionInfoIndexForVMState(StateTag state);
 
   class UnresolvedLocation {
    public:
-    UnresolvedLocation(Script script, int start, FunctionInfo* info);
+    UnresolvedLocation(Tagged<Script> script, int start, FunctionInfo* info);
     ~UnresolvedLocation();
     void Resolve();
 

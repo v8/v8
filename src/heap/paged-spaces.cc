@@ -565,7 +565,7 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   FreeLinearAllocationArea();
 
   size_t new_node_size = 0;
-  FreeSpace new_node =
+  Tagged<FreeSpace> new_node =
       free_list_->Allocate(size_in_bytes, &new_node_size, origin);
   if (new_node.is_null()) return false;
   DCHECK_GE(new_node_size, size_in_bytes);
@@ -611,7 +611,7 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
          identity() == SHARED_SPACE);
 
   size_t new_node_size = 0;
-  FreeSpace new_node =
+  Tagged<FreeSpace> new_node =
       free_list_->Allocate(min_size_in_bytes, &new_node_size, origin);
   if (new_node.is_null()) return {};
   DCHECK_GE(new_node_size, min_size_in_bytes);
@@ -670,7 +670,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
 
-    for (HeapObject object : HeapObjectRange(page)) {
+    for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       CHECK(end_of_previous_object <= object.address());
 
       // Invoke verification method for each object.
@@ -682,7 +682,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       end_of_previous_object = object.address() + size;
 
       if (IsExternalString(object, cage_base)) {
-        ExternalString external_string = ExternalString::cast(object);
+        Tagged<ExternalString> external_string = ExternalString::cast(object);
         size_t payload_size = external_string->ExternalPayloadSize();
         external_page_bytes[static_cast<int>(
             ExternalBackingStoreType::kExternalString)] += payload_size;
@@ -731,7 +731,7 @@ void PagedSpaceBase::VerifyLiveBytes() const {
   for (const Page* page : *this) {
     CHECK(page->SweepingDone());
     int black_size = 0;
-    for (HeapObject object : HeapObjectRange(page)) {
+    for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsMarked(object)) {
         black_size += object->Size(cage_base);

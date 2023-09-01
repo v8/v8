@@ -39,7 +39,7 @@ class Smi : public Object {
   }
 
   // Convert a Smi object to an int.
-  static inline constexpr int ToInt(const Object object) {
+  static inline constexpr int ToInt(const Tagged<Object> object) {
     return Tagged<Smi>(object.ptr()).value();
   }
 

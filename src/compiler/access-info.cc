@@ -683,20 +683,21 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
 
     Handle<JSObject> holder = maybe_holder->object();
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      SwissNameDictionary dict = holder->property_dictionary_swiss();
+      Tagged<SwissNameDictionary> dict = holder->property_dictionary_swiss();
       *index_out = dict->FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
         *details_out = dict->DetailsAt(*index_out);
       }
     } else {
-      NameDictionary dict = holder->property_dictionary();
+      Tagged<NameDictionary> dict = holder->property_dictionary();
       *index_out = dict->FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
         *details_out = dict->DetailsAt(*index_out);
       }
     }
   } else {
-    DescriptorArray descriptors = *map.instance_descriptors(broker()).object();
+    Tagged<DescriptorArray> descriptors =
+        *map.instance_descriptors(broker()).object();
     *index_out = descriptors->Search(*name.object(), *map.object(), true);
     if (index_out->is_found()) {
       *details_out = descriptors->GetDetails(*index_out);
@@ -1083,7 +1084,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     MapRef map, NameRef name, OptionalJSObjectRef holder,
     PropertyAttributes attrs) const {
   // Check if the {map} has a data transition with the given {name}.
-  Map transition =
+  Tagged<Map> transition =
       TransitionsAccessor(isolate(), *map.object(), true)
           .SearchTransition(*name.object(), PropertyKind::kData, attrs);
   if (transition.is_null()) return Invalid();

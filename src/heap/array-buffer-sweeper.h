@@ -57,10 +57,10 @@ class ArrayBufferSweeper final {
   void EnsureFinished();
 
   // Track the given ArrayBufferExtension for the given JSArrayBuffer.
-  void Append(JSArrayBuffer object, ArrayBufferExtension* extension);
+  void Append(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
 
   // Detaches an ArrayBufferExtension from a JSArrayBuffer.
-  void Detach(JSArrayBuffer object, ArrayBufferExtension* extension);
+  void Detach(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
 
   const ArrayBufferList& young() const { return young_; }
   const ArrayBufferList& old() const { return old_; }

@@ -35,7 +35,7 @@ class InterpreterCallable {
  public:
   virtual ~InterpreterCallable() = default;
 
-  FeedbackVector vector() const { return function_->feedback_vector(); }
+  Tagged<FeedbackVector> vector() const { return function_->feedback_vector(); }
 
  protected:
   InterpreterCallable(Isolate* isolate, Handle<JSFunction> function)

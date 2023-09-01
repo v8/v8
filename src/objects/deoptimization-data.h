@@ -22,12 +22,12 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
  public:
   // Getters for literals. These include runtime checks that the pointer was not
   // cleared, if the literal was held weakly.
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> get(int index) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
 
   // Setter for literals. This will set the object as strong or weak depending
   // on InstructionStream::IsWeakObjectInOptimizedCode.
-  inline void set(int index, Object value);
+  inline void set(int index, Tagged<Object> value);
 
   DECL_CAST(DeoptimizationLiteralArray)
 
@@ -62,8 +62,9 @@ class DeoptimizationFrameTranslation : public ByteArray {
 #endif  // V8_USE_ZLIB
 
 #ifdef ENABLE_DISASSEMBLER
-  void PrintFrameTranslation(std::ostream& os, int index,
-                             DeoptimizationLiteralArray literal_array) const;
+  void PrintFrameTranslation(
+      std::ostream& os, int index,
+      Tagged<DeoptimizationLiteralArray> literal_array) const;
 #endif
 
   OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, ByteArray);
@@ -71,7 +72,7 @@ class DeoptimizationFrameTranslation : public ByteArray {
 
 class DeoptimizationFrameTranslation::Iterator {
  public:
-  Iterator(DeoptimizationFrameTranslation buffer, int index);
+  Iterator(Tagged<DeoptimizationFrameTranslation> buffer, int index);
 
   int32_t NextOperand();
 
@@ -194,7 +195,7 @@ class DeoptimizationData : public FixedArray {
 
   // Returns the inlined function at the given position in LiteralArray, or the
   // outer function if index == kNotInlinedIndex.
-  class SharedFunctionInfo GetInlinedFunction(int index);
+  Tagged<class SharedFunctionInfo> GetInlinedFunction(int index);
 
   // Allocates a DeoptimizationData.
   static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,

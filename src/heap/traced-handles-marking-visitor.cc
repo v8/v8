@@ -45,7 +45,7 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
       // object to mark.
       return;
     }
-    HeapObject heap_object = HeapObject::cast(object);
+    Tagged<HeapObject> heap_object = HeapObject::cast(object);
     if (heap_object.InReadOnlySpace()) return;
     if (marking_state_.TryMark(heap_object)) {
       local_marking_worklist_.Push(heap_object);
@@ -57,7 +57,7 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
 }
 
 bool ConservativeTracedHandlesMarkingVisitor::ShouldMarkObject(
-    HeapObject object) const {
+    Tagged<HeapObject> object) const {
   // Keep up-to-date with MarkCompactCollector::ShouldMarkObject.
   if (V8_LIKELY(!has_shared_space_)) return true;
   if (is_shared_space_isolate_) return true;

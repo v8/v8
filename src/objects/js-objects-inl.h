@@ -130,16 +130,17 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
                                  GetKeysConversion::kConvertToString);
 }
 
-bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
+bool JSObject::PrototypeHasNoElements(Isolate* isolate,
+                                      Tagged<JSObject> object) {
   DisallowGarbageCollection no_gc;
-  HeapObject prototype = HeapObject::cast(object->map()->prototype());
+  Tagged<HeapObject> prototype = HeapObject::cast(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
-  HeapObject null = roots.null_value();
+  Tagged<HeapObject> null = roots.null_value();
   Tagged<FixedArrayBase> empty_fixed_array = roots.empty_fixed_array();
   Tagged<FixedArrayBase> empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
-    Map map = prototype->map();
+    Tagged<Map> map = prototype->map();
     if (IsCustomElementsReceiverMap(map)) return false;
     Tagged<FixedArrayBase> elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
@@ -182,9 +183,9 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object, TSlot objects,
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
-    Object the_hole = object->GetReadOnlyRoots().the_hole_value();
+    Tagged<Object> the_hole = object->GetReadOnlyRoots().the_hole_value();
     for (uint32_t i = 0; i < count; ++i, ++objects) {
-      Object current = *objects;
+      Tagged<Object> current = *objects;
       if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
@@ -273,7 +274,7 @@ DEF_GETTER(JSObject, GetNamedInterceptor, Tagged<InterceptorInfo>) {
 }
 
 // static
-int JSObject::GetHeaderSize(Map map) {
+int JSObject::GetHeaderSize(Tagged<Map> map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
@@ -284,7 +285,7 @@ int JSObject::GetHeaderSize(Map map) {
 }
 
 // static
-int JSObject::GetEmbedderFieldsStartOffset(Map map) {
+int JSObject::GetEmbedderFieldsStartOffset(Tagged<Map> map) {
   // Embedder fields are located after the object header.
   return GetHeaderSize(map);
 }
@@ -294,7 +295,7 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 }
 
 // static
-bool JSObject::MayHaveEmbedderFields(Map map) {
+bool JSObject::MayHaveEmbedderFields(Tagged<Map> map) {
   InstanceType instance_type = map->instance_type();
   // TODO(v8) It'd be nice if all objects with embedder data slots inherited
   // from JSObjectWithEmbedderSlots, but this is currently not possible due to
@@ -308,7 +309,7 @@ bool JSObject::MayHaveEmbedderFields() const {
 }
 
 // static
-int JSObject::GetEmbedderFieldCount(Map map) {
+int JSObject::GetEmbedderFieldCount(Tagged<Map> map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
   // Embedder fields are located after the object header, whereas in-object
@@ -332,16 +333,16 @@ int JSObject::GetEmbedderFieldOffset(int index) {
   return GetEmbedderFieldsStartOffset() + (kEmbedderDataSlotSize * index);
 }
 
-Object JSObject::GetEmbedderField(int index) {
-  return EmbedderDataSlot(*this, index).load_tagged();
+Tagged<Object> JSObject::GetEmbedderField(int index) {
+  return EmbedderDataSlot(Tagged(*this), index).load_tagged();
 }
 
-void JSObject::SetEmbedderField(int index, Object value) {
-  EmbedderDataSlot::store_tagged(*this, index, value);
+void JSObject::SetEmbedderField(int index, Tagged<Object> value) {
+  EmbedderDataSlot::store_tagged(Tagged(*this), index, value);
 }
 
-void JSObject::SetEmbedderField(int index, Smi value) {
-  EmbedderDataSlot(*this, index).store_smi(value);
+void JSObject::SetEmbedderField(int index, Tagged<Smi> value) {
+  EmbedderDataSlot(Tagged(*this), index).store_smi(value);
 }
 
 bool JSObject::IsDroppableApiObject() const {
@@ -353,13 +354,13 @@ bool JSObject::IsDroppableApiObject() const {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object JSObject::RawFastPropertyAt(FieldIndex index) const {
+Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index);
 }
 
-Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                   FieldIndex index) const {
+Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                           FieldIndex index) const {
   if (index.is_inobject()) {
     return TaggedField<Object>::Relaxed_Load(cage_base, *this, index.offset());
   } else {
@@ -370,14 +371,15 @@ Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
 
 // The SeqCst versions of RawFastPropertyAt are used for atomically accessing
 // shared struct fields.
-Object JSObject::RawFastPropertyAt(FieldIndex index,
-                                   SeqCstAccessTag tag) const {
+Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index,
+                                           SeqCstAccessTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index, tag);
 }
 
-Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
-                                   SeqCstAccessTag tag) const {
+Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                           FieldIndex index,
+                                           SeqCstAccessTag tag) const {
   if (index.is_inobject()) {
     return TaggedField<Object>::SeqCst_Load(cage_base, *this, index.offset());
   } else {
@@ -386,8 +388,9 @@ Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
   }
 }
 
-base::Optional<Object> JSObject::RawInobjectPropertyAt(
-    PtrComprCageBase cage_base, Map original_map, FieldIndex index) const {
+base::Optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
+    PtrComprCageBase cage_base, Tagged<Map> original_map,
+    FieldIndex index) const {
   CHECK(index.is_inobject());
 
   // This method implements a "snapshot" protocol to protect against reading out
@@ -415,13 +418,14 @@ base::Optional<Object> JSObject::RawInobjectPropertyAt(
   // Only if the maps match can the property be inspected. It may have a "wrong"
   // value, but it will be within the bounds of the objects instance size as
   // given by the map and it will be a valid Smi or object pointer.
-  Object maybe_tagged_object =
+  Tagged<Object> maybe_tagged_object =
       TaggedField<Object>::Acquire_Load(cage_base, *this, index.offset());
   if (original_map != map(cage_base, kAcquireLoad)) return {};
   return maybe_tagged_object;
 }
 
-void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
+                                            Tagged<Object> value,
                                             WriteBarrierMode mode) {
   DCHECK(index.is_inobject());
   int offset = index.offset();
@@ -429,7 +433,8 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
+                                            Tagged<Object> value,
                                             SeqCstAccessTag tag) {
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
@@ -437,7 +442,7 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
   CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value, UPDATE_WRITE_BARRIER);
 }
 
-void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
+void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                  WriteBarrierMode mode) {
   if (index.is_inobject()) {
     RawFastInobjectPropertyAtPut(index, value, mode);
@@ -447,7 +452,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
   }
 }
 
-void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
+void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                  SeqCstAccessTag tag) {
   if (index.is_inobject()) {
     RawFastInobjectPropertyAtPut(index, value, tag);
@@ -457,7 +462,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
 }
 
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
-                            Object value) {
+                            Tagged<Object> value) {
   DCHECK_EQ(PropertyLocation::kField, details.location());
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
@@ -484,31 +489,32 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   }
 }
 
-Object JSObject::RawFastInobjectPropertyAtSwap(FieldIndex index, Object value,
-                                               SeqCstAccessTag tag) {
+Tagged<Object> JSObject::RawFastInobjectPropertyAtSwap(FieldIndex index,
+                                                       Tagged<Object> value,
+                                                       SeqCstAccessTag tag) {
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
   int offset = index.offset();
-  Object old_value = SEQ_CST_SWAP_FIELD(*this, offset, value);
+  Tagged<Object> old_value = SEQ_CST_SWAP_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, UPDATE_WRITE_BARRIER);
   return old_value;
 }
 
-Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
-                                       SeqCstAccessTag tag) {
+Tagged<Object> JSObject::RawFastPropertyAtSwap(FieldIndex index,
+                                               Tagged<Object> value,
+                                               SeqCstAccessTag tag) {
   if (index.is_inobject()) {
     return RawFastInobjectPropertyAtSwap(index, value, tag);
   }
   return property_array()->Swap(index.outobject_array_index(), value, tag);
 }
 
-Object JSObject::RawFastInobjectPropertyAtCompareAndSwap(FieldIndex index,
-                                                         Object expected,
-                                                         Object value,
-                                                         SeqCstAccessTag tag) {
+Tagged<Object> JSObject::RawFastInobjectPropertyAtCompareAndSwap(
+    FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
+    SeqCstAccessTag tag) {
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
-  Object previous_value =
+  Tagged<Object> previous_value =
       SEQ_CST_COMPARE_AND_SWAP_FIELD(*this, index.offset(), expected, value);
   if (previous_value == expected) {
     CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value,
@@ -517,10 +523,9 @@ Object JSObject::RawFastInobjectPropertyAtCompareAndSwap(FieldIndex index,
   return previous_value;
 }
 
-Object JSObject::RawFastPropertyAtCompareAndSwapInternal(FieldIndex index,
-                                                         Object expected,
-                                                         Object value,
-                                                         SeqCstAccessTag tag) {
+Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwapInternal(
+    FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
+    SeqCstAccessTag tag) {
   if (index.is_inobject()) {
     return RawFastInobjectPropertyAtCompareAndSwap(index, expected, value, tag);
   }
@@ -532,13 +537,13 @@ int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }
 
-Object JSObject::InObjectPropertyAt(int index) {
+Tagged<Object> JSObject::InObjectPropertyAt(int index) {
   int offset = GetInObjectPropertyOffset(index);
   return TaggedField<Object>::load(*this, offset);
 }
 
-Object JSObject::InObjectPropertyAtPut(int index, Object value,
-                                       WriteBarrierMode mode) {
+Tagged<Object> JSObject::InObjectPropertyAtPut(int index, Tagged<Object> value,
+                                               WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
   int offset = GetInObjectPropertyOffset(index);
   WRITE_FIELD(*this, offset, value);
@@ -546,9 +551,10 @@ Object JSObject::InObjectPropertyAtPut(int index, Object value,
   return value;
 }
 
-void JSObject::InitializeBody(Map map, int start_offset,
+void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
                               bool is_slack_tracking_in_progress,
-                              MapWord filler_map, Object undefined_filler) {
+                              MapWord filler_map,
+                              Tagged<Object> undefined_filler) {
   int size = map->instance_size();
   int offset = start_offset;
 
@@ -568,7 +574,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
     DCHECK_EQ(offset, embedder_field_start);
     for (int i = 0; i < embedder_field_count; i++) {
       // TODO(v8): consider initializing embedded data slots with Smi::zero().
-      EmbedderDataSlot(*this, i).Initialize(undefined_filler);
+      EmbedderDataSlot(Tagged<JSObject>(*this), i).Initialize(undefined_filler);
       offset += kEmbedderDataSlotSize;
     }
   } else {
@@ -588,7 +594,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
     }
     // fill the remainder with one word filler objects (ie just a map word)
     while (offset < size) {
-      Object fm = Object(filler_map.ptr());
+      Tagged<Object> fm = Object(filler_map.ptr());
       WRITE_FIELD(*this, offset, fm);
       offset += kTaggedSize;
     }
@@ -814,7 +820,7 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
 }
 
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
-  Object raw_properties_or_hash_obj =
+  Tagged<Object> raw_properties_or_hash_obj =
       raw_properties_or_hash(cage_base, kRelaxedLoad);
   DCHECK(IsSmi(raw_properties_or_hash_obj) ||
          ((IsGlobalDictionary(raw_properties_or_hash_obj, cage_base) ||
@@ -830,7 +836,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
-  Object prop = raw_properties_or_hash(cage_base);
+  Tagged<Object> prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_property_dictionary();
   }
@@ -842,7 +848,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
-  Object prop = raw_properties_or_hash(cage_base);
+  Tagged<Object> prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_swiss_property_dictionary();
   }
@@ -853,7 +859,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
 // the heap from this.
 DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   DCHECK(HasFastProperties(cage_base));
-  Object prop = raw_properties_or_hash(cage_base);
+  Tagged<Object> prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop) || prop == GetReadOnlyRoots(cage_base).empty_fixed_array()) {
     return GetReadOnlyRoots(cage_base).empty_property_array();
   }
@@ -928,8 +934,8 @@ bool JSGlobalObject::IsDetached() {
   return global_proxy()->IsDetachedFrom(*this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {
-  const PrototypeIterator iter(this->GetIsolate(), *this);
+bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
+  const PrototypeIterator iter(this->GetIsolate(), Tagged<JSReceiver>(*this));
   return iter.GetCurrent() != global;
 }
 
@@ -952,7 +958,7 @@ static inline bool ShouldConvertToSlowElements(uint32_t used_elements,
   return size_threshold <= new_capacity;
 }
 
-static inline bool ShouldConvertToSlowElements(JSObject object,
+static inline bool ShouldConvertToSlowElements(Tagged<JSObject> object,
                                                uint32_t capacity,
                                                uint32_t index,
                                                uint32_t* new_capacity) {

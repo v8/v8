@@ -240,7 +240,7 @@ bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
   return IsSmi(bytecode_array()->constant_pool()->get(index));
 }
 
-Smi BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
+Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
   return Smi::cast(bytecode_array()->constant_pool()->get(index));
 }
 
@@ -265,7 +265,7 @@ int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
     }
     return relative_offset;
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
+    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
     return smi.value();
   } else {
     UNREACHABLE();

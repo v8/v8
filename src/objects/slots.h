@@ -93,7 +93,7 @@ class SlotBase {
 // The slot's contents can be read and written using operator* and store().
 class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
  public:
-  using TObject = Object;
+  using TObject = Tagged<Object>;
   using THeapObjectSlot = FullHeapObjectSlot;
 
   // Tagged value stored in this slot is guaranteed to never be a weak pointer.
@@ -103,7 +103,6 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   explicit FullObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullObjectSlot(const Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  inline explicit FullObjectSlot(Object* object);
   inline explicit FullObjectSlot(TaggedBase* object);
   template <typename T>
   explicit FullObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
@@ -114,21 +113,23 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   inline bool contains_map_value(Address raw_value) const;
   inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
-  inline Object operator*() const;
-  inline Object load(PtrComprCageBase cage_base) const;
-  inline void store(Object value) const;
-  inline void store_map(Map map) const;
+  inline Tagged<Object> operator*() const;
+  inline Tagged<Object> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<Object> value) const;
+  inline void store_map(Tagged<Map> map) const;
 
-  inline Map load_map() const;
+  inline Tagged<Map> load_map() const;
 
-  inline Object Acquire_Load() const;
-  inline Object Acquire_Load(PtrComprCageBase cage_base) const;
-  inline Object Relaxed_Load() const;
-  inline Object Relaxed_Load(PtrComprCageBase cage_base) const;
-  inline void Relaxed_Store(Object value) const;
-  inline void Release_Store(Object value) const;
-  inline Object Relaxed_CompareAndSwap(Object old, Object target) const;
-  inline Object Release_CompareAndSwap(Object old, Object target) const;
+  inline Tagged<Object> Acquire_Load() const;
+  inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
+  inline Tagged<Object> Relaxed_Load() const;
+  inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline void Relaxed_Store(Tagged<Object> value) const;
+  inline void Release_Store(Tagged<Object> value) const;
+  inline Tagged<Object> Relaxed_CompareAndSwap(Tagged<Object> old,
+                                               Tagged<Object> target) const;
+  inline Tagged<Object> Release_CompareAndSwap(Tagged<Object> old,
+                                               Tagged<Object> target) const;
 };
 
 // A FullMaybeObjectSlot instance describes a kSystemPointerSize-sized field
@@ -146,7 +147,7 @@ class FullMaybeObjectSlot
 
   FullMaybeObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit FullMaybeObjectSlot(Object* ptr)
+  explicit FullMaybeObjectSlot(TaggedBase* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit FullMaybeObjectSlot(MaybeObject* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
@@ -175,7 +176,7 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
  public:
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit FullHeapObjectSlot(Object* ptr)
+  explicit FullHeapObjectSlot(TaggedBase* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
@@ -185,9 +186,9 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
   inline HeapObjectReference load(PtrComprCageBase cage_base) const;
   inline void store(HeapObjectReference value) const;
 
-  inline HeapObject ToHeapObject() const;
+  inline Tagged<HeapObject> ToHeapObject() const;
 
-  inline void StoreHeapObject(HeapObject value) const;
+  inline void StoreHeapObject(Tagged<HeapObject> value) const;
 };
 
 // TODO(ishell, v8:8875): When pointer compression is enabled the [u]intptr_t
@@ -276,10 +277,10 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
   explicit OffHeapFullObjectSlot(Address ptr) : FullObjectSlot(ptr) {}
   explicit OffHeapFullObjectSlot(const Address* ptr) : FullObjectSlot(ptr) {}
 
-  inline Object operator*() const = delete;
+  inline Tagged<Object> operator*() const = delete;
 
   using FullObjectSlot::Relaxed_Load;
-  inline Object Relaxed_Load() const = delete;
+  inline Tagged<Object> Relaxed_Load() const = delete;
 };
 
 // An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
@@ -360,16 +361,16 @@ class IndirectPointerSlot
   // see below) can be stored into an IndirectPointerSlot, these slots can be
   // empty (containing kNullIndirectPointerHandle), in which case load() will
   // return Smi::zero().
-  inline Object load() const;
+  inline Tagged<Object> load() const;
   // TODO(saelo) currently, Code objects are the only objects that can be
   // referenced through an indirect pointer. Once we have more, we should
   // generalize this to take ExternalObject or another appropriate base class.
-  inline void store(Code value) const;
+  inline void store(Tagged<Code> value) const;
 
-  inline Object Relaxed_Load() const;
-  inline Object Acquire_Load() const;
-  inline void Relaxed_Store(Code value) const;
-  inline void Release_Store(Code value) const;
+  inline Tagged<Object> Relaxed_Load() const;
+  inline Tagged<Object> Acquire_Load() const;
+  inline void Relaxed_Store(Tagged<Code> value) const;
+  inline void Release_Store(Tagged<Code> value) const;
 
   inline IndirectPointerHandle Relaxed_LoadHandle() const;
   inline IndirectPointerHandle Acquire_LoadHandle() const;

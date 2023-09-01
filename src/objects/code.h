@@ -85,13 +85,13 @@ class Code : public HeapObject {
 
   inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void SetInstructionStreamAndInstructionStart(
-      Isolate* isolate_for_sandbox, InstructionStream code,
+      Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                                    Address entry);
   inline void ClearInstructionStartForSerialization(Isolate* isolate);
   inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
-                                     InstructionStream istream);
+                                     Tagged<InstructionStream> istream);
 
   inline void initialize_flags(CodeKind kind, bool is_turbofanned,
                                int stack_slots);
@@ -133,7 +133,7 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(constant_pool_offset, int)
 
   // Unchecked accessors to be used during GC.
-  inline FixedArray unchecked_deoptimization_data() const;
+  inline Tagged<FixedArray> unchecked_deoptimization_data() const;
 
   DECL_RELAXED_UINT32_ACCESSORS(flags)
 
@@ -174,8 +174,8 @@ class Code : public HeapObject {
   // reserved in the code prologue; otherwise 0.
   inline int stack_slots() const;
 
-  inline ByteArray SourcePositionTable(Isolate* isolate,
-                                       SharedFunctionInfo sfi) const;
+  inline Tagged<ByteArray> SourcePositionTable(
+      Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
 
   inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;
@@ -188,7 +188,8 @@ class Code : public HeapObject {
   inline Address constant_pool() const;
   // An accessor to be used during GC if the instruction_stream moved and the
   // field was not updated yet.
-  inline Address constant_pool(InstructionStream instruction_stream) const;
+  inline Address constant_pool(
+      Tagged<InstructionStream> instruction_stream) const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
@@ -247,9 +248,10 @@ class Code : public HeapObject {
   void SetMarkedForDeoptimization(Isolate* isolate, const char* reason);
 
   inline bool CanContainWeakObjects();
-  inline bool IsWeakObject(HeapObject object);
-  static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
-  static inline bool IsWeakObjectInDeoptimizationLiteralArray(Object object);
+  inline bool IsWeakObject(Tagged<HeapObject> object);
+  static inline bool IsWeakObjectInOptimizedCode(Tagged<HeapObject> object);
+  static inline bool IsWeakObjectInDeoptimizationLiteralArray(
+      Tagged<Object> object);
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -263,14 +265,14 @@ class Code : public HeapObject {
 
   bool IsIsolateIndependent(Isolate* isolate);
 
-  inline uintptr_t GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
-                                                       BytecodeArray bytecodes);
+  inline uintptr_t GetBaselineStartPCForBytecodeOffset(
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
-  inline uintptr_t GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
-                                                     BytecodeArray bytecodes);
+  inline uintptr_t GetBaselineEndPCForBytecodeOffset(
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
   // Returns true if the function is inlined in the code.
-  bool Inlines(SharedFunctionInfo sfi);
+  bool Inlines(Tagged<SharedFunctionInfo> sfi);
 
   // Returns the PC of the next bytecode in execution order.
   // If the bytecode at the given offset is JumpLoop, the PC of the jump target
@@ -278,14 +280,14 @@ class Code : public HeapObject {
   // For other bytecodes this is equivalent to
   // GetBaselineEndPCForBytecodeOffset.
   inline uintptr_t GetBaselinePCForNextExecutedBytecode(
-      int bytecode_offset, BytecodeArray bytecodes);
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
   inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
-                                            BytecodeArray bytecodes);
+                                            Tagged<BytecodeArray> bytecodes);
 
   inline void IterateDeoptimizationLiterals(RootVisitor* v);
 
-  static inline Code FromTargetAddress(Address address);
+  static inline Tagged<Code> FromTargetAddress(Address address);
 
 #ifdef ENABLE_DISASSEMBLER
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
@@ -386,8 +388,8 @@ class Code : public HeapObject {
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  HeapObject raw_deoptimization_data_or_interpreter_data() const;
-  ByteArray raw_position_table() const;
+  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<ByteArray> raw_position_table() const;
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
@@ -396,9 +398,9 @@ class Code : public HeapObject {
     // of non-topmost frame).
     kPcAtEndOfBytecode
   };
-  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                                  BytecodeToPCPosition position,
-                                                  BytecodeArray bytecodes);
+  inline uintptr_t GetBaselinePCForBytecodeOffset(
+      int bytecode_offset, BytecodeToPCPosition position,
+      Tagged<BytecodeArray> bytecodes);
 
   template <typename IsolateT>
   friend class Deserializer;
@@ -433,7 +435,7 @@ class GcSafeCode : public HeapObject {
 
   // Use with care, this casts away knowledge that we're dealing with a
   // special-semantics object.
-  inline Code UnsafeCastToCode() const;
+  inline Tagged<Code> UnsafeCastToCode() const;
 
   // Safe accessors (these just forward to Code methods).
   inline Address instruction_start() const;
@@ -449,9 +451,9 @@ class GcSafeCode : public HeapObject {
   inline bool is_turbofanned() const;
   inline bool has_tagged_outgoing_params() const;
   inline bool marked_for_deoptimization() const;
-  inline Object raw_instruction_stream() const;
+  inline Tagged<Object> raw_instruction_stream() const;
   inline Address constant_pool() const;
-  inline Address constant_pool(InstructionStream istream) const;
+  inline Address constant_pool(Tagged<InstructionStream> istream) const;
   inline Address safepoint_table_address() const;
   inline int stack_slots() const;
 
@@ -459,7 +461,8 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
-  inline Object raw_instruction_stream(PtrComprCageBase code_cage_base) const;
+  inline Tagged<Object> raw_instruction_stream(
+      PtrComprCageBase code_cage_base) const;
 
  private:
   OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);

@@ -99,7 +99,7 @@ Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
   return handle(FeedbackCell::cast(get(index)), GetIsolate());
 }
 
-FeedbackCell ClosureFeedbackCellArray::cell(int index) {
+Tagged<FeedbackCell> ClosureFeedbackCellArray::cell(int index) {
   return FeedbackCell::cast(get(index));
 }
 
@@ -162,11 +162,11 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
   }
 }
 
-Code FeedbackVector::optimized_code() const {
+Tagged<Code> FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code();
   DCHECK(slot->IsWeakOrCleared());
-  HeapObject heap_object;
-  Code code;
+  Tagged<HeapObject> heap_object;
+  Tagged<Code> code;
   if (slot->GetHeapObject(&heap_object)) {
     code = Code::cast(heap_object);
   }
@@ -221,7 +221,7 @@ base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  Code code = Code::cast(maybe_code->GetHeapObject());
+  Tagged<Code> code = Code::cast(maybe_code->GetHeapObject());
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
@@ -244,7 +244,7 @@ FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
 // Instead of FixedArray, the Feedback and the Extra should contain
 // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
 bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
-  HeapObject heap_object;
+  Tagged<HeapObject> heap_object;
   if (value->GetHeapObject(&heap_object)) {
     return IsFixedArray(heap_object) && !IsHashTable(heap_object);
   }
@@ -271,7 +271,7 @@ Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
   return closure_feedback_cell_array()->GetFeedbackCell(index);
 }
 
-FeedbackCell FeedbackVector::closure_feedback_cell(int index) const {
+Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
   DCHECK_GE(index, 0);
   return closure_feedback_cell_array()->cell(index);
 }
@@ -295,7 +295,7 @@ void FeedbackVector::SynchronizedSet(FeedbackSlot slot, MaybeObject value,
   CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void FeedbackVector::SynchronizedSet(FeedbackSlot slot, Object value,
+void FeedbackVector::SynchronizedSet(FeedbackSlot slot, Tagged<Object> value,
                                      WriteBarrierMode mode) {
   SynchronizedSet(slot, MaybeObject::FromObject(value), mode);
 }
@@ -306,7 +306,7 @@ void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
   set_raw_feedback_slots(GetIndex(slot), value, mode);
 }
 
-void FeedbackVector::Set(FeedbackSlot slot, Object value,
+void FeedbackVector::Set(FeedbackSlot slot, Tagged<Object> value,
                          WriteBarrierMode mode) {
   MaybeObject maybe_value = MaybeObject::FromObject(value);
   DCHECK(!IsOfLegacyType(maybe_value));
@@ -415,7 +415,7 @@ Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).mega_dom_symbol_handle();
 }
 
-Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
+Tagged<Symbol> FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
 
@@ -435,12 +435,12 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
-MaybeObject NexusConfig::GetFeedback(FeedbackVector vector,
+MaybeObject NexusConfig::GetFeedback(Tagged<FeedbackVector> vector,
                                      FeedbackSlot slot) const {
   return vector->SynchronizedGet(slot);
 }
 
-void NexusConfig::SetFeedback(FeedbackVector vector, FeedbackSlot slot,
+void NexusConfig::SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
                               MaybeObject feedback,
                               WriteBarrierMode mode) const {
   DCHECK(can_write());

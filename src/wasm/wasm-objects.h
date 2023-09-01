@@ -106,11 +106,12 @@ class ImportedFunctionEntry {
                                      const wasm::FunctionSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
-  void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
+  void SetWasmToWasm(Tagged<WasmInstanceObject> target_instance,
+                     Address call_target);
 
-  JSReceiver callable();
-  Object maybe_callable();
-  Object object_ref();
+  Tagged<JSReceiver> callable();
+  Tagged<Object> maybe_callable();
+  Tagged<Object> object_ref();
   Address target();
   void set_target(Address new_target);
 
@@ -284,7 +285,7 @@ class WasmMemoryObject
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.
-  void SetNewBuffer(JSArrayBuffer new_buffer);
+  void SetNewBuffer(Tagged<JSArrayBuffer> new_buffer);
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*, Handle<WasmMemoryObject>,
                                         uint32_t pages);
@@ -385,7 +386,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
 
-  inline WasmMemoryObject memory_object(int memory_index) const;
+  inline Tagged<WasmMemoryObject> memory_object(int memory_index) const;
   inline uint8_t* memory_base(int memory_index) const;
   inline size_t memory_size(int memory_index) const;
 
@@ -578,7 +579,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
-  void InitDataSegmentArrays(WasmModuleObject);
+  void InitDataSegmentArrays(Tagged<WasmModuleObject>);
 };
 
 // Representation of WebAssembly.Exception JavaScript-level object.
@@ -647,10 +648,10 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
  public:
-  WasmInstanceObject instance();
+  Tagged<WasmInstanceObject> instance();
   V8_EXPORT_PRIVATE int function_index();
 
-  V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Object object);
+  V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance,
@@ -675,14 +676,14 @@ class WasmExportedFunction : public JSFunction {
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmJSFunction : public JSFunction {
  public:
-  static bool IsWasmJSFunction(Object object);
+  static bool IsWasmJSFunction(Tagged<Object> object);
 
   static Handle<WasmJSFunction> New(Isolate* isolate,
                                     const wasm::FunctionSig* sig,
                                     Handle<JSReceiver> callable,
                                     wasm::Suspend suspend);
 
-  JSReceiver GetCallable() const;
+  Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
@@ -696,13 +697,13 @@ class WasmJSFunction : public JSFunction {
 // An external function exposed to Wasm via the C/C++ API.
 class WasmCapiFunction : public JSFunction {
  public:
-  static bool IsWasmCapiFunction(Object object);
+  static bool IsWasmCapiFunction(Tagged<Object> object);
 
   static Handle<WasmCapiFunction> New(
       Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
       Handle<PodArray<wasm::ValueType>> serialized_signature);
 
-  PodArray<wasm::ValueType> GetSerializedSignature() const;
+  Tagged<PodArray<wasm::ValueType>> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
   bool MatchesSignature(uint32_t other_canonical_sig_index) const;
@@ -719,7 +720,7 @@ class WasmCapiFunction : public JSFunction {
 // // TODO(wasm): Potentially {WasmCapiFunction} will be added here as well.
 class WasmExternalFunction : public JSFunction {
  public:
-  static bool IsWasmExternalFunction(Object object);
+  static bool IsWasmExternalFunction(Tagged<Object> object);
 
   DECL_CAST(WasmExternalFunction)
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
@@ -747,7 +748,7 @@ class WasmIndirectFunctionTable
   static void Resize(Isolate* isolate, Handle<WasmIndirectFunctionTable> table,
                      uint32_t new_size);
   V8_EXPORT_PRIVATE void Set(uint32_t index, int sig_id, Address call_target,
-                             Object ref);
+                             Tagged<Object> ref);
   void Clear(uint32_t index);
 
   DECL_PRINTER(WasmIndirectFunctionTable)
@@ -847,7 +848,7 @@ class WasmInternalFunction
  private:
   // Make this private so it is not use by accident. Use {GetOrCreateExternal}
   // instead.
-  HeapObject external();
+  Tagged<HeapObject> external();
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of
@@ -935,7 +936,7 @@ class WasmScript : public AllStatic {
                                                     int breakpoint_id);
 
   // Remove all set breakpoints.
-  static void ClearAllBreakpoints(Script);
+  static void ClearAllBreakpoints(Tagged<Script>);
 
   // Get a list of all possible breakpoints within a given range of this module.
   V8_EXPORT_PRIVATE static bool GetPossibleBreakpoints(
@@ -1016,20 +1017,21 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
 
  private:
   template <typename ElementType>
-  static ElementType FromNumber(Object value);
+  static ElementType FromNumber(Tagged<Object> value);
 
   TQ_OBJECT_CONSTRUCTORS(WasmObject)
 };
 
 class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
  public:
-  static inline wasm::StructType* type(Map map);
+  static inline wasm::StructType* type(Tagged<Map> map);
   inline wasm::StructType* type() const;
-  static inline wasm::StructType* GcSafeType(Map map);
+  static inline wasm::StructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
-  static inline int GcSafeSize(Map map);
-  static inline void EncodeInstanceSizeInMap(int instance_size, Map map);
-  static inline int DecodeInstanceSizeFromMap(Map map);
+  static inline int GcSafeSize(Tagged<Map> map);
+  static inline void EncodeInstanceSizeInMap(int instance_size,
+                                             Tagged<Map> map);
+  static inline int DecodeInstanceSizeFromMap(Tagged<Map> map);
 
   // Returns the address of the field at given offset.
   inline Address RawFieldAddress(int raw_offset);
@@ -1056,16 +1058,16 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
 
 class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
  public:
-  static inline wasm::ArrayType* type(Map map);
+  static inline wasm::ArrayType* type(Tagged<Map> map);
   inline wasm::ArrayType* type() const;
-  static inline wasm::ArrayType* GcSafeType(Map map);
+  static inline wasm::ArrayType* GcSafeType(Tagged<Map> map);
 
   // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
   // this is a reference array.
   inline ObjectSlot ElementSlot(uint32_t index);
   V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
-  static inline int SizeFor(Map map, int length);
+  static inline int SizeFor(Tagged<Map> map, int length);
 
   // Returns boxed value of the array's element.
   static inline Handle<Object> GetElement(Isolate* isolate,
@@ -1090,8 +1092,8 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
     return MaxLength(type->element_type().value_kind_size());
   }
 
-  static inline void EncodeElementSizeInMap(int element_size, Map map);
-  static inline int DecodeElementSizeFromMap(Map map);
+  static inline void EncodeElementSizeInMap(int element_size, Tagged<Map> map);
+  static inline int DecodeElementSizeFromMap(Tagged<Map> map);
 
   DECL_PRINTER(WasmArray)
 

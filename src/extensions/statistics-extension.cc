@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/logging/counters.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -141,11 +142,11 @@ void StatisticsExtension::GetCounters(
     HeapObjectIterator iterator(
         reinterpret_cast<Isolate*>(info.GetIsolate())->heap());
     DCHECK(!AllowGarbageCollection::IsAllowed());
-    for (HeapObject obj = iterator.Next(); !obj.is_null();
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
-      Object maybe_source_positions;
+      Tagged<Object> maybe_source_positions;
       if (IsCode(obj)) {
-        Code code = Code::cast(obj);
+        Tagged<Code> code = Code::cast(obj);
         reloc_info_total += code->relocation_size();
         // Baseline code doesn't have source positions since it uses
         // interpreter code positions.
@@ -158,7 +159,8 @@ void StatisticsExtension::GetCounters(
         continue;
       }
       if (!IsByteArray(maybe_source_positions)) continue;
-      ByteArray source_positions = ByteArray::cast(maybe_source_positions);
+      Tagged<ByteArray> source_positions =
+          ByteArray::cast(maybe_source_positions);
       if (source_positions->length() == 0) continue;
       source_position_table_total += source_positions->Size();
     }

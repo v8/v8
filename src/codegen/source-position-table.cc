@@ -118,7 +118,7 @@ void DecodeEntry(base::Vector<const uint8_t> bytes, int* index,
   entry->source_position = DecodeInt<int64_t>(bytes, index);
 }
 
-base::Vector<const uint8_t> VectorFromByteArray(ByteArray byte_array) {
+base::Vector<const uint8_t> VectorFromByteArray(Tagged<ByteArray> byte_array) {
   return base::Vector<const uint8_t>(byte_array->GetDataStartAddress(),
                                      byte_array->length());
 }
@@ -230,7 +230,7 @@ void SourcePositionTableIterator::Initialize() {
 }
 
 SourcePositionTableIterator::SourcePositionTableIterator(
-    ByteArray byte_array, IterationFilter iteration_filter,
+    Tagged<ByteArray> byte_array, IterationFilter iteration_filter,
     FunctionEntryFilter function_entry_filter)
     : raw_table_(VectorFromByteArray(byte_array)),
       iteration_filter_(iteration_filter),

@@ -113,7 +113,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
                                kMajorGCOldGenerationAllocationObserverStep),
       minor_gc_observer_(this) {}
 
-void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
+void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
+                                             int object_size) {
   CHECK(marking_state()->TryMark(obj));
   base::MutexGuard guard(&background_live_bytes_mutex_);
   background_live_bytes_[MemoryChunk::FromHeapObject(obj)] +=
@@ -216,7 +217,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   }
 }
 
-bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
+bool IncrementalMarking::WhiteToGreyAndPush(Tagged<HeapObject> obj) {
   if (marking_state()->TryMark(obj)) {
     local_marking_worklists()->Push(obj);
     return true;
@@ -246,10 +247,10 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
 
  private:
   void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    Object object = *p;
+    Tagged<Object> object = *p;
     if (!IsHeapObject(object)) return;
     DCHECK(!MapWord::IsPacked(object.ptr()));
-    HeapObject heap_object = HeapObject::cast(object);
+    Tagged<HeapObject> heap_object = HeapObject::cast(object);
 
     if (heap_object.InAnySharedSpace() || heap_object.InReadOnlySpace()) return;
 
@@ -493,8 +494,9 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   PtrComprCageBase cage_base(isolate());
   major_collector_->marking_worklists()->Update([this, marking_state, cage_base,
                                                  filler_map](
-                                                    HeapObject obj,
-                                                    HeapObject* out) -> bool {
+                                                    Tagged<HeapObject> obj,
+                                                    Tagged<HeapObject>* out)
+                                                    -> bool {
     DCHECK(IsHeapObject(obj));
     USE(marking_state);
 

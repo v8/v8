@@ -77,12 +77,12 @@ BasicBlockProfilerData::BasicBlockProfilerData(
 }
 
 BasicBlockProfilerData::BasicBlockProfilerData(
-    OnHeapBasicBlockProfilerData js_heap_data) {
+    Tagged<OnHeapBasicBlockProfilerData> js_heap_data) {
   CopyFromJSHeap(js_heap_data);
 }
 
 void BasicBlockProfilerData::CopyFromJSHeap(
-    OnHeapBasicBlockProfilerData js_heap_data) {
+    Tagged<OnHeapBasicBlockProfilerData> js_heap_data) {
   function_name_ = js_heap_data->name()->ToCString().get();
   schedule_ = js_heap_data->schedule()->ToCString().get();
   code_ = js_heap_data->code()->ToCString().get();
@@ -94,7 +94,8 @@ void BasicBlockProfilerData::CopyFromJSHeap(
   for (int i = 0; i < block_ids.length() / kBlockIdSlotSize; ++i) {
     block_ids_.push_back(block_ids.get(i));
   }
-  PodArray<std::pair<int32_t, int32_t>> branches = js_heap_data->branches();
+  Tagged<PodArray<std::pair<int32_t, int32_t>>> branches =
+      js_heap_data->branches();
   for (int i = 0; i < branches->length(); ++i) {
     branches_.push_back(branches->get(i));
   }
@@ -200,7 +201,7 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
 
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  ArrayList list(isolate->heap()->basic_block_profiling_data());
+  Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
   int list_length = list->Length();
   for (int i = 0; i < list_length; ++i) {

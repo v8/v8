@@ -186,7 +186,7 @@ class ClosureFeedbackCellArray : public FixedArray {
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   inline Handle<FeedbackCell> GetFeedbackCell(int index);
-  inline FeedbackCell cell(int index);
+  inline Tagged<FeedbackCell> cell(int index);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
@@ -252,7 +252,7 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-  inline Code optimized_code() const;
+  inline Tagged<Code> optimized_code() const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
@@ -266,17 +266,17 @@ class FeedbackVector
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
 
-  void SetOptimizedCode(Code code);
-  void EvictOptimizedCodeMarkedForDeoptimization(Isolate* isolate,
-                                                 SharedFunctionInfo shared,
-                                                 const char* reason);
+  void SetOptimizedCode(Tagged<Code> code);
+  void EvictOptimizedCodeMarkedForDeoptimization(
+      Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason);
   void ClearOptimizedCode();
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
   inline base::Optional<Code> GetOptimizedOsrCode(Isolate* isolate,
                                                   FeedbackSlot slot);
-  void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot, Code code);
+  void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
+                           Tagged<Code> code);
 
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);
@@ -296,7 +296,7 @@ class FeedbackVector
   inline MaybeObject SynchronizedGet(FeedbackSlot slot) const;
   inline void SynchronizedSet(FeedbackSlot slot, MaybeObject value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SynchronizedSet(FeedbackSlot slot, Object value,
+  inline void SynchronizedSet(FeedbackSlot slot, Tagged<Object> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline MaybeObject Get(FeedbackSlot slot) const;
@@ -305,7 +305,7 @@ class FeedbackVector
   // Returns the feedback cell at |index| that is used to create the
   // closure.
   inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
-  inline FeedbackCell closure_feedback_cell(int index) const;
+  inline Tagged<FeedbackCell> closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot slots_start();
@@ -377,7 +377,7 @@ class FeedbackVector
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
-  static inline Symbol RawUninitializedSentinel(Isolate* isolate);
+  static inline Tagged<Symbol> RawUninitializedSentinel(Isolate* isolate);
 
   static_assert(kHeaderSize % kObjectAlignment == 0,
                 "Header must be padded for alignment");
@@ -399,7 +399,7 @@ class FeedbackVector
   // Private for initializing stores in FeedbackVector::New().
   inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Set(FeedbackSlot slot, Object value,
+  inline void Set(FeedbackSlot slot, Tagged<Object> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 #ifdef DEBUG
@@ -720,19 +720,19 @@ class V8_EXPORT_PRIVATE NexusConfig {
 
   MaybeObjectHandle NewHandle(MaybeObject object) const;
   template <typename T>
-  Handle<T> NewHandle(T object) const;
+  Handle<T> NewHandle(Tagged<T> object) const;
 
   bool can_write() const { return mode() == MainThread; }
 
-  inline MaybeObject GetFeedback(FeedbackVector vector,
+  inline MaybeObject GetFeedback(Tagged<FeedbackVector> vector,
                                  FeedbackSlot slot) const;
-  inline void SetFeedback(FeedbackVector vector, FeedbackSlot slot,
+  inline void SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
                           MaybeObject object,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER) const;
 
-  std::pair<MaybeObject, MaybeObject> GetFeedbackPair(FeedbackVector vector,
-                                                      FeedbackSlot slot) const;
-  void SetFeedbackPair(FeedbackVector vector, FeedbackSlot start_slot,
+  std::pair<MaybeObject, MaybeObject> GetFeedbackPair(
+      Tagged<FeedbackVector> vector, FeedbackSlot slot) const;
+  void SetFeedbackPair(Tagged<FeedbackVector> vector, FeedbackSlot start_slot,
                        MaybeObject feedback, WriteBarrierMode mode,
                        MaybeObject feedback_extra,
                        WriteBarrierMode mode_extra) const;
@@ -752,7 +752,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
  public:
   // For use on the main thread. A null {vector} is accepted as well.
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot);
-  FeedbackNexus(FeedbackVector vector, FeedbackSlot slot);
+  FeedbackNexus(Tagged<FeedbackVector> vector, FeedbackSlot slot);
 
   // For use on the main or background thread as configured by {config}.
   // {vector} must be valid.
@@ -787,7 +787,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void Print(std::ostream& os);
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map GetFirstMap() const;
+  Tagged<Map> GetFirstMap() const;
   int ExtractMaps(MapHandles* maps) const;
   // Used to obtain maps and the associated handlers stored in the feedback
   // vector. This should be called when we expect only a handler to be stored in
@@ -844,7 +844,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
-  Name GetName() const;
+  Tagged<Name> GetName() const;
 
   // For Call ICs.
   int GetCallCount();
@@ -927,7 +927,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   explicit FeedbackIterator(const FeedbackNexus* nexus);
   void Advance();
   bool done() { return done_; }
-  Map map() { return map_; }
+  Tagged<Map> map() { return map_; }
   MaybeObject handler() { return handler_; }
 
   static int SizeFor(int number_of_entries) {

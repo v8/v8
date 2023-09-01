@@ -27,7 +27,7 @@ class BasicBlockProfilerData {
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
       Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate);
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
-      OnHeapBasicBlockProfilerData js_heap_data);
+      Tagged<OnHeapBasicBlockProfilerData> js_heap_data);
 
   BasicBlockProfilerData(const BasicBlockProfilerData&) = delete;
   BasicBlockProfilerData& operator=(const BasicBlockProfilerData&) = delete;
@@ -59,7 +59,7 @@ class BasicBlockProfilerData {
 
   V8_EXPORT_PRIVATE void ResetCounts();
 
-  void CopyFromJSHeap(OnHeapBasicBlockProfilerData js_heap_data);
+  void CopyFromJSHeap(Tagged<OnHeapBasicBlockProfilerData> js_heap_data);
 
   // These vectors are indexed by reverse post-order block number.
   std::vector<int32_t> block_ids_;

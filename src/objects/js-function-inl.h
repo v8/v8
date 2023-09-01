@@ -42,7 +42,8 @@ DEF_GETTER(JSFunction, feedback_vector, Tagged<FeedbackVector>) {
   return FeedbackVector::cast(raw_feedback_cell(cage_base)->value(cage_base));
 }
 
-ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
+Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
+    const {
   DCHECK(has_closure_feedback_cell_array());
   return ClosureFeedbackCellArray::cast(raw_feedback_cell()->value());
 }
@@ -62,7 +63,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 }
 
 template <typename IsolateT>
-AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
+Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared()->GetBytecodeArray(isolate));
   } else {
@@ -179,7 +180,7 @@ bool JSFunction::has_closure_feedback_cell_array() const {
          IsClosureFeedbackCellArray(raw_feedback_cell()->value());
 }
 
-Context JSFunction::context() {
+Tagged<Context> JSFunction::context() {
   return TaggedField<Context, kContextOffset>::load(*this);
 }
 
@@ -191,9 +192,11 @@ bool JSFunction::has_context() const {
   return IsContext(TaggedField<HeapObject, kContextOffset>::load(*this));
 }
 
-JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
+Tagged<JSGlobalProxy> JSFunction::global_proxy() {
+  return context()->global_proxy();
+}
 
-NativeContext JSFunction::native_context() {
+Tagged<NativeContext> JSFunction::native_context() {
   return context()->native_context();
 }
 
@@ -252,7 +255,7 @@ DEF_GETTER(JSFunction, prototype, Tagged<Object>) {
   DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  Map map = this->map(cage_base);
+  Tagged<Map> map = this->map(cage_base);
   if (map->has_non_instance_prototype()) {
     return map->GetNonInstancePrototype(cage_base);
   }
@@ -272,14 +275,15 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
   // TODO(v8) the branches for !IsSharedFunctionInfo() and !IsCode() are
   // probably dead code by now. Investigate removing them or replacing them
   // with CHECKs.
-  Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
+  Tagged<Object> maybe_shared =
+      ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
-  Object maybe_code = raw_code(kAcquireLoad);
+  Tagged<Object> maybe_code = raw_code(kAcquireLoad);
   if (!IsCode(maybe_code)) return false;
-  Code code = Code::cast(maybe_code);
+  Tagged<Code> code = Code::cast(maybe_code);
 
-  SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
+  Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
   return !shared->is_compiled() && code->builtin_id() != Builtin::kCompileLazy;
 }
 
@@ -288,8 +292,8 @@ bool JSFunction::NeedsResetDueToFlushedBaselineCode() {
 }
 
 void JSFunction::ResetIfCodeFlushed(
-    base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                      HeapObject target)>>
+    base::Optional<std::function<void(
+        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
   const bool kBytecodeCanFlush =
       v8_flags.flush_bytecode || v8_flags.stress_snapshot;

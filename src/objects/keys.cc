@@ -44,13 +44,13 @@ namespace {
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
-    Object e = array->get(i);
+    Tagged<Object> e = array->get(i);
     if (!(IsName(e) || IsNumber(e))) return false;
   }
   return true;
 }
 
-static int AddKey(Object key, Handle<FixedArray> combined_keys,
+static int AddKey(Tagged<Object> key, Handle<FixedArray> combined_keys,
                   Handle<DescriptorArray> descs, int nof_descriptors,
                   int target) {
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
@@ -68,7 +68,7 @@ static Handle<FixedArray> CombineKeys(Isolate* isolate,
   int prototype_chain_keys_length = prototype_chain_keys->length();
   if (prototype_chain_keys_length == 0) return own_keys;
 
-  Map map = receiver->map();
+  Tagged<Map> map = receiver->map();
   int nof_descriptors = map->NumberOfOwnDescriptors();
   if (nof_descriptors == 0 && !may_have_elements) return prototype_chain_keys;
 
@@ -122,7 +122,8 @@ Handle<OrderedHashSet> KeyAccumulator::keys() {
   return Handle<OrderedHashSet>::cast(keys_);
 }
 
-ExceptionStatus KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
+ExceptionStatus KeyAccumulator::AddKey(Tagged<Object> key,
+                                       AddKeyConversion convert) {
   return AddKey(handle(key, isolate_), convert);
 }
 
@@ -296,7 +297,7 @@ bool KeyAccumulator::IsShadowed(Handle<Object> key) {
   return shadowing_keys_->Has(isolate_, key);
 }
 
-void KeyAccumulator::AddShadowingKey(Object key,
+void KeyAccumulator::AddShadowingKey(Tagged<Object> key,
                                      AllowGarbageCollection* allow_gc) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
   AddShadowingKey(handle(key, isolate_));
@@ -311,8 +312,8 @@ void KeyAccumulator::AddShadowingKey(Handle<Object> key) {
 
 namespace {
 
-void TrySettingEmptyEnumCache(JSReceiver object) {
-  Map map = object->map();
+void TrySettingEmptyEnumCache(Tagged<JSReceiver> object) {
+  Tagged<Map> map = object->map();
   DCHECK_EQ(kInvalidEnumCacheSentinel, map->EnumLength());
   if (!map->OnlyHasSimpleProperties()) return;
   if (IsJSProxyMap(map)) return;
@@ -321,7 +322,7 @@ void TrySettingEmptyEnumCache(JSReceiver object) {
   map->SetEnumLength(0);
 }
 
-bool CheckAndInitializeEmptyEnumCache(JSReceiver object) {
+bool CheckAndInitializeEmptyEnumCache(Tagged<JSReceiver> object) {
   if (object->map()->EnumLength() == kInvalidEnumCacheSentinel) {
     TrySettingEmptyEnumCache(object);
   }
@@ -340,11 +341,11 @@ void FastKeyAccumulator::Prepare() {
   has_empty_prototype_ = true;
   only_own_has_simple_elements_ =
       !IsCustomElementsReceiverMap(receiver_->map());
-  JSReceiver last_prototype;
+  Tagged<JSReceiver> last_prototype;
   may_have_elements_ = MayHaveElements(*receiver_);
   for (PrototypeIterator iter(isolate_, *receiver_); !iter.IsAtEnd();
        iter.Advance()) {
-    JSReceiver current = iter.GetCurrent<JSReceiver>();
+    Tagged<JSReceiver> current = iter.GetCurrent<JSReceiver>();
     if (!may_have_elements_ || only_own_has_simple_elements_) {
       if (MayHaveElements(current)) {
         may_have_elements_ = true;
@@ -466,7 +467,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     GetKeysConversion keys_conversion) {
   bool own_only = has_empty_prototype_ || mode_ == KeyCollectionMode::kOwnOnly;
-  Map map = receiver_->map();
+  Tagged<Map> map = receiver_->map();
   if (!own_only || IsCustomElementsReceiverMap(map)) {
     return MaybeHandle<FixedArray>();
   }
@@ -526,7 +527,7 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
     DisallowGarbageCollection no_gc;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
-    Object key = descriptors->GetKey(i);
+    Tagged<Object> key = descriptors->GetKey(i);
     if (IsSymbol(key)) continue;
     keys->set(index, key);
     if (details.location() != PropertyLocation::kField) fields_only = false;
@@ -546,7 +547,7 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
     for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
       PropertyDetails details = raw_descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
-      Object key = raw_descriptors->GetKey(i);
+      Tagged<Object> key = raw_descriptors->GetKey(i);
       if (IsSymbol(key)) continue;
       DCHECK_EQ(PropertyKind::kData, details.kind());
       DCHECK_EQ(PropertyLocation::kField, details.location());
@@ -567,7 +568,7 @@ MaybeHandle<FixedArray>
 FastKeyAccumulator::GetOwnKeysWithUninitializedEnumLength() {
   Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
   // Uninitialized enum length
-  Map map = object->map();
+  Tagged<Map> map = object->map();
   if (object->elements() != ReadOnlyRoots(isolate_).empty_fixed_array() &&
       object->elements() !=
           ReadOnlyRoots(isolate_).empty_slow_element_dictionary()) {
@@ -651,9 +652,9 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
   return result;
 }
 
-bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
+bool FastKeyAccumulator::MayHaveElements(Tagged<JSReceiver> receiver) {
   if (!IsJSObject(receiver)) return true;
-  JSObject object = JSObject::cast(receiver);
+  Tagged<JSObject> object = JSObject::cast(receiver);
   if (object->HasEnumerableElements()) return true;
   if (object->HasIndexedInterceptor()) return true;
   return false;
@@ -669,11 +670,11 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
     return false;
   }
   DisallowGarbageCollection no_gc;
-  HeapObject prototype = receiver->map(isolate_)->prototype();
+  Tagged<HeapObject> prototype = receiver->map(isolate_)->prototype();
   if (prototype.is_null()) return false;
-  Map maybe_proto_map = prototype->map(isolate_);
+  Tagged<Map> maybe_proto_map = prototype->map(isolate_);
   if (!maybe_proto_map->is_prototype_map()) return false;
-  PrototypeInfo prototype_info;
+  Tagged<PrototypeInfo> prototype_info;
   if (!maybe_proto_map->TryGetPrototypeInfo(&prototype_info)) return false;
 
   first_prototype_ = handle(JSReceiver::cast(prototype), isolate_);
@@ -810,12 +811,12 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
 
     if (filter & ONLY_ALL_CAN_READ) {
       if (details.kind() != PropertyKind::kAccessor) continue;
-      Object accessors = descs->GetStrongValue(i);
+      Tagged<Object> accessors = descs->GetStrongValue(i);
       if (!IsAccessorInfo(accessors)) continue;
       if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
     }
 
-    Name key = descs->GetKey(i);
+    Tagged<Name> key = descs->GetKey(i);
     if (skip_symbols == IsSymbol(key)) {
       if (first_skipped == -1) first_skipped = i.as_int();
       continue;
@@ -847,7 +848,7 @@ void CommonCopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
 
   AllowGarbageCollection allow_gc;
   for (InternalIndex i : dictionary->IterateEntries()) {
-    Object key;
+    Tagged<Object> key;
     if (!dictionary->ToKey(roots, i, &key)) continue;
     bool is_shadowing_key = false;
     if (IsSymbol(key)) continue;
@@ -897,7 +898,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
 
   DisallowGarbageCollection no_gc;
   Dictionary raw_dictionary = *dictionary;
-  FixedArray raw_storage = *storage;
+  Tagged<FixedArray> raw_storage = *storage;
   EnumIndexComparator<Dictionary> cmp(raw_dictionary);
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
@@ -905,7 +906,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     InternalIndex index(Smi::ToInt(raw_storage->get(i)));
-    raw_storage.set(i, raw_dictionary.NameAt(index));
+    raw_storage->set(i, raw_dictionary.NameAt(index));
   }
 }
 
@@ -955,7 +956,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
   {
     DisallowGarbageCollection no_gc;
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object key;
+      Tagged<Object> key;
       Dictionary raw_dictionary = *dictionary;
       if (!raw_dictionary.ToKey(roots, i, &key)) continue;
       if (Object::FilterKey(key, filter)) continue;
@@ -968,7 +969,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       }
       if (filter & ONLY_ALL_CAN_READ) {
         if (details.kind() != PropertyKind::kAccessor) continue;
-        Object accessors = raw_dictionary.ValueAt(i);
+        Tagged<Object> accessors = raw_dictionary.ValueAt(i);
         if (!IsAccessorInfo(accessors)) continue;
         if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
       }
@@ -991,7 +992,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
   bool has_seen_symbol = false;
   for (int i = 0; i < array_size; i++) {
     InternalIndex index(Smi::ToInt(array->get(i)));
-    Object key = dictionary->NameAt(index);
+    Tagged<Object> key = dictionary->NameAt(index);
     if (IsSymbol(key)) {
       has_seen_symbol = true;
       continue;
@@ -1002,7 +1003,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
   if (has_seen_symbol) {
     for (int i = 0; i < array_size; i++) {
       InternalIndex index(Smi::ToInt(array->get(i)));
-      Object key = dictionary->NameAt(index);
+      Tagged<Object> key = dictionary->NameAt(index);
       if (!IsSymbol(key)) continue;
       ExceptionStatus status = keys->AddKey(key, DO_NOT_CONVERT);
       if (!status) return status;
@@ -1021,7 +1022,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       enum_keys = KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, object);
       // If the number of properties equals the length of enumerable properties
       // we do not have to filter out non-enumerable ones
-      Map map = object->map();
+      Tagged<Map> map = object->map();
       int nof_descriptors = map->NumberOfOwnDescriptors();
       if (enum_keys->length() != nof_descriptors) {
         if (map->prototype(isolate_) != ReadOnlyRoots(isolate_).null_value()) {
@@ -1152,7 +1153,8 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     Handle<AccessCheckInfo> access_check_info;
     {
       DisallowGarbageCollection no_gc;
-      AccessCheckInfo maybe_info = AccessCheckInfo::Get(isolate_, object);
+      Tagged<AccessCheckInfo> maybe_info =
+          AccessCheckInfo::Get(isolate_, object);
       if (!maybe_info.is_null()) {
         access_check_info = handle(maybe_info, isolate_);
       }
@@ -1344,7 +1346,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   // 18. (Done in step 9)
   // 19. Repeat, for each key that is an element of targetNonconfigurableKeys:
   for (int i = 0; i < nonconfigurable_keys_length; ++i) {
-    Object raw_key = target_nonconfigurable_keys->get(i);
+    Tagged<Object> raw_key = target_nonconfigurable_keys->get(i);
     Handle<Name> key(Name::cast(raw_key), isolate_);
     // 19a. If key is not an element of uncheckedResultKeys, throw a
     //      TypeError exception.
@@ -1364,7 +1366,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   }
   // 21. Repeat, for each key that is an element of targetConfigurableKeys:
   for (int i = 0; i < target_configurable_keys->length(); ++i) {
-    Object raw_key = target_configurable_keys->get(i);
+    Tagged<Object> raw_key = target_configurable_keys->get(i);
     if (IsSmi(raw_key)) continue;  // Zapped entry, was nonconfigurable.
     Handle<Name> key(Name::cast(raw_key), isolate_);
     // 21a. If key is not an element of uncheckedResultKeys, throw a

@@ -56,8 +56,8 @@ Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray() {
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-Script StackFrameInfo::script() const {
-  HeapObject object = shared_or_script();
+Tagged<Script> StackFrameInfo::script() const {
+  Tagged<HeapObject> object = shared_or_script();
   if (IsSharedFunctionInfo(object)) {
     object = SharedFunctionInfo::cast(object)->script();
   }

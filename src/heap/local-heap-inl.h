@@ -50,7 +50,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
       alloc =
           code_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
     }
-    HeapObject object;
+    Tagged<HeapObject> object;
     if (heap::ShouldZapGarbage() && alloc.To(&object) &&
         !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
       heap::ZapCodeBlock(object.address(), size_in_bytes);
@@ -77,13 +77,14 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
 }
 
 template <typename LocalHeap::AllocationRetryMode mode>
-HeapObject LocalHeap::AllocateRawWith(int object_size, AllocationType type,
-                                      AllocationOrigin origin,
-                                      AllocationAlignment alignment) {
+Tagged<HeapObject> LocalHeap::AllocateRawWith(int object_size,
+                                              AllocationType type,
+                                              AllocationOrigin origin,
+                                              AllocationAlignment alignment) {
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
-  HeapObject object;
+  Tagged<HeapObject> object;
   if (result.To(&object)) return object;
   result =
       PerformCollectionAndAllocateAgain(object_size, type, origin, alignment);

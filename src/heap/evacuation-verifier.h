@@ -22,20 +22,22 @@ class EvacuationVerifier final : public ObjectVisitorWithCageBases,
 
   void Run();
 
-  void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final;
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
+                     ObjectSlot end) final;
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final;
-  void VisitInstructionStreamPointer(Code host,
+  void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) final;
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final;
-  void VisitMapPointer(HeapObject object) final;
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final;
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final;
+  void VisitMapPointer(Tagged<HeapObject> object) final;
+  void VisitCodeTarget(Tagged<InstructionStream> host, RelocInfo* rinfo) final;
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* rinfo) final;
 
  private:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
-  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object);
+  V8_INLINE void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object);
+  V8_INLINE bool ShouldVerifyObject(Tagged<HeapObject> heap_object);
 
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end);

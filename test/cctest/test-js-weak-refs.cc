@@ -105,14 +105,15 @@ Handle<WeakCell> FinalizationRegistryRegister(
 }
 
 void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
-  auto empty_func = [](HeapObject object, ObjectSlot slot, Object target) {};
+  auto empty_func = [](Tagged<HeapObject> object, ObjectSlot slot,
+                       Tagged<Object> target) {};
   weak_cell->Nullify(isolate, empty_func);
 #ifdef VERIFY_HEAP
   weak_cell->WeakCellVerify(isolate);
 #endif  // VERIFY_HEAP
 }
 
-Object PopClearedCellHoldings(
+Tagged<Object> PopClearedCellHoldings(
     Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
   // PopClearedCell is implemented in Torque. Reproduce that implementation here
   // for testing.
@@ -123,7 +124,7 @@ Object PopClearedCellHoldings(
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
 
   if (IsWeakCell(finalization_registry->cleared_cells())) {
-    WeakCell cleared_cells_head =
+    Tagged<WeakCell> cleared_cells_head =
         WeakCell::cast(finalization_registry->cleared_cells());
     DCHECK_EQ(cleared_cells_head->prev(), *weak_cell);
     cleared_cells_head->set_prev(ReadOnlyRoots(isolate).undefined_value());
@@ -141,7 +142,8 @@ Object PopClearedCellHoldings(
 
 // Usage: VerifyWeakCellChain(isolate, list_head, n, cell1, cell2, ..., celln);
 // verifies that list_head == cell1 and cell1, cell2, ..., celln. form a list.
-void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
+void VerifyWeakCellChain(Isolate* isolate, Tagged<Object> list_head, int n_args,
+                         ...) {
   CHECK_GE(n_args, 0);
 
   va_list args;
@@ -151,12 +153,12 @@ void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
     // Verify empty list
     CHECK(IsUndefined(list_head, isolate));
   } else {
-    WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
+    Tagged<WeakCell> current = WeakCell::cast(Object(va_arg(args, Address)));
     CHECK_EQ(current, list_head);
     CHECK(IsUndefined(current->prev(), isolate));
 
     for (int i = 1; i < n_args; i++) {
-      WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
+      Tagged<WeakCell> next = WeakCell::cast(Object(va_arg(args, Address)));
       CHECK_EQ(current->next(), next);
       CHECK_EQ(next->prev(), current);
       current = next;
@@ -168,14 +170,15 @@ void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
 
 // Like VerifyWeakCellChain but verifies the chain created with key_list_prev
 // and key_list_next instead of prev and next.
-void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
-                            Object unregister_token, int n_args, ...) {
+void VerifyWeakCellKeyChain(Isolate* isolate,
+                            Tagged<SimpleNumberDictionary> key_map,
+                            Tagged<Object> unregister_token, int n_args, ...) {
   CHECK_GE(n_args, 0);
 
   va_list args;
   va_start(args, n_args);
 
-  Object hash = Object::GetHash(unregister_token);
+  Tagged<Object> hash = Object::GetHash(unregister_token);
   InternalIndex entry = InternalIndex::NotFound();
   if (!IsUndefined(hash, isolate)) {
     uint32_t key = Smi::ToInt(hash);
@@ -186,13 +189,13 @@ void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
     CHECK(entry.is_not_found());
   } else {
     CHECK(entry.is_found());
-    WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
-    Object list_head = key_map->ValueAt(entry);
+    Tagged<WeakCell> current = WeakCell::cast(Object(va_arg(args, Address)));
+    Tagged<Object> list_head = key_map->ValueAt(entry);
     CHECK_EQ(current, list_head);
     CHECK(IsUndefined(current->key_list_prev(), isolate));
 
     for (int i = 1; i < n_args; i++) {
-      WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
+      Tagged<WeakCell> next = WeakCell::cast(Object(va_arg(args, Address)));
       CHECK_EQ(current->key_list_next(), next);
       CHECK_EQ(next->key_list_prev(), current);
       current = next;
@@ -272,7 +275,7 @@ TEST(TestRegisterWithKey) {
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 0);
@@ -284,7 +287,7 @@ TEST(TestRegisterWithKey) {
       finalization_registry, js_object, undefined, token2, isolate);
 
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 1, *weak_cell2);
@@ -296,7 +299,7 @@ TEST(TestRegisterWithKey) {
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell3,
                            *weak_cell1);
@@ -398,13 +401,15 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   NullifyWeakCell(weak_cell3, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings3);
   CHECK(IsUndefined(weak_cell3->prev(), isolate));
   CHECK(IsUndefined(weak_cell3->next(), isolate));
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared2 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings2);
   CHECK(IsUndefined(weak_cell2->prev(), isolate));
   CHECK(IsUndefined(weak_cell2->next(), isolate));
@@ -414,7 +419,8 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared3 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared3 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared3, *holdings1);
   CHECK(IsUndefined(weak_cell1->prev(), isolate));
   CHECK(IsUndefined(weak_cell1->next(), isolate));
@@ -451,26 +457,28 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   // Nullifying doesn't affect the key chains (just moves WeakCells from
   // active_cells to cleared_cells).
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell2,
                            *weak_cell1);
   }
 
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings2);
 
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
   }
 
-  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared2 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings1);
 
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
@@ -505,7 +513,7 @@ TEST(TestUnregisterActiveCells) {
                       *weak_cell2b, *weak_cell2a, *weak_cell1b, *weak_cell1a);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
@@ -515,7 +523,7 @@ TEST(TestUnregisterActiveCells) {
 
   JSFinalizationRegistry::Unregister(finalization_registry, token1, isolate);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 2, *weak_cell2b,
@@ -560,7 +568,7 @@ TEST(TestUnregisterActiveAndClearedCells) {
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 1,
                       *weak_cell2a);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
@@ -575,7 +583,7 @@ TEST(TestUnregisterActiveAndClearedCells) {
                       *weak_cell1b, *weak_cell1a);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
@@ -604,7 +612,7 @@ TEST(TestWeakCellUnregisterTwice) {
                       *weak_cell1);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
   }
@@ -614,7 +622,7 @@ TEST(TestWeakCellUnregisterTwice) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
@@ -624,7 +632,7 @@ TEST(TestWeakCellUnregisterTwice) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
@@ -648,13 +656,14 @@ TEST(TestWeakCellUnregisterPopped) {
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings1);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
@@ -664,7 +673,7 @@ TEST(TestWeakCellUnregisterPopped) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
@@ -849,7 +858,7 @@ TEST(TestRemoveUnregisterToken) {
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 1,
                       *weak_cell2a);
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
@@ -860,7 +869,7 @@ TEST(TestRemoveUnregisterToken) {
   finalization_registry->RemoveUnregisterToken(
       JSReceiver::cast(*token2), isolate,
       JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-      [](HeapObject, ObjectSlot, Object) {});
+      [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {});
 
   // Both weak_cell2a and weak_cell2b remain on the weak cell chains.
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 3,
@@ -870,7 +879,7 @@ TEST(TestRemoveUnregisterToken) {
 
   // But both weak_cell2a and weak_cell2b are removed from the key chain.
   {
-    SimpleNumberDictionary key_map =
+    Tagged<SimpleNumberDictionary> key_map =
         SimpleNumberDictionary::cast(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);

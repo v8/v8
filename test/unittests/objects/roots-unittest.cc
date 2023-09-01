@@ -18,7 +18,7 @@ namespace internal {
 using RootsTest = TestWithIsolate;
 
 namespace {
-AllocationSpace GetSpaceFromObject(Object object) {
+AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
   DCHECK(IsHeapObject(object));
   BasicMemoryChunk* chunk =
       BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));

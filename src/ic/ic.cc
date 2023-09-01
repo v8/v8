@@ -142,7 +142,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   JavaScriptFrame* frame = it.frame();
 
   DisallowGarbageCollection no_gc;
-  JSFunction function = frame->function();
+  Tagged<JSFunction> function = frame->function();
 
   ICStats::instance()->Begin();
   ICInfo& ic_info = ICStats::instance()->Current();
@@ -150,7 +150,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ic_info.type += type;
 
   int code_offset = 0;
-  AbstractCode code = function->abstract_code(isolate_);
+  Tagged<AbstractCode> code = function->abstract_code(isolate_);
   if (function->ActiveTierIsIgnition()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
   } else if (function->ActiveTierIsBaseline()) {
@@ -253,7 +253,7 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
   // would transition to.
   if (maybe_handler.is_null()) {
     if (!IsJSObjectMap(*lookup_start_object_map())) return false;
-    Map first_map = FirstTargetMap();
+    Tagged<Map> first_map = FirstTargetMap();
     if (first_map.is_null()) return false;
     Handle<Map> old_map(first_map, isolate());
     if (old_map->is_deprecated()) return true;
@@ -268,7 +268,7 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (is_keyed()) {
     // Determine whether the failure is due to a name failure.
     if (!IsName(*name)) return false;
-    Name stub_name = nexus()->GetName();
+    Tagged<Name> stub_name = nexus()->GetName();
     if (*name != stub_name) return false;
   }
 
@@ -304,29 +304,29 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
 
 void IC::OnFeedbackChanged(const char* reason) {
   vector_set_ = true;
-  FeedbackVector vector = nexus()->vector();
+  Tagged<FeedbackVector> vector = nexus()->vector();
   FeedbackSlot slot = nexus()->slot();
   OnFeedbackChanged(isolate(), vector, slot, reason);
 }
 
 // static
-void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+void IC::OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                            FeedbackSlot slot, const char* reason) {
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
-    int slot_count = vector.metadata()->slot_count();
+    int slot_count = vector->metadata()->slot_count();
     StdoutStream os;
     if (slot.IsInvalid()) {
       os << "[Feedback slots in ";
     } else {
       os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " in ";
     }
-    ShortPrint(vector.shared_function_info(), os);
+    ShortPrint(vector->shared_function_info(), os);
     if (slot.IsInvalid()) {
       os << " updated - ";
     } else {
       os << " updated to ";
-      vector.FeedbackSlotPrint(os, slot);
+      vector->FeedbackSlotPrint(os, slot);
       os << " - ";
     }
     os << reason << "]" << std::endl;
@@ -565,7 +565,7 @@ bool AddOneReceiverMapIfMissing(
 }
 
 Handle<NativeContext> GetAccessorContext(
-    const CallOptimization& call_optimization, Map holder_map,
+    const CallOptimization& call_optimization, Tagged<Map> holder_map,
     Isolate* isolate) {
   base::Optional<NativeContext> maybe_context =
       call_optimization.GetAccessorContext(holder_map);
@@ -734,14 +734,15 @@ void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   }
 }
 
-bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
+bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
+                                         Tagged<Map> target_map) {
   if (source_map.is_null()) return true;
   if (target_map.is_null()) return false;
   if (source_map->is_abandoned_prototype_map()) return false;
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
-  Map transitioned_map;
+  Tagged<Map> transitioned_map;
   if (more_general_transition) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
@@ -1350,7 +1351,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // among receiver_maps as unstable because the optimizing compilers may
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
-      Map tmap = receiver_map->FindElementsKindTransitionedMap(
+      Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
           isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
@@ -1540,7 +1541,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
           return true;
         case LookupIterator::INTERCEPTOR: {
           Handle<JSObject> holder = it->GetHolder<JSObject>();
-          InterceptorInfo info = holder->GetNamedInterceptor();
+          Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
           if (it->HolderIsReceiverOrHiddenPrototype() ||
               !IsUndefined(info->getter(), isolate()) ||
               !IsUndefined(info->query(), isolate())) {
@@ -1921,7 +1922,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::INTERCEPTOR: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-      InterceptorInfo info = holder->GetNamedInterceptor();
+      Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
 
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info->non_masking()) {
@@ -2368,7 +2369,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
     } else {
       {
-        Map tmap = receiver_map->FindElementsKindTransitionedMap(
+        Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
             isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
@@ -2379,7 +2380,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       }
 
       MaybeHandle<Object> validity_cell;
-      HeapObject old_handler_obj;
+      Tagged<HeapObject> old_handler_obj;
       if (!old_handler.is_null() &&
           old_handler->GetHeapObject(&old_handler_obj) &&
           IsDataHandler(old_handler_obj)) {
@@ -3161,10 +3162,10 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
     mode = FastCloneObjectMode::kDifferentMap;
   }
 
-  DescriptorArray descriptors = map->instance_descriptors();
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
-    Name key = descriptors->GetKey(i);
+    Tagged<Name> key = descriptors->GetKey(i);
     if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
         key->IsPrivateName()) {
       return FastCloneObjectMode::kNotSupported;
@@ -3229,8 +3230,9 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
       return false;
     }
   }
-  DescriptorArray descriptors = source_map->instance_descriptors();
-  DescriptorArray target_descriptors = target_map->instance_descriptors();
+  Tagged<DescriptorArray> descriptors = source_map->instance_descriptors();
+  Tagged<DescriptorArray> target_descriptors =
+      target_map->instance_descriptors();
   for (InternalIndex i : target_map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     PropertyDetails target_details = target_descriptors->GetDetails(i);
@@ -3254,7 +3256,7 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
     new_object = isolate->factory()->NewJSObjectWithNullProto();
   } else if (IsJSObject(*source) &&
              JSObject::cast(*source)->map()->OnlyHasSimpleProperties()) {
-    Map source_map = JSObject::cast(*source)->map();
+    Tagged<Map> source_map = JSObject::cast(*source)->map();
     // TODO(olivf, chrome:1204540) It might be interesting to pick a map with
     // more properties, depending how many properties are added by the
     // surrounding literal.

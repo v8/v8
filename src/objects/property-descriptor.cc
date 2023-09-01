@@ -47,7 +47,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     DisallowGarbageCollection no_gc;
     Tagged<JSReceiver> raw_obj = *obj;
     if (!IsJSObject(*raw_obj)) return false;
-    Map raw_map = raw_obj->map(isolate);
+    Tagged<Map> raw_map = raw_obj->map(isolate);
     if (raw_map->instance_type() != JS_OBJECT_TYPE) return false;
     if (raw_map->is_access_check_needed()) return false;
     if (raw_map->prototype() != *isolate->initial_object_prototype())
@@ -92,7 +92,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
         return false;
       }
     }
-    Name key = descs->GetKey(i);
+    Tagged<Name> key = descs->GetKey(i);
     if (key == roots.enumerable_string()) {
       desc->set_enumerable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.configurable_string()) {

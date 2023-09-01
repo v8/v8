@@ -74,7 +74,7 @@ class ConcurrentMarkingVisitor final
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool ProcessEphemeron(HeapObject key, HeapObject value) {
+  bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value) {
     if (IsMarked(key)) {
       if (TryMark(value)) {
         local_marking_worklists_->Push(value);
@@ -88,7 +88,8 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename TSlot>
-  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
+  void RecordSlot(Tagged<HeapObject> object, TSlot slot,
+                  Tagged<HeapObject> target) {
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
 
@@ -99,8 +100,8 @@ class ConcurrentMarkingVisitor final
   }
 
  private:
-  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
-                       HeapObject target) {
+  void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
+                       Tagged<HeapObject> target) {
     if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) {
       return;
     }
@@ -293,7 +294,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       int objects_processed = 0;
       while (current_marked_bytes < kBytesUntilInterruptCheck &&
              objects_processed < kObjectsUntilInterruptCheck) {
-        HeapObject object;
+        Tagged<HeapObject> object;
         if (!local_marking_worklists.Pop(&object)) {
           done = true;
           break;
@@ -322,7 +323,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Map map = object->map(isolate, kAcquireLoad);
+          Tagged<Map> map = object->map(isolate, kAcquireLoad);
           // The marking worklist should never contain filler objects.
           CHECK(!IsFreeSpaceOrFillerMap(map));
           if (is_per_context_mode) {
@@ -381,7 +382,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
 
 namespace {
 
-V8_INLINE bool IsYoungObjectInLab(Heap* heap, HeapObject heap_object) {
+V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
   // The order of the two loads is important.
   Address new_space_top = heap->new_space()->original_top_acquire();
   Address new_space_limit = heap->new_space()->original_limit_relaxed();
@@ -412,12 +413,12 @@ V8_INLINE size_t MinorMarkingLoopImpl(
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
     }
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     while (marking_worklists_local.Pop(&heap_object)) {
       if (IsYoungObjectInLab(heap, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
-        Map map = heap_object->map(isolate);
+        Tagged<Map> map = heap_object->map(isolate);
         const auto visited_size = visitor.Visit(map, heap_object);
         if (visited_size) {
           current_marked_bytes += visited_size;

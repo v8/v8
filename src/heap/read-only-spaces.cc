@@ -419,7 +419,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         cur_addr_ = space_->limit();
         continue;
       }
-      HeapObject obj = HeapObject::FromAddress(cur_addr_);
+      Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
       const int obj_size = obj->Size();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
@@ -458,7 +458,8 @@ void ReadOnlySpace::Verify(Isolate* isolate,
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
 
-    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
+    for (Tagged<HeapObject> object = it.Next(); !object.is_null();
+         object = it.Next()) {
       CHECK(end_of_previous_object <= object.address());
 
       visitor->VerifyObject(object);
@@ -486,7 +487,8 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) const {
     total_capacity += page->area_size();
     ReadOnlySpaceObjectIterator it(heap, this, page);
     size_t real_allocated = 0;
-    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
+    for (Tagged<HeapObject> object = it.Next(); !object.is_null();
+         object = it.Next()) {
       if (!IsFreeSpaceOrFiller(object)) {
         real_allocated += object->Size();
       }
@@ -564,7 +566,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   limit_ = chunk->area_end();
 }
 
-HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
+Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
     int size_in_bytes, AllocationAlignment alignment) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = top_;
@@ -595,7 +597,8 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   int allocation_size = size_in_bytes;
 
-  HeapObject object = TryAllocateLinearlyAligned(allocation_size, alignment);
+  Tagged<HeapObject> object =
+      TryAllocateLinearlyAligned(allocation_size, alignment);
   if (object.is_null()) {
     // We don't know exactly how much filler we need to align until space is
     // allocated, so assume the worst case.
@@ -618,7 +621,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   Address new_top = current_top + size_in_bytes;
   DCHECK_LE(new_top, limit_);
   top_ = new_top;
-  HeapObject object = HeapObject::FromAddress(current_top);
+  Tagged<HeapObject> object = HeapObject::FromAddress(current_top);
 
   DCHECK(!object.is_null());
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
@@ -641,7 +644,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
 size_t ReadOnlyPage::ShrinkToHighWaterMark() {
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
-  HeapObject filler = HeapObject::FromAddress(HighWaterMark());
+  Tagged<HeapObject> filler = HeapObject::FromAddress(HighWaterMark());
   if (filler.address() == area_end()) return 0;
   CHECK(IsFreeSpaceOrFiller(filler));
   DCHECK_EQ(filler.address() + filler->Size(), area_end());

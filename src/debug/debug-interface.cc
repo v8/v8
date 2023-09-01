@@ -42,7 +42,7 @@ void SetContextId(Local<Context> context, int id) {
 int GetContextId(Local<Context> context) {
   auto v8_context = Utils::OpenHandle(*context);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(v8_context->GetIsolate());
-  i::Object value = v8_context->debug_context_id();
+  i::Tagged<i::Object> value = v8_context->debug_context_id();
   return (IsSmi(value)) ? i::Smi::ToInt(value) : 0;
 }
 
@@ -563,7 +563,7 @@ MaybeLocal<String> Script::GetSha256Hash() const {
 
 Maybe<int> Script::ContextId() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Object value = script->context_data();
+  i::Tagged<i::Object> value = script->context_data();
   if (IsSmi(value)) return Just(i::Smi::ToInt(value));
   return Nothing<int>();
 }
@@ -759,7 +759,8 @@ bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   i::SharedFunctionInfo::ScriptIterator it(isolate, *script);
-  for (i::SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
+  for (i::Tagged<i::SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
+       sfi = it.Next()) {
     if (sfi->is_toplevel()) {
       return isolate->debug()->SetBreakpointForFunction(
           handle(sfi, isolate), isolate->factory()->empty_string(), id,
@@ -952,7 +953,7 @@ void GetLoadedScripts(Isolate* v8_isolate,
   {
     i::DisallowGarbageCollection no_gc;
     i::Script::Iterator iterator(isolate);
-    for (i::Script script = iterator.Next(); !script.is_null();
+    for (i::Tagged<i::Script> script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
 #if V8_ENABLE_WEBASSEMBLY
       if (script->type() != i::Script::Type::kNormal &&
@@ -960,7 +961,7 @@ void GetLoadedScripts(Isolate* v8_isolate,
         continue;
       }
 #else
-      if (script.type() != i::Script::Type::kNormal) continue;
+      if (script->type() != i::Script::Type::kNormal) continue;
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (!script->HasValidSource()) continue;
       i::HandleScope handle_scope(isolate);
@@ -1018,7 +1019,7 @@ void ResetBlackboxedStateCache(Isolate* v8_isolate, Local<Script> script) {
   i::DisallowGarbageCollection no_gc;
   i::SharedFunctionInfo::ScriptIterator iter(isolate,
                                              *Utils::OpenHandle(*script));
-  for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
+  for (i::Tagged<i::SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (auto debug_info = isolate->debug()->TryGetDebugInfo(info)) {
       debug_info->set_computed_debug_is_blackboxed(false);
@@ -1121,7 +1122,7 @@ v8::Local<v8::Message> CreateMessageFromException(
 
 MaybeLocal<Script> GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
-  i::Object maybe_script = obj->function()->shared()->script();
+  i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return {};
   i::Handle<i::Script> script(i::Script::cast(maybe_script), obj->GetIsolate());
   return ToApiHandle<v8::debug::Script>(script);
@@ -1135,7 +1136,7 @@ Local<Function> GeneratorObject::Function() {
 Location GeneratorObject::SuspendedLocation() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
   CHECK(obj->is_suspended());
-  i::Object maybe_script = obj->function()->shared()->script();
+  i::Tagged<i::Object> maybe_script = obj->function()->shared()->script();
   if (!IsScript(maybe_script)) return Location();
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Script> script(i::Script::cast(maybe_script), isolate);

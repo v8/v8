@@ -64,10 +64,10 @@ class Managed : public Foreign {
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
-  static Tagged<Managed> cast(Object obj) {
+  static Tagged<Managed> cast(Tagged<Object> obj) {
     return Tagged<Managed>(Managed(obj.ptr()).ptr());
   }
-  static constexpr Tagged<Managed> unchecked_cast(Object obj) {
+  static constexpr Tagged<Managed> unchecked_cast(Tagged<Object> obj) {
     return Tagged<Managed>(obj.ptr());
   }
 

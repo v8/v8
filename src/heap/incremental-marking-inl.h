@@ -15,7 +15,8 @@
 namespace v8 {
 namespace internal {
 
-void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
+void IncrementalMarking::TransferColor(Tagged<HeapObject> from,
+                                       Tagged<HeapObject> to) {
   if (marking_state()->IsMarked(to)) {
     DCHECK(black_allocation());
     return;

@@ -111,14 +111,15 @@ Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
 
 }  // namespace
 
-Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale) {
+Tagged<Code> Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                             OperandScale operand_scale) {
   Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
   return isolate_->builtins()->code(builtin);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale, Code handler) {
+                                     OperandScale operand_scale,
+                                     Tagged<Code> handler) {
   DCHECK(!handler->has_instruction_stream());
   DCHECK(handler->kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
@@ -226,7 +227,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     } else {
       std::cerr << "anonymous";
     }
-    Object script_name = script->GetNameOrSourceURL();
+    Tagged<Object> script_name = script->GetNameOrSourceURL();
     if (IsString(script_name)) {
       std::cerr << " ";
       String::cast(script_name)->PrintUC16(std::cerr);
@@ -348,7 +349,7 @@ void Interpreter::Initialize() {
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    Code handler = builtins->code(builtin);
+    Tagged<Code> handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
       std::string builtin_name(Builtins::name(builtin));

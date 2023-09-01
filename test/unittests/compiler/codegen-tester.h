@@ -60,12 +60,12 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object number) {
+  void CheckNumber(double expected, Tagged<Object> number) {
     CHECK(Object::SameValue(*this->isolate()->factory()->NewNumber(expected),
                             number));
   }
 
-  void CheckString(const char* expected, Object string) {
+  void CheckString(const char* expected, Tagged<Object> string) {
     CHECK(Object::SameValue(
         *this->isolate()->factory()->InternalizeUtf8String(expected), string));
   }

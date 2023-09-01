@@ -168,8 +168,9 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt cast(Object object);
-  inline static FreshlyAllocatedBigInt unchecked_cast(Object o) {
+  inline static Tagged<FreshlyAllocatedBigInt> cast(Tagged<Object> object);
+  inline static Tagged<FreshlyAllocatedBigInt> unchecked_cast(
+      Tagged<Object> o) {
     return base::bit_cast<FreshlyAllocatedBigInt>(o);
   }
 
@@ -184,7 +185,9 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 
  private:
   // Only serves to make macros happy; other code should use IsBigInt.
-  static bool IsFreshlyAllocatedBigInt(FreshlyAllocatedBigInt) { return true; }
+  static bool IsFreshlyAllocatedBigInt(Tagged<FreshlyAllocatedBigInt>) {
+    return true;
+  }
 
   OBJECT_CONSTRUCTORS(FreshlyAllocatedBigInt, BigIntBase);
 };
@@ -219,7 +222,7 @@ class BigInt : public BigIntBase {
                                                 Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
-  static bool EqualToBigInt(BigInt x, BigInt y);
+  static bool EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y);
   static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
                                         Handle<BigInt> y);
   static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,

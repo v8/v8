@@ -149,9 +149,10 @@ class JSDateTimeFormat
   static_assert(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
   static_assert(DateTimeStyle::kShort <= TimeStyleBits::kMax);
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
-  DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
-  DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
+  DECL_ACCESSORS(icu_simple_date_format, Tagged<Managed<icu::SimpleDateFormat>>)
+  DECL_ACCESSORS(icu_date_interval_format,
+                 Tagged<Managed<icu::DateIntervalFormat>>)
 
   DECL_PRINTER(JSDateTimeFormat)
 

@@ -85,8 +85,8 @@ class PreparseData
   inline void set(int index, uint8_t value);
   inline void copy_in(int index, const uint8_t* buffer, int length);
 
-  inline PreparseData get_child(int index) const;
-  inline void set_child(int index, PreparseData value,
+  inline Tagged<PreparseData> get_child(int index) const;
+  inline void set_child(int index, Tagged<PreparseData> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Clear uninitialized padding space.
@@ -110,7 +110,7 @@ class PreparseData
   TQ_OBJECT_CONSTRUCTORS(PreparseData)
 
  private:
-  inline Object get_child_raw(int index) const;
+  inline Tagged<Object> get_child_raw(int index) const;
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
@@ -119,8 +119,9 @@ class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
   inline void InitAfterBytecodeFlush(
-      String inferred_name, int start_position, int end_position,
-      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+      Tagged<String> inferred_name, int start_position, int end_position,
+      std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                         Tagged<HeapObject> target)>
           gc_notify_updated_slot);
 
   TQ_OBJECT_CONSTRUCTORS(UncompiledData)
@@ -198,31 +199,31 @@ class SharedFunctionInfo
   // Important: This function MUST not allocate.
   void Init(ReadOnlyRoots roots, int unique_id);
 
-  V8_EXPORT_PRIVATE static constexpr Smi const kNoSharedNameSentinel =
+  V8_EXPORT_PRIVATE static constexpr Tagged<Smi> const kNoSharedNameSentinel =
       Smi::zero();
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
-  inline String Name() const;
-  inline void SetName(String name);
+  inline Tagged<String> Name() const;
+  inline void SetName(Tagged<String> name);
 
   // Get the code object which represents the execution of this function.
-  V8_EXPORT_PRIVATE Code GetCode(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE Tagged<Code> GetCode(Isolate* isolate) const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode abstract_code(Isolate* isolate);
+  inline Tagged<AbstractCode> abstract_code(Isolate* isolate);
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,
-                                   HeapObject script_object,
+                                   Tagged<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data = true);
 
   // Copy the data from another SharedFunctionInfo. Used for copying data into
   // and out of a placeholder SharedFunctionInfo, for off-thread compilation
   // which is not allowed to touch a main-thread-visible SharedFunctionInfo.
-  void CopyFrom(SharedFunctionInfo other);
+  void CopyFrom(Tagged<SharedFunctionInfo> other);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -240,13 +241,13 @@ class SharedFunctionInfo
   // Deprecated, use the ACQUIRE version instead.
   DECL_GETTER(scope_info, Tagged<ScopeInfo>)
   // Slow but safe:
-  inline ScopeInfo EarlyScopeInfo(AcquireLoadTag tag);
+  inline Tagged<ScopeInfo> EarlyScopeInfo(AcquireLoadTag tag);
 
   // Set scope_info without moving the existing name onto the ScopeInfo.
-  inline void set_raw_scope_info(ScopeInfo scope_info,
+  inline void set_raw_scope_info(Tagged<ScopeInfo> scope_info,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline void SetScopeInfo(ScopeInfo scope_info,
+  inline void SetScopeInfo(Tagged<ScopeInfo> scope_info,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool is_script() const;
@@ -275,7 +276,7 @@ class SharedFunctionInfo
  public:
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
-  inline ScopeInfo GetOuterScopeInfo() const;
+  inline Tagged<ScopeInfo> GetOuterScopeInfo() const;
 
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
@@ -340,7 +341,6 @@ class SharedFunctionInfo
   DECL_GETTER(InterpreterTrampoline, Tagged<Code>)
   DECL_GETTER(HasInterpreterData, bool)
   DECL_ACCESSORS(interpreter_data, Tagged<InterpreterData>)
-  inline void set_interpreter_data(InterpreterData interpreter_data);
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
   inline void FlushBaselineCode();
@@ -398,7 +398,7 @@ class SharedFunctionInfo
   V8_EXPORT_PRIVATE bool HasBreakInfo(Isolate* isolate) const;
   bool BreakAtEntry(Isolate* isolate) const;
   bool HasCoverageInfo(Isolate* isolate) const;
-  CoverageInfo GetCoverageInfo(Isolate* isolate) const;
+  Tagged<CoverageInfo> GetCoverageInfo(Isolate* isolate) const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
@@ -563,9 +563,11 @@ class SharedFunctionInfo
   // |gc_notify_updated_slot| should be used to record any slot updates.
   void DiscardCompiledMetadata(
       Isolate* isolate,
-      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
-          gc_notify_updated_slot =
-              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
+      std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                         Tagged<HeapObject> target)>
+          gc_notify_updated_slot = [](Tagged<HeapObject> object,
+                                      ObjectSlot slot,
+                                      Tagged<HeapObject> target) {});
 
   // Returns true if the function has old bytecode that could be flushed. This
   // function shouldn't access any flags as it is used by concurrent marker.
@@ -648,7 +650,8 @@ class SharedFunctionInfo
   inline uint16_t CompareExchangeAge(uint16_t expected_age, uint16_t new_age);
 
   // Bytecode aging
-  V8_EXPORT_PRIVATE static void EnsureOldForTesting(SharedFunctionInfo sfu);
+  V8_EXPORT_PRIVATE static void EnsureOldForTesting(
+      Tagged<SharedFunctionInfo> sfu);
 
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
@@ -663,15 +666,15 @@ class SharedFunctionInfo
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
    public:
-    V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Script script);
+    V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Tagged<Script> script);
     explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
     ScriptIterator(const ScriptIterator&) = delete;
     ScriptIterator& operator=(const ScriptIterator&) = delete;
-    V8_EXPORT_PRIVATE SharedFunctionInfo Next();
+    V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
-    void Reset(Isolate* isolate, Script script);
+    void Reset(Isolate* isolate, Tagged<Script> script);
 
    private:
     Handle<WeakFixedArray> shared_function_infos_;
@@ -702,7 +705,7 @@ class SharedFunctionInfo
                                    Isolate* isolate);
   // Removes the debug bytecode and restores the original bytecode to be
   // returned by following calls to GetActiveBytecodeArray.
-  static void UninstallDebugBytecode(SharedFunctionInfo shared,
+  static void UninstallDebugBytecode(Tagged<SharedFunctionInfo> shared,
                                      Isolate* isolate);
 
 #ifdef DEBUG
@@ -752,7 +755,7 @@ static_assert(SharedFunctionInfo::kSize == kStaticRootsSFISize);
 
 // Printing support.
 struct SourceCodeOf {
-  explicit SourceCodeOf(SharedFunctionInfo v, int max = -1)
+  explicit SourceCodeOf(Tagged<SharedFunctionInfo> v, int max = -1)
       : value(v), max_length(max) {}
   const SharedFunctionInfo value;
   int max_length;
@@ -763,8 +766,9 @@ struct SourceCodeOf {
 // the scope is retained.
 class V8_NODISCARD IsCompiledScope {
  public:
-  inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
-  inline IsCompiledScope(const SharedFunctionInfo shared,
+  inline IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
+                         Isolate* isolate);
+  inline IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                          LocalIsolate* isolate);
   inline IsCompiledScope() : retain_code_(), is_compiled_(false) {}
 

@@ -203,7 +203,7 @@ class FixedDoubleArray
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(FixedDoubleArray array, int index,
+  static inline Handle<Object> get(Tagged<FixedDoubleArray> array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
   inline void set_the_hole(Isolate* isolate, int index);
@@ -269,8 +269,9 @@ class WeakFixedArray
 
   inline MaybeObjectSlot RawFieldOfElementAt(int index);
 
-  inline void CopyElements(Isolate* isolate, int dst_index, WeakFixedArray src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<WeakFixedArray> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
@@ -348,8 +349,9 @@ class WeakArrayList
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
 
-  inline void CopyElements(Isolate* isolate, int dst_index, WeakArrayList src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<WeakArrayList> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull() const;
 
@@ -391,7 +393,7 @@ class WeakArrayList
 
 class WeakArrayList::Iterator {
  public:
-  explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
+  explicit Iterator(Tagged<WeakArrayList> array) : index_(0), array_(array) {}
   Iterator(const Iterator&) = delete;
   Iterator& operator=(const Iterator&) = delete;
 
@@ -473,7 +475,7 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name name, int valid_entries = 0,
+inline int Search(T* array, Tagged<Name> name, int valid_entries = 0,
                   int* out_insertion_index = nullptr,
                   bool concurrent_search = false);
 
@@ -519,7 +521,7 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   inline int DataSize() const;
 
   // Returns a pointer to the ByteArray object for a given data start address.
-  static inline ByteArray FromDataStartAddress(Address address);
+  static inline Tagged<ByteArray> FromDataStartAddress(Address address);
 
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return kHeaderSize + index; }

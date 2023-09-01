@@ -957,7 +957,8 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   return true;
 }
 
-bool IsBuiltinFunction(Isolate* isolate, HeapObject object, Builtin builtin) {
+bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
+                       Builtin builtin) {
   if (!IsJSFunction(object)) return false;
   JSFunction const function = JSFunction::cast(object);
   return function->code() == isolate->builtins()->code(builtin);
@@ -1340,7 +1341,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
   int position = frame->position();
 
-  Object maybe_script = frame->function()->shared()->script();
+  Tagged<Object> maybe_script = frame->function()->shared()->script();
   if (IsScript(maybe_script)) {
     Handle<Script> script(Script::cast(maybe_script), this);
     Script::PositionInfo info;
@@ -1544,7 +1545,7 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
 
     if (IsJSGlobalProxy(*receiver)) {
-      Object receiver_context =
+      Tagged<Object> receiver_context =
           JSGlobalProxy::cast(*receiver)->native_context();
       if (!IsContext(receiver_context)) return false;
 
@@ -1563,7 +1564,7 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
-    Object fun_obj = access_check_info->callback();
+    Tagged<Object> fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
     data = handle(access_check_info->data(), this);
   }
@@ -1576,7 +1577,7 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
   }
 }
 
-Object Isolate::StackOverflow() {
+Tagged<Object> Isolate::StackOverflow() {
   // Whoever calls this method should not have overflown the stack limit by too
   // much. Otherwise we risk actually running out of stack space.
   // We allow for up to 8kB overflow, because we typically allow up to 4KB
@@ -1649,7 +1650,7 @@ Tagged<Object> Isolate::ThrowAt(Handle<JSObject> exception,
   return ThrowInternal(*exception, location);
 }
 
-Object Isolate::TerminateExecution() {
+Tagged<Object> Isolate::TerminateExecution() {
   return Throw(ReadOnlyRoots(this).termination_exception());
 }
 
@@ -1797,7 +1798,8 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
   return message_obj;
 }
 
-Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
+Tagged<Object> Isolate::ThrowInternal(Tagged<Object> raw_exception,
+                                      MessageLocation* location) {
   DCHECK(!has_pending_exception());
   IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
           !trap_handler::IsThreadInWasm());
@@ -1858,7 +1860,8 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
 
   // Notify debugger of exception.
   if (is_catchable_by_javascript(raw_exception)) {
-    base::Optional<Object> maybe_exception = debug()->OnThrow(exception);
+    base::Optional<Tagged<Object>> maybe_exception =
+        debug()->OnThrow(exception);
     if (maybe_exception.has_value()) {
       return *maybe_exception;
     }
@@ -1887,7 +1890,7 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
   return ReadOnlyRoots(heap()).exception();
 }
 
-Object Isolate::ReThrow(Object exception) {
+Tagged<Object> Isolate::ReThrow(Tagged<Object> exception) {
   DCHECK(!has_pending_exception());
 
   // Set the exception being re-thrown.
@@ -1895,7 +1898,8 @@ Object Isolate::ReThrow(Object exception) {
   return ReadOnlyRoots(heap()).exception();
 }
 
-Object Isolate::ReThrow(Object exception, Object message) {
+Tagged<Object> Isolate::ReThrow(Tagged<Object> exception,
+                                Tagged<Object> message) {
   DCHECK(!has_pending_exception());
   DCHECK(!has_pending_message());
 
@@ -1926,7 +1930,7 @@ class SetThreadInWasmFlagScope {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }  // namespace
 
-Object Isolate::UnwindAndFindHandler() {
+Tagged<Object> Isolate::UnwindAndFindHandler() {
   // TODO(v8:12676): Fix gcmole failures in this function.
   DisableGCMole no_gcmole;
   DisallowGarbageCollection no_gc;
@@ -1939,7 +1943,7 @@ Object Isolate::UnwindAndFindHandler() {
   // handler handles such non-wasm exceptions.
   SetThreadInWasmFlagScope set_thread_in_wasm_flag_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Object exception = pending_exception();
+  Tagged<Object> exception = pending_exception();
 
   auto FoundHandler = [&](Context context, Address instruction_start,
                           intptr_t handler_offset,
@@ -1981,7 +1985,7 @@ Object Isolate::UnwindAndFindHandler() {
 
 #if V8_ENABLE_WEBASSEMBLY
   // Iterate the chain of stack segments for wasm stack switching.
-  WasmContinuationObject current_stack;
+  Tagged<WasmContinuationObject> current_stack;
   if (v8_flags.experimental_wasm_stack_switching) {
     current_stack =
         WasmContinuationObject::cast(root(RootIndex::kActiveContinuation));
@@ -2125,9 +2129,9 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::WASM_TO_JS:
         if (v8_flags.experimental_wasm_stack_switching) {
           // Decrement the Wasm-to-JS counter.
-          Object suspender_obj = root(RootIndex::kActiveSuspender);
+          Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
           if (!IsUndefined(suspender_obj)) {
-            WasmSuspenderObject suspender =
+            Tagged<WasmSuspenderObject> suspender =
                 WasmSuspenderObject::cast(suspender_obj);
             int wasm_to_js_counter = suspender->wasm_to_js_counter();
             DCHECK_LT(0, wasm_to_js_counter);
@@ -2434,7 +2438,7 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
   return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
 
-void Isolate::ScheduleThrow(Object exception) {
+void Isolate::ScheduleThrow(Tagged<Object> exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
@@ -2452,7 +2456,7 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
   DCHECK(handler->HasCaught());
   DCHECK(handler->rethrow_);
   DCHECK(handler->capture_message_);
-  Object message(reinterpret_cast<Address>(handler->message_obj_));
+  Tagged<Object> message(reinterpret_cast<Address>(handler->message_obj_));
   DCHECK(IsJSMessageObject(message) || IsTheHole(message, this));
   set_pending_message(message);
 }
@@ -2479,8 +2483,8 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   }
 }
 
-Object Isolate::PromoteScheduledException() {
-  Object thrown = scheduled_exception();
+Tagged<Object> Isolate::PromoteScheduledException() {
+  Tagged<Object> thrown = scheduled_exception();
   clear_scheduled_exception();
   // Re-throw the exception to avoid getting repeated error reporting.
   return ReThrow(thrown);
@@ -2644,7 +2648,7 @@ Handle<JSMessageObject> Isolate::CreateMessageFromException(
 }
 
 Isolate::ExceptionHandlerType Isolate::TopExceptionHandlerType(
-    Object exception) {
+    Tagged<Object> exception) {
   DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
   Address js_handler = Isolate::handler(thread_local_top());
@@ -2691,7 +2695,7 @@ void Isolate::ReportPendingMessages() {
   // The embedder might run script in response to an exception.
   AllowJavascriptExecutionDebugOnly allow_script(this);
 
-  Object exception_obj = pending_exception();
+  Tagged<Object> exception_obj = pending_exception();
   ExceptionHandlerType top_handler = TopExceptionHandlerType(exception_obj);
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
@@ -2702,7 +2706,7 @@ void Isolate::ReportPendingMessages() {
   if (!has_been_propagated) return;
 
   // Clear the pending message object early to avoid endless recursion.
-  Object message_obj = pending_message();
+  Tagged<Object> message_obj = pending_message();
   clear_pending_message();
 
   // For uncatchable exceptions we do nothing. If needed, the exception and the
@@ -3206,7 +3210,7 @@ void Isolate::SyncStackLimit() {
 }
 
 void Isolate::RecordStackSwitchForScanning() {
-  Object current = root(RootIndex::kActiveContinuation);
+  Tagged<Object> current = root(RootIndex::kActiveContinuation);
   DCHECK(!IsUndefined(current));
   stack().ClearStackSegments();
   wasm::StackMemory* wasm_stack =
@@ -3941,7 +3945,7 @@ void Isolate::SetTerminationOnExternalTryCatch() {
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch(
     ExceptionHandlerType top_handler) {
-  Object exception = pending_exception();
+  Tagged<Object> exception = pending_exception();
 
   if (top_handler == ExceptionHandlerType::kJavaScriptHandler) {
     thread_local_top()->external_caught_exception_ = false;
@@ -4299,7 +4303,7 @@ void Isolate::VerifyStaticRoots() {
   // such that the static map range is restored (consult static-roots.h for a
   // sorted list of addresses) or remove the offending entry from the list.
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
-    Object obj = roots_table().slot(idx).load(this);
+    Tagged<Object> obj = roots_table().slot(idx).load(this);
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Map map = Map::cast(obj);
 
@@ -4996,7 +5000,7 @@ bool Isolate::NeedsSourcePositions() const {
       is_profiling() || debug_->is_active() || v8_file_logger_->is_logging();
 }
 
-void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {
+void Isolate::SetFeedbackVectorsForProfilingTools(Tagged<Object> value) {
   DCHECK(IsUndefined(value, this) || IsArrayList(value));
   heap()->set_feedback_vectors_for_profiling_tools(value);
 }
@@ -5013,8 +5017,8 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 
   {
     HeapObjectIterator heap_iterator(heap());
-    for (HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
-         current_obj = heap_iterator.Next()) {
+    for (Tagged<HeapObject> current_obj = heap_iterator.Next();
+         !current_obj.is_null(); current_obj = heap_iterator.Next()) {
       if (!IsFeedbackVector(current_obj)) continue;
 
       FeedbackVector vector = FeedbackVector::cast(current_obj);
@@ -5042,8 +5046,8 @@ void Isolate::set_date_cache(DateCache* date_cache) {
 }
 
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
-    Object object) {
-  Object context = heap()->native_contexts_list();
+    Tagged<Object> object) {
+  Tagged<Object> context = heap()->native_contexts_list();
   while (!IsUndefined(context, this)) {
     Context current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object) {
@@ -5058,9 +5062,9 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
   return KnownPrototype::kNone;
 }
 
-bool Isolate::IsInAnyContext(Object object, uint32_t index) {
+bool Isolate::IsInAnyContext(Tagged<Object> object, uint32_t index) {
   DisallowGarbageCollection no_gc;
-  Object context = heap()->native_contexts_list();
+  Tagged<Object> context = heap()->native_contexts_list();
   while (!IsUndefined(context, this)) {
     Context current_context = Context::cast(context);
     if (current_context->get(index) == object) {
@@ -5984,13 +5988,13 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
   std::vector<Handle<SharedFunctionInfo>> sfis;
   {
     HeapObjectIterator iterator(heap());
-    for (HeapObject obj = iterator.Next(); !obj.is_null();
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (!IsSharedFunctionInfo(obj)) continue;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       // If the script is a Smi, then the SharedFunctionInfo is in
       // the process of being deserialized.
-      Object script = sfi->raw_script(kAcquireLoad);
+      Tagged<Object> script = sfi->raw_script(kAcquireLoad);
       if (IsSmi(script)) {
         DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
         continue;
@@ -6128,7 +6132,7 @@ SaveContext::~SaveContext() {
 }
 
 SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
-                                           Context new_context)
+                                           Tagged<Context> new_context)
     : SaveContext(isolate) {
   isolate->set_context(new_context);
 }
@@ -6377,14 +6381,14 @@ void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
   heap()->set_locals_block_list_cache(*cache);
 }
 
-Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
+Tagged<Object> Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
   DisallowGarbageCollection no_gc;
 
   if (!IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     return ReadOnlyRoots(this).the_hole_value();
   }
 
-  Object maybe_value =
+  Tagged<Object> maybe_value =
       EphemeronHashTable::cast(heap()->locals_block_list_cache())
           ->Lookup(scope_info);
   if (IsTuple2(maybe_value)) return Tuple2::cast(maybe_value)->value2();

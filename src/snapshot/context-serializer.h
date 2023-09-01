@@ -30,10 +30,10 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
-  bool ShouldBeInTheStartupObjectCache(HeapObject o);
-  bool ShouldBeInTheSharedObjectCache(HeapObject o);
+  bool ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o);
+  bool ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o);
   bool SerializeJSObjectWithEmbedderFields(Handle<JSObject> obj);
-  void CheckRehashability(HeapObject obj);
+  void CheckRehashability(Tagged<HeapObject> obj);
 
   StartupSerializer* startup_serializer_;
   v8::SerializeEmbedderFieldsCallback serialize_embedder_fields_;

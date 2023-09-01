@@ -3010,7 +3010,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
   // Install the JS API once only.
-  Object prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
+  Tagged<Object> prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
   if (!IsUndefined(prev, isolate)) {
     DCHECK(IsJSFunction(prev));
     return;

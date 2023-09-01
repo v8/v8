@@ -220,7 +220,7 @@ std::vector<Address> MemoryMeasurement::StartProcessing() {
   for (const auto& request : processing_) {
     Handle<WeakFixedArray> contexts = request.contexts;
     for (int i = 0; i < contexts->length(); i++) {
-      HeapObject context;
+      Tagged<HeapObject> context;
       if (contexts->Get(i).GetHeapObject(&context)) {
         unique_contexts.insert(context.ptr());
       }
@@ -243,7 +243,7 @@ void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
     Request request = std::move(processing_.front());
     processing_.pop_front();
     for (int i = 0; i < static_cast<int>(request.sizes.size()); i++) {
-      HeapObject context;
+      Tagged<HeapObject> context;
       if (!request.contexts->Get(i).GetHeapObject(&context)) {
         continue;
       }
@@ -340,7 +340,7 @@ void MemoryMeasurement::ReportResults() {
     DCHECK_EQ(request.sizes.size(),
               static_cast<size_t>(request.contexts->length()));
     for (int i = 0; i < request.contexts->length(); i++) {
-      HeapObject raw_context;
+      Tagged<HeapObject> raw_context;
       if (!request.contexts->Get(i).GetHeapObject(&raw_context)) {
         continue;
       }
@@ -366,11 +366,12 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
                                                  mode);
 }
 
-bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
+bool NativeContextInferrer::InferForContext(Isolate* isolate,
+                                            Tagged<Context> context,
                                             Address* native_context) {
   PtrComprCageBase cage_base(isolate);
-  Map context_map = context->map(cage_base, kAcquireLoad);
-  Object maybe_native_context =
+  Tagged<Map> context_map = context->map(cage_base, kAcquireLoad);
+  Tagged<Object> maybe_native_context =
       TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
           Acquire_Load(cage_base, context_map);
   if (IsNativeContext(maybe_native_context, cage_base)) {
@@ -381,9 +382,9 @@ bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
 }
 
 bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
-                                               JSFunction function,
+                                               Tagged<JSFunction> function,
                                                Address* native_context) {
-  Object maybe_context =
+  Tagged<Object> maybe_context =
       TaggedField<Object, JSFunction::kContextOffset>::Acquire_Load(isolate,
                                                                     function);
   // The context may be a smi during deserialization.
@@ -398,11 +399,11 @@ bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
   return InferForContext(isolate, Context::cast(maybe_context), native_context);
 }
 
-bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
-                                             JSObject object,
+bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Tagged<Map> map,
+                                             Tagged<JSObject> object,
                                              Address* native_context) {
   if (map->instance_type() == JS_GLOBAL_OBJECT_TYPE) {
-    Object maybe_context =
+    Tagged<Object> maybe_context =
         JSGlobalObject::cast(object)->native_context_unchecked(isolate);
     if (IsNativeContext(maybe_context)) {
       *native_context = maybe_context.ptr();
@@ -411,7 +412,7 @@ bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
   }
   // The maximum number of steps to perform when looking for the context.
   const int kMaxSteps = 3;
-  Object maybe_constructor = map->TryGetConstructor(isolate, kMaxSteps);
+  Tagged<Object> maybe_constructor = map->TryGetConstructor(isolate, kMaxSteps);
   if (IsJSFunction(maybe_constructor)) {
     return InferForJSFunction(isolate, JSFunction::cast(maybe_constructor),
                               native_context);
@@ -427,8 +428,8 @@ void NativeContextStats::Merge(const NativeContextStats& other) {
   }
 }
 
-void NativeContextStats::IncrementExternalSize(Address context, Map map,
-                                               HeapObject object) {
+void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
+                                               Tagged<HeapObject> object) {
   InstanceType instance_type = map->instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {

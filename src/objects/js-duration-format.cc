@@ -756,8 +756,8 @@ MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
   std::vector<std::vector<Part>>* parts = Details ? &list : nullptr;
   std::vector<icu::UnicodeString> string_list;
 
-  DurationRecordToListOfFormattedNumber(df, *(df->icu_number_formatter().raw()),
-                                        record, parts, &string_list);
+  DurationRecordToListOfFormattedNumber(
+      df, *(df->icu_number_formatter()->raw()), record, parts, &string_list);
 
   icu::FormattedList formatted = formatter->formatStringsToValue(
       string_list.data(), static_cast<int32_t>(string_list.size()), status);

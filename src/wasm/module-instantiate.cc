@@ -371,7 +371,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
   static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
   // Check for plain JS functions.
   if (IsJSFunction(*callable)) {
-    SharedFunctionInfo sfi = JSFunction::cast(*callable)->shared();
+    Tagged<SharedFunctionInfo> sfi = JSFunction::cast(*callable)->shared();
     if (!sfi->HasBuiltinId()) return kGeneric;
     // This needs to be a separate switch because it allows other cases than
     // the one below. Merging them would be invalid, because we would then
@@ -490,13 +490,13 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
   Handle<JSBoundFunction> bound = Handle<JSBoundFunction>::cast(callable);
   if (bound->bound_arguments()->length() != 0) return kGeneric;
   if (!IsJSFunction(bound->bound_target_function())) return kGeneric;
-  SharedFunctionInfo sfi =
+  Tagged<SharedFunctionInfo> sfi =
       JSFunction::cast(bound->bound_target_function())->shared();
   if (!sfi->HasBuiltinId()) return kGeneric;
   if (sfi->builtin_id() != Builtin::kFunctionPrototypeCall) return kGeneric;
   // Second part: check if the bound receiver is one of the builtins for which
   // we have special-cased support.
-  Object bound_this = bound->bound_this();
+  Tagged<Object> bound_this = bound->bound_this();
   if (!IsJSFunction(bound_this)) return kGeneric;
   sfi = JSFunction::cast(bound_this)->shared();
   if (!sfi->HasBuiltinId()) return kGeneric;
@@ -1309,7 +1309,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     if (function.imported) {
       ImportedFunctionEntry entry(instance, module_->start_function_index);
-      Object callable = entry.maybe_callable();
+      Tagged<Object> callable = entry.maybe_callable();
       if (IsJSFunction(callable)) {
         // If the start function was imported and calls into Blink, we have
         // to pretend that the V8 API was used to enter its correct context.
@@ -1692,7 +1692,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       if (kind == ImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
-        SharedFunctionInfo shared = function->shared();
+        Tagged<SharedFunctionInfo> shared = function->shared();
         expected_arity =
             shared->internal_formal_parameter_count_without_receiver();
       }
@@ -2080,7 +2080,7 @@ void InstanceBuilder::CompileImportWrappers(
     if (kind == ImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function =
           Handle<JSFunction>::cast(resolved.callable());
-      SharedFunctionInfo shared = function->shared();
+      Tagged<SharedFunctionInfo> shared = function->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
     }
@@ -2169,7 +2169,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
               ImportName(index, module_name, import_name).c_str());
           return -1;
         }
-        Object tag = imported_tag->tag();
+        Tagged<Object> tag = imported_tag->tag();
         DCHECK(IsUndefined(instance->tags_table()->get(import.index)));
         instance->tags_table()->set(import.index, tag);
         tags_wrappers_[import.index] = imported_tag;

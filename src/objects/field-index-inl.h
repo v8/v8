@@ -21,7 +21,7 @@ FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
   return FieldIndex(true, offset, encoding, 0, 0);
 }
 
-FieldIndex FieldIndex::ForSmiLoadHandler(Map map, int32_t handler) {
+FieldIndex FieldIndex::ForSmiLoadHandler(Tagged<Map> map, int32_t handler) {
   DCHECK_EQ(LoadHandler::KindBits::decode(handler), LoadHandler::Kind::kField);
 
   bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
@@ -38,7 +38,7 @@ FieldIndex FieldIndex::ForSmiLoadHandler(Map map, int32_t handler) {
       inobject_properties, first_inobject_offset);
 }
 
-FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
+FieldIndex FieldIndex::ForPropertyIndex(Tagged<Map> map, int property_index,
                                         Representation representation) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
   int inobject_properties = map->GetInObjectProperties();
@@ -79,19 +79,21 @@ int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
+FieldIndex FieldIndex::ForDescriptor(Tagged<Map> map,
+                                     InternalIndex descriptor_index) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(map);
   return ForDescriptor(cage_base, map, descriptor_index);
 }
 
-FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base, Map map,
+FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base,
+                                     Tagged<Map> map,
                                      InternalIndex descriptor_index) {
   PropertyDetails details = map->instance_descriptors(cage_base, kRelaxedLoad)
                                 ->GetDetails(descriptor_index);
   return ForDetails(map, details);
 }
 
-FieldIndex FieldIndex::ForDetails(Map map, PropertyDetails details) {
+FieldIndex FieldIndex::ForDetails(Tagged<Map> map, PropertyDetails details) {
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

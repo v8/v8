@@ -22,7 +22,7 @@ ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
 }
 
-Object LocalIsolate::root(RootIndex index) const {
+Tagged<Object> LocalIsolate::root(RootIndex index) const {
   DCHECK(RootsTable::IsImmortalImmovable(index));
   return isolate_->root(index);
 }

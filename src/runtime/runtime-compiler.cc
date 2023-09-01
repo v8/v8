@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
                                             &is_compiled_scope);
   {
     DisallowGarbageCollection no_gc;
-    Code baseline_code = sfi->baseline_code(kAcquireLoad);
+    Tagged<Code> baseline_code = sfi->baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
   }
@@ -219,10 +219,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
 
 namespace {
 
-bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
+bool TryGetOptimizedOsrCode(Isolate* isolate, Tagged<FeedbackVector> vector,
                             const interpreter::BytecodeArrayIterator& it,
-                            Code* code_out) {
-  base::Optional<Code> maybe_code =
+                            Tagged<Code>* code_out) {
+  base::Optional<Tagged<Code>> maybe_code =
       vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
@@ -242,7 +242,8 @@ bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
 //      }  // Type b: deopt exit < loop start < OSR backedge
 //    } // Type c: loop start < deopt exit < OSR backedge
 //  }  // The outermost loop
-void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
+void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
+                                         Tagged<JSFunction> function,
                                          BytecodeOffset deopt_exit_offset) {
   DisallowGarbageCollection no_gc;
   DCHECK(!deopt_exit_offset.IsNone());
@@ -259,8 +260,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   interpreter::BytecodeArrayIterator it(bytecode_array,
                                         deopt_exit_offset.ToInt());
 
-  FeedbackVector vector = function->feedback_vector();
-  Code code;
+  Tagged<FeedbackVector> vector = function->feedback_vector();
+  Tagged<Code> code;
   base::SmallVector<Code, 8> osr_codes;
   // Visit before the first loop-with-deopt is found
   for (; !it.done(); it.Advance()) {
@@ -443,8 +444,10 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   DCHECK((*function)->shared()->HasBytecodeArray());
 }
 
-Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
-                           CodeKind min_opt_level, BytecodeOffset osr_offset) {
+Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
+                                   Handle<JSFunction> function,
+                                   CodeKind min_opt_level,
+                                   BytecodeOffset osr_offset) {
   const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 v8_flags.concurrent_osr)
@@ -467,7 +470,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
       function->set_code(function->shared()->GetCode(isolate));
     }
 
-    return {};
+    return Smi::zero();
   }
 
   DCHECK(!result.is_null());
@@ -475,7 +478,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
 
 #ifdef DEBUG
-  DeoptimizationData data =
+  Tagged<DeoptimizationData> data =
       DeoptimizationData::cast(result->deoptimization_data());
   DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
   DCHECK_GE(data->OsrPcOffset().value(), 0);
@@ -501,9 +504,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 
 namespace {
 
-Object CompileOptimizedOSRFromMaglev(Isolate* isolate,
-                                     Handle<JSFunction> function,
-                                     BytecodeOffset osr_offset) {
+Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
+                                             Handle<JSFunction> function,
+                                             BytecodeOffset osr_offset) {
   // This path is only relevant for tests (all production configurations enable
   // concurrent OSR). It's quite subtle, if interested read on:
   if (V8_UNLIKELY(!isolate->concurrent_recompilation_enabled() ||
@@ -596,11 +599,12 @@ RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static Object CompileGlobalEval(Isolate* isolate,
-                                Handle<i::Object> source_object,
-                                Handle<SharedFunctionInfo> outer_info,
-                                LanguageMode language_mode,
-                                int eval_scope_position, int eval_position) {
+static Tagged<Object> CompileGlobalEval(Isolate* isolate,
+                                        Handle<i::Object> source_object,
+                                        Handle<SharedFunctionInfo> outer_info,
+                                        LanguageMode language_mode,
+                                        int eval_scope_position,
+                                        int eval_position) {
   Handle<NativeContext> native_context = isolate->native_context();
 
   // Check if native context allows code generation from

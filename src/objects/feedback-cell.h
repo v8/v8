@@ -37,8 +37,9 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
 
   inline void clear_padding();
   inline void reset_feedback_vector(
-      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                        HeapObject target)>>
+      base::Optional<
+          std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                             Tagged<HeapObject> target)>>
           gc_notify_updated_slot = base::nullopt);
 
   // The closure count is encoded in the cell's map, which distinguishes

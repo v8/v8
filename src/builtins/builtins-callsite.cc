@@ -27,12 +27,12 @@ namespace internal {
 
 namespace {
 
-Object PositiveNumberOrNull(int value, Isolate* isolate) {
+Tagged<Object> PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value > 0) return *isolate->factory()->NewNumberFromInt(value);
   return ReadOnlyRoots(isolate).null_value();
 }
 
-bool NativeContextIsForShadowRealm(NativeContext native_context) {
+bool NativeContextIsForShadowRealm(Tagged<NativeContext> native_context) {
   return native_context->scope_info()->scope_type() == SHADOW_REALM_SCOPE;
 }
 

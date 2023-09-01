@@ -55,7 +55,7 @@ namespace internal {
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 class HeapEntryVerifier {
  public:
-  HeapEntryVerifier(HeapSnapshotGenerator* generator, HeapObject obj)
+  HeapEntryVerifier(HeapSnapshotGenerator* generator, Tagged<HeapObject> obj)
       : generator_(generator),
         primary_object_(obj),
         reference_summary_(
@@ -70,7 +70,8 @@ class HeapEntryVerifier {
   // Checks that `host` retains `target`, according to the marking visitor. This
   // allows us to verify, when adding edges to the snapshot, that they
   // correspond to real retaining relationships.
-  void CheckStrongReference(HeapObject host, HeapObject target) {
+  void CheckStrongReference(Tagged<HeapObject> host,
+                            Tagged<HeapObject> target) {
     // All references should be from the current primary object.
     CHECK_EQ(host, primary_object_);
 
@@ -100,7 +101,7 @@ class HeapEntryVerifier {
 
   // Checks that `host` has a weak reference to `target`, according to the
   // marking visitor.
-  void CheckWeakReference(HeapObject host, HeapObject target) {
+  void CheckWeakReference(Tagged<HeapObject> host, Tagged<HeapObject> target) {
     // All references should be from the current primary object.
     CHECK_EQ(host, primary_object_);
 
@@ -113,7 +114,8 @@ class HeapEntryVerifier {
   // marking visitor found no such relationship. This is necessary for
   // ephemerons, where a pair of objects is required to retain the target.
   // Use this function with care, since it bypasses verification.
-  void MarkReferenceCheckedWithoutChecking(HeapObject host, HeapObject target) {
+  void MarkReferenceCheckedWithoutChecking(Tagged<HeapObject> host,
+                                           Tagged<HeapObject> target) {
     if (host == primary_object_) {
       checked_objects_.insert(target);
     }
@@ -129,12 +131,12 @@ class HeapEntryVerifier {
     // snapshot deliberately omits many of those (see IsEssentialObject).
     // Read-only objects can't ever retain normal read-write objects, so these
     // are fine to skip.
-    for (HeapObject obj : reference_summary_.strong_references()) {
+    for (Tagged<HeapObject> obj : reference_summary_.strong_references()) {
       if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
     }
-    for (HeapObject obj : reference_summary_.weak_references()) {
+    for (Tagged<HeapObject> obj : reference_summary_.weak_references()) {
       if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
@@ -154,7 +156,7 @@ class HeapEntryVerifier {
       const UnorderedHeapObjectSet& previous =
           level == 0 ? reference_summary_.strong_references()
                      : indirect_strong_references_[level - 1];
-      for (HeapObject obj : previous) {
+      for (Tagged<HeapObject> obj : previous) {
         if (BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
           // Marking visitors don't expect to visit objects in read-only space,
           // and will fail DCHECKs if they are used on those objects. Read-only
@@ -206,11 +208,8 @@ HeapGraphEdge::HeapGraphEdge(Type type, const char* name, HeapEntry* from,
                  FromIndexField::encode(from->index())),
       to_entry_(to),
       name_(name) {
-  DCHECK(type == kContextVariable
-      || type == kProperty
-      || type == kInternal
-      || type == kShortcut
-      || type == kWeak);
+  DCHECK(type == kContextVariable || type == kProperty || type == kInternal ||
+         type == kShortcut || type == kWeak);
 }
 
 HeapGraphEdge::HeapGraphEdge(Type type, int index, HeapEntry* from,
@@ -262,8 +261,8 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
     // Verification is not possible.
     return;
   }
-  HeapObject from_obj = HeapObject::cast(Object(from_address));
-  HeapObject to_obj = HeapObject::cast(Object(to_address));
+  Tagged<HeapObject> from_obj = HeapObject::cast(Object(from_address));
+  Tagged<HeapObject> to_obj = HeapObject::cast(Object(to_address));
   if (BasicMemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
     // We can't verify pointers into read-only space, because marking visitors
     // might not mark those. For example, every Map has a pointer to the
@@ -377,24 +376,38 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
 
 const char* HeapEntry::TypeAsString() const {
   switch (type()) {
-    case kHidden: return "/hidden/";
-    case kObject: return "/object/";
-    case kClosure: return "/closure/";
-    case kString: return "/string/";
-    case kCode: return "/code/";
-    case kArray: return "/array/";
-    case kRegExp: return "/regexp/";
-    case kHeapNumber: return "/number/";
-    case kNative: return "/native/";
-    case kSynthetic: return "/synthetic/";
-    case kConsString: return "/concatenated string/";
-    case kSlicedString: return "/sliced string/";
-    case kSymbol: return "/symbol/";
+    case kHidden:
+      return "/hidden/";
+    case kObject:
+      return "/object/";
+    case kClosure:
+      return "/closure/";
+    case kString:
+      return "/string/";
+    case kCode:
+      return "/code/";
+    case kArray:
+      return "/array/";
+    case kRegExp:
+      return "/regexp/";
+    case kHeapNumber:
+      return "/number/";
+    case kNative:
+      return "/native/";
+    case kSynthetic:
+      return "/synthetic/";
+    case kConsString:
+      return "/concatenated string/";
+    case kSlicedString:
+      return "/sliced string/";
+    case kSymbol:
+      return "/symbol/";
     case kBigInt:
       return "/bigint/";
     case kObjectShape:
       return "/object shape/";
-    default: return "???";
+    default:
+      return "???";
   }
 }
 
@@ -417,9 +430,7 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
   memset(&gc_subroot_entries_, 0, sizeof(gc_subroot_entries_));
 }
 
-void HeapSnapshot::Delete() {
-  profiler_->RemoveSnapshot(this);
-}
+void HeapSnapshot::Delete() { profiler_->RemoveSnapshot(this); }
 
 void HeapSnapshot::RememberLastJSObjectId() {
   max_snapshot_js_object_id_ = profiler_->heap_object_map()->last_assigned_id();
@@ -462,10 +473,8 @@ void HeapSnapshot::AddLocation(HeapEntry* entry, int scriptId, int line,
   locations_.emplace_back(entry->index(), scriptId, line, col);
 }
 
-HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
-                                  const char* name,
-                                  SnapshotObjectId id,
-                                  size_t size,
+HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type, const char* name,
+                                  SnapshotObjectId id, size_t size,
                                   unsigned trace_node_id) {
   DCHECK(!is_complete());
   entries_.emplace_back(this, static_cast<int>(entries_.size()), type, name, id,
@@ -498,9 +507,7 @@ HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   return it != entries_by_id_cache_.end() ? it->second : nullptr;
 }
 
-void HeapSnapshot::Print(int max_depth) {
-  root()->Print("", "", max_depth, 0);
-}
+void HeapSnapshot::Print(int max_depth) { root()->Print("", "", max_depth, 0); }
 
 // We split IDs on evens for embedder objects (see
 // HeapObjectsMap::GenerateId) and odds for native objects.
@@ -572,11 +579,9 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   return from_value != nullptr;
 }
 
-
 void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
   FindOrAddEntry(addr, size, MarkEntryAccessed::kNo);
 }
-
 
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   base::HashMap::Entry* entry = entries_map_.Lookup(
@@ -647,7 +652,7 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
                                   GarbageCollectionReason::kHeapProfiler);
   PtrComprCageBase cage_base(heap_->isolate());
   CombinedHeapObjectIterator iterator(heap_);
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     int object_size = obj->Size(cage_base);
     FindOrAddEntry(obj.address(), object_size);
@@ -713,7 +718,6 @@ SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream,
   return last_assigned_id();
 }
 
-
 void HeapObjectsMap::RemoveDeadEntries() {
   DCHECK(entries_.size() > 0 && entries_.at(0).id == 0 &&
          entries_.at(0).addr == kNullAddress);
@@ -778,7 +782,7 @@ HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
   return AddEntry(HeapObject::cast(Object(reinterpret_cast<Address>(ptr))));
 }
 
-HeapEntry* V8HeapExplorer::AllocateEntry(Smi smi) {
+HeapEntry* V8HeapExplorer::AllocateEntry(Tagged<Smi> smi) {
   SnapshotObjectId id = heap_object_map_->get_next_id();
   HeapEntry* entry =
       snapshot_->AddEntry(HeapEntry::kHeapNumber, "smi number", id, 0, 0);
@@ -788,17 +792,19 @@ HeapEntry* V8HeapExplorer::AllocateEntry(Smi smi) {
   return entry;
 }
 
-JSFunction V8HeapExplorer::GetLocationFunction(HeapObject object) {
+Tagged<JSFunction> V8HeapExplorer::GetLocationFunction(
+    Tagged<HeapObject> object) {
   DisallowHeapAllocation no_gc;
 
   if (IsJSFunction(object)) {
     return JSFunction::cast(object);
   } else if (IsJSGeneratorObject(object)) {
-    JSGeneratorObject gen = JSGeneratorObject::cast(object);
+    Tagged<JSGeneratorObject> gen = JSGeneratorObject::cast(object);
     return gen->function();
   } else if (IsJSObject(object)) {
-    JSObject obj = JSObject::cast(object);
-    JSFunction maybe_constructor = GetConstructor(heap_->isolate(), obj);
+    Tagged<JSObject> obj = JSObject::cast(object);
+    Tagged<JSFunction> maybe_constructor =
+        GetConstructor(heap_->isolate(), obj);
 
     return maybe_constructor;
   }
@@ -806,18 +812,19 @@ JSFunction V8HeapExplorer::GetLocationFunction(HeapObject object) {
   return JSFunction();
 }
 
-void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {
+void V8HeapExplorer::ExtractLocation(HeapEntry* entry,
+                                     Tagged<HeapObject> object) {
   DisallowHeapAllocation no_gc;
-  JSFunction func = GetLocationFunction(object);
+  Tagged<JSFunction> func = GetLocationFunction(object);
   if (!func.is_null()) {
     ExtractLocationForJSFunction(entry, func);
   }
 }
 
 void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
-                                                  JSFunction func) {
+                                                  Tagged<JSFunction> func) {
   if (!IsScript(func->shared()->script())) return;
-  Script script = Script::cast(func->shared()->script());
+  Tagged<Script> script = Script::cast(func->shared()->script());
   int scriptId = script->id();
   int start = func->shared()->StartPosition();
   DCHECK(script->has_line_ends());
@@ -826,13 +833,13 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   snapshot_->AddLocation(entry, scriptId, info.line, info.column);
 }
 
-HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
+HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsJSObject(instance_type)) {
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
-      JSFunction func = JSFunction::cast(object);
-      SharedFunctionInfo shared = func->shared();
+      Tagged<JSFunction> func = JSFunction::cast(object);
+      Tagged<SharedFunctionInfo> shared = func->shared();
       const char* name = names_->GetName(shared->Name());
       return AddEntry(object, HeapEntry::kClosure, name);
 
@@ -840,7 +847,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
       return AddEntry(object, HeapEntry::kClosure, "native_bind");
     }
     if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
-      JSRegExp re = JSRegExp::cast(object);
+      Tagged<JSRegExp> re = JSRegExp::cast(object);
       return AddEntry(object, HeapEntry::kRegExp,
                       names_->GetName(re->source()));
     }
@@ -857,7 +864,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kObject, name);
 
   } else if (InstanceTypeChecker::IsString(instance_type)) {
-    String string = String::cast(object);
+    Tagged<String> string = String::cast(object);
     if (IsConsString(string, cage_base)) {
       return AddEntry(object, HeapEntry::kConsString, "(concatenated string)");
     } else if (IsSlicedString(string, cage_base)) {
@@ -880,11 +887,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kCode, "");
 
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    String name = SharedFunctionInfo::cast(object)->Name();
+    Tagged<String> name = SharedFunctionInfo::cast(object)->Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
 
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
-    Object name = Script::cast(object)->name();
+    Tagged<Object> name = Script::cast(object)->name();
     return AddEntry(object, HeapEntry::kCode,
                     IsString(name) ? names_->GetName(String::cast(name)) : "");
 
@@ -899,7 +906,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
-    WasmTypeInfo info = object->map()->wasm_type_info();
+    Tagged<WasmTypeInfo> info = object->map()->wasm_type_info();
     // The cast is safe; structs and arrays always have their instance defined.
     wasm::NamesProvider* names = WasmInstanceObject::cast(info->instance())
                                      ->module_object()
@@ -916,8 +923,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
                   GetSystemEntryName(object));
 }
 
-HeapEntry* V8HeapExplorer::AddEntry(HeapObject object, HeapEntry::Type type,
-                                    const char* name) {
+HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object,
+                                    HeapEntry::Type type, const char* name) {
   if (v8_flags.heap_profiler_show_hidden_objects &&
       type == HeapEntry::kHidden) {
     type = HeapEntry::kNative;
@@ -926,29 +933,29 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object, HeapEntry::Type type,
   return AddEntry(object.address(), type, name, object->Size(cage_base));
 }
 
-HeapEntry* V8HeapExplorer::AddEntry(Address address,
-                                    HeapEntry::Type type,
-                                    const char* name,
-                                    size_t size) {
+HeapEntry* V8HeapExplorer::AddEntry(Address address, HeapEntry::Type type,
+                                    const char* name, size_t size) {
   SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(
       address, static_cast<unsigned int>(size));
   unsigned trace_node_id = 0;
   if (AllocationTracker* allocation_tracker =
-      snapshot_->profiler()->allocation_tracker()) {
+          snapshot_->profiler()->allocation_tracker()) {
     trace_node_id =
         allocation_tracker->address_to_trace()->GetTraceNodeId(address);
   }
   return snapshot_->AddEntry(type, name, object_id, size, trace_node_id);
 }
 
-const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
+const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
   if (IsMap(object)) {
     switch (Map::cast(object)->instance_type()) {
 #define MAKE_STRING_MAP_CASE(instance_type, size, name, Name) \
-        case instance_type: return "system / Map (" #Name ")";
+  case instance_type:                                         \
+    return "system / Map (" #Name ")";
       STRING_TYPE_LIST(MAKE_STRING_MAP_CASE)
 #undef MAKE_STRING_MAP_CASE
-        default: return "system / Map";
+      default:
+        return "system / Map";
     }
   }
 
@@ -984,7 +991,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
   }
 }
 
-HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
+HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
   InstanceType type = object->map()->instance_type();
   if (InstanceTypeChecker::IsAllocationSite(type) ||
       InstanceTypeChecker::IsArrayBoilerplateDescription(type) ||
@@ -1036,11 +1043,11 @@ void V8HeapExplorer::PopulateLineEnds() {
 
   {
     Script::Iterator iterator(isolate());
-    for (Script script = iterator.Next(); !script.is_null();
+    for (Tagged<Script> script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
-        if (!script->has_line_ends()) {
+      if (!script->has_line_ends()) {
         scripts.push_back(handle(script, isolate()));
-        }
+      }
     }
   }
 
@@ -1082,8 +1089,8 @@ int AdjustEmbedderFieldIndex(HeapObject heap_obj, int field_index) {
 #endif  // V8_TARGET_BIG_ENDIAN
 class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
  public:
-  IndexedReferencesExtractor(V8HeapExplorer* generator, HeapObject parent_obj,
-                             HeapEntry* parent)
+  IndexedReferencesExtractor(V8HeapExplorer* generator,
+                             Tagged<HeapObject> parent_obj, HeapEntry* parent)
       : ObjectVisitorWithCageBases(generator->isolate()),
         generator_(generator),
         parent_obj_(parent_obj),
@@ -1092,14 +1099,14 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
             parent_obj_->RawMaybeWeakField(parent_obj_->Size(cage_base()))),
         parent_(parent),
         next_index_(0) {}
-  void VisitPointers(HeapObject host, ObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
-  void VisitMapPointer(HeapObject object) override {
+  void VisitMapPointer(Tagged<HeapObject> object) override {
     VisitSlotImpl(cage_base(), object->map_slot());
   }
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     // [start,end) must be a sub-region of [parent_start_, parent_end), i.e.
     // all the slots must point inside the object.
@@ -1110,20 +1117,22 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitInstructionStreamPointer(Code host,
+  void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
     VisitSlotImpl(code_cage_base(), slot);
   }
 
-  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
-    InstructionStream target =
+  void VisitCodeTarget(Tagged<InstructionStream> host,
+                       RelocInfo* rinfo) override {
+    Tagged<InstructionStream> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     VisitHeapObjectImpl(target, -1);
   }
 
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
-    HeapObject object = rinfo->target_object(cage_base());
-    Code code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* rinfo) override {
+    Tagged<HeapObject> object = rinfo->target_object(cage_base());
+    Tagged<Code> code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
     if (code->IsWeakObject(object)) {
       generator_->SetWeakReference(parent_, next_index_++, object, {});
     } else {
@@ -1131,7 +1140,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitIndirectPointer(HeapObject host, IndirectPointerSlot slot,
+  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override {
     // The JSFunction::Code field is handled separately in
     // ExtractJSObjectReferences but here we have to mark it as visited.
@@ -1154,7 +1163,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     if (generator_->visited_fields_[field_index]) {
       generator_->visited_fields_[field_index] = false;
     } else {
-      HeapObject heap_object;
+      Tagged<HeapObject> heap_object;
       auto loaded_value = slot.load(cage_base);
       if (loaded_value.GetHeapObjectIfStrong(&heap_object)) {
         VisitHeapObjectImpl(heap_object, field_index);
@@ -1164,7 +1173,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
-  V8_INLINE void VisitHeapObjectImpl(HeapObject heap_object, int field_index) {
+  V8_INLINE void VisitHeapObjectImpl(Tagged<HeapObject> heap_object,
+                                     int field_index) {
     DCHECK_LE(-1, field_index);
     // The last parameter {field_offset} is only used to check some well-known
     // skipped references, so passing -1 * kTaggedSize for objects embedded
@@ -1181,7 +1191,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   int next_index_;
 };
 
-void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
+void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
+                                       Tagged<HeapObject> obj) {
   if (IsJSGlobalProxy(obj)) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (IsJSArrayBuffer(obj)) {
@@ -1280,15 +1291,15 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
   }
 }
 
-void V8HeapExplorer::ExtractJSGlobalProxyReferences(HeapEntry* entry,
-                                                    JSGlobalProxy proxy) {
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(
+    HeapEntry* entry, Tagged<JSGlobalProxy> proxy) {
   SetInternalReference(entry, "native_context", proxy->native_context(),
                        JSGlobalProxy::kNativeContextOffset);
 }
 
 void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
-                                               JSObject js_obj) {
-  HeapObject obj = js_obj;
+                                               Tagged<JSObject> js_obj) {
+  Tagged<HeapObject> obj = js_obj;
   ExtractPropertyReferences(js_obj, entry);
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
@@ -1297,7 +1308,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   ReadOnlyRoots roots(isolate);
   SetPropertyReference(entry, roots.proto_string(), iter.GetCurrent());
   if (IsJSBoundFunction(obj)) {
-    JSBoundFunction js_fun = JSBoundFunction::cast(obj);
+    Tagged<JSBoundFunction> js_fun = JSBoundFunction::cast(obj);
     TagObject(js_fun->bound_arguments(), "(bound arguments)");
     SetInternalReference(entry, "bindings", js_fun->bound_arguments(),
                          JSBoundFunction::kBoundArgumentsOffset);
@@ -1306,15 +1317,16 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "bound_function",
                          js_fun->bound_target_function(),
                          JSBoundFunction::kBoundTargetFunctionOffset);
-    FixedArray bindings = js_fun->bound_arguments();
+    Tagged<FixedArray> bindings = js_fun->bound_arguments();
     for (int i = 0; i < bindings->length(); i++) {
       const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
       SetNativeBindReference(entry, reference_name, bindings->get(i));
     }
   } else if (IsJSFunction(obj)) {
-    JSFunction js_fun = JSFunction::cast(js_obj);
+    Tagged<JSFunction> js_fun = JSFunction::cast(js_obj);
     if (js_fun->has_prototype_slot()) {
-      Object proto_or_map = js_fun->prototype_or_initial_map(kAcquireLoad);
+      Tagged<Object> proto_or_map =
+          js_fun->prototype_or_initial_map(kAcquireLoad);
       if (!IsTheHole(proto_or_map, isolate)) {
         if (!IsMap(proto_or_map)) {
           SetPropertyReference(entry, roots.prototype_string(), proto_or_map,
@@ -1328,7 +1340,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
         }
       }
     }
-    SharedFunctionInfo shared_info = js_fun->shared();
+    Tagged<SharedFunctionInfo> shared_info = js_fun->shared();
     TagObject(js_fun->raw_feedback_cell(), "(function feedback cell)");
     SetInternalReference(entry, "feedback_cell", js_fun->raw_feedback_cell(),
                          JSFunction::kFeedbackCellOffset);
@@ -1341,7 +1353,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "code", js_fun->code(),
                          JSFunction::kCodeOffset);
   } else if (IsJSGlobalObject(obj)) {
-    JSGlobalObject global_obj = JSGlobalObject::cast(obj);
+    Tagged<JSGlobalObject> global_obj = JSGlobalObject::cast(obj);
     SetInternalReference(entry, "native_context", global_obj->native_context(),
                          JSGlobalObject::kNativeContextOffset);
     SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
@@ -1349,7 +1361,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     static_assert(JSGlobalObject::kHeaderSize - JSObject::kHeaderSize ==
                   2 * kTaggedSize);
   } else if (IsJSArrayBufferView(obj)) {
-    JSArrayBufferView view = JSArrayBufferView::cast(obj);
+    Tagged<JSArrayBufferView> view = JSArrayBufferView::cast(obj);
     SetInternalReference(entry, "buffer", view->buffer(),
                          JSArrayBufferView::kBufferOffset);
   }
@@ -1363,51 +1375,54 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                        JSObject::kElementsOffset);
 }
 
-void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String string) {
+void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
+                                             Tagged<String> string) {
   if (IsConsString(string)) {
-    ConsString cs = ConsString::cast(string);
+    Tagged<ConsString> cs = ConsString::cast(string);
     SetInternalReference(entry, "first", cs->first(), ConsString::kFirstOffset);
     SetInternalReference(entry, "second", cs->second(),
                          ConsString::kSecondOffset);
   } else if (IsSlicedString(string)) {
-    SlicedString ss = SlicedString::cast(string);
+    Tagged<SlicedString> ss = SlicedString::cast(string);
     SetInternalReference(entry, "parent", ss->parent(),
                          SlicedString::kParentOffset);
   } else if (IsThinString(string)) {
-    ThinString ts = ThinString::cast(string);
+    Tagged<ThinString> ts = ThinString::cast(string);
     SetInternalReference(entry, "actual", ts->actual(),
                          ThinString::kActualOffset);
   }
 }
 
-void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
+void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry,
+                                             Tagged<Symbol> symbol) {
   SetInternalReference(entry, "name", symbol->description(),
                        Symbol::kDescriptionOffset);
 }
 
-void V8HeapExplorer::ExtractJSCollectionReferences(HeapEntry* entry,
-                                                   JSCollection collection) {
+void V8HeapExplorer::ExtractJSCollectionReferences(
+    HeapEntry* entry, Tagged<JSCollection> collection) {
   SetInternalReference(entry, "table", collection->table(),
                        JSCollection::kTableOffset);
 }
 
-void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
-                                                       JSWeakCollection obj) {
+void V8HeapExplorer::ExtractJSWeakCollectionReferences(
+    HeapEntry* entry, Tagged<JSWeakCollection> obj) {
   SetInternalReference(entry, "table", obj->table(),
                        JSWeakCollection::kTableOffset);
 }
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
-    HeapEntry* entry, EphemeronHashTable table) {
+    HeapEntry* entry, Tagged<EphemeronHashTable> table) {
   for (InternalIndex i : table->IterateEntries()) {
     int key_index = EphemeronHashTable::EntryToIndex(i) +
                     EphemeronHashTable::kEntryKeyIndex;
     int value_index = EphemeronHashTable::EntryToValueIndex(i);
-    Object key = table->get(key_index);
-    Object value = table->get(value_index);
-    SetWeakReference(entry, key_index, key, table.OffsetOfElementAt(key_index));
+    Tagged<Object> key = table->get(key_index);
+    Tagged<Object> value = table->get(value_index);
+    SetWeakReference(entry, key_index, key,
+                     table->OffsetOfElementAt(key_index));
     SetWeakReference(entry, value_index, value,
-                     table.OffsetOfElementAt(value_index));
+                     table->OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
@@ -1439,18 +1454,18 @@ static const struct {
 };
 
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
-                                              Context context) {
+                                              Tagged<Context> context) {
   DisallowGarbageCollection no_gc;
   if (!IsNativeContext(context) && context->is_declaration_context()) {
-    ScopeInfo scope_info = context->scope_info();
+    Tagged<ScopeInfo> scope_info = context->scope_info();
     // Add context allocated locals.
-    for (auto it : ScopeInfo::IterateLocalNames(&scope_info, no_gc)) {
+    for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
       int idx = scope_info->ContextHeaderLength() + it->index();
       SetContextReference(entry, it->name(), context->get(idx),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasContextAllocatedFunctionName()) {
-      String name = String::cast(scope_info->FunctionName());
+      Tagged<String> name = String::cast(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
         SetContextReference(entry, name, context->get(idx),
@@ -1486,9 +1501,9 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
   }
 }
 
-void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
+void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   MaybeObject maybe_raw_transitions_or_prototype_info = map->raw_transitions();
-  HeapObject raw_transitions_or_prototype_info;
+  Tagged<HeapObject> raw_transitions_or_prototype_info;
   if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfWeak(
           &raw_transitions_or_prototype_info)) {
     DCHECK(IsMap(raw_transitions_or_prototype_info));
@@ -1497,7 +1512,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   } else if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfStrong(
                  &raw_transitions_or_prototype_info)) {
     if (IsTransitionArray(raw_transitions_or_prototype_info)) {
-      TransitionArray transitions =
+      Tagged<TransitionArray> transitions =
           TransitionArray::cast(raw_transitions_or_prototype_info);
       if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
         TagObject(transitions->GetPrototypeTransitions(),
@@ -1518,19 +1533,20 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                            Map::kTransitionsOrPrototypeInfoOffset);
     }
   }
-  DescriptorArray descriptors = map->instance_descriptors();
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(entry, "descriptors", descriptors,
                        Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map->prototype(),
                        Map::kPrototypeOffset);
   if (IsContextMap(map)) {
-    Object native_context = map->native_context();
+    Tagged<Object> native_context = map->native_context();
     TagObject(native_context, "(native context)");
     SetInternalReference(entry, "native_context", native_context,
                          Map::kConstructorOrBackPointerOrNativeContextOffset);
   } else {
-    Object constructor_or_back_pointer = map->constructor_or_back_pointer();
+    Tagged<Object> constructor_or_back_pointer =
+        map->constructor_or_back_pointer();
     if (IsMap(constructor_or_back_pointer)) {
       TagObject(constructor_or_back_pointer, "(back pointer)");
       SetInternalReference(entry, "back_pointer", constructor_or_back_pointer,
@@ -1553,11 +1569,11 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
-    HeapEntry* entry, SharedFunctionInfo shared) {
+    HeapEntry* entry, Tagged<SharedFunctionInfo> shared) {
   TagObject(shared, "(shared function info)");
   {
     std::unique_ptr<char[]> name = shared->DebugNameCStr();
-    Code code = shared->GetCode(isolate());
+    Tagged<Code> code = shared->GetCode(isolate());
     TagObject(code, name[0] != '\0'
                         ? names_->GetFormatted("(code for %s)", name.get())
                         : names_->GetFormatted("(%s code)",
@@ -1572,7 +1588,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     }
   }
 
-  Object name_or_scope_info = shared->name_or_scope_info(kAcquireLoad);
+  Tagged<Object> name_or_scope_info = shared->name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(name_or_scope_info)) {
     TagObject(name_or_scope_info, "(function scope info)");
   }
@@ -1589,7 +1605,8 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
       SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset);
 }
 
-void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script script) {
+void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
+                                             Tagged<Script> script) {
   SetInternalReference(entry, "source", script->source(),
                        Script::kSourceOffset);
   SetInternalReference(entry, "name", script->name(), Script::kNameOffset);
@@ -1604,16 +1621,16 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script script) {
             HeapEntry::kCode);
 }
 
-void V8HeapExplorer::ExtractAccessorInfoReferences(HeapEntry* entry,
-                                                   AccessorInfo accessor_info) {
+void V8HeapExplorer::ExtractAccessorInfoReferences(
+    HeapEntry* entry, Tagged<AccessorInfo> accessor_info) {
   SetInternalReference(entry, "name", accessor_info->name(),
                        AccessorInfo::kNameOffset);
   SetInternalReference(entry, "data", accessor_info->data(),
                        AccessorInfo::kDataOffset);
 }
 
-void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
-                                                   AccessorPair accessors) {
+void V8HeapExplorer::ExtractAccessorPairReferences(
+    HeapEntry* entry, Tagged<AccessorPair> accessors) {
   SetInternalReference(entry, "getter", accessors->getter(),
                        AccessorPair::kGetterOffset);
   SetInternalReference(entry, "setter", accessors->setter(),
@@ -1621,20 +1638,20 @@ void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
-                                                JSWeakRef js_weak_ref) {
+                                                Tagged<JSWeakRef> js_weak_ref) {
   SetWeakReference(entry, "target", js_weak_ref->target(),
                    JSWeakRef::kTargetOffset);
 }
 
 void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
-                                               WeakCell weak_cell) {
+                                               Tagged<WeakCell> weak_cell) {
   SetWeakReference(entry, "target", weak_cell->target(),
                    WeakCell::kTargetOffset);
   SetWeakReference(entry, "unregister_token", weak_cell->unregister_token(),
                    WeakCell::kUnregisterTokenOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(Tagged<Code> code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin code)", name));
   if (code->has_instruction_stream()) {
     TagObject(code->instruction_stream(),
@@ -1642,7 +1659,8 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   }
 }
 
-void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
+                                           Tagged<Code> code) {
   if (!code->has_instruction_stream()) return;
 
   SetInternalReference(entry, "instruction_stream", code->instruction_stream(),
@@ -1659,7 +1677,7 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
                          code->bytecode_offset_table(),
                          Code::kPositionTableOffset);
   } else {
-    DeoptimizationData deoptimization_data =
+    Tagged<DeoptimizationData> deoptimization_data =
         DeoptimizationData::cast(code->deoptimization_data());
     TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);
     SetInternalReference(entry, "deoptimization_data", deoptimization_data,
@@ -1681,8 +1699,8 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
 }
 
 void V8HeapExplorer::ExtractInstructionStreamReferences(
-    HeapEntry* entry, InstructionStream istream) {
-  Code code;
+    HeapEntry* entry, Tagged<InstructionStream> istream) {
+  Tagged<Code> code;
   if (!istream->TryGetCode(&code, kAcquireLoad))
     return;  // Not yet initialized.
   TagObject(code, "(code)", HeapEntry::kCode);
@@ -1694,19 +1712,20 @@ void V8HeapExplorer::ExtractInstructionStreamReferences(
                        InstructionStream::kRelocationInfoOffset);
 }
 
-void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell cell) {
+void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry,
+                                           Tagged<Cell> cell) {
   SetInternalReference(entry, "value", cell->value(), Cell::kValueOffset);
 }
 
-void V8HeapExplorer::ExtractFeedbackCellReferences(HeapEntry* entry,
-                                                   FeedbackCell feedback_cell) {
+void V8HeapExplorer::ExtractFeedbackCellReferences(
+    HeapEntry* entry, Tagged<FeedbackCell> feedback_cell) {
   TagObject(feedback_cell, "(feedback cell)");
   SetInternalReference(entry, "value", feedback_cell->value(),
                        FeedbackCell::kValueOffset);
 }
 
 void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
-                                                   PropertyCell cell) {
+                                                   Tagged<PropertyCell> cell) {
   SetInternalReference(entry, "value", cell->value(),
                        PropertyCell::kValueOffset);
   TagObject(cell->dependent_code(), "(dependent code)");
@@ -1714,16 +1733,16 @@ void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
                        PropertyCell::kDependentCodeOffset);
 }
 
-void V8HeapExplorer::ExtractPrototypeInfoReferences(HeapEntry* entry,
-                                                    PrototypeInfo info) {
+void V8HeapExplorer::ExtractPrototypeInfoReferences(
+    HeapEntry* entry, Tagged<PrototypeInfo> info) {
   TagObject(info->prototype_chain_enum_cache(), "(prototype chain enum cache)",
             HeapEntry::kObjectShape);
   TagObject(info->prototype_users(), "(prototype users)",
             HeapEntry::kObjectShape);
 }
 
-void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
-                                                     AllocationSite site) {
+void V8HeapExplorer::ExtractAllocationSiteReferences(
+    HeapEntry* entry, Tagged<AllocationSite> site) {
   SetInternalReference(entry, "transition_info",
                        site->transition_info_or_boilerplate(),
                        AllocationSite::kTransitionInfoOrBoilerplateOffset);
@@ -1735,30 +1754,28 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
-    HeapEntry* entry, ArrayBoilerplateDescription value) {
-  FixedArrayBase constant_elements = value->constant_elements();
+    HeapEntry* entry, Tagged<ArrayBoilerplateDescription> value) {
+  Tagged<FixedArrayBase> constant_elements = value->constant_elements();
   SetInternalReference(entry, "constant_elements", constant_elements,
                        ArrayBoilerplateDescription::kConstantElementsOffset);
   TagObject(constant_elements, "(constant elements)", HeapEntry::kCode);
 }
 
 void V8HeapExplorer::ExtractRegExpBoilerplateDescriptionReferences(
-    HeapEntry* entry, RegExpBoilerplateDescription value) {
+    HeapEntry* entry, Tagged<RegExpBoilerplateDescription> value) {
   TagObject(value->data(), "(RegExp data)", HeapEntry::kCode);
 }
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
  public:
   JSArrayBufferDataEntryAllocator(size_t size, V8HeapExplorer* explorer)
-      : size_(size)
-      , explorer_(explorer) {
-  }
+      : size_(size), explorer_(explorer) {}
   HeapEntry* AllocateEntry(HeapThing ptr) override {
     return explorer_->AddEntry(reinterpret_cast<Address>(ptr),
                                HeapEntry::kNative, "system / JSArrayBufferData",
                                size_);
   }
-  HeapEntry* AllocateEntry(Smi smi) override {
+  HeapEntry* AllocateEntry(Tagged<Smi> smi) override {
     DCHECK(false);
     return nullptr;
   }
@@ -1768,8 +1785,8 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
   V8HeapExplorer* explorer_;
 };
 
-void V8HeapExplorer::ExtractJSArrayBufferReferences(HeapEntry* entry,
-                                                    JSArrayBuffer buffer) {
+void V8HeapExplorer::ExtractJSArrayBufferReferences(
+    HeapEntry* entry, Tagged<JSArrayBuffer> buffer) {
   // Setup a reference to a native memory backing_store object.
   if (!buffer->backing_store()) return;
   size_t data_size = buffer->byte_length();
@@ -1781,14 +1798,14 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractJSPromiseReferences(HeapEntry* entry,
-                                                JSPromise promise) {
+                                                Tagged<JSPromise> promise) {
   SetInternalReference(entry, "reactions_or_result",
                        promise->reactions_or_result(),
                        JSPromise::kReactionsOrResultOffset);
 }
 
 void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
-    HeapEntry* entry, JSGeneratorObject generator) {
+    HeapEntry* entry, Tagged<JSGeneratorObject> generator) {
   SetInternalReference(entry, "function", generator->function(),
                        JSGeneratorObject::kFunctionOffset);
   SetInternalReference(entry, "context", generator->context(),
@@ -1801,14 +1818,15 @@ void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
-                                                 FixedArray array) {
+                                                 Tagged<FixedArray> array) {
   for (int i = 0, l = array->length(); i < l; ++i) {
     DCHECK(!HasWeakHeapObjectTag(array->get(i)));
-    SetInternalReference(entry, i, array->get(i), array.OffsetOfElementAt(i));
+    SetInternalReference(entry, i, array->get(i), array->OffsetOfElementAt(i));
   }
 }
 
-void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry, Object number) {
+void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry,
+                                            Tagged<Object> number) {
   DCHECK(IsNumber(number));
 
   // Must be large enough to fit any double, int, or size_t.
@@ -1833,8 +1851,8 @@ void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry, Object number) {
                            generator_);
 }
 
-void V8HeapExplorer::ExtractBytecodeArrayReferences(HeapEntry* entry,
-                                                    BytecodeArray bytecode) {
+void V8HeapExplorer::ExtractBytecodeArrayReferences(
+    HeapEntry* entry, Tagged<BytecodeArray> bytecode) {
   RecursivelyTagConstantPool(bytecode->constant_pool(), "(constant pool)",
                              HeapEntry::kCode, 3);
   TagObject(bytecode->handler_table(), "(handler table)", HeapEntry::kCode);
@@ -1843,7 +1861,7 @@ void V8HeapExplorer::ExtractBytecodeArrayReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
-                                                ScopeInfo info) {
+                                                Tagged<ScopeInfo> info) {
   if (!info->HasInlinedLocalNames()) {
     TagObject(info->context_local_names_hashtable(), "(context local names)",
               HeapEntry::kCode);
@@ -1851,16 +1869,16 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
-    HeapEntry* entry, FeedbackVector feedback_vector) {
+    HeapEntry* entry, Tagged<FeedbackVector> feedback_vector) {
   MaybeObject code = feedback_vector->maybe_optimized_code();
-  HeapObject code_heap_object;
+  Tagged<HeapObject> code_heap_object;
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kMaybeOptimizedCodeOffset);
   }
   for (int i = 0; i < feedback_vector->length(); ++i) {
     MaybeObject maybe_entry = *(feedback_vector->slots_start() + i);
-    HeapObject entry;
+    Tagged<HeapObject> entry;
     if (maybe_entry.GetHeapObjectIfStrong(&entry) &&
         (entry->map(isolate())->instance_type() == WEAK_FIXED_ARRAY_TYPE ||
          IsFixedArrayExact(entry))) {
@@ -1869,8 +1887,8 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   }
 }
 
-void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
-                                                      DescriptorArray array) {
+void V8HeapExplorer::ExtractDescriptorArrayReferences(
+    HeapEntry* entry, Tagged<DescriptorArray> array) {
   SetInternalReference(entry, "enum_cache", array->enum_cache(),
                        DescriptorArray::kEnumCacheOffset);
   MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
@@ -1880,7 +1898,7 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
     MaybeObjectSlot slot = start + i;
     int offset = static_cast<int>(slot.address() - array.address());
     MaybeObject object = *slot;
-    HeapObject heap_object;
+    Tagged<HeapObject> heap_object;
     if (object->GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, offset);
     } else if (object->GetHeapObjectIfStrong(&heap_object)) {
@@ -1890,13 +1908,13 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractEnumCacheReferences(HeapEntry* entry,
-                                                EnumCache cache) {
+                                                Tagged<EnumCache> cache) {
   TagObject(cache->keys(), "(enum cache)", HeapEntry::kObjectShape);
   TagObject(cache->indices(), "(enum cache)", HeapEntry::kObjectShape);
 }
 
 void V8HeapExplorer::ExtractTransitionArrayReferences(
-    HeapEntry* entry, TransitionArray transitions) {
+    HeapEntry* entry, Tagged<TransitionArray> transitions) {
   if (transitions->HasPrototypeTransitions()) {
     TagObject(transitions->GetPrototypeTransitions(), "(prototype transitions)",
               HeapEntry::kObjectShape);
@@ -1905,10 +1923,11 @@ void V8HeapExplorer::ExtractTransitionArrayReferences(
 
 template <typename T>
 void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
-                                                HeapEntry* entry, T array) {
-  for (int i = 0; i < array.length(); ++i) {
-    MaybeObject object = array.Get(i);
-    HeapObject heap_object;
+                                                HeapEntry* entry,
+                                                Tagged<T> array) {
+  for (int i = 0; i < array->length(); ++i) {
+    MaybeObject object = array->Get(i);
+    Tagged<HeapObject> heap_object;
     if (object->GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, header_size + i * kTaggedSize);
     } else if (object->GetHeapObjectIfStrong(&heap_object)) {
@@ -1918,11 +1937,12 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
   }
 }
 
-void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
+void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
                                                HeapEntry* entry) {
   Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastProperties()) {
-    DescriptorArray descs = js_obj->map()->instance_descriptors(isolate);
+    Tagged<DescriptorArray> descs =
+        js_obj->map()->instance_descriptors(isolate);
     for (InternalIndex i : js_obj->map()->IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.location()) {
@@ -1932,10 +1952,10 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
             if (r.IsSmi() || r.IsDouble()) break;
           }
 
-          Name k = descs->GetKey(i);
+          Tagged<Name> k = descs->GetKey(i);
           FieldIndex field_index =
               FieldIndex::ForDetails(js_obj->map(), details);
-          Object value = js_obj->RawFastPropertyAt(field_index);
+          Tagged<Object> value = js_obj->RawFastPropertyAt(field_index);
           int field_offset =
               field_index.is_inobject() ? field_index.offset() : -1;
 
@@ -1952,14 +1972,14 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     }
   } else if (IsJSGlobalObject(js_obj)) {
     // We assume that global objects can only have slow properties.
-    GlobalDictionary dictionary =
+    Tagged<GlobalDictionary> dictionary =
         JSGlobalObject::cast(js_obj)->global_dictionary(kAcquireLoad);
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      if (!dictionary.IsKey(roots, dictionary->KeyAt(i))) continue;
-      PropertyCell cell = dictionary->CellAt(i);
-      Name name = cell->name();
-      Object value = cell->value();
+      if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
+      Tagged<PropertyCell> cell = dictionary->CellAt(i);
+      Tagged<Name> name = cell->name();
+      Tagged<Object> value = cell->value();
       PropertyDetails details = cell->property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
@@ -1968,23 +1988,24 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     // leak out of here.
     HandleScope scope(isolate);
 
-    SwissNameDictionary dictionary = js_obj->property_dictionary_swiss();
+    Tagged<SwissNameDictionary> dictionary =
+        js_obj->property_dictionary_swiss();
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object k = dictionary->KeyAt(i);
-      if (!dictionary.IsKey(roots, k)) continue;
-      Object value = dictionary->ValueAt(i);
+      Tagged<Object> k = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(roots, k)) continue;
+      Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Name::cast(k),
                                          value);
     }
   } else {
-    NameDictionary dictionary = js_obj->property_dictionary();
+    Tagged<NameDictionary> dictionary = js_obj->property_dictionary();
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object k = dictionary->KeyAt(i);
-      if (!dictionary.IsKey(roots, k)) continue;
-      Object value = dictionary->ValueAt(i);
+      Tagged<Object> k = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(roots, k)) continue;
+      Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Name::cast(k),
                                          value);
@@ -1992,27 +2013,28 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
   }
 }
 
-void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name key,
-                                                 Object callback_obj,
+void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry,
+                                                 Tagged<Name> key,
+                                                 Tagged<Object> callback_obj,
                                                  int field_offset) {
   if (!IsAccessorPair(callback_obj)) return;
-  AccessorPair accessors = AccessorPair::cast(callback_obj);
+  Tagged<AccessorPair> accessors = AccessorPair::cast(callback_obj);
   SetPropertyReference(entry, key, accessors, nullptr, field_offset);
-  Object getter = accessors->getter();
+  Tagged<Object> getter = accessors->getter();
   if (!IsOddball(getter)) {
     SetPropertyReference(entry, key, getter, "get %s");
   }
-  Object setter = accessors->setter();
+  Tagged<Object> setter = accessors->setter();
   if (!IsOddball(setter)) {
     SetPropertyReference(entry, key, setter, "set %s");
   }
 }
 
-void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
+void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
                                               HeapEntry* entry) {
   ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
-    FixedArray elements = FixedArray::cast(js_obj->elements());
+    Tagged<FixedArray> elements = FixedArray::cast(js_obj->elements());
     int length = IsJSArray(js_obj) ? Smi::ToInt(JSArray::cast(js_obj)->length())
                                    : elements->length();
     for (int i = 0; i < length; ++i) {
@@ -2021,10 +2043,10 @@ void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
       }
     }
   } else if (js_obj->HasDictionaryElements()) {
-    NumberDictionary dictionary = js_obj->element_dictionary();
+    Tagged<NumberDictionary> dictionary = js_obj->element_dictionary();
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object k = dictionary->KeyAt(i);
-      if (!dictionary.IsKey(roots, k)) continue;
+      Tagged<Object> k = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(roots, k)) continue;
       DCHECK(IsNumber(k));
       uint32_t index = static_cast<uint32_t>(Object::Number(k));
       SetElementReference(entry, index, dictionary->ValueAt(i));
@@ -2032,21 +2054,21 @@ void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
   }
 }
 
-void V8HeapExplorer::ExtractInternalReferences(JSObject js_obj,
+void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
                                                HeapEntry* entry) {
   int length = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < length; ++i) {
-    Object o = js_obj->GetEmbedderField(i);
+    Tagged<Object> o = js_obj->GetEmbedderField(i);
     SetInternalReference(entry, i, o, js_obj->GetEmbedderFieldOffset(i));
   }
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 
-void V8HeapExplorer::ExtractWasmStructReferences(WasmStruct obj,
+void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
                                                  HeapEntry* entry) {
   wasm::StructType* type = obj->type();
-  WasmTypeInfo info = obj->map()->wasm_type_info();
+  Tagged<WasmTypeInfo> info = obj->map()->wasm_type_info();
   // The cast is safe; structs always have their instance defined.
   wasm::NamesProvider* names = WasmInstanceObject::cast(info->instance())
                                    ->module_object()
@@ -2059,7 +2081,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(WasmStruct obj,
     sb << '\0';
     const char* field_name = names_->GetCopy(sb.start());
     int field_offset = type->field_offset(i);
-    Object value = obj->RawField(field_offset).load(entry->isolate());
+    Tagged<Object> value = obj->RawField(field_offset).load(entry->isolate());
     HeapEntry* value_entry = GetEntry(value);
     entry->SetNamedReference(HeapGraphEdge::kProperty, field_name, value_entry,
                              generator_);
@@ -2067,7 +2089,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(WasmStruct obj,
   }
 }
 
-void V8HeapExplorer::ExtractWasmArrayReferences(WasmArray obj,
+void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
                                                 HeapEntry* entry) {
   if (!obj->type()->element_type().is_reference()) return;
   for (uint32_t i = 0; i < obj->length(); i++) {
@@ -2076,8 +2098,8 @@ void V8HeapExplorer::ExtractWasmArrayReferences(WasmArray obj,
   }
 }
 
-void V8HeapExplorer::ExtractWasmInstanceObjectReference(WasmInstanceObject obj,
-                                                        HeapEntry* entry) {
+void V8HeapExplorer::ExtractWasmInstanceObjectReference(
+    Tagged<WasmInstanceObject> obj, HeapEntry* entry) {
   PtrComprCageBase cage_base(heap_->isolate());
   for (size_t i = 0; i < WasmInstanceObject::kTaggedFieldOffsets.size(); i++) {
     const uint16_t offset = WasmInstanceObject::kTaggedFieldOffsets[i];
@@ -2089,8 +2111,8 @@ void V8HeapExplorer::ExtractWasmInstanceObjectReference(WasmInstanceObject obj,
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-JSFunction V8HeapExplorer::GetConstructor(Isolate* isolate,
-                                          JSReceiver receiver) {
+Tagged<JSFunction> V8HeapExplorer::GetConstructor(Isolate* isolate,
+                                                  Tagged<JSReceiver> receiver) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   MaybeHandle<JSFunction> maybe_constructor =
@@ -2101,14 +2123,15 @@ JSFunction V8HeapExplorer::GetConstructor(Isolate* isolate,
   return *maybe_constructor.ToHandleChecked();
 }
 
-String V8HeapExplorer::GetConstructorName(Isolate* isolate, JSObject object) {
+Tagged<String> V8HeapExplorer::GetConstructorName(Isolate* isolate,
+                                                  Tagged<JSObject> object) {
   if (IsJSFunction(object)) return ReadOnlyRoots(isolate).closure_string();
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   return *JSReceiver::GetConstructorName(isolate, handle(object, isolate));
 }
 
-HeapEntry* V8HeapExplorer::GetEntry(Object obj) {
+HeapEntry* V8HeapExplorer::GetEntry(Tagged<Object> obj) {
   if (IsHeapObject(obj)) {
     return generator_->FindOrAddEntry(reinterpret_cast<void*>(obj.ptr()), this);
   }
@@ -2159,9 +2182,9 @@ class RootsReferencesExtractor : public RootVisitor {
   // MarkCompactCollector::RootMarkingVisitor::VisitRunningCode.
   void VisitRunningCode(FullObjectSlot code_slot,
                         FullObjectSlot istream_or_smi_zero_slot) final {
-    Object istream_or_smi_zero = *istream_or_smi_zero_slot;
+    Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
     if (istream_or_smi_zero != Smi::zero()) {
-      Code code = Code::cast(*code_slot);
+      Tagged<Code> code = Code::cast(*code_slot);
       code->IterateDeoptimizationLiterals(this);
       VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
     }
@@ -2204,7 +2227,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   PtrComprCageBase cage_base(heap_->isolate());
   // Heap iteration need not be finished but progress reporting may depend on
   // it being finished.
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
@@ -2252,7 +2275,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   return interrupted ? false : progress_->ProgressReport(true);
 }
 
-bool V8HeapExplorer::IsEssentialObject(Object object) {
+bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   if (!IsHeapObject(object)) return false;
   // Avoid comparing InstructionStream objects with non-InstructionStream
   // objects below.
@@ -2274,7 +2297,7 @@ bool V8HeapExplorer::IsEssentialObject(Object object) {
          object != roots.two_pointer_filler_map();
 }
 
-bool V8HeapExplorer::IsEssentialHiddenReference(Object parent,
+bool V8HeapExplorer::IsEssentialHiddenReference(Tagged<Object> parent,
                                                 int field_offset) {
   if (IsAllocationSite(parent) &&
       field_offset == AllocationSite::kWeakNextOffset)
@@ -2289,8 +2312,9 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object parent,
 }
 
 void V8HeapExplorer::SetContextReference(HeapEntry* parent_entry,
-                                         String reference_name,
-                                         Object child_obj, int field_offset) {
+                                         Tagged<String> reference_name,
+                                         Tagged<Object> child_obj,
+                                         int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
   parent_entry->SetNamedReference(HeapGraphEdge::kContextVariable,
@@ -2308,7 +2332,7 @@ void V8HeapExplorer::MarkVisitedField(int offset) {
 
 void V8HeapExplorer::SetNativeBindReference(HeapEntry* parent_entry,
                                             const char* reference_name,
-                                            Object child_obj) {
+                                            Tagged<Object> child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
   parent_entry->SetNamedReference(HeapGraphEdge::kShortcut, reference_name,
@@ -2316,7 +2340,7 @@ void V8HeapExplorer::SetNativeBindReference(HeapEntry* parent_entry,
 }
 
 void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
-                                         Object child_obj) {
+                                         Tagged<Object> child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
   parent_entry->SetIndexedReference(HeapGraphEdge::kElement, index, child_entry,
@@ -2325,7 +2349,8 @@ void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,
                                           const char* reference_name,
-                                          Object child_obj, int field_offset) {
+                                          Tagged<Object> child_obj,
+                                          int field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -2337,7 +2362,8 @@ void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,
 }
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry, int index,
-                                          Object child_obj, int field_offset) {
+                                          Tagged<Object> child_obj,
+                                          int field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -2349,9 +2375,10 @@ void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry, int index,
   MarkVisitedField(field_offset);
 }
 
-void V8HeapExplorer::SetHiddenReference(HeapObject parent_obj,
+void V8HeapExplorer::SetHiddenReference(Tagged<HeapObject> parent_obj,
                                         HeapEntry* parent_entry, int index,
-                                        Object child_obj, int field_offset) {
+                                        Tagged<Object> child_obj,
+                                        int field_offset) {
   DCHECK_EQ(parent_entry, GetEntry(parent_obj));
   DCHECK(!MapWord::IsPacked(child_obj.ptr()));
   if (!IsEssentialObject(child_obj)) {
@@ -2366,8 +2393,9 @@ void V8HeapExplorer::SetHiddenReference(HeapObject parent_obj,
 }
 
 void V8HeapExplorer::SetWeakReference(
-    HeapEntry* parent_entry, const char* reference_name, Object child_obj,
-    int field_offset, HeapEntry::ReferenceVerification verification) {
+    HeapEntry* parent_entry, const char* reference_name,
+    Tagged<Object> child_obj, int field_offset,
+    HeapEntry::ReferenceVerification verification) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -2379,7 +2407,7 @@ void V8HeapExplorer::SetWeakReference(
 }
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
-                                      Object child_obj,
+                                      Tagged<Object> child_obj,
                                       base::Optional<int> field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
@@ -2395,8 +2423,9 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
 }
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
-    PropertyKind kind, HeapEntry* parent_entry, Name reference_name,
-    Object child_obj, const char* name_format_string, int field_offset) {
+    PropertyKind kind, HeapEntry* parent_entry, Tagged<Name> reference_name,
+    Tagged<Object> child_obj, const char* name_format_string,
+    int field_offset) {
   if (kind == PropertyKind::kAccessor) {
     ExtractAccessorPairProperty(parent_entry, reference_name, child_obj,
                                 field_offset);
@@ -2407,7 +2436,8 @@ void V8HeapExplorer::SetDataOrAccessorPropertyReference(
 }
 
 void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
-                                          Name reference_name, Object child_obj,
+                                          Tagged<Name> reference_name,
+                                          Tagged<Object> child_obj,
                                           const char* name_format_string,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
@@ -2434,7 +2464,7 @@ void V8HeapExplorer::SetRootGcRootsReference() {
       HeapGraphEdge::kElement, snapshot_->gc_roots(), generator_);
 }
 
-void V8HeapExplorer::SetUserGlobalReference(Object child_obj) {
+void V8HeapExplorer::SetUserGlobalReference(Tagged<Object> child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   DCHECK_NOT_NULL(child_entry);
   snapshot_->root()->SetNamedAutoIndexReference(
@@ -2447,7 +2477,8 @@ void V8HeapExplorer::SetGcRootsReference(Root root) {
 }
 
 void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
-                                           bool is_weak, Object child_obj) {
+                                           bool is_weak,
+                                           Tagged<Object> child_obj) {
   if (IsSmi(child_obj)) {
     // TODO(arenevier): if we handle smis here, the snapshot gets 2 to 3 times
     // slower on large heaps. According to perf, The bulk of the extra works
@@ -2478,7 +2509,8 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   // also used as starting points in distance calculations.
   if (is_weak || !IsNativeContext(child_heap_obj)) return;
 
-  JSGlobalObject global = Context::cast(child_heap_obj)->global_object();
+  Tagged<JSGlobalObject> global =
+      Context::cast(child_heap_obj)->global_object();
   if (!IsJSGlobalObject(global)) return;
 
   if (!user_roots_.insert(global).second) return;
@@ -2486,13 +2518,13 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   SetUserGlobalReference(global);
 }
 
-const char* V8HeapExplorer::GetStrongGcSubrootName(HeapObject object) {
+const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
   if (strong_gc_subroot_names_.empty()) {
     Isolate* isolate = Isolate::FromHeap(heap_);
     for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
          root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       const char* name = RootsTable::name(root_index);
-      Object root = isolate->root(root_index);
+      Tagged<Object> root = isolate->root(root_index);
       CHECK(!IsSmi(root));
       strong_gc_subroot_names_.emplace(HeapObject::cast(root), name);
     }
@@ -2502,7 +2534,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(HeapObject object) {
   return it != strong_gc_subroot_names_.end() ? it->second : nullptr;
 }
 
-void V8HeapExplorer::TagObject(Object obj, const char* tag,
+void V8HeapExplorer::TagObject(Tagged<Object> obj, const char* tag,
                                base::Optional<HeapEntry::Type> type) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
@@ -2515,12 +2547,13 @@ void V8HeapExplorer::TagObject(Object obj, const char* tag,
   }
 }
 
-void V8HeapExplorer::RecursivelyTagConstantPool(Object obj, const char* tag,
+void V8HeapExplorer::RecursivelyTagConstantPool(Tagged<Object> obj,
+                                                const char* tag,
                                                 HeapEntry::Type type,
                                                 int recursion_limit) {
   --recursion_limit;
   if (IsFixedArrayExact(obj, isolate())) {
-    FixedArray arr = FixedArray::cast(obj);
+    Tagged<FixedArray> arr = FixedArray::cast(obj);
     TagObject(arr, tag, type);
     if (recursion_limit <= 0) return;
     for (int i = 0; i < arr->length(); ++i) {
@@ -2555,11 +2588,11 @@ class GlobalObjectsEnumerator : public RootVisitor {
                              TSlot end) {
     for (TSlot p = start; p < end; ++p) {
       DCHECK(!MapWord::IsPacked(p.Relaxed_Load(isolate_).ptr()));
-      Object o = p.load(isolate_);
+      Tagged<Object> o = p.load(isolate_);
       if (!IsNativeContext(o, isolate_)) continue;
-      JSObject proxy = Context::cast(o)->global_proxy();
+      Tagged<JSObject> proxy = Context::cast(o)->global_proxy();
       if (!IsJSGlobalProxy(proxy, isolate_)) continue;
-      Object global = proxy->map(isolate_)->prototype(isolate_);
+      Tagged<Object> global = proxy->map(isolate_)->prototype(isolate_);
       if (!IsJSGlobalObject(global, isolate_)) continue;
       handler_(handle(JSGlobalObject::cast(global), isolate_));
     }
@@ -2616,8 +2649,8 @@ class EmbedderGraphImpl : public EmbedderGraph {
 
   class V8NodeImpl : public Node {
    public:
-    explicit V8NodeImpl(Object object) : object_(object) {}
-    Object GetObject() { return object_; }
+    explicit V8NodeImpl(Tagged<Object> object) : object_(object) {}
+    Tagged<Object> GetObject() { return object_; }
 
     // Node overrides.
     bool IsEmbedderNode() override { return false; }
@@ -2665,7 +2698,7 @@ class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
         names_(snapshot_->profiler()->names()),
         heap_object_map_(snapshot_->profiler()->heap_object_map()) {}
   HeapEntry* AllocateEntry(HeapThing ptr) override;
-  HeapEntry* AllocateEntry(Smi smi) override;
+  HeapEntry* AllocateEntry(Tagged<Smi> smi) override;
 
  private:
   HeapSnapshot* snapshot_;
@@ -2733,7 +2766,7 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   return heap_entry;
 }
 
-HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(Smi smi) {
+HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(Tagged<Smi> smi) {
   DCHECK(false);
   return nullptr;
 }
@@ -2757,10 +2790,10 @@ void NativeObjectsExplorer::MergeNodeIntoEntry(
     // For V8 nodes only we can add a lookup.
     EmbedderGraphImpl::V8NodeImpl* v8_node =
         static_cast<EmbedderGraphImpl::V8NodeImpl*>(wrapper_node);
-    Object object = v8_node->GetObject();
+    Tagged<Object> object = v8_node->GetObject();
     DCHECK(!IsSmi(object));
     if (original_node->GetNativeObject()) {
-      HeapObject heap_object = HeapObject::cast(object);
+      Tagged<HeapObject> heap_object = HeapObject::cast(object);
       heap_object_map_->AddMergedNativeEntry(original_node->GetNativeObject(),
                                              heap_object.address());
       DCHECK_EQ(entry->id(), heap_object_map_->FindMergedNativeEntry(
@@ -2788,7 +2821,7 @@ HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
                                       embedder_graph_entries_allocator_.get());
   }
   // Node is V8NodeImpl.
-  Object object =
+  Tagged<Object> object =
       static_cast<EmbedderGraphImpl::V8NodeImpl*>(node)->GetObject();
   if (IsSmi(object)) return nullptr;
   auto* entry = generator_->FindEntry(
@@ -2958,7 +2991,7 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   v8::base::ElapsedTimer timer;
   timer.Start();
   if (AllocationTracker* allocation_tracker =
-      snapshot_->profiler()->allocation_tracker()) {
+          snapshot_->profiler()->allocation_tracker()) {
     allocation_tracker->PrepareForSerialization();
   }
   DCHECK_NULL(writer_);
@@ -2973,7 +3006,6 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   }
   timer.Stop();
 }
-
 
 void HeapSnapshotJSONSerializer::SerializeImpl() {
   DCHECK_EQ(0, snapshot_->root()->index());
@@ -3018,7 +3050,6 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   writer_->Finalize();
 }
 
-
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   base::HashMap::Entry* cache_entry =
       strings_.LookupOrInsert(const_cast<char*>(s), StringHash(s));
@@ -3028,21 +3059,23 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
 }
 
-
 namespace {
 
-template<size_t size> struct ToUnsigned;
+template <size_t size>
+struct ToUnsigned;
 
 template <>
 struct ToUnsigned<1> {
   using Type = uint8_t;
 };
 
-template<> struct ToUnsigned<4> {
+template <>
+struct ToUnsigned<4> {
   using Type = uint32_t;
 };
 
-template<> struct ToUnsigned<8> {
+template <>
+struct ToUnsigned<8> {
   using Type = uint64_t;
 };
 
@@ -3080,9 +3113,10 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   static const int kBufferSize =
       MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;
   base::EmbeddedVector<char, kBufferSize> buffer;
-  int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
-      || edge->type() == HeapGraphEdge::kHidden
-      ? edge->index() : GetStringId(edge->name());
+  int edge_name_or_index = edge->type() == HeapGraphEdge::kElement ||
+                                   edge->type() == HeapGraphEdge::kHidden
+                               ? edge->index()
+                               : GetStringId(edge->name());
   int buffer_pos = 0;
   if (!first_edge) {
     buffer[buffer_pos++] = ',';
@@ -3150,7 +3184,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   // The object describing node serialization layout.
   // We use a set of macros to improve readability.
 
-// clang-format off
+  // clang-format off
 #define JSON_A(s) "[" s "]"
 #define JSON_O(s) "{" s "}"
 #define JSON_S(s) "\"" s "\""
@@ -3239,7 +3273,6 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddNumber(count);
 }
 
-
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   static const char hex_chars[] = "0123456789ABCDEF";
   w->AddString("\\u");
@@ -3249,14 +3282,12 @@ static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   w->AddCharacter(hex_chars[u & 0xF]);
 }
 
-
 void HeapSnapshotJSONSerializer::SerializeTraceTree() {
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
   if (!tracker) return;
   AllocationTraceTree* traces = tracker->trace_tree();
   SerializeTraceNode(traces->root());
 }
-
 
 void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
@@ -3285,7 +3316,6 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   }
   writer_->AddCharacter(']');
 }
-
 
 // 0-based position is converted to 1-based during the serialization.
 static int SerializePosition(int position, base::Vector<char> buffer,
@@ -3319,8 +3349,8 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     buffer_pos = utoa(GetStringId(info->script_name), buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
     // The cast is safe because script id is a non-negative Smi.
-    buffer_pos = utoa(static_cast<unsigned>(info->script_id), buffer,
-        buffer_pos);
+    buffer_pos =
+        utoa(static_cast<unsigned>(info->script_id), buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
     buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
@@ -3330,7 +3360,6 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     writer_->AddString(buffer.begin());
   }
 }
-
 
 void HeapSnapshotJSONSerializer::SerializeSamples() {
   const std::vector<HeapObjectsMap::TimeInterval>& samples =
@@ -3359,11 +3388,10 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
   }
 }
 
-
 void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
   writer_->AddCharacter('\n');
   writer_->AddCharacter('\"');
-  for ( ; *s != '\0'; ++s) {
+  for (; *s != '\0'; ++s) {
     switch (*s) {
       case '\b':
         writer_->AddString("\\b");
@@ -3394,7 +3422,8 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
         } else {
           // Convert UTF-8 into \u UTF-16 literal.
           size_t length = 1, cursor = 0;
-          for ( ; length <= 4 && *(s + length) != '\0'; ++length) { }
+          for (; length <= 4 && *(s + length) != '\0'; ++length) {
+          }
           unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
           if (c != unibrow::Utf8::kBadChar) {
             WriteUChar(writer_, c);
@@ -3408,7 +3437,6 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
   }
   writer_->AddCharacter('\"');
 }
-
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   base::ScopedVector<const unsigned char*> sorted_strings(strings_.occupancy() +

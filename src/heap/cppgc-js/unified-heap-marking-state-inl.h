@@ -40,13 +40,14 @@ void UnifiedHeapMarkingState::MarkAndPush(
   if (!traced_handle_location) {
     return;
   }
-  Object object = TracedHandles::Mark(traced_handle_location, mark_mode_);
+  Tagged<Object> object =
+      TracedHandles::Mark(traced_handle_location, mark_mode_);
   if (!IsHeapObject(object)) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis.
     return;
   }
-  HeapObject heap_object = HeapObject::cast(object);
+  Tagged<HeapObject> heap_object = HeapObject::cast(object);
   if (heap_object.InReadOnlySpace()) return;
   if (!ShouldMarkObject(heap_object)) return;
   if (marking_state_->TryMark(heap_object)) {
@@ -57,7 +58,8 @@ void UnifiedHeapMarkingState::MarkAndPush(
   }
 }
 
-bool UnifiedHeapMarkingState::ShouldMarkObject(HeapObject object) const {
+bool UnifiedHeapMarkingState::ShouldMarkObject(
+    Tagged<HeapObject> object) const {
   // Keep up-to-date with MarkCompactCollector::ShouldMarkObject.
   if (V8_LIKELY(!has_shared_space_)) return true;
   if (is_shared_space_isolate_) return true;

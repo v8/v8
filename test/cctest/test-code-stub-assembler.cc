@@ -502,7 +502,7 @@ TEST(ComputeIntegerHash) {
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
     uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
-    Smi expected = Smi::FromInt(hash);
+    Tagged<Smi> expected = Smi::FromInt(hash);
     CHECK_EQ(expected, Smi::cast(*result));
   }
 }
@@ -1946,9 +1946,9 @@ TEST(AllocationFoldingCSA) {
     } else {
       CHECK(IsAligned(result->address(), kTaggedSize));
     }
-    ByteArray prev_array;
+    Tagged<ByteArray> prev_array;
     for (int i = 1; i <= kNumArrays; ++i) {
-      ByteArray current_array = ByteArray::cast(result->get(i - 1));
+      Tagged<ByteArray> current_array = ByteArray::cast(result->get(i - 1));
       if (V8_COMPRESS_POINTERS_8GB_BOOL) {
         CHECK(IsAligned(current_array.address(), kObjectAlignment8GbHeap));
       } else {
@@ -2648,8 +2648,9 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     CHECK_EQ(result_size < 6 ? *undefined_value : *o4, *obj);
   }
 
-  static void TestAppendJSArray(Isolate* isolate, ElementsKind kind, Object o1,
-                                Object o2, Object o3, Object o4,
+  static void TestAppendJSArray(Isolate* isolate, ElementsKind kind,
+                                Tagged<Object> o1, Tagged<Object> o2,
+                                Tagged<Object> o3, Tagged<Object> o4,
                                 int initial_size, int result_size) {
     CodeAssemblerTester asm_tester(isolate, i::JSParameterCount(kNumParams));
     AppendJSArrayCodeStubAssembler m(asm_tester.state(), kind);
@@ -3574,7 +3575,7 @@ TEST(CloneEmptyFixedArray) {
 
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(0, result->length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
@@ -3592,7 +3593,7 @@ TEST(CloneFixedArray) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(5, result->length());
   CHECK(IsTheHole(result->get(0), isolate));
   CHECK_EQ(Smi::cast(result->get(1)).value(), 1234);
@@ -3615,7 +3616,7 @@ TEST(CloneFixedArrayCOW) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(*source, result);
 }
 
@@ -3639,7 +3640,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_NE(*source, result);
   CHECK_EQ(5, result->length());
   CHECK(IsTheHole(result->get(0), isolate));
@@ -3672,7 +3673,7 @@ TEST(ExtractFixedArraySimple) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
@@ -3698,7 +3699,7 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
@@ -3724,7 +3725,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
@@ -3748,7 +3749,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
@@ -3773,7 +3774,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray result(FixedArray::cast(*result_raw));
+  Tagged<FixedArray> result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0)).value(), 1234);
   CHECK(IsTheHole(result->get(1), isolate));
@@ -3789,7 +3790,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
       ft.Call(source_double, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedDoubleArray double_result = FixedDoubleArray::cast(*double_result_raw);
+  Tagged<FixedDoubleArray> double_result =
+      FixedDoubleArray::cast(*double_result_raw);
   CHECK_EQ(2, double_result->length());
   CHECK_EQ(double_result->get_scalar(0), 11);
   CHECK_EQ(double_result->get_scalar(1), 12);

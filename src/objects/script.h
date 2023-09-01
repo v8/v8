@@ -154,7 +154,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // unfinalized.
   inline bool IsMaybeUnfinalized(Isolate* isolate) const;
 
-  Object GetNameOrSourceURL();
+  Tagged<Object> GetNameOrSourceURL();
   static Handle<String> GetScriptHash(Isolate* isolate, Handle<Script> script,
                                       bool forceForInspector);
 
@@ -230,7 +230,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
     explicit Iterator(Isolate* isolate);
     Iterator(const Iterator&) = delete;
     Iterator& operator=(const Iterator&) = delete;
-    Script Next();
+    Tagged<Script> Next();
 
    private:
     WeakArrayList::Iterator iterator_;

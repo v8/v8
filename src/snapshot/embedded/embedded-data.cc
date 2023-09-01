@@ -178,7 +178,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = isolate->builtins()->code(builtin);
+    Tagged<Code> code = isolate->builtins()->code(builtin);
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -195,7 +195,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
-      Code target_code = Code::FromTargetAddress(rinfo->target_address());
+      Tagged<Code> target_code =
+          Code::FromTargetAddress(rinfo->target_address());
       CHECK(Builtins::IsIsolateIndependentBuiltin(target_code));
 
       // Do not emit write-barrier for off-heap writes.
@@ -216,7 +217,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   }
 }
 
-void EnsureRelocatable(Code code) {
+void EnsureRelocatable(Tagged<Code> code) {
   if (code->relocation_size() == 0) return;
 
   // On some architectures (arm) the builtin might have a non-empty reloc
@@ -253,7 +254,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
     BuiltinsSorter sorter;
     std::vector<uint32_t> builtin_sizes;
     for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
-      Code code = builtins->code(i);
+      Tagged<Code> code = builtins->code(i);
       uint32_t instruction_size =
           static_cast<uint32_t>(code->instruction_size());
       uint32_t padding_size = PadAndAlignCode(instruction_size);
@@ -272,7 +273,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
     } else {
       builtin = reordered_builtins[embedded_index];
     }
-    Code code = builtins->code(builtin);
+    Tagged<Code> code = builtins->code(builtin);
 
     // Sanity-check that the given builtin is isolate-independent.
     if (!code->IsIsolateIndependent(isolate)) {
@@ -348,7 +349,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Tagged<Code> code = builtins->code(builtin);
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
@@ -366,7 +367,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Tagged<Code> code = builtins->code(builtin);
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
@@ -402,7 +403,7 @@ EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
   if (DEBUG_BOOL) {
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
-      Code code = builtins->code(builtin);
+      Tagged<Code> code = builtins->code(builtin);
       CHECK_EQ(d.InstructionSizeOf(builtin), code->instruction_size());
     }
   }

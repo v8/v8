@@ -307,7 +307,7 @@ void StringStream::PrintUsingMap(Tagged<JSObject> js_object) {
     PropertyDetails details = descs->GetDetails(i);
     if (details.location() == PropertyLocation::kField) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      Object key = descs->GetKey(i);
+      Tagged<Object> key = descs->GetKey(i);
       if (IsString(key) || IsNumber(key)) {
         int len = 3;
         if (IsString(key)) {
@@ -321,7 +321,7 @@ void StringStream::PrintUsingMap(Tagged<JSObject> js_object) {
         }
         Add(": ");
         FieldIndex index = FieldIndex::ForDescriptor(map, i);
-        Object value = js_object->RawFastPropertyAt(index);
+        Tagged<Object> value = js_object->RawFastPropertyAt(index);
         Add("%o\n", value);
       }
     }
@@ -332,7 +332,7 @@ void StringStream::PrintFixedArray(Tagged<FixedArray> array,
                                    unsigned int limit) {
   ReadOnlyRoots roots = array->GetReadOnlyRoots();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
-    Object element = array->get(i);
+    Tagged<Object> element = array->get(i);
     if (IsTheHole(element, roots)) continue;
     for (int len = 1; len < 18; len++) {
       Put(' ');
@@ -371,7 +371,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       isolate->string_stream_debug_object_cache();
   Add("-- ObjectCacheKey --\n\n");
   for (size_t i = 0; i < debug_object_cache->size(); i++) {
-    HeapObject printee = *(*debug_object_cache)[i];
+    Tagged<HeapObject> printee = *(*debug_object_cache)[i];
     Add(" #%d# %p: ", static_cast<int>(i),
         reinterpret_cast<void*>(printee.ptr()));
     ShortPrint(printee, this);
@@ -383,7 +383,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       }
       PrintUsingMap(JSObject::cast(printee));
       if (IsJSArray(printee)) {
-        JSArray array = JSArray::cast(printee);
+        Tagged<JSArray> array = JSArray::cast(printee);
         if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length = static_cast<uint32_t>(
@@ -418,7 +418,7 @@ void StringStream::PrintFunction(Tagged<JSFunction> fun,
 
 void StringStream::PrintPrototype(Tagged<JSFunction> fun,
                                   Tagged<Object> receiver) {
-  Object name = fun->shared()->Name();
+  Tagged<Object> name = fun->shared()->Name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
   if (IsNullOrUndefined(receiver, isolate) || IsTheHole(receiver, isolate) ||
@@ -434,7 +434,7 @@ void StringStream::PrintPrototype(Tagged<JSFunction> fun,
                                 kStartAtReceiver);
          !iter.IsAtEnd(); iter.Advance()) {
       if (IsJSProxy(iter.GetCurrent())) break;
-      Object key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
+      Tagged<Object> key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
       if (!IsUndefined(key, isolate)) {
         if (!IsString(name) || !IsString(key) ||
             !String::cast(name)->Equals(String::cast(key))) {

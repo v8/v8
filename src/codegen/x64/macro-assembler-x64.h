@@ -87,8 +87,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Push(Register src);
   void Push(Operand src);
   void Push(Immediate value);
-  void Push(Smi smi);
-  void Push(TaggedIndex index) {
+  void Push(Tagged<Smi> smi);
+  void Push(Tagged<TaggedIndex> index) {
     Push(Immediate(static_cast<uint32_t>(index.ptr())));
   }
   void Push(Handle<HeapObject> source);
@@ -210,8 +210,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Popcntq(Register dst, Register src);
   void Popcntq(Register dst, Operand src);
 
-  void Cmp(Register dst, Smi src);
-  void Cmp(Operand dst, Smi src);
+  void Cmp(Register dst, Tagged<Smi> src);
+  void Cmp(Operand dst, Tagged<Smi> src);
   void Cmp(Register dst, int32_t src);
 
   void CmpTagged(const Register& src1, const Register& src2) {
@@ -280,10 +280,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
   void SmiCompare(Register smi1, Register smi2);
-  void SmiCompare(Register dst, Smi src);
+  void SmiCompare(Register dst, Tagged<Smi> src);
   void SmiCompare(Register dst, Operand src);
   void SmiCompare(Operand dst, Register src);
-  void SmiCompare(Operand dst, Smi src);
+  void SmiCompare(Operand dst, Tagged<Smi> src);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
@@ -319,7 +319,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result.
   // No overflow testing on the result is done.
-  void SmiAddConstant(Operand dst, Smi constant);
+  void SmiAddConstant(Operand dst, Tagged<Smi> constant);
 
   // Specialized operations
 
@@ -372,16 +372,20 @@ class V8_EXPORT_PRIVATE MacroAssembler
     }
   }
   void Move(Operand dst, intptr_t x);
-  void Move(Register dst, Smi source);
+  void Move(Register dst, Tagged<Smi> source);
 
-  void Move(Operand dst, Smi source) {
+  void Move(Operand dst, Tagged<Smi> source) {
     Register constant = GetSmiConstant(source);
     movq(dst, constant);
   }
 
-  void Move(Register dst, TaggedIndex source) { Move(dst, source.ptr()); }
+  void Move(Register dst, Tagged<TaggedIndex> source) {
+    Move(dst, source.ptr());
+  }
 
-  void Move(Operand dst, TaggedIndex source) { Move(dst, source.ptr()); }
+  void Move(Operand dst, Tagged<TaggedIndex> source) {
+    Move(dst, source.ptr());
+  }
 
   void Move(Register dst, ExternalReference ext);
 
@@ -677,7 +681,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // location.
   void StoreTaggedField(Operand dst_field_operand, Immediate immediate);
   void StoreTaggedField(Operand dst_field_operand, Register value);
-  void StoreTaggedSignedField(Operand dst_field_operand, Smi value);
+  void StoreTaggedSignedField(Operand dst_field_operand, Tagged<Smi> value);
   void AtomicStoreTaggedField(Operand dst_field_operand, Register value);
 
   // The following macros work even when pointer compression is not enabled.
@@ -1014,7 +1018,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
-  Register GetSmiConstant(Smi value);
+  Register GetSmiConstant(Tagged<Smi> value);
 
   // Drops arguments assuming that the return address was already popped.
   void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,

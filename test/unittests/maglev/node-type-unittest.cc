@@ -89,9 +89,9 @@ TEST_F(MaglevTest, NodeTypeIsClosedUnderIntersect) {
 // Ensure StaticTypeForMap is consistent with actual maps.
 TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
-    Object obj = isolate()->roots_table().slot(idx).load(isolate());
+    Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Map map = Map::cast(obj);
+    Tagged<Map> map = Map::cast(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {
@@ -106,9 +106,9 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
 // Ensure CombineType is consistent with actual maps.
 TEST_F(MaglevTest, NodeTypeCombineIsConsistent) {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
-    Object obj = isolate()->roots_table().slot(idx).load(isolate());
+    Tagged<Object> obj = isolate()->roots_table().slot(idx).load(isolate());
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Map map = Map::cast(obj);
+    Tagged<Map> map = Map::cast(obj);
     compiler::MapRef map_ref = MakeRef(broker(), map);
 
     for (NodeType a : kAllNodeTypes) {

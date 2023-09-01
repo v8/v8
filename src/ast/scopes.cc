@@ -412,7 +412,7 @@ bool Scope::ContainsAsmModule() const {
 
 template <typename IsolateT>
 Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
-                                    ScopeInfo scope_info,
+                                    Tagged<ScopeInfo> scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
@@ -502,7 +502,7 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
     scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
-                                                 : ScopeInfo();
+                                                 : Tagged<ScopeInfo>();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables) {
@@ -534,12 +534,12 @@ template EXPORT_TEMPLATE_DEFINE(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
-        Isolate* isolate, Zone* zone, ScopeInfo scope_info,
+        Isolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
-        LocalIsolate* isolate, Zone* zone, ScopeInfo scope_info,
+        LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 

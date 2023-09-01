@@ -58,7 +58,7 @@
 namespace v8 {
 namespace internal {
 
-PropertyDetails::PropertyDetails(Smi smi) { value_ = smi.value(); }
+PropertyDetails::PropertyDetails(Tagged<Smi> smi) { value_ = smi.value(); }
 
 Tagged<Smi> PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
@@ -71,14 +71,6 @@ int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), PropertyLocation::kField);
   return 1;
 }
-
-inline bool IsSmi(Tagged<Object> obj) { return obj.IsSmi(); }
-inline bool IsSmi(Tagged<HeapObject> obj) { return false; }
-inline bool IsSmi(Tagged<Smi> obj) { return true; }
-
-inline bool IsHeapObject(Tagged<Object> obj) { return obj.IsHeapObject(); }
-inline bool IsHeapObject(Tagged<HeapObject> obj) { return true; }
-inline bool IsHeapObject(Tagged<Smi> obj) { return false; }
 
 bool IsTaggedIndex(Tagged<Object> obj) {
   return IsSmi(obj) && TaggedIndex::IsValid(TaggedIndex(obj.ptr()).value());
@@ -230,11 +222,12 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value) {
 
 // static
 template <typename CompareAndSwapImpl>
-Object HeapObject::SeqCst_CompareAndSwapField(
-    Object expected, Object value, CompareAndSwapImpl compare_and_swap_impl) {
-  Object actual_expected = expected;
+Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
+    Tagged<Object> expected, Tagged<Object> value,
+    CompareAndSwapImpl compare_and_swap_impl) {
+  Tagged<Object> actual_expected = expected;
   do {
-    Object old_value = compare_and_swap_impl(actual_expected, value);
+    Tagged<Object> old_value = compare_and_swap_impl(actual_expected, value);
     if (old_value == actual_expected || !IsNumber(old_value) ||
         !IsNumber(actual_expected)) {
       return old_value;
@@ -487,7 +480,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
 // static
 bool IsPrimitive(Tagged<Object> obj) {
   if (obj.IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(obj);
+  Tagged<HeapObject> this_heap_object = HeapObject::cast(obj);
   PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
   return IsPrimitiveMap(this_heap_object->map(cage_base));
 }
@@ -512,8 +505,9 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
   if (IsJSGlobalProxy(obj, cage_base)) {
-    const JSGlobalProxy proxy = JSGlobalProxy::cast(obj);
-    JSGlobalObject global = proxy->GetIsolate()->context()->global_object();
+    const Tagged<JSGlobalProxy> proxy = JSGlobalProxy::cast(obj);
+    Tagged<JSGlobalObject> global =
+        proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
   return obj->map(cage_base)->is_access_check_needed();
@@ -605,7 +599,7 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
   if (IsSmi(obj)) {
     return Representation::Smi();
   }
-  HeapObject heap_object = HeapObject::cast(obj);
+  Tagged<HeapObject> heap_object = HeapObject::cast(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
   } else if (IsUninitialized(heap_object,
@@ -815,12 +809,12 @@ void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
   i::ResetLazilyInitializedExternalPointerField(field_address(offset));
 }
 
-Object HeapObject::ReadIndirectPointerField(size_t offset) const {
+Tagged<Object> HeapObject::ReadIndirectPointerField(size_t offset) const {
   return i::ReadIndirectPointerField(field_address(offset));
 }
 
 void HeapObject::InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
-                                                Code owning_code,
+                                                Tagged<Code> owning_code,
                                                 Address entrypoint) {
   i::InitCodePointerTableEntryField(field_address(offset), isolate, owning_code,
                                     entrypoint);
@@ -855,7 +849,7 @@ IndirectPointerSlot HeapObject::RawIndirectPointerField(int byte_offset) const {
   return IndirectPointerSlot(field_address(byte_offset));
 }
 
-MapWord MapWord::FromMap(const Map map) {
+MapWord MapWord::FromMap(const Tagged<Map> map) {
   DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
 #ifdef V8_MAP_PACKING
   return MapWord(Pack(map.ptr()));
@@ -883,8 +877,8 @@ bool MapWord::IsForwardingAddress() const {
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-MapWord MapWord::FromForwardingAddress(HeapObject map_word_host,
-                                       HeapObject object) {
+MapWord MapWord::FromForwardingAddress(Tagged<HeapObject> map_word_host,
+                                       Tagged<HeapObject> object) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   // When external code space is enabled forwarding pointers are encoded as
   // Smi representing a diff from the source object address in kObjectAlignment
@@ -899,7 +893,8 @@ MapWord MapWord::FromForwardingAddress(HeapObject map_word_host,
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-HeapObject MapWord::ToForwardingAddress(HeapObject map_word_host) {
+Tagged<HeapObject> MapWord::ToForwardingAddress(
+    Tagged<HeapObject> map_word_host) {
   DCHECK(IsForwardingAddress());
 #ifdef V8_EXTERNAL_CODE_SPACE
   // When external code space is enabled forwarding pointers are encoded as
@@ -958,51 +953,55 @@ Tagged<Map> HeapObject::map(PtrComprCageBase cage_base) const {
   return map_word(cage_base, kRelaxedLoad).ToMap();
 }
 
-void HeapObject::set_map(Map value) {
+void HeapObject::set_map(Tagged<Map> value) {
   set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
                                   VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
+void HeapObject::set_map(Tagged<Map> value, ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
                                   VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map_safe_transition(Map value) {
+void HeapObject::set_map_safe_transition(Tagged<Map> value) {
   set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
                                   VerificationMode::kSafeMapTransition);
 }
 
-void HeapObject::set_map_safe_transition(Map value, ReleaseStoreTag tag) {
+void HeapObject::set_map_safe_transition(Tagged<Map> value,
+                                         ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
                                   VerificationMode::kSafeMapTransition);
 }
 
-void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
                                                           RelaxedStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
-void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
                                                           ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Map value, RelaxedStoreTag tag) {
+void HeapObject::set_map_no_write_barrier(Tagged<Map> value,
+                                          RelaxedStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map_no_write_barrier(Map value, ReleaseStoreTag tag) {
+void HeapObject::set_map_no_write_barrier(Tagged<Map> value,
+                                          ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
 template <HeapObject::EmitWriteBarrier emit_write_barrier, typename MemoryOrder>
-void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
+void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
+                         VerificationMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
   // maps as immutable. Therefore we are not allowed to mutate them here.
@@ -1036,14 +1035,20 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
 #endif
 }
 
-void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
+void HeapObject::set_map_after_allocation(Tagged<Map> value,
+                                          WriteBarrierMode mode) {
   set_map_word(value, kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
     CombinedWriteBarrier(*this, map_slot(), value, mode);
   } else {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
+    SLOW_DCHECK(
+        // We allow writes of a null map before root initialisation.
+        value->is_null() ? !GetIsolateFromWritableObject(*this)
+                                ->read_only_heap()
+                                ->roots_init_complete()
+                         : !WriteBarrier::IsRequired(*this, value));
   }
 #endif
 }
@@ -1069,11 +1074,11 @@ MapWord HeapObject::map_word(PtrComprCageBase cage_base,
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
-void HeapObject::set_map_word(Map map, RelaxedStoreTag) {
+void HeapObject::set_map_word(Tagged<Map> map, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, MapWord::FromMap(map));
 }
 
-void HeapObject::set_map_word_forwarded(HeapObject target_object,
+void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(
       *this, MapWord::FromForwardingAddress(*this, target_object));
@@ -1092,18 +1097,18 @@ MapWord HeapObject::map_word(PtrComprCageBase cage_base,
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 
-void HeapObject::set_map_word(Map map, ReleaseStoreTag) {
+void HeapObject::set_map_word(Tagged<Map> map, ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(*this, MapWord::FromMap(map));
 }
 
-void HeapObject::set_map_word_forwarded(HeapObject target_object,
+void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(
       *this, MapWord::FromForwardingAddress(*this, target_object));
 }
 
 bool HeapObject::release_compare_and_swap_map_word_forwarded(
-    MapWord old_map_word, HeapObject new_target_object) {
+    MapWord old_map_word, Tagged<HeapObject> new_target_object) {
   Tagged_t result = MapField::Release_CompareAndSwap(
       *this, old_map_word,
       MapWord::FromForwardingAddress(*this, new_target_object));
@@ -1183,7 +1188,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 }
 
 // static
-AllocationAlignment HeapObject::RequiredAlignment(Map map) {
+AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map) {
   // TODO(v8:4153): We should think about requiring double alignment
   // in general for ByteArray, since they are used as backing store for typed
   // arrays now.
@@ -1302,7 +1307,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 }
 
 // static
-Object Object::GetSimpleHash(Object object) {
+Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(object)) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
@@ -1346,13 +1351,13 @@ Object Object::GetSimpleHash(Object object) {
 }
 
 // static
-Object Object::GetHash(Tagged<Object> obj) {
+Tagged<Object> Object::GetHash(Tagged<Object> obj) {
   DisallowGarbageCollection no_gc;
-  Object hash = GetSimpleHash(obj);
+  Tagged<Object> hash = GetSimpleHash(obj);
   if (IsSmi(hash)) return hash;
 
   DCHECK(IsJSReceiver(obj));
-  JSReceiver receiver = JSReceiver::cast(obj);
+  Tagged<JSReceiver> receiver = JSReceiver::cast(obj);
   return receiver->GetIdentityHash();
 }
 
@@ -1473,7 +1478,8 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
                                                     PACKED_ELEMENTS, 2);
 }
 
-FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
+Tagged<FreshlyAllocatedBigInt> FreshlyAllocatedBigInt::cast(
+    Tagged<Object> object) {
   SLOW_DCHECK(IsBigInt(object));
   return FreshlyAllocatedBigInt(object.ptr());
 }

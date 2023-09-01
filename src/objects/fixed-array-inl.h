@@ -240,7 +240,7 @@ Tagged<Object> FixedArray::compare_and_swap(int index, Tagged<Object> expected,
                                             WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  Object previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+  Tagged<Object> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
       *this, OffsetOfElementAt(index), expected, value);
   if (previous_value == expected) {
     CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
@@ -301,7 +301,7 @@ inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
-int BinarySearch(T* array, Name name, int valid_entries,
+int BinarySearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   DCHECK_IMPLIES(search_mode == VALID_ENTRIES, out_insertion_index == nullptr);
   int low = 0;
@@ -318,7 +318,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
 
   while (low != high) {
     int mid = low + (high - low) / 2;
-    Name mid_name = array->GetSortedKey(mid);
+    Tagged<Name> mid_name = array->GetSortedKey(mid);
     uint32_t mid_hash = mid_name->hash();
 
     if (mid_hash >= hash) {
@@ -330,7 +330,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
 
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
-    Name entry = array->GetKey(InternalIndex(sort_index));
+    Tagged<Name> entry = array->GetKey(InternalIndex(sort_index));
     uint32_t current_hash = entry->hash();
     if (current_hash != hash) {
       // 'search_mode == ALL_ENTRIES' here and below is not needed since
@@ -360,14 +360,14 @@ int BinarySearch(T* array, Name name, int valid_entries,
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template <SearchMode search_mode, typename T>
-int LinearSearch(T* array, Name name, int valid_entries,
+int LinearSearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
     uint32_t hash = name->hash();
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
-      Name entry = array->GetKey(InternalIndex(sorted_index));
+      Tagged<Name> entry = array->GetKey(InternalIndex(sorted_index));
       uint32_t current_hash = entry->hash();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
@@ -388,8 +388,8 @@ int LinearSearch(T* array, Name name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
-           bool concurrent_search) {
+int Search(T* array, Tagged<Name> name, int valid_entries,
+           int* out_insertion_index, bool concurrent_search) {
   SLOW_DCHECK_IMPLIES(!concurrent_search, array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
@@ -428,7 +428,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   return base::ReadUnalignedValue<uint64_t>(field_address(offset));
 }
 
-Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
+Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
                                      Isolate* isolate) {
   if (array->is_the_hole(index)) {
     return ReadOnlyRoots(isolate).the_hole_value_handle();
@@ -517,8 +517,8 @@ MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
 }
 
 void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
-                                  WeakFixedArray src, int src_index, int len,
-                                  WriteBarrierMode mode) {
+                                  Tagged<WeakFixedArray> src, int src_index,
+                                  int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
   DCHECK_LE(src_index + len, src->length());
@@ -552,8 +552,8 @@ MaybeObjectSlot WeakArrayList::data_start() {
 }
 
 void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
-                                 WeakArrayList src, int src_index, int len,
-                                 WriteBarrierMode mode) {
+                                 Tagged<WeakArrayList> src, int src_index,
+                                 int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
   DCHECK_LE(src_index + len, src->capacity());
@@ -688,7 +688,7 @@ void ByteArray::clear_padding() {
   memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
-ByteArray ByteArray::FromDataStartAddress(Address address) {
+Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
 }

@@ -86,7 +86,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   const bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
-  HeapObject object;
+  Tagged<HeapObject> object;
   AllocationResult allocation;
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -195,11 +195,12 @@ AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
 }
 
 template <HeapAllocator::AllocationRetryMode mode>
-V8_WARN_UNUSED_RESULT V8_INLINE HeapObject HeapAllocator::AllocateRawWith(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+V8_WARN_UNUSED_RESULT V8_INLINE Tagged<HeapObject>
+HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
+                               AllocationOrigin origin,
+                               AllocationAlignment alignment) {
   AllocationResult result;
-  HeapObject object;
+  Tagged<HeapObject> object;
   size = ALIGN_TO_ALLOCATION_ALIGNMENT(size);
   if (allocation == AllocationType::kYoung) {
     result = AllocateRaw<AllocationType::kYoung>(size, origin, alignment);

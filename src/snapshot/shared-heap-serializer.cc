@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 // static
-bool SharedHeapSerializer::CanBeInSharedOldSpace(HeapObject obj) {
+bool SharedHeapSerializer::CanBeInSharedOldSpace(Tagged<HeapObject> obj) {
   if (ReadOnlyHeap::Contains(obj)) return false;
   if (IsString(obj)) {
     return IsInternalizedString(obj) ||
@@ -22,7 +22,8 @@ bool SharedHeapSerializer::CanBeInSharedOldSpace(HeapObject obj) {
 }
 
 // static
-bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(HeapObject obj) {
+bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(
+    Tagged<HeapObject> obj) {
   // To keep the shared heap object cache lean, only include objects that should
   // not be duplicated. Currently, that is only internalized strings. In-place
   // internalizable strings will still be allocated in the shared heap by the
@@ -54,7 +55,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   // This is called after serialization of the startup and context snapshots
   // which entries are added to the shared heap object cache. Terminate the
   // cache with an undefined.
-  Object undefined = ReadOnlyRoots(isolate()).undefined_value();
+  Tagged<Object> undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kSharedHeapObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
@@ -70,7 +71,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
       &serialized_objects_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-    HeapObject obj = HeapObject::cast(it.key());
+    Tagged<HeapObject> obj = HeapObject::cast(it.key());
     CHECK(CanBeInSharedOldSpace(obj));
     CHECK(!ReadOnlyHeap::Contains(obj));
   }
@@ -141,7 +142,7 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
       DCHECK_EQ(root, Root::kStringTable);
       Isolate* isolate = serializer_->isolate();
       for (OffHeapObjectSlot current = start; current < end; ++current) {
-        Object obj = current.load(isolate);
+        Tagged<Object> obj = current.load(isolate);
         if (IsHeapObject(obj)) {
           DCHECK(IsInternalizedString(obj));
           serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate),
@@ -165,14 +166,14 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   DCHECK(CanBeInSharedOldSpace(*obj) || ReadOnlyHeap::Contains(*obj));
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
+    Tagged<HeapObject> raw = *obj;
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
   if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;
   {
     DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
+    Tagged<HeapObject> raw = *obj;
     if (SerializeBackReference(raw)) return;
     CheckRehashability(raw);
 

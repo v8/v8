@@ -1817,7 +1817,7 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
 std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     PatternKind kind) {
-  Managed<icu::DateIntervalFormat> managed_format =
+  Tagged<Managed<icu::DateIntervalFormat>> managed_format =
       date_time_format->icu_date_interval_format();
   if (kind == PatternKind::kDate && managed_format->get()) {
     return std::unique_ptr<icu::DateIntervalFormat>(

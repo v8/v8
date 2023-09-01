@@ -665,7 +665,7 @@ inline void MaglevAssembler::Move(Register dst, ExternalReference src) {
 inline void MaglevAssembler::Move(Register dst, Register src) {
   MacroAssembler::Move(dst, src);
 }
-inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
+inline void MaglevAssembler::Move(Register dst, Tagged<TaggedIndex> i) {
   Mov(dst, i.ptr());
 }
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
@@ -869,7 +869,7 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
                                            higher_limit);
 }
 
-inline void MaglevAssembler::CompareTagged(Register reg, Smi smi) {
+inline void MaglevAssembler::CompareTagged(Register reg, Tagged<Smi> smi) {
   CmpTagged(reg, Immediate(smi));
 }
 
@@ -1004,7 +1004,7 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
   CompareAndBranch(r1.W(), Immediate(value), cond, target);
 }
 
-inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Smi value,
+inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
                                                  Condition cond, Label* target,
                                                  Label::Distance distance) {
   AssertSmi(r1);
@@ -1020,7 +1020,8 @@ inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
   CompareAndBranch(scratch.W(), Immediate(right), cond, target);
 }
 
-inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
+inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1,
+                                                    Tagged<Smi> value,
                                                     Condition cond,
                                                     Label* target,
                                                     Label::Distance distance) {

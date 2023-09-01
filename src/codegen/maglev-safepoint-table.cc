@@ -13,14 +13,14 @@ namespace v8 {
 namespace internal {
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           Code code)
+                                           Tagged<Code> code)
     : MaglevSafepointTable(code->InstructionStart(isolate, pc),
                            code->safepoint_table_address()) {
   DCHECK(code->is_maglevved());
 }
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           GcSafeCode code)
+                                           Tagged<GcSafeCode> code)
     : MaglevSafepointTable(code->InstructionStart(isolate, pc),
                            code->safepoint_table_address()) {
   DCHECK(code->is_maglevved());
@@ -83,7 +83,7 @@ MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
 
 // static
 MaglevSafepointEntry MaglevSafepointTable::FindEntry(Isolate* isolate,
-                                                     GcSafeCode code,
+                                                     Tagged<GcSafeCode> code,
                                                      Address pc) {
   MaglevSafepointTable table(isolate, pc, code);
   return table.FindEntry(pc);

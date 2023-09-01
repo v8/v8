@@ -545,7 +545,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
-  TNode<Smi> SmiConstant(Smi value);
+  TNode<Smi> SmiConstant(Tagged<Smi> value);
   TNode<Smi> SmiConstant(int value);
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
@@ -582,8 +582,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
   bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
   bool TryToIntPtrConstant(TNode<Smi> tnode, intptr_t* out_value);
-  bool TryToSmiConstant(TNode<IntegralT> node, Smi* out_value);
-  bool TryToSmiConstant(TNode<Smi> node, Smi* out_value);
+  bool TryToSmiConstant(TNode<IntegralT> node, Tagged<Smi>* out_value);
+  bool TryToSmiConstant(TNode<Smi> node, Tagged<Smi>* out_value);
 
   bool IsUndefinedConstant(TNode<Object> node);
   bool IsNullConstant(TNode<Object> node);

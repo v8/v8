@@ -128,7 +128,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   // Returns true if this LookupIterator has an index that counts as an
   // element for the given object (up to kMaxArrayIndex for JSArrays,
   // any integer for JSTypedArrays).
-  inline bool IsElement(JSReceiver object) const;
+  inline bool IsElement(Tagged<JSReceiver> object) const;
 
   inline bool IsPrivateName() const;
 
@@ -248,7 +248,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   Handle<Map> GetReceiverMap() const;
 
-  V8_WARN_UNUSED_RESULT inline JSReceiver NextHolder(Map map);
+  V8_WARN_UNUSED_RESULT inline Tagged<JSReceiver> NextHolder(Tagged<Map> map);
 
   bool is_js_array_element(bool is_element) const {
     return is_element && index_ <= JSArray::kMaxArrayIndex;
@@ -256,17 +256,17 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   V8_EXPORT_PRIVATE void Start();
   template <bool is_element>
-  void NextInternal(Map map, JSReceiver holder);
+  void NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder);
   template <bool is_element>
-  inline State LookupInHolder(Map map, JSReceiver holder) {
+  inline State LookupInHolder(Tagged<Map> map, Tagged<JSReceiver> holder) {
     return IsSpecialReceiverMap(map)
                ? LookupInSpecialHolder<is_element>(map, holder)
                : LookupInRegularHolder<is_element>(map, holder);
   }
   template <bool is_element>
-  State LookupInRegularHolder(Map map, JSReceiver holder);
+  State LookupInRegularHolder(Tagged<Map> map, Tagged<JSReceiver> holder);
   template <bool is_element>
-  State LookupInSpecialHolder(Map map, JSReceiver holder);
+  State LookupInSpecialHolder(Tagged<Map> map, Tagged<JSReceiver> holder);
   template <bool is_element>
   void RestartLookupForNonMaskingInterceptors() {
     RestartInternal<is_element>(InterceptorState::kProcessNonMasking);
@@ -275,8 +275,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void RestartInternal(InterceptorState interceptor_state);
   Handle<Object> FetchValue(AllocationPolicy allocation_policy =
                                 AllocationPolicy::kAllocationAllowed) const;
-  bool CanStayConst(Object value) const;
-  bool DictCanStayConst(Object value) const;
+  bool CanStayConst(Tagged<Object> value) const;
+  bool DictCanStayConst(Tagged<Object> value) const;
 
   Handle<Object> CompareAndSwapInternal(Handle<Object> desired,
                                         Handle<Object> value,
@@ -286,9 +286,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void ReloadPropertyInformation();
 
   template <bool is_element>
-  bool SkipInterceptor(JSObject holder);
+  bool SkipInterceptor(Tagged<JSObject> holder);
   template <bool is_element>
-  inline InterceptorInfo GetInterceptor(JSObject holder) const;
+  inline Tagged<InterceptorInfo> GetInterceptor(Tagged<JSObject> holder) const;
 
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
@@ -307,7 +307,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
       Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
       Configuration configuration);
 
-  State NotFound(JSReceiver const holder) const;
+  State NotFound(Tagged<JSReceiver> const holder) const;
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
@@ -354,33 +354,34 @@ class ConcurrentLookupIterator final : public AllStatic {
   // consistent among themselves (e.g. the elements kind may not match the
   // given elements backing store). We are thus extra-careful to handle
   // exceptional situations.
-  V8_EXPORT_PRIVATE static base::Optional<Object> TryGetOwnCowElement(
-      Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
-      int array_length, size_t index);
+  V8_EXPORT_PRIVATE static base::Optional<Tagged<Object>> TryGetOwnCowElement(
+      Isolate* isolate, Tagged<FixedArray> array_elements,
+      ElementsKind elements_kind, int array_length, size_t index);
 
   // As above, the contract is that the elements and elements kind should be
   // read from the same holder, but this function is implemented defensively to
   // tolerate concurrency issues.
   V8_EXPORT_PRIVATE static Result TryGetOwnConstantElement(
-      Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
-      JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
-      size_t index);
+      Tagged<Object>* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+      Tagged<JSObject> holder, Tagged<FixedArrayBase> elements,
+      ElementsKind elements_kind, size_t index);
 
   // Implements the own data property lookup for the specialized case of
   // strings.
-  V8_EXPORT_PRIVATE static Result TryGetOwnChar(String* result_out,
+  V8_EXPORT_PRIVATE static Result TryGetOwnChar(Tagged<String>* result_out,
                                                 Isolate* isolate,
                                                 LocalIsolate* local_isolate,
-                                                String string, size_t index);
+                                                Tagged<String> string,
+                                                size_t index);
 
   // This method reimplements the following sequence in a concurrent setting:
   //
   // LookupIterator it(holder, isolate, name, LookupIterator::OWN);
   // it.TryLookupCachedProperty();
   // if (it.state() == LookupIterator::DATA) it.GetPropertyCell();
-  V8_EXPORT_PRIVATE static base::Optional<PropertyCell> TryGetPropertyCell(
-      Isolate* isolate, LocalIsolate* local_isolate,
-      Handle<JSGlobalObject> holder, Handle<Name> name);
+  V8_EXPORT_PRIVATE static base::Optional<Tagged<PropertyCell>>
+  TryGetPropertyCell(Isolate* isolate, LocalIsolate* local_isolate,
+                     Handle<JSGlobalObject> holder, Handle<Name> name);
 };
 
 }  // namespace internal

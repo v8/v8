@@ -89,7 +89,7 @@ void FinalizationRegistryCleanupTask::RunInternal() {
                                             finalization_registry, callback);
   if (finalization_registry->NeedsCleanup() &&
       !finalization_registry->scheduled_for_cleanup()) {
-    auto nop = [](HeapObject, ObjectSlot, Object) {};
+    auto nop = [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {};
     heap_->EnqueueDirtyJSFinalizationRegistry(*finalization_registry, nop);
   }
 

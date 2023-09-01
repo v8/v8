@@ -53,7 +53,7 @@ BUILTIN(SymbolKeyFor) {
   }
   Handle<Symbol> symbol = Handle<Symbol>::cast(obj);
   DisallowGarbageCollection no_gc;
-  Object result;
+  Tagged<Object> result;
   if (symbol->is_in_public_symbol_table()) {
     result = symbol->description();
     DCHECK(IsString(result));

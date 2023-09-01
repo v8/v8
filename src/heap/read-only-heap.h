@@ -72,15 +72,15 @@ class ReadOnlyHeap {
   // Returns whether the address is within the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(Address address);
   // Returns whether the object resides in the read-only space.
-  V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
+  V8_EXPORT_PRIVATE static bool Contains(Tagged<HeapObject> object);
   // Gets read-only roots from an appropriate root list. Shared read only root
   // must be initialized
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
-      HeapObject object);
+      Tagged<HeapObject> object);
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
-      HeapObject object);
+      Tagged<HeapObject> object);
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
@@ -171,7 +171,7 @@ class V8_EXPORT_PRIVATE ReadOnlyPageObjectIterator final {
                              SkipFreeSpaceOrFiller skip_free_space_or_filler =
                                  SkipFreeSpaceOrFiller::kYes);
 
-  HeapObject Next();
+  Tagged<HeapObject> Next();
 
  private:
   void Reset(const ReadOnlyPage* page);

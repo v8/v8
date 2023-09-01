@@ -20,19 +20,19 @@
 namespace v8 {
 namespace internal {
 
-ByteArray Code::raw_position_table() const {
+Tagged<ByteArray> Code::raw_position_table() const {
   return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
 }
 
-HeapObject Code::raw_deoptimization_data_or_interpreter_data() const {
+Tagged<HeapObject> Code::raw_deoptimization_data_or_interpreter_data() const {
   return TaggedField<HeapObject,
                      kDeoptimizationDataOrInterpreterDataOffset>::load(*this);
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   DisallowGarbageCollection no_gc;
-  HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
-  InstructionStream istream = unchecked_instruction_stream();
+  Tagged<HeapObject> undefined = ReadOnlyRoots(heap).undefined_value();
+  Tagged<InstructionStream> istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   {
     CodePageMemoryModificationScope memory_modification_scope(istream);
@@ -97,7 +97,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       if (OffHeapInstructionStream::PcIsOffHeap(isolate, target_address))
         continue;
 
-      Code target = Code::FromTargetAddress(target_address);
+      Tagged<Code> target = Code::FromTargetAddress(target_address);
       if (Builtins::IsIsolateIndependentBuiltin(target)) {
         continue;
       }
@@ -113,15 +113,15 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 #endif
 }
 
-bool Code::Inlines(SharedFunctionInfo sfi) {
+bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
-  DeoptimizationData const data =
+  Tagged<DeoptimizationData> const data =
       DeoptimizationData::cast(deoptimization_data());
   if (data->length() == 0) return false;
   if (data->SharedFunctionInfo() == sfi) return true;
-  DeoptimizationLiteralArray const literals = data->LiteralArray();
+  Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
     if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
@@ -133,7 +133,7 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
 
 namespace {
 
-void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
+void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Tagged<Code> code,
                           Address begin, size_t size, Address current_pc,
                           size_t range_limit = 0) {
   Address end = begin + size;
@@ -147,14 +147,15 @@ void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 }
 
 void DisassembleOnlyCode(const char* name, std::ostream& os, Isolate* isolate,
-                         Code code, Address current_pc, size_t range_limit) {
+                         Tagged<Code> code, Address current_pc,
+                         size_t range_limit) {
   int code_size = code->instruction_size();
   DisassembleCodeRange(isolate, os, code, code->instruction_start(), code_size,
                        current_pc, range_limit);
 }
 
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                 Code code, Address current_pc) {
+                 Tagged<Code> code, Address current_pc) {
   CodeKind kind = code->kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
   if (name == nullptr && code->is_builtin()) {
@@ -228,7 +229,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   if (CodeKindCanDeoptimize(kind)) {
-    DeoptimizationData data =
+    Tagged<DeoptimizationData> data =
         DeoptimizationData::cast(code->deoptimization_data());
     data->PrintDeoptimizationData(os);
   }

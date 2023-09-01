@@ -26,13 +26,15 @@ using StringBuilderSubstringPosition =
                    kStringBuilderConcatHelperPositionBits>;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String special, sinkchar* sink,
-                               FixedArray fixed_array, int array_length);
+void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
+                               Tagged<FixedArray> fixed_array,
+                               int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
-                              int array_length, bool* one_byte);
+int StringBuilderConcatLength(int special_length,
+                              Tagged<FixedArray> fixed_array, int array_length,
+                              bool* one_byte);
 
 class FixedArrayBuilder {
  public:
@@ -203,7 +205,7 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtend {
    public:
-    NoExtend(String string, int offset,
+    NoExtend(Tagged<String> string, int offset,
              const DisallowGarbageCollection& no_gc) {
       DCHECK(IsSeqOneByteString(string) || IsSeqTwoByteString(string));
       if (sizeof(DestChar) == 1) {
@@ -327,11 +329,11 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   if (sizeof(DestChar) == 1) {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
     SeqOneByteString::cast(*current_part_)
-        .SeqOneByteStringSet(current_index_++, c);
+        ->SeqOneByteStringSet(current_index_++, c);
   } else {
     DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
     SeqTwoByteString::cast(*current_part_)
-        .SeqTwoByteStringSet(current_index_++, c);
+        ->SeqTwoByteStringSet(current_index_++, c);
   }
   if (current_index_ == part_length_) Extend();
   DCHECK(HasValidCurrentIndex());

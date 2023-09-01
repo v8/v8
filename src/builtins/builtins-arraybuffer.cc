@@ -39,9 +39,10 @@ namespace internal {
 
 namespace {
 
-Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
-                       Handle<JSReceiver> new_target, Handle<Object> length,
-                       Handle<Object> max_length, InitializedFlag initialized) {
+Tagged<Object> ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
+                               Handle<JSReceiver> new_target,
+                               Handle<Object> length, Handle<Object> max_length,
+                               InitializedFlag initialized) {
   SharedFlag shared = *target != target->native_context()->array_buffer_fun()
                           ? SharedFlag::kShared
                           : SharedFlag::kNotShared;
@@ -167,8 +168,8 @@ BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
                          InitializedFlag::kUninitialized);
 }
 
-static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
-                          const char* kMethodName, bool is_shared) {
+static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
+                                  const char* kMethodName, bool is_shared) {
   HandleScope scope(isolate);
   Handle<Object> start = args.at(1);
   Handle<Object> end = args.atOrUndefined(isolate, 2);
@@ -360,8 +361,8 @@ BUILTIN(ArrayBufferPrototypeSlice) {
   return SliceHelper(args, isolate, kMethodName, false);
 }
 
-static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
-                           const char* kMethodName, bool is_shared) {
+static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
+                                   const char* kMethodName, bool is_shared) {
   HandleScope scope(isolate);
 
   // 1 Let O be the this value.
@@ -505,10 +506,11 @@ namespace {
 
 enum PreserveResizability { kToFixedLength, kPreserveResizability };
 
-Object ArrayBufferTransfer(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                           Handle<Object> new_length,
-                           PreserveResizability preserve_resizability,
-                           const char* method_name) {
+Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
+                                   Handle<JSArrayBuffer> array_buffer,
+                                   Handle<Object> new_length,
+                                   PreserveResizability preserve_resizability,
+                                   const char* method_name) {
   // 2. If IsSharedArrayBuffer(arrayBuffer) is true, throw a TypeError
   // exception.
   CHECK_SHARED(false, array_buffer, method_name);

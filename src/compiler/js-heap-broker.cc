@@ -121,11 +121,13 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK_EQ(mode(), kSerializing);
   CHECK(array_and_object_prototypes_.empty());
 
-  Object maybe_context = isolate()->heap()->native_contexts_list();
+  Tagged<Object> maybe_context = isolate()->heap()->native_contexts_list();
   while (!IsUndefined(maybe_context, isolate())) {
-    Context context = Context::cast(maybe_context);
-    Object array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    Object object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    Tagged<Context> context = Context::cast(maybe_context);
+    Tagged<Object> array_prot =
+        context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Tagged<Object> object_prot =
+        context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(
         CanonicalPersistentHandle(JSObject::cast(array_prot)));
     array_and_object_prototypes_.emplace(
@@ -166,7 +168,7 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
          array_and_object_prototypes_.end();
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(Object object,
+ObjectData* JSHeapBroker::TryGetOrCreateData(Tagged<Object> object,
                                              GetOrCreateDataFlags flags) {
   return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
@@ -178,7 +180,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
   return return_value;
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(Object object,
+ObjectData* JSHeapBroker::GetOrCreateData(Tagged<Object> object,
                                           GetOrCreateDataFlags flags) {
   return GetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
@@ -195,12 +197,12 @@ bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
   return ObjectMayBeUninitialized(*object);
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
+bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<Object> object) const {
   if (!IsHeapObject(object)) return false;
   return ObjectMayBeUninitialized(HeapObject::cast(object));
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
+bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<HeapObject> object) const {
   return !IsMainThread() && isolate()->heap()->IsPendingAllocation(object);
 }
 
@@ -637,7 +639,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
+  Tagged<HeapObject> object;
   if (!nexus.GetFeedback()->GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
@@ -652,7 +654,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
+  Tagged<HeapObject> object;
   if (!nexus.GetFeedback()->GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
@@ -667,7 +669,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
+  Tagged<HeapObject> object;
   if (!nexus.GetFeedback()->GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
@@ -684,7 +686,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   OptionalHeapObjectRef target_ref;
   {
     MaybeObject maybe_target = nexus.GetFeedback();
-    HeapObject target_object;
+    Tagged<HeapObject> target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
       target_ref = TryMakeRef(this, target_object);
     }
@@ -822,7 +824,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
 
   // Separate the actual receiver maps and the possible transition sources.
   for (MapRef map : maps) {
-    Map transition_target;
+    Tagged<Map> transition_target;
 
     // Don't generate elements kind transitions from stable maps.
     if (!map.is_stable()) {
@@ -876,7 +878,7 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 }
 
 OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
-  Name raw_name = nexus.GetName();
+  Tagged<Name> raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
   return MakeRefAssumeMemoryFence(this, raw_name);
 }

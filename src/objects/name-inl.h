@@ -67,7 +67,7 @@ DEF_HEAP_OBJECT_PREDICATE(Name, IsUniqueName) {
   return result;
 }
 
-bool Name::Equals(Name other) {
+bool Name::Equals(Tagged<Name> other) {
   if (other == *this) return true;
   if ((IsInternalizedString(*this) && IsInternalizedString(other)) ||
       IsSymbol(*this) || IsSymbol(other)) {

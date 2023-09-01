@@ -315,15 +315,16 @@ class StackFrame {
   // This method is used by Isolate::PushStackTraceAndDie() for collecting a
   // stack trace on fatal error and thus it might be called in the middle of GC
   // and should be as safe as possible.
-  virtual HeapObject unchecked_code() const = 0;
+  virtual Tagged<HeapObject> unchecked_code() const = 0;
 
   // Search for the code associated with this frame.
-  V8_EXPORT_PRIVATE Code LookupCode() const;
-  V8_EXPORT_PRIVATE GcSafeCode GcSafeLookupCode() const;
+  V8_EXPORT_PRIVATE Tagged<Code> LookupCode() const;
+  V8_EXPORT_PRIVATE Tagged<GcSafeCode> GcSafeLookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* pc_address,
-                 Address* constant_pool_address, GcSafeCode holder) const;
+                 Address* constant_pool_address,
+                 Tagged<GcSafeCode> holder) const;
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
@@ -404,10 +405,10 @@ class V8_EXPORT_PRIVATE FrameSummary {
 
   class JavaScriptFrameSummary : public FrameSummaryBase {
    public:
-    JavaScriptFrameSummary(Isolate* isolate, Object receiver,
-                           JSFunction function, AbstractCode abstract_code,
-                           int code_offset, bool is_constructor,
-                           FixedArray parameters);
+    JavaScriptFrameSummary(Isolate* isolate, Tagged<Object> receiver,
+                           Tagged<JSFunction> function,
+                           Tagged<AbstractCode> abstract_code, int code_offset,
+                           bool is_constructor, Tagged<FixedArray> parameters);
 
     void EnsureSourcePositionsAvailable();
     bool AreSourcePositionsAvailable() const;
@@ -558,13 +559,13 @@ class V8_EXPORT_PRIVATE FrameSummary {
 class CommonFrame : public StackFrame {
  public:
   // Accessors.
-  virtual Object context()
+  virtual Tagged<Object> context()
       const;  // TODO(victorgomes): CommonFrames don't have context.
   virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
-  inline Object GetExpression(int index) const;
-  inline void SetExpression(int index, Object value);
+  inline Tagged<Object> GetExpression(int index) const;
+  inline void SetExpression(int index, Tagged<Object> value);
   int ComputeExpressionsCount() const;
 
   Address GetCallerStackPointer() const override;
@@ -582,7 +583,7 @@ class CommonFrame : public StackFrame {
  protected:
   inline explicit CommonFrame(StackFrameIteratorBase* iterator);
 
-  bool HasTaggedOutgoingParams(GcSafeCode code_lookup) const;
+  bool HasTaggedOutgoingParams(Tagged<GcSafeCode> code_lookup) const;
 
   void ComputeCallerState(State* state) const override;
 
@@ -606,7 +607,7 @@ class TurbofanStubWithContextFrame : public CommonFrame {
  public:
   Type type() const override { return TURBOFAN_STUB_WITH_CONTEXT; }
 
-  HeapObject unchecked_code() const override;
+  Tagged<HeapObject> unchecked_code() const override;
   void Iterate(RootVisitor* v) const override;
 
  protected:
@@ -619,7 +620,7 @@ class TurbofanStubWithContextFrame : public CommonFrame {
 
 class TypedFrame : public CommonFrame {
  public:
-  HeapObject unchecked_code() const override { return {}; }
+  Tagged<HeapObject> unchecked_code() const override { return {}; }
   void Iterate(RootVisitor* v) const override;
 
   void IterateParamsOfWasmToJSWrapper(RootVisitor* v) const;
@@ -631,16 +632,16 @@ class TypedFrame : public CommonFrame {
 class CommonFrameWithJSLinkage : public CommonFrame {
  public:
   // Accessors.
-  virtual JSFunction function() const = 0;
+  virtual Tagged<JSFunction> function() const = 0;
 
   // Access the parameters.
-  virtual Object receiver() const;
-  virtual Object GetParameter(int index) const;
+  virtual Tagged<Object> receiver() const;
+  virtual Tagged<Object> GetParameter(int index) const;
   virtual int ComputeParametersCount() const;
   Handle<FixedArray> GetParameters() const;
   virtual int GetActualArgumentCount() const;
 
-  HeapObject unchecked_code() const override;
+  Tagged<HeapObject> unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -677,16 +678,16 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   Type type() const override = 0;
 
   // Accessors.
-  JSFunction function() const override;
-  Object unchecked_function() const;
-  Script script() const;
-  Object context() const override;
+  Tagged<JSFunction> function() const override;
+  Tagged<Object> unchecked_function() const;
+  Tagged<Script> script() const;
+  Tagged<Object> context() const override;
   int GetActualArgumentCount() const override;
 
-  inline void set_receiver(Object value);
+  inline void set_receiver(Tagged<Object> value);
 
   // Debugger access.
-  void SetParameterValue(int index, Object value) const;
+  void SetParameterValue(int index, Tagged<Object> value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const override;
@@ -713,15 +714,15 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction function, AbstractCode code,
-                                     int code_offset, FILE* file,
-                                     bool print_line_number);
+  static void PrintFunctionAndOffset(Tagged<JSFunction> function,
+                                     Tagged<AbstractCode> code, int code_offset,
+                                     FILE* file, bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(JSFunction function,
-                                                 AbstractCode code,
+  static void CollectFunctionAndOffsetForICStats(Tagged<JSFunction> function,
+                                                 Tagged<AbstractCode> code,
                                                  int code_offset);
 
  protected:
@@ -732,7 +733,7 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
  private:
-  inline Object function_slot_object() const;
+  inline Tagged<Object> function_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -758,7 +759,7 @@ class EntryFrame : public TypedFrame {
  public:
   Type type() const override { return ENTRY; }
 
-  HeapObject unchecked_code() const override;
+  Tagged<HeapObject> unchecked_code() const override;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -787,7 +788,7 @@ class ConstructEntryFrame : public EntryFrame {
  public:
   Type type() const override { return CONSTRUCT_ENTRY; }
 
-  HeapObject unchecked_code() const override;
+  Tagged<HeapObject> unchecked_code() const override;
 
   static ConstructEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_construct_entry());
@@ -839,10 +840,10 @@ class BuiltinExitFrame : public ExitFrame {
  public:
   Type type() const override { return BUILTIN_EXIT; }
 
-  JSFunction function() const;
+  Tagged<JSFunction> function() const;
 
-  Object receiver() const;
-  Object GetParameter(int i) const;
+  Tagged<Object> receiver() const;
+  Tagged<Object> GetParameter(int i) const;
   int ComputeParametersCount() const;
   Handle<FixedArray> GetParameters() const;
 
@@ -859,10 +860,10 @@ class BuiltinExitFrame : public ExitFrame {
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  inline Object receiver_slot_object() const;
-  inline Object argc_slot_object() const;
-  inline Object target_slot_object() const;
-  inline Object new_target_slot_object() const;
+  inline Tagged<Object> receiver_slot_object() const;
+  inline Tagged<Object> argc_slot_object() const;
+  inline Tagged<Object> target_slot_object() const;
+  inline Tagged<Object> new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -877,14 +878,14 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
   // JSFunction in the function slot.
-  HeapObject target() const;
+  Tagged<HeapObject> target() const;
 
   // In case function slot contains FunctionTemplateInfo, instantiate the
   // function, stores it in the function slot and returns JSFunction handle.
   Handle<JSFunction> GetFunction() const;
 
-  Object receiver() const;
-  Object GetParameter(int i) const;
+  Tagged<Object> receiver() const;
+  Tagged<Object> GetParameter(int i) const;
   int ComputeParametersCount() const;
   Handle<FixedArray> GetParameters() const;
 
@@ -906,7 +907,7 @@ class ApiCallbackExitFrame : public ExitFrame {
   inline explicit ApiCallbackExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  inline void set_target(HeapObject function) const;
+  inline void set_target(Tagged<HeapObject> function) const;
 
   inline FullObjectSlot receiver_slot() const;
   inline FullObjectSlot argc_slot() const;
@@ -921,7 +922,7 @@ class StubFrame : public TypedFrame {
  public:
   Type type() const override { return STUB; }
 
-  HeapObject unchecked_code() const override;
+  Tagged<HeapObject> unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
   // TurboFan stub frames are supported.
@@ -945,7 +946,7 @@ class OptimizedFrame : public JavaScriptFrame {
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
+  Tagged<DeoptimizationData> GetDeoptimizationData(int* deopt_index) const;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
@@ -953,7 +954,8 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  virtual int FindReturnPCForTrampoline(Code code, int trampoline_pc) const = 0;
+  virtual int FindReturnPCForTrampoline(Tagged<Code> code,
+                                        int trampoline_pc) const = 0;
 
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
@@ -975,10 +977,10 @@ class UnoptimizedFrame : public JavaScriptFrame {
   virtual int GetBytecodeOffset() const = 0;
 
   // Returns the frame's current bytecode array.
-  BytecodeArray GetBytecodeArray() const;
+  Tagged<BytecodeArray> GetBytecodeArray() const;
 
   // Access to the interpreter register file for this frame.
-  Object ReadInterpreterRegister(int register_index) const;
+  Tagged<Object> ReadInterpreterRegister(int register_index) const;
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
@@ -1010,7 +1012,7 @@ class InterpretedFrame : public UnoptimizedFrame {
 
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray bytecode_array);
+  void PatchBytecodeArray(Tagged<BytecodeArray> bytecode_array);
 
   static InterpretedFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_interpreted());
@@ -1039,7 +1041,7 @@ class BaselineFrame : public UnoptimizedFrame {
 
   intptr_t GetPCForBytecodeOffset(int lookup_offset) const;
 
-  void PatchContext(Context value);
+  void PatchContext(Tagged<Context> value);
 
   static BaselineFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_baseline());
@@ -1064,7 +1066,8 @@ class MaglevFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(Tagged<Code> code,
+                                int trampoline_pc) const override;
 
   Handle<JSFunction> GetInnermostFunction() const;
   BytecodeOffset GetBytecodeOffsetForOSR() const;
@@ -1086,7 +1089,8 @@ class TurbofanFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(Tagged<Code> code,
+                                int trampoline_pc) const override;
 
  protected:
   inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);
@@ -1094,7 +1098,7 @@ class TurbofanFrame : public OptimizedFrame {
  private:
   friend class StackFrameIteratorBase;
 
-  Object StackSlotAt(int index) const;
+  Tagged<Object> StackSlotAt(int index) const;
 };
 
 // Builtin frames are built for builtins with JavaScript linkage, such as
@@ -1108,7 +1112,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
     return static_cast<BuiltinFrame*>(frame);
   }
 
-  JSFunction function() const override;
+  Tagged<JSFunction> function() const override;
   int ComputeParametersCount() const override;
 
  protected:
@@ -1133,14 +1137,14 @@ class WasmFrame : public TypedFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Accessors.
-  virtual V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
+  virtual V8_EXPORT_PRIVATE Tagged<WasmInstanceObject> wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   int function_index() const;
-  Script script() const;
+  Tagged<Script> script() const;
   // Byte position in the module, or asm.js source position.
   int position() const override;
-  Object context() const override;
+  Tagged<Object> context() const override;
   bool at_to_number_conversion() const;
   // Generated code byte offset in the function.
   int generated_code_offset() const;
@@ -1158,7 +1162,7 @@ class WasmFrame : public TypedFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject module_object() const;
+  Tagged<WasmModuleObject> module_object() const;
 };
 
 class WasmExitFrame : public WasmFrame {
@@ -1200,7 +1204,7 @@ class WasmToJsFrame : public WasmFrame {
   Type type() const override { return WASM_TO_JS; }
 
   int position() const override { return 0; }
-  WasmInstanceObject wasm_instance() const override;
+  Tagged<WasmInstanceObject> wasm_instance() const override;
 
  protected:
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);
@@ -1364,11 +1368,11 @@ class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
     return static_cast<JavaScriptBuiltinContinuationFrame*>(frame);
   }
 
-  JSFunction function() const override;
+  Tagged<JSFunction> function() const override;
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
-  Object context() const override;
+  Tagged<Object> context() const override;
 
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
@@ -1392,7 +1396,7 @@ class JavaScriptBuiltinContinuationWithCatchFrame
 
   // Patch in the exception object at the appropriate location into the stack
   // frame.
-  void SetException(Object exception);
+  void SetException(Tagged<Object> exception);
 
  protected:
   inline explicit JavaScriptBuiltinContinuationWithCatchFrame(

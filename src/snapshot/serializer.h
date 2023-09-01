@@ -32,10 +32,12 @@ class CodeAddressMap : public CodeEventLogger {
     isolate_->v8_file_logger()->RemoveLogEventListener(this);
   }
 
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) override {
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) override {
     address_to_name_map_.Move(from.address(), to.address());
   }
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override {
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                         Tagged<BytecodeArray> to) override {
     address_to_name_map_.Move(from.address(), to.address());
   }
 
@@ -121,8 +123,9 @@ class CodeAddressMap : public CodeEventLogger {
     base::HashMap impl_;
   };
 
-  void LogRecordedBuffer(AbstractCode code, MaybeHandle<SharedFunctionInfo>,
-                         const char* name, int length) override {
+  void LogRecordedBuffer(Tagged<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo>, const char* name,
+                         int length) override {
     DisallowGarbageCollection no_gc;
     address_to_name_map_.Insert(code.address(), name, length);
   }
@@ -146,7 +149,7 @@ class ObjectCacheIndexMap {
   // If |obj| is in the map, immediately return true.  Otherwise add it to the
   // map and return false. In either case set |*index_out| to the index
   // associated with the map.
-  bool LookupOrInsert(HeapObject obj, int* index_out) {
+  bool LookupOrInsert(Tagged<HeapObject> obj, int* index_out) {
     auto find_result = map_.FindOrInsert(obj);
     if (!find_result.already_exists) {
       *find_result.entry = next_index_++;
@@ -158,7 +161,7 @@ class ObjectCacheIndexMap {
     return LookupOrInsert(*obj, index_out);
   }
 
-  bool Lookup(HeapObject obj, int* index_out) const {
+  bool Lookup(Tagged<HeapObject> obj, int* index_out) const {
     int* index = map_.Find(obj);
     if (index == nullptr) {
       return false;
@@ -227,14 +230,14 @@ class Serializer : public SerializerDeserializer {
 
   // Compares obj with not_mapped_symbol root. When V8_EXTERNAL_CODE_SPACE is
   // enabled it compares full pointers.
-  V8_INLINE bool IsNotMappedSymbol(HeapObject obj) const;
+  V8_INLINE bool IsNotMappedSymbol(Tagged<HeapObject> obj) const;
 
   void SerializeDeferredObjects();
   void SerializeObject(Handle<HeapObject> o, SlotType slot_type);
   virtual void SerializeObjectImpl(Handle<HeapObject> o,
                                    SlotType slot_type) = 0;
 
-  virtual bool MustBeDeferred(HeapObject object);
+  virtual bool MustBeDeferred(Tagged<HeapObject> object);
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -242,7 +245,8 @@ class Serializer : public SerializerDeserializer {
 
   void PutRoot(RootIndex root_index);
   void PutSmiRoot(FullObjectSlot slot);
-  void PutBackReference(HeapObject object, SerializerReference reference);
+  void PutBackReference(Tagged<HeapObject> object,
+                        SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
@@ -255,19 +259,19 @@ class Serializer : public SerializerDeserializer {
   void ResolvePendingForwardReference(int obj);
 
   // Returns true if the object was successfully serialized as a root.
-  bool SerializeRoot(HeapObject obj);
+  bool SerializeRoot(Tagged<HeapObject> obj);
 
   // Returns true if the object was successfully serialized as hot object.
-  bool SerializeHotObject(HeapObject obj);
+  bool SerializeHotObject(Tagged<HeapObject> obj);
 
   // Returns true if the object was successfully serialized as back reference.
-  bool SerializeBackReference(HeapObject obj);
+  bool SerializeBackReference(Tagged<HeapObject> obj);
 
   // Returns true if the object was successfully serialized as pending object.
-  bool SerializePendingObject(HeapObject obj);
+  bool SerializePendingObject(Tagged<HeapObject> obj);
 
   // Returns true if the given heap object is a bytecode handler code object.
-  bool ObjectIsBytecodeHandler(HeapObject obj) const;
+  bool ObjectIsBytecodeHandler(Tagged<HeapObject> obj) const;
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr);
 
@@ -276,7 +280,8 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.TryEncode(addr);
   }
 
-  bool SerializeReadOnlyObjectReference(HeapObject obj, SnapshotByteSink* sink);
+  bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
+                                        SnapshotByteSink* sink);
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
@@ -286,9 +291,9 @@ class Serializer : public SerializerDeserializer {
   // of the serializer.  Initialize it on demand.
   void InitializeCodeAddressMap();
 
-  InstructionStream CopyCode(InstructionStream istream);
+  Tagged<InstructionStream> CopyCode(Tagged<InstructionStream> istream);
 
-  void QueueDeferredObject(HeapObject obj) {
+  void QueueDeferredObject(Tagged<HeapObject> obj) {
     DCHECK_NULL(reference_map_.LookupReference(obj));
     deferred_objects_.Push(obj);
   }
@@ -296,14 +301,14 @@ class Serializer : public SerializerDeserializer {
   // Register that the the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
-  void RegisterObjectIsPending(HeapObject obj);
+  void RegisterObjectIsPending(Tagged<HeapObject> obj);
 
   // Resolve the given pending object reference with the current object.
-  void ResolvePendingObject(HeapObject obj);
+  void ResolvePendingObject(Tagged<HeapObject> obj);
 
   void OutputStatistics(const char* name);
 
-  void CountAllocation(Map map, int size, SnapshotSpace space);
+  void CountAllocation(Tagged<Map> map, int size, SnapshotSpace space);
 
 #ifdef DEBUG
   void PushStack(Handle<HeapObject> o) { stack_.Push(*o); }
@@ -355,14 +360,14 @@ class Serializer : public SerializerDeserializer {
     HotObjectsList(const HotObjectsList&) = delete;
     HotObjectsList& operator=(const HotObjectsList&) = delete;
 
-    void Add(HeapObject object) {
+    void Add(Tagged<HeapObject> object) {
       circular_queue_[index_] = object.ptr();
       index_ = (index_ + 1) & kSizeMask;
     }
 
     static const int kNotFound = -1;
 
-    int Find(HeapObject object) {
+    int Find(Tagged<HeapObject> object) {
       DCHECK(!AllowGarbageCollection::IsAllowed());
       for (int i = 0; i < kSize; i++) {
         if (circular_queue_[i] == object.ptr()) {
@@ -465,33 +470,36 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void Serialize(SlotType slot_type);
   void SerializeObject();
   void SerializeDeferred();
-  void VisitPointers(HeapObject host, ObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitInstructionStreamPointer(Code host,
+  void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override;
-  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* target) override;
-  void VisitExternalReference(InstructionStream host,
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* target) override;
+  void VisitExternalReference(Tagged<InstructionStream> host,
                               RelocInfo* rinfo) override;
-  void VisitInternalReference(InstructionStream host,
+  void VisitInternalReference(Tagged<InstructionStream> host,
                               RelocInfo* rinfo) override;
-  void VisitCodeTarget(InstructionStream host, RelocInfo* target) override;
-  void VisitOffHeapTarget(InstructionStream host, RelocInfo* target) override;
+  void VisitCodeTarget(Tagged<InstructionStream> host,
+                       RelocInfo* target) override;
+  void VisitOffHeapTarget(Tagged<InstructionStream> host,
+                          RelocInfo* target) override;
 
-  void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
                             ExternalPointerTag tag) override;
-  void VisitIndirectPointer(HeapObject host, IndirectPointerSlot slot,
+  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override;
 
   Isolate* isolate() { return isolate_; }
 
  private:
-  void SerializePrologue(SnapshotSpace space, int size, Map map);
+  void SerializePrologue(SnapshotSpace space, int size, Tagged<Map> map);
 
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
-  void SerializeContent(Map map, int size);
+  void SerializeContent(Tagged<Map> map, int size);
   void OutputExternalReference(Address target, int target_size, bool sandboxify,
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);

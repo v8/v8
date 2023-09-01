@@ -117,7 +117,7 @@ void AllocationSite::SetDoNotInlineCall() {
 }
 
 bool AllocationSite::PointsToLiteral() const {
-  Object raw_value = transition_info_or_boilerplate(kAcquireLoad);
+  Tagged<Object> raw_value = transition_info_or_boilerplate(kAcquireLoad);
   DCHECK_EQ(!IsSmi(raw_value), IsJSArray(raw_value) || IsJSObject(raw_value));
   return !IsSmi(raw_value);
 }
@@ -202,7 +202,7 @@ bool AllocationMemento::IsValid() const {
          !AllocationSite::cast(allocation_site())->IsZombie();
 }
 
-AllocationSite AllocationMemento::GetAllocationSite() const {
+Tagged<AllocationSite> AllocationMemento::GetAllocationSite() const {
   DCHECK(IsValid());
   return AllocationSite::cast(allocation_site());
 }

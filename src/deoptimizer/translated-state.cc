@@ -36,7 +36,7 @@ namespace internal {
 void DeoptimizationFrameTranslationPrintSingleOpcode(
     std::ostream& os, TranslationOpcode opcode,
     DeoptimizationFrameTranslation::Iterator& iterator,
-    DeoptimizationLiteralArray literal_array) {
+    Tagged<DeoptimizationLiteralArray> literal_array) {
   disasm::NameConverter converter;
   switch (opcode) {
     case TranslationOpcode::BEGIN_WITH_FEEDBACK:
@@ -428,7 +428,7 @@ TranslatedValue TranslatedValue::NewBool(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewTagged(TranslatedState* container,
-                                           Object literal) {
+                                           Tagged<Object> literal) {
   TranslatedValue slot(container, kTagged);
   slot.raw_literal_ = literal;
   return slot;
@@ -441,7 +441,7 @@ TranslatedValue TranslatedValue::NewInvalid(TranslatedState* container) {
 
 Isolate* TranslatedValue::isolate() const { return container_->isolate(); }
 
-Object TranslatedValue::raw_literal() const {
+Tagged<Object> TranslatedValue::raw_literal() const {
   DCHECK_EQ(kTagged, kind());
   return raw_literal_;
 }
@@ -486,7 +486,7 @@ int TranslatedValue::object_index() const {
   return materialization_info_.id_;
 }
 
-Object TranslatedValue::GetRawValue() const {
+Tagged<Object> TranslatedValue::GetRawValue() const {
   // If we have a value, return it.
   if (materialization_state() == kFinished) {
     int smi;
@@ -770,8 +770,8 @@ void TranslatedValue::Handlify() {
 }
 
 TranslatedFrame TranslatedFrame::UnoptimizedFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
-    int return_value_offset, int return_value_count) {
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
+    int height, int return_value_offset, int return_value_count) {
   TranslatedFrame frame(kUnoptimizedFunction, shared_info, height,
                         return_value_offset, return_value_count);
   frame.bytecode_offset_ = bytecode_offset;
@@ -779,22 +779,22 @@ TranslatedFrame TranslatedFrame::UnoptimizedFrame(
 }
 
 TranslatedFrame TranslatedFrame::InlinedExtraArguments(
-    SharedFunctionInfo shared_info, int height) {
+    Tagged<SharedFunctionInfo> shared_info, int height) {
   return TranslatedFrame(kInlinedExtraArguments, shared_info, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
-    SharedFunctionInfo shared_info, int height) {
+    Tagged<SharedFunctionInfo> shared_info, int height) {
   return TranslatedFrame(kConstructCreateStub, shared_info, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructInvokeStubFrame(
-    SharedFunctionInfo shared_info) {
+    Tagged<SharedFunctionInfo> shared_info) {
   return TranslatedFrame(kConstructInvokeStub, shared_info, 0);
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
   TranslatedFrame frame(kBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
@@ -803,7 +803,7 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 
 #if V8_ENABLE_WEBASSEMBLY
 TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
   TranslatedFrame frame(kWasmInlinedIntoJS, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
@@ -811,8 +811,8 @@ TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
 }
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
-    base::Optional<wasm::ValueKind> return_kind) {
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
+    int height, base::Optional<wasm::ValueKind> return_kind) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.return_kind_ = return_kind;
@@ -821,7 +821,7 @@ TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
@@ -829,7 +829,7 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
                         height);
@@ -891,13 +891,14 @@ void TranslatedFrame::Handlify(Isolate* isolate) {
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     DeoptimizationFrameTranslation::Iterator* iterator,
-    DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file) {
+    Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
+    FILE* trace_file) {
   TranslationOpcode opcode = iterator->NextOpcode();
   switch (opcode) {
     case TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN:
     case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       int return_value_offset = 0;
@@ -923,7 +924,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -935,7 +936,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -949,7 +950,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
@@ -962,7 +963,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -979,7 +980,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 #if V8_ENABLE_WEBASSEMBLY
     case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -995,7 +996,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       int return_kind_code = iterator->NextOperand();
@@ -1019,7 +1020,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -1035,7 +1036,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
-      SharedFunctionInfo shared_info =
+      Tagged<SharedFunctionInfo> shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
@@ -1165,7 +1166,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // DeoptimizationFrameTranslation::Iterator.
 int TranslatedState::CreateNextTranslatedValue(
     int frame_index, DeoptimizationFrameTranslation::Iterator* iterator,
-    DeoptimizationLiteralArray literal_array, Address fp,
+    Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
     RegisterValues* registers, FILE* trace_file) {
   disasm::NameConverter converter;
 
@@ -1630,7 +1631,7 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
 void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            Address stack_frame_pointer,
                            DeoptimizationFrameTranslation::Iterator* iterator,
-                           DeoptimizationLiteralArray literal_array,
+                           Tagged<DeoptimizationLiteralArray> literal_array,
                            RegisterValues* registers, FILE* trace_file,
                            int formal_parameter_count,
                            int actual_argument_count) {
@@ -2503,7 +2504,7 @@ bool TranslatedState::DoUpdateFeedback() {
 
 void TranslatedState::ReadUpdateFeedback(
     DeoptimizationFrameTranslation::Iterator* iterator,
-    DeoptimizationLiteralArray literal_array, FILE* trace_file) {
+    Tagged<DeoptimizationLiteralArray> literal_array, FILE* trace_file) {
   CHECK_EQ(TranslationOpcode::UPDATE_FEEDBACK, iterator->NextOpcode());
   feedback_vector_ =
       FeedbackVector::cast(literal_array->get(iterator->NextOperand()));

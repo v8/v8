@@ -92,7 +92,8 @@ static_assert(sizeof(OptimizationDecision) <= kInt32Size);
 
 namespace {
 
-void TraceInOptimizationQueue(JSFunction function, CodeKind current_code_kind) {
+void TraceInOptimizationQueue(Tagged<JSFunction> function,
+                              CodeKind current_code_kind) {
   if (v8_flags.trace_opt_verbose) {
     PrintF("[not marking function %s (%s) for optimization: already queued]\n",
            function->DebugNameCStr().get(),
@@ -100,7 +101,7 @@ void TraceInOptimizationQueue(JSFunction function, CodeKind current_code_kind) {
   }
 }
 
-void TraceHeuristicOptimizationDisallowed(JSFunction function) {
+void TraceHeuristicOptimizationDisallowed(Tagged<JSFunction> function) {
   if (v8_flags.trace_opt_verbose) {
     PrintF(
         "[not marking function %s for optimization: marked with "
@@ -109,7 +110,7 @@ void TraceHeuristicOptimizationDisallowed(JSFunction function) {
   }
 }
 
-void TraceRecompile(Isolate* isolate, JSFunction function,
+void TraceRecompile(Isolate* isolate, Tagged<JSFunction> function,
                     OptimizationDecision d) {
   if (v8_flags.trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
@@ -124,7 +125,7 @@ void TraceRecompile(Isolate* isolate, JSFunction function,
 
 }  // namespace
 
-void TraceManualRecompile(JSFunction function, CodeKind code_kind,
+void TraceManualRecompile(Tagged<JSFunction> function, CodeKind code_kind,
                           ConcurrencyMode concurrency_mode) {
   if (v8_flags.trace_opt) {
     PrintF("[manually marking ");
@@ -134,13 +135,14 @@ void TraceManualRecompile(JSFunction function, CodeKind code_kind,
   }
 }
 
-void TieringManager::Optimize(JSFunction function, OptimizationDecision d) {
+void TieringManager::Optimize(Tagged<JSFunction> function,
+                              OptimizationDecision d) {
   DCHECK(d.should_optimize());
   TraceRecompile(isolate_, function, d);
   function->MarkForOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 
-void TieringManager::MarkForTurboFanOptimization(JSFunction function) {
+void TieringManager::MarkForTurboFanOptimization(Tagged<JSFunction> function) {
   Optimize(function, OptimizationDecision::TurbofanHotAndStable());
 }
 
@@ -148,7 +150,7 @@ namespace {
 
 // Returns true when |function| should be enqueued for sparkplug compilation for
 // the first time.
-bool FirstTimeTierUpToSparkplug(Isolate* isolate, JSFunction function) {
+bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
   return !function->has_feedback_vector() ||
          // We request sparkplug even in the presence of a fbv, if we are
          // running ignition and haven't enqueued the function for sparkplug
@@ -191,7 +193,7 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 
 // static
 int TieringManager::InterruptBudgetFor(
-    Isolate* isolate, JSFunction function,
+    Isolate* isolate, Tagged<JSFunction> function,
     base::Optional<CodeKind> override_active_tier) {
   DCHECK(function->shared()->is_compiled());
   const int bytecode_length =
@@ -215,14 +217,15 @@ int TieringManager::InterruptBudgetFor(
 
 namespace {
 
-void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
-  SharedFunctionInfo shared = function->shared();
+void TrySetOsrUrgency(Isolate* isolate, Tagged<JSFunction> function,
+                      int osr_urgency) {
+  Tagged<SharedFunctionInfo> shared = function->shared();
   if (V8_UNLIKELY(!v8_flags.use_osr)) return;
   if (V8_UNLIKELY(shared->optimization_disabled())) return;
 
   // We've passed all checks - bump the OSR urgency.
 
-  FeedbackVector fv = function->feedback_vector();
+  Tagged<FeedbackVector> fv = function->feedback_vector();
   if (V8_UNLIKELY(v8_flags.trace_osr)) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(),
@@ -235,24 +238,25 @@ void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
   fv->set_osr_urgency(osr_urgency);
 }
 
-void TryIncrementOsrUrgency(Isolate* isolate, JSFunction function) {
+void TryIncrementOsrUrgency(Isolate* isolate, Tagged<JSFunction> function) {
   int old_urgency = function->feedback_vector()->osr_urgency();
   int new_urgency = std::min(old_urgency + 1, FeedbackVector::kMaxOsrUrgency);
   TrySetOsrUrgency(isolate, function, new_urgency);
 }
 
-void TryRequestOsrAtNextOpportunity(Isolate* isolate, JSFunction function) {
+void TryRequestOsrAtNextOpportunity(Isolate* isolate,
+                                    Tagged<JSFunction> function) {
   TrySetOsrUrgency(isolate, function, FeedbackVector::kMaxOsrUrgency);
 }
 
 }  // namespace
 
-void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
+void TieringManager::RequestOsrAtNextOpportunity(Tagged<JSFunction> function) {
   DisallowGarbageCollection no_gc;
   TryRequestOsrAtNextOpportunity(isolate_, function);
 }
 
-void TieringManager::MaybeOptimizeFrame(JSFunction function,
+void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
                                         CodeKind current_code_kind) {
   const TieringState tiering_state =
       function->feedback_vector()->tiering_state();
@@ -325,8 +329,8 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 }
 
 OptimizationDecision TieringManager::ShouldOptimize(
-    FeedbackVector feedback_vector, CodeKind current_code_kind) {
-  SharedFunctionInfo shared = feedback_vector->shared_function_info();
+    Tagged<FeedbackVector> feedback_vector, CodeKind current_code_kind) {
+  Tagged<SharedFunctionInfo> shared = feedback_vector->shared_function_info();
   if (TiersUpToMaglev(current_code_kind) &&
       shared->PassesFilter(v8_flags.maglev_filter) &&
       !shared->maglev_compilation_failed()) {
@@ -340,7 +344,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
     return OptimizationDecision::DoNotOptimize();
   }
 
-  BytecodeArray bytecode = shared->GetBytecodeArray(isolate_);
+  Tagged<BytecodeArray> bytecode = shared->GetBytecodeArray(isolate_);
   if (bytecode->length() > v8_flags.max_optimized_bytecode_size) {
     return OptimizationDecision::DoNotOptimize();
   }
@@ -348,7 +352,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
   return OptimizationDecision::TurbofanHotAndStable();
 }
 
-void TieringManager::NotifyICChanged(FeedbackVector vector) {
+void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
   CodeKind code_kind = vector->has_optimized_code()
                            ? vector->optimized_code()->kind()
                        : vector->shared_function_info()->HasBaselineCode()
@@ -356,9 +360,9 @@ void TieringManager::NotifyICChanged(FeedbackVector vector) {
                            : CodeKind::INTERPRETED_FUNCTION;
   OptimizationDecision decision = ShouldOptimize(vector, code_kind);
   if (decision.should_optimize()) {
-    SharedFunctionInfo shared = vector->shared_function_info();
+    Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
     int bytecode_length = shared->GetBytecodeArray(isolate_)->length();
-    FeedbackCell cell = vector->parent_feedback_cell();
+    Tagged<FeedbackCell> cell = vector->parent_feedback_cell();
     int invocations = v8_flags.minimum_invocations_after_ic_update;
     int bytecodes = std::min(bytecode_length, (kMaxInt >> 1) / invocations);
     int new_budget = invocations * bytecodes;
@@ -456,7 +460,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
 
   DisallowGarbageCollection no_gc;
   OnInterruptTickScope scope;
-  JSFunction function_obj = *function;
+  Tagged<JSFunction> function_obj = *function;
 
   MaybeOptimizeFrame(function_obj, code_kind);
 

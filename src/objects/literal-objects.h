@@ -28,13 +28,14 @@ class StructBodyDescriptor;
 // TODO(ishell): Don't derive from FixedArray as it already has its own map.
 class ObjectBoilerplateDescription : public FixedArray {
  public:
-  inline Object name(int index) const;
-  inline Object name(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> name(int index) const;
+  inline Tagged<Object> name(PtrComprCageBase cage_base, int index) const;
 
-  inline Object value(int index) const;
-  inline Object value(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> value(int index) const;
+  inline Tagged<Object> value(PtrComprCageBase cage_base, int index) const;
 
-  inline void set_key_value(int index, Object key, Object value);
+  inline void set_key_value(int index, Tagged<Object> key,
+                            Tagged<Object> value);
 
   // The number of boilerplate properties.
   inline int size() const;
@@ -130,13 +131,13 @@ class ClassBoilerplate : public FixedArray {
   static void AddToPropertiesTemplate(IsolateT* isolate,
                                       Handle<Dictionary> dictionary,
                                       Handle<Name> name, int key_index,
-                                      ValueKind value_kind, Smi value);
+                                      ValueKind value_kind, Tagged<Smi> value);
 
   template <typename IsolateT>
   static void AddToElementsTemplate(IsolateT* isolate,
                                     Handle<NumberDictionary> dictionary,
                                     uint32_t key, int key_index,
-                                    ValueKind value_kind, Smi value);
+                                    ValueKind value_kind, Tagged<Smi> value);
 
   template <typename IsolateT>
   static Handle<ClassBoilerplate> BuildClassBoilerplate(IsolateT* isolate,

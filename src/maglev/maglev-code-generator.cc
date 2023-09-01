@@ -1386,7 +1386,7 @@ class MaglevFrameTranslationBuilder {
     }
   }
 
-  int GetDeoptLiteral(Object obj) {
+  int GetDeoptLiteral(Tagged<Object> obj) {
     IdentityMapFindResult<int> res = deopt_literals_->FindOrInsert(obj);
     if (!res.already_exists) {
       DCHECK_EQ(0, *res.entry);

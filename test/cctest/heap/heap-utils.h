@@ -67,7 +67,7 @@ bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
-bool InCorrectGeneration(HeapObject object);
+bool InCorrectGeneration(Tagged<HeapObject> object);
 
 template <typename GlobalOrPersistent>
 bool InCorrectGeneration(v8::Isolate* isolate,

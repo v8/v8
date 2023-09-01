@@ -46,16 +46,16 @@ TEST_F(IteratorsTest, CombinedHeapObjectIteratorNullPastEnd) {
 
 namespace {
 // An arbitrary object guaranteed to live on the non-read-only heap.
-Object CreateWritableObject(v8::Isolate* isolate) {
+Tagged<Object> CreateWritableObject(v8::Isolate* isolate) {
   return *v8::Utils::OpenHandle(*v8::Object::New(isolate));
 }
 }  // namespace
 
 TEST_F(IteratorsTest, ReadOnlyHeapObjectIterator) {
   HandleScope handle_scope(i_isolate());
-  const Object sample_object = CreateWritableObject(v8_isolate());
+  const Tagged<Object> sample_object = CreateWritableObject(v8_isolate());
   ReadOnlyHeapObjectIterator iterator(i_isolate()->read_only_heap());
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(ReadOnlyHeap::Contains(obj));
     CHECK(!i_isolate()->heap()->Contains(obj));
@@ -66,10 +66,10 @@ TEST_F(IteratorsTest, ReadOnlyHeapObjectIterator) {
 TEST_F(IteratorsTest, HeapObjectIterator) {
   Heap* const heap = i_isolate()->heap();
   HandleScope handle_scope(i_isolate());
-  const Object sample_object = CreateWritableObject(v8_isolate());
+  const Tagged<Object> sample_object = CreateWritableObject(v8_isolate());
   bool seen_sample_object = false;
   HeapObjectIterator iterator(heap);
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                   !ReadOnlyHeap::Contains(obj));
@@ -82,10 +82,10 @@ TEST_F(IteratorsTest, HeapObjectIterator) {
 TEST_F(IteratorsTest, CombinedHeapObjectIterator) {
   Heap* const heap = i_isolate()->heap();
   HandleScope handle_scope(i_isolate());
-  const Object sample_object = CreateWritableObject(v8_isolate());
+  const Tagged<Object> sample_object = CreateWritableObject(v8_isolate());
   bool seen_sample_object = false;
   CombinedHeapObjectIterator iterator(heap);
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(IsValidHeapObject(heap, obj));
     if (sample_object.SafeEquals(obj)) seen_sample_object = true;

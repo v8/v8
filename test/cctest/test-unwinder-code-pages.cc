@@ -168,7 +168,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   register_state.fp = stack;
 
   // Put the current PC inside of a valid builtin.
-  Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
+  Tagged<Code> builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   const uintptr_t offset = 40;
   CHECK_LT(offset, builtin->instruction_size());
   register_state.pc =
@@ -225,7 +225,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
 
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
-  Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
+  Tagged<Code> builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   register_state.pc = reinterpret_cast<void*>(builtin->instruction_start());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -296,7 +296,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   // Put the current PC inside of the created code object.
-  Code code = foo->code();
+  Tagged<Code> code = foo->code();
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code->is_optimized_code()) return;
@@ -455,7 +455,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
-  Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
+  Tagged<Code> js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
   uint8_t* start = reinterpret_cast<uint8_t*>(js_entry->instruction_start());
   register_state.pc = start + 10;
 
@@ -637,7 +637,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
       isolate->CopyCodePages(arraysize(code_pages), code_pages);
   CHECK_LE(pages_length, arraysize(code_pages));
 
-  Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
+  Tagged<Code> js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
   uint8_t* start = reinterpret_cast<uint8_t*>(js_entry->instruction_start());
   size_t length = js_entry->instruction_size();
 

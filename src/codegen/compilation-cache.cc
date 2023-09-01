@@ -43,7 +43,7 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
-    CompilationCacheTable table =
+    Tagged<CompilationCacheTable> table =
         CompilationCacheTable::cast(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }
@@ -65,16 +65,16 @@ void CompilationCacheRegExp::Age() {
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  CompilationCacheTable table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
-    Object key;
+    Tagged<Object> key;
     if (!table->ToKey(isolate(), entry, &key)) continue;
     DCHECK(IsWeakFixedArray(key));
 
-    Object value = table->PrimaryValueAt(entry);
+    Tagged<Object> value = table->PrimaryValueAt(entry);
     if (!IsUndefined(value, isolate())) {
-      SharedFunctionInfo info = SharedFunctionInfo::cast(value);
+      Tagged<SharedFunctionInfo> info = SharedFunctionInfo::cast(value);
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
         table->SetPrimaryValueAt(entry,
@@ -88,10 +88,10 @@ void CompilationCacheScript::Age() {
 void CompilationCacheEval::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  CompilationCacheTable table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
-    Object key;
+    Tagged<Object> key;
     if (!table->ToKey(isolate(), entry, &key)) continue;
 
     if (IsNumber(key, isolate())) {
@@ -114,7 +114,7 @@ void CompilationCacheEval::Age() {
     } else {
       DCHECK(IsFixedArray(key));
       // The ageing mechanism for eval caches.
-      SharedFunctionInfo info =
+      Tagged<SharedFunctionInfo> info =
           SharedFunctionInfo::cast(table->PrimaryValueAt(entry));
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {

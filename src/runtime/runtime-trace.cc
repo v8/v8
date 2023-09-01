@@ -44,7 +44,7 @@ void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
                         interpreter::Register first_reg, int range) {
   for (int reg_index = first_reg.index(); reg_index < first_reg.index() + range;
        reg_index++) {
-    Object reg_object = frame->ReadInterpreterRegister(reg_index);
+    Tagged<Object> reg_object = frame->ReadInterpreterRegister(reg_index);
     os << "      [ " << std::setw(reg_field_width)
        << interpreter::Register(reg_index).ToString() << arrow_direction;
     ShortPrint(reg_object, os);

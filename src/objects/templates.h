@@ -153,22 +153,22 @@ class FunctionTemplateInfo
   }
 
   // Returns parent function template or a null FunctionTemplateInfo.
-  inline FunctionTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<FunctionTemplateInfo> GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
-  inline bool IsTemplateFor(JSObject object);
-  bool IsTemplateFor(Map map) const;
+  inline bool IsTemplateFor(Tagged<JSObject> object) const;
+  bool IsTemplateFor(Tagged<Map> map) const;
   // Returns true if |object| is an API object and is constructed by this
   // particular function template (skips walking up the chain of inheriting
   // functions that is done by IsTemplateFor).
-  bool IsLeafTemplateForApiObject(Object object) const;
+  bool IsLeafTemplateForApiObject(Tagged<Object> object) const;
   inline bool instantiated();
 
   bool BreakAtEntry(Isolate* isolate);
   bool HasInstanceType();
 
   // Helper function for cached accessors.
-  static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,
-                                                       Object getter);
+  static base::Optional<Tagged<Name>> TryGetCachedPropertyName(
+      Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;
   Address GetCFunction(int index) const;
@@ -210,7 +210,7 @@ class ObjectTemplateInfo
 
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.
-  inline ObjectTemplateInfo GetParent(Isolate* isolate);
+  inline Tagged<ObjectTemplateInfo> GetParent(Isolate* isolate);
 
   using BodyDescriptor = StructBodyDescriptor;
 

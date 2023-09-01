@@ -222,7 +222,7 @@ PropertyKey LookupIterator::GetKey() const {
   return PropertyKey(isolate_, name_, index_);
 }
 
-bool LookupIterator::IsElement(JSReceiver object) const {
+bool LookupIterator::IsElement(Tagged<JSReceiver> object) const {
   return index_ <= JSObject::kMaxElementIndex ||
          (index_ != kInvalidIndex &&
           object->map()->has_any_typed_array_or_wasm_array_elements());
@@ -339,7 +339,7 @@ template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(IsJSReceiver(*receiver_, isolate_));
   if (IsJSGlobalProxy(*receiver_, isolate_)) {
-    HeapObject prototype =
+    Tagged<HeapObject> prototype =
         JSGlobalProxy::cast(*receiver_)->map(isolate_)->prototype(isolate_);
     if (IsJSGlobalObject(prototype, isolate_)) {
       return handle(JSGlobalObject::cast(prototype), isolate_);
@@ -349,7 +349,8 @@ Handle<T> LookupIterator::GetStoreTarget() const {
 }
 
 template <bool is_element>
-InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) const {
+Tagged<InterceptorInfo> LookupIterator::GetInterceptor(
+    Tagged<JSObject> holder) const {
   if (is_element && index_ <= JSObject::kMaxElementIndex) {
     return holder->GetIndexedInterceptor(isolate_);
   } else {
@@ -359,9 +360,10 @@ InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) const {
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  JSObject holder = JSObject::cast(*holder_);
-  InterceptorInfo result = IsElement(holder) ? GetInterceptor<true>(holder)
-                                             : GetInterceptor<false>(holder);
+  Tagged<JSObject> holder = JSObject::cast(*holder_);
+  Tagged<InterceptorInfo> result = IsElement(holder)
+                                       ? GetInterceptor<true>(holder)
+                                       : GetInterceptor<false>(holder);
   return handle(result, isolate_);
 }
 

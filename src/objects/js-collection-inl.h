@@ -46,12 +46,12 @@ JSSetIterator::JSSetIterator(Address ptr)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSMapIterator)
 
-Object JSMapIterator::CurrentValue() {
-  OrderedHashMap table = OrderedHashMap::cast(this->table());
+Tagged<Object> JSMapIterator::CurrentValue() {
+  Tagged<OrderedHashMap> table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
   DCHECK_GE(index, 0);
   InternalIndex entry(index);
-  Object value = table->ValueAt(entry);
+  Tagged<Object> value = table->ValueAt(entry);
   DCHECK(!IsTheHole(value));
   return value;
 }

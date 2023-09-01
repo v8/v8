@@ -39,7 +39,7 @@ ACCESSORS_CHECKED(Script, wasm_weak_instance_list, Tagged<WeakArrayList>,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Script::Type Script::type() const {
-  Smi value = TaggedField<Smi, kScriptTypeOffset>::load(*this);
+  Tagged<Smi> value = TaggedField<Smi, kScriptTypeOffset>::load(*this);
   return static_cast<Type>(value.value());
 }
 void Script::set_type(Type value) {

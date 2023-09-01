@@ -49,7 +49,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   template <typename Isolate = v8::internal::Isolate>
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
 
-  static void Canonicalize(MutableBigInt result);
+  static void Canonicalize(Tagged<MutableBigInt> result);
 
   // Allocation helpers.
   template <typename IsolateT>
@@ -73,18 +73,18 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     SLOW_DCHECK(IsBigInt(*bigint));
     return Handle<MutableBigInt>::cast(bigint);
   }
-  static MutableBigInt cast(Object o) {
+  static Tagged<MutableBigInt> cast(Tagged<Object> o) {
     SLOW_DCHECK(IsBigInt(o));
     return MutableBigInt(o.ptr());
   }
-  static MutableBigInt unchecked_cast(Object o) {
+  static Tagged<MutableBigInt> unchecked_cast(Tagged<Object> o) {
     return MutableBigInt(o.ptr());
   }
 
   // Internal helpers.
   static MaybeHandle<MutableBigInt> AbsoluteAddOne(
       Isolate* isolate, Handle<BigIntBase> x, bool sign,
-      MutableBigInt result_storage = MutableBigInt());
+      Tagged<MutableBigInt> result_storage = MutableBigInt());
   static Handle<MutableBigInt> AbsoluteSubOne(Isolate* isolate,
                                               Handle<BigIntBase> x);
 
@@ -105,7 +105,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 
   // Returns the least significant 64 bits, simulating two's complement
   // representation.
-  static uint64_t GetRawBits(BigIntBase x, bool* lossless);
+  static uint64_t GetRawBits(Tagged<BigIntBase> x, bool* lossless);
 
   static inline bool digit_ismax(digit_t x) {
     return static_cast<digit_t>(~x) == 0;
@@ -134,7 +134,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 
   void set_64_bits(uint64_t bits);
 
-  static bool IsMutableBigInt(MutableBigInt o) { return IsBigInt(o); }
+  static bool IsMutableBigInt(Tagged<MutableBigInt> o) { return IsBigInt(o); }
 
   static_assert(std::is_same<bigint::digit_t, BigIntBase::digit_t>::value,
                 "We must be able to call BigInt library functions");
@@ -149,7 +149,7 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 #include "src/objects/object-macros-undef.h"
 
-bigint::Digits GetDigits(BigIntBase bigint) {
+bigint::Digits GetDigits(Tagged<BigIntBase> bigint) {
   return bigint::Digits(
       reinterpret_cast<bigint::digit_t*>(
           bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
@@ -159,7 +159,7 @@ bigint::Digits GetDigits(Handle<BigIntBase> bigint) {
   return GetDigits(*bigint);
 }
 
-bigint::RWDigits GetRWDigits(MutableBigInt bigint) {
+bigint::RWDigits GetRWDigits(Tagged<MutableBigInt> bigint) {
   return bigint::RWDigits(
       reinterpret_cast<bigint::digit_t*>(
           bigint.ptr() + BigIntBase::kDigitsOffset - kHeapObjectTag),
@@ -313,7 +313,7 @@ Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   return Handle<BigInt>::cast(result);
 }
 
-void MutableBigInt::Canonicalize(MutableBigInt result) {
+void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
   // Check if we need to right-trim any leading zero-digits.
   int old_length = result->length();
   int new_length = old_length;
@@ -619,7 +619,7 @@ ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   return ComparisonResult::kEqual;
 }
 
-bool BigInt::EqualToBigInt(BigInt x, BigInt y) {
+bool BigInt::EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y) {
   if (x->sign() != y->sign()) return false;
   if (x->length() != y->length()) return false;
   for (int i = 0; i < x->length(); i++) {
@@ -1236,7 +1236,7 @@ void BigInt::BigIntShortPrint(std::ostream& os) {
 // modification.
 MaybeHandle<MutableBigInt> MutableBigInt::AbsoluteAddOne(
     Isolate* isolate, Handle<BigIntBase> x, bool sign,
-    MutableBigInt result_storage) {
+    Tagged<MutableBigInt> result_storage) {
   int input_length = x->length();
   // The addition will overflow into a new digit if all existing digits are
   // at maximum.
@@ -1587,7 +1587,7 @@ void BigInt::ToWordsArray64(int* sign_bit, int* words64_count,
   }
 }
 
-uint64_t MutableBigInt::GetRawBits(BigIntBase x, bool* lossless) {
+uint64_t MutableBigInt::GetRawBits(Tagged<BigIntBase> x, bool* lossless) {
   if (lossless != nullptr) *lossless = true;
   if (x->is_zero()) return 0;
   int len = x->length();
@@ -1643,26 +1643,26 @@ void BigIntBase::BigIntBasePrint(std::ostream& os) {
 
 void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::Add(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
 }
 
 int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
 
   return bigint::Compare(GetDigits(x), GetDigits(y));
 }
 
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::Subtract(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1673,9 +1673,9 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
 int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
                                                  Address x_addr,
                                                  Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   Isolate* isolate;
   if (!GetIsolateFromHeapObject(x, &isolate)) {
@@ -1696,9 +1696,9 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
 int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
                                                  Address x_addr,
                                                  Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
   DCHECK_GE(result->length(),
             bigint::DivideResultLength(GetDigits(x), GetDigits(y)));
 
@@ -1721,9 +1721,9 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
 int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
                                                  Address x_addr,
                                                  Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   Isolate* isolate;
   if (!GetIsolateFromHeapObject(x, &isolate)) {
@@ -1744,9 +1744,9 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseAnd_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1755,9 +1755,9 @@ void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseAndNegNegAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseAnd_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1766,9 +1766,9 @@ void MutableBigInt_BitwiseAndNegNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseAndPosNegAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseAnd_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1777,9 +1777,9 @@ void MutableBigInt_BitwiseAndPosNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseOrPosPosAndCanonicalize(Address result_addr,
                                                   Address x_addr,
                                                   Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseOr_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1788,9 +1788,9 @@ void MutableBigInt_BitwiseOrPosPosAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseOrNegNegAndCanonicalize(Address result_addr,
                                                   Address x_addr,
                                                   Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseOr_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1799,9 +1799,9 @@ void MutableBigInt_BitwiseOrNegNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseOrPosNegAndCanonicalize(Address result_addr,
                                                   Address x_addr,
                                                   Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseOr_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1810,9 +1810,9 @@ void MutableBigInt_BitwiseOrPosNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseXorPosPosAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseXor_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1821,9 +1821,9 @@ void MutableBigInt_BitwiseXorPosPosAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseXor_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1832,9 +1832,9 @@ void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  BigInt y = BigInt::cast(Object(y_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> y = BigInt::cast(Object(y_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseXor_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
@@ -1842,8 +1842,8 @@ void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
 
 void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
                                             intptr_t shift) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
 
   bigint::LeftShift(GetRWDigits(result), GetDigits(x), shift);
   MutableBigInt::Canonicalize(result);
@@ -1851,7 +1851,7 @@ void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
 
 uint32_t RightShiftResultLength(Address x_addr, uint32_t x_sign,
                                 intptr_t shift) {
-  BigInt x = BigInt::cast(Object(x_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
   bigint::RightShiftState state;
   int length =
       bigint::RightShift_ResultLength(GetDigits(x), x_sign, shift, &state);
@@ -1865,8 +1865,8 @@ uint32_t RightShiftResultLength(Address x_addr, uint32_t x_sign,
 void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
                                              Address x_addr, intptr_t shift,
                                              uint32_t must_round_down) {
-  BigInt x = BigInt::cast(Object(x_addr));
-  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  Tagged<BigInt> x = BigInt::cast(Object(x_addr));
+  Tagged<MutableBigInt> result = MutableBigInt::cast(Object(result_addr));
   bigint::RightShiftState state{must_round_down == 1};
   bigint::RightShift(GetRWDigits(result), GetDigits(x), shift, state);
   MutableBigInt::Canonicalize(result);

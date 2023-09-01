@@ -83,8 +83,8 @@ class BaselineAssembler {
                             Label* target,
                             Label::Distance distance = Label::kFar);
   inline Condition CheckSmi(Register value);
-  inline void JumpIfSmi(Condition cc, Register value, Smi smi, Label* target,
-                        Label::Distance distance = Label::kFar);
+  inline void JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
+                        Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIfSmi(Condition cc, Register lhs, Register rhs, Label* target,
                         Label::Distance distance = Label::kFar);
   inline void JumpIfImmediate(Condition cc, Register left, int right,
@@ -105,8 +105,8 @@ class BaselineAssembler {
 
   inline void Move(Register output, Register source);
   inline void Move(Register output, MemOperand operand);
-  inline void Move(Register output, Smi value);
-  inline void Move(Register output, TaggedIndex value);
+  inline void Move(Register output, Tagged<Smi> value);
+  inline void Move(Register output, Tagged<TaggedIndex> value);
   inline void Move(Register output, interpreter::Register source);
   inline void Move(interpreter::Register output, Register source);
   inline void Move(Register output, RootIndex source);
@@ -166,7 +166,8 @@ class BaselineAssembler {
   inline void LoadWord16FieldZeroExtend(Register output, Register source,
                                         int offset);
   inline void LoadWord8Field(Register output, Register source, int offset);
-  inline void StoreTaggedSignedField(Register target, int offset, Smi value);
+  inline void StoreTaggedSignedField(Register target, int offset,
+                                     Tagged<Smi> value);
   inline void StoreTaggedFieldWithWriteBarrier(Register target, int offset,
                                                Register value);
   inline void StoreTaggedFieldNoWriteBarrier(Register target, int offset,
@@ -213,7 +214,7 @@ class BaselineAssembler {
   inline void StaModuleVariable(Register context, Register value,
                                 int cell_index, uint32_t depth);
 
-  inline void AddSmi(Register lhs, Smi rhs);
+  inline void AddSmi(Register lhs, Tagged<Smi> rhs);
   inline void SmiUntag(Register value);
   inline void SmiUntag(Register output, Register value);
 

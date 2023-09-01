@@ -157,7 +157,8 @@ TEST_F(WeakMapsTest, Shrinking) {
 }
 
 namespace {
-bool EphemeronHashTableContainsKey(EphemeronHashTable table, HeapObject key) {
+bool EphemeronHashTableContainsKey(Tagged<EphemeronHashTable> table,
+                                   Tagged<HeapObject> key) {
   for (InternalIndex i : table->IterateEntries()) {
     if (table->KeyAt(i) == key) return true;
   }

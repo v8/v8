@@ -51,12 +51,12 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
-    DescriptorArray descriptors = map->instance_descriptors(isolate);
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
     DCHECK(descriptors->IsSortedNoDuplicates());
     int nof_descriptors = descriptors->number_of_descriptors();
 
     for (size_t i = 0; i < names.size(); ++i) {
-      Name name = *names[i];
+      Tagged<Name> name = *names[i];
       InternalIndex index = descriptors->Search(name, nof_descriptors, false);
       CHECK(index.is_found());
       CHECK_EQ(i, index.as_uint32());
@@ -85,12 +85,12 @@ void CheckTransitionArrayLookups(Isolate* isolate,
     DCHECK(transitions->IsSortedNoDuplicates());
 
     for (size_t i = 0; i < maps.size(); ++i) {
-      Map expected_map = *maps[i];
-      Name name = expected_map->instance_descriptors(isolate)->GetKey(
+      Tagged<Map> expected_map = *maps[i];
+      Tagged<Name> name = expected_map->instance_descriptors(isolate)->GetKey(
           expected_map->LastAdded());
 
-      Map map = transitions->SearchAndGetTargetForTesting(PropertyKind::kData,
-                                                          name, NONE);
+      Tagged<Map> map = transitions->SearchAndGetTargetForTesting(
+          PropertyKind::kData, name, NONE);
       CHECK(!map.is_null());
       CHECK_EQ(expected_map, map);
     }

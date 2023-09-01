@@ -699,7 +699,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       // New handle scope here, needs to be after BuildContants().
       typename IsolateT::HandleScopeType scope(isolate);
 
-      Object boilerplate_value = *GetBoilerplateValue(element, isolate);
+      Tagged<Object> boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
       DisallowGarbageCollection no_gc;
 
@@ -804,7 +804,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   bool raw_and_cooked_match = true;
   {
     DisallowGarbageCollection no_gc;
-    FixedArray raw_strings = *raw_strings_handle;
+    Tagged<FixedArray> raw_strings = *raw_strings_handle;
 
     for (int i = 0; i < raw_strings->length(); ++i) {
       if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
@@ -825,7 +825,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     cooked_strings_handle = isolate->factory()->NewFixedArray(
         this->cooked_strings()->length(), AllocationType::kOld);
     DisallowGarbageCollection no_gc;
-    FixedArray cooked_strings = *cooked_strings_handle;
+    Tagged<FixedArray> cooked_strings = *cooked_strings_handle;
     ReadOnlyRoots roots(isolate);
     for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
@@ -853,7 +853,7 @@ static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
 
 // Check for the pattern: x + 1.
 static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
-                                     Expression** expr, Smi* literal) {
+                                     Expression** expr, Tagged<Smi>* literal) {
   if (right->IsSmiLiteral()) {
     *expr = left;
     *literal = right->AsLiteral()->AsSmiLiteral();
@@ -863,7 +863,7 @@ static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
 }
 
 bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
-                                            Smi* literal) {
+                                            Tagged<Smi>* literal) {
   return MatchSmiLiteralOperation(left_, right_, subexpr, literal) ||
          (IsCommutativeOperationWithSmiLiteral(op()) &&
           MatchSmiLiteralOperation(right_, left_, subexpr, literal));

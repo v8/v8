@@ -8,8 +8,10 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/tagged.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/common/value-helper.h"
@@ -201,7 +203,8 @@ void CheckEq(CType in_value, CType out_value) {
 #ifdef V8_COMPRESS_POINTERS
 // Specializations for checking the result of compressing store.
 template <>
-void CheckEq<Object>(Object in_value, Object out_value) {
+void CheckEq<Tagged<Object>>(Tagged<Object> in_value,
+                             Tagged<Object> out_value) {
   // Compare only lower 32-bits of the value because tagged load/stores are
   // 32-bit operations anyway.
   CHECK_EQ(static_cast<Tagged_t>(in_value.ptr()),
@@ -209,13 +212,14 @@ void CheckEq<Object>(Object in_value, Object out_value) {
 }
 
 template <>
-void CheckEq<HeapObject>(HeapObject in_value, HeapObject out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<HeapObject>>(Tagged<HeapObject> in_value,
+                                 Tagged<HeapObject> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 
 template <>
-void CheckEq<Smi>(Smi in_value, Smi out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<Smi>>(Tagged<Smi> in_value, Tagged<Smi> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 #endif
 
@@ -386,10 +390,12 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kAligned);
-  RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
-                              TestAlignment::kAligned);
-  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<Smi>>(MachineType::TaggedSigned(),
+                               TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<HeapObject>>(MachineType::TaggedPointer(),
+                                      TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<Object>>(MachineType::AnyTagged(),
+                                  TestAlignment::kAligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -420,10 +426,12 @@ TEST(RunLoadStore) {
   RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kAligned);
-  RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
-                           TestAlignment::kAligned);
-  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadStore<Tagged<Smi>>(MachineType::TaggedSigned(),
+                            TestAlignment::kAligned);
+  RunLoadStore<Tagged<HeapObject>>(MachineType::TaggedPointer(),
+                                   TestAlignment::kAligned);
+  RunLoadStore<Tagged<Object>>(MachineType::AnyTagged(),
+                               TestAlignment::kAligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT

@@ -423,7 +423,7 @@ void ProfilerCodeObserver::LogBuiltins() {
        ++builtin) {
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    Code code = builtins->code(builtin);
+    Tagged<Code> code = builtins->code(builtin);
     rec->instruction_start = code->instruction_start();
     rec->instruction_size = code->instruction_size();
     rec->builtin = builtin;
@@ -635,7 +635,7 @@ CpuProfilingResult CpuProfiler::StartProfiling(
 }
 
 CpuProfilingResult CpuProfiler::StartProfiling(
-    String title, CpuProfilingOptions options,
+    Tagged<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return StartProfiling(profiles_->GetName(title), std::move(options),
                         std::move(delegate));
@@ -693,7 +693,7 @@ CpuProfile* CpuProfiler::StopProfiling(ProfilerId id) {
   return profile;
 }
 
-CpuProfile* CpuProfiler::StopProfiling(String title) {
+CpuProfile* CpuProfiler::StopProfiling(Tagged<String> title) {
   return StopProfiling(profiles_->GetName(title));
 }
 

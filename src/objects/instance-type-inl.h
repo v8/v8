@@ -134,12 +134,12 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) {
   return false;
 }
 
-inline bool CheckInstanceMap(RootIndex expected, Map map) {
+inline bool CheckInstanceMap(RootIndex expected, Tagged<Map> map) {
   return V8HeapCompressionScheme::CompressObject(map.ptr()) ==
          StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected)];
 }
 
-inline bool CheckInstanceMapRange(RootIndexRange expected, Map map) {
+inline bool CheckInstanceMapRange(RootIndexRange expected, Tagged<Map> map) {
   Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map.ptr());
   Tagged_t first =
       StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected.first)];
@@ -168,7 +168,7 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
 #if V8_STATIC_ROOTS_BOOL
 
 #define INSTANCE_TYPE_CHECKER2(type, forinstancetype_)       \
-  V8_INLINE bool Is##type(Map map_object) {                  \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {          \
     InstanceType forinstancetype =                           \
         static_cast<InstanceType>(forinstancetype_);         \
     if (base::Optional<RootIndex> expected =                 \
@@ -185,7 +185,7 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
 #else
 
 #define INSTANCE_TYPE_CHECKER2(type, forinstancetype) \
-  V8_INLINE bool Is##type(Map map_object) {           \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {   \
     return Is##type(map_object->instance_type());     \
   }
 
@@ -236,7 +236,7 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 
 #define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type,      \
                                      last_instance_type)             \
-  V8_INLINE bool Is##type(Map map_object) {                          \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {                  \
     if (base::Optional<RootIndexRange> range =                       \
             UniqueMapRangeOfInstanceTypeRange(first_instance_type,   \
                                               last_instance_type)) { \
@@ -250,7 +250,7 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 
 #define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type, \
                                      last_instance_type)        \
-  V8_INLINE bool Is##type(Map map_object) {                     \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {             \
     return Is##type(map_object->instance_type());               \
   }
 
@@ -271,7 +271,7 @@ V8_INLINE constexpr bool IsInternalizedString(InstanceType instance_type) {
          (kStringTag | kInternalizedTag);
 }
 
-V8_INLINE bool IsInternalizedString(Map map_object) {
+V8_INLINE bool IsInternalizedString(Tagged<Map> map_object) {
 #if V8_STATIC_ROOTS_BOOL
   return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kInternalizedString,
                                map_object);
@@ -285,7 +285,7 @@ V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
          kExternalStringTag;
 }
 
-V8_INLINE bool IsExternalString(Map map_object) {
+V8_INLINE bool IsExternalString(Tagged<Map> map_object) {
 #if V8_STATIC_ROOTS_BOOL
   return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kExternalString,
                                map_object);
@@ -298,7 +298,7 @@ V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
   return (instance_type & kStringRepresentationMask) == kThinStringTag;
 }
 
-V8_INLINE bool IsThinString(Map map_object) {
+V8_INLINE bool IsThinString(Tagged<Map> map_object) {
 #if V8_STATIC_ROOTS_BOOL
   return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kThinString,
                                map_object);
@@ -316,13 +316,15 @@ V8_INLINE constexpr bool IsGcSafeCode(InstanceType instance_type) {
   return IsCode(instance_type);
 }
 
-V8_INLINE bool IsGcSafeCode(Map map_object) { return IsCode(map_object); }
+V8_INLINE bool IsGcSafeCode(Tagged<Map> map_object) {
+  return IsCode(map_object);
+}
 
 V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
   return IsBytecodeArray(instance_type) || IsCode(instance_type);
 }
 
-V8_INLINE bool IsAbstractCode(Map map_object) {
+V8_INLINE bool IsAbstractCode(Tagged<Map> map_object) {
   return IsAbstractCode(map_object->instance_type());
 }
 
@@ -330,7 +332,7 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-V8_INLINE bool IsFreeSpaceOrFiller(Map map_object) {
+V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
   return IsFreeSpaceOrFiller(map_object->instance_type());
 }
 

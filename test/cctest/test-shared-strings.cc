@@ -477,10 +477,11 @@ class ConcurrentStringTableLookupThread final
 
   void RunForString(Handle<String> input_string, int counter) override {
     CHECK(input_string->IsShared());
-    Object result = Object(StringTable::TryStringToIndexOrLookupExisting(
-        i_isolate, input_string->ptr()));
+    Tagged<Object> result =
+        Object(StringTable::TryStringToIndexOrLookupExisting(
+            i_isolate, input_string->ptr()));
     if (IsString(result)) {
-      String internalized = String::cast(result);
+      Tagged<String> internalized = String::cast(result);
       CHECK(IsInternalizedString(internalized));
       CHECK_IMPLIES(IsInternalizedString(*input_string),
                     *input_string == internalized);
@@ -1621,8 +1622,8 @@ void CreateExternalResources(Isolate* i_isolate, Handle<FixedArray> strings,
 }
 
 void CheckStringAndResource(
-    String string, int index, bool should_be_alive, String deleted_string,
-    bool check_transition, bool shared_resources,
+    Tagged<String> string, int index, bool should_be_alive,
+    Tagged<String> deleted_string, bool check_transition, bool shared_resources,
     const std::vector<std::unique_ptr<ConcurrentExternalizationThread>>&
         threads) {
   if (check_transition) {
@@ -1729,7 +1730,7 @@ void TestConcurrentExternalization(bool share_resources) {
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
                                 i_isolate);
-    String string = *input_string;
+    Tagged<String> string = *input_string;
     CheckStringAndResource(string, i, true, String{}, true, share_resources,
                            threads);
   }
@@ -1825,7 +1826,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     Handle<String> input_string(String::cast(shared_strings->get(i)),
                                 i_isolate);
     const bool should_be_alive = i % 3 != 0;
-    String string = *input_string;
+    Tagged<String> string = *input_string;
     CheckStringAndResource(string, i, should_be_alive, *empty_string,
                            transition_with_stack, share_resources, threads);
   }
@@ -1843,7 +1844,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
       Handle<String> input_string(String::cast(shared_strings->get(i)),
                                   i_isolate);
       const bool should_be_alive = i % 3 != 0;
-      String string = *input_string;
+      Tagged<String> string = *input_string;
       CheckStringAndResource(string, i, should_be_alive, *empty_string, true,
                              share_resources, threads);
     }
@@ -1935,7 +1936,7 @@ void TestConcurrentExternalizationAndInternalization(
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
                                 i_isolate);
-    String string = *input_string;
+    Tagged<String> string = *input_string;
     if (hit_or_miss == kTestHit) {
       CHECK(IsThinString(string));
       string = ThinString::cast(string)->actual();

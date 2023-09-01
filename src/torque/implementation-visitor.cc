@@ -4294,18 +4294,18 @@ void CppClassGenerator::GenerateClassCasts() {
                    gen_name_);
   cpp::Function f(&owner, "cast");
   f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
-  f.SetReturnType("D");
+  f.SetReturnType("Tagged<D>");
   f.AddParameter("Tagged<Object>", "object");
 
   // V8_INLINE static D cast(Tagged<Object>)
   f.PrintDeclaration(hdr_);
   f.PrintDefinition(inl_, [](std::ostream& stream) {
-    stream << "    return Tagged<D>(D(object.ptr()).ptr());\n";
+    stream << "    return Tagged<D>(D(object.ptr()));\n";
   });
   // V8_INLINE static D unchecked_cast(Tagged<Object>)
   f.SetName("unchecked_cast");
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "    return Tagged<D>(object.ptr());\n";
+    stream << "    return Tagged<D>::unchecked_cast(object);\n";
   });
 }
 
@@ -5101,7 +5101,7 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         // We use an unchecked_cast here because this is used for concurrent
         // marking, where we shouldn't re-read the map.
         h_contents << "    return " << name
-                   << "::unchecked_cast(raw_object).AllocatedSize();\n";
+                   << "::unchecked_cast(raw_object)->AllocatedSize();\n";
       }
       h_contents << "  }\n\n";
 

@@ -56,7 +56,7 @@ bool SatisfiesAssertion(RegExpAssertion::Type type,
 }
 
 base::Vector<RegExpInstruction> ToInstructionVector(
-    ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
+    Tagged<ByteArray> raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
   int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
@@ -66,11 +66,11 @@ base::Vector<RegExpInstruction> ToInstructionVector(
 
 template <class Character>
 base::Vector<const Character> ToCharacterVector(
-    String str, const DisallowGarbageCollection& no_gc);
+    Tagged<String> str, const DisallowGarbageCollection& no_gc);
 
 template <>
 base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    String str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
@@ -79,7 +79,7 @@ base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
 
 template <>
 base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
-    String str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());
@@ -137,8 +137,8 @@ class NfaInterpreter {
   // ACCEPTing thread with highest priority.
  public:
   NfaInterpreter(Isolate* isolate, RegExp::CallOrigin call_origin,
-                 ByteArray bytecode, int register_count_per_match, String input,
-                 int32_t input_index, Zone* zone)
+                 Tagged<ByteArray> bytecode, int register_count_per_match,
+                 Tagged<String> input, int32_t input_index, Zone* zone)
       : isolate_(isolate),
         call_origin_(call_origin),
         bytecode_object_(bytecode),
@@ -256,7 +256,7 @@ class NfaInterpreter {
         const bool was_one_byte =
             String::IsOneByteRepresentationUnderneath(input_object_);
 
-        Object result;
+        Tagged<Object> result;
         {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
@@ -557,9 +557,10 @@ class NfaInterpreter {
 }  // namespace
 
 int ExperimentalRegExpInterpreter::FindMatches(
-    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray bytecode,
-    int register_count_per_match, String input, int start_index,
-    int32_t* output_registers, int output_register_count, Zone* zone) {
+    Isolate* isolate, RegExp::CallOrigin call_origin,
+    Tagged<ByteArray> bytecode, int register_count_per_match,
+    Tagged<String> input, int start_index, int32_t* output_registers,
+    int output_register_count, Zone* zone) {
   DCHECK(input->IsFlat());
   DisallowGarbageCollection no_gc;
 

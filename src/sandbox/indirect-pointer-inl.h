@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Object ReadIndirectPointerField(Address field_address) {
+V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   // Here we assume that the load from the table cannot be reordered before the
   // load of the code object pointer due to the data dependency between the two

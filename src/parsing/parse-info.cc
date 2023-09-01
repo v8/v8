@@ -44,13 +44,13 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
 
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
-    Isolate* isolate, SharedFunctionInfo shared) {
-  Script script = Script::cast(shared->script());
+    Isolate* isolate, Tagged<SharedFunctionInfo> shared) {
+  Tagged<Script> script = Script::cast(shared->script());
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
   flags.SetFlagsForFunctionFromScript(script);
-  flags.SetFlagsFromFunction(&shared);
+  flags.SetFlagsFromFunction(shared);
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 
@@ -67,7 +67,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
-    Isolate* isolate, Script script) {
+    Isolate* isolate, Tagged<Script> script) {
   UnoptimizedCompileFlags flags(isolate, script->id());
 
   flags.SetFlagsForFunctionFromScript(script);
@@ -147,13 +147,14 @@ void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
   set_block_coverage_enabled(block_coverage_enabled() && is_user_javascript);
 }
 
-void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
+void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
+    Tagged<Script> script) {
   DCHECK_EQ(script_id(), script->id());
 
   set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
   if (is_eval()) {
     DCHECK(script->has_eval_from_shared());
-    set_outer_language_mode(script.eval_from_shared()->language_mode());
+    set_outer_language_mode(script->eval_from_shared()->language_mode());
   }
   set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
@@ -310,7 +311,7 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::CheckFlagsForToplevelCompileFromScript(Script script) {
+void ParseInfo::CheckFlagsForToplevelCompileFromScript(Tagged<Script> script) {
   CheckFlagsForFunctionFromScript(script);
   DCHECK(flags().is_toplevel());
   DCHECK_EQ(flags().is_repl_mode(), script->is_repl_mode());
@@ -320,7 +321,7 @@ void ParseInfo::CheckFlagsForToplevelCompileFromScript(Script script) {
   }
 }
 
-void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
+void ParseInfo::CheckFlagsForFunctionFromScript(Tagged<Script> script) {
   DCHECK_EQ(flags().script_id(), script->id());
   // We set "is_eval" for wrapped scripts to get an outer declaration scope.
   // This is a bit hacky, but ok since we can't be both eval and wrapped.

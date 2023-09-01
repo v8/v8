@@ -104,12 +104,12 @@ class MaybeObjectHandle {
   inline MaybeObjectHandle()
       : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
-  inline MaybeObjectHandle(Object object, Isolate* isolate);
+  inline MaybeObjectHandle(Tagged<Object> object, Isolate* isolate);
   inline MaybeObjectHandle(MaybeObject object, LocalHeap* local_heap);
-  inline MaybeObjectHandle(Object object, LocalHeap* local_heap);
+  inline MaybeObjectHandle(Tagged<Object> object, LocalHeap* local_heap);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
-  static inline MaybeObjectHandle Weak(Object object, Isolate* isolate);
+  static inline MaybeObjectHandle Weak(Tagged<Object> object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
   inline MaybeObject operator*() const;
@@ -120,7 +120,7 @@ class MaybeObjectHandle {
   bool is_null() const { return handle_.is_null(); }
 
  private:
-  inline MaybeObjectHandle(Object object,
+  inline MaybeObjectHandle(Tagged<Object> object,
                            HeapObjectReferenceType reference_type,
                            Isolate* isolate);
   inline MaybeObjectHandle(Handle<Object> object,

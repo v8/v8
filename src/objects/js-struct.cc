@@ -29,7 +29,8 @@ void PrepareMapCommon(Map map) {
 }  // namespace
 
 // static
-void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(Map map) {
+void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
+    Tagged<Map> map) {
   PrepareMapCommon(map);
   map->SetEnumLength(0);
 }

@@ -49,7 +49,7 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 
   if (!IsNativeContext(*context_)) {
     DisallowGarbageCollection no_gc;
-    ScopeInfo closure_info = context_->closure_context()->scope_info();
+    Tagged<ScopeInfo> closure_info = context_->closure_context()->scope_info();
     Handle<String> debug_name(closure_info->FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
   }
@@ -225,7 +225,8 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   }
 
   if (strategy == ReparseStrategy::kScriptIfNeeded) {
-    Object maybe_block_list = isolate_->LocalsBlockListCacheGet(scope_info);
+    Tagged<Object> maybe_block_list =
+        isolate_->LocalsBlockListCacheGet(scope_info);
     calculate_blocklists_ = IsTheHole(maybe_block_list);
     strategy = calculate_blocklists_ ? ReparseStrategy::kScriptIfNeeded
                                      : ReparseStrategy::kFunctionLiteral;
@@ -319,9 +320,9 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
 
 void ScopeIterator::UnwrapEvaluationContext() {
   if (!context_->IsDebugEvaluateContext()) return;
-  Context current = *context_;
+  Tagged<Context> current = *context_;
   do {
-    Object wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
+    Tagged<Object> wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
     if (IsContext(wrapped)) {
       current = Context::cast(wrapped);
     } else {
@@ -795,7 +796,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
     int index;
     Handle<String> name;
     {
-      String raw_name;
+      Tagged<String> raw_name;
       scope_info->ModuleVariable(i, &raw_name, &index);
       if (ScopeInfo::VariableIsSynthetic(raw_name)) continue;
       name = handle(raw_name, isolate_);
@@ -875,7 +876,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          FixedArray parameters_and_registers =
+          Tagged<FixedArray> parameters_and_registers =
               generator_->parameters_and_registers();
           DCHECK_LT(index, parameters_and_registers->length());
           value = handle(parameters_and_registers->get(index), isolate_);
@@ -891,7 +892,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          FixedArray parameters_and_registers =
+          Tagged<FixedArray> parameters_and_registers =
               generator_->parameters_and_registers();
           int parameter_count =
               function_->shared()->scope_info()->ParameterCount();
@@ -1250,9 +1251,9 @@ Handle<ScopeInfo> LocalBlocklistsCollector::FindScopeInfoForScope(
     Scope* scope) const {
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo::ScriptIterator iterator(isolate_, *script_);
-  for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
+  for (Tagged<SharedFunctionInfo> info = iterator.Next(); !info.is_null();
        info = iterator.Next()) {
-    ScopeInfo scope_info = info->scope_info();
+    Tagged<ScopeInfo> scope_info = info->scope_info();
     if (info->is_compiled() && !scope_info.is_null() &&
         scope->start_position() == info->StartPosition() &&
         scope->end_position() == info->EndPosition() &&

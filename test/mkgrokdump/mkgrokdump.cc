@@ -45,7 +45,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
-                         i::HeapObject object) {
+                         i::Tagged<i::HeapObject> object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName) \
   if (root_name == nullptr && object == roots.name()) root_name = #CamelName;
 #define MUTABLE_ROOT_LIST_CASE(type, name, CamelName) \
@@ -53,7 +53,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
-  i::Map map = i::Map::cast(object);
+  i::Tagged<i::Map> map = i::Map::cast(object);
   intptr_t root_ptr =
       static_cast<intptr_t>(map.ptr()) & (i::Page::kPageSize - 1);
 
@@ -69,7 +69,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 }
 
 static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
-                            i::HeapObject object) {
+                            i::Tagged<i::HeapObject> object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName)        \
   if (root_name == nullptr && object == roots.name()) { \
     root_name = #CamelName;                             \
@@ -142,14 +142,14 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::PrintF(out, "\n# List of known V8 maps.\n");
       i::PrintF(out, "KNOWN_MAPS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
-      for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
-           object = ro_iterator.Next()) {
+      for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
+           !object.is_null(); object = ro_iterator.Next()) {
         if (!IsMap(object)) continue;
         DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
       i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
-      for (i::HeapObject object = iterator.Next(); !object.is_null();
+      for (i::Tagged<i::HeapObject> object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!IsMap(object)) continue;
         DumpKnownMap(out, heap, i::ToString(heap->old_space()->identity()),

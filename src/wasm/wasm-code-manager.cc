@@ -888,14 +888,14 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   InitializeJumpTableForLazyCompilation(max_functions);
 }
 
-void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
+void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   DisallowGarbageCollection no_gc;
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
-  Object url_obj = script->name();
+  Tagged<Object> url_obj = script->name();
   DCHECK(IsString(url_obj) || IsUndefined(url_obj));
   std::unique_ptr<char[]> source_url =
       IsString(url_obj) ? String::cast(url_obj)->ToCString()

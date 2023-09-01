@@ -156,7 +156,7 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 #endif
 }
 
-void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
+void BytecodeArray::CopyBytecodesTo(Tagged<BytecodeArray> to) {
   BytecodeArray from = *this;
   DCHECK_EQ(from->length(), to->length());
   CopyBytes(reinterpret_cast<uint8_t*>(to->GetFirstBytecodeAddress()),

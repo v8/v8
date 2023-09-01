@@ -103,7 +103,7 @@ void BaselineAssembler::Move(Register output, Register source) {
 void BaselineAssembler::Move(Register output, MemOperand operand) {
   __ Move(output, operand);
 }
-void BaselineAssembler::Move(Register output, Smi value) {
+void BaselineAssembler::Move(Register output, Tagged<Smi> value) {
   __ Move(output, value);
 }
 

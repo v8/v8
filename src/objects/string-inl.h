@@ -47,7 +47,7 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   }
 
   // Slow version which gets the isolate from the String.
-  explicit SharedStringAccessGuardIfNeeded(String str) {
+  explicit SharedStringAccessGuardIfNeeded(Tagged<String> str) {
     Isolate* isolate = GetIsolateIfNeeded(str);
     if (isolate != nullptr) {
       mutex_guard.emplace(isolate->internalized_string_access());
@@ -58,11 +58,11 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     return SharedStringAccessGuardIfNeeded();
   }
 
-  static bool IsNeeded(String str, LocalIsolate* local_isolate) {
+  static bool IsNeeded(Tagged<String> str, LocalIsolate* local_isolate) {
     return IsNeeded(local_isolate) && IsNeeded(str, false);
   }
 
-  static bool IsNeeded(String str, bool check_local_heap = true) {
+  static bool IsNeeded(Tagged<String> str, bool check_local_heap = true) {
     if (check_local_heap) {
       LocalHeap* local_heap = LocalHeap::Current();
       if (!local_heap || local_heap->is_main_thread()) {
@@ -94,7 +94,7 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   }
 
   // Returns the Isolate from the String if we need it for the lock.
-  static Isolate* GetIsolateIfNeeded(String str) {
+  static Isolate* GetIsolateIfNeeded(Tagged<String> str) {
     if (!IsNeeded(str)) return nullptr;
 
     Isolate* isolate;
@@ -132,11 +132,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalOneByteString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalTwoByteString)
 
 static_assert(kTaggedCanConvertToRawObjects);
-
-StringShape::StringShape(const String str) : StringShape(Tagged<String>(str)) {}
-StringShape::StringShape(const String str, PtrComprCageBase cage_base)
-    : StringShape(Tagged<String>(str), cage_base) {}
-StringShape::StringShape(Map map) : StringShape(Tagged<Map>(map)) {}
 
 StringShape::StringShape(const Tagged<String> str)
     : type_(str->map(kAcquireLoad)->instance_type()) {
@@ -291,7 +286,7 @@ inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
   V(ThinString)
 
 template <typename TDispatcher, typename TResult, typename... TArgs>
-inline TResult StringShape::DispatchToSpecificType(String str,
+inline TResult StringShape::DispatchToSpecificType(Tagged<String> str,
                                                    TArgs&&... args) {
   class CastingDispatcher : public AllStatic {
    public:
@@ -302,7 +297,8 @@ inline TResult StringShape::DispatchToSpecificType(String str,
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
-    static inline TResult HandleInvalidString(String str, TArgs&&... args) {
+    static inline TResult HandleInvalidString(Tagged<String> str,
+                                              TArgs&&... args) {
       return TDispatcher::HandleInvalidString(str,
                                               std::forward<TArgs>(args)...);
     }
@@ -375,8 +371,8 @@ class SequentialStringKey final : public StringTableKey {
         convert_(convert) {}
 
   template <typename IsolateT>
-  bool IsMatch(IsolateT* isolate, String s) {
-    return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
+  bool IsMatch(IsolateT* isolate, Tagged<String> s) {
+    return s->IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 
   template <typename IsolateT>
@@ -441,11 +437,11 @@ class SeqSubStringKey final : public StringTableKey {
 #pragma warning(pop)
 #endif
 
-  bool IsMatch(Isolate* isolate, String string) {
+  bool IsMatch(Isolate* isolate, Tagged<String> string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string_));
     DisallowGarbageCollection no_gc;
-    return string.IsEqualTo<String::EqualityType::kNoLengthCheck>(
+    return string->IsEqualTo<String::EqualityType::kNoLengthCheck>(
         base::Vector<const Char>(string_->GetChars(no_gc) + from_, length()),
         isolate);
   }
@@ -485,7 +481,7 @@ class SeqSubStringKey final : public StringTableKey {
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
 using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
-bool String::Equals(String other) const {
+bool String::Equals(Tagged<String> other) const {
   if (other == *this) return true;
   if (IsInternalizedString(*this) && IsInternalizedString(other)) {
     return false;
@@ -571,7 +567,7 @@ bool String::IsEqualToImpl(
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
-        SlicedString slicedString = SlicedString::cast(string);
+        Tagged<SlicedString> slicedString = SlicedString::cast(string);
         slice_offset += slicedString->offset();
         string = slicedString->parent(cage_base);
         continue;
@@ -602,7 +598,8 @@ bool String::IsEqualToImpl(
 // static
 template <typename Char>
 bool String::IsConsStringEqualToImpl(
-    ConsString string, base::Vector<const Char> str, PtrComprCageBase cage_base,
+    Tagged<ConsString> string, base::Vector<const Char> str,
+    PtrComprCageBase cage_base,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   // Already checked the len in IsEqualToImpl. Check GE rather than EQ in case
   // this is a prefix check.
@@ -611,7 +608,7 @@ bool String::IsConsStringEqualToImpl(
   ConsStringIterator iter(ConsString::cast(string));
   base::Vector<const Char> remaining_str = str;
   int offset;
-  for (String segment = iter.Next(&offset); !segment.is_null();
+  for (Tagged<String> segment = iter.Next(&offset); !segment.is_null();
        segment = iter.Next(&offset)) {
     // We create the iterator without an offset, so we should never have a
     // per-segment offset.
@@ -620,8 +617,8 @@ bool String::IsConsStringEqualToImpl(
     // remaining string.
     size_t len = std::min<size_t>(segment->length(), remaining_str.size());
     base::Vector<const Char> sub_str = remaining_str.SubVector(0, len);
-    if (!segment.IsEqualToImpl<EqualityType::kNoLengthCheck>(sub_str, cage_base,
-                                                             access_guard)) {
+    if (!segment->IsEqualToImpl<EqualityType::kNoLengthCheck>(
+            sub_str, cage_base, access_guard)) {
       return false;
     }
     remaining_str += len;
@@ -652,9 +649,10 @@ const Char* String::GetDirectStringChars(
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(StringShape(*this).IsDirect());
   return StringShape(*this, cage_base).IsExternal()
-             ? CharTraits<Char>::ExternalString::cast(*this).GetChars(cage_base)
-             : CharTraits<Char>::String::cast(*this).GetChars(no_gc,
-                                                              access_guard);
+             ? CharTraits<Char>::ExternalString::cast(*this)->GetChars(
+                   cage_base)
+             : CharTraits<Char>::String::cast(*this)->GetChars(no_gc,
+                                                               access_guard);
 }
 
 // static
@@ -662,7 +660,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
   PtrComprCageBase cage_base(isolate);
-  String s = *string;
+  Tagged<String> s = *string;
   StringShape shape(s, cage_base);
 
   // Shortcut already-flat strings.
@@ -670,7 +668,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
 
   if (shape.IsCons()) {
     DCHECK(!Object::InSharedHeap(s));
-    ConsString cons = ConsString::cast(s);
+    Tagged<ConsString> cons = ConsString::cast(s);
     if (!cons->IsFlat(isolate)) {
       AllowGarbageCollection yes_gc;
       return SlowFlatten(isolate, handle(cons, isolate), allocation);
@@ -698,7 +696,7 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
 // static
 base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
     PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
-    String string, int offset, int length,
+    Tagged<String> string, int offset, int length,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(length, 0);
@@ -844,7 +842,7 @@ uint16_t String::GetImpl(
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
     static inline uint16_t HandleInvalidString(
-        String str, int index, PtrComprCageBase cage_base,
+        Tagged<String> str, int index, PtrComprCageBase cage_base,
         const SharedStringAccessGuardIfNeeded& access_guard) {
       UNREACHABLE();
     }
@@ -879,7 +877,7 @@ bool String::IsShared(PtrComprCageBase cage_base) const {
   return result;
 }
 
-String String::GetUnderlying() const {
+Tagged<String> String::GetUnderlying() const {
   // Giving direct access to underlying string only makes sense if the
   // wrapping string is already flattened.
   DCHECK(IsFlat());
@@ -893,15 +891,15 @@ String String::GetUnderlying() const {
 }
 
 template <class Visitor>
-ConsString String::VisitFlat(Visitor* visitor, Tagged<String> string,
-                             const int offset) {
+Tagged<ConsString> String::VisitFlat(Visitor* visitor, Tagged<String> string,
+                                     const int offset) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
   return VisitFlat(visitor, string, offset,
                    SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 template <class Visitor>
-ConsString String::VisitFlat(
+Tagged<ConsString> String::VisitFlat(
     Visitor* visitor, Tagged<String> string, const int offset,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
@@ -943,7 +941,7 @@ ConsString String::VisitFlat(
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
-        SlicedString slicedString = SlicedString::cast(string);
+        Tagged<SlicedString> slicedString = SlicedString::cast(string);
         slice_offset += slicedString->offset();
         string = slicedString->parent(cage_base);
         continue;
@@ -1101,16 +1099,16 @@ bool SeqTwoByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
          map == roots.shared_seq_two_byte_string_map();
 }
 
-void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
+void SlicedString::set_parent(Tagged<String> parent, WriteBarrierMode mode) {
   DCHECK(IsSeqString(parent) || IsExternalString(parent));
   TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
 
-Object ConsString::unchecked_first() const {
+Tagged<Object> ConsString::unchecked_first() const {
   return TaggedField<Object, kFirstOffset>::load(*this);
 }
 
-Object ConsString::unchecked_second() const {
+Tagged<Object> ConsString::unchecked_second() const {
   return RELAXED_READ_FIELD(*this, kSecondOffset);
 }
 
@@ -1334,11 +1332,11 @@ const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
 
 int ConsStringIterator::OffsetForDepth(int depth) { return depth & kDepthMask; }
 
-void ConsStringIterator::PushLeft(ConsString string) {
+void ConsStringIterator::PushLeft(Tagged<ConsString> string) {
   frames_[depth_++ & kDepthMask] = string;
 }
 
-void ConsStringIterator::PushRight(ConsString string) {
+void ConsStringIterator::PushRight(Tagged<ConsString> string) {
   // Inplace update.
   frames_[(depth_ - 1) & kDepthMask] = string;
 }
@@ -1355,12 +1353,12 @@ void ConsStringIterator::Pop() {
 
 class StringCharacterStream {
  public:
-  inline explicit StringCharacterStream(String string, int offset = 0);
+  inline explicit StringCharacterStream(Tagged<String> string, int offset = 0);
   StringCharacterStream(const StringCharacterStream&) = delete;
   StringCharacterStream& operator=(const StringCharacterStream&) = delete;
   inline uint16_t GetNext();
   inline bool HasMore();
-  inline void Reset(String string, int offset = 0);
+  inline void Reset(Tagged<String> string, int offset = 0);
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
@@ -1386,16 +1384,16 @@ uint16_t StringCharacterStream::GetNext() {
 // TODO(solanes, v8:7790, chromium:1166095): Assess if we need to use
 // Isolate/LocalIsolate and pipe them through, instead of using the slow
 // version of the SharedStringAccessGuardIfNeeded.
-StringCharacterStream::StringCharacterStream(String string, int offset)
+StringCharacterStream::StringCharacterStream(Tagged<String> string, int offset)
     : is_one_byte_(false), access_guard_(string) {
   Reset(string, offset);
 }
 
-void StringCharacterStream::Reset(String string, int offset) {
+void StringCharacterStream::Reset(Tagged<String> string, int offset) {
   buffer8_ = nullptr;
   end_ = nullptr;
 
-  ConsString cons_string =
+  Tagged<ConsString> cons_string =
       String::VisitFlat(this, string, offset, access_guard_);
   iter_.Reset(cons_string, offset);
   if (!cons_string.is_null()) {
@@ -1408,7 +1406,7 @@ void StringCharacterStream::Reset(String string, int offset) {
 bool StringCharacterStream::HasMore() {
   if (buffer8_ != end_) return true;
   int offset;
-  String string = iter_.Next(&offset);
+  Tagged<String> string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
   if (string.is_null()) return false;
   String::VisitFlat(this, string, 0, access_guard_);
@@ -1455,7 +1453,7 @@ bool String::AsIntegerIndex(size_t* index) {
   return SlowAsIntegerIndex(index);
 }
 
-SubStringRange::SubStringRange(String string,
+SubStringRange::SubStringRange(Tagged<String> string,
                                const DisallowGarbageCollection& no_gc,
                                int first, int length)
     : string_(string),
@@ -1489,7 +1487,8 @@ class SubStringRange::iterator final {
  private:
   friend class String;
   friend class SubStringRange;
-  iterator(String from, int offset, const DisallowGarbageCollection& no_gc)
+  iterator(Tagged<String> from, int offset,
+           const DisallowGarbageCollection& no_gc)
       : content_(from->GetFlatContent(no_gc)), offset_(offset) {}
   String::FlatContent content_;
   int offset_;

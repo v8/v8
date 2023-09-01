@@ -195,7 +195,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
     return MaybeHandle<Context>();
   }
   SaveAndSwitchContext save(isolate, function->context());
-  SharedFunctionInfo sfi = function->shared();
+  Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Script::cast(sfi->script()), isolate);
   Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
   Handle<NativeContext> native_context(NativeContext::cast(function->context()),
@@ -396,7 +396,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
 
   // Placeholder for return value.
-  Object value;
+  Tagged<Object> value;
   Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
   {

@@ -451,7 +451,7 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
 }
 
 void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
-  i::Object raw =
+  i::Tagged<i::Object> raw =
       i::EphemeronHashTable::cast(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw, i_isolate())) return nullptr;
   return i::Managed<ManagedData>::cast(raw)->raw()->info;
@@ -1408,7 +1408,8 @@ class SignatureHelper : public i::AllStatic {
     return sig;
   }
 
-  static own<FuncType> Deserialize(i::PodArray<i::wasm::ValueType> sig) {
+  static own<FuncType> Deserialize(
+      i::Tagged<i::PodArray<i::wasm::ValueType>> sig) {
     int result_arity = i::wasm::SerializedSignatureHelper::ReturnCount(sig);
     int param_arity = i::wasm::SerializedSignatureHelper::ParamCount(sig);
     ownvec<ValType> results = ownvec<ValType>::make_uninitialized(result_arity);
@@ -1425,7 +1426,7 @@ class SignatureHelper : public i::AllStatic {
     return FuncType::make(std::move(params), std::move(results));
   }
 
-  static i::PodArray<i::wasm::ValueType> GetSig(
+  static i::Tagged<i::PodArray<i::wasm::ValueType>> GetSig(
       i::Handle<i::JSFunction> function) {
     return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
   }
@@ -1613,8 +1614,8 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
   }
 }
 
-own<Trap> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
-                               Val results[]) {
+own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
+                               const Val args[], Val results[]) {
   FuncData* func_data =
       i::Managed<FuncData>::cast(data->embedder_data())->raw();
   if (func_data->kind == FuncData::kCallback) {
@@ -1651,7 +1652,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   auto isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
-  i::Object raw_function_data =
+  i::Tagged<i::Object> raw_function_data =
       func->v8_object()->shared()->function_data(v8::kAcquireLoad);
 
   // WasmCapiFunctions can be called directly.
@@ -1681,9 +1682,10 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
     object_ref = i::handle(
         instance->imported_function_refs()->get(function_index), isolate);
     if (IsWasmApiFunctionRef(*object_ref)) {
-      i::JSFunction jsfunc = i::JSFunction::cast(
+      i::Tagged<i::JSFunction> jsfunc = i::JSFunction::cast(
           i::WasmApiFunctionRef::cast(*object_ref)->callable());
-      i::Object data = jsfunc->shared()->function_data(v8::kAcquireLoad);
+      i::Tagged<i::Object> data =
+          jsfunc->shared()->function_data(v8::kAcquireLoad);
       if (IsWasmCapiFunctionData(data)) {
         return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
                                     results);
@@ -1770,7 +1772,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
 
   if (trap) {
     isolate->Throw(*impl(trap.get())->v8_object());
-    i::Object ex = isolate->pending_exception();
+    i::Tagged<i::Object> ex = isolate->pending_exception();
     isolate->clear_pending_exception();
     return ex.ptr();
   }

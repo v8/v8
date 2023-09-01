@@ -1362,7 +1362,7 @@ template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
+int BytecodeGenerator::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
   return builder()->CheckBytecodeMatches(bytecode);
 }
 #endif
@@ -6703,7 +6703,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
   Expression* subexpr;
-  Smi literal;
+  Tagged<Smi> literal;
   if (expr->IsSmiLiteralOperation(&subexpr, &literal)) {
     TypeHint type_hint = VisitForAccumulatorValue(subexpr);
     builder()->SetExpressionPosition(expr);

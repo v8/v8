@@ -55,7 +55,7 @@ void MarkingWorklists::PrintWorklist(const char* worklist_name,
 #ifdef DEBUG
   std::map<InstanceType, int> count;
   int total_count = 0;
-  worklist->Iterate([&count, &total_count](HeapObject obj) {
+  worklist->Iterate([&count, &total_count](Tagged<HeapObject> obj) {
     ++total_count;
     count[obj->map()->instance_type()]++;
   });
@@ -171,7 +171,7 @@ void MarkingWorklists::Local::PublishWork() {
 
 void MarkingWorklists::Local::MergeOnHold() { shared_.Merge(on_hold_); }
 
-bool MarkingWorklists::Local::PopContext(HeapObject* object) {
+bool MarkingWorklists::Local::PopContext(Tagged<HeapObject>* object) {
   DCHECK(is_per_context_mode_);
   // As an optimization we first check only the local segments to avoid locks.
   for (auto& cw : worklist_by_context_) {

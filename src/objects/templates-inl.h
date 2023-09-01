@@ -129,33 +129,34 @@ bool FunctionTemplateInfo::instantiated() {
 }
 
 inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
-  Object maybe_shared = shared_function_info();
+  Tagged<Object> maybe_shared = shared_function_info();
   if (IsSharedFunctionInfo(maybe_shared)) {
-    SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
+    Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(maybe_shared);
     return shared->BreakAtEntry(isolate);
   }
   return false;
 }
 
-FunctionTemplateInfo FunctionTemplateInfo::GetParent(Isolate* isolate) {
-  Object parent = GetParentTemplate();
-  return IsUndefined(parent, isolate) ? FunctionTemplateInfo()
+Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
+  Tagged<Object> parent = GetParentTemplate();
+  return IsUndefined(parent, isolate) ? Tagged<FunctionTemplateInfo>{}
                                       : FunctionTemplateInfo::cast(parent);
 }
 
-ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
-  Object maybe_ctor = constructor();
+Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
+  Tagged<Object> maybe_ctor = constructor();
   if (IsUndefined(maybe_ctor, isolate)) return ObjectTemplateInfo();
-  FunctionTemplateInfo constructor = FunctionTemplateInfo::cast(maybe_ctor);
+  Tagged<FunctionTemplateInfo> constructor =
+      FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
-    Object maybe_obj = constructor->GetInstanceTemplate();
+    Tagged<Object> maybe_obj = constructor->GetInstanceTemplate();
     if (!IsUndefined(maybe_obj, isolate)) {
       return ObjectTemplateInfo::cast(maybe_obj);
     }
   }
-  return ObjectTemplateInfo();
+  return Tagged<ObjectTemplateInfo>();
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {
@@ -183,7 +184,7 @@ void ObjectTemplateInfo::set_code_like(bool is_code_like) {
   return set_data(IsCodeKindBit::update(data(), is_code_like));
 }
 
-bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {
+bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 

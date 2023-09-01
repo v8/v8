@@ -246,7 +246,7 @@ void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
   *list = ArrayBufferList();
 }
 
-void ArrayBufferSweeper::Append(JSArrayBuffer object,
+void ArrayBufferSweeper::Append(Tagged<JSArrayBuffer> object,
                                 ArrayBufferExtension* extension) {
   size_t bytes = extension->accounting_length();
 
@@ -261,7 +261,7 @@ void ArrayBufferSweeper::Append(JSArrayBuffer object,
   IncrementExternalMemoryCounters(bytes);
 }
 
-void ArrayBufferSweeper::Detach(JSArrayBuffer object,
+void ArrayBufferSweeper::Detach(Tagged<JSArrayBuffer> object,
                                 ArrayBufferExtension* extension) {
   // Finish sweeping here first such that the code below is guaranteed to
   // observe the same sweeping state.

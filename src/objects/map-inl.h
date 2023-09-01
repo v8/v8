@@ -61,8 +61,9 @@ ACCESSORS_CHECKED2(Map, prototype, Tagged<HeapObject>, kPrototypeOffset, true,
                          value->map()->is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Tagged<Object>) {
-  Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
-      cage_base, *this);
+  Tagged<Object> value =
+      TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(cage_base,
+                                                                   *this);
   DCHECK(this->is_prototype_map());
   return value;
 }
@@ -70,7 +71,7 @@ RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Tagged<Object>,
                           kTransitionsOrPrototypeInfoOffset)
 
 void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
-  HeapObject null = roots.null_value();
+  Tagged<HeapObject> null = roots.null_value();
   TaggedField<HeapObject,
               kConstructorOrBackPointerOrNativeContextOffset>::store(*this,
                                                                      null);
@@ -129,24 +130,24 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
 
 DEF_GETTER(Map, GetNamedInterceptor, Tagged<InterceptorInfo>) {
   DCHECK(has_named_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
+  Tagged<FunctionTemplateInfo> info = GetFunctionTemplateInfo(cage_base);
   return InterceptorInfo::cast(info->GetNamedPropertyHandler(cage_base));
 }
 
 DEF_GETTER(Map, GetIndexedInterceptor, Tagged<InterceptorInfo>) {
   DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
+  Tagged<FunctionTemplateInfo> info = GetFunctionTemplateInfo(cage_base);
   return InterceptorInfo::cast(info->GetIndexedPropertyHandler(cage_base));
 }
 
 // static
 bool Map::IsMostGeneralFieldType(Representation representation,
-                                 FieldType field_type) {
+                                 Tagged<FieldType> field_type) {
   return !representation.IsHeapObject() || IsAny(field_type);
 }
 
 // static
-bool Map::FieldTypeIsCleared(Representation rep, FieldType type) {
+bool Map::FieldTypeIsCleared(Representation rep, Tagged<FieldType> type) {
   return IsNone(type) && rep.IsHeapObject();
 }
 
@@ -189,7 +190,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                    kUseCache, reason);
 }
 
-bool Map::EquivalentToForNormalization(const Map other,
+bool Map::EquivalentToForNormalization(const Tagged<Map> other,
                                        PropertyNormalizationMode mode) const {
   return EquivalentToForNormalization(other, elements_kind(), mode);
 }
@@ -213,7 +214,7 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   }
 }
 
-Name Map::GetLastDescriptorName(Isolate* isolate) const {
+Tagged<Name> Map::GetLastDescriptorName(Isolate* isolate) const {
   return instance_descriptors(isolate)->GetKey(LastAdded());
 }
 
@@ -257,7 +258,7 @@ void Map::SetEnumLength(int length) {
   set_relaxed_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
 }
 
-FixedArrayBase Map::GetInitialElements() const {
+Tagged<FixedArrayBase> Map::GetInitialElements() const {
   Tagged<FixedArrayBase> result;
   if (has_fast_elements() || has_fast_string_wrapper_elements() ||
       has_any_nonextensible_elements()) {
@@ -448,13 +449,13 @@ void Map::SetOutOfObjectUnusedPropertyFields(int value) {
   DCHECK_EQ(value, UnusedPropertyFields());
 }
 
-void Map::CopyUnusedPropertyFields(Map map) {
+void Map::CopyUnusedPropertyFields(Tagged<Map> map) {
   set_used_or_unused_instance_size_in_words(
       map->used_or_unused_instance_size_in_words());
   DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
-void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
+void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Tagged<Map> map) {
   int value = map->used_or_unused_instance_size_in_words();
   if (value >= JSPrimitiveWrapper::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
@@ -584,9 +585,9 @@ bool Map::has_prototype_info() const {
   return PrototypeInfo::IsPrototypeInfoFast(prototype_info());
 }
 
-bool Map::TryGetPrototypeInfo(PrototypeInfo* result) const {
+bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
   DCHECK(is_prototype_map());
-  Object maybe_proto_info = prototype_info();
+  Tagged<Object> maybe_proto_info = prototype_info();
   if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
   *result = PrototypeInfo::cast(maybe_proto_info);
   return true;
@@ -739,12 +740,14 @@ bool IsPrimitiveMap(Tagged<Map> map) {
   return map->instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
-void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
+void Map::UpdateDescriptors(Isolate* isolate,
+                            Tagged<DescriptorArray> descriptors,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
 }
 
-void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors) {
+void Map::InitializeDescriptors(Isolate* isolate,
+                                Tagged<DescriptorArray> descriptors) {
   SetInstanceDescriptors(isolate, descriptors,
                          descriptors->number_of_descriptors());
 }
@@ -757,7 +760,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  DescriptorArray descriptors = instance_descriptors(isolate);
+  Tagged<DescriptorArray> descriptors = instance_descriptors(isolate);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   {
@@ -794,7 +797,7 @@ bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
 }
 
 DEF_GETTER(Map, GetBackPointer, Tagged<HeapObject>) {
-  Map back_pointer;
+  Tagged<Map> back_pointer;
   if (TryGetBackPointer(cage_base, &back_pointer)) {
     return back_pointer;
   }
@@ -802,8 +805,8 @@ DEF_GETTER(Map, GetBackPointer, Tagged<HeapObject>) {
 }
 
 bool Map::TryGetBackPointer(PtrComprCageBase cage_base,
-                            Map* back_pointer) const {
-  Object object = constructor_or_back_pointer(cage_base, kRelaxedLoad);
+                            Tagged<Map>* back_pointer) const {
+  Tagged<Object> object = constructor_or_back_pointer(cage_base, kRelaxedLoad);
   if (ConcurrentIsMap(cage_base, object)) {
     *back_pointer = Map::cast(object);
     return true;
@@ -811,7 +814,7 @@ bool Map::TryGetBackPointer(PtrComprCageBase cage_base,
   return false;
 }
 
-void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
+void Map::SetBackPointer(Tagged<HeapObject> value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(IsMap(value));
   CHECK(IsUndefined(GetBackPointer()));
@@ -821,13 +824,14 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
 }
 
 // static
-Map Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
+Tagged<Map> Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
   RootIndex map_idx = TryGetMapRootIdxFor(type).value();
   return Map::unchecked_cast(roots.object_at(map_idx));
 }
 
 // static
-Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
+Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
+                                       ConcurrencyMode cmode) {
   return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
@@ -857,18 +861,18 @@ ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {
-  Object validity_cell = prototype_validity_cell(kRelaxedLoad);
+  Tagged<Object> validity_cell = prototype_validity_cell(kRelaxedLoad);
   if (IsSmi(validity_cell)) {
     // Smi validity cells should always be considered valid.
     DCHECK_EQ(Smi::cast(validity_cell).value(), Map::kPrototypeChainValid);
     return true;
   }
-  Smi cell_value = Smi::cast(Cell::cast(validity_cell)->value());
+  Tagged<Smi> cell_value = Smi::cast(Cell::cast(validity_cell)->value());
   return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
 DEF_GETTER(Map, GetConstructorRaw, Tagged<Object>) {
-  Object maybe_constructor = constructor_or_back_pointer(cage_base);
+  Tagged<Object> maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.
   while (ConcurrentIsMap(cage_base, maybe_constructor)) {
     maybe_constructor =
@@ -879,19 +883,19 @@ DEF_GETTER(Map, GetConstructorRaw, Tagged<Object>) {
 
 DEF_GETTER(Map, GetNonInstancePrototype, Tagged<Object>) {
   DCHECK(has_non_instance_prototype());
-  Object raw_constructor = GetConstructorRaw(cage_base);
+  Tagged<Object> raw_constructor = GetConstructorRaw(cage_base);
   CHECK(IsTuple2(raw_constructor));
   // Get prototype from the {constructor, non-instance_prototype} tuple.
-  Tuple2 non_instance_prototype_constructor_tuple =
+  Tagged<Tuple2> non_instance_prototype_constructor_tuple =
       Tuple2::cast(raw_constructor);
-  Object result = non_instance_prototype_constructor_tuple->value2();
+  Tagged<Object> result = non_instance_prototype_constructor_tuple->value2();
   DCHECK(!IsJSReceiver(result));
   DCHECK(!IsFunctionTemplateInfo(result));
   return result;
 }
 
 DEF_GETTER(Map, GetConstructor, Tagged<Object>) {
-  Object maybe_constructor = GetConstructorRaw(cage_base);
+  Tagged<Object> maybe_constructor = GetConstructorRaw(cage_base);
   if (IsTuple2(maybe_constructor)) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.
     maybe_constructor = Tuple2::cast(maybe_constructor)->value1();
@@ -899,8 +903,8 @@ DEF_GETTER(Map, GetConstructor, Tagged<Object>) {
   return maybe_constructor;
 }
 
-Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
-  Object maybe_constructor = constructor_or_back_pointer(isolate);
+Tagged<Object> Map::TryGetConstructor(Isolate* isolate, int max_steps) {
+  Tagged<Object> maybe_constructor = constructor_or_back_pointer(isolate);
   // Follow any back pointers.
   while (IsMap(maybe_constructor, isolate)) {
     if (max_steps-- == 0) return Smi::FromInt(0);
@@ -915,9 +919,10 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
 }
 
 DEF_GETTER(Map, GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>) {
-  Object constructor = GetConstructor(cage_base);
+  Tagged<Object> constructor = GetConstructor(cage_base);
   if (IsJSFunction(constructor, cage_base)) {
-    SharedFunctionInfo sfi = JSFunction::cast(constructor)->shared(cage_base);
+    Tagged<SharedFunctionInfo> sfi =
+        JSFunction::cast(constructor)->shared(cage_base);
     DCHECK(sfi->IsApiFunction());
     return sfi->api_func_data();
   }
@@ -925,7 +930,7 @@ DEF_GETTER(Map, GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>) {
   return FunctionTemplateInfo::cast(constructor);
 }
 
-void Map::SetConstructor(Object constructor, WriteBarrierMode mode) {
+void Map::SetConstructor(Tagged<Object> constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
   CHECK(!IsMap(constructor_or_back_pointer()));
   // Constructor field must contain {constructor, non-instance_prototype} tuple

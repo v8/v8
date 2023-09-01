@@ -335,7 +335,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Tagged<Smi> src);
   inline void Move(Register dst, ExternalReference src);
   inline void Move(Register dst, Register src);
-  inline void Move(Register dst, TaggedIndex i);
+  inline void Move(Register dst, Tagged<TaggedIndex> i);
   inline void Move(Register dst, int32_t i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
@@ -396,12 +396,12 @@ class MaglevAssembler : public MacroAssembler {
                                        InstanceType lower_limit,
                                        InstanceType higher_limit);
 
-  inline void CompareTagged(Register reg, Smi smi);
+  inline void CompareTagged(Register reg, Tagged<Smi> smi);
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
   inline void CompareTagged(Register src1, Register src2);
 
-  inline void CompareTaggedAndJumpIf(Register reg, Smi smi, Condition cond,
-                                     Label* target,
+  inline void CompareTaggedAndJumpIf(Register reg, Tagged<Smi> smi,
+                                     Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);
 
   inline void CompareInt32(Register reg, int32_t imm);
@@ -450,8 +450,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
-  inline void CompareSmiAndJumpIf(Register r1, Smi value, Condition cond,
-                                  Label* target,
+  inline void CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
+                                  Condition cond, Label* target,
                                   Label::Distance distance = Label::kFar);
   inline void CompareByteAndJumpIf(MemOperand left, int8_t right,
                                    Condition cond, Register scratch,

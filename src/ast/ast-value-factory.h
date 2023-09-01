@@ -361,7 +361,7 @@ class AstValueFactory {
   const AstRawString* GetTwoByteString(base::Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);
   }
-  const AstRawString* GetString(String literal,
+  const AstRawString* GetString(Tagged<String> literal,
                                 const SharedStringAccessGuardIfNeeded&);
 
   V8_EXPORT_PRIVATE AstConsString* NewConsString();

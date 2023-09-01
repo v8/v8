@@ -57,7 +57,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // If the user requested to restart a frame, there is no need
   // to get the return value or check the bytecode for side-effects.
   if (isolate->debug()->IsRestartFrameScheduled()) {
-    Object exception = isolate->TerminateExecution();
+    Tagged<Object> exception = isolate->TerminateExecution();
     return MakePair(exception,
                     Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
   }
@@ -75,8 +75,8 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   // Make sure to only access these objects after the side effect check, as the
   // check can allocate on failure.
-  SharedFunctionInfo shared = interpreted_frame->function()->shared();
-  BytecodeArray bytecode_array = shared->GetBytecodeArray(isolate);
+  Tagged<SharedFunctionInfo> shared = interpreted_frame->function()->shared();
+  Tagged<BytecodeArray> bytecode_array = shared->GetBytecodeArray(isolate);
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
 
@@ -100,7 +100,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
     return MakePair(ReadOnlyRoots(isolate).exception(),
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
-  Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
+  Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
   if (IsException(interrupt_object, isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
@@ -537,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  Object f = args[0];
+  Tagged<Object> f = args[0];
   if (IsJSFunction(f)) {
     return JSFunction::cast(f)->shared()->inferred_name();
   }
@@ -569,7 +569,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   Script::InitLineEnds(script->GetIsolate(), script);
 
-  FixedArray line_ends_array = FixedArray::cast(script->line_ends());
+  Tagged<FixedArray> line_ends_array = FixedArray::cast(script->line_ends());
   const int line_count = line_ends_array->length();
   DCHECK_LT(0, line_count);
 
@@ -662,7 +662,7 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
 // Slow traversal over all scripts on the heap.
 bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
-  for (Script script = iterator.Next(); !script.is_null();
+  for (Tagged<Script> script = iterator.Next(); !script.is_null();
        script = iterator.Next()) {
     if (script->id() == needle) {
       *result = handle(script, isolate);
