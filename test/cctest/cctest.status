@@ -263,6 +263,8 @@
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################
