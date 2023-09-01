@@ -918,6 +918,18 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     const char* name = names_->GetCopy(sb.start());
     return AddEntry(object, HeapEntry::kObject, name);
   }
+  if (InstanceTypeChecker::IsWasmNull(instance_type)) {
+    // Inlined copies of {GetSystemEntryType}, {GetSystemEntryName}, and
+    // {AddEntry}, allowing us to override the size.
+    // The actual object's size is fairly large (at the time of this writing,
+    // just over 64 KB) and mostly includes a guard region. We report it as
+    // much smaller to avoid confusion.
+    static constexpr size_t kSize = WasmNull::kHeaderSize;
+    HeapEntry::Type type = v8_flags.heap_profiler_show_hidden_objects
+                               ? HeapEntry::kNative
+                               : HeapEntry::kHidden;
+    return AddEntry(object.address(), type, "system / WasmNull", kSize);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return AddEntry(object, GetSystemEntryType(object),
                   GetSystemEntryName(object));
