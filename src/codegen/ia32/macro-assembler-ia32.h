@@ -172,6 +172,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
+  void LoadLabelAddress(Register dst, Label* lbl);
+
   void LoadMap(Register destination, Register object);
 
   void Trap();
