@@ -79,6 +79,9 @@ void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
   if (!heap()->IsAllocationObserverActive()) return;
 
   if (object_size >= allocation_counter_.NextBytes()) {
+    // Ensure that there is a valid object
+    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(object_size));
+
     allocation_counter_.InvokeAllocationObservers(soon_object, object_size,
                                                   object_size);
   }
@@ -103,17 +106,18 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
     return AllocationResult::Failure();
   }
 
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+      heap()->GCFlagsForIncrementalMarking(),
+      kGCCallbackScheduleIdleGarbageCollection);
+
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
   Tagged<HeapObject> object = page->GetObject();
   UpdatePendingObject(object);
-  heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      heap()->GCFlagsForIncrementalMarking(),
-      kGCCallbackScheduleIdleGarbageCollection);
   if (heap()->incremental_marking()->black_allocation()) {
-    heap()->marking_state()->TryMarkAndAccountLiveBytes(object);
+    heap()->marking_state()->TryMarkAndAccountLiveBytes(object, object_size);
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
@@ -141,14 +145,15 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     return AllocationResult::Failure();
   }
 
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
+
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
   Tagged<HeapObject> object = page->GetObject();
-  heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
   if (heap()->incremental_marking()->black_allocation()) {
-    heap()->marking_state()->TryMarkAndAccountLiveBytes(object);
+    heap()->marking_state()->TryMarkAndAccountLiveBytes(object, object_size);
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
@@ -176,9 +181,6 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
     AddPage(page, object_size);
   }
 
-  Tagged<HeapObject> object = page->GetObject();
-
-  heap()->CreateFillerObjectAt(object.address(), object_size);
   return page;
 }
 

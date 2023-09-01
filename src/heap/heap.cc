@@ -3306,9 +3306,8 @@ void Heap::CreateFillerObjectAtRaw(
     ClearRecordedSlots clear_slots_mode,
     VerifyNoSlotsRecorded verify_no_slots_recorded) {
   // TODO(mlippautz): It would be nice to DCHECK that we never call this
-  // with {addr} pointing into large object space; however we currently
-  // initialize LO allocations with a filler, see
-  // LargeObjectSpace::AllocateLargePage.
+  // with {addr} pointing into large object space; however we currently do,
+  // see, e.g., Factory::NewFillerObject and in many tests.
   if (size == 0) return;
   CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {

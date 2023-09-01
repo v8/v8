@@ -138,7 +138,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
 class OldLargeObjectSpace : public LargeObjectSpace {
  public:
-  explicit OldLargeObjectSpace(Heap* heap);
+  V8_EXPORT_PRIVATE explicit OldLargeObjectSpace(Heap* heap);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRaw(int object_size);
