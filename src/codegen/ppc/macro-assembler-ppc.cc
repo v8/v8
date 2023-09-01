@@ -382,7 +382,7 @@ void MacroAssembler::Push(Handle<HeapObject> handle) {
   push(r0);
 }
 
-void MacroAssembler::Push(Smi smi) {
+void MacroAssembler::Push(Tagged<Smi> smi) {
   mov(r0, Operand(smi));
   push(r0);
 }
