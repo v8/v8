@@ -510,18 +510,21 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
 
 template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
-    const TNode<CollectionType> table, const TNode<IntPtrT> hash,
+    const TNode<CollectionType> table, const TNode<Uint32T> hash,
     const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
     TVariable<IntPtrT>* entry_start_position, Label* entry_found,
     Label* not_found) {
   // Get the index of the bucket.
-  const TNode<IntPtrT> number_of_buckets =
-      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
+  const TNode<Uint32T> number_of_buckets =
+      PositiveSmiToUint32(CAST(UnsafeLoadFixedArrayElement(
           table, CollectionType::NumberOfBucketsIndex())));
-  const TNode<IntPtrT> bucket =
-      WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
+  const TNode<Uint32T> bucket =
+      Word32And(hash, Uint32Sub(number_of_buckets, Uint32Constant(1)));
   const TNode<IntPtrT> first_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-      table, bucket, CollectionType::HashTableStartIndex() * kTaggedSize)));
+      table, Signed(ChangeUint32ToWord(bucket)),
+      CollectionType::HashTableStartIndex() * kTaggedSize)));
+  const TNode<IntPtrT> number_of_buckets_intptr =
+      Signed(ChangeUint32ToWord(number_of_buckets));
 
   // Walk the bucket chain.
   TNode<IntPtrT> entry_start;
@@ -553,7 +556,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     entry_start =
         IntPtrAdd(IntPtrMul(var_entry.value(),
                             IntPtrConstant(CollectionType::kEntrySize)),
-                  number_of_buckets);
+                  number_of_buckets_intptr);
 
     // Load the key from the entry.
     const TNode<Object> candidate_key =
@@ -644,7 +647,7 @@ TNode<Smi> CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(
   return result;
 }
 
-TNode<IntPtrT> CollectionsBuiltinsAssembler::CallGetHashRaw(
+TNode<Uint32T> CollectionsBuiltinsAssembler::CallGetHashRaw(
     const TNode<HeapObject> key) {
   const TNode<ExternalReference> function_addr =
       ExternalConstant(ExternalReference::orderedhashmap_gethash_raw());
@@ -657,13 +660,12 @@ TNode<IntPtrT> CollectionsBuiltinsAssembler::CallGetHashRaw(
   TNode<Smi> result = CAST(CallCFunction(function_addr, type_tagged,
                                          std::make_pair(type_ptr, isolate_ptr),
                                          std::make_pair(type_tagged, key)));
-
-  return SmiUntag(result);
+  return PositiveSmiToUint32(result);
 }
 
-TNode<IntPtrT> CollectionsBuiltinsAssembler::GetHash(
+TNode<Uint32T> CollectionsBuiltinsAssembler::GetHash(
     const TNode<HeapObject> key) {
-  TVARIABLE(IntPtrT, var_hash);
+  TVARIABLE(Uint32T, var_hash);
   Label if_receiver(this), if_other(this), done(this);
   Branch(IsJSReceiver(key), &if_receiver, &if_other);
 
@@ -1026,10 +1028,8 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForSmiKey(
     TNode<CollectionType> table, TNode<Smi> smi_key, TVariable<IntPtrT>* result,
     Label* entry_found, Label* not_found) {
   const TNode<IntPtrT> key_untagged = SmiUntag(smi_key);
-  const TNode<IntPtrT> hash =
-      ChangeInt32ToIntPtr(ComputeUnseededHash(key_untagged));
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
-  *result = hash;
+  const TNode<Uint32T> hash = Unsigned(ComputeUnseededHash(key_untagged));
+  *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
       [&](TNode<Object> other_key, Label* if_same, Label* if_not_same) {
@@ -1042,9 +1042,8 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
     TNode<CollectionType> table, TNode<String> key_tagged,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<IntPtrT> hash = ComputeStringHash(key_tagged);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
-  *result = hash;
+  const TNode<Uint32T> hash = ComputeStringHash(key_tagged);
+  *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
       [&](TNode<Object> other_key, Label* if_same, Label* if_not_same) {
@@ -1057,9 +1056,8 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForHeapNumberKey(
     TNode<CollectionType> table, TNode<HeapNumber> key_heap_number,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<IntPtrT> hash = CallGetHashRaw(key_heap_number);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
-  *result = hash;
+  const TNode<Uint32T> hash = CallGetHashRaw(key_heap_number);
+  *result = Signed(ChangeUint32ToWord(hash));
   const TNode<Float64T> key_float = LoadHeapNumberValue(key_heap_number);
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1073,9 +1071,8 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForBigIntKey(
     TNode<CollectionType> table, TNode<BigInt> key_big_int,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<IntPtrT> hash = CallGetHashRaw(key_big_int);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
-  *result = hash;
+  const TNode<Uint32T> hash = CallGetHashRaw(key_big_int);
+  *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
       [&](TNode<Object> other_key, Label* if_same, Label* if_not_same) {
@@ -1088,9 +1085,8 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
     TNode<CollectionType> table, TNode<HeapObject> key_heap_object,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<IntPtrT> hash = GetHash(key_heap_object);
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
-  *result = hash;
+  const TNode<Uint32T> hash = GetHash(key_heap_object);
+  *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
       [&](TNode<Object> other_key, Label* if_same, Label* if_not_same) {
@@ -1099,13 +1095,12 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
       result, entry_found, not_found);
 }
 
-TNode<IntPtrT> CollectionsBuiltinsAssembler::ComputeStringHash(
+TNode<Uint32T> CollectionsBuiltinsAssembler::ComputeStringHash(
     TNode<String> string_key) {
-  TVARIABLE(IntPtrT, var_result);
+  TVARIABLE(Uint32T, var_result);
 
   Label hash_not_computed(this), done(this, &var_result);
-  const TNode<IntPtrT> hash =
-      ChangeInt32ToIntPtr(LoadNameHash(string_key, &hash_not_computed));
+  const TNode<Uint32T> hash = LoadNameHash(string_key, &hash_not_computed);
   var_result = hash;
   Goto(&done);
 
@@ -2383,14 +2378,15 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
   Label if_symbol(this);
   Label return_result(this);
   GotoIfNot(IsJSReceiver(key), &if_symbol);
-  var_hash = LoadJSReceiverIdentityHash(CAST(key), if_no_hash);
+  var_hash = Signed(
+      ChangeUint32ToWord(LoadJSReceiverIdentityHash(CAST(key), if_no_hash)));
   Goto(&return_result);
   Bind(&if_symbol);
   CSA_DCHECK(this, IsSymbol(key));
   CSA_DCHECK(this, Word32BinaryNot(
                        Word32And(LoadSymbolFlags(CAST(key)),
                                  Symbol::IsInPublicSymbolTableBit::kMask)));
-  var_hash = ChangeInt32ToIntPtr(LoadNameHash(CAST(key), nullptr));
+  var_hash = Signed(ChangeUint32ToWord(LoadNameHash(CAST(key), nullptr)));
   Goto(&return_result);
   Bind(&return_result);
   return var_hash.value();

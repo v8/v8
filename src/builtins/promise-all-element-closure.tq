@@ -60,7 +60,7 @@ struct PromiseAllSettledWrapResultAsRejectedFunctor {
   }
 }
 
-extern macro LoadJSReceiverIdentityHash(JSReceiver): intptr labels IfNoHash;
+extern macro LoadJSReceiverIdentityHash(JSReceiver): uint32 labels IfNoHash;
 
 type PromiseAllResolveElementContext extends FunctionContext;
 extern enum PromiseAllResolveElementContextSlots extends intptr
@@ -114,8 +114,8 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   dcheck(kPropertyArrayNoHashSentinel == 0);
   const identityHash =
       LoadJSReceiverIdentityHash(function) otherwise unreachable;
-  dcheck(identityHash > 0);
-  const index = identityHash - 1;
+  dcheck(ChangeUint32ToWord(identityHash) < kSmiMaxValue);
+  const index = Signed(ChangeUint32ToWord(identityHash)) - 1;
 
   let remainingElementsCount = *ContextSlot(
       promiseContext,

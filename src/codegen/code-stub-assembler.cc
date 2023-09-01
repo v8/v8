@@ -929,6 +929,11 @@ TNode<Int32T> CodeStubAssembler::SmiToInt32(TNode<Smi> value) {
   return TruncateIntPtrToInt32(result);
 }
 
+TNode<Uint32T> CodeStubAssembler::PositiveSmiToUint32(TNode<Smi> value) {
+  DCHECK(SmiGreaterThanOrEqual(value, SmiConstant(0)));
+  return Unsigned(SmiToInt32(value));
+}
+
 TNode<IntPtrT> CodeStubAssembler::PositiveSmiUntag(TNode<Smi> value) {
   return ChangePositiveInt32ToIntPtr(SmiToInt32(value));
 }
@@ -2227,9 +2232,9 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
   return bit_field3;
 }
 
-TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
+TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
     TNode<JSReceiver> receiver, Label* if_no_hash) {
-  TVARIABLE(IntPtrT, var_hash);
+  TVARIABLE(Uint32T, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
       if_swiss_property_dictionary(this), if_property_dictionary(this),
       if_fixed_array(this);
@@ -2253,13 +2258,13 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_fixed_array);
   {
-    var_hash = IntPtrConstant(PropertyArray::kNoHashSentinel);
+    var_hash = Uint32Constant(PropertyArray::kNoHashSentinel);
     Goto(&done);
   }
 
   BIND(&if_smi);
   {
-    var_hash = SmiUntag(CAST(properties_or_hash));
+    var_hash = PositiveSmiToUint32(CAST(properties_or_hash));
     Goto(&done);
   }
 
@@ -2267,30 +2272,30 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
   {
     TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
         properties, PropertyArray::kLengthAndHashOffset);
-    var_hash = Signed(ChangeUint32ToWord(
-        DecodeWord32<PropertyArray::HashField>(length_and_hash)));
+    var_hash = DecodeWord32<PropertyArray::HashField>(length_and_hash);
     Goto(&done);
   }
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     BIND(&if_swiss_property_dictionary);
     {
-      var_hash = Signed(
-          ChangeUint32ToWord(LoadSwissNameDictionaryHash(CAST(properties))));
+      var_hash = LoadSwissNameDictionaryHash(CAST(properties));
+      CSA_DCHECK(this, Uint32LessThanOrEqual(var_hash.value(),
+                                             Uint32Constant(Smi::kMaxValue)));
       Goto(&done);
     }
   }
 
   BIND(&if_property_dictionary);
   {
-    var_hash = SmiUntag(CAST(LoadFixedArrayElement(
+    var_hash = PositiveSmiToUint32(CAST(LoadFixedArrayElement(
         CAST(properties), NameDictionary::kObjectHashIndex)));
     Goto(&done);
   }
 
   BIND(&done);
   if (if_no_hash != nullptr) {
-    GotoIf(IntPtrEqual(var_hash.value(),
-                       IntPtrConstant(PropertyArray::kNoHashSentinel)),
+    GotoIf(Word32Equal(var_hash.value(),
+                       Uint32Constant(PropertyArray::kNoHashSentinel)),
            if_no_hash);
   }
   return var_hash.value();

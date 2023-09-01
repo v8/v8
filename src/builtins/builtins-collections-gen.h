@@ -227,8 +227,8 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const TNode<HeapObject> collection);
   TNode<HeapObject> AllocateTable(Variant variant,
                                   TNode<IntPtrT> at_least_space_for) override;
-  TNode<IntPtrT> GetHash(const TNode<HeapObject> key);
-  TNode<IntPtrT> CallGetHashRaw(const TNode<HeapObject> key);
+  TNode<Uint32T> GetHash(const TNode<HeapObject> key);
+  TNode<Uint32T> CallGetHashRaw(const TNode<HeapObject> key);
   TNode<Smi> CallGetOrCreateHashRaw(const TNode<HeapObject> key);
 
   // Transitions the iterator to the non obsolete backing store.
@@ -295,7 +295,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                              TVariable<IntPtrT>* result,
                                              Label* entry_found,
                                              Label* not_found);
-  TNode<IntPtrT> ComputeStringHash(TNode<String> string_key);
+  TNode<Uint32T> ComputeStringHash(TNode<String> string_key);
   void SameValueZeroString(TNode<String> key_string,
                            TNode<Object> candidate_key, Label* if_same,
                            Label* if_not_same);
@@ -434,7 +434,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // of OrderedHashTable, it should be OrderedHashMap or OrderedHashSet.
   template <typename CollectionType>
   void FindOrderedHashTableEntry(
-      const TNode<CollectionType> table, const TNode<IntPtrT> hash,
+      const TNode<CollectionType> table, const TNode<Uint32T> hash,
       const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
       TVariable<IntPtrT>* entry_start_position, Label* entry_found,
       Label* not_found);

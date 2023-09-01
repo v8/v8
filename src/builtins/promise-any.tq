@@ -101,8 +101,8 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
   // 5. Let index be F.[[Index]].
   dcheck(kPropertyArrayNoHashSentinel == 0);
   const identityHash = LoadJSReceiverIdentityHash(target) otherwise unreachable;
-  dcheck(identityHash > 0);
-  const index = identityHash - 1;
+  dcheck(ChangeUint32ToWord(identityHash) < kSmiMaxValue);
+  const index = Signed(ChangeUint32ToWord(identityHash)) - 1;
 
   // 6. Let errors be F.[[Errors]].
   let errors = *ContextSlot(
