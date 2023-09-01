@@ -1902,9 +1902,6 @@ class Heap final {
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
-  V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(LocalHeap* local_heap,
-                                                          size_t size);
-
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);

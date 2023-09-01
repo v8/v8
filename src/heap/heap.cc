@@ -486,9 +486,8 @@ size_t Heap::Available() {
 bool Heap::CanExpandOldGeneration(size_t size) const {
   if (force_oom_ || force_gc_on_next_allocation_) return false;
   if (OldGenerationCapacity() + size > max_old_generation_size()) return false;
-  // The OldGenerationCapacity does not account compaction spaces used
-  // during evacuation. Ensure that expanding the old generation does push
-  // the total allocated memory size over the maximum heap size.
+  // Stay below `MaxReserved()` such that it is more likely that committing the
+  // second semi space at the beginning of a GC succeeds.
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
@@ -502,17 +501,6 @@ bool IsIsolateDeserializationActive(LocalHeap* local_heap) {
   return local_heap && !local_heap->heap()->deserialization_complete();
 }
 }  // anonymous namespace
-
-bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
-                                            size_t size) {
-  if (force_oom_) return false;
-
-  // When the heap is tearing down, then GC requests from background threads
-  // are not served and the threads are allowed to expand the heap to avoid OOM.
-  return gc_state() == TEAR_DOWN || IsMainThreadParked(local_heap) ||
-         IsIsolateDeserializationActive(local_heap) ||
-         memory_allocator()->Size() + size <= MaxReserved();
-}
 
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
   size_t new_space_capacity = NewSpaceTargetCapacity();
