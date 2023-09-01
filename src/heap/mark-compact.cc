@@ -753,6 +753,7 @@ void MarkCompactCollector::Finish() {
       GCTracer::Scope sweep_scope(
           heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
       for (Page* p : empty_new_space_pages_to_be_swept_) {
+        // Sweeping empty pages already relinks them to the freelist.
         sweeper_->SweepEmptyNewSpacePage(p);
       }
       empty_new_space_pages_to_be_swept_.clear();

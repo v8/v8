@@ -414,6 +414,9 @@ V8_INLINE size_t MinorMarkingLoopImpl(
       marking_worklists_local.MergeOnHold();
     }
     Tagged<HeapObject> heap_object;
+    TRACE_GC_EPOCH(heap->tracer(),
+                   GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
+                   ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
       if (IsYoungObjectInLab(heap, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
@@ -497,11 +500,11 @@ size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
 }
 
 size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
-  size_t marking_items = marking_worklists_->shared()->Size();
-  marking_items += marking_worklists_->other()->Size();
-  marking_items += heap_->minor_mark_sweep_collector()
-                       ->remembered_sets_marking_handler()
-                       ->RemainingRememberedSetsMarkingIteams();
+  size_t marking_items = marking_worklists_->shared()->Size() +
+                         heap_->minor_mark_sweep_collector()
+                             ->remembered_sets_marking_handler()
+                             ->RemainingRememberedSetsMarkingIteams();
+  DCHECK(marking_worklists_->other()->IsEmpty());
   DCHECK(!marking_worklists_->IsUsingContextWorklists());
   return std::min<size_t>(task_state_.size() - 1, worker_count + marking_items);
 }

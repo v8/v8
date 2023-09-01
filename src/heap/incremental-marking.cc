@@ -174,9 +174,8 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
                                  : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
   DCHECK(!current_trace_id_.has_value());
-  current_trace_id_.emplace(
-      reinterpret_cast<uint64_t>(this) ^
-      heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
+  current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
+                            heap_->tracer()->CurrentEpoch(scope_id));
   TRACE_EVENT2("v8",
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",

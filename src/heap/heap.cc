@@ -7193,9 +7193,10 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   CompleteArrayBufferSweeping(this);
 
   if (sweeper()->sweeping_in_progress()) {
+    bool was_minor_sweeping_in_progress = minor_sweeping_in_progress();
     sweeper()->EnsureMajorCompleted();
 
-    if (v8_flags.minor_ms && new_space()) {
+    if (v8_flags.minor_ms && new_space() && was_minor_sweeping_in_progress) {
       TRACE_GC_EPOCH_WITH_FLOW(
           tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
           ThreadKind::kMain,
