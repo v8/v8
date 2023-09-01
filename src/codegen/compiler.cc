@@ -372,19 +372,6 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                              *debug_name));
 }
 
-// Helper that times a scoped region and records the elapsed time.
-struct ScopedTimer {
-  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
-    DCHECK_NOT_NULL(location_);
-    timer_.Start();
-  }
-
-  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
-
-  base::ElapsedTimer timer_;
-  base::TimeDelta* location_;
-};
-
 namespace {
 
 ScriptOriginOptions OriginOptionsForEval(
@@ -412,7 +399,8 @@ ScriptOriginOptions OriginOptionsForEval(
 CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
-  ScopedTimer t(&time_taken_to_execute_);
+  base::ScopedTimer t(v8_flags.log_function_events ? &time_taken_to_execute_
+                                                   : nullptr);
   return UpdateState(ExecuteJobImpl(), State::kReadyToFinalize);
 }
 
@@ -424,7 +412,8 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
-  ScopedTimer t(&time_taken_to_finalize_);
+  base::ScopedTimer t(v8_flags.log_function_events ? &time_taken_to_finalize_
+                                                   : nullptr);
   return UpdateState(FinalizeJobImpl(shared_info, isolate), State::kSucceeded);
 }
 
@@ -432,7 +421,8 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
     Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
-  ScopedTimer t(&time_taken_to_finalize_);
+  base::ScopedTimer t(v8_flags.log_function_events ? &time_taken_to_finalize_
+                                                   : nullptr);
   return UpdateState(FinalizeJobImpl(shared_info, isolate), State::kSucceeded);
 }
 
@@ -476,7 +466,7 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToPrepare);
-  ScopedTimer t(&time_taken_to_prepare_);
+  base::ScopedTimer t(&time_taken_to_prepare_);
   return UpdateState(PrepareJobImpl(isolate), State::kReadyToExecute);
 }
 
@@ -486,7 +476,7 @@ CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
                  local_isolate->heap()->IsParked());
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
-  ScopedTimer t(&time_taken_to_execute_);
+  base::ScopedTimer t(&time_taken_to_execute_);
   return UpdateState(ExecuteJobImpl(stats, local_isolate),
                      State::kReadyToFinalize);
 }
@@ -497,7 +487,7 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
-  ScopedTimer t(&time_taken_to_finalize_);
+  base::ScopedTimer t(&time_taken_to_finalize_);
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
@@ -2728,7 +2718,9 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   Handle<Code> code;
   base::TimeDelta time_taken;
   {
-    ScopedTimer timer(&time_taken);
+    base::ScopedTimer timer(
+        v8_flags.trace_baseline || v8_flags.log_function_events ? &time_taken
+                                                                : nullptr);
     if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
       // TODO(leszeks): This can only fail because of an OOM. Do we want to
       // report these somehow, or silently ignore them?

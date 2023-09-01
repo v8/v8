@@ -47,13 +47,12 @@ class BaselineCompilerTask {
 
   // Executed in the background thread.
   void Compile(LocalIsolate* local_isolate) {
-    base::ElapsedTimer timer;
-    timer.Start();
+    base::ScopedTimer timer(v8_flags.log_function_events ? &time_taken_
+                                                         : nullptr);
     BaselineCompiler compiler(local_isolate, shared_function_info_, bytecode_);
     compiler.GenerateCode();
     maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
         compiler.Build(local_isolate));
-    time_taken_ms_ = timer.Elapsed().InMillisecondsF();
   }
 
   // Executed in the main thread.
@@ -86,7 +85,8 @@ class BaselineCompilerTask {
           isolate, LogEventListener::CodeTag::kFunction,
           handle(Script::cast(shared_function_info_->script()), isolate),
           shared_function_info_, Handle<FeedbackVector>(),
-          Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms_);
+          Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+          time_taken_.InMillisecondsF());
     }
   }
 
@@ -94,7 +94,7 @@ class BaselineCompilerTask {
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<BytecodeArray> bytecode_;
   MaybeHandle<Code> maybe_code_;
-  double time_taken_ms_;
+  base::TimeDelta time_taken_;
 };
 
 class BaselineBatchCompilerJob {
