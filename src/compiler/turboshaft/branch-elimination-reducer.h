@@ -332,7 +332,7 @@ class BranchEliminationReducer : public Next {
           return OpIndex::Invalid();
         }
       }
-    } else if (const ReturnOp* return_op =
+    } else if ([[maybe_unused]] const ReturnOp* return_op =
                    last_op.template TryCast<ReturnOp>()) {
       // The destination block in the old graph ends with a Return
       // and the old destination is a merge block, so we can directly

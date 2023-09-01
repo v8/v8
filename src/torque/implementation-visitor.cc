@@ -3439,8 +3439,7 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
 
 base::Optional<Block*> ImplementationVisitor::GetCatchBlock() {
   base::Optional<Block*> catch_block;
-  if (base::Optional<Binding<LocalLabel>*> catch_handler =
-          TryLookupLabel(kCatchLabelName)) {
+  if (TryLookupLabel(kCatchLabelName)) {
     catch_block = assembler().NewBlock(base::nullopt, true);
   }
   return catch_block;

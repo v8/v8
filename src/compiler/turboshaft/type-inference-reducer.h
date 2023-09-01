@@ -405,7 +405,7 @@ class TypeInferenceReducer
   }
 
   void RemoveLast(OpIndex index_of_last_operation) {
-    if (auto key_opt = op_to_key_mapping_[index_of_last_operation]) {
+    if (op_to_key_mapping_[index_of_last_operation]) {
       op_to_key_mapping_[index_of_last_operation] = base::nullopt;
       TURBOSHAFT_TRACE_TYPING_OK(
           "REM  %3d:%-40s %-40s\n", index_of_last_operation.id(),
