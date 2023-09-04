@@ -54,9 +54,18 @@ using compiler::turboshaft::WordPtr;
   asm_.Load(instance_node_, LoadOp::Kind::TaggedBase(), representation, \
             WasmInstanceObject::k##name##Offset)
 
+#define LOAD_IMMUTABLE_INSTANCE_FIELD(name, representation)         \
+  asm_.Load(instance_node_, LoadOp::Kind::TaggedBase().Immutable(), \
+            representation, WasmInstanceObject::k##name##Offset)
+
 #define LOAD_ROOT(name)                                          \
   asm_.Load(asm_.LoadRootRegister(), LoadOp::Kind::RawAligned(), \
             MemoryRepresentation::PointerSized(),                \
+            IsolateData::root_slot_offset(RootIndex::k##name))
+
+#define LOAD_IMMUTABLE_ROOT(name)                                            \
+  asm_.Load(asm_.LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
+            MemoryRepresentation::PointerSized(),                            \
             IsolateData::root_slot_offset(RootIndex::k##name))
 
 class TurboshaftGraphBuildingInterface {
@@ -439,7 +448,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    V<FixedArray> functions = LOAD_INSTANCE_FIELD(
+    V<FixedArray> functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
         WasmInternalFunctions, MemoryRepresentation::TaggedPointer());
     V<Tagged> maybe_function = LoadFixedArrayElement(functions, function_index);
 
@@ -1226,8 +1235,8 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    V<FixedArray> instance_tags =
-        LOAD_INSTANCE_FIELD(TagsTable, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        TagsTable, MemoryRepresentation::TaggedPointer());
     auto tag =
         V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
 
@@ -1247,14 +1256,14 @@ class TurboshaftGraphBuildingInterface {
                       Control* block, base::Vector<Value> values) {
     EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
                &block->exception);
-    V<NativeContext> native_context = LOAD_INSTANCE_FIELD(
+    V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
         NativeContext, MemoryRepresentation::TaggedPointer());
     V<WasmTagObject> caught_tag = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmGetOwnProperty,
-        {block->exception, LOAD_ROOT(wasm_exception_tag_symbol),
+        {block->exception, LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol),
          native_context});
-    V<FixedArray> instance_tags =
-        LOAD_INSTANCE_FIELD(TagsTable, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        TagsTable, MemoryRepresentation::TaggedPointer());
     auto expected_tag =
         V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_catch = asm_.NewBlock();
@@ -1274,7 +1283,7 @@ class TurboshaftGraphBuildingInterface {
       // the JSTag signature, i.e. a single externref or (ref extern), otherwise
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
-          asm_.TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
+          asm_.TaggedEqual(caught_tag, LOAD_IMMUTABLE_ROOT(UndefinedValue));
       TSBlock* js_exception = asm_.NewBlock();
       TSBlock* wasm_exception = asm_.NewBlock();
       TSBlock* no_catch_merge = asm_.NewBlock();
@@ -1652,7 +1661,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    V<FixedUInt32Array> data_segment_sizes = LOAD_INSTANCE_FIELD(
+    V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
         DataSegmentSizes, MemoryRepresentation::TaggedPointer());
     asm_.Store(data_segment_sizes, asm_.Word32Constant(0),
                StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
@@ -1719,8 +1728,8 @@ class TurboshaftGraphBuildingInterface {
 
   void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
                  Value* result) {
-    V<FixedArray> tables =
-        LOAD_INSTANCE_FIELD(Tables, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        Tables, MemoryRepresentation::TaggedPointer());
     auto table =
         V<WasmTableObject>::Cast(LoadFixedArrayElement(tables, imm.index));
     V<Smi> size_smi = asm_.Load(table, LoadOp::Kind::TaggedBase(),
@@ -1730,7 +1739,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    V<FixedArray> elem_segments = LOAD_INSTANCE_FIELD(
+    V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ElementSegments, MemoryRepresentation::TaggedPointer());
     StoreFixedArrayElement(elem_segments, imm.index, LOAD_ROOT(EmptyFixedArray),
                            compiler::kFullWriteBarrier);
@@ -3667,7 +3676,7 @@ class TurboshaftGraphBuildingInterface {
     if (index == 0) {
       return LOAD_INSTANCE_FIELD(Memory0Start, kMaybeSandboxedPointer);
     } else {
-      V<ByteArray> instance_memories = LOAD_INSTANCE_FIELD(
+      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
           MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
       return asm_.Load(instance_memories, LoadOp::Kind::TaggedBase(),
                        kMaybeSandboxedPointer,
@@ -3687,7 +3696,7 @@ class TurboshaftGraphBuildingInterface {
       return LOAD_INSTANCE_FIELD(Memory0Size,
                                  MemoryRepresentation::PointerSized());
     } else {
-      V<ByteArray> instance_memories = LOAD_INSTANCE_FIELD(
+      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
           MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
       return asm_.Load(
           instance_memories, LoadOp::Kind::TaggedBase(),
@@ -3735,7 +3744,7 @@ class TurboshaftGraphBuildingInterface {
 
   void StackCheck() {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    V<WordPtr> limit_address = LOAD_INSTANCE_FIELD(
+    V<WordPtr> limit_address = LOAD_IMMUTABLE_INSTANCE_FIELD(
         StackLimitAddress, MemoryRepresentation::PointerSized());
     V<WordPtr> limit = asm_.Load(limit_address, LoadOp::Kind::RawAligned(),
                                  MemoryRepresentation::PointerSized(), 0);
@@ -3770,11 +3779,11 @@ class TurboshaftGraphBuildingInterface {
       uint32_t function_index) {
     // Imported function.
     V<WordPtr> func_index = asm_.IntPtrConstant(function_index);
-    V<FixedArray> imported_function_refs = LOAD_INSTANCE_FIELD(
+    V<FixedArray> imported_function_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ImportedFunctionRefs, MemoryRepresentation::TaggedPointer());
     auto ref = V<HeapObject>::Cast(
         LoadFixedArrayElement(imported_function_refs, func_index));
-    V<FixedAddressArray> imported_targets = LOAD_INSTANCE_FIELD(
+    V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ImportedFunctionTargets, MemoryRepresentation::TaggedPointer());
     V<WordPtr> target =
         asm_.Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
@@ -3809,7 +3818,7 @@ class TurboshaftGraphBuildingInterface {
       ift_refs = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
                                      MemoryRepresentation::TaggedPointer());
     } else {
-      V<FixedArray> ift_tables = LOAD_INSTANCE_FIELD(
+      V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
           IndirectFunctionTables, MemoryRepresentation::TaggedPointer());
       OpIndex ift_table = LoadFixedArrayElement(ift_tables, table_index);
       ift_size = needs_dynamic_size
@@ -3840,7 +3849,7 @@ class TurboshaftGraphBuildingInterface {
     bool needs_null_check = table.type.is_nullable();
 
     if (needs_type_check) {
-      V<WordPtr> isorecursive_canonical_types = LOAD_INSTANCE_FIELD(
+      V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
           IsorecursiveCanonicalTypes, MemoryRepresentation::PointerSized());
       V<Word32> expected_sig_id =
           asm_.Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
@@ -4258,9 +4267,9 @@ class TurboshaftGraphBuildingInterface {
                            base::Vector<Value> values) {
     V<FixedArray> exception_values_array = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmGetOwnProperty,
-        {exception, LOAD_ROOT(wasm_exception_values_symbol),
-         LOAD_INSTANCE_FIELD(NativeContext,
-                             MemoryRepresentation::TaggedPointer())});
+        {exception, LOAD_IMMUTABLE_ROOT(wasm_exception_values_symbol),
+         LOAD_IMMUTABLE_INSTANCE_FIELD(NativeContext,
+                                       MemoryRepresentation::TaggedPointer())});
 
     int index = 0;
     for (Value& value : values) {
@@ -4534,7 +4543,10 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
   return decoder.ok();
 }
 
+#undef LOAD_IMMUTABLE_INSTANCE_FIELD
 #undef LOAD_INSTANCE_FIELD
+#undef LOAD_ROOT
+#undef LOAD_IMMUTABLE_ROOT
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::wasm
