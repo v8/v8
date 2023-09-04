@@ -150,6 +150,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
       bool use_turboshaft = v8_flags.turboshaft_wasm;
+      if (func_index_ < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
+                                (1 << func_index_)) == 1)) {
+        use_turboshaft = true;
+      }
       if (use_turboshaft) {
         result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
             env, data, detected);

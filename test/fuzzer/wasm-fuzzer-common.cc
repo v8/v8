@@ -841,17 +841,18 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // 0: TurboFan
   // 1: Liftoff
   // 2: Liftoff for debugging
+  // 3: Turboshaft
   uint8_t tier_mask = 0;
   uint8_t debug_mask = 0;
-  for (int i = 0; i < 4; ++i, configuration_byte /= 3) {
-    int compiler_config = configuration_byte % 3;
+  uint8_t turboshaft_mask = 0;
+  for (int i = 0; i < 4; ++i, configuration_byte /= 4) {
+    int compiler_config = configuration_byte % 4;
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
+    turboshaft_mask |= (compiler_config == 3) << i;
   }
-  // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
-
-  FlagScope<bool> turbo_mid_tier_regalloc(
-      &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
+  // Enable tierup for all turboshaft functions.
+  tier_mask |= turboshaft_mask;
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return;
@@ -870,27 +871,26 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, valid);
   }
 
-  MaybeHandle<WasmModuleObject> compiled_module;
-  {
-    // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
-    // way, we deterministically test a combination of Liftoff and Turbofan.
-    FlagScope<bool> liftoff(&v8_flags.liftoff, true);
-    FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
-    FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
-                                   tier_mask);
-    FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
-                                    debug_mask);
-    ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
-    compiled_module = GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
-                                                   &thrower, wire_bytes);
-    CHECK_EQ(valid, !compiled_module.is_null());
-    CHECK_EQ(!valid, thrower.error());
-    if (require_valid && !valid) {
-      FATAL("Generated module should validate, but got: %s",
-            thrower.error_msg());
-    }
-    thrower.Reset();
+  // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
+  // way, we deterministically test a combination of Liftoff and Turbofan.
+  FlagScope<bool> liftoff(&v8_flags.liftoff, true);
+  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+  FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                 tier_mask);
+  FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
+                                  debug_mask);
+  FlagScope<int> turboshaft_mask_scope(
+      &v8_flags.wasm_turboshaft_mask_for_testing, turboshaft_mask);
+
+  ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
+  MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
+      i_isolate, enabled_features, &thrower, wire_bytes);
+  CHECK_EQ(valid, !compiled_module.is_null());
+  CHECK_EQ(!valid, thrower.error());
+  if (require_valid && !valid) {
+    FATAL("Generated module should validate, but got: %s", thrower.error_msg());
   }
+  thrower.Reset();
 
   if (valid) {
     ExecuteAgainstReference(i_isolate, compiled_module.ToHandleChecked(),
