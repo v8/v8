@@ -1249,7 +1249,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+      Object::GetMethod(isolate_, Handle<JSReceiver>::cast(handler),
                         isolate_->factory()->ownKeys_string()),
       Nothing<bool>());
   // 6. If trap is undefined, then

@@ -4104,7 +4104,7 @@ MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
   Handle<Object> fields;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, fields,
-      Object::GetMethod(calendar, isolate->factory()->fields_string()),
+      Object::GetMethod(isolate, calendar, isolate->factory()->fields_string()),
       FixedArray);
   // 2. Let fieldsArray be ! CreateArrayFromList(fieldNames).
   Handle<Object> fields_array =
@@ -4147,7 +4147,8 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(Isolate* isolate,
   // 4. If dateAdd is not present, set dateAdd to ? GetMethod(calendar,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_add,
-      Object::GetMethod(calendar, isolate->factory()->dateAdd_string()),
+      Object::GetMethod(isolate, calendar,
+                        isolate->factory()->dateAdd_string()),
       JSTemporalPlainDate);
   return CalendarDateAdd(isolate, calendar, date, duration, options, date_add);
 }
@@ -4192,7 +4193,8 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
   if (IsUndefined(*date_until)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, date_until,
-        Object::GetMethod(calendar, isolate->factory()->dateUntil_string()),
+        Object::GetMethod(isolate, calendar,
+                          isolate->factory()->dateUntil_string()),
         JSTemporalDuration);
   }
   // 3. Let duration be ? Call(dateUntil, calendar, « one, two, options »).
@@ -4331,7 +4333,7 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
   Handle<Object> get_offset_nanoseconds_for;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, get_offset_nanoseconds_for,
-      Object::GetMethod(time_zone_obj,
+      Object::GetMethod(isolate, time_zone_obj,
                         isolate->factory()->getOffsetNanosecondsFor_string()),
       Nothing<int64_t>());
   if (!IsCallable(*get_offset_nanoseconds_for)) {
@@ -6834,13 +6836,13 @@ Maybe<DateDurationRecord> UnbalanceDurationRelative(
     Handle<Object> date_add;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, date_add,
-        Object::GetMethod(calendar, factory->dateAdd_string()),
+        Object::GetMethod(isolate, calendar, factory->dateAdd_string()),
         Nothing<DateDurationRecord>());
     // c. Let dateUntil be ? GetMethod(calendar, "dateUntil").
     Handle<Object> date_until;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, date_until,
-        Object::GetMethod(calendar, factory->dateUntil_string()),
+        Object::GetMethod(isolate, calendar, factory->dateUntil_string()),
         Nothing<DateDurationRecord>());
     // d. Repeat, while years ≠ 0,
     while (result.years != 0) {
@@ -7113,7 +7115,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
     Handle<Object> date_add;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, date_add,
-        Object::GetMethod(calendar, factory->dateAdd_string()),
+        Object::GetMethod(isolate, calendar, factory->dateAdd_string()),
         Nothing<DateDurationRecord>());
     // j. Set newRelativeTo be ? CalendarDateAdd(calendar, relativeTo, oneYear,
     // undefined, dateAdd).
@@ -7126,7 +7128,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
     Handle<Object> date_until;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, date_until,
-        Object::GetMethod(calendar, factory->dateUntil_string()),
+        Object::GetMethod(isolate, calendar, factory->dateUntil_string()),
         Nothing<DateDurationRecord>());
     // l. Let untilOptions be OrdinaryObjectCreate(null).
     Handle<JSObject> until_options = factory->NewJSObjectWithNullProto();
@@ -8515,7 +8517,7 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
     Handle<Object> date_add;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, date_add,
-        Object::GetMethod(calendar, factory->dateAdd_string()),
+        Object::GetMethod(isolate, calendar, factory->dateAdd_string()),
         Nothing<DurationRecord>());
     // e. Let intermediate be ? CalendarDateAdd(calendar, relativeTo,
     // dateDuration1, undefined, dateAdd).
@@ -8957,7 +8959,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
       Handle<Object> date_add;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, date_add,
-          Object::GetMethod(calendar, factory->dateAdd_string()),
+          Object::GetMethod(isolate, calendar, factory->dateAdd_string()),
           Nothing<DurationRecordWithRemainder>());
 
       // c. Let yearsLater be ? CalendarDateAdd(calendar, relativeTo,
@@ -9120,7 +9122,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
       Handle<Object> date_add;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, date_add,
-          Object::GetMethod(calendar, factory->dateAdd_string()),
+          Object::GetMethod(isolate, calendar, factory->dateAdd_string()),
           Nothing<DurationRecordWithRemainder>());
 
       // c. Let yearsMonthsLater be ? CalendarDateAdd(calendar, relativeTo,
@@ -11588,7 +11590,8 @@ MaybeHandle<JSReceiver> CalendarMergeFields(
   Handle<Object> merge_fields;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, merge_fields,
-      Object::GetMethod(calendar, isolate->factory()->mergeFields_string()),
+      Object::GetMethod(isolate, calendar,
+                        isolate->factory()->mergeFields_string()),
       JSReceiver);
   // 2. If mergeFields is undefined, then
   if (IsUndefined(*merge_fields)) {

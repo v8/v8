@@ -1002,7 +1002,7 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
   Handle<Object> inst_of_handler;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, inst_of_handler,
-      Object::GetMethod(Handle<JSReceiver>::cast(callable),
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(callable),
                         isolate->factory()->has_instance_symbol()),
       Object);
   if (!IsUndefined(*inst_of_handler, isolate)) {
@@ -1032,10 +1032,10 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
 }
 
 // static
-MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
+MaybeHandle<Object> Object::GetMethod(Isolate* isolate,
+                                      Handle<JSReceiver> receiver,
                                       Handle<Name> name) {
   Handle<Object> func;
-  Isolate* isolate = receiver->GetIsolate();
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, func, JSReceiver::GetProperty(isolate, receiver, name), Object);
   if (IsNullOrUndefined(*func, isolate)) {
@@ -1267,7 +1267,8 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name), Object);
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(handler), trap_name),
+      Object);
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
     // 7.a Return target.[[Get]](P, Receiver).
@@ -1398,7 +1399,8 @@ MaybeHandle<HeapObject> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
-                             Object::GetMethod(handler, trap_name), HeapObject);
+                             Object::GetMethod(isolate, handler, trap_name),
+                             HeapObject);
   // 6. If trap is undefined, then return target.[[GetPrototypeOf]]().
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::GetPrototype(isolate, target);
@@ -2774,7 +2776,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(handler),
                         isolate->factory()->has_string()),
       Nothing<bool>());
   // 7. If trap is undefined, then
@@ -2846,7 +2848,8 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
 
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
+      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
+      Nothing<bool>());
   if (IsUndefined(*trap, isolate)) {
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, receiver, key, target);
@@ -2897,7 +2900,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
 
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
+      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
+      Nothing<bool>());
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::DeletePropertyOrElement(target, name, language_mode);
   }
@@ -3206,7 +3210,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name),
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(handler), trap_name),
       Nothing<bool>());
   // 7. If trap is undefined, then:
   if (IsUndefined(*trap, isolate)) {
@@ -3376,7 +3380,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name),
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(handler), trap_name),
       Nothing<bool>());
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
@@ -3494,7 +3498,8 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
 
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
+      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
+      Nothing<bool>());
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
@@ -3538,7 +3543,8 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
 
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
+      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
+      Nothing<bool>());
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::IsExtensible(isolate, target);
   }
@@ -4556,7 +4562,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, Handle<JSProxy> proxy,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name),
+      Object::GetMethod(isolate, Handle<JSReceiver>::cast(handler), trap_name),
       Nothing<bool>());
   // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
   if (IsUndefined(*trap, isolate)) {

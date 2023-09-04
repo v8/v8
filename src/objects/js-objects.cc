@@ -2122,7 +2122,8 @@ MaybeHandle<Object> JSReceiver::ToPrimitive(Isolate* isolate,
   Handle<Object> exotic_to_prim;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, exotic_to_prim,
-      Object::GetMethod(receiver, isolate->factory()->to_primitive_symbol()),
+      Object::GetMethod(isolate, receiver,
+                        isolate->factory()->to_primitive_symbol()),
       Object);
   if (!IsUndefined(*exotic_to_prim, isolate)) {
     Handle<Object> hint_string =
