@@ -1826,15 +1826,63 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
+    if constexpr (SmiValuesAre31Bits()) {
+      V<Word32> shifted =
+          asm_.Word32ShiftLeft(input.op, kSmiTagSize + kSmiShiftSize);
+      if (Is64()) {
+        // The uppermost bits don't matter.
+        result->op = asm_.BitcastWord32ToWord64(shifted);
+      } else {
+        result->op = shifted;
+      }
+    } else {
+      // Set the topmost bit to sign-extend the second bit. This way,
+      // interpretation in JS (if this value escapes there) will be the same as
+      // i31.get_s.
+      V<WordPtr> input_wordptr = asm_.ChangeUint32ToUintPtr(input.op);
+      result->op = asm_.WordPtrShiftRightArithmetic(
+          asm_.WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1),
+          1);
+    }
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
+    V<Tagged> input_non_null =
+        input.type.is_nullable()
+            ? asm_.AssertNotNull(input.op, kWasmI31Ref,
+                                 TrapId::kTrapNullDereference)
+            : input.op;
+    if constexpr (SmiValuesAre31Bits()) {
+      result->op = asm_.Word32ShiftRightArithmeticShiftOutZeros(
+          asm_.TruncateWordPtrToWord32(
+              asm_.BitcastTaggedToWord(input_non_null)),
+          kSmiTagSize + kSmiShiftSize);
+    } else {
+      // Topmost bit is already sign-extended.
+      result->op = asm_.TruncateWordPtrToWord32(
+          asm_.WordPtrShiftRightArithmeticShiftOutZeros(
+              asm_.BitcastTaggedToWord(input_non_null),
+              kSmiTagSize + kSmiShiftSize));
+    }
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
+    V<Tagged> input_non_null =
+        input.type.is_nullable()
+            ? asm_.AssertNotNull(input.op, kWasmI31Ref,
+                                 TrapId::kTrapNullDereference)
+            : input.op;
+    if constexpr (SmiValuesAre31Bits()) {
+      result->op = asm_.Word32ShiftRightLogical(
+          asm_.TruncateWordPtrToWord32(
+              asm_.BitcastTaggedToWord(input_non_null)),
+          kSmiTagSize + kSmiShiftSize);
+    } else {
+      // Topmost bit is sign-extended, remove it.
+      result->op = asm_.TruncateWordPtrToWord32(asm_.WordPtrShiftRightLogical(
+          asm_.WordPtrShiftLeft(asm_.BitcastTaggedToWord(input_non_null), 1),
+          kSmiTagSize + kSmiShiftSize + 1));
+    }
   }
 
   void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
