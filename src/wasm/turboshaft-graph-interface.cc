@@ -105,11 +105,15 @@ class TurboshaftGraphBuildingInterface {
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
+      OpIndex op;
       if (!type.is_defaultable()) {
-        BailoutWithoutOpcode(decoder, "non-defaultable local");
-        return;
+        DCHECK(type.is_reference());
+        // TODO(jkummerow): Consider using "the hole" instead, to make any
+        // illegal uses more obvious.
+        op = asm_.Null(type.AsNullable());
+      } else {
+        op = DefaultValue(type);
       }
-      OpIndex op = DefaultValue(type);
       while (index < decoder->num_locals() &&
              decoder->local_type(index) == type) {
         ssa_env_[index++] = op;
