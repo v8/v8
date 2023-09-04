@@ -34,6 +34,7 @@ using compiler::turboshaft::FloatRepresentation;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
+using compiler::turboshaft::LoopLabel;
 using compiler::turboshaft::MemoryRepresentation;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
@@ -1799,7 +1800,112 @@ class TurboshaftGraphBuildingInterface {
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const ArrayIndexImmediate& src_imm, const Value& length) {
-    Bailout(decoder);
+    BoundsCheckArrayWithLength(dst.op, dst_index.op, length.op,
+                               dst.type.is_nullable()
+                                   ? compiler::kWithNullCheck
+                                   : compiler::kWithoutNullCheck);
+    BoundsCheckArrayWithLength(src.op, src_index.op, length.op,
+                               src.type.is_nullable()
+                                   ? compiler::kWithNullCheck
+                                   : compiler::kWithoutNullCheck);
+
+    ValueType element_type = src_imm.array_type->element_type();
+
+    Label<> end(&asm_);
+    Label<> builtin(&asm_);
+    Label<> reverse(&asm_);
+
+    GOTO_IF(asm_.Word32Equal(length.op, 0), end);
+
+    // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
+    int array_copy_max_loop_length;
+    switch (element_type.kind()) {
+      case wasm::kI32:
+      case wasm::kI64:
+      case wasm::kI8:
+      case wasm::kI16:
+        array_copy_max_loop_length = 20;
+        break;
+      case wasm::kF32:
+      case wasm::kF64:
+        array_copy_max_loop_length = 35;
+        break;
+      case wasm::kS128:
+        array_copy_max_loop_length = 100;
+        break;
+      case wasm::kRtt:
+      case wasm::kRef:
+      case wasm::kRefNull:
+        array_copy_max_loop_length = 15;
+        break;
+      case wasm::kVoid:
+      case wasm::kBottom:
+        UNREACHABLE();
+    }
+
+    GOTO_IF(asm_.Uint32LessThan(array_copy_max_loop_length, length.op),
+            builtin);
+    V<Word32> src_end_index =
+        asm_.Word32Sub(asm_.Word32Add(src_index.op, length.op), 1);
+    GOTO_IF(asm_.Uint32LessThan(src_index.op, dst_index.op), reverse);
+
+    {
+      LoopLabel<Word32, Word32> loop_label(&asm_);
+      GOTO(loop_label, src_index.op, dst_index.op);
+      LOOP(loop_label, src_index_loop, dst_index_loop) {
+        OpIndex value =
+            asm_.ArrayGet(src.op, src_index_loop, element_type, true);
+        asm_.ArraySet(dst.op, dst_index_loop, value, element_type);
+
+        V<Word32> condition =
+            asm_.Uint32LessThan(src_index_loop, src_end_index);
+        IF (condition) {
+          GOTO(loop_label, asm_.Word32Add(src_index_loop, 1),
+               asm_.Word32Add(dst_index_loop, 1));
+        }
+        END_IF
+
+        GOTO(end);
+      }
+    }
+
+    {
+      BIND(reverse);
+      V<Word32> dst_end_index =
+          asm_.Word32Sub(asm_.Word32Add(dst_index.op, length.op), 1);
+      LoopLabel<Word32, Word32> loop_label(&asm_);
+      GOTO(loop_label, src_end_index, dst_end_index);
+      LOOP(loop_label, src_index_loop, dst_index_loop) {
+        OpIndex value =
+            asm_.ArrayGet(src.op, src_index_loop, element_type, true);
+        asm_.ArraySet(dst.op, dst_index_loop, value, element_type);
+
+        V<Word32> condition = asm_.Uint32LessThan(src_index.op, src_index_loop);
+        IF (condition) {
+          GOTO(loop_label, asm_.Word32Sub(src_index_loop, 1),
+               asm_.Word32Sub(dst_index_loop, 1));
+        }
+        END_IF
+
+        GOTO(end);
+      }
+    }
+
+    {
+      BIND(builtin);
+      MachineType arg_types[]{
+          MachineType::TaggedPointer(), MachineType::TaggedPointer(),
+          MachineType::Uint32(),        MachineType::TaggedPointer(),
+          MachineType::Uint32(),        MachineType::Uint32()};
+      MachineSignature sig(0, 6, arg_types);
+
+      CallC(&sig, ExternalReference::wasm_array_copy(),
+            {instance_node_, dst.op, dst_index.op, src.op, src_index.op,
+             length.op});
+      GOTO(end);
+    }
+
+    BIND(end);
   }
 
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
@@ -1818,7 +1924,12 @@ class TurboshaftGraphBuildingInterface {
                        const ArrayIndexImmediate& array_imm,
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
-    Bailout(decoder);
+    bool is_element = array_imm.array_type->element_type().is_reference();
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmArrayNewSegment,
+        {asm_.Word32Constant(segment_imm.index), offset.op, length.op,
+         asm_.SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
+         asm_.RttCanon(instance_node_, array_imm.index)});
   }
 
   void ArrayInitSegment(FullDecoder* decoder,
@@ -1826,7 +1937,12 @@ class TurboshaftGraphBuildingInterface {
                         const IndexImmediate& segment_imm, const Value& array,
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
-    Bailout(decoder);
+    bool is_element = array_imm.array_type->element_type().is_reference();
+    CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmArrayInitSegment,
+        {array_index.op, segment_offset.op, length.op,
+         asm_.SmiConstant(Smi::FromInt(segment_imm.index)),
+         asm_.SmiConstant(Smi::FromInt(is_element ? 1 : 0)), array.op});
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
@@ -2404,7 +2520,7 @@ class TurboshaftGraphBuildingInterface {
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    V<Word32> overflow = CallC(&sig, ccall_ref, &stack_slot);
+    V<Word32> overflow = CallC(&sig, ccall_ref, stack_slot);
     return {stack_slot, overflow};
   }
 
@@ -2429,7 +2545,7 @@ class TurboshaftGraphBuildingInterface {
              compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ccall_ref, &stack_slot);
+    CallC(&sig, ccall_ref, stack_slot);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
   }
 
@@ -2444,7 +2560,7 @@ class TurboshaftGraphBuildingInterface {
              input_representation, compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ccall_ref, &stack_slot);
+    CallC(&sig, ccall_ref, stack_slot);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(),
                    result_representation);
   }
@@ -2462,7 +2578,7 @@ class TurboshaftGraphBuildingInterface {
 
     MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, sig_types);
-    OpIndex rc = CallC(&sig, ccall_ref, &stack_slot);
+    OpIndex rc = CallC(&sig, ccall_ref, stack_slot);
     __ TrapIf(__ Word32Equal(rc, 0), OpIndex::Invalid(), trap_zero);
     __ TrapIf(__ Word32Equal(rc, -1), OpIndex::Invalid(),
               TrapId::kTrapDivUnrepresentable);
@@ -3963,19 +4079,19 @@ class TurboshaftGraphBuildingInterface {
   }
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                base::Vector<OpIndex> args) {
+                std::initializer_list<OpIndex> args) {
     DCHECK_LE(sig->return_count(), 1);
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(asm_.graph_zone(), sig);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
-    return asm_.Call(asm_.ExternalConstant(ref), OpIndex::Invalid(), args,
-                     ts_call_descriptor);
+    return asm_.Call(asm_.ExternalConstant(ref), OpIndex::Invalid(),
+                     base::VectorOf(args), ts_call_descriptor);
   }
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                OpIndex* arg) {
-    return CallC(sig, ref, base::VectorOf(arg, 1));
+                OpIndex arg) {
+    return CallC(sig, ref, {arg});
   }
 
   OpIndex CallCStackSlotToInt32(OpIndex arg, ExternalReference ref,
@@ -3986,7 +4102,7 @@ class TurboshaftGraphBuildingInterface {
                compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    return CallC(&sig, ref, &stack_slot_param);
+    return CallC(&sig, ref, stack_slot_param);
   }
 
   V<Word32> CallCStackSlotToInt32(
@@ -4006,7 +4122,7 @@ class TurboshaftGraphBuildingInterface {
     }
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, reps);
-    return CallC(&sig, ref, &stack_slot_param);
+    return CallC(&sig, ref, stack_slot_param);
   }
 
   OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
@@ -4017,7 +4133,7 @@ class TurboshaftGraphBuildingInterface {
                compiler::WriteBarrierKind::kNoWriteBarrier);
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, &stack_slot);
+    CallC(&sig, ref, stack_slot);
     return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
   }
 
@@ -4033,7 +4149,7 @@ class TurboshaftGraphBuildingInterface {
                arg_type.SizeInBytes());
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, &stack_slot);
+    CallC(&sig, ref, stack_slot);
     return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
   }
 
@@ -4268,7 +4384,8 @@ class TurboshaftGraphBuildingInterface {
                     repr.ToRegisterRepresentation());
   }
 
-  void BoundsCheckArray(OpIndex array, OpIndex index, ValueType array_type) {
+  void BoundsCheckArray(V<HeapObject> array, V<Word32> index,
+                        ValueType array_type) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
         asm_.AssertNotNull(array, array_type, TrapId::kTrapNullDereference);
@@ -4280,6 +4397,21 @@ class TurboshaftGraphBuildingInterface {
       asm_.TrapIfNot(asm_.Uint32LessThan(index, length), OpIndex::Invalid(),
                      TrapId::kTrapArrayOutOfBounds);
     }
+  }
+
+  void BoundsCheckArrayWithLength(V<HeapObject> array, V<Word32> index,
+                                  V<Word32> length,
+                                  compiler::CheckForNull null_check) {
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
+    V<Word32> array_length = asm_.ArrayLength(array, null_check);
+    V<Word32> range_end = asm_.Word32Add(index, length);
+    V<Word32> range_valid = asm_.Word32BitwiseAnd(
+        // OOB if (index + length > array.len).
+        asm_.Uint32LessThanOrEqual(range_end, array_length),
+        // OOB if (index + length) overflows.
+        asm_.Uint32LessThanOrEqual(index, range_end));
+    asm_.TrapIfNot(range_valid, OpIndex::Invalid(),
+                   TrapId::kTrapArrayOutOfBounds);
   }
 
   V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
