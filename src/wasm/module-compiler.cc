@@ -1224,12 +1224,10 @@ bool CompileLazy(Isolate* isolate, Tagged<WasmInstanceObject> instance,
       native_module->PublishCode(native_module->AddCompiledCode(result));
   DCHECK_EQ(func_index, code->index());
 
-  if (WasmCode::ShouldBeLogged(isolate)) {
-    Tagged<Object> url_obj = module_object->script()->name();
-    DCHECK(IsString(url_obj) || IsUndefined(url_obj));
-    std::unique_ptr<char[]> url =
-        IsString(url_obj) ? String::cast(url_obj)->ToCString() : nullptr;
-    code->LogCode(isolate, url.get(), module_object->script()->id());
+  if (V8_UNLIKELY(native_module->log_code())) {
+    GetWasmEngine()->LogCode(base::VectorOf(&code, 1));
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -3818,7 +3816,7 @@ void CompilationStateImpl::PublishCode(
   std::vector<WasmCode*> published_code =
       native_module_->PublishCode(std::move(code));
   // Defer logging code in case wire bytes were not fully received yet.
-  if (native_module_->HasWireBytes()) {
+  if (native_module_->log_code() && native_module_->HasWireBytes()) {
     GetWasmEngine()->LogCode(base::VectorOf(published_code));
   }
 
