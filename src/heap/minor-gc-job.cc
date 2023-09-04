@@ -73,9 +73,9 @@ void MinorGCJob::SchedulePreviouslyRequestedTask() {
 
 void MinorGCJob::CancelTaskIfScheduled() {
   if (current_task_id_ == CancelableTaskManager::kInvalidTaskId) return;
-  auto result =
-      heap_->isolate()->cancelable_task_manager()->TryAbort(current_task_id_);
-  CHECK_EQ(TryAbortResult::kTaskAborted, result);
+  // The task may have ran and bailed out already if major incremental marking
+  // was running, in which `TryAbort` will return `kTaskRemoved`.
+  heap_->isolate()->cancelable_task_manager()->TryAbort(current_task_id_);
   current_task_id_ = CancelableTaskManager::kInvalidTaskId;
 }
 
