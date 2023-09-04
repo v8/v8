@@ -156,7 +156,7 @@ MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
       isolate);
   if (IsNull(*root, isolate)) {
     isolate->PushStackTraceAndDie(
-        reinterpret_cast<void*>(lookup_start_object->ptr()));
+        reinterpret_cast<void*>((*lookup_start_object).ptr()));
   }
   return Handle<JSReceiver>::cast(root);
 }

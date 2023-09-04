@@ -426,7 +426,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 // static
 MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
   if (IsClass(*type)) {
-    return MaybeObjectHandle::Weak(type->AsClass(), isolate);
+    return MaybeObjectHandle::Weak((*type)->AsClass(), isolate);
   }
   return MaybeObjectHandle(type);
 }
@@ -437,7 +437,7 @@ Tagged<FieldType> Map::UnwrapFieldType(MaybeObject wrapped_type) {
     return FieldType::None();
   }
   Tagged<HeapObject> heap_object;
-  if (wrapped_type->GetHeapObjectIfWeak(&heap_object)) {
+  if (wrapped_type.GetHeapObjectIfWeak(&heap_object)) {
     return FieldType::cast(heap_object);
   }
   return wrapped_type->cast<FieldType>();
@@ -2385,7 +2385,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
   DisallowGarbageCollection no_gc;
   MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
   Tagged<HeapObject> heap_object;
-  if (!value->GetHeapObjectIfWeak(&heap_object)) {
+  if (!value.GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
   }
 

@@ -2013,7 +2013,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
       MaybeObject maybeToplevel = script->shared_function_infos()->Get(0);
       Tagged<HeapObject> heap_object;
       const bool topLevelInfoExists =
-          maybeToplevel->GetHeapObject(&heap_object) &&
+          maybeToplevel.GetHeapObject(&heap_object) &&
           !IsUndefined(heap_object);
       if (!topLevelInfoExists) {
         triedTopLevelCompile = true;

@@ -199,7 +199,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 
     for (MaybeObjectSlot current = start; current < end; ++current) {
       Tagged<HeapObject> heap_object;
-      if ((*current)->GetHeapObject(&heap_object)) {
+      if ((*current).GetHeapObject(&heap_object)) {
         CHECK(ReadOnlyHeap::Contains(heap_object));
       }
     }
@@ -227,7 +227,7 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
 
     for (MaybeObjectSlot current = start; current < end; ++current) {
       Tagged<HeapObject> heap_object;
-      if ((*current)->GetHeapObject(&heap_object)) {
+      if ((*current).GetHeapObject(&heap_object)) {
         CHECK(ReadOnlyHeap::Contains(heap_object) ||
               shared_space_->Contains(heap_object) ||
               shared_lo_space_->Contains(heap_object));

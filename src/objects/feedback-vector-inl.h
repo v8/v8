@@ -167,7 +167,7 @@ Tagged<Code> FeedbackVector::optimized_code() const {
   DCHECK(slot->IsWeakOrCleared());
   Tagged<HeapObject> heap_object;
   Tagged<Code> code;
-  if (slot->GetHeapObject(&heap_object)) {
+  if (slot.GetHeapObject(&heap_object)) {
     code = Code::cast(heap_object);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
@@ -221,7 +221,7 @@ base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  Tagged<Code> code = Code::cast(maybe_code->GetHeapObject());
+  Tagged<Code> code = Code::cast(maybe_code.GetHeapObject());
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
@@ -245,7 +245,7 @@ FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
 // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
 bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
   Tagged<HeapObject> heap_object;
-  if (value->GetHeapObject(&heap_object)) {
+  if (value.GetHeapObject(&heap_object)) {
     return IsFixedArray(heap_object) && !IsHashTable(heap_object);
   }
   return false;

@@ -131,7 +131,7 @@ Handle<Object> Factory::NumberToStringCacheGet(Tagged<Object> number,
   Tagged<FixedArray> cache = *number_string_cache();
   Tagged<Object> key = cache->get(hash * 2);
   if (key == number || (IsHeapNumber(key) && IsHeapNumber(number) &&
-                        Object::Number(*key) == Object::Number(*number))) {
+                        Object::Number(key) == Object::Number(number))) {
     return Handle<String>(String::cast(cache->get(hash * 2 + 1)), isolate());
   }
   return undefined_value();

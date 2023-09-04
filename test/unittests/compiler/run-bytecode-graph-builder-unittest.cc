@@ -366,7 +366,7 @@ class RunBytecodeGraphBuilderTest : public TestWithNativeContext {
         Handle<Object> return_val =
             callable(factory->NewNumberFromInt(a)).ToHandleChecked();
         static const int results[] = {11, 12, 2};
-        CHECK_EQ(Handle<Smi>::cast(return_val)->value(), results[a]);
+        CHECK_EQ(Smi::cast(*return_val).value(), results[a]);
       }
     }
   }

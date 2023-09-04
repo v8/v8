@@ -2092,13 +2092,13 @@ void Deoptimizer::MaterializeHeapObjects() {
       PrintF(trace_scope()->file(),
              "Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
-             value->ptr());
+             (*value).ptr());
       ShortPrint(*value, trace_scope()->file());
       PrintF(trace_scope()->file(), "\n");
     }
 
     *(reinterpret_cast<Address*>(materialization.output_slot_address_)) =
-        value->ptr();
+        (*value).ptr();
   }
 
   translated_state_.VerifyMaterializedObjects();

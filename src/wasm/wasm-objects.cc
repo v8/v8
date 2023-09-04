@@ -865,7 +865,7 @@ void WasmMemoryObject::SetNewBuffer(Tagged<JSArrayBuffer> new_buffer) {
       MaybeObject elem = instances->Get(i);
       if (elem->IsCleared()) continue;
       Tagged<WasmInstanceObject> instance =
-          WasmInstanceObject::cast(elem->GetHeapObjectAssumeWeak());
+          WasmInstanceObject::cast(elem.GetHeapObjectAssumeWeak());
       // TODO(clemens): Avoid the iteration by also remembering the memory index
       // if we ever see larger numbers of memories.
       Tagged<FixedArray> memory_objects = instance->memory_objects();
@@ -2484,7 +2484,7 @@ Handle<Object> CanonicalizeHeapNumber(Handle<Object> number, Isolate* isolate) {
 Handle<Object> CanonicalizeSmi(Handle<Object> smi, Isolate* isolate) {
   if constexpr (SmiValuesAre31Bits()) return smi;
 
-  int32_t value = Handle<Smi>::cast(smi)->value();
+  int32_t value = Smi::cast(*smi).value();
 
   if (value <= kInt31MaxValue && value >= kInt31MinValue) {
     return smi;

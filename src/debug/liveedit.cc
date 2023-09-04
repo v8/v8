@@ -1016,7 +1016,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       Tagged<SharedFunctionInfo> old_unchanged_inner_sfi =
           SharedFunctionInfo::cast(new_script->shared_function_infos()
                                        ->Get(unchanged_it->second)
-                                       ->GetHeapObject());
+                                       .GetHeapObject());
       if (old_unchanged_inner_sfi == inner_sfi) continue;
       DCHECK_NE(old_unchanged_inner_sfi, inner_sfi);
       // Now some sanity checks. Make sure that the unchanged SFI has already
@@ -1059,7 +1059,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         DCHECK_EQ(inner_sfi->script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
                                  ->Get(inner_sfi->function_literal_id())
-                                 ->GetHeapObject());
+                                 .GetHeapObject());
       }
     }
   }

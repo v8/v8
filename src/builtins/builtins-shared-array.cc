@@ -29,7 +29,7 @@ BUILTIN(SharedArrayConstructor) {
         isolate, NewRangeError(MessageTemplate::kSharedArraySizeOutOfRange));
   }
 
-  int length = Handle<Smi>::cast(length_number)->value();
+  int length = Smi::cast(*length_number).value();
   if (length < 0 || length > kMaxJSSharedArraySize) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kSharedArraySizeOutOfRange));

@@ -279,12 +279,12 @@ TEST(HeapObjects) {
   value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(Smi::kMinValue, Handle<Smi>::cast(value)->value());
+  CHECK_EQ(Smi::kMinValue, Smi::cast(*value).value());
 
   value = factory->NewNumberFromInt(Smi::kMaxValue);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(Smi::kMaxValue, Handle<Smi>::cast(value)->value());
+  CHECK_EQ(Smi::kMaxValue, Smi::cast(*value).value());
 
 #if !defined(V8_TARGET_ARCH_64_BIT)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
@@ -1022,7 +1022,7 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
       // InstructionStream object with non-InstructionStream object here and it
       // might produce false positives because operator== for tagged values
       // compares only lower 32 bits when pointer compression is enabled.
-      if (objs[i]->ptr() == obj.ptr()) {
+      if ((*objs[i]).ptr() == obj.ptr()) {
         found_count++;
       }
     }
@@ -4182,7 +4182,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK_EQ(dependency->length(), DependentCode::kSlotsPerEntry);
     MaybeObject code = dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code->IsWeak());
-    CHECK_EQ(bar_handle->code(), Code::cast(code->GetHeapObjectAssumeWeak()));
+    CHECK_EQ(bar_handle->code(), Code::cast(code.GetHeapObjectAssumeWeak()));
     Smi groups = dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
              DependentCode::kAllocationSiteTransitionChangedGroup |
@@ -6839,7 +6839,7 @@ TEST(Regress8617) {
       "obj.method = foo;"
       "obj;");
   // Step 3. Make sure that foo moves during Mark-Compact.
-  Page* ec_page = Page::FromAddress(foo->ptr());
+  Page* ec_page = Page::FromAddress((*foo).ptr());
   heap::ForceEvacuationCandidate(ec_page);
   // Step 4. Start incremental marking.
   heap::SimulateIncrementalMarking(heap, false);

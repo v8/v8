@@ -1862,7 +1862,7 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*object, isolate);
 #else
-  CHECK(IsObject(**object));
+  CHECK(IsObject(*object));
   if (IsHeapObject(*object)) {
     CHECK(IsMap(HeapObject::cast(*object)->map()));
   } else {

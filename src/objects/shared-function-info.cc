@@ -150,7 +150,7 @@ Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject raw = shared_function_infos_->Get(index_++);
     Tagged<HeapObject> heap_object;
-    if (!raw->GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
+    if (!raw.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
       continue;
     }
     return SharedFunctionInfo::cast(heap_object);
@@ -188,7 +188,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     DCHECK_LT(function_literal_id, list->length());
     MaybeObject maybe_object = list->Get(function_literal_id);
     Tagged<HeapObject> heap_object;
-    if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
+    if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *this);
     }
 #endif
@@ -206,7 +206,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
       MaybeObject raw =
           old_script->shared_function_infos()->Get(function_literal_id);
       Tagged<HeapObject> heap_object;
-      if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
+      if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
         old_script->shared_function_infos()->Set(
             function_literal_id,
             HeapObjectReference::Strong(roots.undefined_value()));

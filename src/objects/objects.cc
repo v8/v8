@@ -1824,7 +1824,7 @@ void ShortPrint(Tagged<Object> obj, StringStream* accumulator) {
 
 void ShortPrint(Tagged<Object> obj, std::ostream& os) { os << Brief(obj); }
 
-std::ostream& operator<<(std::ostream& os, const Object& obj) {
+std::ostream& operator<<(std::ostream& os, Tagged<Object> obj) {
   ShortPrint(obj, os);
   return os;
 }
@@ -1837,10 +1837,10 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
     Smi::SmiPrint(smi, os);
   } else if (maybe_object->IsCleared()) {
     os << "[cleared]";
-  } else if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
+  } else if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
     os << "[weak] ";
     heap_object->HeapObjectShortPrint(os);
-  } else if (maybe_object->GetHeapObjectIfStrong(&heap_object)) {
+  } else if (maybe_object.GetHeapObjectIfStrong(&heap_object)) {
     heap_object->HeapObjectShortPrint(os);
   } else {
     UNREACHABLE();
@@ -3596,7 +3596,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         // READ_ONLY is an invalid attribute for JS setters/getters.
         Tagged<HeapObject> heap_object;
         if (details.kind() != PropertyKind::kAccessor ||
-            !(value_or_field_type->GetHeapObjectIfStrong(&heap_object) &&
+            !(value_or_field_type.GetHeapObjectIfStrong(&heap_object) &&
               IsAccessorPair(heap_object))) {
           mask |= READ_ONLY;
         }
@@ -3719,7 +3719,7 @@ Tagged<WeakArrayList> PrototypeUsers::Compact(Handle<WeakArrayList> array,
   for (int i = kFirstIndex; i < array->length(); i++) {
     MaybeObject element = array->Get(i);
     Tagged<HeapObject> value;
-    if (element->GetHeapObjectIfWeak(&value)) {
+    if (element.GetHeapObjectIfWeak(&value)) {
       callback(value, i, copy_to);
       new_array->Set(copy_to++, element);
     } else {
@@ -4494,7 +4494,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   MaybeObject shared =
       script->shared_function_infos()->Get(function_literal_id);
   Tagged<HeapObject> heap_object;
-  if (!shared->GetHeapObject(&heap_object) ||
+  if (!shared.GetHeapObject(&heap_object) ||
       IsUndefined(heap_object, isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }

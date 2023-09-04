@@ -124,7 +124,7 @@ class RunTailCallsTest : public TestWithContextAndZone {
     Handle<Object> result = ft.Call().ToHandleChecked();
     int expected = 0;
     for (int i = 0; i < m; ++i) expected += (i + 1) * i;
-    CHECK_EQ(expected, Handle<Smi>::cast(result)->value());
+    CHECK_EQ(expected, Smi::cast(*result).value());
   }
 };
 

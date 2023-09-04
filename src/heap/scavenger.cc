@@ -117,7 +117,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
     if (Heap::InFromPage(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);
-      bool success = (*slot)->GetHeapObject(&target);
+      bool success = (*slot).GetHeapObject(&target);
       USE(success);
       DCHECK(success);
 

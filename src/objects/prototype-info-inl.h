@@ -32,7 +32,7 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(PrototypeInfo, object_create_map,
                                kObjectCreateMapOffset)
 
 Tagged<Map> PrototypeInfo::ObjectCreateMap() {
-  return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());
+  return Map::cast(object_create_map().GetHeapObjectAssumeWeak());
 }
 
 // static

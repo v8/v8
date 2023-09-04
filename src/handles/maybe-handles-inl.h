@@ -24,7 +24,7 @@ MaybeHandle<T>::MaybeHandle(T object, LocalHeap* local_heap)
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
-  if (object->GetHeapObjectIfWeak(&heap_object)) {
+  if (object.GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
@@ -37,7 +37,7 @@ MaybeObjectHandle::MaybeObjectHandle(MaybeObject object,
                                      LocalHeap* local_heap) {
   Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
-  if (object->GetHeapObjectIfWeak(&heap_object)) {
+  if (object.GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, local_heap);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
@@ -139,7 +139,7 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
                                                  Isolate* isolate) {
   Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
-  if (object->GetHeapObjectIfWeak(&heap_object)) {
+  if (object.GetHeapObjectIfWeak(&heap_object)) {
     handle_ = direct_handle(heap_object, isolate);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {
@@ -152,7 +152,7 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
                                                  LocalHeap* local_heap) {
   Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
-  if (object->GetHeapObjectIfWeak(&heap_object)) {
+  if (object.GetHeapObjectIfWeak(&heap_object)) {
     handle_ = direct_handle(heap_object, local_heap);
     reference_type_ = HeapObjectReferenceType::WEAK;
   } else {

@@ -146,12 +146,6 @@ class Tagged<Object> : public TaggedBase {
     return *this = Tagged(other);
   }
 
-  // TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
-  // have an operator* or operator->. Remove once all Object member functions
-  // are free/static functions.
-  inline constexpr Object operator*() const;
-  inline constexpr detail::TaggedOperatorArrowRef<Object> operator->();
-
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
@@ -203,10 +197,6 @@ class Tagged<Smi> : public TaggedBase {
   // NOLINTNEXTLINE
   inline constexpr operator Smi();
 
-  // Access via ->, remove once Smi doesn't have its own address.
-  inline constexpr Smi operator*() const;
-  inline constexpr detail::TaggedOperatorArrowRef<Smi> operator->();
-
  private:
   friend class Smi;
   // Handles of the same type are allowed to access the Address constructor.
@@ -257,10 +247,6 @@ class Tagged<TaggedIndex> : public TaggedBase {
   inline constexpr Tagged(TaggedIndex raw);
   // NOLINTNEXTLINE
   inline constexpr operator TaggedIndex();
-
-  // Access via ->, remove once TaggedIndex doesn't have its own address.
-  inline constexpr TaggedIndex operator*() const;
-  inline constexpr detail::TaggedOperatorArrowRef<TaggedIndex> operator->();
 
  private:
   friend class TaggedIndex;
@@ -374,7 +360,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   static constexpr Tagged<T> cast(Tagged<U> other) {
     static_assert(std::is_base_of_v<T, U> || std::is_convertible_v<U*, T*> ||
                   std::is_base_of_v<U, T> || std::is_convertible_v<T*, U*>);
-    return T::cast(*other);
+    return T::cast(other);
   }
   static constexpr Tagged<T> unchecked_cast(TaggedBase other) {
     // Don't check incoming type for unchecked casts, in case the object
@@ -447,11 +433,6 @@ class Tagged : public detail::BaseForTagged<T>::type {
 static_assert(kTaggedCanConvertToRawObjects);
 template <class T>
 Tagged(T object) -> Tagged<T>;
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, Tagged<T> o) {
-  return os << *o;
-}
 
 template <typename T>
 struct RemoveTagged {

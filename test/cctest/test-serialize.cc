@@ -1796,7 +1796,7 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
-  CHECK_EQ(2, Handle<Smi>::cast(copy_result)->value());
+  CHECK_EQ(2, Smi::cast(*copy_result).value());
 
   if (verify_builtins_count) CHECK_EQ(builtins_count, CountBuiltins());
 
@@ -4939,7 +4939,7 @@ void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
     MaybeObject maybe_object = sfis->Get(i);
     Tagged<HeapObject> heap_object;
     CHECK(maybe_object->IsWeakOrCleared() ||
-          (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
+          (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
            IsUndefined(heap_object, isolate)));
     if (maybe_object->IsWeak()) {
       ++no_of_weak;

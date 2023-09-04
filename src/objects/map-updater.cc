@@ -39,8 +39,8 @@ V8_WARN_UNUSED_RESULT Handle<FieldType> GeneralizeFieldType(
       Map::FieldTypeIsCleared(rep2, *type2)) {
     return FieldType::Any(isolate);
   }
-  if (type1->NowIs(type2)) return type2;
-  if (type2->NowIs(type1)) return type1;
+  if ((*type1)->NowIs(type2)) return type2;
+  if ((*type2)->NowIs(type1)) return type1;
   return FieldType::Any(isolate);
 }
 
@@ -68,7 +68,7 @@ void PrintGeneralization(
     if (old_field_type.is_null()) {
       os << Brief(*(old_value.ToHandleChecked()));
     } else {
-      old_field_type.ToHandleChecked()->PrintTo(os);
+      (*old_field_type.ToHandleChecked())->PrintTo(os);
     }
     os << ";" << old_constness << "}";
   }
@@ -76,7 +76,7 @@ void PrintGeneralization(
   if (new_field_type.is_null()) {
     os << Brief(*(new_value.ToHandleChecked()));
   } else {
-    new_field_type.ToHandleChecked()->PrintTo(os);
+    (*new_field_type.ToHandleChecked())->PrintTo(os);
   }
   os << ";" << new_constness << "} (";
   if (strlen(reason) > 0) {
@@ -709,8 +709,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       DCHECK(new_representation_.fits_into(details.representation()));
       if (new_location_ == PropertyLocation::kField) {
         DCHECK_EQ(PropertyLocation::kField, details.location());
-        DCHECK(new_field_type_->NowIs(
-            target_descriptors->GetFieldType(modified_descriptor_)));
+        DCHECK((*new_field_type_)
+                   ->NowIs(
+                       target_descriptors->GetFieldType(modified_descriptor_)));
       } else {
         DCHECK(details.location() == PropertyLocation::kField ||
                EqualImmutableValues(
@@ -1200,9 +1201,9 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
       !Map::FieldTypeIsCleared(new_representation, *new_field_type) &&
       // Checking old_field_type for being cleared is not necessary because
       // the NowIs check below would fail anyway in that case.
-      new_field_type->NowIs(old_field_type)) {
-    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
-                               new_representation, new_field_type, isolate)
+      (*new_field_type)->NowIs(old_field_type)) {
+    DCHECK((*GeneralizeFieldType(old_representation, old_field_type,
+                                 new_representation, new_field_type, isolate))
                ->NowIs(old_field_type));
     return;
   }
@@ -1230,7 +1231,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   if (new_constness != old_constness) {
     dep_groups |= DependentCode::kFieldConstGroup;
   }
-  if (!new_field_type->Equals(*old_field_type)) {
+  if (!(*new_field_type)->Equals(*old_field_type)) {
     dep_groups |= DependentCode::kFieldTypeGroup;
   }
   if (!new_representation.Equals(old_representation)) {

@@ -83,7 +83,7 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
   // Perform a dummy acquire load to tell TSAN that there is no data race
   // with  page initialization.
   Tagged<HeapObject> heap_object;
-  if (object->GetHeapObject(&heap_object)) {
+  if (object.GetHeapObject(&heap_object)) {
     BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
   }
 #endif
@@ -457,12 +457,12 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   MaybeObject object = *slot;
   if (Heap::InFromPage(object)) {
-    Tagged<HeapObject> heap_object = object->GetHeapObject();
+    Tagged<HeapObject> heap_object = object.GetHeapObject();
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
     DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !heap->InYoungGeneration((*slot)->GetHeapObject()));
+                   !heap->InYoungGeneration((*slot).GetHeapObject()));
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen when processing of the work list

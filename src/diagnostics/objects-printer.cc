@@ -3271,7 +3271,7 @@ void Map::MapPrint(std::ostream& os) {
       Tagged<Smi> smi;
       if (raw_transitions()->ToSmi(&smi)) {
         os << Brief(smi);
-      } else if (raw_transitions()->GetHeapObject(&heap_object)) {
+      } else if (raw_transitions().GetHeapObject(&heap_object)) {
         os << Brief(heap_object);
       }
 #ifdef OBJECT_PRINT
@@ -3398,7 +3398,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {
       return;
     case kWeakRef: {
       Tagged<Map> target =
-          Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+          Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
       Tagged<Name> key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;

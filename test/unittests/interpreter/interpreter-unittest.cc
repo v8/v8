@@ -379,8 +379,8 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsBigInt) {
           CHECK(IsSmi(feedback));
           // TODO(panq): Create a standalone unit test for kBigInt64.
           CHECK(BinaryOperationFeedback::kBigInt64 ==
-                    feedback->ToSmi().value() ||
-                BinaryOperationFeedback::kBigInt == feedback->ToSmi().value());
+                    feedback.ToSmi().value() ||
+                BinaryOperationFeedback::kBigInt == feedback.ToSmi().value());
         }
       }
     }
@@ -499,7 +499,7 @@ TEST_F(InterpreterTest, InterpreterStringAdd) {
     if (tester.HasFeedbackMetadata()) {
       MaybeObject feedback = callable.vector()->Get(slot);
       CHECK(IsSmi(feedback));
-      CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi().value());
+      CHECK_EQ(test_cases[i].expected_feedback, feedback.ToSmi().value());
     }
   }
 }
@@ -715,7 +715,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
-    CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
+    CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
   }
@@ -823,7 +823,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
-    CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
+    CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
   }
@@ -891,23 +891,23 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0.ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
     CHECK(IsSmi(feedback1));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1.ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
     CHECK(IsSmi(feedback2));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2.ToSmi().value());
 
     MaybeObject feedback3 = callable.vector()->Get(slot3);
     CHECK(IsSmi(feedback3));
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3.ToSmi().value());
 
     MaybeObject feedback4 = callable.vector()->Get(slot4);
     CHECK(IsSmi(feedback4));
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4.ToSmi().value());
   }
 }
 
@@ -950,15 +950,15 @@ TEST_F(InterpreterTest, InterpreterBitwiseTypeFeedback) {
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0.ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
     CHECK(IsSmi(feedback1));
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1.ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
     CHECK(IsSmi(feedback2));
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->ToSmi().value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2.ToSmi().value());
   }
 }
 
@@ -1750,7 +1750,7 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
           MaybeObject feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
           CHECK_EQ(CompareOperationFeedback::kSignedSmall,
-                   feedback->ToSmi().value());
+                   feedback.ToSmi().value());
         }
       }
     }
@@ -1798,8 +1798,7 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
-          CHECK_EQ(CompareOperationFeedback::kNumber,
-                   feedback->ToSmi().value());
+          CHECK_EQ(CompareOperationFeedback::kNumber, feedback.ToSmi().value());
         }
       }
     }
@@ -1843,8 +1842,8 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
           CHECK(IsSmi(feedback));
           // TODO(panq): Create a standalone unit test for kBigInt64.
           CHECK(CompareOperationFeedback::kBigInt64 ==
-                    feedback->ToSmi().value() ||
-                CompareOperationFeedback::kBigInt == feedback->ToSmi().value());
+                    feedback.ToSmi().value() ||
+                CompareOperationFeedback::kBigInt == feedback.ToSmi().value());
         }
       }
     }
@@ -1893,7 +1892,7 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
               Token::IsOrderedRelationalCompareOp(comparison)
                   ? CompareOperationFeedback::kString
                   : CompareOperationFeedback::kInternalizedString;
-          CHECK_EQ(expected_feedback, feedback->ToSmi().value());
+          CHECK_EQ(expected_feedback, feedback.ToSmi().value());
         }
       }
     }
@@ -2007,11 +2006,11 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
                         (string_type == kInternalizedStringConstant
                              ? CompareOperationFeedback::kInternalizedString
                              : CompareOperationFeedback::kString),
-                    feedback->ToSmi().value());
+                    feedback.ToSmi().value());
               } else {
                 // Comparison with a number and string collects kAny feedback.
                 CHECK_EQ(CompareOperationFeedback::kAny,
-                         feedback->ToSmi().value());
+                         feedback.ToSmi().value());
               }
             }
           }
@@ -3397,8 +3396,7 @@ TEST_F(InterpreterTest, InterpreterForIn) {
       InterpreterTester tester(i_isolate(), function.c_str());
       auto callable = tester.GetCallable<>();
       Handle<Object> return_val = callable().ToHandleChecked();
-      CHECK_EQ(Handle<Smi>::cast(return_val)->value(),
-               for_in_samples[i].second);
+      CHECK_EQ(Smi::cast(*return_val).value(), for_in_samples[i].second);
     }
   }
 }
@@ -3780,7 +3778,7 @@ TEST_F(InterpreterTest, InterpreterAssignmentInExpressions) {
     Handle<Object> return_val =
         callable(handle(Smi::FromInt(arg_value), i_isolate()))
             .ToHandleChecked();
-    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), samples[i].second);
+    CHECK_EQ(Smi::cast(*return_val).value(), samples[i].second);
   }
 }
 
@@ -4100,7 +4098,7 @@ TEST_F(InterpreterTest, JumpWithConstantsAndWideConstants) {
       Handle<Object> argument = factory->NewNumberFromInt(a);
       Handle<Object> return_val = callable(argument).ToHandleChecked();
       static const int results[] = {11, 12, 2};
-      CHECK_EQ(Handle<Smi>::cast(return_val)->value(), results[a]);
+      CHECK_EQ(Smi::cast(*return_val).value(), results[a]);
     }
   }
 }
@@ -4357,8 +4355,8 @@ TEST_F(InterpreterTest, InterpreterWideParametersPickOne) {
     auto callable = tester.GetCallable<Handle<Object>>();
     Handle<Object> arg = handle(Smi::FromInt(0xAA55), i_isolate());
     Handle<Object> return_value = callable(arg).ToHandleChecked();
-    Handle<Smi> actual = Handle<Smi>::cast(return_value);
-    CHECK_EQ(actual->value(), parameter);
+    Tagged<Smi> actual = Smi::cast(*return_value);
+    CHECK_EQ(actual.value(), parameter);
   }
 }
 
@@ -4397,8 +4395,8 @@ TEST_F(InterpreterTest, InterpreterWideParametersSummation) {
     Handle<Object> arg = handle(Smi::FromInt(i), i_isolate());
     Handle<Object> return_value = callable(arg).ToHandleChecked();
     int expected = kBaseValue + i * (i + 1) / 2;
-    Handle<Smi> actual = Handle<Smi>::cast(return_value);
-    CHECK_EQ(actual->value(), expected);
+    Tagged<Smi> actual = Smi::cast(*return_value);
+    CHECK_EQ(actual.value(), expected);
   }
 }
 

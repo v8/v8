@@ -178,7 +178,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
     DisallowGarbageCollection no_gc;
     Tagged<Object> raw_key = *key;
     Tagged<OrderedHashSet> raw_table = *table;
-    hash = Object::GetOrCreateHash(*raw_key, isolate).value();
+    hash = Object::GetOrCreateHash(raw_key, isolate).value();
     if (raw_table->NumberOfElements() > 0) {
       int raw_entry = raw_table->HashToEntryRaw(hash);
       // Walk the chain of the bucket and try finding the key.

@@ -1205,7 +1205,7 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
   InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
   if (descriptors->GetKey(kNameIndex) != roots.name_string() ||
       !descriptors->GetValue(kNameIndex)
-           ->GetHeapObjectIfStrong(isolate, &value)) {
+           .GetHeapObjectIfStrong(isolate, &value)) {
     return false;
   }
   return IsAccessorInfo(value);

@@ -331,7 +331,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
             instance_, segment_imm.index, offset, length, rtt);
     if (IsSmi(*array_object)) {
       // A smi result stands for an error code.
-      error_ = static_cast<MessageTemplate>(array_object->ToSmi().value());
+      error_ = static_cast<MessageTemplate>(Smi::cast(*array_object).value());
     } else {
       result->runtime_value = WasmValue(array_object, result_type);
     }

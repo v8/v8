@@ -6275,7 +6275,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
                                        InstructionStreamSlot slot) override {
       Tagged<Object> maybe_code = slot.load(code_cage_base());
       Tagged<HeapObject> heap_object;
-      if (maybe_code->GetHeapObject(&heap_object)) {
+      if (maybe_code.GetHeapObject(&heap_object)) {
         MarkHeapObject(heap_object);
       }
     }

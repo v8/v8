@@ -39,7 +39,7 @@ class Arguments {
    public:
     inline ChangeValueScope(Isolate* isolate, Arguments* args, int index,
                             Tagged<Object> value);
-    ~ChangeValueScope() { *location_ = old_value_->ptr(); }
+    ~ChangeValueScope() { *location_ = (*old_value_).ptr(); }
 
    private:
     Address* location_;

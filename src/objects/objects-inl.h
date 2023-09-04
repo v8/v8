@@ -536,8 +536,9 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 // static
 double Object::Number(Tagged<Object> obj) {
   DCHECK(IsNumber(obj));
-  return IsSmi(obj) ? static_cast<double>(Smi(obj.ptr()).value())
-                    : HeapNumber::unchecked_cast(obj)->value();
+  return IsSmi(obj)
+             ? static_cast<double>(Tagged<Smi>::unchecked_cast(obj).value())
+             : HeapNumber::unchecked_cast(obj)->value();
 }
 
 // static

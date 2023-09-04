@@ -93,12 +93,12 @@ V8_INLINE void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
     typename TSlot::TObject object =
         slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
     Tagged<HeapObject> heap_object;
-    if (object->GetHeapObjectIfStrong(&heap_object)) {
+    if (object.GetHeapObjectIfStrong(&heap_object)) {
       // If the reference changes concurrently from strong to weak, the write
       // barrier will treat the weak reference as strong, so we won't miss the
       // weak reference.
       ProcessStrongHeapObject(host, THeapObjectSlot(slot), heap_object);
-    } else if (TSlot::kCanBeWeak && object->GetHeapObjectIfWeak(&heap_object)) {
+    } else if (TSlot::kCanBeWeak && object.GetHeapObjectIfWeak(&heap_object)) {
       ProcessWeakHeapObject(host, THeapObjectSlot(slot), heap_object);
     }
   }
@@ -111,7 +111,7 @@ MarkingVisitorBase<ConcreteVisitor>::VisitInstructionStreamPointerImpl(
   Tagged<Object> object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   Tagged<HeapObject> heap_object;
-  if (object->GetHeapObjectIfStrong(&heap_object)) {
+  if (object.GetHeapObjectIfStrong(&heap_object)) {
     // If the reference changes concurrently from strong to weak, the write
     // barrier will treat the weak reference as strong, so we won't miss the
     // weak reference.

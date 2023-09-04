@@ -2548,13 +2548,13 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
   Handle<Object> start_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), start_pos_symbol);
   if (!IsSmi(*start_pos)) return false;
-  int start_pos_value = Handle<Smi>::cast(start_pos)->value();
+  int start_pos_value = Smi::cast(*start_pos).value();
 
   Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
   Handle<Object> end_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), end_pos_symbol);
   if (!IsSmi(*end_pos)) return false;
-  int end_pos_value = Handle<Smi>::cast(end_pos)->value();
+  int end_pos_value = Smi::cast(*end_pos).value();
 
   Handle<Name> script_symbol = factory()->error_script_symbol();
   Handle<Object> script = JSReceiver::GetDataProperty(

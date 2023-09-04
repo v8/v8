@@ -300,7 +300,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   MaybeObject object = feedback_vector->Get(slot_for_a);
   {
     Tagged<HeapObject> heap_object;
-    EXPECT_TRUE(object->GetHeapObjectIfWeak(&heap_object));
+    EXPECT_TRUE(object.GetHeapObjectIfWeak(&heap_object));
     EXPECT_TRUE(IsJSFunction(heap_object));
   }
 
@@ -312,7 +312,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   object = f->feedback_vector()->Get(slot_for_a);
   {
     Tagged<HeapObject> heap_object;
-    EXPECT_TRUE(object->GetHeapObjectIfWeak(&heap_object));
+    EXPECT_TRUE(object.GetHeapObjectIfWeak(&heap_object));
     EXPECT_TRUE(IsJSFunction(heap_object));
   }
 }

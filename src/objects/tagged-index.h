@@ -89,15 +89,6 @@ constexpr Tagged<TaggedIndex>::operator TaggedIndex() {
   return TaggedIndex(ptr());
 }
 
-// Access via ->, remove once TaggedIndex doesn't have its own address.
-constexpr TaggedIndex Tagged<TaggedIndex>::operator*() const {
-  return TaggedIndex(ptr());
-}
-constexpr detail::TaggedOperatorArrowRef<TaggedIndex>
-Tagged<TaggedIndex>::operator->() {
-  return detail::TaggedOperatorArrowRef<TaggedIndex>(TaggedIndex(ptr()));
-}
-
 }  // namespace internal
 }  // namespace v8
 

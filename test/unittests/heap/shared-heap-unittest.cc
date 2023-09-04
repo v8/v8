@@ -553,7 +553,7 @@ void AllocateWithRawPointer(Isolate* isolate, StateWithRawPointer* state) {
   // Allocate a fixed array, keep a raw pointer and a weak reference.
   HandleScope scope(isolate);
   Handle<FixedArray> h = isolate->factory()->NewFixedArray(size, allocation);
-  state->ptr = h->GetHeapObject().ptr();
+  state->ptr = (*h).ptr();
   Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h, isolate);
   state->weak.Reset(reinterpret_cast<v8::Isolate*>(isolate), l);
   state->weak.SetWeak();

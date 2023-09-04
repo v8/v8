@@ -195,7 +195,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
   Tagged<HeapObject> heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*F, heap_object);
 
   TryRunJS(
@@ -203,7 +203,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
       "foo();");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(CallFeedbackContent::kTarget, nexus.GetCallFeedbackContent());
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->function_prototype_apply(), heap_object);
 
   TryRunJS(
@@ -234,7 +234,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
 
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   Tagged<HeapObject> heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
   InvokeMajorGC();
@@ -266,7 +266,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
 
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
   Tagged<HeapObject> heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK(IsFeedbackCell(heap_object, isolate));
   // Ensure this is the feedback cell for the closure returned by
   // foo_maker.
@@ -294,7 +294,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
 
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   Tagged<HeapObject> heap_object;
-  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(nexus.GetFeedback().GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
   InvokeMajorGC();

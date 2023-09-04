@@ -5182,7 +5182,7 @@ void InvalidatePrototypeChainsInternal(Tagged<Map> map) {
     for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
          ++i) {
       Tagged<HeapObject> heap_object;
-      if (prototype_users->Get(i)->GetHeapObjectIfWeak(&heap_object) &&
+      if (prototype_users->Get(i).GetHeapObjectIfWeak(&heap_object) &&
           IsMap(heap_object)) {
         // Walk the prototype chain (backwards, towards leaf objects) if
         // necessary.

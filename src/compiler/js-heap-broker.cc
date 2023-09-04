@@ -559,7 +559,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   }
 
   Handle<Object> feedback_value =
-      CanonicalPersistentHandle(nexus.GetFeedback()->GetHeapObjectOrSmi());
+      CanonicalPersistentHandle(nexus.GetFeedback().GetHeapObjectOrSmi());
 
   if (IsSmi(*feedback_value)) {
     // The wanted name belongs to a script-scope variable and the feedback
@@ -640,7 +640,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
   Tagged<HeapObject> object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
@@ -655,7 +655,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
   Tagged<HeapObject> object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
@@ -670,7 +670,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
   Tagged<HeapObject> object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
@@ -687,7 +687,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   {
     MaybeObject maybe_target = nexus.GetFeedback();
     Tagged<HeapObject> target_object;
-    if (maybe_target->GetHeapObject(&target_object)) {
+    if (maybe_target.GetHeapObject(&target_object)) {
       target_ref = TryMakeRef(this, target_object);
     }
   }

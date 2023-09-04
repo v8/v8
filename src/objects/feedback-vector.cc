@@ -34,7 +34,7 @@ FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
 
 static bool IsPropertyNameFeedback(MaybeObject feedback) {
   Tagged<HeapObject> heap_object;
-  if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
+  if (!feedback.GetHeapObjectIfStrong(&heap_object)) return false;
   if (IsString(heap_object)) {
     DCHECK(IsInternalizedString(heap_object));
     return true;
@@ -446,7 +446,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Tagged<Code> code = Code::cast(slot->GetHeapObject());
+  Tagged<Code> code = Code::cast(slot.GetHeapObject());
   if (code->marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
     ClearOptimizedCode();
@@ -729,7 +729,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
         return InlineCacheState::MONOMORPHIC;
       }
       Tagged<HeapObject> heap_object;
-      if (feedback->GetHeapObjectIfStrong(&heap_object)) {
+      if (feedback.GetHeapObjectIfStrong(&heap_object)) {
         if (IsWeakFixedArray(heap_object)) {
           // Determine state purely by our structure, don't check if the maps
           // are cleared.
@@ -738,7 +738,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
         if (IsName(heap_object)) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
                  IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind()));
-          Tagged<Object> extra_object = extra->GetHeapObjectAssumeStrong();
+          Tagged<Object> extra_object = extra.GetHeapObjectAssumeStrong();
           Tagged<WeakFixedArray> extra_array =
               WeakFixedArray::cast(extra_object);
           return extra_array->length() > 2 ? InlineCacheState::POLYMORPHIC
@@ -763,14 +763,14 @@ InlineCacheState FeedbackNexus::ic_state() const {
       if (feedback == MegamorphicSentinel()) {
         return InlineCacheState::GENERIC;
       } else if (feedback->IsWeakOrCleared()) {
-        if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+        if (feedback.GetHeapObjectIfWeak(&heap_object)) {
           if (IsFeedbackCell(heap_object)) {
             return InlineCacheState::POLYMORPHIC;
           }
           CHECK(IsJSFunction(heap_object) || IsJSBoundFunction(heap_object));
         }
         return InlineCacheState::MONOMORPHIC;
-      } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
+      } else if (feedback.GetHeapObjectIfStrong(&heap_object) &&
                  IsAllocationSite(heap_object)) {
         return InlineCacheState::MONOMORPHIC;
       }
@@ -837,7 +837,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
         return InlineCacheState::MONOMORPHIC;
       }
 
-      DCHECK(IsWeakFixedArray(feedback->GetHeapObjectAssumeStrong()));
+      DCHECK(IsWeakFixedArray(feedback.GetHeapObjectAssumeStrong()));
       return InlineCacheState::POLYMORPHIC;
     }
 
@@ -897,7 +897,7 @@ void FeedbackNexus::ConfigureCloneObject(
   {
     MaybeObject maybe_feedback = GetFeedback();
     if (maybe_feedback->IsStrongOrWeak()) {
-      feedback = handle(maybe_feedback->GetHeapObject(), isolate);
+      feedback = handle(maybe_feedback.GetHeapObject(), isolate);
     } else {
       DCHECK(maybe_feedback->IsCleared());
     }
@@ -935,7 +935,7 @@ void FeedbackNexus::ConfigureCloneObject(
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
         MaybeObject feedback_map = array->Get(i);
         if (feedback_map->IsCleared()) break;
-        Handle<Map> cached_map(Map::cast(feedback_map->GetHeapObject()),
+        Handle<Map> cached_map(Map::cast(feedback_map.GetHeapObject()),
                                isolate);
         if (cached_map.is_identical_to(source_map) ||
             cached_map->is_deprecated())
@@ -1150,13 +1150,13 @@ Tagged<Name> FeedbackNexus::GetName() const {
       IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind())) {
     MaybeObject feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
-      return Name::cast(feedback->GetHeapObjectAssumeStrong());
+      return Name::cast(feedback.GetHeapObjectAssumeStrong());
     }
   }
   if (IsDefineKeyedOwnPropertyInLiteralKind(kind())) {
     MaybeObject extra = GetFeedbackExtra();
     if (IsPropertyNameFeedback(extra)) {
-      return Name::cast(extra->GetHeapObjectAssumeStrong());
+      return Name::cast(extra.GetHeapObjectAssumeStrong());
     }
   }
   return Name();
@@ -1328,7 +1328,7 @@ MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kInstanceOf);
   MaybeObject feedback = GetFeedback();
   Tagged<HeapObject> heap_object;
-  if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+  if (feedback.GetHeapObjectIfWeak(&heap_object)) {
     return config()->NewHandle(JSObject::cast(heap_object));
   }
   return MaybeHandle<JSObject>();
@@ -1350,21 +1350,21 @@ FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
   Tagged<HeapObject> heap_object;
 
-  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
+  if ((feedback.GetHeapObjectIfStrong(&heap_object) &&
        IsWeakFixedArray(heap_object)) ||
       is_named_feedback) {
     index_ = 0;
     state_ = kPolymorphic;
-    heap_object = feedback->GetHeapObjectAssumeStrong();
+    heap_object = feedback.GetHeapObjectAssumeStrong();
     if (is_named_feedback) {
       polymorphic_feedback_ = nexus->config()->NewHandle(
-          WeakFixedArray::cast(pair.second->GetHeapObjectAssumeStrong()));
+          WeakFixedArray::cast(pair.second.GetHeapObjectAssumeStrong()));
     } else {
       polymorphic_feedback_ =
           nexus->config()->NewHandle(WeakFixedArray::cast(heap_object));
     }
     AdvancePolymorphic();
-  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+  } else if (feedback.GetHeapObjectIfWeak(&heap_object)) {
     state_ = kMonomorphic;
     MaybeObject handler = pair.second;
     map_ = Map::cast(heap_object);
@@ -1393,7 +1393,7 @@ void FeedbackIterator::AdvancePolymorphic() {
   Tagged<HeapObject> heap_object;
 
   while (index_ < length) {
-    if (polymorphic_feedback_->Get(index_)->GetHeapObjectIfWeak(&heap_object)) {
+    if (polymorphic_feedback_->Get(index_).GetHeapObjectIfWeak(&heap_object)) {
       MaybeObject handler = polymorphic_feedback_->Get(index_ + kHandlerOffset);
       map_ = Map::cast(heap_object);
       handler_ = handler;

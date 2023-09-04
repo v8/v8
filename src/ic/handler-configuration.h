@@ -206,7 +206,7 @@ class LoadHandler final : public DataHandler {
   // by given Smi-handler that encoded a load from the holder.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Smi> smi_handler,
+      Tagged<Smi> smi_handler,
       MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
       MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
 
@@ -332,7 +332,7 @@ class StoreHandler final : public DataHandler {
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Smi> smi_handler,
+      Tagged<Smi> smi_handler,
       MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
       MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
 

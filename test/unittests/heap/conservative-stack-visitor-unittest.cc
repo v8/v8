@@ -17,7 +17,7 @@ class RecordingVisitor final : public RootVisitor {
   V8_NOINLINE explicit RecordingVisitor(Isolate* isolate) {
     // Allocate the object.
     auto h = isolate->factory()->NewFixedArray(256, AllocationType::kOld);
-    the_object_ = h->GetHeapObject();
+    the_object_ = *h;
     base_address_ = the_object_.address();
     tagged_address_ = the_object_.ptr();
     inner_address_ = base_address_ + 42 * kTaggedSize;

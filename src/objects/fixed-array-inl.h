@@ -569,7 +569,7 @@ Tagged<HeapObject> WeakArrayList::Iterator::Next() {
     while (index_ < array_->length()) {
       MaybeObject item = array_->Get(index_++);
       DCHECK(item->IsWeakOrCleared());
-      if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
+      if (!item->IsCleared()) return item.GetHeapObjectAssumeWeak();
     }
     array_ = WeakArrayList();
   }

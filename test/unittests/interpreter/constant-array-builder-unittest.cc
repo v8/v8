@@ -371,8 +371,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
       MaybeHandle<Object> empty = builder.At(i, isolate());
       CHECK(empty.is_null());
     } else {
-      CHECK_EQ(Handle<Smi>::cast(builder.At(i, isolate()).ToHandleChecked())
-                   ->value(),
+      CHECK_EQ(Smi::cast(*builder.At(i, isolate()).ToHandleChecked()).value(),
                static_cast<int>(i));
     }
   }
@@ -385,9 +384,8 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
 
   // Check values after reserved entries are inserted.
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    CHECK_EQ(
-        Handle<Smi>::cast(builder.At(i, isolate()).ToHandleChecked())->value(),
-        static_cast<int>(i));
+    CHECK_EQ(Smi::cast(*builder.At(i, isolate()).ToHandleChecked()).value(),
+             static_cast<int>(i));
   }
 }
 

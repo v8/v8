@@ -189,9 +189,9 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
   DCHECK(!Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry(isolate));
 
   base::SmallVector<Address, 32> argv(argc + 1);
-  argv[0] = receiver->ptr();
+  argv[0] = (*receiver).ptr();
   for (int i = 0; i < argc; ++i) {
-    argv[i + 1] = args[i]->ptr();
+    argv[i + 1] = (*args[i]).ptr();
   }
 
   RelocatableArguments arguments(isolate, argv.size(), argv.data());

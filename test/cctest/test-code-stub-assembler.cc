@@ -83,7 +83,7 @@ TEST(CallCFunction) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(45, Handle<Smi>::cast(result)->value());
+  CHECK_EQ(45, Smi::cast(*result).value());
 }
 
 TEST(CallCFunctionWithCallerSavedRegisters) {
@@ -111,7 +111,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(3, Handle<Smi>::cast(result)->value());
+  CHECK_EQ(3, Smi::cast(*result).value());
 }
 
 TEST(NumberToString) {
@@ -424,7 +424,7 @@ TEST(FixedArrayAccessSmiIndex) {
                                    m.SmiTag(m.IntPtrConstant(4)), 0));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(733, Smi::cast(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadHeapNumberValue) {
@@ -436,7 +436,7 @@ TEST(LoadHeapNumberValue) {
       m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number))))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(1234, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(1234, Smi::cast(*result.ToHandleChecked()).value());
 }
 
 TEST(LoadInstanceType) {
@@ -448,7 +448,7 @@ TEST(LoadInstanceType) {
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
-           Handle<Smi>::cast(result.ToHandleChecked())->value());
+           Smi::cast(*result.ToHandleChecked()).value());
 }
 
 TEST(DecodeWordFromWord32) {
@@ -464,7 +464,7 @@ TEST(DecodeWordFromWord32) {
   // value  = 00101111
   // mask   = 00111000
   // result = 101
-  CHECK_EQ(5, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(5, Smi::cast(*result.ToHandleChecked()).value());
 }
 
 TEST(JSFunction) {
@@ -479,7 +479,7 @@ TEST(JSFunction) {
 
   MaybeHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
                                        handle(Smi::FromInt(34), isolate));
-  CHECK_EQ(57, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(57, Smi::cast(*result.ToHandleChecked()).value());
 }
 
 TEST(ComputeIntegerHash) {
@@ -2633,7 +2633,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Handle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
 
     CHECK_EQ(kind_, array->GetElementsKind());
-    CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
+    CHECK_EQ(result_size, Smi::cast(*result).value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Handle<Object> obj =
         JSObject::GetElement(isolate, array, 2).ToHandleChecked();
@@ -2933,25 +2933,25 @@ TEST(NewElementsCapacity) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  Handle<Smi> result_obj = ft.CallChecked<Smi>(test_value);
+  Tagged<Smi> result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(2), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
 }
 
 TEST(NewElementsCapacitySmi) {
@@ -2963,25 +2963,25 @@ TEST(NewElementsCapacitySmi) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
-  Handle<Smi> result_obj = ft.CallChecked<Smi>(test_value);
+  Tagged<Smi> result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(2), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
   test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
-  result_obj = ft.CallChecked<Smi>(test_value);
+  result_obj = *ft.CallChecked<Smi>(test_value);
   CHECK_EQ(
-      result_obj->value(),
-      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+      result_obj.value(),
+      static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
 }
 
 TEST(AllocateFunctionWithMapAndContext) {
@@ -3196,7 +3196,7 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest16BitWord32Immediate) {
@@ -3228,7 +3228,7 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest8BitWord32) {
@@ -3272,7 +3272,7 @@ TEST(DirectMemoryTest8BitWord32) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(DirectMemoryTest16BitWord32) {
@@ -3328,7 +3328,7 @@ TEST(DirectMemoryTest16BitWord32) {
   m.Return(m.SmiConstant(0));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(1, (*ft.CallChecked<Smi>()).value());
 }
 
 TEST(LoadJSArrayElementsMap) {
@@ -3459,7 +3459,7 @@ TEST(IsNumberArrayIndex) {
     Handle<Object> index = isolate->factory()->NewNumber(indices[i]);
     uint32_t array_index;
     CHECK_EQ(Object::ToArrayIndex(*index, &array_index),
-             (ft.CallChecked<Smi>(index)->value() == 1));
+             ((*ft.CallChecked<Smi>(index)).value() == 1));
   }
 }
 
@@ -3484,10 +3484,10 @@ TEST(NumberMinMax) {
   Handle<Smi> smi_1(Smi::FromInt(1), isolate);
   Handle<Smi> smi_2(Smi::FromInt(2), isolate);
   Handle<Smi> smi_5(Smi::FromInt(5), isolate);
-  CHECK_EQ(ft_min.CallChecked<Smi>(smi_1, smi_2)->value(), 1);
-  CHECK_EQ(ft_min.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
-  CHECK_EQ(ft_max.CallChecked<Smi>(smi_1, smi_2)->value(), 2);
-  CHECK_EQ(ft_max.CallChecked<Smi>(smi_2, smi_1)->value(), 2);
+  CHECK_EQ((*ft_min.CallChecked<Smi>(smi_1, smi_2)).value(), 1);
+  CHECK_EQ((*ft_min.CallChecked<Smi>(smi_2, smi_1)).value(), 1);
+  CHECK_EQ((*ft_max.CallChecked<Smi>(smi_1, smi_2)).value(), 2);
+  CHECK_EQ((*ft_max.CallChecked<Smi>(smi_2, smi_1)).value(), 2);
 
   // Test double values.
   Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
@@ -3539,8 +3539,8 @@ TEST(NumberAddSub) {
   // Test smi values.
   Handle<Smi> smi_1(Smi::FromInt(1), isolate);
   Handle<Smi> smi_2(Smi::FromInt(2), isolate);
-  CHECK_EQ(ft_add.CallChecked<Smi>(smi_1, smi_2)->value(), 3);
-  CHECK_EQ(ft_sub.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
+  CHECK_EQ((*ft_add.CallChecked<Smi>(smi_1, smi_2)).value(), 3);
+  CHECK_EQ((*ft_sub.CallChecked<Smi>(smi_2, smi_1)).value(), 1);
 
   // Test double values.
   Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
@@ -4419,8 +4419,9 @@ TEST(IntPtrMulHigh) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(-147694,
-           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(
+      -147694,
+      (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
   CHECK_EQ(-147694, base::bits::SignedMulHigh32(
                         std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(-147694, base::bits::SignedMulHigh64(
@@ -4438,7 +4439,7 @@ TEST(IntPtrMulHighConstantFoldable) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(-147694, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(-147694, (*ft.CallChecked<Smi>()).value());
   CHECK_EQ(-147694, base::bits::SignedMulHigh32(
                         std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(-147694, base::bits::SignedMulHigh64(
@@ -4458,8 +4459,9 @@ TEST(UintPtrMulHigh) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(147693,
-           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(
+      147693,
+      (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
   CHECK_EQ(147693, base::bits::UnsignedMulHigh32(
                        std::numeric_limits<int32_t>::min(), 295387));
   CHECK_EQ(147693, base::bits::UnsignedMulHigh64(
@@ -4477,7 +4479,7 @@ TEST(UintPtrMulHighConstantFoldable) {
   m.Return(m.SmiTag(res));
 
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK_EQ(147693, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(147693, (*ft.CallChecked<Smi>()).value());
   CHECK_EQ(
       147693,
       base::bits::UnsignedMulHigh32(

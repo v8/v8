@@ -28,10 +28,10 @@ void IC::update_lookup_start_object_map(Handle<Object> object) {
 bool IC::IsHandler(MaybeObject object) {
   Tagged<HeapObject> heap_object;
   return (IsSmi(object) && (object.ptr() != kNullAddress)) ||
-         (object->GetHeapObjectIfWeak(&heap_object) &&
+         (object.GetHeapObjectIfWeak(&heap_object) &&
           (IsMap(heap_object) || IsPropertyCell(heap_object) ||
            IsAccessorPair(heap_object))) ||
-         (object->GetHeapObjectIfStrong(&heap_object) &&
+         (object.GetHeapObjectIfStrong(&heap_object) &&
           (IsDataHandler(heap_object) || IsCode(heap_object)));
 }
 

@@ -77,8 +77,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     int name_offset = base_offset;
     int index_offset = base_offset + 1;
     Handle<String> name(String::cast(names->get(name_offset)), isolate);
-    Handle<Smi> smi_index(Smi::cast(names->get(index_offset)), isolate);
-    Handle<Object> capture_indices(indices_array->get(smi_index->value()),
+    Tagged<Smi> smi_index = Smi::cast(names->get(index_offset));
+    Handle<Object> capture_indices(indices_array->get(smi_index.value()),
                                    isolate);
     if (!IsUndefined(*capture_indices, isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);

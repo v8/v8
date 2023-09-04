@@ -852,7 +852,7 @@ bool ExecuteWasmDebugBreaks(Isolate* isolate,
     i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
     for (int i = 0; i < weak_instance_list->length(); ++i) {
       if (weak_instance_list->Get(i)->IsCleared()) continue;
-      i::WasmInstanceObject::cast(weak_instance_list->Get(i)->GetHeapObject())
+      i::WasmInstanceObject::cast(weak_instance_list->Get(i).GetHeapObject())
           ->set_break_on_entry(false);
     }
     DCHECK(!instance->break_on_entry());
@@ -1020,7 +1020,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
         instance, segment_index, offset, length, rtt);
     if (IsSmi(*result)) {
       return ThrowWasmError(
-          isolate, static_cast<MessageTemplate>(result->ToSmi().value()));
+          isolate, static_cast<MessageTemplate>(Smi::cast(*result).value()));
     } else {
       return *result;
     }

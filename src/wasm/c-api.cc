@@ -1560,7 +1560,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::kRef:
       case i::wasm::kRefNull:
         // TODO(14034): Make sure this works for all heap types.
-        packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
+        packer->Push((*WasmRefToV8(store->i_isolate(), args[i].ref())).ptr());
         break;
       case i::wasm::kS128:
         // TODO(14034): Implement.
@@ -1799,7 +1799,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
       case ANYREF:
       case FUNCREF: {
         v8::base::WriteUnalignedValue(
-            p, WasmRefToV8(isolate, results[i].ref())->ptr());
+            p, (*WasmRefToV8(isolate, results[i].ref())).ptr());
         p += sizeof(i::Address);
         break;
       }

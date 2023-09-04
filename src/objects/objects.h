@@ -308,11 +308,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   constexpr Object() : TaggedImpl(kNullAddress) {}
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
-  /* For every object, add a `->` operator which returns a pointer to this     \
-     object. This will allow smoother transition between T and Tagged<T>. */
-  Object* operator->() { return this; }
-  const Object* operator->() const { return this; }
-
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
   static V8_INLINE bool InSharedHeap(Tagged<Object> obj);
@@ -745,14 +740,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                  MessageTemplate error_index);
 };
 
-// TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
-// have an operator* or operator->. Remove once all Object member functions
-// are free/static functions.
-constexpr Object Tagged<Object>::operator*() const { return ToRawPtr(); }
-constexpr detail::TaggedOperatorArrowRef<Object> Tagged<Object>::operator->() {
-  return detail::TaggedOperatorArrowRef<Object>{ToRawPtr()};
-}
-
 // Implicit conversions to/from raw pointers
 // TODO(leszeks): Remove once we're using Tagged everywhere.
 // NOLINTNEXTLINE
@@ -768,7 +755,8 @@ constexpr Tagged<Object>::operator U() {
 
 constexpr Object Tagged<Object>::ToRawPtr() const { return Object(ptr()); }
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Object& obj);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Tagged<Object> obj);
 
 struct Brief {
   template <typename TObject>

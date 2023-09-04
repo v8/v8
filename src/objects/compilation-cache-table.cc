@@ -99,10 +99,10 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
     MaybeObject object = new_literals_map->Get(i + kLiteralContextOffset);
     DCHECK(object->IsCleared() ||
-           IsNativeContext(object->GetHeapObjectAssumeWeak()));
+           IsNativeContext(object.GetHeapObjectAssumeWeak()));
     object = new_literals_map->Get(i + kLiteralLiteralsOffset);
     DCHECK(object->IsCleared() ||
-           IsFeedbackCell(object->GetHeapObjectAssumeWeak()));
+           IsFeedbackCell(object.GetHeapObjectAssumeWeak()));
   }
 #endif
 
@@ -124,7 +124,7 @@ Tagged<FeedbackCell> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
     MaybeObject object = literals_map->Get(entry + kLiteralLiteralsOffset);
 
     if (!object->IsCleared()) {
-      result = FeedbackCell::cast(object->GetHeapObjectAssumeWeak());
+      result = FeedbackCell::cast(object.GetHeapObjectAssumeWeak());
     }
   }
   DCHECK(result.is_null() || IsFeedbackCell(result));

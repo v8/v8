@@ -28,6 +28,7 @@ class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
 class LocalIsolate;
+class TaggedIndex;
 class Object;
 class OrderedHashMap;
 class OrderedHashSet;
@@ -115,14 +116,38 @@ class Handle final : public HandleBase {
             typename = std::enable_if_t<std::is_convertible_v<S*, T*>>>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE Tagged<T> operator->() const { return **this; }
+  // Access a member of the T object referenced by this handle.
+  //
+  // This is actually a double dereference -- first it dereferences the Handle
+  // pointing to a Tagged<T>, and then continues through Tagged<T>::operator->.
+  // This means that this is only permitted for Tagged<T> with an operator->,
+  // i.e. for on-heap object T.
+  V8_INLINE Tagged<T> operator->() const {
+    if constexpr (std::is_base_of_v<HeapObject, T> ||
+                  std::is_convertible_v<T*, HeapObject*>) {
+      return **this;
+    } else {
+      // `static_assert(false)` in this else clause was an unconditional error
+      // before CWG2518. See https://reviews.llvm.org/D144285
+#if defined(__clang__) && __clang_major__ >= 17
+      // For non-HeapObjects, there's no on-heap object to dereference, so
+      // disallow using operator->.
+      //
+      // If you got an error here and want to access the Tagged<T>, use
+      // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
+      static_assert(
+          false,
+          "This handle does not reference a heap object. Use `(*handle).foo`.");
+#endif
+    }
+  }
 
   V8_INLINE Tagged<T> operator*() const {
     // This static type check also fails for forward class declarations. We
     // check on access instead of on construction to allow Handles to forward
     // declared types.
     static_assert(
-        std::is_base_of_v<T, Object> || std::is_convertible_v<T*, Object*>,
+        std::is_base_of_v<Object, T> || std::is_convertible_v<T*, Object*>,
         "static type violation");
     // Direct construction of Tagged from address, without a type check, because
     // we rather trust Handle<T> to contain a T than include all the respective
@@ -388,14 +413,28 @@ class DirectHandle final : public DirectHandleBase {
       : DirectHandle(handle.location() != nullptr ? *handle.location()
                                                   : kTaggedNullAddress) {}
 
-  V8_INLINE Tagged<T> operator->() const { return **this; }
+  V8_INLINE Tagged<T> operator->() const {
+    if constexpr (std::is_base_of_v<HeapObject, T> ||
+                  std::is_convertible_v<T*, HeapObject*>) {
+      return **this;
+    } else {
+      // For non-HeapObjects, there's no on-heap object to dereference, so
+      // disallow using operator->.
+      //
+      // If you got an error here and want to access the Tagged<T>, use
+      // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
+      static_assert(
+          false,
+          "This handle does not reference a heap object. Use `(*handle).foo`.");
+    }
+  }
 
   V8_INLINE Tagged<T> operator*() const {
     // This static type check also fails for forward class declarations. We
     // check on access instead of on construction to allow DirectHandles to
     // forward declared types.
     static_assert(
-        std::is_base_of_v<T, Object> || std::is_convertible_v<T*, Object*>,
+        std::is_base_of_v<Object, T> || std::is_convertible_v<T*, Object*>,
         "static type violation");
     // Direct construction of Tagged from address, without a type check, because
     // we rather trust DirectHandle<T> to contain a T than include all the

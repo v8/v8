@@ -872,8 +872,8 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
       script->wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     if (weak_instance_list->Get(i)->IsCleared()) continue;
-    i::Tagged<i::WasmInstanceObject> instance = i::WasmInstanceObject::cast(
-        weak_instance_list->Get(i)->GetHeapObject());
+    i::Tagged<i::WasmInstanceObject> instance =
+        i::WasmInstanceObject::cast(weak_instance_list->Get(i).GetHeapObject());
     instance->set_break_on_entry(enabled);
   }
 }

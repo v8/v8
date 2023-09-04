@@ -634,8 +634,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     weak2.Reset(v8_isolate(), Utils::FixedArrayToLocal(h2));
     weak1.SetWeak();
     weak2.SetWeak();
-    auto obj1 = h1->GetHeapObject();
-    auto obj2 = h2->GetHeapObject();
+    auto obj1 = *h1;
+    auto obj2 = *h2;
     page1 = Page::FromHeapObject(obj1);
     EXPECT_TRUE(!page1->IsLargePage());
     EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
@@ -648,7 +648,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     // page2. Keep a strong reference to this object.
     auto h3 = factory()->NewFixedArray(16, AllocationType::kYoung);
     strong.Reset(v8_isolate(), Utils::FixedArrayToLocal(h3));
-    auto obj3 = h3->GetHeapObject();
+    auto obj3 = *h3;
     auto page3 = Page::FromHeapObject(obj3);
     EXPECT_TRUE(page3 == page1 || page3 == page2);
     if (page3 == page1) {
@@ -760,7 +760,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     auto h = factory()->NewFixedArray(length, AllocationType::kYoung);
     weak.Reset(v8_isolate(), Utils::FixedArrayToLocal(h));
     weak.SetWeak();
-    auto obj = h->GetHeapObject();
+    auto obj = *h;
     auto page = Page::FromHeapObject(obj);
     EXPECT_TRUE(page->IsLargePage());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE, page->owner_identity());

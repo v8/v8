@@ -46,7 +46,7 @@ Handle<WasmInstanceObject> WasmModuleDebug::GetFirstWasmInstance() {
     MaybeObject maybe_instance = weak_instance_list->Get(0);
     if (maybe_instance->IsWeak()) {
       Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
+          WasmInstanceObject::cast(maybe_instance.GetHeapObjectAssumeWeak()),
           GetIsolate());
       return instance;
     }

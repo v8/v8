@@ -132,12 +132,6 @@ constexpr Tagged<Smi>::operator Smi() {
   return Smi(ptr());
 }
 
-// Access via ->, remove once Smi doesn't have its own address.
-constexpr Smi Tagged<Smi>::operator*() const { return Smi(ptr()); }
-constexpr detail::TaggedOperatorArrowRef<Smi> Tagged<Smi>::operator->() {
-  return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr()));
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -2339,7 +2339,7 @@ void MarkCompactCollector::RetainMaps() {
     for (int i = 0; i < retained_maps->length(); i += 2) {
       MaybeObject value = retained_maps->Get(i);
       Tagged<HeapObject> map_heap_object;
-      if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
+      if (!value.GetHeapObjectIfWeak(&map_heap_object)) {
         continue;
       }
       int age = retained_maps->Get(i + 1).ToSmi().value();
@@ -3203,7 +3203,7 @@ bool MarkCompactCollector::CompactTransitionArray(
         transitions->SetRawTarget(transition_index, raw_target);
         HeapObjectSlot target_slot =
             transitions->GetTargetSlot(transition_index);
-        RecordSlot(transitions, target_slot, raw_target->GetHeapObject());
+        RecordSlot(transitions, target_slot, raw_target.GetHeapObject());
       }
       transition_index++;
     }
@@ -3366,7 +3366,7 @@ void MarkCompactCollector::ClearWeakReferences() {
     // The slot could have been overwritten, so we have to treat it
     // as MaybeObjectSlot.
     MaybeObjectSlot location(slot.second);
-    if ((*location)->GetHeapObjectIfWeak(&value)) {
+    if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsCell(value));
       if (value.InReadOnlySpace() ||
           non_atomic_marking_state_->IsMarked(value)) {
@@ -3626,10 +3626,10 @@ template <AccessMode access_mode, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   Tagged<HeapObject> heap_obj;
-  if (TSlot::kCanBeWeak && obj->GetHeapObjectIfWeak(&heap_obj)) {
+  if (TSlot::kCanBeWeak && obj.GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode, HeapObjectReferenceType::WEAK>(cage_base, slot, obj,
                                                            heap_obj);
-  } else if (obj->GetHeapObjectIfStrong(&heap_obj)) {
+  } else if (obj.GetHeapObjectIfStrong(&heap_obj)) {
     UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
                                                              obj, heap_obj);
   }
@@ -4550,7 +4550,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                                              MemoryChunk* chunk, TSlot slot) {
     Tagged<HeapObject> heap_object;
 
-    if (!slot.load(cage_base)->GetHeapObject(&heap_object)) {
+    if (!slot.load(cage_base).GetHeapObject(&heap_object)) {
       return;
     }
 

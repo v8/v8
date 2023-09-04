@@ -419,9 +419,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       JSEntryFunction stub_entry =
           JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
-      Address orig_func = params.new_target->ptr();
-      Address func = params.target->ptr();
-      Address recv = params.receiver->ptr();
+      Address orig_func = (*params.new_target).ptr();
+      Address func = (*params.target).ptr();
+      Address recv = (*params.receiver).ptr();
       Address** argv = reinterpret_cast<Address**>(params.argv);
       RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
@@ -648,7 +648,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
     static_assert(compiler::CWasmEntryParameters::kObjectRef == 1);
     static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
     static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
-    Address result = stub_entry.Call(wasm_call_target, object_ref->ptr(),
+    Address result = stub_entry.Call(wasm_call_target, (*object_ref).ptr(),
                                      packed_args, saved_c_entry_fp);
     if (result != kNullAddress) {
       isolate->set_pending_exception(Object(result));
