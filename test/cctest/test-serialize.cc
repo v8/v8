@@ -505,7 +505,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
     {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
-                 isolate, &snapshot_data, false, global_proxy,
+                 isolate, &snapshot_data, 0, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(IsContext(*root));
@@ -516,7 +516,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
     {
       SnapshotData snapshot_data(context_blob);
       root2 = ContextDeserializer::DeserializeContext(
-                  isolate, &snapshot_data, false, global_proxy,
+                  isolate, &snapshot_data, 0, false, global_proxy,
                   v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
       CHECK(IsContext(*root2));
@@ -672,7 +672,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
     {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
-                 isolate, &snapshot_data, false, global_proxy,
+                 isolate, &snapshot_data, 0, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(IsContext(*root));

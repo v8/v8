@@ -147,12 +147,14 @@ ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                    can_rehash) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
+  base::ElapsedTimer timer;
+  if (V8_UNLIKELY(v8_flags.profile_deserialization)) timer.Start();
   NestedTimedHistogramScope histogram_timer(
       isolate()->counters()->snapshot_deserialize_rospace());
   HandleScope scope(isolate());
-  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
+  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
   ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
   PostProcessNewObjects();
 
@@ -165,6 +167,15 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   if (should_rehash()) {
     isolate()->heap()->InitializeHashSeed();
     Rehash();
+  }
+
+  if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
+    // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
+    // change it without also updating Memory.json.
+    const int bytes = source()->length();
+    const double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Deserializing read-only space (%d bytes) took %0.3f ms]\n", bytes,
+           ms);
   }
 }
 
