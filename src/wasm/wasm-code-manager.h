@@ -156,7 +156,8 @@ enum class WellKnownImport : uint8_t;
   V(StringCompare)                       \
   V(WasmStringFromCodePoint)             \
   V(WasmStringHash)                      \
-  V(WasmExternInternalize)
+  V(WasmExternInternalize)               \
+  V(WasmStringFromDataSegment)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),

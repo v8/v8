@@ -209,6 +209,16 @@ class OperationMatcher {
     return true;
   }
 
+  bool MatchWasmStubCallConstant(OpIndex matched, int64_t* stub_id) const {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kRelocatableWasmStubCall) {
+      return false;
+    }
+    *stub_id = op->signed_integral();
+    return true;
+  }
+
   bool MatchChange(OpIndex matched, OpIndex* input, ChangeOp::Kind kind,
                    RegisterRepresentation from,
                    RegisterRepresentation to) const {

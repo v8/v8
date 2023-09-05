@@ -27,7 +27,9 @@ using Assembler =
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
 using compiler::TrapId;
+using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
+using compiler::turboshaft::ConstantOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using compiler::turboshaft::FloatRepresentation;
@@ -36,6 +38,8 @@ using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
 using compiler::turboshaft::LoopLabel;
 using compiler::turboshaft::MemoryRepresentation;
+using compiler::turboshaft::Operation;
+using compiler::turboshaft::OperationMatcher;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
@@ -2182,41 +2186,127 @@ class TurboshaftGraphBuildingInterface {
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
                      const unibrow::Utf8Variant variant, const Value& offset,
                      const Value& size, Value* result) {
-    Bailout(decoder);
+    V<Object> memory_smi = __ SmiConstant(Smi::FromInt(memory.index));
+    V<Object> variant_smi =
+        __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringNewWtf8,
+        {offset.op, size.op, memory_smi, variant_smi}, CheckForException::kNo);
+  }
+
+  // TODO(jkummerow): This check would be more elegant if we made
+  // {ArrayNewSegment} a high-level node that's lowered later.
+  bool IsArrayNewSegment(V<Object> array) {
+    const CallOp* call = asm_.output_graph().Get(array).TryCast<CallOp>();
+    if (call == nullptr) return false;
+    int64_t stub_id{};
+    if (!OperationMatcher(asm_.output_graph())
+             .MatchWasmStubCallConstant(call->callee(), &stub_id)) {
+      return false;
+    }
+    DCHECK_LT(stub_id, WasmCode::kRuntimeStubCount);
+    return stub_id == WasmCode::kWasmArrayNewSegment;
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
                           const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    Bailout(decoder);
+    // Special case: shortcut a sequence "array from data segment" + "string
+    // from wtf8 array" to directly create a string from the segment.
+    if (IsArrayNewSegment(array.op)) {
+      // We can only pass 3 untagged parameters to the builtin (on 32-bit
+      // platforms). The segment index is easy to tag: if it validated, it must
+      // be in Smi range.
+      const Operation& array_new = asm_.output_graph().Get(array.op);
+      OpIndex segment_index = array_new.input(1);
+      int32_t index_val;
+      OperationMatcher(asm_.output_graph())
+          .MatchWord32Constant(segment_index, &index_val);
+      V<Object> index_smi = __ SmiConstant(Smi::FromInt(index_val));
+      // Arbitrary choice for the second tagged parameter: the segment offset.
+      OpIndex segment_offset = array_new.input(2);
+      asm_.TrapIfNot(
+          __ Uint32LessThan(segment_offset, __ Word32Constant(Smi::kMaxValue)),
+          OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
+      V<Object> offset_smi = __ TagSmi(segment_offset);
+      OpIndex segment_length = array_new.input(3);
+      result->op = CallBuiltinFromRuntimeStub(
+          decoder, WasmCode::kWasmStringFromDataSegment,
+          {segment_length, start.op, end.op, index_smi, offset_smi});
+      return;
+    }
+
+    // Regular path if the shortcut wasn't taken.
+    OpIndex array_not_null = array.op;
+    if (array.type.is_nullable()) {
+      array_not_null =
+          __ AssertNotNull(array.op, array.type, TrapId::kTrapNullDereference);
+    }
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringNewWtf8Array,
+        {start.op, end.op, array_not_null,
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringNewWtf16,
+        {__ Word32Constant(imm.index), offset.op, size.op});
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    Bailout(decoder);
+    OpIndex array_not_null = array.op;
+    if (array.type.is_nullable()) {
+      array_not_null =
+          __ AssertNotNull(array.op, array.type, TrapId::kTrapNullDereference);
+    }
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringNewWtf16Array,
+                                   {array_not_null, start.op, end.op});
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringConst,
+                                            {__ Word32Constant(imm.index)});
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
-    Bailout(decoder);
+    WasmCode::RuntimeStubId builtin;
+    switch (variant) {
+      case unibrow::Utf8Variant::kUtf8:
+        builtin = WasmCode::kWasmStringMeasureUtf8;
+        break;
+      case unibrow::Utf8Variant::kLossyUtf8:
+      case unibrow::Utf8Variant::kWtf8:
+        builtin = WasmCode::kWasmStringMeasureWtf8;
+        break;
+      case unibrow::Utf8Variant::kUtf8NoTrap:
+        UNREACHABLE();
+    }
+    OpIndex not_null_str = str.op;
+    if (str.type.is_nullable()) {
+      not_null_str =
+          __ AssertNotNull(str.op, str.type, TrapId::kTrapNullDereference);
+    }
+    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {not_null_str});
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    Bailout(decoder);
+    OpIndex not_null_str = str.op;
+    if (str.type.is_nullable()) {
+      not_null_str =
+          __ AssertNotNull(str.op, str.type, TrapId::kTrapNullDereference);
+    }
+    result->op = __ Load(not_null_str, LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Uint32(), String::kLengthOffset);
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
