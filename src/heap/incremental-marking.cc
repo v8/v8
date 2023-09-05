@@ -484,7 +484,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   // Minor MS never runs during incremental marking.
   DCHECK(!v8_flags.minor_ms);
 
-  Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
+  Tagged<Map> filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
   MarkingState* marking_state = heap()->marking_state();
 
@@ -515,7 +515,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // other pointer into the old space and we won't encounter them here in
       // this code path.
       DCHECK(!Heap::IsLargeObject(obj));
-      HeapObject dest = map_word.ToForwardingAddress(obj);
+      Tagged<HeapObject> dest = map_word.ToForwardingAddress(obj);
       DCHECK_IMPLIES(marking_state->IsUnmarked(obj), IsFreeSpaceOrFiller(obj));
       if (dest.InWritableSharedSpace() &&
           !isolate()->is_shared_space_isolate()) {

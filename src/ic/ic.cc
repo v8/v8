@@ -567,7 +567,7 @@ bool AddOneReceiverMapIfMissing(
 Handle<NativeContext> GetAccessorContext(
     const CallOptimization& call_optimization, Tagged<Map> holder_map,
     Isolate* isolate) {
-  base::Optional<NativeContext> maybe_context =
+  base::Optional<Tagged<NativeContext>> maybe_context =
       call_optimization.GetAccessorContext(holder_map);
 
   // Holders which are remote objects are not expected in the IC system.

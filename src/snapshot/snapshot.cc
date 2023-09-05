@@ -383,7 +383,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
         ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
-    std::vector<Context> contexts{*default_context};
+    std::vector<Tagged<Context>> contexts{*default_context};
     std::vector<SerializeInternalFieldsCallback> callbacks{{}};
     serialized_data = Snapshot::Create(isolate, &contexts, callbacks,
                                        safepoint_scope, no_gc, flags);
@@ -426,7 +426,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
 // static
 v8::StartupData Snapshot::Create(
-    Isolate* isolate, std::vector<Context>* contexts,
+    Isolate* isolate, std::vector<Tagged<Context>>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
     const SafepointScope& safepoint_scope,
@@ -1090,7 +1090,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
   // Note these contexts may be dead after calling Clear(), but will not be
   // collected until serialization completes and the DisallowGarbageCollection
   // scope above goes out of scope.
-  std::vector<Context> raw_contexts;
+  std::vector<Tagged<Context>> raw_contexts;
   raw_contexts.reserve(num_contexts);
   {
     HandleScope scope(isolate_);

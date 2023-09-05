@@ -636,7 +636,7 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
   return GetConstructorHelper(isolate, receiver).second;
 }
 
-base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
+base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContextRaw() {
   DisallowGarbageCollection no_gc;
   Tagged<JSFunction> function;
   {
@@ -667,7 +667,7 @@ base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
-  base::Optional<NativeContext> maybe_context = GetCreationContextRaw();
+  base::Optional<Tagged<NativeContext>> maybe_context = GetCreationContextRaw();
   if (!maybe_context.has_value()) return {};
   return handle(maybe_context.value(), GetIsolate());
 }

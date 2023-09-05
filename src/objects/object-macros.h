@@ -382,7 +382,7 @@
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
   int holder::name() const {                                     \
     DCHECK(condition);                                           \
-    Smi value = TaggedField<Smi, offset>::load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::load(*this);   \
     return value.value();                                        \
   }                                                              \
   void holder::set_##name(int value) {                           \
@@ -399,7 +399,7 @@
 
 #define RELEASE_ACQUIRE_SMI_ACCESSORS(holder, name, offset)              \
   int holder::name(AcquireLoadTag) const {                               \
-    Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::Acquire_Load(*this);   \
     return value.value();                                                \
   }                                                                      \
   void holder::set_##name(int value, ReleaseStoreTag) {                  \
@@ -412,7 +412,7 @@
 
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
   int holder::name(RelaxedLoadTag) const {                               \
-    Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::Relaxed_Load(*this);   \
     return value.value();                                                \
   }                                                                      \
   void holder::set_##name(int value, RelaxedStoreTag) {                  \

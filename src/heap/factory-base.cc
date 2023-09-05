@@ -743,13 +743,13 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   int size = SeqStringT::SizeFor(length);
   DCHECK_GE(SeqStringT::kMaxSize, size);
 
-  SeqStringT string =
+  Tagged<SeqStringT> string =
       SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
-  string.clear_padding_destructively(length);
-  string.set_length(length);
-  string.set_raw_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string.Size());
+  string->clear_padding_destructively(length);
+  string->set_length(length);
+  string->set_raw_hash_field(String::kEmptyHashField);
+  DCHECK_EQ(size, string->Size());
   return handle(string, isolate());
 }
 

@@ -316,9 +316,9 @@ class V8_EXPORT ThreadIsolation {
     template <typename T, size_t offset>
     V8_INLINE void WriteHeaderSlot(T value);
     template <typename T, size_t offset>
-    V8_INLINE void WriteHeaderSlot(T value, ReleaseStoreTag);
+    V8_INLINE void WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag);
     template <typename T, size_t offset>
-    V8_INLINE void WriteHeaderSlot(T value, RelaxedStoreTag);
+    V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
 
     // CopyCode and CopyData have the same implementation at the moment, but
     // they will diverge once we implement validation.

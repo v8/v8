@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
-  Map map_;
+  Tagged<Map> map_;
   MaybeObject raw_transitions_;
   Encoding encoding_;
   bool concurrent_access_;

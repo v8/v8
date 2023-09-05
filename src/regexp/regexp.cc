@@ -1223,7 +1223,7 @@ int32_t* RegExpGlobalCache::LastSuccessfulMatch() {
 
 Tagged<Object> RegExpResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
                                           Tagged<Object> key_pattern,
-                                          FixedArray* last_match_cache,
+                                          Tagged<FixedArray>* last_match_cache,
                                           ResultsCacheType type) {
   Tagged<FixedArray> cache;
   if (!IsInternalizedString(key_string)) return Smi::zero();

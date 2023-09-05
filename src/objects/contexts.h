@@ -653,10 +653,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  inline void set_##name(type value);                     \
-  inline bool is_##name(type value) const;                \
-  inline type name() const;                               \
-  inline type name(AcquireLoadTag) const;
+  inline void set_##name(Tagged<type> value);             \
+  inline bool is_##name(Tagged<type> value) const;        \
+  inline Tagged<type> name() const;                       \
+  inline Tagged<type> name(AcquireLoadTag) const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 

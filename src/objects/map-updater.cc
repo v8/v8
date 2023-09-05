@@ -342,9 +342,9 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
 }  // namespace
 
 // static
-base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate,
-                                                Tagged<Map> old_map,
-                                                ConcurrencyMode cmode) {
+base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
+                                                        Tagged<Map> old_map,
+                                                        ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
 
   // Check the state of the root map.
@@ -1142,7 +1142,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
     JSObject::InvalidatePrototypeChains(*map);
   }
 
-  std::queue<Map> backlog;
+  std::queue<Tagged<Map>> backlog;
   backlog.push(*map);
 
   while (!backlog.empty()) {

@@ -18,8 +18,8 @@ namespace internal {
 namespace {
 
 // Convenience aliases:
-using HeapObjectSet =
-    std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>;
+using HeapObjectSet = std::unordered_set<Tagged<HeapObject>, Object::Hasher,
+                                         Object::KeyEqualSafe>;
 using HeapObjectMap = std::unordered_map<Tagged<HeapObject>, Tagged<HeapObject>,
                                          Object::Hasher, Object::KeyEqualSafe>;
 bool Contains(const HeapObjectSet& s, Tagged<HeapObject> o) {
@@ -31,7 +31,7 @@ bool Contains(const HeapObjectMap& s, Tagged<HeapObject> o) {
 
 class Committee final {
  public:
-  static std::vector<HeapObject> DeterminePromotees(
+  static std::vector<Tagged<HeapObject>> DeterminePromotees(
       Isolate* isolate, const DisallowGarbageCollection& no_gc,
       const SafepointScope& safepoint_scope) {
     return Committee(isolate).DeterminePromotees(safepoint_scope);
@@ -40,7 +40,7 @@ class Committee final {
  private:
   explicit Committee(Isolate* isolate) : isolate_(isolate) {}
 
-  std::vector<HeapObject> DeterminePromotees(
+  std::vector<Tagged<HeapObject>> DeterminePromotees(
       const SafepointScope& safepoint_scope) {
     DCHECK(promo_accepted_.empty());
     DCHECK(promo_rejected_.empty());
@@ -71,8 +71,8 @@ class Committee final {
     // Return promotees as a sorted list. Note that sorting uses object
     // addresses; the list order is deterministic only if heap layout
     // itself is deterministic (see v8_flags.predictable).
-    std::vector<HeapObject> promotees{promo_accepted_.begin(),
-                                      promo_accepted_.end()};
+    std::vector<Tagged<HeapObject>> promotees{promo_accepted_.begin(),
+                                              promo_accepted_.end()};
     std::sort(promotees.begin(), promotees.end(), Object::Comparer());
 
     return promotees;
@@ -139,8 +139,10 @@ class Committee final {
   }
 #undef PROMO_CANDIDATE_TYPE_LIST
 
-#define DEF_PROMO_CANDIDATE(Type) \
-  static bool IsPromoCandidate##Type(Isolate* isolate, Type o) { return true; }
+#define DEF_PROMO_CANDIDATE(Type)                                        \
+  static bool IsPromoCandidate##Type(Isolate* isolate, Tagged<Type> o) { \
+    return true;                                                         \
+  }
 
   DEF_PROMO_CANDIDATE(AccessCheckInfo)
   DEF_PROMO_CANDIDATE(AccessorInfo)
@@ -262,9 +264,9 @@ class Committee final {
 
 class ReadOnlyPromotionImpl final : public AllStatic {
  public:
-  static void CopyToReadOnlyHeap(Isolate* isolate,
-                                 const std::vector<HeapObject>& promotees,
-                                 HeapObjectMap* moves) {
+  static void CopyToReadOnlyHeap(
+      Isolate* isolate, const std::vector<Tagged<HeapObject>>& promotees,
+      HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
       const int size = src->Size(isolate);
@@ -431,7 +433,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // We shouldn't have moved any string table contents (which is what
       // OffHeapObjectSlot currently refers to).
       for (OffHeapObjectSlot slot = start; slot < end; slot++) {
-        Object o = slot.load(isolate_);
+        Tagged<Object> o = slot.load(isolate_);
         if (!IsHeapObject(o)) continue;
         CHECK(!Contains(*moves_, HeapObject::cast(o)));
       }
@@ -522,7 +524,7 @@ void ReadOnlyPromotion::Promote(Isolate* isolate,
                                 const DisallowGarbageCollection& no_gc) {
   // Visit the mutable heap and determine the set of objects that can be
   // promoted to RO space.
-  std::vector<HeapObject> promotees =
+  std::vector<Tagged<HeapObject>> promotees =
       Committee::DeterminePromotees(isolate, no_gc, safepoint_scope);
   // Physically copy promotee objects to RO space and track all object moves.
   HeapObjectMap moves;

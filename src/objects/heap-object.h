@@ -343,13 +343,6 @@ constexpr detail::TaggedOperatorArrowRef<HeapObject>
 Tagged<HeapObject>::operator->() const {
   return detail::TaggedOperatorArrowRef<HeapObject>{ToRawPtr()};
 }
-// Implicit conversions and explicit casts to/from raw pointers
-// TODO(leszeks): Remove once we're using Tagged everywhere.
-// NOLINTNEXTLINE
-constexpr Tagged<HeapObject>::operator HeapObject() {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return ToRawPtr();
-}
 constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
   return HeapObject(this->ptr(), HeapObject::SkipTypeCheckTag{});
 }

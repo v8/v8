@@ -18,7 +18,8 @@ namespace internal {
 // 1) Iterate object's body using stateful object visitor.
 //
 //   template <typename ObjectVisitor>
-//   static inline void IterateBody(Map map, HeapObject obj, int object_size,
+//   static inline void IterateBody(Tagged<Map> map, HeapObject obj, int
+//   object_size,
 //                                  ObjectVisitor* v);
 class BodyDescriptorBase {
  public:

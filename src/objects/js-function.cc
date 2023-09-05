@@ -1192,7 +1192,7 @@ void JSFunction::PrintName(FILE* out) {
 
 namespace {
 
-bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
+bool UseFastFunctionNameLookup(Isolate* isolate, Tagged<Map> map) {
   DCHECK(IsJSFunctionMap(map));
   if (map->NumberOfOwnDescriptors() <
       JSFunction::kMinDescriptorsForFastBindAndWrap) {
@@ -1288,7 +1288,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
         isolate, function, isolate->factory()->class_positions_symbol());
     if (IsClassPositions(*maybe_class_positions)) {
-      ClassPositions class_positions =
+      Tagged<ClassPositions> class_positions =
           ClassPositions::cast(*maybe_class_positions);
       int start_position = class_positions->start();
       int end_position = class_positions->end();
@@ -1411,7 +1411,7 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
 void JSFunction::ClearAllTypeFeedbackInfoForTesting() {
   ResetIfCodeFlushed();
   if (has_feedback_vector()) {
-    FeedbackVector vector = feedback_vector();
+    Tagged<FeedbackVector> vector = feedback_vector();
     Isolate* isolate = GetIsolate();
     if (vector->ClearAllSlotsForTesting(isolate)) {
       IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(),

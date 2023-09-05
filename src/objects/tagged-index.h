@@ -83,11 +83,6 @@ CAST_ACCESSOR(TaggedIndex)
 constexpr Tagged<TaggedIndex>::Tagged(TaggedIndex raw) : TaggedBase(raw.ptr()) {
   static_assert(kTaggedCanConvertToRawObjects);
 }
-// NOLINTNEXTLINE
-constexpr Tagged<TaggedIndex>::operator TaggedIndex() {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return TaggedIndex(ptr());
-}
 
 }  // namespace internal
 }  // namespace v8

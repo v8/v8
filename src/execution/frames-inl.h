@@ -19,7 +19,7 @@ class InnerPointerToCodeCache final {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    base::Optional<GcSafeCode> code;
+    base::Optional<Tagged<GcSafeCode>> code;
     union {
       SafepointEntry safepoint_entry;
       MaglevSafepointEntry maglev_safepoint_entry;

@@ -145,7 +145,8 @@ class HeapEntryVerifier {
 
  private:
   using UnorderedHeapObjectSet =
-      std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>;
+      std::unordered_set<Tagged<HeapObject>, Object::Hasher,
+                         Object::KeyEqualSafe>;
 
   const UnorderedHeapObjectSet& GetIndirectStrongReferences(size_t level) {
     CHECK_GE(indirect_strong_references_.size(), level);
@@ -184,7 +185,7 @@ class HeapEntryVerifier {
 
   DISALLOW_GARBAGE_COLLECTION(no_gc)
   HeapSnapshotGenerator* generator_;
-  HeapObject primary_object_;
+  Tagged<HeapObject> primary_object_;
 
   // All objects referred to by primary_object_, according to a marking visitor.
   ReferenceSummary reference_summary_;
@@ -192,7 +193,7 @@ class HeapEntryVerifier {
   // Objects that have been checked via a call to CheckStrongReference or
   // CheckWeakReference, or deliberately skipped via a call to
   // MarkReferenceCheckedWithoutChecking.
-  std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
+  std::unordered_set<Tagged<HeapObject>, Object::Hasher, Object::KeyEqualSafe>
       checked_objects_;
 
   // Objects transitively retained by the primary object. The objects in the set
@@ -1084,7 +1085,7 @@ uint32_t V8HeapExplorer::EstimateObjectsCount() {
 #ifdef V8_TARGET_BIG_ENDIAN
 namespace {
 int AdjustEmbedderFieldIndex(HeapObject heap_obj, int field_index) {
-  Map map = heap_obj.map();
+  Tagged<Map> map = heap_obj.map();
   if (JSObject::MayHaveEmbedderFields(map)) {
     int emb_start_index = (JSObject::GetEmbedderFieldsStartOffset(map) +
                            EmbedderDataSlot::kTaggedPayloadOffset) /
@@ -1196,7 +1197,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   }
 
   V8HeapExplorer* generator_;
-  HeapObject parent_obj_;
+  Tagged<HeapObject> parent_obj_;
   MaybeObjectSlot parent_start_;
   MaybeObjectSlot parent_end_;
   HeapEntry* parent_;
@@ -2676,7 +2677,7 @@ class EmbedderGraphImpl : public EmbedderGraph {
     }
 
    private:
-    Object object_;
+    Tagged<Object> object_;
   };
 
   Node* V8Node(const v8::Local<v8::Value>& value) final {
@@ -2912,7 +2913,7 @@ class V8_NODISCARD NullContextForSnapshotScope {
 
  private:
   Isolate* isolate_;
-  Context prev_;
+  Tagged<Context> prev_;
 };
 }  // namespace
 

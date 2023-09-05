@@ -374,9 +374,10 @@ intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(Object(raw_sfi));
-  base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(sfi);
-  if (debug_info.has_value() && debug_info->HasCoverageInfo()) {
-    return debug_info->coverage_info().ptr();
+  base::Optional<Tagged<DebugInfo>> debug_info =
+      isolate->debug()->TryGetDebugInfo(sfi);
+  if (debug_info.has_value() && debug_info.value()->HasCoverageInfo()) {
+    return debug_info.value()->coverage_info().ptr();
   }
   return Smi::zero().ptr();
 }
@@ -1182,12 +1183,12 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   // This function should only be used as the slow path for forwarded strings.
   DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
 
-  Dictionary dict = Dictionary::cast(Object(raw_dict));
+  Tagged<Dictionary> dict = Dictionary::cast(Object(raw_dict));
   ReadOnlyRoots roots(isolate);
   uint32_t hash = key->hash();
   InternalIndex entry = mode == kFindExisting
-                            ? dict.FindEntry(isolate, roots, key, hash)
-                            : dict.FindInsertionEntry(isolate, roots, hash);
+                            ? dict->FindEntry(isolate, roots, key, hash)
+                            : dict->FindInsertionEntry(isolate, roots, hash);
   return entry.raw_value();
 }
 

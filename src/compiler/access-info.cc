@@ -566,7 +566,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       return PropertyAccessInfo::Invalid(zone);
     }
     if (DEBUG_BOOL && holder.has_value()) {
-      base::Optional<NativeContext> holder_creation_context =
+      base::Optional<Tagged<NativeContext>> holder_creation_context =
           holder->object()->GetCreationContextRaw();
       CHECK(holder_creation_context.has_value());
       CHECK_EQ(*broker->target_native_context().object(),
@@ -592,7 +592,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     }
   }
   if (access_mode == AccessMode::kLoad) {
-    base::Optional<Name> cached_property_name =
+    base::Optional<Tagged<Name>> cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(isolate, *accessor);
     if (cached_property_name.has_value()) {
       OptionalNameRef cached_property_name_ref =

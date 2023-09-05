@@ -39,7 +39,8 @@ void PretenuringHandler::UpdateAllocationSite(
   // to dereference the allocation site and rather have to postpone all checks
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
-  (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
+  (*pretenuring_feedback)[AllocationSite::unchecked_cast(
+      Tagged<Object>(key))]++;
 }
 
 template <PretenuringHandler::FindMementoMode mode>

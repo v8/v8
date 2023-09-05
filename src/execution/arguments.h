@@ -152,8 +152,9 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 #define BUILTIN_CONVERT_RESULT_PAIR(x) (x)
 #endif  // DEBUG
 
-#define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, BUILTIN_CONVERT_RESULT, Name)
+#define RUNTIME_FUNCTION(Name)                           \
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Tagged<Object>, \
+                                BUILTIN_CONVERT_RESULT, Name)
 
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name)              \
   RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, \

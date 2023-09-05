@@ -204,8 +204,8 @@ class Deoptimizer : public Malloced {
   bool is_restart_frame() const { return restart_frame_index_ >= 0; }
 
   Isolate* isolate_;
-  JSFunction function_;
-  Code compiled_code_;
+  Tagged<JSFunction> function_;
+  Tagged<Code> compiled_code_;
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;

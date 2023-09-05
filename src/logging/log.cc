@@ -2017,11 +2017,13 @@ EnumerateCompiledFunctions(Heap* heap) {
   std::vector<std::pair<Handle<SharedFunctionInfo>, Handle<AbstractCode>>>
       compiled_funcs;
   Isolate* isolate = heap->isolate();
-  auto hash = [](const std::pair<SharedFunctionInfo, AbstractCode>& p) {
-    return base::hash_combine(p.first.address(), p.second.address());
-  };
-  std::unordered_set<std::pair<SharedFunctionInfo, AbstractCode>,
-                     decltype(hash)>
+  auto hash =
+      [](const std::pair<Tagged<SharedFunctionInfo>, Tagged<AbstractCode>>& p) {
+        return base::hash_combine(p.first.address(), p.second.address());
+      };
+  std::unordered_set<
+      std::pair<Tagged<SharedFunctionInfo>, Tagged<AbstractCode>>,
+      decltype(hash)>
       seen(8, hash);
 
   auto record = [&](Tagged<SharedFunctionInfo> sfi, Tagged<AbstractCode> c) {
@@ -2076,11 +2078,11 @@ static std::vector<Handle<SharedFunctionInfo>> EnumerateInterpretedFunctions(
   std::vector<Handle<SharedFunctionInfo>> interpreted_funcs;
   Isolate* isolate = heap->isolate();
 
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
-      if (sfi.HasBytecodeArray()) {
+      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(obj);
+      if (sfi->HasBytecodeArray()) {
         interpreted_funcs.push_back(handle(sfi, isolate));
       }
     }

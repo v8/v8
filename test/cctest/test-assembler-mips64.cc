@@ -3370,7 +3370,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases];
-  Object obj;
+  Tagged<Object> obj;
   int64_t imm64;
 
   __ daddiu(sp, sp, -8);

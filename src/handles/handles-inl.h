@@ -230,7 +230,7 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
 template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
-  T value = *handle_value;
+  Tagged<T> value = *handle_value;
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.

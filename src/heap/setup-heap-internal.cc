@@ -216,7 +216,7 @@ bool Heap::CreateMutableHeapObjects() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                       \
   {                                                                         \
-    Map map;                                                                \
+    Tagged<Map> map;                                                        \
     if (!AllocateMap(AllocationType::kMap, (instance_type), size).To(&map)) \
       return false;                                                         \
     set_##field_name##_map(map);                                            \
@@ -342,7 +342,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Map map;                                                                 \
+    Tagged<Map> map;                                                         \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -471,7 +471,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                  \
   {                                                                    \
-    Map map;                                                           \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size) \
              .To(&map)) {                                              \
       return false;                                                    \
@@ -677,7 +677,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 #define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
                                                   field_name)          \
   {                                                                    \
-    Map map;                                                           \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
                      DICTIONARY_ELEMENTS)                              \
              .To(&map)) {                                              \

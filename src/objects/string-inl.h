@@ -290,10 +290,10 @@ inline TResult StringShape::DispatchToSpecificType(Tagged<String> str,
                                                    TArgs&&... args) {
   class CastingDispatcher : public AllStatic {
    public:
-#define DEFINE_METHOD(Type)                                         \
-  static inline TResult Handle##Type(String str, TArgs&&... args) { \
-    return TDispatcher::Handle##Type(Type::cast(str),               \
-                                     std::forward<TArgs>(args)...); \
+#define DEFINE_METHOD(Type)                                                 \
+  static inline TResult Handle##Type(Tagged<String> str, TArgs&&... args) { \
+    return TDispatcher::Handle##Type(Type::cast(str),                       \
+                                     std::forward<TArgs>(args)...);         \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
@@ -833,11 +833,11 @@ uint16_t String::GetImpl(
 
   class StringGetDispatcher : public AllStatic {
    public:
-#define DEFINE_METHOD(Type)                                  \
-  static inline uint16_t Handle##Type(                       \
-      Type str, int index, PtrComprCageBase cage_base,       \
-      const SharedStringAccessGuardIfNeeded& access_guard) { \
-    return str->Get(index, cage_base, access_guard);         \
+#define DEFINE_METHOD(Type)                                    \
+  static inline uint16_t Handle##Type(                         \
+      Tagged<Type> str, int index, PtrComprCageBase cage_base, \
+      const SharedStringAccessGuardIfNeeded& access_guard) {   \
+    return str->Get(index, cage_base, access_guard);           \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD

@@ -27,8 +27,8 @@ Handle<T> GlobalHandles::Create(T value) {
 }
 
 template <typename T>
-T GlobalHandleVector<T>::Pop() {
-  T obj = T::cast(Object(locations_.back()));
+Tagged<T> GlobalHandleVector<T>::Pop() {
+  Tagged<T> obj = T::cast(Tagged<Object>(locations_.back()));
   locations_.pop_back();
   return obj;
 }

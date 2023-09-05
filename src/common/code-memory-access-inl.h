@@ -71,7 +71,7 @@ void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {
 }
 
 template <typename T, size_t offset>
-void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value,
+void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(Tagged<T> value,
                                                              ReleaseStoreTag) {
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.
@@ -83,7 +83,7 @@ void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value,
 }
 
 template <typename T, size_t offset>
-void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value,
+void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(Tagged<T> value,
                                                              RelaxedStoreTag) {
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.

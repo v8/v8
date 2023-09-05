@@ -396,8 +396,9 @@ struct Xor {
 // but also includes the ToInteger/ToBigInt conversion that's part of
 // https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
-Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
-                                 const char* method_name) {
+Tagged<Object> GetModifySetValueInBuffer(RuntimeArguments args,
+                                         Isolate* isolate,
+                                         const char* method_name) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
@@ -632,9 +633,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
 namespace {
 
 template <typename WriteOperation>
-Object AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
-                        Handle<Name> field_name, Handle<Object> value,
-                        WriteOperation write_operation) {
+Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
+                                Handle<Name> field_name, Handle<Object> value,
+                                WriteOperation write_operation) {
   LookupIterator it(isolate, object, PropertyKey(isolate, field_name),
                     LookupIterator::OWN);
   Maybe<bool> result = Nothing<bool>();

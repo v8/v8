@@ -432,8 +432,8 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  FixedArray fixed_array_;
-  HeapObject value_;
+  Tagged<FixedArray> fixed_array_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
@@ -505,8 +505,8 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  Code code_;
-  HeapObject value_;
+  Tagged<Code> code_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {

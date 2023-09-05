@@ -3536,7 +3536,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Code> lookup_result =
+  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -3547,12 +3547,12 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 #if defined(OBJECT_PRINT)
   i::StdoutStream os;
-  lookup_result->CodePrint(os, nullptr, address);
+  lookup_result.value()->CodePrint(os, nullptr, address);
 #elif defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
-  lookup_result->Disassemble(nullptr, os, isolate, address);
+  lookup_result.value()->Disassemble(nullptr, os, isolate, address);
 #else
-  i::Print(*lookup_result);
+  i::Print(lookup_result.value());
 #endif
 }
 
@@ -3572,7 +3572,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Code> lookup_result =
+  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -3583,8 +3583,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
 
 #if defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
-  lookup_result->DisassembleOnlyCode(nullptr, os, isolate, address,
-                                     range_limit);
+  lookup_result.value()->DisassembleOnlyCode(nullptr, os, isolate, address,
+                                             range_limit);
 #endif
 }
 

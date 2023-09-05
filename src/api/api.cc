@@ -7024,7 +7024,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
 
   i::Isolate* isolate_;
   Context::DeepFreezeDelegate* delegate_;
-  std::unordered_set<i::Object, i::Object::Hasher> done_list_;
+  std::unordered_set<i::Tagged<i::Object>, i::Object::Hasher> done_list_;
   std::vector<i::Handle<i::JSReceiver>> objects_to_freeze_;
   std::vector<i::Handle<i::AccessorPair>> lazy_accessor_pairs_to_freeze_;
   base::Optional<ErrorInfo> error_;
@@ -10343,7 +10343,7 @@ String::Value::~Value() { i::DeleteArray(str_); }
     i::Isolate* i_isolate = i::Isolate::Current();                         \
     API_RCS_SCOPE(i_isolate, NAME, New);                                   \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);                            \
-    i::Object error;                                                       \
+    i::Tagged<i::Object> error;                                            \
     {                                                                      \
       i::HandleScope scope(i_isolate);                                     \
       i::Handle<i::String> message = Utils::OpenHandle(*raw_message);      \

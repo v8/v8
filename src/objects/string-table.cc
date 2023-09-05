@@ -70,7 +70,7 @@ int ComputeStringTableCapacityWithShrink(int current_capacity,
 }
 
 template <typename IsolateT, typename StringTableKey>
-bool KeyIsMatch(IsolateT* isolate, StringTableKey* key, String string) {
+bool KeyIsMatch(IsolateT* isolate, StringTableKey* key, Tagged<String> string) {
   if (string->hash() != key->hash()) return false;
   if (string->length() != key->length()) return false;
   return key->IsMatch(isolate, string);
@@ -98,11 +98,11 @@ class StringTable::Data {
     return OffHeapObjectSlot(&elements_[index.as_uint32()]);
   }
 
-  Object Get(PtrComprCageBase cage_base, InternalIndex index) const {
+  Tagged<Object> Get(PtrComprCageBase cage_base, InternalIndex index) const {
     return slot(index).Acquire_Load(cage_base);
   }
 
-  void Set(InternalIndex index, String entry) {
+  void Set(InternalIndex index, Tagged<String> entry) {
     slot(index).Release_Store(entry);
   }
 
@@ -150,7 +150,8 @@ class StringTable::Data {
   // Helper method for StringTable::TryStringToIndexOrLookupExisting.
   template <typename Char>
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
-                                                  String string, String source,
+                                                  Tagged<String> string,
+                                                  Tagged<String> source,
                                                   size_t start);
 
   void IterateElements(RootVisitor* visitor);
@@ -235,9 +236,9 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
 
   // Rehash the elements.
   for (InternalIndex i : InternalIndex::Range(data->capacity())) {
-    Object element = data->Get(cage_base, i);
+    Tagged<Object> element = data->Get(cage_base, i);
     if (element == empty_element() || element == deleted_element()) continue;
-    String string = String::cast(element);
+    Tagged<String> string = String::cast(element);
     uint32_t hash = string->hash();
     InternalIndex insertion_index =
         new_data->FindInsertionEntry(cage_base, hash);
@@ -259,10 +260,10 @@ InternalIndex StringTable::Data::FindEntry(IsolateT* isolate,
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
     // comparisons against empty/deleted.
-    Object element = Get(isolate, entry);
+    Tagged<Object> element = Get(isolate, entry);
     if (element == empty_element()) return InternalIndex::NotFound();
     if (element == deleted_element()) continue;
-    String string = String::cast(element);
+    Tagged<String> string = String::cast(element);
     if (KeyIsMatch(isolate, key, string)) return entry;
   }
 }
@@ -275,7 +276,7 @@ InternalIndex StringTable::Data::FindInsertionEntry(PtrComprCageBase cage_base,
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
     // comparisons against empty/deleted.
-    Object element = Get(cage_base, entry);
+    Tagged<Object> element = Get(cage_base, entry);
     if (element == empty_element() || element == deleted_element())
       return entry;
   }
@@ -291,7 +292,7 @@ InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
     // comparisons against empty/deleted.
-    Object element = Get(isolate, entry);
+    Tagged<Object> element = Get(isolate, entry);
     if (element == empty_element()) {
       // Empty entry, it's our insertion entry if there was no previous Hole.
       if (insertion_entry.is_not_found()) return entry;
@@ -305,7 +306,7 @@ InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
       continue;
     }
 
-    String string = String::cast(element);
+    Tagged<String> string = String::cast(element);
     if (KeyIsMatch(isolate, key, string)) return entry;
   }
 }
@@ -355,7 +356,7 @@ class InternalizedStringKey final : public StringTableKey {
     DCHECK(String::IsHashFieldComputed(hash));
   }
 
-  bool IsMatch(Isolate* isolate, String string) {
+  bool IsMatch(Isolate* isolate, Tagged<String> string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
     return string_->SlowEquals(string);
   }
@@ -452,8 +453,8 @@ class InternalizedStringKey final : public StringTableKey {
 
 namespace {
 
-void SetInternalizedReference(Isolate* isolate, String string,
-                              String internalized) {
+void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
+                              Tagged<String> internalized) {
   DCHECK(!IsThinString(string));
   DCHECK(!IsInternalizedString(string));
   DCHECK(IsInternalizedString(internalized));
@@ -614,7 +615,7 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
     // added after the check.
     entry = data->FindEntryOrInsertionEntry(isolate, key, key->hash());
 
-    Object element = data->Get(isolate, entry);
+    Tagged<Object> element = data->Get(isolate, entry);
     if (element == empty_element()) {
       // This entry is empty, so write it and register that we added an
       // element.
@@ -702,10 +703,9 @@ StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
 
 // static
 template <typename Char>
-Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
-                                                            String string,
-                                                            String source,
-                                                            size_t start) {
+Address StringTable::Data::TryStringToIndexOrLookupExisting(
+    Isolate* isolate, Tagged<String> string, Tagged<String> source,
+    size_t start) {
   // TODO(leszeks): This method doesn't really belong on StringTable::Data.
   // Ideally it would be a free function in an anonymous namespace, but that
   // causes issues around method and class visibility.
@@ -723,7 +723,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   if (Name::IsInternalizedForwardingIndex(raw_hash_field) &&
       is_source_hash_usable) {
     const int index = Name::ForwardingIndexValueBits::decode(raw_hash_field);
-    String internalized =
+    Tagged<String> internalized =
         isolate->string_forwarding_table()->GetForwardString(isolate, index);
     return internalized.ptr();
   }
@@ -740,8 +740,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     String::WriteToFlat(source, buffer.get(), 0, length, isolate, access_guard);
     chars = buffer.get();
   } else {
-    chars =
-        source.GetDirectStringChars<Char>(isolate, no_gc, access_guard) + start;
+    chars = source->GetDirectStringChars<Char>(isolate, no_gc, access_guard) +
+            start;
   }
 
   if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {
@@ -773,7 +773,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     return Smi::FromInt(ResultSentinel::kNotFound).ptr();
   }
 
-  String internalized = String::cast(string_table_data->Get(isolate, entry));
+  Tagged<String> internalized =
+      String::cast(string_table_data->Get(isolate, entry));
   // string can be internalized here, if another thread internalized it.
   // If we found and entry in the string table and string is not internalized,
   // there is no way that it can transition to internalized later on. So a last
@@ -789,7 +790,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
 // static
 Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                       Address raw_string) {
-  String string = String::cast(Object(raw_string));
+  Tagged<String> string = String::cast(Object(raw_string));
   if (IsInternalizedString(string)) {
     // string could be internalized, if the string table is shared and another
     // thread internalized it.
@@ -805,9 +806,9 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
   size_t start = 0;
-  String source = string;
+  Tagged<String> source = string;
   if (IsSlicedString(source)) {
-    SlicedString sliced = SlicedString::cast(source);
+    Tagged<SlicedString> sliced = SlicedString::cast(source);
     start = sliced->offset();
     source = sliced->parent();
   } else if (IsConsString(source) && source->IsFlat()) {

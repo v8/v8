@@ -401,7 +401,7 @@ class WeakArrayList::Iterator {
 
  private:
   int index_;
-  WeakArrayList array_;
+  Tagged<WeakArrayList> array_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 

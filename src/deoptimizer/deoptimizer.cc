@@ -340,7 +340,7 @@ class ActivationsFinder : public ThreadVisitor {
 
  private:
 #ifdef DEBUG
-  GcSafeCode topmost_;
+  Tagged<GcSafeCode> topmost_;
   bool safe_to_deopt_;
 #endif
 };
@@ -1012,9 +1012,10 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
   Tagged<BytecodeArray> bytecode_array;
-  base::Optional<DebugInfo> debug_info = shared->TryGetDebugInfo(isolate());
-  if (debug_info.has_value() && debug_info->HasBreakInfo()) {
-    bytecode_array = debug_info->DebugBytecodeArray();
+  base::Optional<Tagged<DebugInfo>> debug_info =
+      shared->TryGetDebugInfo(isolate());
+  if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+    bytecode_array = debug_info.value()->DebugBytecodeArray();
   } else {
     bytecode_array = shared->GetBytecodeArray(isolate());
   }

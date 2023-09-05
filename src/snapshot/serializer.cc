@@ -156,7 +156,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   if (IsThinString(*obj, isolate())) {
     obj = handle(ThinString::cast(*obj)->actual(isolate()), isolate());
   } else if (IsCode(*obj, isolate())) {
-    Code code = Code::cast(*obj);
+    Tagged<Code> code = Code::cast(*obj);
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
@@ -177,7 +177,7 @@ void Serializer::VisitRootPointers(Root root, const char* description,
 }
 
 void Serializer::SerializeRootObject(FullObjectSlot slot) {
-  Object o = *slot;
+  Tagged<Object> o = *slot;
   if (IsSmi(o)) {
     PutSmiRoot(slot);
   } else {
@@ -553,13 +553,14 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   {
     DisallowGarbageCollection no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(*object_);
+    Tagged<JSTypedArray> typed_array = JSTypedArray::cast(*object_);
     if (typed_array->is_on_heap()) {
       typed_array->RemoveExternalPointerCompensationForSerialization(isolate());
     } else {
       if (!typed_array->IsDetachedOrOutOfBounds()) {
         // Explicitly serialize the backing store now.
-        JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
+        Tagged<JSArrayBuffer> buffer =
+            JSArrayBuffer::cast(typed_array->buffer());
         // We cannot store byte_length or max_byte_length larger than uint32
         // range in the snapshot.
         size_t byte_length_size = buffer->GetByteLength();
@@ -596,7 +597,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   void* backing_store;
   {
     DisallowGarbageCollection no_gc;
-    JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
+    Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(*object_);
     backing_store = buffer->backing_store();
     // We cannot store byte_length or max_byte_length larger than uint32 range
     // in the snapshot.
@@ -624,7 +625,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   }
   SerializeObject();
   {
-    JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
+    Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(*object_);
     buffer->set_backing_store(isolate(), backing_store);
     buffer->set_extension(extension);
   }
@@ -738,7 +739,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
 
  private:
   Tagged<HeapObject> object_;
-  Object next_ = Smi::zero();
+  Tagged<Object> next_ = Smi::zero();
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
@@ -1252,7 +1253,7 @@ Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
   }
   Handle<FixedArray> externals = isolate->factory()->NewFixedArray(size());
   DisallowGarbageCollection no_gc;
-  FixedArray raw = *externals;
+  Tagged<FixedArray> raw = *externals;
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
       &map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {

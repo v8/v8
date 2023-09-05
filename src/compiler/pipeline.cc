@@ -920,7 +920,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
 
     if (!IsUndefined(script->source(), isolate)) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
-      Object source_name = script->name();
+      Tagged<Object> source_name = script->name();
       auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
       if (IsString(source_name)) {
@@ -1356,7 +1356,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      HeapObject target_object = it.rinfo()->target_object(cage_base);
+      Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
       if (code->IsWeakObjectInOptimizedCode(target_object)) {
         if (IsMap(target_object, cage_base)) {
           maps.push_back(handle(Map::cast(target_object), isolate));
@@ -4389,7 +4389,7 @@ bool PipelineImpl::CheckNoDeprecatedMaps(Handle<Code> code) {
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    HeapObject obj = it.rinfo()->target_object(data_->isolate());
+    Tagged<HeapObject> obj = it.rinfo()->target_object(data_->isolate());
     if (IsMap(obj) && Map::cast(obj)->is_deprecated()) {
       return false;
     }

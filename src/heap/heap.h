@@ -180,11 +180,12 @@ struct CommentStatistic {
 };
 #endif
 
-// An alias for std::unordered_map<HeapObject, T> which also sets proper
-// Hash and KeyEqual functions.
+// An alias for std::unordered_map<Tagged<HeapObject>, T> which also
+// sets proper Hash and KeyEqual functions.
 template <typename T>
 using UnorderedHeapObjectMap =
-    std::unordered_map<HeapObject, T, Object::Hasher, Object::KeyEqualSafe>;
+    std::unordered_map<Tagged<HeapObject>, T, Object::Hasher,
+                       Object::KeyEqualSafe>;
 
 enum class GCFlag : uint8_t {
   kNoFlags = 0,
@@ -1484,12 +1485,12 @@ class Heap final {
   V8_EXPORT_PRIVATE Tagged<Code> FindCodeForInnerPointer(Address inner_pointer);
   // Use the GcSafe family of functions if called while GC is in progress.
   Tagged<GcSafeCode> GcSafeFindCodeForInnerPointer(Address inner_pointer);
-  base::Optional<GcSafeCode> GcSafeTryFindCodeForInnerPointer(
+  base::Optional<Tagged<GcSafeCode>> GcSafeTryFindCodeForInnerPointer(
       Address inner_pointer);
-  base::Optional<InstructionStream>
+  base::Optional<Tagged<InstructionStream>>
   GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer);
   // Only intended for use from the `jco` gdb macro.
-  base::Optional<Code> TryFindCodeForInnerPointerForPrinting(
+  base::Optional<Tagged<Code>> TryFindCodeForInnerPointerForPrinting(
       Address inner_pointer);
 
   // Returns true if {addr} is contained within {instruction_stream} and false
@@ -2012,7 +2013,7 @@ class Heap final {
 #endif  // DEBUG
 
   std::vector<Handle<NativeContext>> FindAllNativeContexts();
-  std::vector<WeakArrayList> FindAllRetainedMaps();
+  std::vector<Tagged<WeakArrayList>> FindAllRetainedMaps();
   MemoryMeasurement* memory_measurement() { return memory_measurement_.get(); }
 
   AllocationType allocation_type_for_in_place_internalizable_strings() const {
@@ -2315,11 +2316,11 @@ class Heap final {
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
 
-  UnorderedHeapObjectMap<HeapObject> retainer_;
+  UnorderedHeapObjectMap<Tagged<HeapObject>> retainer_;
   UnorderedHeapObjectMap<Root> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  UnorderedHeapObjectMap<HeapObject> ephemeron_retainer_;
+  UnorderedHeapObjectMap<Tagged<HeapObject>> ephemeron_retainer_;
   // For each index in the retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;

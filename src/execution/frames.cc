@@ -241,7 +241,7 @@ void DebuggableStackFrameIterator::Advance() {
 int DebuggableStackFrameIterator::FrameFunctionCount() const {
   DCHECK(!done());
   if (!iterator_.frame()->is_optimized()) return 1;
-  std::vector<SharedFunctionInfo> infos;
+  std::vector<Tagged<SharedFunctionInfo>> infos;
   TurbofanFrame::cast(iterator_.frame())->GetFunctions(&infos);
   return static_cast<int>(infos.size());
 }
@@ -595,16 +595,18 @@ void StackFrameIteratorForProfilerForTesting::Advance() {
 
 namespace {
 
-base::Optional<GcSafeCode> GetContainingCode(Isolate* isolate, Address pc) {
+base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
+                                                     Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
 }  // namespace
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
-  base::Optional<GcSafeCode> result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result->InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), result->InstructionEnd(isolate(), pc()));
+  base::Optional<Tagged<GcSafeCode>> result =
+      GetContainingCode(isolate(), pc());
+  DCHECK_GE(pc(), result.value()->InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), result.value()->InstructionEnd(isolate(), pc()));
   return result.value();
 }
 
@@ -763,7 +765,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Look up the code object to figure out the type of the stack frame.
-  base::Optional<GcSafeCode> lookup_result = GetContainingCode(isolate(), pc);
+  base::Optional<Tagged<GcSafeCode>> lookup_result =
+      GetContainingCode(isolate(), pc);
   if (!lookup_result.has_value()) return StackFrame::NATIVE;
 
   MSAN_MEMORY_IS_INITIALIZED(
@@ -771,7 +774,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       kSystemPointerSize);
   const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  switch (lookup_result->kind()) {
+  switch (lookup_result.value()->kind()) {
     case CodeKind::BUILTIN: {
       if (StackFrame::IsTypeMarker(marker)) break;
       return ComputeBuiltinFrameType(lookup_result.value());
@@ -792,7 +795,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       return StackFrame::TURBOFAN;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
-      if (lookup_result->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
+      if (lookup_result.value()->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
         return StackFrame::JS_TO_WASM;
       }
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
@@ -839,8 +842,9 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   // fast_c_call_caller_pc_address, for which authentication does not work.
   const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
 #if V8_ENABLE_WEBASSEMBLY
-  Code wrapper = isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
-  if (pc >= wrapper.instruction_start() && pc <= wrapper.instruction_end()) {
+  Tagged<Code> wrapper =
+      isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
+  if (pc >= wrapper->instruction_start() && pc <= wrapper->instruction_end()) {
     return StackFrame::WASM_TO_JS;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1880,7 +1884,7 @@ bool CommonFrame::HasTaggedOutgoingParams(
 }
 
 Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
-  base::Optional<GcSafeCode> code_lookup =
+  base::Optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -1973,7 +1977,7 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
 }
 
 Tagged<HeapObject> StubFrame::unchecked_code() const {
-  base::Optional<GcSafeCode> code_lookup =
+  base::Optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -2038,7 +2042,7 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
 }
 
 void JavaScriptFrame::GetFunctions(
-    std::vector<SharedFunctionInfo>* functions) const {
+    std::vector<Tagged<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
   functions->push_back(function()->shared());
 }
@@ -2046,7 +2050,7 @@ void JavaScriptFrame::GetFunctions(
 void JavaScriptFrame::GetFunctions(
     std::vector<Handle<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
-  std::vector<SharedFunctionInfo> raw_functions;
+  std::vector<Tagged<SharedFunctionInfo>> raw_functions;
   GetFunctions(&raw_functions);
   for (const auto& raw_function : raw_functions) {
     functions->push_back(
@@ -2742,7 +2746,7 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
 }
 
 void OptimizedFrame::GetFunctions(
-    std::vector<SharedFunctionInfo>* functions) const {
+    std::vector<Tagged<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
   DCHECK(is_optimized());
 
@@ -3424,7 +3428,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code->is_maglevved()) {
+    if (entry->code.value()->is_maglevved()) {
       entry->maglev_safepoint_entry.Reset();
     } else {
       entry->safepoint_entry.Reset();

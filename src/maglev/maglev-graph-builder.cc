@@ -1210,7 +1210,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
     case Opcode::kSmiConstant:
       return GetInt32Constant(value->Cast<SmiConstant>()->value().value());
     case Opcode::kRootConstant: {
-      Object root_object =
+      Tagged<Object> root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (!IsOddball(root_object, local_isolate_)) break;
       int32_t truncated_value =
@@ -1373,7 +1373,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
     case Opcode::kInt32Constant:
       return GetFloat64Constant(value->Cast<Int32Constant>()->value());
     case Opcode::kRootConstant: {
-      Object root_object =
+      Tagged<Object> root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (hint != ToNumberHint::kDisallowToNumber && IsOddball(root_object)) {
         return GetFloat64Constant(Oddball::cast(root_object)->to_number_raw());
@@ -3360,7 +3360,7 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     if (!IsJSReceiverMap(*map_handle)) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      JSFunction constructor =
+      Tagged<JSFunction> constructor =
           Map::GetConstructorFunction(
               *map_handle, *broker()->target_native_context().object())
               .value();

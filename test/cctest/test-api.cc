@@ -3262,7 +3262,7 @@ void GlobalProxyIdentityHash(bool set_in_js) {
   int32_t hash1;
   if (set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
-    i::Object original_hash = i::Object::GetHash(*i_global_proxy);
+    i::Tagged<i::Object> original_hash = i::Object::GetHash(*i_global_proxy);
     CHECK(IsSmi(original_hash));
     hash1 = i::Smi::ToInt(original_hash);
   } else {
@@ -12657,7 +12657,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
       v8::Utils::OpenHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  i::CallHandlerInfo handler_info =
+  i::Tagged<i::CallHandlerInfo> handler_info =
       i::CallHandlerInfo::cast(cons->GetInstanceCallHandler());
   CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
   handler_info->set_map(
@@ -13365,10 +13365,10 @@ THREADED_TEST(LockUnlockLock) {
 static int GetGlobalObjectsCount() {
   int count = 0;
   i::HeapObjectIterator it(CcTest::heap());
-  for (i::HeapObject object = it.Next(); !object.is_null();
+  for (i::Tagged<i::HeapObject> object = it.Next(); !object.is_null();
        object = it.Next()) {
     if (IsJSGlobalObject(object)) {
-      i::JSGlobalObject g = i::JSGlobalObject::cast(object);
+      i::Tagged<i::JSGlobalObject> g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
       if (g->global_dictionary(v8::kAcquireLoad)->NumberOfElements() != 0) {
         count++;
@@ -14848,7 +14848,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
   v8::base::Vector<const v8::base::uc16> data_;
 };
 
-static void MorphAString(i::String string,
+static void MorphAString(i::Tagged<i::String> string,
                          OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -19532,8 +19532,9 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
             .FromJust());
 }
 
-static int CountLiveMapsInMapCache(i::Context context) {
-  i::WeakFixedArray map_cache = i::WeakFixedArray::cast(context->map_cache());
+static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
+  i::Tagged<i::WeakFixedArray> map_cache =
+      i::WeakFixedArray::cast(context->map_cache());
   int length = map_cache->length();
   int count = 0;
   for (int i = 0; i < length; i++) {
@@ -19541,7 +19542,6 @@ static int CountLiveMapsInMapCache(i::Context context) {
   }
   return count;
 }
-
 
 THREADED_TEST(Regress1516) {
   LocalContext context;

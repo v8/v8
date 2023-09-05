@@ -1635,9 +1635,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     return false;
   }
 
-  inline AllocationSpace AllocateTargetObject(Tagged<HeapObject> old_object,
-                                              int size,
-                                              HeapObject* target_object) {
+  inline AllocationSpace AllocateTargetObject(
+      Tagged<HeapObject> old_object, int size,
+      Tagged<HeapObject>* target_object) {
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
@@ -2044,7 +2044,9 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   // This phase doesn't support parallel marking.
   DCHECK(heap_->concurrent_marking()->IsStopped());
-  std::unordered_multimap<HeapObject, HeapObject, Object::Hasher> key_to_values;
+  std::unordered_multimap<Tagged<HeapObject>, Tagged<HeapObject>,
+                          Object::Hasher>
+      key_to_values;
   Ephemeron ephemeron;
 
   DCHECK(

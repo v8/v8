@@ -1960,7 +1960,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases], done, dispatch;
-  Object obj;
+  Tagged<Object> obj;
   int64_t imm64;
 
   auto fn = [&labels, &done, &dispatch, values, &obj,

@@ -791,7 +791,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 }
 
 bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
-                          const Object& object) const {
+                          Tagged<Object> object) const {
   return IsHeapObject(object) && HeapObject::cast(object)->map(cage_base) ==
                                      GetReadOnlyRoots(cage_base).meta_map();
 }

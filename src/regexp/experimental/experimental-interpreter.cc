@@ -516,13 +516,13 @@ class NfaInterpreter {
 
   DisallowGarbageCollection no_gc_;
 
-  ByteArray bytecode_object_;
+  Tagged<ByteArray> bytecode_object_;
   base::Vector<const RegExpInstruction> bytecode_;
 
   // Number of registers used per thread.
   const int register_count_per_match_;
 
-  String input_object_;
+  Tagged<String> input_object_;
   base::Vector<const Character> input_;
   int input_index_;
 

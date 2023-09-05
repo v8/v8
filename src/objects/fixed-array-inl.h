@@ -85,7 +85,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 void FixedArray::set(int index, Tagged<Smi> value) {
   DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
@@ -138,7 +138,7 @@ void FixedArray::set(int index, Tagged<Object> value, RelaxedStoreTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, RelaxedStoreTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -162,7 +162,7 @@ void FixedArray::set(int index, Tagged<Object> value, SeqCstAccessTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, SeqCstAccessTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -186,7 +186,7 @@ void FixedArray::set(int index, Tagged<Object> value, ReleaseStoreTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, ReleaseStoreTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -602,7 +602,7 @@ void ArrayList::Set(int index, Tagged<Object> obj, WriteBarrierMode mode) {
 }
 
 void ArrayList::Set(int index, Tagged<Smi> value) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   Set(index, value, SKIP_WRITE_BARRIER);
 }
 void ArrayList::Clear(int index, Tagged<Object> undefined) {

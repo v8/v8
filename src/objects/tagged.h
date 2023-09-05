@@ -150,11 +150,6 @@ class Tagged<Object> : public TaggedBase {
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
   inline constexpr Tagged(Object raw);
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<U, Object> ||
-                                        std::is_convertible_v<Object*, U*>>>
-  // NOLINTNEXTLINE
-  inline constexpr operator U();
 
  private:
   friend class Object;
@@ -194,8 +189,6 @@ class Tagged<Smi> : public TaggedBase {
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
   inline constexpr Tagged(Smi raw);
-  // NOLINTNEXTLINE
-  inline constexpr operator Smi();
 
  private:
   friend class Smi;
@@ -245,8 +238,6 @@ class Tagged<TaggedIndex> : public TaggedBase {
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
   inline constexpr Tagged(TaggedIndex raw);
-  // NOLINTNEXTLINE
-  inline constexpr operator TaggedIndex();
 
  private:
   friend class TaggedIndex;
@@ -321,8 +312,6 @@ class Tagged<HeapObject> : public TaggedBase {
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
-  // NOLINTNEXTLINE
-  constexpr operator HeapObject();
   template <typename U>
   static constexpr Tagged<HeapObject> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -399,14 +388,6 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // NOLINTNEXTLINE
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
-  }
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<U, T> ||
-                                        std::is_convertible_v<T*, U*>>>
-  // NOLINTNEXTLINE
-  constexpr operator U() const {
-    static_assert(kTaggedCanConvertToRawObjects);
-    return ToRawPtr();
   }
   template <typename U>
   static constexpr Tagged<T> cast(U other) {

@@ -168,7 +168,7 @@ class Handle final : public HandleBase {
 
   // Patches this Handle's value, in-place, with a new value. All handles with
   // the same location will see this update.
-  void PatchValue(T new_value) {
+  void PatchValue(Tagged<T> new_value) {
     SLOW_DCHECK(location_ != nullptr && IsDereferenceAllowed());
     *location_ = new_value.ptr();
   }

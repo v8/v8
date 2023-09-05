@@ -45,8 +45,8 @@ class MaybeHandle final {
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 
-  V8_INLINE MaybeHandle(T object, Isolate* isolate);
-  V8_INLINE MaybeHandle(T object, LocalHeap* local_heap);
+  V8_INLINE MaybeHandle(Tagged<T> object, Isolate* isolate);
+  V8_INLINE MaybeHandle(Tagged<T> object, LocalHeap* local_heap);
 
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
@@ -173,8 +173,8 @@ class MaybeDirectHandle final {
                                                     : *maybe_handle.location_) {
   }
 
-  V8_INLINE MaybeDirectHandle(T object, Isolate* isolate);
-  V8_INLINE MaybeDirectHandle(T object, LocalHeap* local_heap);
+  V8_INLINE MaybeDirectHandle(Tagged<T> object, Isolate* isolate);
+  V8_INLINE MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap);
 
   V8_INLINE void Assert() const { DCHECK_NE(location_, kTaggedNullAddress); }
   V8_INLINE void Check() const { CHECK_NE(location_, kTaggedNullAddress); }
@@ -215,12 +215,13 @@ class MaybeObjectDirectHandle {
   inline MaybeObjectDirectHandle()
       : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectDirectHandle(MaybeObject object, Isolate* isolate);
-  inline MaybeObjectDirectHandle(Object object, Isolate* isolate);
+  inline MaybeObjectDirectHandle(Tagged<Object> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(MaybeObject object, LocalHeap* local_heap);
-  inline MaybeObjectDirectHandle(Object object, LocalHeap* local_heap);
+  inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
 
-  static inline MaybeObjectDirectHandle Weak(Object object, Isolate* isolate);
+  static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,
+                                             Isolate* isolate);
   static inline MaybeObjectDirectHandle Weak(DirectHandle<Object> object);
 
   inline MaybeObject operator*() const;
@@ -231,7 +232,7 @@ class MaybeObjectDirectHandle {
   bool is_null() const { return handle_.is_null(); }
 
  private:
-  inline MaybeObjectDirectHandle(Object object,
+  inline MaybeObjectDirectHandle(Tagged<Object> object,
                                  HeapObjectReferenceType reference_type,
                                  Isolate* isolate);
   inline MaybeObjectDirectHandle(DirectHandle<Object> object,

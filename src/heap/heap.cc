@@ -1047,11 +1047,12 @@ void Heap::PrintRetainingPath(Tagged<HeapObject> target,
   PrintF("-------------------------------------------------\n");
 }
 
-void UpdateRetainersMapAfterScavenge(UnorderedHeapObjectMap<HeapObject>* map) {
+void UpdateRetainersMapAfterScavenge(
+    UnorderedHeapObjectMap<Tagged<HeapObject>>* map) {
   // This is only used for Scavenger.
   DCHECK(!v8_flags.minor_ms);
 
-  UnorderedHeapObjectMap<HeapObject> updated_map;
+  UnorderedHeapObjectMap<Tagged<HeapObject>> updated_map;
 
   for (auto pair : *map) {
     Tagged<HeapObject> object = pair.first;
@@ -1534,7 +1535,7 @@ intptr_t CompareWords(int size, Tagged<HeapObject> a, Tagged<HeapObject> b) {
   return 0;
 }
 
-void ReportDuplicates(int size, std::vector<HeapObject>* objects) {
+void ReportDuplicates(int size, std::vector<Tagged<HeapObject>>* objects) {
   if (objects->size() == 0) return;
 
   sort(objects->begin(), objects->end(),
@@ -1544,7 +1545,7 @@ void ReportDuplicates(int size, std::vector<HeapObject>* objects) {
          return a < b;
        });
 
-  std::vector<std::pair<int, HeapObject>> duplicates;
+  std::vector<std::pair<int, Tagged<HeapObject>>> duplicates;
   Tagged<HeapObject> current = (*objects)[0];
   int count = 1;
   for (size_t i = 1; i < objects->size(); i++) {
@@ -1626,7 +1627,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   EagerlyFreeExternalMemory();
 
   if (v8_flags.trace_duplicate_threshold_kb) {
-    std::map<int, std::vector<HeapObject>> objects_by_size;
+    std::map<int, std::vector<Tagged<HeapObject>>> objects_by_size;
     PagedSpaceIterator spaces(this);
     for (PagedSpace* space = spaces.Next(); space != nullptr;
          space = spaces.Next()) {
@@ -6225,7 +6226,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
  private:
-  using BucketType = std::unordered_set<HeapObject, Object::Hasher>;
+  using BucketType = std::unordered_set<Tagged<HeapObject>, Object::Hasher>;
 
   bool MarkAsReachable(Tagged<HeapObject> object) {
     // If the bucket corresponding to the object's chunk does not exist, then
@@ -6713,8 +6714,8 @@ std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
   return result;
 }
 
-std::vector<WeakArrayList> Heap::FindAllRetainedMaps() {
-  std::vector<WeakArrayList> result;
+std::vector<Tagged<WeakArrayList>> Heap::FindAllRetainedMaps() {
+  std::vector<Tagged<WeakArrayList>> result;
   Tagged<Object> context = native_contexts_list();
   while (!IsUndefined(context, isolate())) {
     Tagged<NativeContext> native_context = Tagged<NativeContext>::cast(context);
@@ -6816,7 +6817,7 @@ bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
   return start <= addr && addr < end;
 }
 
-base::Optional<InstructionStream>
+base::Optional<Tagged<InstructionStream>>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
@@ -6832,7 +6833,7 @@ Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
   return {};
 }
 
-base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
+base::Optional<Tagged<GcSafeCode>> Heap::GcSafeTryFindCodeForInnerPointer(
     Address inner_pointer) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
@@ -6840,7 +6841,7 @@ base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
     return GcSafeCode::cast(isolate()->builtins()->code(maybe_builtin));
   }
 
-  base::Optional<InstructionStream> maybe_istream =
+  base::Optional<Tagged<InstructionStream>> maybe_istream =
       GcSafeTryFindInstructionStreamForInnerPointer(inner_pointer);
   if (!maybe_istream) return {};
 
@@ -6852,22 +6853,22 @@ Tagged<Code> Heap::FindCodeForInnerPointer(Address inner_pointer) {
 }
 
 Tagged<GcSafeCode> Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
-  base::Optional<GcSafeCode> maybe_code =
+  base::Optional<Tagged<GcSafeCode>> maybe_code =
       GcSafeTryFindCodeForInnerPointer(inner_pointer);
   // Callers expect that the code object is found.
   CHECK(maybe_code.has_value());
   return GcSafeCode::unchecked_cast(maybe_code.value());
 }
 
-base::Optional<Code> Heap::TryFindCodeForInnerPointerForPrinting(
+base::Optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(
     Address inner_pointer) {
   if (InSpaceSlow(inner_pointer, i::CODE_SPACE) ||
       InSpaceSlow(inner_pointer, i::CODE_LO_SPACE) ||
       i::OffHeapInstructionStream::PcIsOffHeap(isolate(), inner_pointer)) {
-    base::Optional<GcSafeCode> maybe_code =
+    base::Optional<Tagged<GcSafeCode>> maybe_code =
         GcSafeTryFindCodeForInnerPointer(inner_pointer);
     if (maybe_code.has_value()) {
-      return maybe_code->UnsafeCastToCode();
+      return maybe_code.value()->UnsafeCastToCode();
     }
   }
   return {};

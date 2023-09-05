@@ -150,9 +150,9 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
 
     // Get the language mode from closure.
     JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(it.frame());
-    std::vector<SharedFunctionInfo> functions;
+    std::vector<Tagged<SharedFunctionInfo>> functions;
     js_frame->GetFunctions(&functions);
-    LanguageMode closure_language_mode = functions.back().language_mode();
+    LanguageMode closure_language_mode = functions.back()->language_mode();
     if (closure_language_mode > mode) {
       mode = closure_language_mode;
     }
@@ -5083,15 +5083,15 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
-                                       Derived new_table) {
+                                       Tagged<Derived> new_table) {
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = new_table.GetWriteBarrierMode(no_gc);
+  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
-  DCHECK_LT(NumberOfElements(), new_table.Capacity());
+  DCHECK_LT(NumberOfElements(), new_table->Capacity());
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
-    new_table.set(i, get(cage_base, i), mode);
+    new_table->set(i, get(cage_base, i), mode);
   }
 
   // Rehash the elements.
@@ -5102,14 +5102,14 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
     if (!IsKey(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
-        EntryToIndex(new_table.FindInsertionEntry(cage_base, roots, hash));
-    new_table.set_key(insertion_index, get(cage_base, from_index), mode);
+        EntryToIndex(new_table->FindInsertionEntry(cage_base, roots, hash));
+    new_table->set_key(insertion_index, get(cage_base, from_index), mode);
     for (int j = 1; j < Shape::kEntrySize; j++) {
-      new_table.set(insertion_index + j, get(cage_base, from_index + j), mode);
+      new_table->set(insertion_index + j, get(cage_base, from_index + j), mode);
     }
   }
-  new_table.SetNumberOfElements(NumberOfElements());
-  new_table.SetNumberOfDeletedElements(0);
+  new_table->SetNumberOfElements(NumberOfElements());
+  new_table->SetNumberOfDeletedElements(0);
 }
 
 template <typename Derived, typename Shape>
@@ -5132,7 +5132,7 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
                                      WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
-  Object temp[Shape::kEntrySize];
+  Tagged<Object> temp[Shape::kEntrySize];
   Derived* self = static_cast<Derived*>(this);
   for (int j = 0; j < Shape::kEntrySize; j++) {
     temp[j] = get(index1 + j);
@@ -5659,12 +5659,12 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
     Tagged<Object> value) {
-  Derived dictionary = Derived::cast(*this);
-  ReadOnlyRoots roots = dictionary.GetReadOnlyRoots();
-  for (InternalIndex i : dictionary.IterateEntries()) {
+  Tagged<Derived> dictionary = Derived::cast(*this);
+  ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> k;
-    if (!dictionary.ToKey(roots, i, &k)) continue;
-    Tagged<Object> e = dictionary.ValueAt(i);
+    if (!dictionary->ToKey(roots, i, &k)) continue;
+    Tagged<Object> e = dictionary->ValueAt(i);
     if (e == value) return k;
   }
   return roots.undefined_value();
@@ -5867,13 +5867,13 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
 }
 
 template <typename Derived, int N>
-std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     Handle<Object> key) {
   return Lookup(GetPtrComprCageBase(*this), key);
 }
 
 template <typename Derived, int N>
-std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     PtrComprCageBase cage_base, Handle<Object> key) {
   DisallowGarbageCollection no_gc;
 
@@ -5893,7 +5893,7 @@ std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
 
   int start_index = this->EntryToIndex(entry) +
                     ObjectMultiHashTableShape<N>::kEntryValueIndex;
-  std::array<Object, N> values;
+  std::array<Tagged<Object>, N> values;
   for (int i = 0; i < N; i++) {
     values[i] = this->get(start_index + i);
     DCHECK(!IsTheHole(values[i]));

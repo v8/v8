@@ -5027,8 +5027,8 @@ void ImplementationVisitor::GenerateBodyDescriptors(
 
         h_contents << "  template <typename ObjectVisitor>\n";
         h_contents
-            << "  static inline void IterateBody(Map map, HeapObject obj, "
-               "int object_size, ObjectVisitor* v) {\n";
+            << "  static inline void IterateBody(Tagged<Map> map, "
+               "Tagged<HeapObject> obj, int object_size, ObjectVisitor* v) {\n";
 
         std::vector<ObjectSlotKind> slots = std::move(header_slot_kinds);
         if (has_array_fields) slots.push_back(*array_slot_kind);
@@ -5093,8 +5093,8 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         h_contents << "  }\n\n";
       }
 
-      h_contents
-          << "  static inline int SizeOf(Map map, HeapObject raw_object) {\n";
+      h_contents << "  static inline int SizeOf(Tagged<Map> map, "
+                    "Tagged<HeapObject> raw_object) {\n";
       if (type->size().SingleValue()) {
         h_contents << "    return " << *type->size().SingleValue() << ";\n";
       } else {
@@ -5125,6 +5125,8 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
   bool maybe_object =
       !field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
   const char* object_type = maybe_object ? "MaybeObject" : "Object";
+  const char* tagged_object_type =
+      maybe_object ? "MaybeObject" : "Tagged<Object>";
   const char* verify_fn =
       maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
   if (indexed) {
@@ -5135,10 +5137,12 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
 
   // Read the field.
   if (is_map) {
-    cc_contents << "    " << object_type << " " << value << " = o.map();\n";
+    cc_contents << "    " << tagged_object_type << " " << value
+                << " = o->map();\n";
   } else {
-    cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-                << object_type << ">::load(o, " << offset << ");\n";
+    cc_contents << "    " << tagged_object_type << " " << value
+                << " = TaggedField<" << object_type << ">::load(o, " << offset
+                << ");\n";
   }
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
@@ -5244,6 +5248,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     // Generate forward declarations to avoid including any headers.
     h_contents << "class Isolate;\n";
+    h_contents << "template<typename T>\nclass Tagged;\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
       if (!type->ShouldGenerateVerify()) continue;
       h_contents << "class " << type->name() << ";\n";
@@ -5256,15 +5261,16 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       std::string name = type->name();
+      std::string cpp_name = type->TagglifiedCppTypeName();
       if (!type->ShouldGenerateVerify()) continue;
 
       std::string method_name = name + "Verify";
 
-      h_contents << "  static void " << method_name << "(" << name
+      h_contents << "  static void " << method_name << "(" << cpp_name
                  << " o, Isolate* isolate);\n";
 
       cc_contents << "void " << verifier_class << "::" << method_name << "("
-                  << name << " o, Isolate* isolate) {\n";
+                  << cpp_name << " o, Isolate* isolate) {\n";
 
       // First, do any verification for the super class. Not all classes have
       // verifiers, so skip to the nearest super class that has one.
@@ -5274,7 +5280,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
       if (super_type) {
         std::string super_name = super_type->name();
-        cc_contents << "  o." << super_name << "Verify(isolate);\n";
+        cc_contents << "  o->" << super_name << "Verify(isolate);\n";
       }
 
       // Second, verify that this object is what it claims to be.

@@ -286,7 +286,7 @@ IrregexpInterpreter::Result HandleInterrupts(
     } else if (check.InterruptRequested()) {
       const bool was_one_byte =
           String::IsOneByteRepresentationUnderneath(*subject_string_out);
-      Object result;
+      Tagged<Object> result;
       {
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();

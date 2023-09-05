@@ -52,7 +52,7 @@ class V8_NODISCARD SanitizeNativeContextScope final {
   }
 
  private:
-  NativeContext native_context_;
+  Tagged<NativeContext> native_context_;
   ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
   const DisallowGarbageCollection& no_gc_;
 };
@@ -74,7 +74,7 @@ ContextSerializer::~ContextSerializer() {
   OutputStatistics("ContextSerializer");
 }
 
-void ContextSerializer::Serialize(Context* o,
+void ContextSerializer::Serialize(Tagged<Context>* o,
                                   const DisallowGarbageCollection& no_gc) {
   context_ = *o;
   DCHECK(IsNativeContext(context_));

@@ -43,7 +43,7 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const Page* page, Address start,
     if (current >= end) break;
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
-    object.Iterate(cage_base(), this);
+    object->Iterate(cage_base(), this);
     next_object_must_be_here_or_later = current + size;
     // The object is either part of a black area of black allocation or a
     // regular black object

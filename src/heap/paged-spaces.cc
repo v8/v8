@@ -751,7 +751,7 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
     size_t real_allocated = 0;
-    for (HeapObject object : HeapObjectRange(page)) {
+    for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       if (!IsFreeSpaceOrFiller(object)) {
         real_allocated +=
             ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));

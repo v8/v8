@@ -20,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 struct EphemeronMarking {
-  std::vector<HeapObject> newly_discovered;
+  std::vector<Tagged<HeapObject>> newly_discovered;
   bool newly_discovered_overflowed;
   size_t newly_discovered_limit;
 };

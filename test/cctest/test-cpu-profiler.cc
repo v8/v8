@@ -141,7 +141,7 @@ class TestSetup {
 
 }  // namespace
 
-i::AbstractCode CreateCode(i::Isolate* isolate, LocalContext* env) {
+i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
   static int counter = 0;
   base::EmbeddedVector<char, 256> script;
   base::EmbeddedVector<char, 32> name;
@@ -4793,7 +4793,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     CHECK(function->shared()->is_compiled());
 
-    i::BytecodeArray compiled_data =
+    Tagged<BytecodeArray> compiled_data =
         function->shared()->GetBytecodeArray(i_isolate);
     i::Address bytecode_start = compiled_data->GetFirstBytecodeAddress();
 

@@ -195,13 +195,13 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
   // Walk the inheritance chain and copy all accessors to current object.
   int max_number_of_properties = 0;
-  TemplateInfoT info = *data;
+  Tagged<TemplateInfoT> info = *data;
   while (!info.is_null()) {
-    Tagged<Object> props = info.property_accessors();
+    Tagged<Object> props = info->property_accessors();
     if (!IsUndefined(props, isolate)) {
       max_number_of_properties += TemplateList::cast(props)->length();
     }
-    info = info.GetParent(isolate);
+    info = info->GetParent(isolate);
   }
 
   if (max_number_of_properties > 0) {

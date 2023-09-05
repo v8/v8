@@ -1477,7 +1477,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   Transition();
 
-  TableType table = TableType::cast(this->table());
+  Tagged<TableType> table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
   int used_capacity = table->UsedCapacity();
 

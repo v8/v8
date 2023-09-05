@@ -64,7 +64,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       } else {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       }
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       os << "{bytecode_offset=" << bytecode_offset << ", function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
          << ", height=" << height << ", retval=@" << return_value_offset << "(#"
@@ -77,7 +77,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       unsigned height = iterator.NextOperand();
       os << "{bailout_id=" << bailout_id << ", function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
@@ -89,7 +89,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       unsigned height = iterator.NextOperand();
       os << "{construct create stub, function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
@@ -100,7 +100,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       os << "{construct invoke stub, function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get() << "}";
       break;
@@ -112,7 +112,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       unsigned height = iterator.NextOperand();
       os << "{bailout_id=" << bailout_id << ", function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
@@ -125,7 +125,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       unsigned height = iterator.NextOperand();
       int wasm_return_type = iterator.NextOperand();
       os << "{bailout_id=" << bailout_id << ", function="
@@ -139,7 +139,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
       int shared_info_id = iterator.NextOperand();
-      Object shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> shared_info = literal_array->get(shared_info_id);
       unsigned height = iterator.NextOperand();
       os << "{function="
          << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
@@ -292,7 +292,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case TranslationOpcode::LITERAL: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
       int literal_index = iterator.NextOperand();
-      Object literal_value = literal_array->get(literal_index);
+      Tagged<Object> literal_value = literal_array->get(literal_index);
       os << "{literal_id=" << literal_index << " (" << Brief(literal_value)
          << ")}";
       break;
@@ -500,16 +500,16 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
   // Otherwise, do a best effort to get the value without allocation.
   switch (kind()) {
     case kTagged: {
-      Object object = raw_literal();
+      Tagged<Object> object = raw_literal();
       if (IsSlicedString(object)) {
         // If {object} is a sliced string of length smaller than
         // SlicedString::kMinLength, then trim the underlying SeqString and
         // return it. This assumes that such sliced strings are only built by
         // the fast string builder optimization of Turbofan's
         // StringBuilderOptimizer/EffectControlLinearizer.
-        SlicedString string = SlicedString::cast(object);
+        Tagged<SlicedString> string = SlicedString::cast(object);
         if (string->length() < SlicedString::kMinLength) {
-          String backing_store = string->parent();
+          Tagged<String> backing_store = string->parent();
           CHECK(IsSeqString(backing_store));
 
           // Creating filler at the end of the backing store if needed.
@@ -1573,7 +1573,7 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case TranslationOpcode::LITERAL: {
       int literal_index = iterator->NextOperand();
-      Object value = literal_array->get(literal_index);
+      Tagged<Object> value = literal_array->get(literal_index);
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ", value.ptr(),
                literal_index);
@@ -1613,7 +1613,7 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : purpose_(kFrameInspection) {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
-  DeoptimizationData data =
+  Tagged<DeoptimizationData> data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
           &deopt_index);
   DCHECK(!data.is_null() && deopt_index != SafepointEntry::kNoDeoptIndex);
@@ -1841,7 +1841,7 @@ void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
 }
 
 int TranslatedValue::GetSmiValue() const {
-  Object value = GetRawValue();
+  Tagged<Object> value = GetRawValue();
   CHECK(IsSmi(value));
   return Smi::cast(value).value();
 }
@@ -2096,7 +2096,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   Tagged<ByteArray> raw_object_storage = *object_storage;
 
   // Set markers for out-of-object properties.
-  DescriptorArray descriptors = map->instance_descriptors(isolate());
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
     Representation representation = descriptors->GetDetails(i).representation();
@@ -2135,7 +2135,7 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
   DisallowGarbageCollection no_gc;
   Tagged<Map> raw_map = *map;
   Tagged<ByteArray> raw_object_storage = *object_storage;
-  DescriptorArray descriptors = map->instance_descriptors(isolate());
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate());
 
   // Set markers for in-object properties.
   for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
@@ -2231,7 +2231,7 @@ void TranslatedState::InitializeJSObjectAt(
       // value.
       Handle<HeapObject> field_value = slot->storage();
       CHECK(IsCode(*field_value));
-      Code value = Code::cast(*field_value);
+      Tagged<Code> value = Code::cast(*field_value);
       object_storage->RawIndirectPointerField(offset).Relaxed_Store(value);
       INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset, value);
     } else if (marker == kStoreHeapObject) {

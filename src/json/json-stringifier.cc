@@ -190,7 +190,7 @@ class JsonStringifier {
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
 
-  Result SerializeSmi(Smi object);
+  Result SerializeSmi(Tagged<Smi> object);
 
   Result SerializeDouble(double number);
   V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
@@ -264,17 +264,19 @@ class JsonStringifier {
       }
     }
 
-    void TryInsert(String string, Isolate* isolate) {
+    void TryInsert(Tagged<String> string, Isolate* isolate) {
       ReadOnlyRoots roots(isolate);
-      if (string.map(isolate) == roots.internalized_one_byte_string_map()) {
+      if (string->map(isolate) == roots.internalized_one_byte_string_map()) {
         keys_[GetIndex(string)].PatchValue(string);
       }
     }
 
-    bool Contains(String string) { return *keys_[GetIndex(string)] == string; }
+    bool Contains(Tagged<String> string) {
+      return *keys_[GetIndex(string)] == string;
+    }
 
    private:
-    size_t GetIndex(String string) {
+    size_t GetIndex(Tagged<String> string) {
       // Short strings are 16 bytes long in pointer-compression builds, so the
       // lower four bits of the pointer may not provide much entropy.
       return (string.ptr() >> 4) & kIndexMask;
@@ -299,7 +301,7 @@ class JsonStringifier {
   // Tries to do fast-path serialization for a property key, and returns whether
   // it was successful.
   template <typename DestChar>
-  bool TrySerializeSimplePropertyKey(String string);
+  bool TrySerializeSimplePropertyKey(Tagged<String> string);
 
   template <typename Char>
   V8_INLINE static bool DoNotEscape(Char c);
@@ -619,7 +621,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
 
   {
     DisallowGarbageCollection no_gc;
-    Object raw_obj = *object;
+    Tagged<Object> raw_obj = *object;
     size_t size = stack_.size();
     for (size_t i = 0; i < size; ++i) {
       if (*stack_[i].second == raw_obj) {
@@ -704,7 +706,7 @@ class CircularStructureMessageBuilder {
     }
   }
 
-  void AppendSmi(Smi smi) {
+  void AppendSmi(Tagged<Smi> smi) {
     static const int kBufferSize = 100;
     char chars[kBufferSize];
     base::Vector<char> buffer(chars, kBufferSize);
@@ -756,7 +758,7 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   return result;
 }
 
-bool MayHaveInterestingProperties(Isolate* isolate, JSReceiver object) {
+bool MayHaveInterestingProperties(Isolate* isolate, Tagged<JSReceiver> object) {
   for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent()->map()->may_have_interesting_properties()) {
@@ -894,7 +896,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
     Handle<JSPrimitiveWrapper> object, Handle<Object> key) {
-  Object raw = object->value();
+  Tagged<Object> raw = object->value();
   if (IsString(raw)) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -923,7 +925,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
   return SUCCESS;
 }
 
-JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
+JsonStringifier::Result JsonStringifier::SerializeSmi(Tagged<Smi> object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
@@ -1078,7 +1080,8 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
 
 namespace {
 V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
-                                        JSObject raw_object, Isolate* isolate) {
+                                        Tagged<JSObject> raw_object,
+                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   if (IsCustomElementsReceiverMap(raw_object->map(cage_base))) return false;
   if (!raw_object->HasFastProperties(cage_base)) return false;
@@ -1124,8 +1127,9 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     PropertyDetails details = PropertyDetails::Empty();
     {
       DisallowGarbageCollection no_gc;
-      DescriptorArray descriptors = map->instance_descriptors(cage_base);
-      Name name = descriptors->GetKey(i);
+      Tagged<DescriptorArray> descriptors =
+          map->instance_descriptors(cage_base);
+      Tagged<Name> name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
       if (!IsString(name, cage_base)) continue;
       key_name = handle(String::cast(name), isolate_);
@@ -1361,16 +1365,16 @@ bool JsonStringifier::SerializeString_(Handle<String> string) {
 }
 
 template <typename DestChar>
-bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
+bool JsonStringifier::TrySerializeSimplePropertyKey(Tagged<String> key) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate_);
-  if (key.map(isolate_) != roots.internalized_one_byte_string_map()) {
+  if (key->map(isolate_) != roots.internalized_one_byte_string_map()) {
     return false;
   }
   if (!key_cache_.Contains(key)) {
     return false;
   }
-  int length = key.length();
+  int length = key->length();
   int copy_length = length;
   if constexpr (sizeof(DestChar) == 1) {
     // CopyChars has fast paths for small integer lengths, and is generally a
@@ -1395,7 +1399,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
   base::Vector<const uint8_t> chars(
       SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
-            key.address() + key.Size(isolate_));
+            key.address() + key->Size(isolate_));
 #if DEBUG
   for (int i = 0; i < length; ++i) {
     DCHECK(DoNotEscape(chars[i]));

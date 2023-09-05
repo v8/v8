@@ -746,12 +746,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 constexpr Tagged<Object>::Tagged(Object raw) : TaggedBase(raw.ptr()) {
   static_assert(kTaggedCanConvertToRawObjects);
 }
-template <typename U, typename>
-// NOLINTNEXTLINE
-constexpr Tagged<Object>::operator U() {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return ToRawPtr();
-}
 
 constexpr Object Tagged<Object>::ToRawPtr() const { return Object(ptr()); }
 

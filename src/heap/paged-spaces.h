@@ -39,7 +39,7 @@ class HeapObjectRange final {
  public:
   class iterator final {
    public:
-    using value_type = HeapObject;
+    using value_type = Tagged<HeapObject>;
     using pointer = const value_type*;
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;

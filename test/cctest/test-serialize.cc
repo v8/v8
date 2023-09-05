@@ -405,7 +405,8 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     }
 
     HandleScope scope(isolate);
-    i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
+    i::Tagged<i::Context> raw_context =
+        i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -589,7 +590,8 @@ static void SerializeCustomContext(
     }
 
     HandleScope scope(i_isolate);
-    i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
+    i::Tagged<i::Context> raw_context =
+        i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -841,7 +843,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     v8::Context::Scope c_scope(context);
     v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
     CHECK(result->IsString());
-    i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
+    i::Tagged<i::String> str = *v8::Utils::OpenHandle(*result.As<v8::String>());
     CHECK_EQ(std::string(str->ToCString().get()), "AB");
     CHECK(!IsInternalizedString(str));
     CHECK(!i::ReadOnlyHeap::Contains(str));
@@ -1669,7 +1671,7 @@ int CountBuiltins() {
   HeapObjectIterator iterator(CcTest::heap());
   DisallowGarbageCollection no_gc;
   int counter = 0;
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsCode(obj) && Code::cast(obj)->kind() == CodeKind::BUILTIN) counter++;
   }
@@ -4932,7 +4934,7 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
   FreeCurrentEmbeddedBlob();
 }
 
-void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
+void CheckSFIsAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
@@ -4992,7 +4994,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*x));
 
     // Verify that the pointers in shared_function_infos are weak.
-    WeakFixedArray sfis =
+    Tagged<WeakFixedArray> sfis =
         Script::cast(function->shared()->script())->shared_function_infos();
     CheckSFIsAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
   }
@@ -5025,7 +5027,8 @@ TEST(WeakArraySerializationInCodeCache) {
                     v8::ScriptCompiler::kConsumeCodeCache);
 
   // Verify that the pointers in shared_function_infos are weak.
-  WeakFixedArray sfis = Script::cast(copy->script())->shared_function_infos();
+  Tagged<WeakFixedArray> sfis =
+      Script::cast(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;
@@ -5215,7 +5218,7 @@ void CheckObjectsAreInSharedHeap(Isolate* isolate) {
   Heap* heap = isolate->heap();
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     const bool expected_in_shared_old =
         heap->MustBeInSharedOldSpace(obj) ||

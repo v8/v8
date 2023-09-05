@@ -126,11 +126,6 @@ CAST_ACCESSOR(Smi)
 constexpr Tagged<Smi>::Tagged(Smi raw) : TaggedBase(raw.ptr()) {
   static_assert(kTaggedCanConvertToRawObjects);
 }
-// NOLINTNEXTLINE
-constexpr Tagged<Smi>::operator Smi() {
-  static_assert(kTaggedCanConvertToRawObjects);
-  return Smi(ptr());
-}
 
 }  // namespace internal
 }  // namespace v8

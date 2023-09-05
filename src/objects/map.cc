@@ -48,7 +48,7 @@ Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 // static
-base::Optional<JSFunction> Map::GetConstructorFunction(
+base::Optional<Tagged<JSFunction>> Map::GetConstructorFunction(
     Tagged<Map> map, Tagged<Context> native_context) {
   DisallowGarbageCollection no_gc;
   if (IsPrimitiveMap(map)) {
@@ -716,7 +716,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
     }
   }
 
-  base::Optional<Map> new_map = MapUpdater::TryUpdateNoLock(
+  base::Optional<Tagged<Map>> new_map = MapUpdater::TryUpdateNoLock(
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (v8_flags.fast_map_update) {
@@ -1076,9 +1076,10 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 }
 
 // static
-base::Optional<Map> Map::TryAsElementsKind(Isolate* isolate, Handle<Map> map,
-                                           ElementsKind kind,
-                                           ConcurrencyMode cmode) {
+base::Optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
+                                                   Handle<Map> map,
+                                                   ElementsKind kind,
+                                                   ConcurrencyMode cmode) {
   Tagged<Map> closest_map =
       FindClosestElementsTransition(isolate, *map, kind, cmode);
   if (closest_map->elements_kind() != kind) return {};
