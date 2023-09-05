@@ -1140,6 +1140,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       property = JSObject::FastPropertyAt(
           isolate_, object, details.representation(), field_index);
     } else {
+      if (!need_stack_) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, property,
           Object::GetPropertyOrElement(isolate_, object, key_name), EXCEPTION);
