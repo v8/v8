@@ -41,7 +41,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
     // Move to the next element before the WeakNext is cleared.
     list = WeakListVisitor<T>::WeakNext(candidate);
 
-    if (retained != Object()) {
+    if (retained != Tagged<Object>()) {
       if (head == undefined) {
         // First element in the list.
         head = retained;

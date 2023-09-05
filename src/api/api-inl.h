@@ -117,7 +117,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
       const v8::From* that, bool allow_empty_handle) {                       \
     DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
     DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Object(                                      \
+           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
     if (v8::internal::ValueHelper::IsEmpty(that)) {                          \
       return v8::internal::Handle<v8::internal::To>::null();                 \
@@ -131,7 +131,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
       const v8::From* that, bool allow_empty_handle) {                       \
     DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
     DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Object(                                      \
+           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
     return v8::internal::DirectHandle<v8::internal::To>(                     \
         v8::internal::ValueHelper::ValueAsAddress(that));                    \
@@ -149,7 +149,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
       const v8::From* that, bool allow_empty_handle) {                       \
     DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that)); \
     DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
-           Is##To(v8::internal::Object(                                      \
+           Is##To(v8::internal::Tagged<v8::internal::Object>(                \
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
     return v8::internal::Handle<v8::internal::To>(                           \
         reinterpret_cast<v8::internal::Address*>(                            \

@@ -300,7 +300,7 @@ base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset,
         kSystemPointerSize);
-    Tagged<Object> maybe_function = Object(
+    Tagged<Object> maybe_function = Tagged<Object>(
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
     // There's no need to run a full ContainsSlow if we know the frame can't be
     // an InterpretedFrame,  so we do these fast checks first
@@ -864,7 +864,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
-  Tagged<Object> maybe_function = Object(
+  Tagged<Object> maybe_function = Tagged<Object>(
       Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
   if (IsSmi(maybe_function)) {
     return StackFrame::NATIVE;
@@ -1043,7 +1043,7 @@ Tagged<Object> BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset =
       BuiltinExitFrameConstants::kFirstArgumentOffset + i * kSystemPointerSize;
-  return Object(Memory<Address>(fp() + offset));
+  return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
 int BuiltinExitFrame::ComputeParametersCount() const {
@@ -1122,7 +1122,7 @@ Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
                i * kSystemPointerSize;
-  return Object(Memory<Address>(fp() + offset));
+  return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
 int ApiCallbackExitFrame::ComputeParametersCount() const {
@@ -1325,7 +1325,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
         Tagged<HeapObject> raw =
-            HeapObject::cast(Object(*spill_slot.location()));
+            HeapObject::cast(Tagged<Object>(*spill_slot.location()));
         MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
         Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
                                            ? map_word.ToForwardingAddress(raw)
@@ -1525,7 +1525,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 }
 
 void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
-  Tagged<Object> maybe_signature = Object(
+  Tagged<Object> maybe_signature = Tagged<Object>(
       Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset));
   // The signature slot contains a marker and not a signature, so there is
   // nothing we have to iterate here.
@@ -2215,7 +2215,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(
 }
 
 Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
-  return Object(Memory<Address>(GetParameterSlot(index)));
+  return Tagged<Object>(Memory<Address>(GetParameterSlot(index)));
 }
 
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
@@ -2248,7 +2248,7 @@ Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
 
 Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   const int offset = BuiltinContinuationFrameConstants::kFunctionOffset;
-  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
+  return JSFunction::cast(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -2264,12 +2264,12 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
   Address height_slot =
       fp() + BuiltinContinuationFrameConstants::kFrameSPtoFPDeltaAtDeoptimize;
-  intptr_t height = Smi::ToInt(Smi(Memory<Address>(height_slot)));
+  intptr_t height = Smi::ToInt(Tagged<Smi>(Memory<Address>(height_slot)));
   return height;
 }
 
 Tagged<Object> JavaScriptBuiltinContinuationFrame::context() const {
-  return Object(Memory<Address>(
+  return Tagged<Object>(Memory<Address>(
       fp() + BuiltinContinuationFrameConstants::kBuiltinContextOffset));
 }
 
@@ -2282,7 +2282,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
-           Object(Memory<Address>(exception_argument_slot)));
+           Tagged<Object>(Memory<Address>(exception_argument_slot)));
   Memory<Address>(exception_argument_slot) = exception.ptr();
 }
 
@@ -2846,7 +2846,8 @@ int InterpretedFrame::GetBytecodeOffset(Address fp) {
             InterpreterFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
   Address expression_offset = fp + offset - index * kSystemPointerSize;
-  int raw_offset = Smi::ToInt(Object(Memory<Address>(expression_offset)));
+  int raw_offset =
+      Smi::ToInt(Tagged<Object>(Memory<Address>(expression_offset)));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -2886,12 +2887,12 @@ void BaselineFrame::PatchContext(Tagged<Context> value) {
 
 Tagged<JSFunction> BuiltinFrame::function() const {
   const int offset = BuiltinFrameConstants::kFunctionOffset;
-  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
+  return JSFunction::cast(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
 int BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset))) -
+  return Smi::ToInt(Tagged<Object>(base::Memory<Address>(fp() + offset))) -
          kJSArgcReceiverSlots;
 }
 

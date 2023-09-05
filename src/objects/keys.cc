@@ -1161,7 +1161,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     // We always have both kinds of interceptors or none.
     if (!access_check_info.is_null() &&
-        access_check_info->named_interceptor() != Object()) {
+        access_check_info->named_interceptor() != Tagged<Object>()) {
       MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info,
                                                      receiver, object),
                    Nothing<bool>());

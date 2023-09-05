@@ -690,7 +690,8 @@ void ByteArray::clear_padding() {
 
 Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
+  return ByteArray::cast(
+      Tagged<Object>(address - kHeaderSize + kHeapObjectTag));
 }
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }

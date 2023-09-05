@@ -317,7 +317,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // Prepare for possible GC.
   HandleScope handles(isolate);
   Handle<InstructionStream> code_handle(re_code, isolate);
-  Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
+  Handle<String> subject_handle(String::cast(Tagged<Object>(*subject)),
+                                isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
 

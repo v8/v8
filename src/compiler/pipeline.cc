@@ -3205,7 +3205,7 @@ int HashGraphForPGO(Graph* graph) {
       }
     }
   }
-  return Smi(IntToSmi(static_cast<int>(hash))).value();
+  return Tagged<Smi>(IntToSmi(static_cast<int>(hash))).value();
 }
 
 }  // namespace

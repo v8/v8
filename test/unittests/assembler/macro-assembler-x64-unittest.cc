@@ -546,7 +546,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 #endif
   using myF0 = Address();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
-  Tagged<Object> result = Object(f.Call());
+  Tagged<Object> result = Tagged<Object>(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.

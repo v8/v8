@@ -1109,11 +1109,11 @@ void ImportedFunctionEntry::SetWasmToWasm(Tagged<WasmInstanceObject> instance,
   instance_->imported_function_targets()->set(index_, call_target);
 }
 
-// Returns an empty Object() if no callable is available, a JSReceiver
+// Returns an empty Tagged<Object>() if no callable is available, a JSReceiver
 // otherwise.
 Tagged<Object> ImportedFunctionEntry::maybe_callable() {
   Tagged<Object> value = object_ref();
-  if (!IsWasmApiFunctionRef(value)) return Object();
+  if (!IsWasmApiFunctionRef(value)) return Tagged<Object>();
   return JSReceiver::cast(WasmApiFunctionRef::cast(value)->callable());
 }
 

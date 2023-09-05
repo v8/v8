@@ -1475,13 +1475,13 @@ void Heap::CreateInternalAccessorInfoObjects() {
   ACCESSOR_INFO_LIST_GENERATOR(INIT_ACCESSOR_INFO, /* not used */)
 #undef INIT_ACCESSOR_INFO
 
-#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType, \
-                              SetterType)                                 \
-  AccessorInfo::cast(                                                     \
-      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
-      ->set_getter_side_effect_type(SideEffectType::GetterType);          \
-  AccessorInfo::cast(                                                     \
-      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
+#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType,  \
+                              SetterType)                                  \
+  AccessorInfo::cast(                                                      \
+      Tagged<Object>(roots_table()[RootIndex::k##AccessorName##Accessor])) \
+      ->set_getter_side_effect_type(SideEffectType::GetterType);           \
+  AccessorInfo::cast(                                                      \
+      Tagged<Object>(roots_table()[RootIndex::k##AccessorName##Accessor])) \
       ->set_setter_side_effect_type(SideEffectType::SetterType);
   ACCESSOR_INFO_LIST_GENERATOR(INIT_SIDE_EFFECT_FLAG, /* not used */)
 #undef INIT_SIDE_EFFECT_FLAG

@@ -5141,7 +5141,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   }
   Tagged<PrototypeInfo> prototype_info;
   if (map->TryGetPrototypeInfo(&prototype_info)) {
-    prototype_info->set_prototype_chain_enum_cache(Object());
+    prototype_info->set_prototype_chain_enum_cache(Tagged<Object>());
   }
 
   // We may inline accesses to constants stored in dictionary mode prototypes in

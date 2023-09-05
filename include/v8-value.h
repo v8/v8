@@ -391,7 +391,7 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<String> ToDetailString(
       Local<Context> context) const;
   /**
-   * Perform the equivalent of `Object(value)` in JS.
+   * Perform the equivalent of `Tagged<Object>(value)` in JS.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> ToObject(
       Local<Context> context) const;

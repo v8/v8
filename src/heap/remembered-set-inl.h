@@ -35,8 +35,8 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
-      Tagged<HeapObject> old_target =
-          HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
+      Tagged<HeapObject> old_target = HeapObject::cast(
+          Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
               heap->isolate(), base::Memory<Tagged_t>(addr))));
       Tagged<HeapObject> new_target = old_target;
       SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
@@ -78,7 +78,7 @@ Tagged<HeapObject> UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
       Address full = V8HeapCompressionScheme::DecompressTagged(
           heap->isolate(), base::Memory<Tagged_t>(addr));
-      return HeapObject::cast(Object(full));
+      return HeapObject::cast(Tagged<Object>(full));
     }
     case SlotType::kConstPoolEmbeddedObjectFull: {
       FullHeapObjectSlot slot(addr);

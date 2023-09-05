@@ -594,7 +594,7 @@ void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
     }
     // fill the remainder with one word filler objects (ie just a map word)
     while (offset < size) {
-      Tagged<Object> fm = Object(filler_map.ptr());
+      Tagged<Object> fm = Tagged<Object>(filler_map.ptr());
       WRITE_FIELD(*this, offset, fm);
       offset += kTaggedSize;
     }

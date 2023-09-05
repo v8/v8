@@ -2712,7 +2712,8 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   Node* value = n.Argument(0);
   Effect effect = n.effect();
 
-  // We can fold away the Object(x) call if |x| is definitely not a primitive.
+  // We can fold away the Tagged<Object>(x) call if |x| is definitely not a
+  // primitive.
   if (NodeProperties::CanBePrimitive(broker(), value, effect)) {
     if (!NodeProperties::CanBeNullOrUndefined(broker(), value, effect)) {
       // Turn the {node} into a {JSToObject} call if we know that

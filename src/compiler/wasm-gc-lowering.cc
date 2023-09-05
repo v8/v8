@@ -878,15 +878,15 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
                       MachineRepresentation::kWord32);        // Offset.
 
   // These values will be used to replace the original node's projections.
-  // The first, "string", is either a SeqString or Smi(0) (in case of external
-  // string). Notably this makes it GC-safe: if that string moves, this pointer
-  // will be updated accordingly.
-  // The second, "offset", has full register width so that it can be used to
-  // store external pointers: for external strings, we add up the character
-  // backing store's base address and any slice offset.
-  // The third, "character width", is a shift width, i.e. it is 0 for one-byte
-  // strings, 1 for two-byte strings, kCharWidthBailoutSentinel for uncached
-  // external strings (for which "string"/"offset" are invalid and unusable).
+  // The first, "string", is either a SeqString or Tagged<Smi>(0) (in case of
+  // external string). Notably this makes it GC-safe: if that string moves, this
+  // pointer will be updated accordingly. The second, "offset", has full
+  // register width so that it can be used to store external pointers: for
+  // external strings, we add up the character backing store's base address and
+  // any slice offset. The third, "character width", is a shift width, i.e. it
+  // is 0 for one-byte strings, 1 for two-byte strings,
+  // kCharWidthBailoutSentinel for uncached external strings (for which
+  // "string"/"offset" are invalid and unusable).
   auto done =
       gasm_.MakeLabel(MachineRepresentation::kTagged,        // String.
                       MachineType::PointerRepresentation(),  // Offset.

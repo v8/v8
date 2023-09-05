@@ -362,7 +362,7 @@ bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node,
     intptr_t value = m.ResolvedValue();
     // Make sure that the value is actually a smi
     CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
-    *out_value = Smi(static_cast<Address>(value));
+    *out_value = Tagged<Smi>(static_cast<Address>(value));
     return true;
   }
   return false;

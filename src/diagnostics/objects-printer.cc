@@ -2108,7 +2108,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
 #else
         Address obj = raw;
 #endif
-        os << Brief(Object(obj));
+        os << Brief(Tagged<Object>(obj));
         break;
       }
       case wasm::kS128:
@@ -3483,7 +3483,7 @@ inline i::Tagged<i::Object> GetObjectFromRaw(void* object) {
         isolate, static_cast<i::Tagged_t>(object_ptr));
   }
 #endif
-  return i::Object(object_ptr);
+  return i::Tagged<i::Object>(object_ptr);
 }
 
 }  // namespace

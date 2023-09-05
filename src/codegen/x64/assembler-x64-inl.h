@@ -295,7 +295,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  return HeapObject::cast(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

@@ -37,7 +37,9 @@ bool FullObjectSlot::Relaxed_ContainsMapValue(Address raw_value) const {
   return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
-Tagged<Object> FullObjectSlot::operator*() const { return Object(*location()); }
+Tagged<Object> FullObjectSlot::operator*() const {
+  return Tagged<Object>(*location());
+}
 
 Tagged<Object> FullObjectSlot::load(PtrComprCageBase cage_base) const {
   return **this;
@@ -57,14 +59,14 @@ void FullObjectSlot::store_map(Tagged<Map> map) const {
 
 Tagged<Map> FullObjectSlot::load_map() const {
 #ifdef V8_MAP_PACKING
-  return Map::unchecked_cast(Object(MapWord::Unpack(*location())));
+  return Map::unchecked_cast(Tagged<Object>(MapWord::Unpack(*location())));
 #else
-  return Map::unchecked_cast(Object(*location()));
+  return Map::unchecked_cast(Tagged<Object>(*location()));
 #endif
 }
 
 Tagged<Object> FullObjectSlot::Acquire_Load() const {
-  return Object(base::AsAtomicPointer::Acquire_Load(location()));
+  return Tagged<Object>(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
 Tagged<Object> FullObjectSlot::Acquire_Load(PtrComprCageBase cage_base) const {
@@ -72,7 +74,7 @@ Tagged<Object> FullObjectSlot::Acquire_Load(PtrComprCageBase cage_base) const {
 }
 
 Tagged<Object> FullObjectSlot::Relaxed_Load() const {
-  return Object(base::AsAtomicPointer::Relaxed_Load(location()));
+  return Tagged<Object>(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
 Tagged<Object> FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
@@ -91,14 +93,14 @@ Tagged<Object> FullObjectSlot::Relaxed_CompareAndSwap(
     Tagged<Object> old, Tagged<Object> target) const {
   Address result = base::AsAtomicPointer::Relaxed_CompareAndSwap(
       location(), old.ptr(), target.ptr());
-  return Object(result);
+  return Tagged<Object>(result);
 }
 
 Tagged<Object> FullObjectSlot::Release_CompareAndSwap(
     Tagged<Object> old, Tagged<Object> target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
       location(), old.ptr(), target.ptr());
-  return Object(result);
+  return Tagged<Object>(result);
 }
 
 //
@@ -155,7 +157,7 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
 Tagged<HeapObject> FullHeapObjectSlot::ToHeapObject() const {
   TData value = *location();
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
-  return HeapObject::cast(Object(value));
+  return HeapObject::cast(Tagged<Object>(value));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
@@ -306,7 +308,7 @@ Tagged<Object> IndirectPointerSlot::Relaxed_Load() const {
   // Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
   Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
-  return Object(addr);
+  return Tagged<Object>(addr);
 #else
   UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
@@ -319,7 +321,7 @@ Tagged<Object> IndirectPointerSlot::Acquire_Load() const {
   // Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
   Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
-  return Object(addr);
+  return Tagged<Object>(addr);
 #else
   UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING

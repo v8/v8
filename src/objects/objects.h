@@ -305,9 +305,6 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // For a design overview, see https://goo.gl/Ph4CGz.
 class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  public:
-  constexpr Object() : TaggedImpl(kNullAddress) {}
-  explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
-
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
   static V8_INLINE bool InSharedHeap(Tagged<Object> obj);
@@ -685,6 +682,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
  protected:
   struct SkipTypeCheckTag {};
+  constexpr Object() : TaggedImpl(kNullAddress) {}
+  explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
   explicit constexpr Object(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
 
   // Static overwrites of TaggedImpl's IsSmi/IsHeapObject, to avoid conflicts
@@ -746,8 +745,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 constexpr Tagged<Object>::Tagged(Object raw) : TaggedBase(raw.ptr()) {
   static_assert(kTaggedCanConvertToRawObjects);
 }
-
-constexpr Object Tagged<Object>::ToRawPtr() const { return Object(ptr()); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Tagged<Object> obj);

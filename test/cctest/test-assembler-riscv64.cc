@@ -2003,7 +2003,8 @@ TEST(jump_tables3) {
 
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
-        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+        Tagged<Object>(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))),
+        isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
     Print(*result, std::cout);

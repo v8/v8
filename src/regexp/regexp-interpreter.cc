@@ -1132,8 +1132,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  Tagged<String> subject_string = String::cast(Object(subject));
-  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Object(regexp));
+  Tagged<String> subject_string = String::cast(Tagged<Object>(subject));
+  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Tagged<Object>(regexp));
 
   if (regexp_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

@@ -94,7 +94,7 @@ int RelocInfo::target_address_size() { return kPointerSize; }
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return HeapObject::cast(
-      Object(Assembler::target_address_at(pc_, constant_pool_)));
+      Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

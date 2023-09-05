@@ -40,7 +40,7 @@ int ExpectedCompareResult(Tagged<Smi> a, Tagged<Smi> b) {
 }
 
 bool Test(Isolate* isolate, Tagged<Smi> a, Tagged<Smi> b) {
-  int actual = Smi(Smi::LexicographicCompare(isolate, a, b)).value();
+  int actual = Tagged<Smi>(Smi::LexicographicCompare(isolate, a, b)).value();
   int expected = ExpectedCompareResult(a, b);
 
   return actual == expected;

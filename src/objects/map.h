@@ -648,7 +648,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
-  // chains or Smi(0) if uninitialized.
+  // chains or Tagged<Smi>(0) if uninitialized.
   // The meaning of this validity cell is different for prototype maps and
   // non-prototype maps.
   // For prototype maps the validity bit "guards" modifications of prototype

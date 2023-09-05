@@ -23,12 +23,12 @@ class BuiltinArguments : public JavaScriptArguments {
       : Arguments(length, arguments) {
     // Check we have at least the receiver.
     DCHECK_LE(1, this->length());
-    DCHECK(Object((*at(0)).ptr()).IsObject());
+    DCHECK(Tagged<Object>((*at(0)).ptr()).IsObject());
   }
 
   Tagged<Object> operator[](int index) const {
     DCHECK_LT(index, length());
-    return Object(*address_of_arg_at(index + kArgsOffset));
+    return Tagged<Object>(*address_of_arg_at(index + kArgsOffset));
   }
 
   template <class S = Object>

@@ -22,17 +22,6 @@ namespace internal {
 // Smi stands for small integer.
 class Smi : public Object {
  public:
-  // This replaces the OBJECT_CONSTRUCTORS macro, because Smis are special
-  // in that we want them to be constexprs.
-  constexpr Smi() : Object() {}
-  explicit constexpr Smi(Address ptr, SkipTypeCheckTag)
-      : Object(ptr, SkipTypeCheckTag()) {}
-  explicit constexpr Smi(Address ptr) : Object(ptr) {
-    DCHECK(HAS_SMI_TAG(ptr));
-  }
-
-  // Returns the integer value.
-  inline constexpr int value() const { return Internals::SmiValue(ptr()); }
   static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
     if (smi.value() <= 0) return Smi::FromInt(0);
     return Smi::FromInt(static_cast<uint32_t>(smi.value()));
@@ -116,15 +105,9 @@ class Smi : public Object {
   }
 };
 
-CAST_ACCESSOR(Smi)
-
-// Defined Tagged<Smi> now that Smi exists.
-
-// Implicit conversions to/from raw pointers
-// TODO(leszeks): Remove once we're using Tagged everywhere.
-// NOLINTNEXTLINE
-constexpr Tagged<Smi>::Tagged(Smi raw) : TaggedBase(raw.ptr()) {
-  static_assert(kTaggedCanConvertToRawObjects);
+Tagged<Smi> Smi::cast(Tagged<Object> object) {
+  DCHECK(object.IsSmi());
+  return Tagged<Smi>(object.ptr());
 }
 
 }  // namespace internal

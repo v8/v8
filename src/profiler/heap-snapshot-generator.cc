@@ -262,8 +262,8 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
     // Verification is not possible.
     return;
   }
-  Tagged<HeapObject> from_obj = HeapObject::cast(Object(from_address));
-  Tagged<HeapObject> to_obj = HeapObject::cast(Object(to_address));
+  Tagged<HeapObject> from_obj = HeapObject::cast(Tagged<Object>(from_address));
+  Tagged<HeapObject> to_obj = HeapObject::cast(Tagged<Object>(to_address));
   if (BasicMemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
     // We can't verify pointers into read-only space, because marking visitors
     // might not mark those. For example, every Map has a pointer to the
@@ -780,7 +780,8 @@ V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
       global_object_name_resolver_(resolver) {}
 
 HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
-  return AddEntry(HeapObject::cast(Object(reinterpret_cast<Address>(ptr))));
+  return AddEntry(
+      HeapObject::cast(Tagged<Object>(reinterpret_cast<Address>(ptr))));
 }
 
 HeapEntry* V8HeapExplorer::AllocateEntry(Tagged<Smi> smi) {

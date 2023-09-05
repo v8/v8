@@ -758,7 +758,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
-      MakePair(ReadOnlyRoots(isolate).exception(), Object()));
+      MakePair(ReadOnlyRoots(isolate).exception(), Tagged<Object>()));
   return MakePair(*value, *receiver);
 }
 
@@ -775,7 +775,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
            .ToHandle(&value)) {
     DCHECK((isolate)->has_pending_exception());
     value_ret.store(ReadOnlyRoots(isolate).exception());
-    receiver_ret.store(Object());
+    receiver_ret.store(Tagged<Object>());
     return ReadOnlyRoots(isolate).exception();
   }
   value_ret.store(*value);

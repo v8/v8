@@ -1638,7 +1638,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   }
 
   // Unused.
-  return Smi(0);
+  return Tagged<Smi>(0);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {

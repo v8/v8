@@ -34,15 +34,6 @@ namespace internal {
 //   safe to use them as indices in offset-computation functions.
 class TaggedIndex : public Object {
  public:
-  // This replaces the OBJECT_CONSTRUCTORS macro, because TaggedIndex are
-  // special in that we want them to be constexprs.
-  constexpr TaggedIndex() : Object() {}
-  explicit constexpr TaggedIndex(Address ptr, SkipTypeCheckTag)
-      : Object(ptr, SkipTypeCheckTag()) {}
-  explicit constexpr TaggedIndex(Address ptr) : Object(ptr) {
-    DCHECK(HAS_SMI_TAG(ptr));
-  }
-
   // Returns the integer value.
   inline intptr_t value() const {
     // Truncate and shift down (requires >> to be sign extending).
@@ -73,15 +64,9 @@ class TaggedIndex : public Object {
   static constexpr intptr_t kMaxValue = -(kMinValue + 1);
 };
 
-CAST_ACCESSOR(TaggedIndex)
-
-// Defined Tagged<TaggedIndex> now that TaggedIndex exists.
-
-// Implicit conversions to/from raw pointers
-// TODO(leszeks): Remove once we're using Tagged everywhere.
-// NOLINTNEXTLINE
-constexpr Tagged<TaggedIndex>::Tagged(TaggedIndex raw) : TaggedBase(raw.ptr()) {
-  static_assert(kTaggedCanConvertToRawObjects);
+Tagged<TaggedIndex> TaggedIndex::cast(Tagged<Object> object) {
+  DCHECK(HAS_SMI_TAG(object.ptr()));
+  return Tagged<TaggedIndex>(object.ptr());
 }
 
 }  // namespace internal

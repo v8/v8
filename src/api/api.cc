@@ -731,7 +731,7 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
   auto result = i_isolate->traced_handles()->Create(value, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    Object::ObjectVerify(i::Object(value), i_isolate);
+    Object::ObjectVerify(i::Tagged<i::Object>(value), i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -800,7 +800,7 @@ i::Address* GlobalizeReference(i::Isolate* i_isolate, i::Address value) {
   i::Handle<i::Object> result = i_isolate->global_handles()->Create(value);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object::ObjectVerify(i::Object(value), i_isolate);
+    i::Object::ObjectVerify(i::Tagged<i::Object>(value), i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -920,8 +920,9 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
 
 i::Address* EscapableHandleScope::Escape(i::Address* escape_value) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(GetIsolate())->heap();
-  Utils::ApiCheck(i::IsTheHole(i::Object(*escape_slot_), heap->isolate()),
-                  "EscapableHandleScope::Escape", "Escape value set twice");
+  Utils::ApiCheck(
+      i::IsTheHole(i::Tagged<i::Object>(*escape_slot_), heap->isolate()),
+      "EscapableHandleScope::Escape", "Escape value set twice");
   if (escape_value == nullptr) {
     *escape_slot_ = i::ReadOnlyRoots(heap).undefined_value().ptr();
     return nullptr;
@@ -1805,8 +1806,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback);
-  info->set_named_interceptor(i::Object());
-  info->set_indexed_interceptor(i::Object());
+  info->set_named_interceptor(i::Tagged<i::Object>());
+  info->set_indexed_interceptor(i::Tagged<i::Object>());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -2981,8 +2982,9 @@ void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 void v8::TryCatch::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
-  return !IsTheHole(i::Object(reinterpret_cast<i::Address>(exception_)),
-                    i_isolate_);
+  return !IsTheHole(
+      i::Tagged<i::Object>(reinterpret_cast<i::Address>(exception_)),
+      i_isolate_);
 }
 
 bool v8::TryCatch::CanContinue() const { return can_continue_; }
@@ -3970,7 +3972,8 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
 }
 
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
-  return i::GetIsolateFromWritableObject(i::HeapObject::cast(i::Object(obj)));
+  return i::GetIsolateFromWritableObject(
+      i::HeapObject::cast(i::Tagged<i::Object>(obj)));
 }
 
 bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
@@ -6716,9 +6719,10 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(global_constructor->GetAccessCheckInfo()),
       i_isolate);
-  Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
-                  "v8::Context::NewRemoteContext",
-                  "Global template needs to have access check handlers");
+  Utils::ApiCheck(
+      access_check_info->named_interceptor() != i::Tagged<i::Object>(),
+      "v8::Context::NewRemoteContext",
+      "Global template needs to have access check handlers");
   i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
       i_isolate, nullptr, global_template, global_object, 0,
       DeserializeInternalFieldsCallback(), nullptr);
@@ -7320,9 +7324,10 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
                   "InstanceTemplate needs to have access checks enabled");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(constructor->GetAccessCheckInfo()), i_isolate);
-  Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
-                  "v8::FunctionTemplate::NewRemoteInstance",
-                  "InstanceTemplate needs to have access check handlers");
+  Utils::ApiCheck(
+      access_check_info->named_interceptor() != i::Tagged<i::Object>(),
+      "v8::FunctionTemplate::NewRemoteInstance",
+      "InstanceTemplate needs to have access check handlers");
   i::Handle<i::JSObject> object;
   if (!i::ApiNatives::InstantiateRemoteObject(
            Utils::OpenHandle(*InstanceTemplate()))
@@ -11259,8 +11264,9 @@ void InvokeAccessorGetterCallback(
   {
     Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
     // Currently we don't call InterceptorInfo callbacks via CallApiGetter.
-    DCHECK(IsAccessorInfo(Object(arg)));
-    Tagged<AccessorInfo> accessor_info = AccessorInfo::cast(Object(arg));
+    DCHECK(IsAccessorInfo(Tagged<Object>(arg)));
+    Tagged<AccessorInfo> accessor_info =
+        AccessorInfo::cast(Tagged<Object>(arg));
     getter = reinterpret_cast<v8::AccessorNameGetterCallback>(
         accessor_info->getter(i_isolate));
 

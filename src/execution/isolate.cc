@@ -2376,7 +2376,7 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (TopExceptionHandlerType(Object()) ==
+  if (TopExceptionHandlerType(Tagged<Object>()) ==
       ExceptionHandlerType::kExternalTryCatch) {
     return CAUGHT_BY_EXTERNAL;
   }

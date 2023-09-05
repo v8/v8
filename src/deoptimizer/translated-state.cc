@@ -765,7 +765,7 @@ void TranslatedValue::Handlify() {
   if (kind() == kTagged && IsHeapObject(raw_literal())) {
     set_initialized_storage(
         Handle<HeapObject>(HeapObject::cast(raw_literal()), isolate()));
-    raw_literal_ = Object();
+    raw_literal_ = Tagged<Object>();
   }
 }
 
@@ -1249,10 +1249,10 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
-        ShortPrint(Object(uncompressed_value), trace_file);
+        ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(uncompressed_value));
+          TranslatedValue::NewTagged(this, Tagged<Object>(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -1432,10 +1432,10 @@ int TranslatedState::CreateNextTranslatedValue(
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
-        ShortPrint(Object(uncompressed_value), trace_file);
+        ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(uncompressed_value));
+          TranslatedValue::NewTagged(this, Tagged<Object>(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }

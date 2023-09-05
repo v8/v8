@@ -138,21 +138,21 @@ inline Tagged<Object> BuiltinExitFrame::receiver_slot_object() const {
   // ------- JS stack arguments ------
   // fp[6]: receiver
   const int receiverOffset = BuiltinExitFrameConstants::kFirstArgumentOffset;
-  return Object(base::Memory<Address>(fp() + receiverOffset));
+  return Tagged<Object>(base::Memory<Address>(fp() + receiverOffset));
 }
 
 inline Tagged<Object> BuiltinExitFrame::argc_slot_object() const {
-  return Object(
+  return Tagged<Object>(
       base::Memory<Address>(fp() + BuiltinExitFrameConstants::kArgcOffset));
 }
 
 inline Tagged<Object> BuiltinExitFrame::target_slot_object() const {
-  return Object(
+  return Tagged<Object>(
       base::Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset));
 }
 
 inline Tagged<Object> BuiltinExitFrame::new_target_slot_object() const {
-  return Object(base::Memory<Address>(
+  return Tagged<Object>(base::Memory<Address>(
       fp() + BuiltinExitFrameConstants::kNewTargetOffset));
 }
 
@@ -186,7 +186,7 @@ inline CommonFrame::CommonFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {}
 
 inline Tagged<Object> CommonFrame::GetExpression(int index) const {
-  return Object(base::Memory<Address>(GetExpressionAddress(index)));
+  return Tagged<Object>(base::Memory<Address>(GetExpressionAddress(index)));
 }
 
 inline void CommonFrame::SetExpression(int index, Tagged<Object> value) {
@@ -230,7 +230,7 @@ inline void JavaScriptFrame::set_receiver(Tagged<Object> value) {
 
 inline Tagged<Object> JavaScriptFrame::function_slot_object() const {
   const int offset = StandardFrameConstants::kFunctionOffset;
-  return Object(base::Memory<Address>(fp() + offset));
+  return Tagged<Object>(base::Memory<Address>(fp() + offset));
 }
 
 inline TurbofanStubWithContextFrame::TurbofanStubWithContextFrame(

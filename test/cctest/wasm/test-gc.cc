@@ -141,7 +141,7 @@ class WasmGCTester {
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_pending_exception());
     packer.Reset();
-    return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
+    return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
@@ -154,7 +154,7 @@ class WasmGCTester {
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_pending_exception());
     packer.Reset();
-    return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
+    return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
   void CheckHasThrown(uint32_t function_index, const char* expected = "") {

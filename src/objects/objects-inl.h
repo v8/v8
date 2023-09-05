@@ -73,7 +73,8 @@ int PropertyDetails::field_width_in_words() const {
 }
 
 bool IsTaggedIndex(Tagged<Object> obj) {
-  return IsSmi(obj) && TaggedIndex::IsValid(TaggedIndex(obj.ptr()).value());
+  return IsSmi(obj) &&
+         TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsClassBoilerplate) {
@@ -861,9 +862,9 @@ MapWord MapWord::FromMap(const Tagged<Map> map) {
 
 Tagged<Map> MapWord::ToMap() const {
 #ifdef V8_MAP_PACKING
-  return Map::unchecked_cast(Object(Unpack(value_)));
+  return Map::unchecked_cast(Tagged<Object>(Unpack(value_)));
 #else
-  return Map::unchecked_cast(Object(value_));
+  return Map::unchecked_cast(Tagged<Object>(value_));
 #endif
 }
 
@@ -901,7 +902,8 @@ Tagged<HeapObject> MapWord::ToForwardingAddress(
   // When external code space is enabled forwarding pointers are encoded as
   // Smi representing a diff from the source object address in kObjectAlignment
   // chunks.
-  intptr_t diff = static_cast<intptr_t>(Smi(value_).value()) * kObjectAlignment;
+  intptr_t diff =
+      static_cast<intptr_t>(Tagged<Smi>(value_).value()) * kObjectAlignment;
   Address address = map_word_host.address() + diff;
   return HeapObject::FromAddress(address);
 #else

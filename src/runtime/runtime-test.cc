@@ -1472,7 +1472,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   Handle<String> message = args.at<String>(0);
   if (v8_flags.disable_abortjs) {
     base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
-    return Object();
+    return Tagged<Object>();
   }
   base::OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);

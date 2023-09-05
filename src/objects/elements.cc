@@ -5441,10 +5441,10 @@ void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
                                                Address raw_destination,
                                                uintptr_t length,
                                                uintptr_t offset) {
-  Tagged<Context> context = Context::cast(Object(raw_context));
-  Tagged<JSArray> source = JSArray::cast(Object(raw_source));
+  Tagged<Context> context = Context::cast(Tagged<Object>(raw_context));
+  Tagged<JSArray> source = JSArray::cast(Tagged<Object>(raw_source));
   Tagged<JSTypedArray> destination =
-      JSTypedArray::cast(Object(raw_destination));
+      JSTypedArray::cast(Tagged<Object>(raw_destination));
 
   switch (destination->GetElementsKind()) {
 #define TYPED_ARRAYS_CASE(Type, type, TYPE, ctype)           \
@@ -5463,9 +5463,9 @@ void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
 void CopyTypedArrayElementsToTypedArray(Address raw_source,
                                         Address raw_destination,
                                         uintptr_t length, uintptr_t offset) {
-  Tagged<JSTypedArray> source = JSTypedArray::cast(Object(raw_source));
+  Tagged<JSTypedArray> source = JSTypedArray::cast(Tagged<Object>(raw_source));
   Tagged<JSTypedArray> destination =
-      JSTypedArray::cast(Object(raw_destination));
+      JSTypedArray::cast(Tagged<Object>(raw_destination));
 
   switch (destination->GetElementsKind()) {
 #define TYPED_ARRAYS_CASE(Type, type, TYPE, ctype)                          \
@@ -5483,9 +5483,9 @@ void CopyTypedArrayElementsToTypedArray(Address raw_source,
 
 void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
                                  uintptr_t start, uintptr_t end) {
-  Tagged<JSTypedArray> source = JSTypedArray::cast(Object(raw_source));
+  Tagged<JSTypedArray> source = JSTypedArray::cast(Tagged<Object>(raw_source));
   Tagged<JSTypedArray> destination =
-      JSTypedArray::cast(Object(raw_destination));
+      JSTypedArray::cast(Tagged<Object>(raw_destination));
 
   destination->GetElementsAccessor()->CopyTypedArrayElementsSlice(
       source, destination, start, end);

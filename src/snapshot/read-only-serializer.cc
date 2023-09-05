@@ -117,7 +117,8 @@ struct ReadOnlySegmentForSerialization {
       if (o.address() >= segment_end) break;
       size_t o_offset = o.ptr() - segment_start;
       Address o_dst = reinterpret_cast<Address>(contents.get()) + o_offset;
-      pre_processor->PreProcessIfNeeded(HeapObject::cast(Object(o_dst)));
+      pre_processor->PreProcessIfNeeded(
+          HeapObject::cast(Tagged<Object>(o_dst)));
     }
   }
 

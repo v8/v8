@@ -1232,7 +1232,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Tagged<Object> root(RootIndex index) const {
-    return Object(roots_table()[index]);
+    return Tagged<Object>(roots_table()[index]);
   }
 
   Handle<Object> root_handle(RootIndex index) {

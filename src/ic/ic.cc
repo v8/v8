@@ -3317,8 +3317,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
             return *source_map;
           }
           case FastCloneObjectMode::kEmptyObject: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(Smi(0), isolate));
+            nexus.ConfigureCloneObject(
+                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
             RETURN_RESULT_OR_FAILURE(
                 isolate, CloneObjectSlowPath(isolate, source, flags));
           }

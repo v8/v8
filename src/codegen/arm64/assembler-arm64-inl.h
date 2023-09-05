@@ -675,7 +675,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     return HeapObject::cast(obj);
   } else {
     return HeapObject::cast(
-        Object(Assembler::target_address_at(pc_, constant_pool_)));
+        Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 

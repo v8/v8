@@ -790,7 +790,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
 // static
 Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                       Address raw_string) {
-  Tagged<String> string = String::cast(Object(raw_string));
+  Tagged<String> string = String::cast(Tagged<Object>(raw_string));
   if (IsInternalizedString(string)) {
     // string could be internalized, if the string table is shared and another
     // thread internalized it.

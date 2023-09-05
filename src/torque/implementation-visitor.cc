@@ -1855,7 +1855,9 @@ cpp::Function ImplementationVisitor::GenerateFunction(
     f.SetReturnType(signature.return_type->GetRuntimeType());
   } else {
     DCHECK_EQ(output_type_, OutputType::kCSA);
-    f.SetReturnType(signature.return_type->GetGeneratedTypeName());
+    f.SetReturnType(signature.return_type->IsConstexpr()
+                        ? signature.return_type->TagglifiedCppTypeName()
+                        : signature.return_type->GetGeneratedTypeName());
   }
 
   bool ignore_first_parameter = true;
@@ -1879,7 +1881,11 @@ cpp::Function ImplementationVisitor::GenerateFunction(
       type = parameter_type->GetDebugType();
     } else {
       DCHECK_EQ(output_type_, OutputType::kCSA);
-      type = parameter_type->GetGeneratedTypeName();
+      if (parameter_type->IsConstexpr()) {
+        type = parameter_type->TagglifiedCppTypeName();
+      } else {
+        type = parameter_type->GetGeneratedTypeName();
+      }
     }
     f.AddParameter(std::move(type),
                    ExternalParameterName(i < parameter_names.size()

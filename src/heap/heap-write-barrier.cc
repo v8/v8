@@ -99,7 +99,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Object(raw_host));
+  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address value = (*slot).ptr();
 
@@ -132,7 +132,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
 
 int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
                                                  Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Object(raw_host));
+  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
   IndirectPointerSlot slot(raw_slot);
 
 #if DEBUG
@@ -154,7 +154,7 @@ int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
 }
 
 int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Object(raw_host));
+  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address raw_value = (*slot).ptr();
   MaybeObject value(raw_value);
@@ -181,7 +181,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
 }
 
 int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Object(raw_host));
+  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
 
   if (!host.InWritableSharedSpace()) {
     Heap::SharedHeapBarrierSlow(host, raw_slot);

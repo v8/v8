@@ -330,7 +330,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
         return true;
       }
     }
-    return canonical_handles_->Find(Object(address)) != nullptr;
+    return canonical_handles_->Find(Tagged<Object>(address)) != nullptr;
   }
 
   std::string Trace() const;

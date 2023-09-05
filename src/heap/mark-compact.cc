@@ -3274,7 +3274,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(
     }
     if (heap::ShouldZapGarbage()) {
       Address zap_end = std::min(aligned_start, end);
-      MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(kZapValue)),
+      MemsetTagged(ObjectSlot(start),
+                   Tagged<Object>(static_cast<Address>(kZapValue)),
                    (zap_end - start) >> kTaggedSizeLog2);
     }
   } else {

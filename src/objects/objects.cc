@@ -4119,9 +4119,10 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
                                                    Address raw_dest) {
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<FixedArray> fixed_array = FixedArray::cast(Object(raw_fixed_array));
-  Tagged<String> separator = String::cast(Object(raw_separator));
-  Tagged<String> dest = String::cast(Object(raw_dest));
+  Tagged<FixedArray> fixed_array =
+      FixedArray::cast(Tagged<Object>(raw_fixed_array));
+  Tagged<String> separator = String::cast(Tagged<Object>(raw_separator));
+  Tagged<String> dest = String::cast(Tagged<Object>(raw_dest));
   DCHECK(IsFixedArray(fixed_array));
   DCHECK(StringShape(dest).IsSequentialOneByte() ||
          StringShape(dest).IsSequentialTwoByte());
@@ -4517,7 +4518,7 @@ Script::Iterator::Iterator(Isolate* isolate)
 
 Tagged<Script> Script::Iterator::Next() {
   Tagged<Object> o = iterator_.Next();
-  if (o != Object()) {
+  if (o != Tagged<Object>()) {
     return Script::cast(o);
   }
   return Script();
@@ -6369,8 +6370,8 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Address raw_weak_cell) {
   DisallowGarbageCollection no_gc;
   Tagged<JSFinalizationRegistry> finalization_registry =
-      JSFinalizationRegistry::cast(Object(raw_finalization_registry));
-  Tagged<WeakCell> weak_cell = WeakCell::cast(Object(raw_weak_cell));
+      JSFinalizationRegistry::cast(Tagged<Object>(raw_finalization_registry));
+  Tagged<WeakCell> weak_cell = WeakCell::cast(Tagged<Object>(raw_weak_cell));
   DCHECK(!IsUndefined(weak_cell->unregister_token(), isolate));
   Tagged<HeapObject> undefined = ReadOnlyRoots(isolate).undefined_value();
 

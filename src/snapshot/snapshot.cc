@@ -937,7 +937,7 @@ size_t SnapshotCreatorImpl::AddData(Handle<NativeContext> context,
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Object(object), isolate_);
+  Handle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
@@ -955,7 +955,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Object(object), isolate_);
+  Handle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);

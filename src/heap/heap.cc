@@ -3271,7 +3271,8 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
                                      SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->set_size(size, kRelaxedStore);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
+      MemsetTagged(ObjectSlot(addr) + 2,
+                   Tagged<Object>(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
 
@@ -3503,7 +3504,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.
   RELAXED_WRITE_FIELD(object, bytes_to_trim,
-                      Object(MapWord::FromMap(map).ptr()));
+                      Tagged<Object>(MapWord::FromMap(map).ptr()));
   RELAXED_WRITE_FIELD(object, bytes_to_trim + kTaggedSize,
                       Smi::FromInt(len - elements_to_trim));
 
@@ -3613,7 +3614,7 @@ void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the
     // recorded slot.
-    MemsetTagged(ObjectSlot(new_end), Object(kClearedFreeMemoryValue),
+    MemsetTagged(ObjectSlot(new_end), Tagged<Object>(kClearedFreeMemoryValue),
                  (old_end - new_end) / kTaggedSize);
   }
 
@@ -4626,7 +4627,7 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
         } else {
           next += current->Size();
         }
-        current = HeapObject::cast(Object(next));
+        current = HeapObject::cast(Tagged<Object>(next));
       }
       DCHECK(
           current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||

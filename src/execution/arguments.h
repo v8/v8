@@ -52,7 +52,7 @@ class Arguments {
   }
 
   V8_INLINE Tagged<Object> operator[](int index) const {
-    return Object(*address_of_arg_at(index));
+    return Tagged<Object>(*address_of_arg_at(index));
   }
 
   template <class S = Object>

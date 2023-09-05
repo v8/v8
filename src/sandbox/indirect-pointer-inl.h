@@ -23,7 +23,8 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address) {
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   IndirectPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   static_assert(kAllIndirectPointerObjectsAreCode);
-  return Object(GetProcessWideCodePointerTable()->GetCodeObject(handle));
+  return Tagged<Object>(
+      GetProcessWideCodePointerTable()->GetCodeObject(handle));
 #else
   UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING

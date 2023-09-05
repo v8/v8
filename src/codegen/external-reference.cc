@@ -367,13 +367,15 @@ namespace {
 
 intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
-  Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  Tagged<SharedFunctionInfo> sfi =
+      SharedFunctionInfo::cast(Tagged<Object>(raw_sfi));
   return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
-  Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  Tagged<SharedFunctionInfo> sfi =
+      SharedFunctionInfo::cast(Tagged<Object>(raw_sfi));
   base::Optional<Tagged<DebugInfo>> debug_info =
       isolate->debug()->TryGetDebugInfo(sfi);
   if (debug_info.has_value() && debug_info.value()->HasCoverageInfo()) {
@@ -797,9 +799,9 @@ namespace {
 static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
                                              int bytecode_offset,
                                              Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Code::cast(Object(raw_code_obj));
+  Tagged<Code> code_obj = Code::cast(Tagged<Object>(raw_code_obj));
   Tagged<BytecodeArray> bytecode_array =
-      BytecodeArray::cast(Object(raw_bytecode_array));
+      BytecodeArray::cast(Tagged<Object>(raw_bytecode_array));
   return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
                                                        bytecode_array);
 }
@@ -807,9 +809,9 @@ static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = Code::cast(Object(raw_code_obj));
+  Tagged<Code> code_obj = Code::cast(Tagged<Object>(raw_code_obj));
   Tagged<BytecodeArray> bytecode_array =
-      BytecodeArray::cast(Object(raw_bytecode_array));
+      BytecodeArray::cast(Tagged<Object>(raw_bytecode_array));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }
@@ -1088,14 +1090,14 @@ namespace {
 
 void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
                               int32_t length) {
-  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, start,
-                                      length);
+  return String::WriteToFlat<uint8_t>(String::cast(Tagged<Object>(source)),
+                                      sink, start, length);
 }
 
 void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t start,
                               int32_t length) {
-  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink,
-                                       start, length);
+  return String::WriteToFlat<uint16_t>(String::cast(Tagged<Object>(source)),
+                                       sink, start, length);
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {
@@ -1105,8 +1107,9 @@ const uint8_t* ExternalOneByteStringGetChars(Address string) {
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(IsExternalOneByteString(Object(string), cage_base));
-  return ExternalOneByteString::cast(Object(string))->GetChars(cage_base);
+  CHECK(IsExternalOneByteString(Tagged<Object>(string), cage_base));
+  return ExternalOneByteString::cast(Tagged<Object>(string))
+      ->GetChars(cage_base);
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
   PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
@@ -1115,8 +1118,9 @@ const uint16_t* ExternalTwoByteStringGetChars(Address string) {
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(IsExternalTwoByteString(Object(string), cage_base));
-  return ExternalTwoByteString::cast(Object(string))->GetChars(cage_base);
+  CHECK(IsExternalTwoByteString(Tagged<Object>(string), cage_base));
+  return ExternalTwoByteString::cast(Tagged<Object>(string))
+      ->GetChars(cage_base);
 }
 
 }  // namespace
@@ -1149,13 +1153,13 @@ FUNCTION_REFERENCE(orderedhashmap_gethash_raw, OrderedHashMap::GetHash)
 
 Address GetOrCreateHash(Isolate* isolate, Address raw_key) {
   DisallowGarbageCollection no_gc;
-  return Object::GetOrCreateHash(Object(raw_key), isolate).ptr();
+  return Object::GetOrCreateHash(Tagged<Object>(raw_key), isolate).ptr();
 }
 
 FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
 
 static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
-  Tagged<JSReceiver> key = JSReceiver::cast(Object(raw_key));
+  Tagged<JSReceiver> key = JSReceiver::cast(Tagged<Object>(raw_key));
   return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 
@@ -1179,11 +1183,11 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   HandleScope handle_scope(isolate);
 
-  Handle<String> key(String::cast(Object(raw_key)), isolate);
+  Handle<String> key(String::cast(Tagged<Object>(raw_key)), isolate);
   // This function should only be used as the slow path for forwarded strings.
   DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
 
-  Tagged<Dictionary> dict = Dictionary::cast(Object(raw_dict));
+  Tagged<Dictionary> dict = Dictionary::cast(Tagged<Object>(raw_dict));
   ReadOnlyRoots roots(isolate);
   uint32_t hash = key->hash();
   InternalIndex entry = mode == kFindExisting
@@ -1315,8 +1319,8 @@ FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 #ifdef V8_INTL_SUPPORT
 
 static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
-  Tagged<String> src = String::cast(Object(raw_src));
-  Tagged<String> dst = String::cast(Object(raw_dst));
+  Tagged<String> src = String::cast(Tagged<Object>(raw_src));
+  Tagged<String> dst = String::cast(Tagged<Object>(raw_dst));
   return Intl::ConvertOneByteToLower(src, dst).ptr();
 }
 FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
@@ -1387,7 +1391,7 @@ ExternalReference ExternalReference::runtime_function_table_address(
 }
 
 static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
-  Tagged<Map> map = Map::cast(Object(raw_map));
+  Tagged<Map> map = Map::cast(Tagged<Object>(raw_map));
   return JSObject::InvalidatePrototypeChains(map).ptr();
 }
 
@@ -1676,7 +1680,8 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
 
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {
-  Tagged<NativeContext> context = NativeContext::cast(Object(raw_context));
+  Tagged<NativeContext> context =
+      NativeContext::cast(Tagged<Object>(raw_context));
   hsi->EnterMicrotaskContext(context);
   return 0;
 }

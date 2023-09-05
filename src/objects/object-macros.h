@@ -28,8 +28,6 @@
   const Type* operator->() const { return this; }                              \
                                                                                \
  protected:                                                                    \
-  template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
-  friend class TaggedField;                                                    \
   friend class Tagged<Type>;                                                   \
                                                                                \
   /* Special constructor for constexpr construction which allows skipping type \

@@ -410,7 +410,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
       IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
       CodePointerTable* cpt = GetProcessWideCodePointerTable();
-      CHECK_EQ(dead_code, Object(cpt->GetCodeObject(handle)));
+      CHECK_EQ(dead_code, Tagged<Object>(cpt->GetCodeObject(handle)));
 
       // The old Code object (in mutable space) is dead. To preserve the 1:1
       // relation between Code objects and CPT entries, overwrite it immediately

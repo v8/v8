@@ -1367,7 +1367,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     Tagged<Object> interceptor = is_js_array_element(IsElement())
                                      ? access_check_info->indexed_interceptor()
                                      : access_check_info->named_interceptor();
-    if (interceptor != Object()) {
+    if (interceptor != Tagged<Object>()) {
       return handle(InterceptorInfo::cast(interceptor), isolate_);
     }
   }

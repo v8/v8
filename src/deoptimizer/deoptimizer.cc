@@ -248,7 +248,7 @@ class FrameWriter {
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               Address from, int fp_to_sp_delta,
                               Isolate* isolate) {
-  Tagged<JSFunction> function = JSFunction::cast(Object(raw_function));
+  Tagged<JSFunction> function = JSFunction::cast(Tagged<Object>(raw_function));
   Deoptimizer* deoptimizer =
       new Deoptimizer(isolate, function, kind, from, fp_to_sp_delta);
   isolate->set_current_deoptimizer(deoptimizer);
@@ -1230,7 +1230,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
       // the exception (which lives in the result register).
       intptr_t accumulator_value =
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      frame_writer.PushRawObject(Object(accumulator_value), "accumulator\n");
+      frame_writer.PushRawObject(Tagged<Object>(accumulator_value),
+                                 "accumulator\n");
     } else {
       // If we are lazily deoptimizing make sure we store the deopt
       // return value into the appropriate slot.
@@ -1279,7 +1280,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   // Clear the context register. The context might be a de-materialized object
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  // safety we use Tagged<Smi>(0) instead of the potential {arguments_marker}
+  // here.
   if (is_topmost) {
     intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
     Register context_reg = JavaScriptFrame::context_register();
@@ -1492,7 +1494,8 @@ void Deoptimizer::DoComputeConstructCreateStubFrame(
 
   // Clear the context register. The context might be a de-materialized object
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  // safety we use Tagged<Smi>(0) instead of the potential {arguments_marker}
+  // here.
   if (is_topmost) {
     intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
     Register context_reg = JavaScriptFrame::context_register();
@@ -1622,7 +1625,8 @@ void Deoptimizer::DoComputeConstructInvokeStubFrame(
 
   // Clear the context register. The context might be a de-materialized object
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  // safety we use Tagged<Smi>(0) instead of the potential {arguments_marker}
+  // here.
   if (is_topmost) {
     intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
     Register context_reg = JavaScriptFrame::context_register();
@@ -1908,7 +1912,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
         intptr_t accumulator_value =
             input_->GetRegister(kInterpreterAccumulatorRegister.code());
-        frame_writer.PushRawObject(Object(accumulator_value),
+        frame_writer.PushRawObject(Tagged<Object>(accumulator_value),
                                    "exception (from accumulator)\n");
       } break;
     }
@@ -2041,7 +2045,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   // Clear the context register. The context might be a de-materialized object
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  // safety we use Tagged<Smi>(0) instead of the potential {arguments_marker}
+  // here.
   if (is_topmost) {
     intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
     Register context_reg = JavaScriptFrame::context_register();

@@ -146,7 +146,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<FixedArray> NewFixedArrayWithHoles(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocate a new fixed array with Smi(0) entries.
+  // Allocate a new fixed array with Tagged<Smi>(0) entries.
   Handle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 

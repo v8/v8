@@ -182,7 +182,7 @@ Tagged<Object> GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
     V8_INTRINSICS_LIST(GET_INTRINSIC_VALUE)
 #undef GET_INTRINSIC_VALUE
   }
-  return Object();
+  return Tagged<Object>();
 }
 
 template <typename TemplateInfoT>
