@@ -898,7 +898,6 @@ class TurboshaftGraphBuildingInterface {
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
-    if (!target.valid()) return;
     BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
   }
 
@@ -906,7 +905,6 @@ class TurboshaftGraphBuildingInterface {
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
-    if (!target.valid()) return;
     BuildWasmReturnCall(imm.sig, target, ref, args);
   }
 
@@ -3951,15 +3949,66 @@ class TurboshaftGraphBuildingInterface {
           asm_.Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
                     2 /* kInt32SizeLog2 */);
+      V<Word32> sigs_match = asm_.Word32Equal(expected_sig_id, loaded_sig);
       if (decoder->enabled_.has_gc() &&
           !decoder->module_->types[sig_index].is_final) {
-        // In this case, a full null check and type check is needed.
-        Bailout(decoder);
-        return {};
+        // In this case, a full type check is needed.
+        Label<> end(&asm_);
+
+        // First, check if signatures happen to match exactly.
+        GOTO_IF(sigs_match, end);
+
+        if (needs_null_check) {
+          // Trap on null element.
+          asm_.TrapIf(asm_.Word32Equal(loaded_sig, -1), OpIndex::Invalid(),
+                      TrapId::kTrapFuncSigMismatch);
+        }
+
+        V<Map> formal_rtt = asm_.RttCanon(instance_node_, sig_index);
+        int rtt_depth = GetSubtypingDepth(decoder->module_, sig_index);
+        DCHECK_GE(rtt_depth, 0);
+
+        // Since we have the canonical index of the real rtt, we have to load it
+        // from the isolate rtt-array (which is canonically indexed). Since this
+        // reference is weak, we have to promote it to a strong reference.
+        // Note: The reference cannot have been cleared: Since the loaded_sig
+        // corresponds to a function of the same canonical type, that function
+        // will have kept the type alive.
+        V<WeakFixedArray> rtts = LOAD_ROOT(WasmCanonicalRtts);
+        V<Tagged> weak_rtt = asm_.Load(
+            rtts, asm_.ChangeInt32ToIntPtr(loaded_sig),
+            LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
+            WeakFixedArray::kHeaderSize, kTaggedSizeLog2);
+        V<Map> real_rtt = V<Map>::Cast(asm_.WordPtrBitwiseAnd(
+            asm_.BitcastTaggedToWord(weak_rtt), ~kWeakHeapObjectMask));
+        V<WasmTypeInfo> type_info =
+            asm_.Load(real_rtt, LoadOp::Kind::TaggedBase(),
+                      MemoryRepresentation::TaggedPointer(),
+                      Map::kConstructorOrBackPointerOrNativeContextOffset);
+        // If the depth of the rtt is known to be less than the minimum
+        // supertype array length, we can access the supertype without
+        // bounds-checking the supertype array.
+        if (static_cast<uint32_t>(rtt_depth) >=
+            wasm::kMinimumSupertypeArraySize) {
+          V<Word32> supertypes_length =
+              asm_.UntagSmi(asm_.Load(type_info, LoadOp::Kind::TaggedBase(),
+                                      MemoryRepresentation::TaggedSigned(),
+                                      WasmTypeInfo::kSupertypesLengthOffset));
+          asm_.TrapIfNot(asm_.Uint32LessThan(rtt_depth, supertypes_length),
+                         OpIndex::Invalid(), TrapId::kTrapFuncSigMismatch);
+        }
+        V<Map> maybe_match = asm_.Load(
+            type_info, LoadOp::Kind::TaggedBase(),
+            MemoryRepresentation::TaggedPointer(),
+            WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
+        asm_.TrapIfNot(asm_.TaggedEqual(maybe_match, formal_rtt),
+                       OpIndex::Invalid(), TrapId::kTrapFuncSigMismatch);
+        GOTO(end);
+        BIND(end);
       } else {
         // In this case, signatures must match exactly.
-        asm_.TrapIfNot(asm_.Word32Equal(expected_sig_id, loaded_sig),
-                       OpIndex::Invalid(), TrapId::kTrapFuncSigMismatch);
+        asm_.TrapIfNot(sigs_match, OpIndex::Invalid(),
+                       TrapId::kTrapFuncSigMismatch);
       }
     } else if (needs_null_check) {
       V<Word32> loaded_sig =
