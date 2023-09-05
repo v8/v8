@@ -57,6 +57,16 @@ vars = {
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.113.0.8b45b89-gomaip',
 
+  # Fetch configuration files required for the 'use_remoteexec' gn arg
+  'download_remoteexec_cfg': False,
+
+  # RBE instance to use for running remote builds
+  'rbe_instance': Str('projects/rbe-chrome-untrusted/instances/default_instance'),
+
+  # RBE project to download rewrapper config files for. Only needed if
+  # different from the project used in 'rbe_instance'
+  'rewrapper_cfg_project': Str(''),
+
   # This variable is overrided in Chromium's DEPS file.
   'build_with_chromium': False,
 
@@ -679,5 +689,21 @@ hooks = [
     'pattern': '.',
     'condition': 'host_os == "win"',
     'action': ['python3', 'build/del_ninja_deps_cache.py'],
+  },
+  # Configure remote exec cfg files
+  {
+    'name': 'configure_reclient_cfgs',
+    'pattern': '.',
+    'condition': 'download_remoteexec_cfg and not build_with_chromium',
+    'action': ['python3',
+               'buildtools/reclient_cfgs/configure_reclient_cfgs.py',
+               '--rbe_instance',
+               Var('rbe_instance'),
+               '--reproxy_cfg_template',
+               'reproxy.cfg.template',
+               '--rewrapper_cfg_project',
+               Var('rewrapper_cfg_project'),
+               '--quiet',
+               ],
   },
 ]
