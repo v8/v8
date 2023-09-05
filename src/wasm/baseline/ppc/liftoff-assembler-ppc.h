@@ -337,21 +337,20 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
+                                          int32_t offset_imm, Register src,
                                           LiftoffRegList /* pinned */,
                                           SkipWriteBarrier skip_write_barrier) {
   MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
-  StoreTaggedField(src.gp(), dst_op, r0);
+  StoreTaggedField(src, dst_op, r0);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
-  JumpIfSmi(src.gp(), &exit);
-  CheckPageFlag(src.gp(), ip, MemoryChunk::kPointersToHereAreInterestingMask,
-                eq, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {
