@@ -330,7 +330,10 @@ class TurboshaftGraphBuildingInterface {
           SetupControlFlowEdge(decoder, post_loop);
           asm_.Goto(post_loop);
         }
-        if (block->merge_block->PredecessorCount() == 0) {
+        if (!block->false_or_loop_or_catch_block->IsBound()) {
+          // The loop is unreachable. In this case, no operations have been
+          // emitted for it. Do nothing.
+        } else if (block->merge_block->PredecessorCount() == 0) {
           // Turns out, the loop has no backedges, i.e. it is not quite a loop
           // at all. Replace it with a merge, and its PendingPhis with one-input
           // phis.
