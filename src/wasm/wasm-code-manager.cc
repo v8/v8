@@ -874,14 +874,14 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   // Re-allocate the near and far jump tables.
   main_jump_table_ = CreateEmptyJumpTableInRegionLocked(
       JumpTableAssembler::SizeForNumberOfSlots(max_functions),
-      single_code_space_region);
+      single_code_space_region, JumpTableType::kJumpTable);
   CHECK(
       single_code_space_region.contains(main_jump_table_->instruction_start()));
   main_far_jump_table_ = CreateEmptyJumpTableInRegionLocked(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
           WasmCode::kRuntimeStubCount,
           NumWasmFunctionsInFarJumpTable(max_functions)),
-      single_code_space_region);
+      single_code_space_region, JumpTableType::kFarJumpTable);
   CHECK(single_code_space_region.contains(
       main_far_jump_table_->instruction_start()));
   code_space_data_[0].jump_table = main_jump_table_;
@@ -952,10 +952,12 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   base::Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   {
-    CodeSpaceWriteScope write_scope;
-    ThreadIsolation::RegisterWasmAllocation(
-        reinterpret_cast<Address>(dst_code_bytes.begin()), instructions.size());
-    memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
+    ThreadIsolation::WritableJitAllocation jit_allocation =
+        ThreadIsolation::RegisterJitAllocation(
+            reinterpret_cast<Address>(dst_code_bytes.begin()),
+            dst_code_bytes.size(),
+            ThreadIsolation::JitAllocationType::kWasmCode);
+    jit_allocation.CopyCode(0, instructions.begin(), instructions.size());
 
     // Apply the relocation delta by iterating over the RelocInfo.
     intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -1018,7 +1020,8 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
 
   DCHECK_NULL(lazy_compile_table_);
   lazy_compile_table_ = CreateEmptyJumpTableLocked(
-      JumpTableAssembler::SizeForNumberOfLazyFunctions(num_wasm_functions));
+      JumpTableAssembler::SizeForNumberOfLazyFunctions(num_wasm_functions),
+      JumpTableType::kLazyCompileTable);
 
   CHECK_EQ(1, code_space_data_.size());
   const CodeSpaceData& code_space_data = code_space_data_[0];
@@ -1029,7 +1032,6 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
       code_space_data.far_jump_table->instruction_start() +
       JumpTableAssembler::FarJumpSlotIndexToOffset(WasmCode::kWasmCompileLazy);
 
-  CodeSpaceWriteScope write_scope;
   JumpTableAssembler::GenerateLazyCompileTable(
       lazy_compile_table_->instruction_start(), num_wasm_functions,
       module_->num_imported_functions, compile_lazy_address);
@@ -1076,11 +1078,9 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
   // Only Liftoff code can have the {frame_has_feedback_slot} bit set.
   DCHECK_NE(tier, ExecutionTier::kLiftoff);
   bool frame_has_feedback_slot = false;
-  {
-    CodeSpaceWriteScope write_scope;
-    ThreadIsolation::RegisterWasmAllocation(
-        reinterpret_cast<Address>(code_space.begin()), desc.instr_size);
-  }
+  ThreadIsolation::RegisterJitAllocation(
+      reinterpret_cast<Address>(code_space.begin()), code_space.size(),
+      ThreadIsolation::JitAllocationType::kWasmCode);
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               protected_instructions_data,
                               source_position_table, inlining_positions, kind,
@@ -1113,9 +1113,12 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int instr_size = desc.instr_size;
 
   {
-    CodeSpaceWriteScope write_scope;
-    memcpy(dst_code_bytes.begin(), desc.buffer,
-           static_cast<size_t>(desc.instr_size));
+    ThreadIsolation::WritableJitAllocation jit_allocation =
+        ThreadIsolation::LookupJitAllocation(
+            reinterpret_cast<Address>(dst_code_bytes.begin()),
+            dst_code_bytes.size(),
+            ThreadIsolation::JitAllocationType::kWasmCode);
+    jit_allocation.CopyCode(0, desc.buffer, desc.instr_size);
 
     // Apply the relocation delta by iterating over the RelocInfo.
     intptr_t delta = dst_code_bytes.begin() - desc.buffer;
@@ -1190,8 +1193,6 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code,
 
 std::vector<WasmCode*> NativeModule::PublishCode(
     base::Vector<std::unique_ptr<WasmCode>> codes) {
-  // Publishing often happens in a loop, so the caller should hold the
-  // {CodeSpaceWriteScope} outside of such a loop.
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode", "number", codes.size());
   std::vector<WasmCode*> published_code;
@@ -1407,13 +1408,30 @@ WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
   return source_map_.get();
 }
 
-WasmCode* NativeModule::CreateEmptyJumpTableLocked(int jump_table_size) {
+WasmCode* NativeModule::CreateEmptyJumpTableLocked(int jump_table_size,
+                                                   JumpTableType type) {
   return CreateEmptyJumpTableInRegionLocked(jump_table_size,
-                                            kUnrestrictedRegion);
+                                            kUnrestrictedRegion, type);
 }
 
+namespace {
+
+ThreadIsolation::JitAllocationType ToAllocationType(
+    v8::internal::wasm::NativeModule::JumpTableType type) {
+  switch (type) {
+    case NativeModule::JumpTableType::kJumpTable:
+      return ThreadIsolation::JitAllocationType::kWasmJumpTable;
+    case NativeModule::JumpTableType::kFarJumpTable:
+      return ThreadIsolation::JitAllocationType::kWasmFarJumpTable;
+    case NativeModule::JumpTableType::kLazyCompileTable:
+      return ThreadIsolation::JitAllocationType::kWasmLazyCompileTable;
+  }
+}
+
+}  // namespace
+
 WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
-    int jump_table_size, base::AddressRegion region) {
+    int jump_table_size, base::AddressRegion region, JumpTableType type) {
   allocation_mutex_.AssertHeld();
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
@@ -1422,8 +1440,11 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
   DCHECK(!code_space.empty());
   UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNotForDebugging);
   {
-    wasm::CodeSpaceWriteScope code_write_scope;
-    ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
+    ThreadIsolation::WritableJitAllocation jit_allocation =
+        ThreadIsolation::RegisterJitAllocation(
+            reinterpret_cast<Address>(code_space.begin()), code_space.size(),
+            ToAllocationType(type));
+    jit_allocation.ClearBytes(0, code_space.size());
   }
   std::unique_ptr<WasmCode> code{
       new WasmCode{this,                  // native_module
@@ -1443,8 +1464,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
                    kNotForDebugging}};    // for_debugging
-  ThreadIsolation::RegisterWasmAllocation(
-      reinterpret_cast<Address>(code_space.begin()), code_space.size());
   return PublishCodeLocked(std::move(code));
 }
 
@@ -1460,10 +1479,16 @@ void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
   allocation_mutex_.AssertHeld();
 
-  CodeSpaceWriteScope write_scope;
   for (auto& code_space_data : code_space_data_) {
+    // TODO(sroettger): need to unlock both jump tables together
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
     if (!code_space_data.jump_table) continue;
+    ThreadIsolation::WritableJumpTablePair writable_jump_tables =
+        ThreadIsolation::LookupJumpTableAllocations(
+            code_space_data.jump_table->instruction_start(),
+            code_space_data.jump_table->instructions_size_,
+            code_space_data.far_jump_table->instruction_start(),
+            code_space_data.far_jump_table->instructions_size_);
     PatchJumpTableLocked(code_space_data, slot_index, target);
   }
 }
@@ -1539,7 +1564,8 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
         is_first_code_space
             ? JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions)
             : main_jump_table_->instructions_size_;
-    jump_table = CreateEmptyJumpTableInRegionLocked(jump_table_size, region);
+    jump_table = CreateEmptyJumpTableInRegionLocked(jump_table_size, region,
+                                                    JumpTableType::kJumpTable);
     CHECK(region.contains(jump_table->instruction_start()));
   }
 
@@ -1551,8 +1577,8 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
             ? JumpTableAssembler::SizeForNumberOfFarJumpSlots(
                   WasmCode::kRuntimeStubCount, num_function_slots)
             : main_far_jump_table_->instructions_size_;
-    far_jump_table =
-        CreateEmptyJumpTableInRegionLocked(far_jump_table_size, region);
+    far_jump_table = CreateEmptyJumpTableInRegionLocked(
+        far_jump_table_size, region, JumpTableType::kFarJumpTable);
     CHECK(region.contains(far_jump_table->instruction_start()));
     EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtin::k##Name,
@@ -1567,7 +1593,11 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
       Builtin builtin = stub_names[i];
       builtin_addresses[i] = embedded_data.InstructionStartOf(builtin);
     }
-    CodeSpaceWriteScope write_scope;
+    ThreadIsolation::WritableJitAllocation jit_allocation =
+        ThreadIsolation::LookupJitAllocation(
+            far_jump_table->instruction_start(),
+            far_jump_table->instructions_size_,
+            ThreadIsolation::JitAllocationType::kWasmFarJumpTable);
     JumpTableAssembler::GenerateFarJumpTable(
         far_jump_table->instruction_start(), builtin_addresses,
         WasmCode::kRuntimeStubCount, num_function_slots);
@@ -1591,7 +1621,16 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     // Patch the new jump table(s) with existing functions. If this is the first
     // code space, there cannot be any functions that have been compiled yet.
     const CodeSpaceData& new_code_space_data = code_space_data_.back();
-    CodeSpaceWriteScope write_scope;
+    // TODO(sroettger): need to create two write scopes? Or have a write scope
+    // for multiple allocations.
+    ThreadIsolation::WritableJumpTablePair writable_jump_tables =
+        ThreadIsolation::LookupJumpTableAllocations(
+            new_code_space_data.jump_table->instruction_start(),
+
+            new_code_space_data.jump_table->instructions_size_,
+            new_code_space_data.far_jump_table->instruction_start(),
+
+            new_code_space_data.far_jump_table->instructions_size_);
     for (uint32_t slot_index = 0; slot_index < num_wasm_functions;
          ++slot_index) {
       if (code_table_[slot_index]) {

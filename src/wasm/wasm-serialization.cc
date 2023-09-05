@@ -828,12 +828,14 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
 
 void NativeModuleDeserializer::CopyAndRelocate(
     const DeserializationUnit& unit) {
-  CodeSpaceWriteScope write_scope;
-  ThreadIsolation::RegisterWasmAllocation(
-      reinterpret_cast<Address>(unit.code->instructions().begin()),
-      unit.src_code_buffer.size());
-  memcpy(unit.code->instructions().begin(), unit.src_code_buffer.begin(),
-         unit.src_code_buffer.size());
+  ThreadIsolation::WritableJitAllocation jit_allocation =
+      ThreadIsolation::RegisterJitAllocation(
+          reinterpret_cast<Address>(unit.code->instructions().begin()),
+          unit.code->instructions().size(),
+          ThreadIsolation::JitAllocationType::kWasmCode);
+
+  jit_allocation.CopyCode(0, unit.src_code_buffer.begin(),
+                          unit.src_code_buffer.size());
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |

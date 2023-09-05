@@ -156,6 +156,9 @@ class V8_EXPORT ThreadIsolation {
   enum class JitAllocationType {
     kInstructionStream,
     kWasmCode,
+    kWasmJumpTable,
+    kWasmFarJumpTable,
+    kWasmLazyCompileTable,
   };
 
   // Register a new JIT region.
@@ -167,10 +170,15 @@ class V8_EXPORT ThreadIsolation {
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
 
   class WritableJitAllocation;
+  class WritableJumpTablePair;
 
-  // Register a new InstructionStream allocation for tracking and return a
-  // writable reference to it. All writes should go through the returned
-  // WritableJitAllocation object.
+  // Register a new JIT allocation for tracking and return a writable reference
+  // to it. All writes should go through the returned WritableJitAllocation
+  // object since it will perform additional validation required for CFI.
+  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
+                                                     JitAllocationType type);
+  // TODO(sroettger): remove this overwrite and use RegisterJitAllocation
+  // instead.
   static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
                                                                    size_t size);
   // Register multiple consecutive allocations together.
@@ -179,9 +187,14 @@ class V8_EXPORT ThreadIsolation {
                                      JitAllocationType type);
   static WritableJitAllocation LookupJitAllocation(Address addr, size_t size,
                                                    JitAllocationType type);
+
+  // A special case of LookupJitAllocation since in Wasm, we sometimes have to
+  // unlock two allocations (jump tables) together.
+  static WritableJumpTablePair LookupJumpTableAllocations(
+      Address jump_table_address, size_t jump_table_size,
+      Address far_jump_table_address, size_t far_jump_table_size);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
-  static void RegisterWasmAllocation(Address addr, size_t size);
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
   // Check for a potential dead lock in case we want to lookup the jit
@@ -293,6 +306,7 @@ class V8_EXPORT ThreadIsolation {
    public:
     WritableJitAllocation(const WritableJitAllocation&) = delete;
     WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
+    V8_INLINE ~WritableJitAllocation();
 
     // Writes a header slot either as a primitive or as a Tagged value.
     // Important: this function will not trigger a write barrier by itself,
@@ -336,6 +350,22 @@ class V8_EXPORT ThreadIsolation {
     RwxMemoryWriteScope write_scope_;
     JitPageReference page_ref_;
     const JitAllocation& allocation_;
+
+    friend class ThreadIsolation;
+  };
+
+  class WritableJumpTablePair {
+   public:
+    // TODO(sroettger): add functions to write to the jump tables.
+   private:
+    V8_INLINE WritableJumpTablePair(Address jump_table_address,
+                                    size_t jump_table_size,
+                                    Address far_jump_table_address,
+                                    size_t far_jump_table_size);
+    RwxMemoryWriteScope write_scope_;
+    std::pair<JitPageReference, JitPageReference> jump_table_pages_;
+    const JitAllocation& jump_table_;
+    const JitAllocation& far_jump_table_;
 
     friend class ThreadIsolation;
   };
@@ -404,9 +434,6 @@ class V8_EXPORT ThreadIsolation {
   template <typename T>
   static void Delete(T* ptr);
 
-  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
-                                                     JitAllocationType type);
-
   // Lookup a JitPage that spans a given range. Note that JitPages are not
   // required to align with OS pages. There are no minimum size requirements and
   // we can split and merge them under the hood for performance optimizations.
@@ -419,7 +446,10 @@ class V8_EXPORT ThreadIsolation {
   // The caller needs to hold a lock of the jit_pages_mutex_
   static base::Optional<JitPageReference> TryLookupJitPageLocked(Address addr,
                                                                  size_t size);
+  static JitPageReference SplitJitPageLocked(Address addr, size_t size);
   static JitPageReference SplitJitPage(Address addr, size_t size);
+  static std::pair<JitPageReference, JitPageReference> SplitJitPages(
+      Address addr1, size_t size1, Address addr2, size_t size2);
 
   template <class T>
   friend struct StlAllocator;

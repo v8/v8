@@ -29,6 +29,8 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
   }
 }
 
+ThreadIsolation::WritableJitAllocation::~WritableJitAllocation() = default;
+
 ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
     Address addr, size_t size, JitAllocationType type,
     JitAllocationSource source)
@@ -41,6 +43,22 @@ ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
       allocation_(source == JitAllocationSource::kRegister
                       ? page_ref_.RegisterAllocation(addr, size, type)
                       : page_ref_.LookupAllocation(addr, size, type)) {}
+
+ThreadIsolation::WritableJumpTablePair::WritableJumpTablePair(
+    Address jump_table_address, size_t jump_table_size,
+    Address far_jump_table_address, size_t far_jump_table_size)
+    : write_scope_("WritableJumpTablePair"),
+      // Always split the pages since we are not guaranteed that the jump table
+      // and far jump table are on the same JitPage.
+      jump_table_pages_(ThreadIsolation::SplitJitPages(
+          far_jump_table_address, far_jump_table_size, jump_table_address,
+          jump_table_size)),
+      jump_table_(jump_table_pages_.second.LookupAllocation(
+          jump_table_address, jump_table_size,
+          JitAllocationType::kWasmJumpTable)),
+      far_jump_table_(jump_table_pages_.first.LookupAllocation(
+          far_jump_table_address, far_jump_table_size,
+          JitAllocationType::kWasmFarJumpTable)) {}
 
 template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {

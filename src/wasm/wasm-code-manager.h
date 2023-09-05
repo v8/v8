@@ -22,7 +22,6 @@
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/source-position.h"
-#include "src/common/code-memory-access.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -872,6 +871,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
     log_code_.store(false, std::memory_order_relaxed);
   }
 
+  enum class JumpTableType {
+    kJumpTable,
+    kFarJumpTable,
+    kLazyCompileTable,
+  };
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -901,10 +906,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
       bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);
 
-  WasmCode* CreateEmptyJumpTableLocked(int jump_table_size);
+  WasmCode* CreateEmptyJumpTableLocked(int jump_table_size, JumpTableType type);
 
   WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
-                                               base::AddressRegion);
+                                               base::AddressRegion,
+                                               JumpTableType type);
 
   // Finds the jump tables that should be used for given code region. This
   // information is then passed to {GetNearCallTargetForFunction} and

@@ -296,6 +296,8 @@ ThreadIsolation::JitPageReference::LookupAllocation(base::Address addr,
                                                     JitAllocationType type) {
   auto it = jit_page_->allocations_.find(addr);
   CHECK_NE(it, jit_page_->allocations_.end());
+  CHECK_EQ(it->second.Size(), size);
+  CHECK_EQ(it->second.Type(), type);
   return it->second;
 }
 
@@ -452,6 +454,16 @@ ThreadIsolation::WritableJitAllocation ThreadIsolation::LookupJitAllocation(
 }
 
 // static
+ThreadIsolation::WritableJumpTablePair
+ThreadIsolation::LookupJumpTableAllocations(Address jump_table_address,
+                                            size_t jump_table_size,
+                                            Address far_jump_table_address,
+                                            size_t far_jump_table_size) {
+  return WritableJumpTablePair(jump_table_address, jump_table_size,
+                               far_jump_table_address, far_jump_table_size);
+}
+
+// static
 void ThreadIsolation::RegisterJitAllocations(Address start,
                                              const std::vector<size_t>& sizes,
                                              JitAllocationType type) {
@@ -501,12 +513,6 @@ void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
 }
 
 // static
-void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
-  LookupJitPage(addr, size)
-      .RegisterAllocation(addr, size, JitAllocationType::kWasmCode);
-}
-
-// static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
   LookupJitPage(addr, size).UnregisterAllocation(addr);
 }
@@ -514,6 +520,12 @@ void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
 ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPage(Address addr,
                                                                 size_t size) {
   base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+  return SplitJitPageLocked(addr, size);
+}
+
+ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPageLocked(
+    Address addr, size_t size) {
+  trusted_data_.jit_pages_mutex_->AssertHeld();
 
   JitPageReference jit_page = LookupJitPageLocked(addr, size);
 
@@ -535,6 +547,21 @@ ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPage(Address addr,
   }
 
   return jit_page;
+}
+
+std::pair<ThreadIsolation::JitPageReference, ThreadIsolation::JitPageReference>
+ThreadIsolation::SplitJitPages(Address addr1, size_t size1, Address addr2,
+                               size_t size2) {
+  if (addr1 > addr2) {
+    auto reversed_pair = SplitJitPages(addr2, size2, addr1, size1);
+    return {std::move(reversed_pair.second), std::move(reversed_pair.first)};
+  }
+  // Make sure there's no overlap. SplitJitPageLocked will do additional checks
+  // that the sizes don't overflow.
+  CHECK_LE(addr1 + size1, addr2);
+
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+  return {SplitJitPageLocked(addr1, size1), SplitJitPageLocked(addr2, size2)};
 }
 
 // static
