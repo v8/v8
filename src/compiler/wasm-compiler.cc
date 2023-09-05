@@ -5491,8 +5491,10 @@ Node* WasmGraphBuilder::ArrayNewSegment(uint32_t segment_index, Node* offset,
                                         Node* length, Node* rtt,
                                         bool is_element,
                                         wasm::WasmCodePosition position) {
+  // This call cannot be marked as eliminatable because it performs an array
+  // maximum size check.
   Node* array =
-      gasm_->CallBuiltin(Builtin::kWasmArrayNewSegment, Operator::kEliminatable,
+      gasm_->CallBuiltin(Builtin::kWasmArrayNewSegment, Operator::kNoProperties,
                          gasm_->Uint32Constant(segment_index), offset, length,
                          gasm_->SmiConstant(is_element ? 1 : 0), rtt);
   SetSourcePosition(array, position);
