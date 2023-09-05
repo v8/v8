@@ -4692,30 +4692,20 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
   // state is visited only when not serializing.
   if (!options.contains(SkipRoot::kUnserializable)) {
     if (!options.contains(SkipRoot::kTracedHandles)) {
-      if (options.contains(SkipRoot::kOldGeneration)) {
-        isolate_->traced_handles()->IterateYoungRoots(v);
-      } else {
-        isolate_->traced_handles()->Iterate(v);
-      }
+      // Young GCs always skip traced handles and visit them manually.
+      DCHECK(!options.contains(SkipRoot::kOldGeneration));
+
+      isolate_->traced_handles()->Iterate(v);
     }
 
     if (!options.contains(SkipRoot::kGlobalHandles)) {
+      // Young GCs always skip global handles and visit them manually.
+      DCHECK(!options.contains(SkipRoot::kOldGeneration));
+
       if (options.contains(SkipRoot::kWeak)) {
-        if (options.contains(SkipRoot::kOldGeneration)) {
-          // Skip handles that are either weak or old.
-          isolate_->global_handles()->IterateYoungStrongAndDependentRoots(v);
-          isolate_->traced_handles()->IterateYoungRoots(v);
-        } else {
-          // Skip handles that are weak.
-          isolate_->global_handles()->IterateStrongRoots(v);
-        }
+        isolate_->global_handles()->IterateStrongRoots(v);
       } else {
-        if (options.contains(SkipRoot::kOldGeneration)) {
-          UNREACHABLE();
-        } else {
-          // Do not skip any handles.
-          isolate_->global_handles()->IterateAllRoots(v);
-        }
+        isolate_->global_handles()->IterateAllRoots(v);
       }
     }
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
