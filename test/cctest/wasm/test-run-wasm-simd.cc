@@ -3918,6 +3918,51 @@ TEST(RunWasmTurbofan_F32x4ShuffleForSplatRevec) {
   r.builder().WriteMemory(&memory[10], 10.0f);
   CHECK_EQ(23.0f, r.Call(0, 32));
 }
+
+TEST(RunWasmTurbofan_ShuffleVpshufd) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  // I32x4, shuffle=[1,2,3,0]
+  constexpr std::array<int8_t, 16> shuffle = {4,  5,  6,  7,  8, 9, 10, 11,
+                                              12, 13, 14, 15, 0, 1, 2,  3};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, compiler::IrOpcode::kI8x32Shuffle,
+      WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+      WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_ZERO)),
+
+      WASM_SIMD_STORE_MEM_OFFSET(
+          16 * 2, WASM_ZERO,
+          WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                     WASM_LOCAL_GET(temp1),
+                                     WASM_LOCAL_GET(temp1))),
+      WASM_SIMD_STORE_MEM_OFFSET(
+          16 * 3, WASM_ZERO,
+          WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                     WASM_LOCAL_GET(temp2),
+                                     WASM_LOCAL_GET(temp2))),
+      WASM_ONE);
+
+  std::pair<std::vector<int>, std::vector<int>> test_case = {
+      {1, 2, 3, 4, 5, 6, 7, 8}, {2, 3, 4, 1, 6, 7, 8, 5}};
+
+  auto input = test_case.first;
+  auto expected_output = test_case.second;
+
+  for (int i = 0; i < 8; ++i) {
+    r.builder().WriteMemory(&memory[i], input[i]);
+  }
+
+  r.Call();
+
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(expected_output[i], r.builder().ReadMemory(&memory[i + 8]));
+  }
+}
+
 #endif
 
 WASM_EXEC_TEST(SimdLoadStoreLoad) {
