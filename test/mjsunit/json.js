@@ -531,3 +531,23 @@ assertEquals(`[
           1,
           2
 ]`, JSON.stringify([1,2], undefined, 1000000000000000));
+
+let obj = { x: 0, y: 1 };
+let other = {};
+let called = false;
+let count = 0;
+
+obj.__defineGetter__(undefined, function() {
+  count++;
+  if (called) {
+    obj["__proto__"] = other["__lookupSetter__"];
+  } else {
+    obj["toLocaleString"] = other["__lookupSetter__"];
+    called = true;
+  }
+});
+
+assertEquals('{"x":0,"y":1}', JSON.stringify(obj));
+assertEquals(1, count);
+assertEquals('{"x":0,"y":1}', JSON.stringify(obj));
+assertEquals(2, count);
