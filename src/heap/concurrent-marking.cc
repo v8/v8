@@ -284,6 +284,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         }
       }
     }
+    PtrComprCageBase cage_base(isolate);
     bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
@@ -323,12 +324,13 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Tagged<Map> map = object->map(isolate, kAcquireLoad);
+          Tagged<Map> map = object->map(cage_base, kAcquireLoad);
           // The marking worklist should never contain filler objects.
           CHECK(!IsFreeSpaceOrFillerMap(map));
           if (is_per_context_mode) {
             Address context;
-            if (native_context_inferrer.Infer(isolate, map, object, &context)) {
+            if (native_context_inferrer.Infer(cage_base, map, object,
+                                              &context)) {
               local_marking_worklists.SwitchToContext(context);
             }
           }

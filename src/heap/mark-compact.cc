@@ -2203,7 +2203,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     Tagged<Map> map = object->map(cage_base);
     if (is_per_context_mode) {
       Address context;
-      if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
+      if (native_context_inferrer_.Infer(cage_base, map, object, &context)) {
         local_marking_worklists_->SwitchToContext(context);
       }
     }
