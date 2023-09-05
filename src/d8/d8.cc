@@ -3944,6 +3944,14 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     }
   }
 
+  if (options.dump_system_memory_stats) {
+    int peak_memory_usage = base::OS::GetPeakMemoryUsageKb();
+    std::cout << "System peak memory usage (kb): " << peak_memory_usage
+              << std::endl;
+    // TODO(jdapena): call rusage platform independent call, and extract peak
+    // memory usage to print it
+  }
+
   // Only delete the counters if we are done executing; after calling `quit`,
   // other isolates might still be running and accessing that memory. This is a
   // memory leak, which is OK in this case.
@@ -4935,6 +4943,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--dump-counters-nvp") == 0) {
       i::v8_flags.slow_histograms = true;
       options.dump_counters_nvp = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--dump-system-memory-stats") == 0) {
+      options.dump_system_memory_stats = true;
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
