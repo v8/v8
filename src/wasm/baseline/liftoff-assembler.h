@@ -815,7 +815,7 @@ class LiftoffAssembler : public MacroAssembler {
     kNoSkipWriteBarrier = false
   };
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
-                                 int32_t offset_imm, LiftoffRegister src,
+                                 int32_t offset_imm, Register src,
                                  LiftoffRegList pinned,
                                  SkipWriteBarrier = kNoSkipWriteBarrier);
   void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,

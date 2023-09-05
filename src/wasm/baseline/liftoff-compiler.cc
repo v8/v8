@@ -2641,7 +2641,7 @@ class LiftoffCompiler {
     if (is_reference(kind)) {
       if (global->mutability && global->imported) {
         LiftoffRegList pinned;
-        LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+        Register value = pinned.set(__ PopToRegister(pinned)).gp();
         Register base = no_reg;
         Register offset = no_reg;
         GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
@@ -2655,7 +2655,7 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer,
                                      pinned);
-      LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+      Register value = pinned.set(__ PopToRegister(pinned)).gp();
       __ StoreTaggedPointer(globals_buffer, no_reg,
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
@@ -4585,11 +4585,11 @@ class LiftoffCompiler {
 
   void Store32BitExceptionValue(Register values_array, int* index_in_array,
                                 Register value, LiftoffRegList pinned) {
-    LiftoffRegister tmp_reg = __ GetUnusedRegister(kGpReg, pinned);
+    Register tmp_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
     // Get the lower half word into tmp_reg and extend to a Smi.
     --*index_in_array;
-    __ emit_i32_andi(tmp_reg.gp(), value, 0xffff);
-    ToSmi(tmp_reg.gp());
+    __ emit_i32_andi(tmp_reg, value, 0xffff);
+    ToSmi(tmp_reg);
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
@@ -4597,8 +4597,8 @@ class LiftoffCompiler {
 
     // Get the upper half word into tmp_reg and extend to a Smi.
     --*index_in_array;
-    __ emit_i32_shri(tmp_reg.gp(), value, 16);
-    ToSmi(tmp_reg.gp());
+    __ emit_i32_shri(tmp_reg, value, 16);
+    ToSmi(tmp_reg);
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
@@ -4706,7 +4706,7 @@ class LiftoffCompiler {
             values_array, no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                 *index_in_array),
-            value, pinned);
+            value.gp(), pinned);
         break;
       }
       case wasm::kI8:
@@ -5599,10 +5599,10 @@ class LiftoffCompiler {
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index)));
 
     // Mark the segment as dropped by setting it to the empty fixed array.
-    LiftoffRegister empty_fixed_array =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    Register empty_fixed_array =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFullPointer(
-        empty_fixed_array.gp(), kRootRegister,
+        empty_fixed_array, kRootRegister,
         IsolateData::root_slot_offset(RootIndex::kEmptyFixedArray));
 
     __ StoreTaggedPointer(element_segments, seg_index.gp(), 0,
@@ -8064,7 +8064,7 @@ class LiftoffCompiler {
                         LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
                             LiftoffAssembler::kNoSkipWriteBarrier) {
     if (is_reference(kind)) {
-      __ StoreTaggedPointer(obj, offset_reg, offset, value, pinned,
+      __ StoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
                             skip_write_barrier);
     } else {
       // Primitive kind.
