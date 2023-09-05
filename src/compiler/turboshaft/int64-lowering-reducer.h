@@ -44,7 +44,8 @@ class Int64LoweringReducer : public Next {
         case WordBinopOp::Kind::kBitwiseXor:
           return ReduceBitwiseXor(left, right);
         default:
-          break;
+          FATAL("WordBinopOp kind %d not supported by int64 lowering",
+                static_cast<int>(kind));
       }
     }
     return Next::ReduceWordBinop(left, right, kind, rep);
@@ -66,7 +67,8 @@ class Int64LoweringReducer : public Next {
         case ShiftOp::Kind::kRotateRight:
           return ReduceRotateRight(left, right);
         default:
-          break;
+          FATAL("Shiftop kind %d not supported by int64 lowering",
+                static_cast<int>(kind));
       }
     }
     return Next::ReduceShift(left, right, kind, rep);
@@ -194,7 +196,8 @@ class Int64LoweringReducer : public Next {
         case WordUnaryOp::Kind::kSignExtend16:
           return ReduceSignExtend(__ Word32SignExtend16(Unpack(input).first));
         default:
-          UNIMPLEMENTED();
+          FATAL("WordUnaryOp kind %d not supported by int64 lowering",
+                static_cast<int>(kind));
       }
     }
     return Next::ReduceWordUnary(input, kind, rep);
@@ -235,7 +238,10 @@ class Int64LoweringReducer : public Next {
     if (from == word64 && to == word32 && kind == Kind::kTruncate) {
       return __ Projection(input, 0, word32);
     }
-    UNIMPLEMENTED();
+    std::stringstream str;
+    str << "ChangeOp " << kind << " from " << from << " to " << to
+        << "not supported by int64 lowering";
+    FATAL("%s", str.str().c_str());
   }
 
   OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
