@@ -134,6 +134,9 @@ void LocalHeap::SetUp() {
         ConcurrentAllocator::Context::kNotGC);
   }
 
+  trusted_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+      this, heap_->trusted_space(), ConcurrentAllocator::Context::kNotGC);
+
   DCHECK_NULL(marking_barrier_);
   marking_barrier_ = std::make_unique<MarkingBarrier>(this);
 }
@@ -383,6 +386,7 @@ bool LocalHeap::IsMainThreadOfClientIsolate() const {
 void LocalHeap::FreeLinearAllocationArea() {
   old_space_allocator_->FreeLinearAllocationArea();
   code_space_allocator_->FreeLinearAllocationArea();
+  trusted_space_allocator_->FreeLinearAllocationArea();
 }
 
 void LocalHeap::FreeSharedLinearAllocationArea() {
@@ -394,6 +398,7 @@ void LocalHeap::FreeSharedLinearAllocationArea() {
 void LocalHeap::MakeLinearAllocationAreaIterable() {
   old_space_allocator_->MakeLinearAllocationAreaIterable();
   code_space_allocator_->MakeLinearAllocationAreaIterable();
+  trusted_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
 void LocalHeap::MakeSharedLinearAllocationAreaIterable() {
@@ -405,11 +410,13 @@ void LocalHeap::MakeSharedLinearAllocationAreaIterable() {
 void LocalHeap::MarkLinearAllocationAreaBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   code_space_allocator_->MarkLinearAllocationAreaBlack();
+  trusted_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void LocalHeap::UnmarkLinearAllocationArea() {
   old_space_allocator_->UnmarkLinearAllocationArea();
   code_space_allocator_->UnmarkLinearAllocationArea();
+  trusted_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 void LocalHeap::MarkSharedLinearAllocationAreaBlack() {

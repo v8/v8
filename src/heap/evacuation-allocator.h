@@ -39,6 +39,8 @@ class EvacuationAllocator {
       heap_->shared_space()->MergeCompactionSpace(
           compaction_spaces_.Get(SHARED_SPACE));
     }
+    heap_->trusted_space()->MergeCompactionSpace(
+        compaction_spaces_.Get(TRUSTED_SPACE));
 
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.

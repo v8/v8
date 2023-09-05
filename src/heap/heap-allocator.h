@@ -85,6 +85,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   V8_INLINE OldLargeObjectSpace* shared_lo_space() const;
   V8_INLINE PagedSpace* old_space() const;
   V8_INLINE ReadOnlySpace* read_only_space() const;
+  V8_INLINE PagedSpace* trusted_space() const;
+  V8_INLINE OldLargeObjectSpace* trusted_lo_space() const;
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawLargeInternal(
       int size_in_bytes, AllocationType allocation, AllocationOrigin origin,

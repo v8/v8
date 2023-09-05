@@ -266,7 +266,6 @@ class HeapVerification final : public SpaceVerificationVisitor {
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
   SharedSpace* shared_space() const { return heap_->shared_space(); }
-
   CodeSpace* code_space() const { return heap_->code_space(); }
   LargeObjectSpace* lo_space() const { return heap_->lo_space(); }
   SharedLargeObjectSpace* shared_lo_space() const {
@@ -274,6 +273,10 @@ class HeapVerification final : public SpaceVerificationVisitor {
   }
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
   NewLargeObjectSpace* new_lo_space() const { return heap_->new_lo_space(); }
+  TrustedSpace* trusted_space() const { return heap_->trusted_space(); }
+  TrustedLargeObjectSpace* trusted_lo_space() const {
+    return heap_->trusted_lo_space();
+  }
 
   Isolate* isolate() const { return isolate_; }
   Heap* heap() const { return heap_; }
@@ -336,6 +339,9 @@ void HeapVerification::Verify() {
   VerifySpace(new_lo_space());
   VerifySpace(shared_lo_space());
   VerifySpace(code_lo_space());
+
+  VerifySpace(trusted_space());
+  VerifySpace(trusted_lo_space());
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 

@@ -114,6 +114,8 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     VerifyMarking(heap_->lo_space());
     VerifyMarking(heap_->code_lo_space());
     if (heap_->shared_lo_space()) VerifyMarking(heap_->shared_lo_space());
+    VerifyMarking(heap_->trusted_space());
+    VerifyMarking(heap_->trusted_lo_space());
   }
 
  protected:
@@ -333,6 +335,8 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
     CollectEvacuationCandidates(heap_->shared_space());
   }
 
+  CollectEvacuationCandidates(heap_->trusted_space());
+
   if (heap_->isolate()->AllowsCodeCompaction() &&
       (!heap_->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap_->code_space());
@@ -438,6 +442,8 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->lo_space());
   VerifyMarkbitsAreClean(heap_->code_lo_space());
   VerifyMarkbitsAreClean(heap_->new_lo_space());
+  VerifyMarkbitsAreClean(heap_->trusted_space());
+  VerifyMarkbitsAreClean(heap_->trusted_lo_space());
 }
 
 #endif  // VERIFY_HEAP
@@ -492,7 +498,8 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
 
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == SHARED_SPACE);
+         space->identity() == SHARED_SPACE ||
+         space->identity() == TRUSTED_SPACE);
 
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
@@ -717,6 +724,7 @@ void MarkCompactCollector::VerifyMarking() {
     heap_->old_space()->VerifyLiveBytes();
     heap_->code_space()->VerifyLiveBytes();
     if (heap_->shared_space()) heap_->shared_space()->VerifyLiveBytes();
+    heap_->trusted_space()->VerifyLiveBytes();
     if (v8_flags.minor_ms && heap_->paged_new_space())
       heap_->paged_new_space()->paged_space()->VerifyLiveBytes();
   }
@@ -1369,7 +1377,8 @@ class ProfilingMigrationObserver final : public MigrationObserver {
     if (dest == CODE_SPACE) {
       PROFILE(heap_->isolate(), CodeMoveEvent(InstructionStream::cast(src),
                                               InstructionStream::cast(dst)));
-    } else if (dest == OLD_SPACE && IsBytecodeArray(dst)) {
+    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE) &&
+               IsBytecodeArray(dst)) {
       PROFILE(heap_->isolate(), BytecodeMoveEvent(BytecodeArray::cast(src),
                                                   BytecodeArray::cast(dst)));
     }
@@ -1440,6 +1449,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     DCHECK(base->heap_->AllowedToBeMigrated(src->map(cage_base), src, dest));
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
+    DCHECK_NE(dest, TRUSTED_LO_SPACE);
     if (dest == OLD_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
@@ -1457,6 +1467,16 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
+      dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
+    } else if (dest == TRUSTED_SPACE) {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(IsAligned(size, kTaggedSize));
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      if (mode != MigrationMode::kFast) {
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+      }
+      // In case the object's map gets relocated during GC we load the old map
+      // here. This is fine since they store the same content.
       dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size);
@@ -4864,6 +4884,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
       CollectRememberedSetUpdatingItems(&updating_items,
                                         heap_->shared_lo_space());
     }
+    CollectRememberedSetUpdatingItems(&updating_items, heap_->trusted_space());
+    CollectRememberedSetUpdatingItems(&updating_items,
+                                      heap_->trusted_lo_space());
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
@@ -5196,6 +5219,17 @@ void MarkCompactCollector::Sweep() {
     GCTracer::Scope sweep_scope(
         heap_->tracer(), GCTracer::Scope::MC_SWEEP_SHARED, ThreadKind::kMain);
     StartSweepSpace(heap_->shared_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(
+        heap_->tracer(), GCTracer::Scope::MC_SWEEP_TRUSTED, ThreadKind::kMain);
+    StartSweepSpace(heap_->trusted_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(heap_->tracer(),
+                                GCTracer::Scope::MC_SWEEP_TRUSTED_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap_->trusted_lo_space());
   }
   if (v8_flags.minor_ms && heap_->new_space()) {
     GCTracer::Scope sweep_scope(heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW,

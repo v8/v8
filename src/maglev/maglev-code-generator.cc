@@ -1669,7 +1669,8 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
       local_isolate->factory()->NewDeoptimizationLiteralArray(
           deopt_literals_.size() + inlined_functions_size + 1);
   Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size);
+      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size,
+                                      AllocationType::kOld);
 
   DisallowGarbageCollection no_gc;
 

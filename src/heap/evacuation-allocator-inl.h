@@ -29,6 +29,9 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     case SHARED_SPACE:
       return compaction_spaces_.Get(SHARED_SPACE)
           ->AllocateRaw(object_size, alignment, origin);
+    case TRUSTED_SPACE:
+      return compaction_spaces_.Get(TRUSTED_SPACE)
+          ->AllocateRaw(object_size, alignment, origin);
     default:
       UNREACHABLE();
   }

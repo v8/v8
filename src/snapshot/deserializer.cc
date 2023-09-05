@@ -622,6 +622,8 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
       return AllocationType::kOld;
     case SnapshotSpace::kReadOnlyHeap:
       return AllocationType::kReadOnly;
+    case SnapshotSpace::kTrusted:
+      return AllocationType::kTrusted;
   }
 }
 }  // namespace
@@ -803,10 +805,11 @@ constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
 
 // This generates a case range for all the spaces.
 // clang-format off
-#define CASE_RANGE_ALL_SPACES(bytecode)                               \
-  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):                \
-    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):        \
-    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap)
+#define CASE_RANGE_ALL_SPACES(bytecode)                                \
+  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):                 \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):         \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap): \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kTrusted)
 // clang-format on
 
 template <typename IsolateT>

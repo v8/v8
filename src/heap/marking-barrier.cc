@@ -247,6 +247,11 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
       }
     }
   }
+
+  ActivateSpace(heap->trusted_space(), marking_mode);
+  for (LargePage* p : *heap->trusted_lo_space()) {
+    p->SetOldGenerationPageFlags(marking_mode);
+  }
 }
 
 void DeactivateSpace(PagedSpace* space) {
@@ -292,6 +297,11 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
         p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
       }
     }
+  }
+
+  DeactivateSpace(heap->trusted_space());
+  for (LargePage* p : *heap->trusted_lo_space()) {
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 }  // namespace

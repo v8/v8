@@ -1088,25 +1088,29 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  RO_SPACE,         // Immortal, immovable and immutable objects,
-  NEW_SPACE,        // Young generation space for regular objects collected
-                    // with Scavenger/MinorMS.
-  OLD_SPACE,        // Old generation regular object space.
-  CODE_SPACE,       // Old generation code object space, marked executable.
-  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
-  NEW_LO_SPACE,     // Young generation large object space.
-  LO_SPACE,         // Old generation large object space.
-  CODE_LO_SPACE,    // Old generation large code object space.
-  SHARED_LO_SPACE,  // Space shared between multiple isolates. Optional.
+  RO_SPACE,       // Immortal, immovable and immutable objects,
+  NEW_SPACE,      // Young generation space for regular objects collected
+                  // with Scavenger/MinorMS.
+  OLD_SPACE,      // Old generation regular object space.
+  CODE_SPACE,     // Old generation code object space, marked executable.
+  SHARED_SPACE,   // Space shared between multiple isolates. Optional.
+  TRUSTED_SPACE,  // Space for trusted objects. When the sandbox is enabled,
+                  // this space will be located outside of it so that objects in
+                  // it cannot directly be corrupted by an attacker.
+  NEW_LO_SPACE,   // Young generation large object space.
+  LO_SPACE,       // Old generation large object space.
+  CODE_LO_SPACE,  // Old generation large code object space.
+  SHARED_LO_SPACE,   // Space shared between multiple isolates. Optional.
+  TRUSTED_LO_SPACE,  // Like TRUSTED_SPACE but for large objects.
 
   FIRST_SPACE = RO_SPACE,
-  LAST_SPACE = SHARED_LO_SPACE,
+  LAST_SPACE = TRUSTED_LO_SPACE,
   FIRST_MUTABLE_SPACE = NEW_SPACE,
-  LAST_MUTABLE_SPACE = SHARED_LO_SPACE,
+  LAST_MUTABLE_SPACE = TRUSTED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
-  LAST_GROWABLE_PAGED_SPACE = SHARED_SPACE,
+  LAST_GROWABLE_PAGED_SPACE = TRUSTED_SPACE,
   FIRST_SWEEPABLE_SPACE = NEW_SPACE,
-  LAST_SWEEPABLE_SPACE = SHARED_SPACE
+  LAST_SWEEPABLE_SPACE = TRUSTED_SPACE
 };
 constexpr int kSpaceTagSize = 4;
 static_assert(FIRST_SPACE == 0);
@@ -1127,6 +1131,8 @@ constexpr const char* ToString(AllocationSpace space) {
       return "code_space";
     case AllocationSpace::SHARED_SPACE:
       return "shared_space";
+    case AllocationSpace::TRUSTED_SPACE:
+      return "trusted_space";
     case AllocationSpace::NEW_LO_SPACE:
       return "new_large_object_space";
     case AllocationSpace::LO_SPACE:
@@ -1135,6 +1141,8 @@ constexpr const char* ToString(AllocationSpace space) {
       return "code_large_object_space";
     case AllocationSpace::SHARED_LO_SPACE:
       return "shared_large_object_space";
+    case AllocationSpace::TRUSTED_LO_SPACE:
+      return "trusted_large_object_space";
   }
 }
 
@@ -1150,6 +1158,7 @@ enum class AllocationType : uint8_t {
   kReadOnly,   // Object allocated in RO_SPACE.
   kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap.
   kSharedMap,  // Map object in OLD_SPACE in the shared heap.
+  kTrusted,    // Object allocated in TRUSTED_SPACE or TRUSTED_LO_SPACE.
 };
 
 constexpr const char* ToString(AllocationType kind) {
@@ -1168,6 +1177,8 @@ constexpr const char* ToString(AllocationType kind) {
       return "SharedOld";
     case AllocationType::kSharedMap:
       return "SharedMap";
+    case AllocationType::kTrusted:
+      return "Trusted";
   }
 }
 

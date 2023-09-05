@@ -51,6 +51,14 @@ ReadOnlySpace* HeapAllocator::read_only_space() const {
   return read_only_space_;
 }
 
+PagedSpace* HeapAllocator::trusted_space() const {
+  return static_cast<PagedSpace*>(spaces_[TRUSTED_SPACE]);
+}
+
+OldLargeObjectSpace* HeapAllocator::trusted_lo_space() const {
+  return static_cast<OldLargeObjectSpace*>(spaces_[TRUSTED_LO_SPACE]);
+}
+
 bool HeapAllocator::CanAllocateInReadOnlySpace() const {
   return read_only_space()->writable();
 }
@@ -125,6 +133,10 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
                                                           alignment, origin);
           break;
+        case AllocationType::kTrusted:
+          allocation =
+              trusted_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          break;
       }
     }
   }
@@ -169,6 +181,9 @@ AllocationResult HeapAllocator::AllocateRaw(int size_in_bytes,
     case AllocationType::kSharedOld:
       return AllocateRaw<AllocationType::kSharedOld>(size_in_bytes, origin,
                                                      alignment);
+    case AllocationType::kTrusted:
+      return AllocateRaw<AllocationType::kTrusted>(size_in_bytes, origin,
+                                                   alignment);
   }
   UNREACHABLE();
 }
@@ -189,6 +204,7 @@ AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();

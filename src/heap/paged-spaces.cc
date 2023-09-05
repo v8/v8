@@ -608,7 +608,7 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == SHARED_SPACE);
+         identity() == SHARED_SPACE || identity() == TRUSTED_SPACE);
 
   size_t new_node_size = 0;
   Tagged<FreeSpace> new_node =
@@ -1004,7 +1004,8 @@ void DropFreeListCategories(Page* page, FreeList* free_list) {
 void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == SHARED_SPACE || identity() == NEW_SPACE);
+         identity() == SHARED_SPACE || identity() == NEW_SPACE ||
+         identity() == TRUSTED_SPACE);
   DCHECK_IMPLIES(
       identity() == NEW_SPACE,
       heap_->IsMainThread() || (heap_->IsSharedMainThread() &&

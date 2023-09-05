@@ -127,6 +127,8 @@ class SharedSpace;
 class Space;
 class StressScavengeObserver;
 class TimedHistogram;
+class TrustedLargeObjectSpace;
+class TrustedSpace;
 class WeakObjectRetainer;
 
 enum class ClearRecordedSlots { kYes, kNo };
@@ -760,6 +762,10 @@ class Heap final {
   SharedLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
+  TrustedSpace* trusted_space() const { return trusted_space_; }
+  TrustedLargeObjectSpace* trusted_lo_space() const {
+    return trusted_lo_space_;
+  }
 
   PagedSpace* shared_allocation_space() const {
     return shared_allocation_space_;
@@ -2099,6 +2105,8 @@ class Heap final {
   NewLargeObjectSpace* new_lo_space_ = nullptr;
   SharedLargeObjectSpace* shared_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
+  TrustedSpace* trusted_space_ = nullptr;
+  TrustedLargeObjectSpace* trusted_lo_space_ = nullptr;
 
   // Either pointer to owned shared spaces or pointer to unowned shared spaces
   // in another isolate.

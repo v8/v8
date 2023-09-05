@@ -783,11 +783,12 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
 
 // static
 template <class T>
-Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length) {
+Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
+                                     AllocationType allocation) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(byte_length, AllocationType::kOld));
+      isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 template <class T>

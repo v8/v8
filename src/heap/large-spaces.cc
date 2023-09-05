@@ -504,5 +504,15 @@ AllocationResult SharedLargeObjectSpace::AllocateRawBackground(
                                                     NOT_EXECUTABLE);
 }
 
+TrustedLargeObjectSpace::TrustedLargeObjectSpace(Heap* heap)
+    : OldLargeObjectSpace(heap, TRUSTED_LO_SPACE) {}
+
+AllocationResult TrustedLargeObjectSpace::AllocateRawBackground(
+    LocalHeap* local_heap, int object_size) {
+  DCHECK(!v8_flags.enable_third_party_heap);
+  return OldLargeObjectSpace::AllocateRawBackground(local_heap, object_size,
+                                                    NOT_EXECUTABLE);
+}
+
 }  // namespace internal
 }  // namespace v8

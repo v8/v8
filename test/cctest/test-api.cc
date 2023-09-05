@@ -16871,10 +16871,14 @@ TEST(GetHeapSpaceStatistics) {
   v8::HandleScope scope(isolate);
   v8::HeapStatistics heap_statistics;
 
-  // Force allocation in LO_SPACE so that every space has non-zero size.
+  // Force allocation in LO_SPACE and TRUSTED_LO_SPACE so that every space has
+  // non-zero size.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024,
                                                        i::AllocationType::kOld);
+  USE(unused);
+  unused = i_isolate->factory()->TryNewFixedArray(512 * 1024,
+                                                  i::AllocationType::kTrusted);
   USE(unused);
 
   isolate->GetHeapStatistics(&heap_statistics);

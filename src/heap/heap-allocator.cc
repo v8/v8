@@ -45,6 +45,8 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
     case AllocationType::kSharedOld:
       return shared_lo_space()->AllocateRawBackground(
           heap_->main_thread_local_heap(), size_in_bytes);
+    case AllocationType::kTrusted:
+      return trusted_lo_space()->AllocateRaw(size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -61,6 +63,7 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kOld:
     case AllocationType::kCode:
     case AllocationType::kMap:
+    case AllocationType::kTrusted:
       // OLD_SPACE indicates full GC.
       return OLD_SPACE;
     case AllocationType::kReadOnly:

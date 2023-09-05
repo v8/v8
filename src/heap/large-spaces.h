@@ -164,6 +164,15 @@ class SharedLargeObjectSpace : public OldLargeObjectSpace {
   AllocateRawBackground(LocalHeap* local_heap, int object_size);
 };
 
+// Similar to the TrustedSpace, but for large objects.
+class TrustedLargeObjectSpace : public OldLargeObjectSpace {
+ public:
+  explicit TrustedLargeObjectSpace(Heap* heap);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawBackground(LocalHeap* local_heap, int object_size);
+};
+
 class NewLargeObjectSpace : public LargeObjectSpace {
  public:
   NewLargeObjectSpace(Heap* heap, size_t capacity);

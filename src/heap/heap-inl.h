@@ -189,7 +189,8 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
 }
 
 PagedSpace* Heap::paged_space(int idx) const {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE ||
+         idx == TRUSTED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 
@@ -395,7 +396,8 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
     }
 
     case OLD_SPACE:
-    case CODE_SPACE: {
+    case CODE_SPACE:
+    case TRUSTED_SPACE: {
       PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
       base::SharedMutexGuard<base::kShared> guard(
           paged_space->linear_area_lock());
@@ -407,6 +409,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
 
     case LO_SPACE:
     case CODE_LO_SPACE:
+    case TRUSTED_LO_SPACE:
     case NEW_LO_SPACE: {
       LargeObjectSpace* large_space =
           static_cast<LargeObjectSpace*>(base_space);

@@ -673,6 +673,9 @@ assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
 
+assert(!v8_enable_sandbox || !v8_enable_third_party_heap,
+       "The sandbox is incompatible with the third-party heap")
+
 assert(!v8_code_pointer_sandboxing || v8_enable_sandbox,
        "Code pointer sandboxing requires the sandbox")
 

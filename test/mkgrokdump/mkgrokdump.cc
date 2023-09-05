@@ -201,6 +201,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         if (s->identity() == i::CODE_SPACE) {
           continue;
         }
+        // Trusted space is allocated in a different part of the address space,
+        // so skip it as well.
+        if (s->identity() == i::TRUSTED_SPACE) {
+          continue;
+        }
         DumpSpaceFirstPageAddress(out, s);
       }
       DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());

@@ -519,7 +519,9 @@ class CompactionSpaceCollection : public Malloced {
         code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
                     compaction_space_kind),
         shared_space_(heap, SHARED_SPACE, Executability::NOT_EXECUTABLE,
-                      compaction_space_kind) {}
+                      compaction_space_kind),
+        trusted_space_(heap, TRUSTED_SPACE, Executability::NOT_EXECUTABLE,
+                       compaction_space_kind) {}
 
   CompactionSpace* Get(AllocationSpace space) {
     switch (space) {
@@ -529,6 +531,8 @@ class CompactionSpaceCollection : public Malloced {
         return &code_space_;
       case SHARED_SPACE:
         return &shared_space_;
+      case TRUSTED_SPACE:
+        return &trusted_space_;
       default:
         UNREACHABLE();
     }
@@ -539,6 +543,7 @@ class CompactionSpaceCollection : public Malloced {
   CompactionSpace old_space_;
   CompactionSpace code_space_;
   CompactionSpace shared_space_;
+  CompactionSpace trusted_space_;
 };
 
 // -----------------------------------------------------------------------------
@@ -571,8 +576,8 @@ class OldSpace final : public PagedSpace {
 
 class CodeSpace final : public PagedSpace {
  public:
-  // Creates an old space object. The constructor does not allocate pages
-  // from OS.
+  // Creates a code space object. The constructor does not allocate pages from
+  // OS.
   explicit CodeSpace(Heap* heap)
       : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
                    paged_allocation_info_) {}
@@ -586,10 +591,39 @@ class CodeSpace final : public PagedSpace {
 
 class SharedSpace final : public PagedSpace {
  public:
-  // Creates an old space object. The constructor does not allocate pages
-  // from OS.
+  // Creates a shared space object. The constructor does not allocate pages from
+  // OS.
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList(), allocation_info) {}
+
+  static bool IsAtPageStart(Address addr) {
+    return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
+           MemoryChunkLayout::ObjectStartOffsetInDataPage();
+  }
+
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
+    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
+    return external_backing_store_bytes_[static_cast<int>(type)];
+  }
+
+ private:
+  LinearAllocationArea allocation_info;
+};
+
+// -----------------------------------------------------------------------------
+// Trusted space.
+// Essentially another old space that, when the sandbox is enabled, will be
+// located outside of the sandbox. As such an attacker cannot corrupt objects
+// located in this space and therefore these objects can be considered trusted.
+
+class TrustedSpace final : public PagedSpace {
+ public:
+  // Creates a trusted space object. The constructor does not allocate pages
+  // from OS.
+  explicit TrustedSpace(Heap* heap)
+      : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), allocation_info) {}
 
   static bool IsAtPageStart(Address addr) {
