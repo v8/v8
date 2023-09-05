@@ -429,17 +429,21 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  // None of the code below uses the {kScratchRegister} (in particular the
+  // {CallRecordWriteStubSaveRegisters} just emits a near call). Hence we can
+  // use it as scratch register here.
   Label exit;
-  CheckPageFlag(dst_addr, scratch,
+  CheckPageFlag(dst_addr, kScratchRegister,
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
                 Label::kNear);
   JumpIfSmi(src, &exit, Label::kNear);
-  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
-                zero, &exit, Label::kNear);
-  leaq(scratch, dst_op);
+  CheckPageFlag(src, kScratchRegister,
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
+                Label::kNear);
+  leaq(kScratchRegister, dst_op);
 
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+  CallRecordWriteStubSaveRegisters(dst_addr, kScratchRegister,
+                                   SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
