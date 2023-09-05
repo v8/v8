@@ -474,7 +474,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  liftoff::CacheStatePreservingTempRegisters temps{this, pinned};
+  Register scratch = temps.Acquire();
+
   Label exit;
   CheckPageFlag(dst_addr, scratch,
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
@@ -596,8 +598,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         LiftoffRegList pinned_byte = pinned | LiftoffRegList{dst_addr};
         if (offset_reg != no_reg) pinned_byte.set(offset_reg);
         LiftoffRegList candidates = liftoff::kByteRegs.MaskOut(pinned_byte);
-        if (!candidates.is_empty()) {
-          Register byte_src = GetUnusedRegister(candidates).gp();
+        if (cache_state_.has_unused_register(candidates)) {
+          Register byte_src = cache_state_.unused_register(candidates).gp();
           mov(byte_src, src.gp());
           mov_b(dst_op, byte_src);
         } else {

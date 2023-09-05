@@ -848,10 +848,15 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   static_assert(kTaggedSize == kInt32Size);
+  UseScratchRegisterScope temps{this};
   Register actual_offset_reg = offset_reg;
   if (offset_reg != no_reg && offset_imm != 0) {
     if (cache_state()->is_used(LiftoffRegister(offset_reg))) {
-      actual_offset_reg = GetUnusedRegister(kGpReg, pinned).gp();
+      // The code below only needs a scratch register if the {MemOperand} given
+      // to {str} has an offset outside the uint12 range. After doing the
+      // addition below we will not pass an immediate offset to {str} though, so
+      // we can use the scratch register here.
+      actual_offset_reg = temps.Acquire();
     }
     add(actual_offset_reg, offset_reg, Operand(offset_imm));
   }
@@ -895,7 +900,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              bool /* is_store_mem */, bool /* i64_offset */) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
-  UseScratchRegisterScope temps(this);
+  UseScratchRegisterScope temps{this};
   if (type.value() == StoreType::kF64Store) {
     Register actual_dst_addr = liftoff::CalculateActualAddress(
         this, &temps, dst_addr, offset_reg, offset_imm);
@@ -912,14 +917,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   } else if (type.value() == StoreType::kF32Store) {
     // TODO(arm): Use vst1 for f32 when implemented in simulator as used for
     // f64. It supports unaligned access.
-    // CalculateActualAddress will only not use a scratch register if the
-    // following condition holds, otherwise another register must be
-    // retrieved.
-    Register scratch = (offset_reg == no_reg && offset_imm == 0)
-                           ? temps.Acquire()
-                           : GetUnusedRegister(kGpReg, pinned).gp();
     Register actual_dst_addr = liftoff::CalculateActualAddress(
         this, &temps, dst_addr, offset_reg, offset_imm);
+    liftoff::CacheStatePreservingTempRegisters liftoff_temps{this, pinned};
+    Register scratch =
+        temps.CanAcquire() ? temps.Acquire() : liftoff_temps.Acquire();
     vmov(scratch, liftoff::GetFloatRegister(src.fp()));
     str(scratch, MemOperand(actual_dst_addr));
   } else {

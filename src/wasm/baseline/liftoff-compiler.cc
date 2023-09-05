@@ -8159,31 +8159,11 @@ class LiftoffCompiler {
     }
     __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
 
+    FREEZE_STATE(frozen_for_conditional_jumps);
     Label loop, done;
     __ bind(&loop);
-    {
-      // This is subtle: {StoreObjectField} can request a temp register, which
-      // is precisely what {FREEZE_STATE} (with non-trivial live range) is
-      // supposed to guard against. In this case it's fine though, because we
-      // are explicitly requesting {unused_and_unpinned} here, therefore we know
-      // a register is available, so requesting a temp register won't actually
-      // cause any state changes.
-      // TODO(jkummerow): See if we can make this more elegant, e.g. by passing
-      // a temp register to {StoreObjectField}.
-#if V8_TARGET_ARCH_IA32
-      bool store_needs_additional_register = elem_kind != kI64;
-#else
-      bool store_needs_additional_register = true;
-#endif
-      if (store_needs_additional_register) {
-        LiftoffRegister unused_and_unpinned =
-            __ GetUnusedRegister(kGpReg, pinned);
-        USE(unused_and_unpinned);
-      }
-      FREEZE_STATE(in_this_case_its_fine);
-      __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
-                        end_offset.gp(), in_this_case_its_fine);
-    }
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
+                      end_offset.gp(), frozen_for_conditional_jumps);
     StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind,
                      skip_write_barrier);
     __ emit_i32_addi(offset.gp(), offset.gp(), value_kind_size(elem_kind));
