@@ -1085,8 +1085,8 @@ uint32_t V8HeapExplorer::EstimateObjectsCount() {
 
 #ifdef V8_TARGET_BIG_ENDIAN
 namespace {
-int AdjustEmbedderFieldIndex(HeapObject heap_obj, int field_index) {
-  Tagged<Map> map = heap_obj.map();
+int AdjustEmbedderFieldIndex(Tagged<HeapObject> heap_obj, int field_index) {
+  Tagged<Map> map = heap_obj->map();
   if (JSObject::MayHaveEmbedderFields(map)) {
     int emb_start_index = (JSObject::GetEmbedderFieldsStartOffset(map) +
                            EmbedderDataSlot::kTaggedPayloadOffset) /
