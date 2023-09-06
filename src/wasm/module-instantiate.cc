@@ -927,7 +927,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
         module_object->shared_native_module();
     // Post tasks for lazy compilation metrics before we call the start
     // function.
-    if (v8_flags.wasm_lazy_compilation &&
+    if (v8_flags.wasm_lazy_compilation && !v8_flags.single_threaded &&
         native_module->ShouldLazyCompilationMetricsBeReported()) {
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(

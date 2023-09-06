@@ -1367,6 +1367,7 @@ DEFINE_INT(
 DEFINE_BOOL(
     experimental_wasm_pgo_to_file, false,
     "experimental: dump Wasm PGO information to a local file (for testing)")
+DEFINE_NEG_IMPLICATION(experimental_wasm_pgo_to_file, single_threaded)
 DEFINE_BOOL(
     experimental_wasm_pgo_from_file, false,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
