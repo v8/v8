@@ -13,6 +13,7 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -3960,7 +3961,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
   if (CanCover(user, value)) {
     const Operation& value_op = this->Get(value);
     if (const EqualOp* equal = value_op.TryCast<EqualOp>()) {
-      switch (equal->rep.value()) {
+      RegisterRepresentation equal_rep = equal->rep;
+      if (equal_rep == RegisterRepresentation::Tagged()) {
+        equal_rep = COMPRESS_POINTERS_BOOL
+                        ? RegisterRepresentation::Word32()
+                        : RegisterRepresentation::PointerSized();
+      }
+      switch (equal_rep.value()) {
         case RegisterRepresentation::Word32():
           cont->OverwriteAndNegateIfEqual(kEqual);
           return VisitWord32EqualImpl(this, value, cont);
@@ -3983,7 +3990,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         case RegisterRepresentation::Float32():
           cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
           return VisitFloat32Compare(this, value, cont);
-
         case RegisterRepresentation::Float64():
           cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
           return VisitFloat64Compare(this, value, cont);
