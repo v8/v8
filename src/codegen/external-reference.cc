@@ -41,6 +41,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-external-refs.h"
+#include "src/wasm/wasm-js.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -336,6 +337,14 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 
 }  // namespace
 
+// .. for functions that will not be called through CallCFunction. For these,
+// all signatures are valid.
+#define RAW_FUNCTION_REFERENCE(Name, Target)         \
+  ExternalReference ExternalReference::Name() {      \
+    return ExternalReference(FUNCTION_ADDR(Target)); \
+  }
+
+// .. for functions that will be called through CallCFunction.
 #define FUNCTION_REFERENCE(Name, Target)                                   \
   ExternalReference ExternalReference::Name() {                            \
     static_assert(IsValidExternalReferenceType<decltype(&Target)>::value); \
@@ -520,6 +529,12 @@ IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_fill, wasm::array_fill_wrapper)
 IF_WASM(FUNCTION_REFERENCE_WITH_TYPE, wasm_string_to_f64,
         wasm::flat_string_to_f64, BUILTIN_FP_POINTER_CALL)
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
+WASM_JS_EXTERNAL_REFERENCE_LIST(V)
+#undef V
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -1727,6 +1742,7 @@ void abort_with_reason(int reason) {
   UNREACHABLE();
 }
 
+#undef RAW_FUNCTION_REFERENCE
 #undef FUNCTION_REFERENCE
 #undef FUNCTION_REFERENCE_WITH_TYPE
 
