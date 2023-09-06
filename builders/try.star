@@ -205,6 +205,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_asan_sandbox_compile_rel",
+    bucket = "try",
+    cq_properties = CQ.EXP_100_PERCENT,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+try_builder(
     name = "v8_linux64_shared_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
