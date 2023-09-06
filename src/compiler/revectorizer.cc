@@ -348,12 +348,14 @@ class EffectChainIterator {
     return node_;
   }
 
-  Node* Prev() { return prev_; }
+  Node* Prev() {
+    DCHECK_NE(prev_, nullptr);
+    return prev_;
+  }
 
   Node* Next() { return EffectInputOf(node_); }
 
   void Set(Node* node) {
-    DCHECK_NOT_NULL(prev_);
     node_ = node;
     prev_ = nullptr;
   }
@@ -370,24 +372,11 @@ class EffectChainIterator {
   Node* prev_;
 };
 
-void ReplaceEffectInput(Node* target, Node* value) {
-  DCHECK(IsSupportedLoad(target));
-  DCHECK(IsSupportedLoad(value));
-  target->ReplaceInput(2, value);
-}
-
-void Swap(EffectChainIterator& dest, EffectChainIterator& src) {
-  DCHECK_NE(dest.Prev(), nullptr);
-  DCHECK_NE(src.Prev(), nullptr);
-  ReplaceEffectInput(dest.Prev(), *src);
-  ReplaceEffectInput(src.Prev(), *dest);
-  Node* temp = dest.Next();
-  ReplaceEffectInput(*dest, src.Next());
-  ReplaceEffectInput(*src, temp);
-
-  temp = *dest;
-  dest.Set(*src);
-  src.Set(temp);
+void InsertAfter(EffectChainIterator& dest, EffectChainIterator& src) {
+  Node* dest_next = dest.Next();
+  NodeProperties::ReplaceEffectInput(src.Prev(), src.Next());
+  NodeProperties::ReplaceEffectInput(*dest, *src);
+  NodeProperties::ReplaceEffectInput(*src, dest_next);
 }
 
 }  // anonymous namespace
@@ -549,10 +538,12 @@ void SLPTree::TryReduceLoadChain(const ZoneVector<Node*>& loads) {
     while (SameBasicBlock(*it, load) && IsSupportedLoad(*it)) {
       if (std::find(loads.begin(), loads.end(), *it) != loads.end()) {
         visited.insert(*it);
-        dest.Advance();
-        if (*dest != *it) {
-          Swap(dest, it);
+        if (dest.Next() != *it) {
+          Node* prev = it.Prev();
+          InsertAfter(dest, it);
+          it.Set(prev);
         }
+        dest.Advance();
       }
       it.Advance();
     }
@@ -567,6 +558,11 @@ bool SLPTree::IsSideEffectFreeLoad(const ZoneVector<Node*>& node_group) {
         node_group[1]->op()->mnemonic());
 
   TryReduceLoadChain(node_group);
+  // We only allows Loads that are connected by effect edges.
+  if (node_group[0] != node_group[1] &&
+      NodeProperties::GetEffectInput(node_group[0]) != node_group[1] &&
+      NodeProperties::GetEffectInput(node_group[1]) != node_group[0])
+    return false;
 
   std::stack<Node*> to_visit;
   std::unordered_set<Node*> visited;
