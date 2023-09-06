@@ -2095,7 +2095,7 @@ class AssemblerOpInterface {
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::NeedsFrameState && Descriptor::NeedsContext,
+  std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
@@ -2105,12 +2105,12 @@ class AssemblerOpInterface {
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        Descriptor::Effects, frame_state, context, args);
+        Descriptor::kEffects, frame_state, context, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::NeedsFrameState && Descriptor::NeedsContext,
+  std::enable_if_t<!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
@@ -2119,12 +2119,12 @@ class AssemblerOpInterface {
     }
     DCHECK(context.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        Descriptor::Effects, {}, context, args);
+        Descriptor::kEffects, {}, context, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
+  std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex frame_state,
               const typename Descriptor::arguments_t& args) {
@@ -2133,21 +2133,21 @@ class AssemblerOpInterface {
     }
     DCHECK(frame_state.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        Descriptor::Effects, frame_state, {}, args);
+        Descriptor::kEffects, frame_state, {}, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
+  std::enable_if_t<!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        Descriptor::Effects, {}, {}, args);
+        Descriptor::kEffects, {}, {}, args);
   }
 
   template <typename Ret, typename Args>
@@ -2325,7 +2325,7 @@ class AssemblerOpInterface {
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::NeedsFrameState, typename Descriptor::result_t>
+  std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -2334,12 +2334,12 @@ class AssemblerOpInterface {
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(stack().output_graph().graph_zone()), frame_state,
         context, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::NeedsFrameState, typename Descriptor::result_t>
+  std::enable_if_t<!Descriptor::kNeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -2347,7 +2347,7 @@ class AssemblerOpInterface {
     }
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::Function,
+        isolate, Descriptor::kFunction,
         Descriptor::Create(stack().output_graph().graph_zone()), {}, context,
         args);
   }
