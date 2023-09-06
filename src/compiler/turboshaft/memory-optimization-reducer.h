@@ -16,7 +16,8 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
+const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
+                                                        Isolate* isolate);
 
 // The main purpose of memory optimization is folding multiple allocations into
 // one. For this, the first allocation reserves additional space, that is
@@ -134,10 +135,29 @@ class MemoryOptimizationReducer : public Next {
       type = AllocationType::kOld;
     }
 
-    OpIndex top_address = Asm().ExternalConstant(
-        type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_top_address(isolate_)
-            : ExternalReference::old_space_allocation_top_address(isolate_));
+    OpIndex top_address;
+    if (isolate_ != nullptr) {
+      top_address = Asm().ExternalConstant(
+          type == AllocationType::kYoung
+              ? ExternalReference::new_space_allocation_top_address(isolate_)
+              : ExternalReference::old_space_allocation_top_address(isolate_));
+    } else {
+      // Wasm mode: producing isolate-independent code, loading the isolate
+      // address at runtime.
+#if V8_ENABLE_WEBASSEMBLY
+      OpIndex instance_node = __ Parameter(wasm::kWasmInstanceParameterIndex,
+                                           RegisterRepresentation::Tagged());
+      int top_address_offset =
+          type == AllocationType::kYoung
+              ? WasmInstanceObject::kNewAllocationTopAddressOffset
+              : WasmInstanceObject::kOldAllocationTopAddressOffset;
+      top_address =
+          __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::PointerSized(), top_address_offset);
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
 
     if (analyzer_->IsFoldedAllocation(Asm().current_operation_origin())) {
       DCHECK_NE(Asm().GetVariable(top(type)), OpIndex::Invalid());
@@ -155,23 +175,76 @@ class MemoryOptimizationReducer : public Next {
         Asm().LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
 
     OpIndex allocate_builtin;
-    if (type == AllocationType::kYoung) {
-      allocate_builtin =
-          Asm().BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
+    if (isolate_ != nullptr) {
+      if (type == AllocationType::kYoung) {
+        allocate_builtin =
+            Asm().BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
+      } else {
+        allocate_builtin =
+            Asm().BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
+      }
     } else {
-      allocate_builtin =
-          Asm().BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
+      // This lowering is used by Wasm, where we compile isolate-independent
+      // code. Builtin calls simply encode the target builtin ID, which will
+      // be patched to the builtin's address later.
+#if V8_ENABLE_WEBASSEMBLY
+      Builtin builtin;
+      if (type == AllocationType::kYoung) {
+        builtin = Builtin::kAllocateInYoungGeneration;
+      } else {
+        builtin = Builtin::kAllocateInOldGeneration;
+      }
+      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
+#else
+      UNREACHABLE();
+#endif
     }
 
     Block* call_runtime = Asm().NewBlock();
     Block* done = Asm().NewBlock();
 
-    OpIndex limit_address = Asm().ExternalConstant(
-        type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_limit_address(isolate_)
-            : ExternalReference::old_space_allocation_limit_address(isolate_));
+    OpIndex limit_address = GetLimitAddress(type);
     OpIndex limit =
         Asm().LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+
+    // If the allocation size is not statically known or is known to be larger
+    // than kMaxRegularHeapObjectSize, do not update {top(type)} in case of a
+    // runtime call. This is needed because we cannot allocation-fold large and
+    // normal-sized objects.
+    uint64_t constant_size{};
+    if (!__ MatchWordConstant(size, WordRepresentation::PointerSized(),
+                              &constant_size) ||
+        constant_size > kMaxRegularHeapObjectSize) {
+      Variable result =
+          Asm().NewLoopInvariantVariable(RegisterRepresentation::Tagged());
+      if (!constant_size) {
+        // Check if we can do bump pointer allocation here.
+        OpIndex top_value = Asm().GetVariable(top(type));
+        Asm().SetVariable(
+            result, Asm().BitcastWordPtrToTagged(Asm().WordPtrAdd(
+                        top_value, Asm().IntPtrConstant(kHeapObjectTag))));
+        OpIndex new_top = Asm().PointerAdd(top_value, size);
+        Asm().GotoIfNot(LIKELY(Asm().UintPtrLessThan(new_top, limit)),
+                        call_runtime);
+        Asm().GotoIfNot(
+            LIKELY(Asm().UintPtrLessThan(
+                size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
+            call_runtime);
+        Asm().SetVariable(top(type), new_top);
+        Asm().StoreOffHeap(top_address, new_top,
+                           MemoryRepresentation::PointerSized());
+        Asm().Goto(done);
+      }
+      if (constant_size || Asm().Bind(call_runtime)) {
+        Asm().SetVariable(result, Asm().Call(allocate_builtin, {size},
+                                             AllocateBuiltinDescriptor()));
+        Asm().Goto(done);
+      }
+
+      Asm().BindReachable(done);
+      return Asm().GetVariable(result);
+    }
 
     OpIndex reservation_size;
     if (auto c = analyzer_->ReservedSize(Asm().current_operation_origin())) {
@@ -218,6 +291,7 @@ class MemoryOptimizationReducer : public Next {
   OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
                                         ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
+    DCHECK(isolate_ != nullptr);
     // Decode loaded external pointer.
     //
     // Here we access the external pointer table through an ExternalReference.
@@ -271,9 +345,37 @@ class MemoryOptimizationReducer : public Next {
   const TSCallDescriptor* AllocateBuiltinDescriptor() {
     if (allocate_builtin_descriptor_ == nullptr) {
       allocate_builtin_descriptor_ =
-          CreateAllocateBuiltinDescriptor(Asm().graph_zone());
+          CreateAllocateBuiltinDescriptor(Asm().graph_zone(), isolate_);
     }
     return allocate_builtin_descriptor_;
+  }
+
+  OpIndex GetLimitAddress(AllocationType type) {
+    OpIndex limit_address;
+    if (isolate_ != nullptr) {
+      limit_address = Asm().ExternalConstant(
+          type == AllocationType::kYoung
+              ? ExternalReference::new_space_allocation_limit_address(isolate_)
+              : ExternalReference::old_space_allocation_limit_address(
+                    isolate_));
+    } else {
+      // Wasm mode: producing isolate-independent code, loading the isolate
+      // address at runtime.
+#if V8_ENABLE_WEBASSEMBLY
+      OpIndex instance_node = __ Parameter(wasm::kWasmInstanceParameterIndex,
+                                           RegisterRepresentation::Tagged());
+      int limit_address_offset =
+          type == AllocationType::kYoung
+              ? WasmInstanceObject::kNewAllocationLimitAddressOffset
+              : WasmInstanceObject::kOldAllocationLimitAddressOffset;
+      limit_address =
+          __ Load(instance_node, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::PointerSized(), limit_address_offset);
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    return limit_address;
   }
 };
 

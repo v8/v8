@@ -24,6 +24,7 @@ namespace v8::internal::wasm {
 
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
+using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
 using compiler::TrapId;
@@ -43,12 +44,14 @@ using compiler::turboshaft::OperationMatcher;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
+using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tagged;
 using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::TSCallDescriptor;
+using compiler::turboshaft::Uninitialized;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
@@ -1780,12 +1783,15 @@ class TurboshaftGraphBuildingInterface {
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {
-    Bailout(decoder);
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
+                              initial_value.op);
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, Value* result) {
-    Bailout(decoder);
+    OpIndex initial_value = OpIndex::Invalid();
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
+                              initial_value);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -1925,7 +1931,14 @@ class TurboshaftGraphBuildingInterface {
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
                  const Value& array, const Value& index, const Value& value,
                  const Value& length) {
-    Bailout(decoder);
+    const bool emit_write_barrier =
+        imm.array_type->element_type().is_reference();
+    BoundsCheckArrayWithLength(array.op, index.op, length.op,
+                               array.type.is_nullable()
+                                   ? compiler::kWithNullCheck
+                                   : compiler::kWithoutNullCheck);
+    ArrayFillImpl(array.op, index.op, value.op, length.op, imm.array_type,
+                  emit_write_barrier);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -4625,6 +4638,138 @@ class TurboshaftGraphBuildingInterface {
     END_IF
     // Narrow type for the successful cast fallthrough branch.
     Forward(decoder, object, value_on_fallthrough);
+  }
+
+  V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,
+                             const ArrayType* array_type, OpIndex length,
+                             OpIndex initial_value) {
+    asm_.TrapIfNot(
+        asm_.Uint32LessThanOrEqual(
+            length, asm_.Word32Constant(WasmArray::MaxLength(array_type))),
+        OpIndex::Invalid(), wasm::TrapId::kTrapArrayTooLarge);
+    wasm::ValueType element_type = array_type->element_type();
+
+    // RoundUp(length * value_size, kObjectAlignment) =
+    //   RoundDown(length * value_size + kObjectAlignment - 1,
+    //             kObjectAlignment);
+    V<Word32> padded_length = asm_.Word32BitwiseAnd(
+        asm_.Word32Add(
+            asm_.Word32Mul(length,
+                           asm_.Word32Constant(element_type.value_kind_size())),
+            asm_.Word32Constant(int32_t{kObjectAlignment - 1})),
+        asm_.Word32Constant(int32_t{-kObjectAlignment}));
+    Uninitialized<HeapObject> a = asm_.Allocate(
+        asm_.ChangeUint32ToUintPtr(asm_.Word32Add(
+            padded_length, asm_.Word32Constant(WasmArray::kHeaderSize))),
+        AllocationType::kYoung);
+
+    // Initialize the array header.
+    V<Map> rtt = asm_.RttCanon(instance_node_, index);
+    // TODO(14108): The map and empty fixed array initialization should be an
+    // immutable store.
+    asm_.InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                         rtt);
+    asm_.InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                         LOAD_ROOT(EmptyFixedArray));
+    asm_.InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
+
+    // TODO(14108): Array initialization isn't finished here but we need the
+    // OpIndex and not some Uninitialized<HeapObject>.
+    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    ArrayFillImpl(
+        array, asm_.Word32Constant(0),
+        initial_value.valid() ? initial_value : DefaultValue(element_type),
+        length, array_type, false);
+    return array;
+  }
+
+  bool IsSimd128ZeroConstant(OpIndex op) {
+    const Simd128ConstantOp* s128_op =
+        asm_.output_graph().Get(op).TryCast<Simd128ConstantOp>();
+    return s128_op && s128_op->IsZero();
+  }
+
+  void ArrayFillImpl(V<HeapObject> array, OpIndex index, OpIndex value,
+                     OpIndex length, const wasm::ArrayType* type,
+                     bool emit_write_barrier) {
+    wasm::ValueType element_type = type->element_type();
+
+    // Initialize the array. Use an external function for large arrays with
+    // null/number initializer. Use a loop for small arrays and reference arrays
+    // with a non-null initial value.
+    Label<> done(&asm_);
+    LoopLabel<Word32> loop(&asm_);
+
+    // The builtin cannot handle s128 values other than 0.
+    if (!(element_type == wasm::kWasmS128 && !IsSimd128ZeroConstant(value))) {
+      constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
+      GOTO_IF(asm_.Uint32LessThan(
+                  length, asm_.Word32Constant(kArrayNewMinimumSizeForMemSet)),
+              loop, index);
+      OpIndex stack_slot = StoreInInt64StackSlot(value, element_type);
+      MachineType arg_types[]{
+          MachineType::TaggedPointer(), MachineType::Uint32(),
+          MachineType::Uint32(),        MachineType::Uint32(),
+          MachineType::Uint32(),        MachineType::Pointer()};
+      MachineSignature sig(0, 6, arg_types);
+      CallC(&sig, ExternalReference::wasm_array_fill(),
+            {array, index, length,
+             asm_.Word32Constant(emit_write_barrier ? 1 : 0),
+             asm_.Word32Constant(element_type.raw_bit_field()), stack_slot});
+      GOTO(done);
+    } else {
+      GOTO(loop, index);
+    }
+    LOOP(loop, current_index) {
+      V<Word32> check =
+          asm_.Uint32LessThan(current_index, asm_.Word32Add(index, length));
+      GOTO_IF_NOT(check, done);
+      asm_.ArraySet(array, current_index, value, type->element_type());
+      current_index = asm_.Word32Add(current_index, 1);
+      GOTO(loop, current_index);
+    }
+    BIND(done);
+  }
+
+  V<WordPtr> StoreInInt64StackSlot(OpIndex value, wasm::ValueType type) {
+    OpIndex value_int64;
+    switch (type.kind()) {
+      case wasm::kI32:
+      case wasm::kI8:
+      case wasm::kI16:
+        value_int64 = __ ChangeInt32ToInt64(value);
+        break;
+      case wasm::kI64:
+        value_int64 = value;
+        break;
+      case wasm::kS128:
+        // We can only get here if {value} is the constant 0.
+        DCHECK(
+            asm_.output_graph().Get(value).Cast<Simd128ConstantOp>().IsZero());
+        value_int64 = asm_.Word64Constant(uint64_t{0});
+        break;
+      case wasm::kF32:
+        value_int64 = __ ChangeUint32ToUint64(__ BitcastFloat32ToWord32(value));
+        break;
+      case wasm::kF64:
+        value_int64 = __ BitcastFloat64ToWord64(value);
+        break;
+      case wasm::kRefNull:
+      case wasm::kRef:
+        value_int64 = kTaggedSize == 4 ? __ ChangeInt32ToInt64(value) : value;
+        break;
+      case wasm::kRtt:
+      case wasm::kVoid:
+      case wasm::kBottom:
+        UNREACHABLE();
+    }
+
+    MemoryRepresentation int64_rep = MemoryRepresentation::Int64();
+    V<WordPtr> stack_slot =
+        asm_.StackSlot(int64_rep.SizeInBytes(), int64_rep.SizeInBytes());
+    asm_.Store(stack_slot, value_int64, StoreOp::Kind::RawAligned(), int64_rep,
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+    return stack_slot;
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

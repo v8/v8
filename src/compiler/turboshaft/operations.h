@@ -6259,6 +6259,7 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
 };
 
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
+  static constexpr uint8_t kZero[kSimd128Size] = {};
   uint8_t value[kSimd128Size];
 
   static constexpr OpEffects effects = OpEffects();
@@ -6280,6 +6281,8 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   void Validate(const Graph& graph) const {
     // TODO(14108): Validate.
   }
+
+  bool IsZero() const { return std::memcmp(kZero, value, kSimd128Size) == 0; }
 
   auto options() const { return std::tuple{value}; }
   void PrintOptions(std::ostream& os) const;

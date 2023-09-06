@@ -1430,6 +1430,20 @@ FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
   return access;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// static
+FieldAccess AccessBuilder::ForWasmArrayLength() {
+  return {compiler::kTaggedBase,
+          WasmArray::kLengthOffset,
+          MaybeHandle<Name>(),
+          compiler::OptionalMapRef(),
+          compiler::Type::OtherInternal(),
+          MachineType::Uint32(),
+          compiler::kNoWriteBarrier,
+          "WasmArrayLength"};
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
