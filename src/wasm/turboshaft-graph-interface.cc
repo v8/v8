@@ -1946,7 +1946,33 @@ class TurboshaftGraphBuildingInterface {
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
                      const IndexImmediate& length_imm, const Value elements[],
                      Value* result) {
-    Bailout(decoder);
+    const wasm::ArrayType* type = array_imm.array_type;
+    wasm::ValueType element_type = type->element_type();
+    int element_count = length_imm.index;
+    Uninitialized<HeapObject> a =
+        asm_.Allocate(RoundUp(element_type.value_kind_size() * element_count,
+                              kObjectAlignment) +
+                          WasmArray::kHeaderSize,
+                      AllocationType::kYoung);
+
+    // Initialize the array header.
+    V<Map> rtt = asm_.RttCanon(instance_node_, array_imm.index);
+    // TODO(14108): The map and empty fixed array initialization should be an
+    // immutable store.
+    asm_.InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                         rtt);
+    asm_.InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                         LOAD_ROOT(EmptyFixedArray));
+    asm_.InitializeField(a, AccessBuilder::ForWasmArrayLength(),
+                         __ Word32Constant(element_count));
+
+    // TODO(14108): Array initialization isn't finished here but we need the
+    // OpIndex and not some Uninitialized<HeapObject>.
+    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    for (int i = 0; i < element_count; i++) {
+      asm_.ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
+    }
+    result->op = array;
   }
 
   void ArrayNewSegment(FullDecoder* decoder,
