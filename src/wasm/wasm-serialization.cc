@@ -139,7 +139,7 @@ void WriteHeader(Writer* writer) {
 // index). On Intel, that means accessing the raw displacement.
 // On ARM64, call sites are encoded as either a literal load or a direct branch.
 // Other platforms simply require accessing the target address.
-void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
+void SetWasmCalleeTag(WritableRelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   DCHECK(rinfo->HasTargetAddressAddress());
   DCHECK(!RelocInfo::IsCompressedEmbeddedObject(rinfo->rmode()));
@@ -440,7 +440,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
-  for (RelocIterator iter(
+  for (WritableRelocIterator iter(
            {code_start, code->instructions().size()}, code->reloc_info(),
            reinterpret_cast<Address>(code_start) + code->constant_pool_offset(),
            mask);
@@ -843,8 +843,9 @@ void NativeModuleDeserializer::CopyAndRelocate(
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  for (RelocIterator iter(unit.code->instructions(), unit.code->reloc_info(),
-                          unit.code->constant_pool(), mask);
+  for (WritableRelocIterator iter(unit.code->instructions(),
+                                  unit.code->reloc_info(),
+                                  unit.code->constant_pool(), mask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {

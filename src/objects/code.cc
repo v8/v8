@@ -36,7 +36,8 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   {
     CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
+    for (WritableRelocIterator it(istream, constant_pool(), mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
     }

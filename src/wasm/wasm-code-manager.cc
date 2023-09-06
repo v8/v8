@@ -968,8 +968,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     Address dst_code_addr = reinterpret_cast<Address>(dst_code_bytes.begin());
     Address constant_pool_start = dst_code_addr + constant_pool_offset;
     RelocIterator orig_it(*code, mode_mask);
-    for (RelocIterator it(dst_code_bytes, reloc_info.as_vector(),
-                          constant_pool_start, mode_mask);
+    for (WritableRelocIterator it(dst_code_bytes, reloc_info.as_vector(),
+                                  constant_pool_start, mode_mask);
          !it.done(); it.next(), orig_it.next()) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
       if (RelocInfo::IsWasmStubCall(mode)) {
@@ -1127,8 +1127,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     Address code_start = reinterpret_cast<Address>(dst_code_bytes.begin());
     Address constant_pool_start = code_start + constant_pool_offset;
 
-    for (RelocIterator it(dst_code_bytes, reloc_info, constant_pool_start,
-                          mode_mask);
+    for (WritableRelocIterator it(dst_code_bytes, reloc_info,
+                                  constant_pool_start, mode_mask);
          !it.done(); it.next()) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
       if (RelocInfo::IsWasmCall(mode)) {

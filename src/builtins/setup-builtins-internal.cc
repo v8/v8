@@ -244,8 +244,9 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
     Tagged<InstructionStream> istream = code->instruction_stream();
     CodePageMemoryModificationScope code_modification_scope(istream);
     bool flush_icache = false;
-    for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
-      RelocInfo* rinfo = it.rinfo();
+    for (WritableRelocIterator it(istream, code->constant_pool(), kRelocMask);
+         !it.done(); it.next()) {
+      WritableRelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
         Tagged<Code> target_code =
             Code::FromTargetAddress(rinfo->target_address());

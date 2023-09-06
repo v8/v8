@@ -20,18 +20,18 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
                                                           Callback callback) {
   switch (slot_type) {
     case SlotType::kCodeEntry: {
-      RelocInfo rinfo(addr, RelocInfo::CODE_TARGET);
+      WritableRelocInfo rinfo(addr, RelocInfo::CODE_TARGET);
       return UpdateCodeTarget(&rinfo, callback);
     }
     case SlotType::kConstPoolCodeEntry: {
       return UpdateCodeEntry(addr, callback);
     }
     case SlotType::kEmbeddedObjectCompressed: {
-      RelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+      WritableRelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
     case SlotType::kEmbeddedObjectFull: {
-      RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT);
+      WritableRelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT);
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {

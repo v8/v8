@@ -18,8 +18,8 @@ void InstructionStream::Relocate(intptr_t delta) {
   if (!TryGetCodeUnchecked(&code, kAcquireLoad)) return;
   // This is called during evacuation and code.instruction_stream() will point
   // to the old object. So pass *this directly to the RelocIterator.
-  for (RelocIterator it(code, *this, unchecked_relocation_info(),
-                        RelocInfo::kApplyMask);
+  for (WritableRelocIterator it(*this, code->constant_pool((*this)),
+                                RelocInfo::kApplyMask);
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
@@ -35,7 +35,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
   WriteBarrierPromise write_barrier_promise;
   Assembler* origin = desc.origin;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(*this, constant_pool, mode_mask); !it.done();
+  for (WritableRelocIterator it(*this, constant_pool, mode_mask); !it.done();
        it.next()) {
     // IMPORTANT:
     // this code needs be stay in sync with RelocateFromDescWriteBarriers below.
@@ -96,8 +96,7 @@ void InstructionStream::RelocateFromDescWriteBarriers(
     WriteBarrierPromise& write_barrier_promise,
     const DisallowGarbageCollection& no_gc) {
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(*this, constant_pool, mode_mask); !it.done();
-       it.next()) {
+  for (RelocIterator it(code(kAcquireLoad), mode_mask); !it.done(); it.next()) {
     // IMPORTANT:
     // this code needs be stay in sync with RelocateFromDesc above.
 

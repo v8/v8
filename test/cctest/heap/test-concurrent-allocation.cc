@@ -498,7 +498,8 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     Tagged<InstructionStream> istream = code_->instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
+    for (WritableRelocIterator it(istream, code_->constant_pool(), mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, value_);
     }
