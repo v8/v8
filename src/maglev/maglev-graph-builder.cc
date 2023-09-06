@@ -5937,60 +5937,100 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.push - no receiver"
+                << std::endl;
+    }
     return ReduceResult::Fail();
   }
-  if (args.count() != 1) return ReduceResult::Fail();
+  // TODO(pthier): Support multiple arguments.
+  if (args.count() != 1) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.push - invalid "
+                   "argument count"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
 
   auto node_info = known_node_aspects().TryGetInfoFor(receiver);
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!node_info || !node_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Array.prototype.push - unknown receiver map"
+          << std::endl;
+    }
     return ReduceResult::Fail();
   }
 
+  const PossibleMaps& possible_maps = node_info->possible_maps();
   // If the set of possible maps is empty, then there's no possible map for this
   // receiver, therefore this path is unreachable at runtime. We're unlikely to
   // ever hit this case, BuildCheckMaps should already unconditionally deopt,
   // but check it in case another checking operation fails to statically
   // unconditionally deopt.
-  if (node_info->possible_maps().is_empty()) {
+  if (possible_maps.is_empty()) {
     // TODO(leszeks): Add an unreachable assert here.
     return ReduceResult::DoneWithAbort();
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.push - "
+                   "NoElementsProtector invalidated"
+                << std::endl;
+    }
     return ReduceResult::Fail();
   }
 
-  ElementsKind kind;
-  ZoneVector<compiler::MapRef> receiver_map_refs(zone());
-  // Check that all receiver maps are JSArray maps with compatible elements
-  // kinds.
-  for (compiler::MapRef map : node_info->possible_maps()) {
-    if (!map.IsJSArrayMap()) return ReduceResult::Fail();
-    ElementsKind packed = GetPackedElementsKind(map.elements_kind());
-    if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
+  // Check that inlining resizing array builtins is supported and group maps
+  // by elements kind.
+  std::array<SmallZoneVector<compiler::MapRef, 2>, 3> map_kinds = {
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone())};
+  uint8_t kind_bitmap = 0;
+  for (compiler::MapRef map : possible_maps) {
     if (!map.supports_fast_array_resize(broker())) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "  ! Failed to reduce Array.prototype.push - Map doesn't "
+                     "support fast resizing"
+                  << std::endl;
+      }
       return ReduceResult::Fail();
     }
-    if (receiver_map_refs.empty()) {
-      kind = packed;
-    } else if (kind != packed) {
-      return ReduceResult::Fail();
-    }
-    receiver_map_refs.push_back(map);
+    // Group maps by elements kind, ignoring packedness. Packedness doesn't
+    // matter for push().
+    // Kinds we care about are all paired in the first 6 values of ElementsKind,
+    // so we can use integer division to truncate holeyness.
+    // kind_bitmap is used to get the unique kinds (predecessor count of
+    // `do_return`).
+    static_assert(kFastElementsKindCount <= 6);
+    static_assert(kFastElementsKindPackedToHoley == 1);
+    uint8_t kind = static_cast<uint8_t>(map.elements_kind());
+    uint8_t packed_kind = kind / 2;
+    kind_bitmap |= 1 << packed_kind;
+    map_kinds[packed_kind].push_back(map);
   }
 
-  ValueNode* value = ConvertForStoring(args[0], kind);
+  MaglevSubGraphBuilder sub_graph(this, 0);
 
-  ValueNode* old_array_length_smi =
-      AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
+  int unique_kind_count = base::bits::CountPopulation(kind_bitmap);
+  DCHECK_GE(unique_kind_count, 1);
+
+  base::Optional<MaglevSubGraphBuilder::Label> do_return;
+  if (unique_kind_count > 1) {
+    do_return.emplace(&sub_graph, unique_kind_count);
+  }
+
+  ValueNode* old_array_length_smi = BuildLoadJSArrayLength(receiver).value();
   ValueNode* old_array_length =
       AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
-  ValueNode* new_array_length =
-      AddNewNode<Int32IncrementWithOverflow>({old_array_length});
-  ValueNode* new_array_length_smi = GetSmiValue(new_array_length);
+  ValueNode* new_array_length_smi =
+      AddNewNode<CheckedSmiIncrement>({old_array_length_smi});
 
   ValueNode* elements_array =
       AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
@@ -5999,22 +6039,76 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
           {elements_array}, FixedArray::kLengthOffset)});
 
-  elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
-      {elements_array, receiver, old_array_length, elements_array_length},
-      kind);
+  auto build_array_push = [&](ElementsKind kind) {
+    ValueNode* value = ConvertForStoring(args[0], kind);
 
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
-                                             JSArray::kLengthOffset);
+    ValueNode* writable_elements_array =
+        AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
+            {elements_array, receiver, old_array_length, elements_array_length},
+            kind);
 
-  // Do the store
-  if (IsDoubleElementsKind(kind)) {
-    AddNewNode<StoreFixedDoubleArrayElement>(
-        {elements_array, old_array_length, value});
-  } else {
-    BuildStoreFixedArrayElement(elements_array, old_array_length, value);
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
+                                               JSArray::kLengthOffset);
+
+    // Do the store
+    if (IsDoubleElementsKind(kind)) {
+      AddNewNode<StoreFixedDoubleArrayElement>(
+          {writable_elements_array, old_array_length, value});
+    } else {
+      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+      BuildStoreFixedArrayElement(writable_elements_array, old_array_length,
+                                  value);
+    }
+  };
+
+  // TODO(pthier): Support map packing.
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  ValueNode* receiver_map =
+      AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
+  int emitted_kind_checks = 0;
+  for (size_t kind_index = 0; kind_index < map_kinds.size(); kind_index++) {
+    const auto& maps = map_kinds[kind_index];
+    // Skip kinds we haven't observed.
+    if (maps.empty()) continue;
+    ElementsKind kind = static_cast<ElementsKind>(kind_index * 2);
+
+    // Create branches for all but the last elements kind. We don't need
+    // to check the maps of the last kind, as all possible maps have already
+    // been checked when the property (push) was loaded.
+    if (++emitted_kind_checks < unique_kind_count) {
+      MaglevSubGraphBuilder::Label check_next_map(&sub_graph, 1);
+      base::Optional<MaglevSubGraphBuilder::Label> do_push;
+      if (maps.size() > 1) {
+        do_push.emplace(&sub_graph, static_cast<int>(maps.size()));
+        for (size_t map_index = 1; map_index < maps.size(); map_index++) {
+          sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
+              &*do_push, {receiver_map, GetConstant(maps[map_index])});
+        }
+      }
+      sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+          &check_next_map, {receiver_map, GetConstant(maps[0])});
+      if (do_push.has_value()) {
+        sub_graph.Goto(&*do_push);
+        sub_graph.Bind(&*do_push);
+      }
+      build_array_push(kind);
+      sub_graph.Goto(&*do_return);
+      sub_graph.Bind(&check_next_map);
+    } else {
+      DCHECK_EQ(emitted_kind_checks, unique_kind_count);
+      build_array_push(kind);
+      if (do_return.has_value()) {
+        sub_graph.Goto(&*do_return);
+      }
+    }
   }
 
-  return new_array_length;
+  if (do_return.has_value()) {
+    sub_graph.Bind(&*do_return);
+  }
+  RecordKnownProperty(receiver, broker()->length_string(), new_array_length_smi,
+                      false, compiler::AccessMode::kStore);
+  return new_array_length_smi;
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(

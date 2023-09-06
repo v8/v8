@@ -742,6 +742,12 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
   UncheckedSmiTagUint32(reg, reg);
 }
 
+inline void MaglevAssembler::SmiAddConstant(Register reg, int value,
+                                            Label* fail,
+                                            Label::Distance distance) {
+  return SmiAddConstant(reg, reg, value, fail, distance);
+}
+
 inline void MaglevAssembler::StringLength(Register result, Register string) {
   if (v8_flags.debug_code) {
     // Check if {string} is a string.

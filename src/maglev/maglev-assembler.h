@@ -278,6 +278,13 @@ class MaglevAssembler : public MacroAssembler {
   inline void CheckInt32IsSmi(Register obj, Label* fail,
                               Register scratch = Register::no_reg());
 
+  // Add a constant (not smi tagged) to a smi. Jump to {fail} if the result
+  // doesn't fit.
+  inline void SmiAddConstant(Register dst, Register src, int value, Label* fail,
+                             Label::Distance distance = Label::kFar);
+  inline void SmiAddConstant(Register reg, int value, Label* fail,
+                             Label::Distance distance = Label::kFar);
+
   inline void MoveHeapNumber(Register dst, double value);
 
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
