@@ -3817,7 +3817,7 @@ void MacroAssembler::BranchOnCount(Register r1, Label* l) {
   }
 }
 
-void MacroAssembler::LoadSmiLiteral(Register dst, Smi smi) {
+void MacroAssembler::LoadSmiLiteral(Register dst, Tagged<Smi> smi) {
   intptr_t value = static_cast<intptr_t>(smi.ptr());
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   llilf(dst, Operand(value));
@@ -3828,7 +3828,8 @@ void MacroAssembler::LoadSmiLiteral(Register dst, Smi smi) {
 #endif
 }
 
-void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
+void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
+                                   Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));

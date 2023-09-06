@@ -2655,7 +2655,7 @@ void MacroAssembler::LoadIntLiteral(Register dst, int value) {
   mov(dst, Operand(value));
 }
 
-void MacroAssembler::LoadSmiLiteral(Register dst, Smi smi) {
+void MacroAssembler::LoadSmiLiteral(Register dst, Tagged<Smi> smi) {
   mov(dst, Operand(smi));
 }
 
@@ -3330,8 +3330,8 @@ void MacroAssembler::CopySignF64(DoubleRegister dst, DoubleRegister lhs,
   fcpsgn(dst, rhs, lhs, r);
 }
 
-void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
-                                   CRegister cr) {
+void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
+                                   Register scratch, CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   CmpS32(src1, Operand(smi), scratch, cr);
 #else
@@ -3340,8 +3340,8 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
 #endif
 }
 
-void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
-                                    CRegister cr) {
+void MacroAssembler::CmplSmiLiteral(Register src1, Tagged<Smi> smi,
+                                    Register scratch, CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   CmpU64(src1, Operand(smi), scratch, cr);
 #else
@@ -3350,7 +3350,7 @@ void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
 #endif
 }
 
-void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
+void MacroAssembler::AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   AddS64(dst, src, Operand(smi.ptr()), scratch);
@@ -3360,7 +3360,7 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
 #endif
 }
 
-void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
+void MacroAssembler::SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   AddS64(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))), scratch);
@@ -3370,7 +3370,7 @@ void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
 #endif
 }
 
-void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
+void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch, RCBit rc) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   AndU64(dst, src, Operand(smi), scratch, rc);

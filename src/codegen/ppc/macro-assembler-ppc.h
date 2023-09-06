@@ -154,7 +154,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
   // load an SMI value <value> to GPR <dst>
-  void LoadSmiLiteral(Register dst, Smi smi);
+  void LoadSmiLiteral(Register dst, Tagged<Smi> smi);
 
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
@@ -1529,14 +1529,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // load a literal double value <value> to FPR <result>
 
-  void AddSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
-  void SubSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
-  void CmpSmiLiteral(Register src1, Smi smi, Register scratch,
+  void AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch);
+  void SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch);
+  void CmpSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
                      CRegister cr = cr7);
-  void CmplSmiLiteral(Register src1, Smi smi, Register scratch,
+  void CmplSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
                       CRegister cr = cr7);
-  void AndSmiLiteral(Register dst, Register src, Smi smi, Register scratch,
-                     RCBit rc = LeaveRC);
+  void AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
+                     Register scratch, RCBit rc = LeaveRC);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
