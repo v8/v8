@@ -2040,8 +2040,8 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
               __ NegateInt32(field_index);
               __ LoadTaggedFieldByIndex(
                   result_reg, property_array, field_index, scale,
-                  FixedArray::kHeaderSize +
-                      ((kIsDoubleBit - 2) << (kTaggedSizeLog2 - 1)));
+                  FixedArray::kHeaderSize -
+                      ((2 - kIsDoubleBit) << (kTaggedSizeLog2 - 1)));
               __ Jump(&loaded_field);
             }
 
@@ -2107,8 +2107,8 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
       __ NegateInt32(field_index);
       __ LoadTaggedFieldByIndex(
           result_reg, property_array, field_index, scale,
-          FixedArray::kHeaderSize +
-              ((kIsDoubleBit - 2) << (kTaggedSizeLog2 - 1)));
+          FixedArray::kHeaderSize -
+              ((2 - kIsDoubleBit) << (kTaggedSizeLog2 - 1)));
       // Fallthrough to `done`.
     }
   }
