@@ -6755,7 +6755,30 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  void Validate(const Graph& graph) const {}
+  void Validate(const Graph& graph) const {
+#if DEBUG
+    uint8_t lane_count;
+    switch (kind) {
+      case Kind::kI8x16S:
+      case Kind::kI8x16U:
+        lane_count = 16;
+        break;
+      case Kind::kI16x8S:
+      case Kind::kI16x8U:
+        lane_count = 8;
+        break;
+      case Kind::kI32x4:
+      case Kind::kF32x4:
+        lane_count = 4;
+        break;
+      case Kind::kI64x2:
+      case Kind::kF64x2:
+        lane_count = 2;
+        break;
+    }
+    DCHECK_LT(lane, lane_count);
+#endif
+  }
 
   auto options() const { return std::tuple{kind, lane}; }
   void PrintOptions(std::ostream& os) const;
@@ -6791,7 +6814,28 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
   OpIndex into() const { return Base::input(0); }
   OpIndex new_lane() const { return Base::input(1); }
 
-  void Validate(const Graph& graph) const {}
+  void Validate(const Graph& graph) const {
+#if DEBUG
+    uint8_t lane_count;
+    switch (kind) {
+      case Kind::kI8x16:
+        lane_count = 16;
+        break;
+      case Kind::kI16x8:
+        lane_count = 8;
+        break;
+      case Kind::kI32x4:
+      case Kind::kF32x4:
+        lane_count = 4;
+        break;
+      case Kind::kI64x2:
+      case Kind::kF64x2:
+        lane_count = 2;
+        break;
+    }
+    DCHECK_LT(lane, lane_count);
+#endif
+  }
 
   auto options() const { return std::tuple{kind, lane}; }
   void PrintOptions(std::ostream& os) const;
@@ -6864,6 +6908,24 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   void Validate(const Graph& graph) {
     DCHECK(kind ==
            any_of(Kind::RawAligned(), Kind::RawUnaligned(), Kind::Protected()));
+#if DEBUG
+    uint8_t lane_count;
+    switch (lane_kind) {
+      case LaneKind::k8:
+        lane_count = 16;
+        break;
+      case LaneKind::k16:
+        lane_count = 8;
+        break;
+      case LaneKind::k32:
+        lane_count = 4;
+        break;
+      case LaneKind::k64:
+        lane_count = 2;
+        break;
+    }
+    DCHECK_LT(lane, lane_count);
+#endif
   }
 
   auto options() const {
@@ -6973,7 +7035,14 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
-  void Validate(const Graph& graph) {}
+  void Validate(const Graph& graph) {
+#if DEBUG
+    constexpr uint8_t kNumberOfLanesForShuffle = 32;
+    for (uint8_t index : shuffle) {
+      DCHECK_LT(index, kNumberOfLanesForShuffle);
+    }
+#endif
+  }
 
   auto options() const { return std::tuple{shuffle}; }
   void PrintOptions(std::ostream& os) const;
