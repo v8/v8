@@ -210,6 +210,12 @@ class Worker : public std::enable_shared_from_this<Worker> {
                                 std::shared_ptr<Worker> worker,
                                 base::Thread::Priority priority);
 
+  // Enters State::kTerminated for the Worker and resets the task runner.
+  void EnterTerminatedState();
+
+  // Returns the Worker instance for this thread.
+  static Worker* GetCurrentWorker();
+
  private:
   friend class ProcessMessageTask;
   friend class TerminateTask;
@@ -241,6 +247,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+
+  static void SetCurrentWorker(Worker* worker);
 
   i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
