@@ -100,8 +100,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_WASM_OPERATION_LIST(V) \
   V(GlobalGet)                            \
   V(GlobalSet)                            \
-  V(IsNull)                               \
   V(Null)                                 \
+  V(IsNull)                               \
   V(AssertNotNull)                        \
   V(RttCanon)                             \
   V(WasmTypeCheck)                        \
