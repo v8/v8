@@ -2035,11 +2035,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null =
-        input.type.is_nullable()
-            ? asm_.AssertNotNull(input.op, kWasmI31Ref,
-                                 TrapId::kTrapNullDereference)
-            : input.op;
+    V<Tagged> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = asm_.Word32ShiftRightArithmeticShiftOutZeros(
           asm_.TruncateWordPtrToWord32(
@@ -2055,11 +2051,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null =
-        input.type.is_nullable()
-            ? asm_.AssertNotNull(input.op, kWasmI31Ref,
-                                 TrapId::kTrapNullDereference)
-            : input.op;
+    V<Tagged> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = asm_.Word32ShiftRightLogical(
           asm_.TruncateWordPtrToWord32(
@@ -2290,14 +2282,9 @@ class TurboshaftGraphBuildingInterface {
     }
 
     // Regular path if the shortcut wasn't taken.
-    OpIndex array_not_null = array.op;
-    if (array.type.is_nullable()) {
-      array_not_null =
-          __ AssertNotNull(array.op, array.type, TrapId::kTrapNullDereference);
-    }
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringNewWtf8Array,
-        {start.op, end.op, array_not_null,
+        {start.op, end.op, NullCheck(array),
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
   }
 
@@ -2311,14 +2298,9 @@ class TurboshaftGraphBuildingInterface {
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    OpIndex array_not_null = array.op;
-    if (array.type.is_nullable()) {
-      array_not_null =
-          __ AssertNotNull(array.op, array.type, TrapId::kTrapNullDereference);
-    }
     result->op =
         CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringNewWtf16Array,
-                                   {array_not_null, start.op, end.op});
+                                   {NullCheck(array), start.op, end.op});
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
@@ -2342,22 +2324,12 @@ class TurboshaftGraphBuildingInterface {
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
-    OpIndex not_null_str = str.op;
-    if (str.type.is_nullable()) {
-      not_null_str =
-          __ AssertNotNull(str.op, str.type, TrapId::kTrapNullDereference);
-    }
-    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {not_null_str});
+    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {NullCheck(str)});
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    OpIndex not_null_str = str.op;
-    if (str.type.is_nullable()) {
-      not_null_str =
-          __ AssertNotNull(str.op, str.type, TrapId::kTrapNullDereference);
-    }
-    result->op = __ Load(not_null_str, LoadOp::Kind::TaggedBase(),
+    result->op = __ Load(NullCheck(str), LoadOp::Kind::TaggedBase(),
                          MemoryRepresentation::Uint32(), String::kLengthOffset);
   }
 
@@ -2365,30 +2337,45 @@ class TurboshaftGraphBuildingInterface {
                         const MemoryIndexImmediate& memory,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringEncodeWtf8,
+        {NullCheck(str), offset.op, __ SmiConstant(Smi::FromInt(memory.index)),
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringEncodeWtf8Array,
+        {NullCheck(str), NullCheck(array), start.op,
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
   }
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringEncodeWtf16,
+        {NullCheck(str), offset.op,
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(imm.index)))});
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringEncodeWtf16Array,
+        {NullCheck(str), NullCheck(array), start.op});
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    Bailout(decoder);
+    V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        NativeContext, MemoryRepresentation::TaggedPointer());
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kStringAdd_CheckNone,
+        {NullCheck(head), NullCheck(tail), native_context});
   }
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
@@ -2516,6 +2503,17 @@ class TurboshaftGraphBuildingInterface {
   void BailoutWithoutOpcode(FullDecoder* decoder, const char* message) {
     decoder->errorf("Unsupported operation: %s", message);
     did_bailout_ = true;
+  }
+
+  // Perform a null check if the input type is nullable.
+  V<Object> NullCheck(const Value& value,
+                      TrapId trap_id = TrapId::kTrapNullDereference) {
+    OpIndex not_null_value = value.op;
+    if (value.type.is_nullable()) {
+      not_null_value =
+          __ AssertNotNull(value.op, value.type, TrapId::kTrapNullDereference);
+    }
+    return not_null_value;
   }
 
   // Creates a new block, initializes a {BlockPhis} for it, and registers it
