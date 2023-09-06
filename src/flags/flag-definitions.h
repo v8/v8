@@ -1836,6 +1836,7 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "A special constant to balance between memory and space tradeoff. "
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
+DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
