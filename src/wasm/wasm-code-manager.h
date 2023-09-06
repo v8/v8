@@ -804,7 +804,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return import_wrapper_cache_.get();
   }
 
-  const WasmFeatures& enabled_features() const { return enabled_features_; }
+  WasmFeatures enabled_features() const { return enabled_features_; }
 
   // Returns the runtime stub id that corresponds to the given address (which
   // must be a far jump table slot). Returns {kRuntimeStubCount} on failure.
@@ -891,8 +891,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(const WasmFeatures& enabled_features,
-               DynamicTiering dynamic_tiering, VirtualMemory code_space,
+  NativeModule(WasmFeatures enabled_features, DynamicTiering dynamic_tiering,
+               VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -1120,7 +1120,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmEngine;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, const WasmFeatures& enabled_features,
+      Isolate* isolate, WasmFeatures enabled_features,
       size_t code_size_estimate, std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,

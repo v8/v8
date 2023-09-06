@@ -87,7 +87,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
-    const wasm::WasmFeatures& enabled_features);
+    wasm::WasmFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::FunctionSig* sig,

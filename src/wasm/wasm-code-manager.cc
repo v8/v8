@@ -816,8 +816,7 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
   return owned_code_space_.size();
 }
 
-NativeModule::NativeModule(const WasmFeatures& enabled,
-                           DynamicTiering dynamic_tiering,
+NativeModule::NativeModule(WasmFeatures enabled, DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
@@ -2157,7 +2156,7 @@ bool WasmCodeManager::MemoryProtectionKeyWritable() {
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
+    Isolate* isolate, WasmFeatures enabled, size_t code_size_estimate,
     std::shared_ptr<const WasmModule> module) {
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {

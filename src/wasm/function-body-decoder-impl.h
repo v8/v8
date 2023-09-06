@@ -216,7 +216,7 @@ namespace value_type_reader {
 template <typename ValidationTag>
 std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                              const uint8_t* pc,
-                                             const WasmFeatures& enabled) {
+                                             WasmFeatures enabled) {
   auto [heap_index, length] =
       decoder->read_i33v<ValidationTag>(pc, "heap type");
   if (heap_index < 0) {
@@ -288,7 +288,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
 template <typename ValidationTag>
 std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
                                                const uint8_t* pc,
-                                               const WasmFeatures& enabled) {
+                                               WasmFeatures enabled) {
   uint8_t val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
   if (!VALIDATE(decoder->ok())) {
     return {kWasmBottom, 0};
@@ -576,8 +576,8 @@ struct SelectTypeImmediate {
   ValueType type;
 
   template <typename ValidationTag>
-  SelectTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                      const uint8_t* pc, ValidationTag = {}) {
+  SelectTypeImmediate(WasmFeatures enabled, Decoder* decoder, const uint8_t* pc,
+                      ValidationTag = {}) {
     uint8_t num_types;
     std::tie(num_types, length) =
         decoder->read_u32v<ValidationTag>(pc, "number of select types");
@@ -612,8 +612,8 @@ struct BlockTypeImmediate {
   BlockTypeImmediate& operator=(BlockTypeImmediate&&) = delete;
 
   template <typename ValidationTag>
-  BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                     const uint8_t* pc, ValidationTag = {}) {
+  BlockTypeImmediate(WasmFeatures enabled, Decoder* decoder, const uint8_t* pc,
+                     ValidationTag = {}) {
     int64_t block_type;
     std::tie(block_type, length) =
         decoder->read_i33v<ValidationTag>(pc, "block type");
@@ -885,8 +885,8 @@ struct HeapTypeImmediate {
   HeapType type{kBottom};
 
   template <typename ValidationTag>
-  HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                    const uint8_t* pc, ValidationTag = {}) {
+  HeapTypeImmediate(WasmFeatures enabled, Decoder* decoder, const uint8_t* pc,
+                    ValidationTag = {}) {
     std::tie(type, length) =
         value_type_reader::read_heap_type<ValidationTag>(decoder, pc, enabled);
   }
@@ -2568,9 +2568,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
  public:
   template <typename... InterfaceArgs>
-  WasmFullDecoder(Zone* zone, const WasmModule* module,
-                  const WasmFeatures& enabled, WasmFeatures* detected,
-                  const FunctionBody& body, InterfaceArgs&&... interface_args)
+  WasmFullDecoder(Zone* zone, const WasmModule* module, WasmFeatures enabled,
+                  WasmFeatures* detected, const FunctionBody& body,
+                  InterfaceArgs&&... interface_args)
       : WasmDecoder<ValidationTag, decoding_mode>(
             zone, module, enabled, detected, body.sig, body.start, body.end,
             body.offset),

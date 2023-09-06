@@ -4878,7 +4878,7 @@ class TurboshaftGraphBuildingInterface {
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
-                                    const WasmFeatures& enabled,
+                                    WasmFeatures enabled,
                                     const WasmModule* module,
                                     WasmFeatures* detected,
                                     const FunctionBody& body, Graph& graph,

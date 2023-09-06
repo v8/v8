@@ -2251,12 +2251,12 @@ struct WasmOptimizationPhase {
   void Run(PipelineData* data, Zone* temp_zone,
            MachineOperatorReducer::SignallingNanPropagation
                signalling_nan_propagation,
-           const wasm::WasmFeatures* features) {
+           wasm::WasmFeatures features) {
     // Run optimizations in two rounds: First one around load elimination and
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
     // We only need load elimination for managed objects.
-    if (features->has_gc()) {
+    if (features.has_gc()) {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
@@ -3610,7 +3610,7 @@ void Pipeline::GenerateCodeForWasmFunction(
              pipeline);
 
   if (v8_flags.wasm_opt || is_asm_js) {
-    pipeline.Run<WasmOptimizationPhase>(signalling_nan_propagation, detected);
+    pipeline.Run<WasmOptimizationPhase>(signalling_nan_propagation, *detected);
     pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();
