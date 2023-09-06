@@ -927,6 +927,8 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
       return Type::TheHole();
     case HoleType::kPropertyCell:
       return Type::PropertyCellHole();
+    case HoleType::kHashTable:
+      return Type::HashTableHole();
   }
   return HeapConstant(ref.AsHeapObject(), broker, zone);
 }

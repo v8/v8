@@ -6068,7 +6068,7 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
 }
 
 void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
-  DCHECK(!IsTheHole(value(), roots));
+  DCHECK(!IsPropertyCellHole(value(), roots));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
   Transition(details, roots.property_cell_hole_value_handle());

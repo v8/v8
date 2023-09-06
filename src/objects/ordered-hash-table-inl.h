@@ -218,7 +218,7 @@ Tagged<Object> OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   DCHECK_LE(0, index);
   InternalIndex entry(index);
   Tagged<Object> key = table->KeyAt(entry);
-  DCHECK(!IsTheHole(key));
+  DCHECK(!IsHashTableHole(key));
   return key;
 }
 

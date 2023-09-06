@@ -985,6 +985,8 @@ bool Heap::CreateReadOnlyObjects() {
 
   set_property_cell_hole_value(*factory->NewHole());
 
+  set_hash_table_hole_value(*factory->NewHole());
+
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
                            handle(Smi::FromInt(-1), isolate()), "undefined",

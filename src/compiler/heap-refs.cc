@@ -1859,11 +1859,19 @@ bool ObjectRef::IsPropertyCellHole() const {
   return false;
 }
 
+bool ObjectRef::IsHashTableHole() const {
+  if (i::IsHashTableHole(*object())) return true;
+  DCHECK(!i::IsHole(*object()));
+  return false;
+}
+
 HoleType ObjectRef::HoleType() const {
   if (i::IsTheHole(*object())) {
     return HoleType::kGeneric;
   } else if (i::IsPropertyCellHole(*object())) {
     return HoleType::kPropertyCell;
+  } else if (i::IsHashTableHole(*object())) {
+    return HoleType::kHashTable;
   } else {
     return HoleType::kNone;
   }

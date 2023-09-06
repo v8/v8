@@ -1344,6 +1344,8 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     int id = Script::cast(object)->id();
     return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
+
+  DCHECK(!InstanceTypeChecker::IsHole(instance_type));
   DCHECK(IsJSReceiver(object));
   return object;
 }

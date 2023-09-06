@@ -7997,7 +7997,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 
         Node* check1 =
             graph()->NewNode(simplified()->ReferenceEqual(), entry_key,
-                             jsgraph()->TheHoleConstant());
+                             jsgraph()->HashTableHoleConstant());
         Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                          check1, if_true0);
 

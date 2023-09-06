@@ -387,9 +387,10 @@ class ZoneForwardList;
   V(OptimizedOut, optimized_out, OptimizedOut)              \
   V(StaleRegister, stale_register, StaleRegister)
 
-#define HOLE_LIST(V)                       \
-  V(TheHole, the_hole_value, TheHoleValue) \
-  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue)
+#define HOLE_LIST(V)                                                   \
+  V(TheHole, the_hole_value, TheHoleValue)                             \
+  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
+  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)
 
 }  // namespace internal
 }  // namespace v8

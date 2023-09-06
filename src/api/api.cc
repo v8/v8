@@ -8118,11 +8118,12 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
   int result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
-    i::Tagged<i::Hole> the_hole = i::ReadOnlyRoots(i_isolate).the_hole_value();
+    i::Tagged<i::Hole> hash_table_hole =
+        i::ReadOnlyRoots(i_isolate).hash_table_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::InternalIndex entry(i);
       i::Tagged<i::Object> key = table->KeyAt(entry);
-      if (key == the_hole) continue;
+      if (key == hash_table_hole) continue;
       if (collect_keys) result->set(result_index++, key);
       if (collect_values) result->set(result_index++, table->ValueAt(entry));
     }
@@ -8223,11 +8224,12 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
   int result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
-    i::Tagged<i::Hole> the_hole = i::ReadOnlyRoots(i_isolate).the_hole_value();
+    i::Tagged<i::Hole> hash_table_hole =
+        i::ReadOnlyRoots(i_isolate).hash_table_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::InternalIndex entry(i);
       i::Tagged<i::Object> key = table->KeyAt(entry);
-      if (key == the_hole) continue;
+      if (key == hash_table_hole) continue;
       result->set(result_index++, key);
       if (collect_key_values) result->set(result_index++, key);
     }
