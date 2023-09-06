@@ -859,12 +859,41 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   bool is_exclusive_user_of(node_t user, node_t value) const {
     DCHECK(valid(user));
     DCHECK(valid(value));
-    const size_t use_count = base::count_if(
-        graph_->Get(user).inputs(),
-        [value](turboshaft::OpIndex input) { return input == value; });
-    DCHECK_LT(0, use_count);
-    DCHECK_LE(use_count, graph_->Get(value).saturated_use_count.Get());
     const turboshaft::Operation& value_op = graph_->Get(value);
+    const turboshaft::Operation& user_op = graph_->Get(user);
+    const size_t use_count = base::count_if(
+        user_op.inputs(),
+        [value](turboshaft::OpIndex input) { return input == value; });
+    if (V8_UNLIKELY(use_count == 0)) {
+      // We have a special case here:
+      //
+      //         value
+      //           |
+      // TruncateWord64ToWord32
+      //           |
+      //         user
+      //
+      // If emitting user performs the truncation implicitly, we end up calling
+      // CanCover with value and user such that user might have no (direct) uses
+      // of value. There are cases of other unnecessary operations that can lead
+      // to the same situation (e.g. bitwise and, ...). In this case, we still
+      // cover if value has only a single use and this is one of the direct
+      // inputs of user, which also only has a single use (in user).
+      // TODO(nicohartmann@): We might generalize this further if we see use
+      // cases.
+      if (!value_op.saturated_use_count.IsOne()) return false;
+      for (auto input : user_op.inputs()) {
+        const turboshaft::Operation& input_op = graph_->Get(input);
+        const size_t indirect_use_count = base::count_if(
+            input_op.inputs(),
+            [value](turboshaft::OpIndex input) { return input == value; });
+        if (indirect_use_count > 0) {
+          return input_op.saturated_use_count.IsOne();
+        }
+      }
+      return false;
+    }
+    DCHECK_LE(use_count, graph_->Get(value).saturated_use_count.Get());
     return (value_op.saturated_use_count.Get() == use_count) &&
            !value_op.saturated_use_count.IsSaturated();
   }
