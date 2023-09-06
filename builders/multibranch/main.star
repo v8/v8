@@ -161,6 +161,11 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "11.3",
     ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - PKU",
+        parent_builder = "V8 Linux64 - builder",
+        first_branch_version = "11.9",
+    ),
 )
 
 in_category(
