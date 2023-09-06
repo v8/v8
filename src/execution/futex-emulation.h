@@ -9,10 +9,8 @@
 
 #include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
-#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
@@ -94,7 +92,7 @@ class FutexWaitListNode {
   CancelableTaskManager* cancelable_task_manager_ = nullptr;
 
   base::ConditionVariable cond_;
-  // prev_ and next_ are protected by FutexEmulation::mutex_.
+  // prev_ and next_ are protected by FutexEmulationGlobalState::mutex.
   FutexWaitListNode* prev_ = nullptr;
   FutexWaitListNode* next_ = nullptr;
 
@@ -111,8 +109,8 @@ class FutexWaitListNode {
   // update the head and tail of the list).
   int8_t* wait_location_ = nullptr;
 
-  // waiting_ and interrupted_ are protected by FutexEmulation::mutex_
-  // if this node is currently contained in FutexEmulation::wait_list_
+  // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
+  // if this node is currently contained in FutexEmulationGlobalState::wait_list
   // or an AtomicsWaitWakeHandle has access to it.
   bool waiting_ = false;
   bool interrupted_ = false;
