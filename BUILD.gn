@@ -765,7 +765,7 @@ config("internal_config") {
 config("v8_tracing_config") {
   if (v8_use_perfetto) {
     include_dirs = [
-      "third_party/perfetto/include",
+      "//third_party/perfetto/include",
       "$root_gen_dir/third_party/perfetto",
       "$root_gen_dir/third_party/perfetto/build_config",
     ]
