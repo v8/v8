@@ -672,18 +672,19 @@ StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
   // enough space.
   int current_capacity = data->capacity();
   int current_nof = data->number_of_elements();
-  int capacity_after_shrinking =
-      ComputeStringTableCapacityWithShrink(current_capacity, current_nof + 1);
+  int capacity_after_shrinking = ComputeStringTableCapacityWithShrink(
+      current_capacity, current_nof + additional_elements);
 
   int new_capacity = -1;
   if (capacity_after_shrinking < current_capacity) {
-    DCHECK(StringTableHasSufficientCapacityToAdd(capacity_after_shrinking,
-                                                 current_nof, 0, 1));
+    DCHECK(StringTableHasSufficientCapacityToAdd(
+        capacity_after_shrinking, current_nof, 0, additional_elements));
     new_capacity = capacity_after_shrinking;
   } else if (!StringTableHasSufficientCapacityToAdd(
                  current_capacity, current_nof,
-                 data->number_of_deleted_elements(), 1)) {
-    new_capacity = ComputeStringTableCapacity(current_nof + 1);
+                 data->number_of_deleted_elements(), additional_elements)) {
+    new_capacity =
+        ComputeStringTableCapacity(current_nof + additional_elements);
   }
 
   if (new_capacity != -1) {
@@ -827,6 +828,35 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
   }
   return StringTable::Data::TryStringToIndexOrLookupExisting<uint16_t>(
       isolate, string, source, start);
+}
+
+void StringTable::InsertForIsolateDeserialization(
+    Isolate* isolate, const std::vector<Handle<String>>& strings) {
+  DCHECK_EQ(NumberOfElements(), 0);
+
+  const int length = static_cast<int>(strings.size());
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+
+    Data* const data = EnsureCapacity(isolate, length);
+
+    for (const Handle<String>& s : strings) {
+      StringTableInsertionKey key(
+          isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
+      InternalIndex entry =
+          data->FindEntryOrInsertionEntry(isolate, &key, key.hash());
+
+      // We're initializing, thus the entry must not exist yet.
+      DCHECK_EQ(data->Get(isolate, entry), empty_element());
+
+      Handle<String> inserted_string = key.GetHandleForInsertion();
+      DCHECK_IMPLIES(v8_flags.shared_string_table, inserted_string->IsShared());
+      data->Set(entry, *inserted_string);
+      data->ElementAdded();
+    }
+  }
+
+  DCHECK_EQ(NumberOfElements(), length);
 }
 
 void StringTable::Print(PtrComprCageBase cage_base) const {
