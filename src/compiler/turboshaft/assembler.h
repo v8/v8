@@ -1607,6 +1607,10 @@ class AssemblerOpInterface {
                                              op_kind, offset);
   }
 
+  OpIndex MemoryBarrier(AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableMemoryBarrier(memory_order);
+  }
+
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
                RegisterRepresentation result_rep, int32_t offset = 0,

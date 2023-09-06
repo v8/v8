@@ -989,6 +989,10 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const MemoryBarrierOp& op) {
+  return AddNode(machine.MemoryBarrier(op.memory_order), {});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {
   // Tuples are only used for lowerings during reduction. Therefore, we can
   // assume that it is unused if it occurs at this point.

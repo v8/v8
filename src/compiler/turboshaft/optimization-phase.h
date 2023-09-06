@@ -693,6 +693,10 @@ class GraphVisitor {
         MapToNewGraphIfValid(op.expected_high()), op.op_kind, op.offset);
   }
 
+  OpIndex AssembleOutputGraphMemoryBarrier(const MemoryBarrierOp& op) {
+    return assembler().MemoryBarrier(op.memory_order);
+  }
+
   OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
     return assembler().ReduceLoad(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()), op.kind,

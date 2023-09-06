@@ -531,6 +531,10 @@ void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
   os << "[opkind: " << op_kind << "]";
 }
 
+void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
+  os << "[memory order: " << memory_order << "]";
+}
+
 void StoreOp::PrintInputs(std::ostream& os,
                           const std::string& op_index_prefix) const {
   os << " *(" << op_index_prefix << base().id();

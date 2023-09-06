@@ -239,7 +239,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(DebugBreak)                              \
   V(AssumeMap)                               \
   V(AtomicRMW)                               \
-  V(AtomicWord32Pair)
+  V(AtomicWord32Pair)                        \
+  V(MemoryBarrier)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -2824,6 +2825,28 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
 };
 
 std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::OpKind kind);
+
+struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
+  AtomicMemoryOrder memory_order;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanReadHeapMemory().CanWriteMemory();
+
+  explicit MemoryBarrierOp(AtomicMemoryOrder memory_order)
+      : Base(), memory_order(memory_order) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{memory_order}; }
+  void PrintOptions(std::ostream& os) const;
+};
 
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,

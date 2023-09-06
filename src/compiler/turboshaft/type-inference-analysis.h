@@ -235,6 +235,7 @@ class TypeInferenceAnalysis {
         case Opcode::kSelect:
         case Opcode::kLoad:
         case Opcode::kAtomicRMW:
+        case Opcode::kMemoryBarrier:
         case Opcode::kAllocate:
         case Opcode::kDecodeExternalPointer:
         case Opcode::kParameter:

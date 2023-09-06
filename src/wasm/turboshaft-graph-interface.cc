@@ -1605,7 +1605,9 @@ class TurboshaftGraphBuildingInterface {
                            info.input_rep, info.result_rep);
   }
 
-  void AtomicFence(FullDecoder* decoder) { Bailout(decoder); }
+  void AtomicFence(FullDecoder* decoder) {
+    asm_.MemoryBarrier(AtomicMemoryOrder::kSeqCst);
+  }
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
