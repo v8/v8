@@ -28,6 +28,7 @@ using Assembler =
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
+using compiler::Operator;
 using compiler::TrapId;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
@@ -1250,13 +1251,15 @@ class TurboshaftGraphBuildingInterface {
         V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
 
     CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmThrow,
-                               {tag, values_array}, CheckForException::kYes);
+                               {tag, values_array}, Operator::kNoProperties,
+                               CheckForException::kYes);
     asm_.Unreachable();
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmRethrow,
-                               {block->exception}, CheckForException::kYes);
+                               {block->exception}, Operator::kNoProperties,
+                               CheckForException::kYes);
     asm_.Unreachable();
   }
 
@@ -1372,9 +1375,9 @@ class TurboshaftGraphBuildingInterface {
         compiler::Linkage::GetStubCallDescriptor(
             asm_.graph_zone(),  // zone
             interface_descriptor,
-            0,                                  // stack parameter count
-            CallDescriptor::kNoFlags,           // flags
-            compiler::Operator::kNoProperties,  // properties
+            0,                         // stack parameter count
+            CallDescriptor::kNoFlags,  // flags
+            Operator::kNoProperties,   // properties
             StubCallMode::kCallWasmRuntimeStub);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
@@ -2235,7 +2238,8 @@ class TurboshaftGraphBuildingInterface {
         __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringNewWtf8,
-        {offset.op, size.op, memory_smi, variant_smi}, CheckForException::kNo);
+        {offset.op, size.op, memory_smi, variant_smi},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   // TODO(jkummerow): This check would be more elegant if we made
@@ -2277,7 +2281,8 @@ class TurboshaftGraphBuildingInterface {
       OpIndex segment_length = array_new.input(3);
       result->op = CallBuiltinFromRuntimeStub(
           decoder, WasmCode::kWasmStringFromDataSegment,
-          {segment_length, start.op, end.op, index_smi, offset_smi});
+          {segment_length, start.op, end.op, index_smi, offset_smi},
+          Operator::kNoDeopt | Operator::kNoThrow);
       return;
     }
 
@@ -2285,14 +2290,16 @@ class TurboshaftGraphBuildingInterface {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringNewWtf8Array,
         {start.op, end.op, NullCheck(array),
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringNewWtf16,
-        {__ Word32Constant(imm.index), offset.op, size.op});
+        {__ Word32Constant(imm.index), offset.op, size.op},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
@@ -2300,13 +2307,15 @@ class TurboshaftGraphBuildingInterface {
                            Value* result) {
     result->op =
         CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringNewWtf16Array,
-                                   {NullCheck(array), start.op, end.op});
+                                   {NullCheck(array), start.op, end.op},
+                                   Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringConst,
-                                            {__ Word32Constant(imm.index)});
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringConst, {__ Word32Constant(imm.index)},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
@@ -2324,7 +2333,8 @@ class TurboshaftGraphBuildingInterface {
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
-    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {NullCheck(str)});
+    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {NullCheck(str)},
+                                            Operator::kEliminatable);
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
@@ -2340,7 +2350,8 @@ class TurboshaftGraphBuildingInterface {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringEncodeWtf8,
         {NullCheck(str), offset.op, __ SmiConstant(Smi::FromInt(memory.index)),
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
@@ -2350,7 +2361,8 @@ class TurboshaftGraphBuildingInterface {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringEncodeWtf8Array,
         {NullCheck(str), NullCheck(array), start.op,
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -2358,7 +2370,8 @@ class TurboshaftGraphBuildingInterface {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringEncodeWtf16,
         {NullCheck(str), offset.op,
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(imm.index)))});
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(imm.index)))},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
@@ -2366,7 +2379,8 @@ class TurboshaftGraphBuildingInterface {
                               Value* result) {
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kWasmStringEncodeWtf16Array,
-        {NullCheck(str), NullCheck(array), start.op});
+        {NullCheck(str), NullCheck(array), start.op},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
@@ -2375,21 +2389,40 @@ class TurboshaftGraphBuildingInterface {
         NativeContext, MemoryRepresentation::TaggedPointer());
     result->op = CallBuiltinFromRuntimeStub(
         decoder, WasmCode::kStringAdd_CheckNone,
-        {NullCheck(head), NullCheck(tail), native_context});
+        {NullCheck(head), NullCheck(tail), native_context},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    Bailout(decoder);
+    Label<Word32> done(&asm_);
+    // Covers "identical string pointer" and "both are null" cases.
+    GOTO_IF(__ TaggedEqual(a.op, b.op), done, __ Word32Constant(1));
+    if (a.type.is_nullable()) {
+      GOTO_IF(__ IsNull(a.op, a.type), done, __ Word32Constant(0));
+    }
+    if (b.type.is_nullable()) {
+      GOTO_IF(__ IsNull(b.op, b.type), done, __ Word32Constant(0));
+    }
+    // TODO(jkummerow): Call Builtin::kStringEqual directly.
+    GOTO(done,
+         CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringEqual,
+                                    {a.op, b.op}, Operator::kEliminatable));
+    BIND(done, eq_result);
+    result->op = eq_result;
   }
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
-    Bailout(decoder);
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringIsUSVSequence,
+                                   {NullCheck(str)}, Operator::kEliminatable);
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringAsWtf8,
+                                   {NullCheck(str)}, Operator::kEliminatable);
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
@@ -3908,7 +3941,7 @@ class TurboshaftGraphBuildingInterface {
             NoContextDescriptor{},                // descriptor
             0,                                    // stack parameter count
             CallDescriptor::kNoFlags,             // flags
-            compiler::Operator::kNoProperties,    // properties
+            Operator::kNoProperties,              // properties
             StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
@@ -4197,15 +4230,18 @@ class TurboshaftGraphBuildingInterface {
   OpIndex CallBuiltinFromRuntimeStub(
       FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
       base::Vector<const OpIndex> args,
+      Operator::Properties properties = Operator::kNoProperties,
       CheckForException check_for_exception = CheckForException::kNo) {
     Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
     CallInterfaceDescriptor interface_descriptor =
         Builtins::CallInterfaceDescriptorFor(builtin_name);
+    // TODO(14108): We should set properties like `Operator::kEliminatable`
+    // where applicable.
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetStubCallDescriptor(
             asm_.graph_zone(), interface_descriptor,
             interface_descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, compiler::Operator::kNoProperties,
+            CallDescriptor::kNoFlags, properties,
             StubCallMode::kCallWasmRuntimeStub);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes, asm_.graph_zone());
@@ -4221,9 +4257,10 @@ class TurboshaftGraphBuildingInterface {
   OpIndex CallBuiltinFromRuntimeStub(
       FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
       std::initializer_list<OpIndex> args,
+      Operator::Properties properties = Operator::kNoProperties,
       CheckForException check_for_exception = CheckForException::kNo) {
     return CallBuiltinFromRuntimeStub(decoder, stub_id, base::VectorOf(args),
-                                      check_for_exception);
+                                      properties, check_for_exception);
   }
 
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<WordPtr> callee,
@@ -4273,7 +4310,7 @@ class TurboshaftGraphBuildingInterface {
     centry_args.emplace_back(asm_.NoContextConstant());  // js_context
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetRuntimeCallDescriptor(
-            asm_.graph_zone(), f, fun->nargs, compiler::Operator::kNoProperties,
+            asm_.graph_zone(), f, fun->nargs, Operator::kNoProperties,
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes, asm_.graph_zone());
