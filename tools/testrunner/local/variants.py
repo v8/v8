@@ -62,6 +62,7 @@ ALL_VARIANT_FLAGS = {
         "--no-turbofan", "--no-maglev", "--liftoff", "--no-wasm-tier-up",
         "--no-wasm-lazy-compilation"
     ]],
+    "rehash_snapshot": [["--rehash-snapshot"]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
         "--no-liftoff", "--stress-lazy-source-positions",
