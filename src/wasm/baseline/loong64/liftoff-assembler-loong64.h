@@ -423,8 +423,7 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
+                                          int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   UseScratchRegisterScope temps(this);
@@ -439,9 +438,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
     offset_op = Operand(effective_offset);
   }
   if (offset_op.is_reg()) {
-    StoreTaggedField(src.gp(), MemOperand(dst_addr, offset_op.rm()));
+    StoreTaggedField(src, MemOperand(dst_addr, offset_op.rm()));
   } else {
-    StoreTaggedField(src.gp(), MemOperand(dst_addr, offset_imm));
+    StoreTaggedField(src, MemOperand(dst_addr, offset_imm));
   }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
@@ -449,9 +448,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   Label exit;
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
-  JumpIfSmi(src.gp(), &exit);
-  CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
