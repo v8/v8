@@ -105,9 +105,10 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
   const index = Signed(ChangeUint32ToWord(identityHash)) - 1;
 
   // 6. Let errors be F.[[Errors]].
-  let errors = *ContextSlot(
+  let errorsRef:&FixedArray = ContextSlot(
       context,
       PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementErrorsSlot);
+  let errors = *errorsRef;
 
   // 7. Let promiseCapability be F.[[Capability]].
 
@@ -133,10 +134,7 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
       IntPtrMax(SmiUntag(remainingElementsCount) - 1, index + 1);
   if (newCapacity > errors.length_intptr) deferred {
       errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
-      *ContextSlot(
-          context,
-          PromiseAnyRejectElementContextSlots::
-              kPromiseAnyRejectElementErrorsSlot) = errors;
+      *errorsRef = errors;
     }
   errors.objects[index] = value;
 
@@ -154,6 +152,10 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
 
     //   b. Set error.[[AggregateErrors]] to errors.
     const error = ConstructAggregateError(errors);
+
+    // After this point, errors escapes to user code. Clear the slot.
+    *errorsRef = kEmptyFixedArray;
+
     //   c. Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
     const capability = *ContextSlot(
         context,
