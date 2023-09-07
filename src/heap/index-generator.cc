@@ -7,20 +7,17 @@
 namespace v8 {
 namespace internal {
 
-IndexGenerator::IndexGenerator(size_t size) : size_(size) {
+IndexGenerator::IndexGenerator(size_t size) : first_use_(size > 0) {
   if (size == 0) return;
   base::MutexGuard guard(&lock_);
-  pending_indices_.push(0);
-  ranges_to_split_.push({0, size_});
+  ranges_to_split_.emplace(0, size);
 }
 
 base::Optional<size_t> IndexGenerator::GetNext() {
   base::MutexGuard guard(&lock_);
-  if (!pending_indices_.empty()) {
-    // Return any pending index first.
-    auto index = pending_indices_.top();
-    pending_indices_.pop();
-    return index;
+  if (first_use_) {
+    first_use_ = false;
+    return 0;
   }
   if (ranges_to_split_.empty()) return base::nullopt;
 
@@ -32,8 +29,8 @@ base::Optional<size_t> IndexGenerator::GetNext() {
   size_t mid = range.first + size / 2;
   // Both sides of the range are added to |ranges_to_split_| so they may be
   // further split if possible.
-  if (mid - range.first > 1) ranges_to_split_.push({range.first, mid});
-  if (range.second - mid > 1) ranges_to_split_.push({mid, range.second});
+  if (mid - range.first > 1) ranges_to_split_.emplace(range.first, mid);
+  if (range.second - mid > 1) ranges_to_split_.emplace(mid, range.second);
   return mid;
 }
 
