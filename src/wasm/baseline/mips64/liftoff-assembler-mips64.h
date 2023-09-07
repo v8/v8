@@ -72,8 +72,8 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
     return MemOperand(addr, offset_imm32);
   } else {
     assm->li(kScratchReg2, Operand(offset_imm));
-    assm->daddu(kScratchReg2, addr, kScratchReg2);
-    return MemOperand(kScratchReg2, 0);
+    assm->daddu(kScratchReg, addr, kScratchReg2);
+    return MemOperand(kScratchReg, 0);
   }
 }
 
@@ -544,7 +544,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   static_assert(kTaggedSize == kInt64Size);
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch = kScratchReg2;
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Sd(src, dst_op);
 
@@ -631,7 +631,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
     pinned.set(dst_op.rm());
-    LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
+    LiftoffRegister tmp = kScratchReg2;
     // Save original value.
     Move(tmp, src, type.value_type());
 
