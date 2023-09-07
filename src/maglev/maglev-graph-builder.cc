@@ -311,261 +311,249 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
   DeoptFrame::FrameData data_;
 };
 
-// Helper class for building a subgraph with its own control flow, that is not
-// attached to any bytecode.
-//
-// It does this by creating a fake dummy compilation unit and frame state, and
-// wrapping up all the places where it pretends to be interpreted but isn't.
-class MaglevGraphBuilder::MaglevSubGraphBuilder {
+class MaglevGraphBuilder::MaglevSubGraphBuilder::Variable {
  public:
-  class Variable {
-   public:
-    explicit Variable(int index) : pseudo_register_(index) {}
+  explicit Variable(int index) : pseudo_register_(index) {}
 
-   private:
-    friend class MaglevSubGraphBuilder;
+ private:
+  friend class MaglevSubGraphBuilder;
 
-    // Variables pretend to be interpreter registers as far as the dummy
-    // compilation unit and merge states are concerned.
-    interpreter::Register pseudo_register_;
-  };
+  // Variables pretend to be interpreter registers as far as the dummy
+  // compilation unit and merge states are concerned.
+  interpreter::Register pseudo_register_;
+};
 
-  class Label {
-   public:
-    Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count)
-        : predecessor_count_(predecessor_count),
-          liveness_(sub_builder->builder_->zone()
-                        ->New<compiler::BytecodeLivenessState>(
-                            sub_builder->compilation_unit_->register_count(),
-                            sub_builder->builder_->zone())) {}
-    Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count,
-          std::initializer_list<Variable*> vars)
-        : Label(sub_builder, predecessor_count) {
-      for (Variable* var : vars) {
-        liveness_->MarkRegisterLive(var->pseudo_register_.index());
-      }
+class MaglevGraphBuilder::MaglevSubGraphBuilder::Label {
+ public:
+  Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count)
+      : predecessor_count_(predecessor_count),
+        liveness_(
+            sub_builder->builder_->zone()->New<compiler::BytecodeLivenessState>(
+                sub_builder->compilation_unit_->register_count(),
+                sub_builder->builder_->zone())) {}
+  Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count,
+        std::initializer_list<Variable*> vars)
+      : Label(sub_builder, predecessor_count) {
+    for (Variable* var : vars) {
+      liveness_->MarkRegisterLive(var->pseudo_register_.index());
     }
-
-   private:
-    explicit Label(MergePointInterpreterFrameState* merge_state,
-                   BasicBlock* basic_block)
-        : merge_state_(merge_state), ref_(basic_block) {}
-
-    friend class MaglevSubGraphBuilder;
-    MergePointInterpreterFrameState* merge_state_ = nullptr;
-    int predecessor_count_ = -1;
-    compiler::BytecodeLivenessState* liveness_ = nullptr;
-    BasicBlockRef ref_;
-  };
-
-  class LoopLabel {
-   public:
-   private:
-    explicit LoopLabel(MergePointInterpreterFrameState* merge_state,
-                       BasicBlock* loop_header)
-        : merge_state_(merge_state), loop_header_(loop_header) {}
-
-    friend class MaglevSubGraphBuilder;
-    MergePointInterpreterFrameState* merge_state_ = nullptr;
-    BasicBlock* loop_header_;
-  };
-
-  explicit MaglevSubGraphBuilder(MaglevGraphBuilder* builder,
-                                 int variable_count)
-      : builder_(builder),
-        compilation_unit_(MaglevCompilationUnit::NewDummy(
-            builder->zone(), builder->compilation_unit(), variable_count, 0)),
-        pseudo_frame_(*compilation_unit_, nullptr) {
-    // We need to set a context, since this is unconditional in the frame state,
-    // so set it to the real context.
-    pseudo_frame_.set(interpreter::Register::current_context(),
-                      builder_->current_interpreter_frame().get(
-                          interpreter::Register::current_context()));
-    DCHECK_NULL(pseudo_frame_.known_node_aspects());
-  }
-
-  LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars) {
-    // Create fake liveness and loop info for the loop, with all given loop vars
-    // set to be live and assigned inside the loop.
-    compiler::BytecodeLivenessState* loop_header_liveness =
-        builder_->zone()->New<compiler::BytecodeLivenessState>(
-            compilation_unit_->register_count(), builder_->zone());
-    compiler::LoopInfo* loop_info = builder_->zone()->New<compiler::LoopInfo>(
-        -1, 0, kMaxInt, compilation_unit_->parameter_count(),
-        compilation_unit_->register_count(), builder_->zone());
-    for (Variable* var : loop_vars) {
-      loop_header_liveness->MarkRegisterLive(var->pseudo_register_.index());
-      loop_info->assignments().Add(var->pseudo_register_);
-    }
-
-    // Finish the current block, jumping (as a fallthrough) to the loop header.
-    BasicBlockRef loop_header_ref;
-    BasicBlock* loop_predecessor =
-        builder_->FinishBlock<Jump>({}, &loop_header_ref);
-
-    // Create a state for the loop header, with two predecessors (the above jump
-    // and the back edge), and initialise with the current state.
-    MergePointInterpreterFrameState* loop_state =
-        MergePointInterpreterFrameState::NewForLoop(
-            pseudo_frame_, *compilation_unit_, 0, 2, loop_header_liveness,
-            loop_info);
-
-    {
-      BorrowParentKnownNodeAspects borrow(this);
-      loop_state->Merge(builder_, *compilation_unit_, pseudo_frame_,
-                        loop_predecessor);
-    }
-
-    // Start a new basic block for the loop.
-    DCHECK_NULL(pseudo_frame_.known_node_aspects());
-    pseudo_frame_.CopyFrom(*compilation_unit_, *loop_state);
-    MoveKnownNodeAspectsToParent();
-
-    builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
-    builder_->StartNewBlock(nullptr, loop_state, loop_header_ref);
-
-    return LoopLabel{loop_state, loop_header_ref.block_ptr()};
-  }
-
-  template <typename ControlNodeT, typename... Args>
-  void GotoIfTrue(Label* true_target,
-                  std::initializer_list<ValueNode*> control_inputs,
-                  Args&&... args) {
-    static_assert(IsConditionalControlNode(Node::opcode_of<ControlNodeT>));
-
-    BasicBlockRef fallthrough_ref;
-
-    // Pass through to FinishBlock, converting Labels to BasicBlockRefs and the
-    // fallthrough label to the fallthrough ref.
-    BasicBlock* block = builder_->FinishBlock<ControlNodeT>(
-        control_inputs, std::forward<Args>(args)..., &true_target->ref_,
-        &fallthrough_ref);
-
-    MergeIntoLabel(true_target, block);
-
-    builder_->StartNewBlock(block, nullptr, fallthrough_ref);
-  }
-
-  template <typename ControlNodeT, typename... Args>
-  void GotoIfFalse(Label* false_target,
-                   std::initializer_list<ValueNode*> control_inputs,
-                   Args&&... args) {
-    static_assert(IsConditionalControlNode(Node::opcode_of<ControlNodeT>));
-
-    BasicBlockRef fallthrough_ref;
-
-    // Pass through to FinishBlock, converting Labels to BasicBlockRefs and the
-    // fallthrough label to the fallthrough ref.
-    BasicBlock* block = builder_->FinishBlock<ControlNodeT>(
-        control_inputs, std::forward<Args>(args)..., &fallthrough_ref,
-        &false_target->ref_);
-
-    MergeIntoLabel(false_target, block);
-
-    builder_->StartNewBlock(block, nullptr, fallthrough_ref);
-  }
-
-  void Goto(Label* label) {
-    if (builder_->current_block_ == nullptr) {
-      label->merge_state_->MergeDead(*compilation_unit_);
-      return;
-    }
-
-    BasicBlock* block = builder_->FinishBlock<Jump>({}, &label->ref_);
-    MergeIntoLabel(label, block);
-  }
-
-  void EndLoop(LoopLabel* loop_label) {
-    if (builder_->current_block_ == nullptr) {
-      loop_label->merge_state_->MergeDeadLoop(*compilation_unit_);
-      return;
-    }
-
-    BasicBlock* block =
-        builder_->FinishBlock<JumpLoop>({}, loop_label->loop_header_);
-    {
-      BorrowParentKnownNodeAspects borrow(this);
-      loop_label->merge_state_->MergeLoop(builder_, *compilation_unit_,
-                                          pseudo_frame_, block);
-    }
-    block->set_predecessor_id(loop_label->merge_state_->predecessor_count() -
-                              1);
-  }
-
-  void Bind(Label* label) {
-    DCHECK_NULL(builder_->current_block_);
-
-    DCHECK_NULL(pseudo_frame_.known_node_aspects());
-    pseudo_frame_.CopyFrom(*compilation_unit_, *label->merge_state_);
-    MoveKnownNodeAspectsToParent();
-
-    builder_->ProcessMergePointPredecessors(*label->merge_state_, label->ref_);
-    builder_->StartNewBlock(nullptr, label->merge_state_, label->ref_);
-  }
-
-  void set(Variable& var, ValueNode* value) {
-    pseudo_frame_.set(var.pseudo_register_, value);
-  }
-  ValueNode* get(const Variable& var) const {
-    return pseudo_frame_.get(var.pseudo_register_);
   }
 
  private:
-  // Known node aspects for the pseudo frame are null aside from when merging --
-  // before each merge, we should borrow the node aspects from the parent
-  // builder, and after each merge point, we should copy the node aspects back
-  // to the parent. This is so that the parent graph builder can update its own
-  // known node aspects without having to worry about this pseudo frame.
-  class BorrowParentKnownNodeAspects {
-   public:
-    explicit BorrowParentKnownNodeAspects(MaglevSubGraphBuilder* sub_builder)
-        : sub_builder_(sub_builder) {
-      sub_builder_->TakeKnownNodeAspectsFromParent();
-    }
-    ~BorrowParentKnownNodeAspects() {
-      sub_builder_->MoveKnownNodeAspectsToParent();
-    }
+  explicit Label(MergePointInterpreterFrameState* merge_state,
+                 BasicBlock* basic_block)
+      : merge_state_(merge_state), ref_(basic_block) {}
 
-   private:
-    MaglevSubGraphBuilder* sub_builder_;
-  };
-
-  void TakeKnownNodeAspectsFromParent() {
-    DCHECK_NULL(pseudo_frame_.known_node_aspects());
-    pseudo_frame_.set_known_node_aspects(
-        builder_->current_interpreter_frame_.known_node_aspects());
-  }
-
-  void MoveKnownNodeAspectsToParent() {
-    DCHECK_NOT_NULL(pseudo_frame_.known_node_aspects());
-    builder_->current_interpreter_frame_.set_known_node_aspects(
-        pseudo_frame_.known_node_aspects());
-    pseudo_frame_.clear_known_node_aspects();
-  }
-
-  void MergeIntoLabel(Label* label, BasicBlock* predecessor) {
-    BorrowParentKnownNodeAspects borrow(this);
-
-    if (label->merge_state_ == nullptr) {
-      // If there's no merge state, allocate a new one.
-      label->merge_state_ = MergePointInterpreterFrameState::New(
-          *compilation_unit_, pseudo_frame_, 0, label->predecessor_count_,
-          predecessor, label->liveness_);
-    } else {
-      // If there already is a frame state, merge.
-      label->merge_state_->Merge(builder_, *compilation_unit_, pseudo_frame_,
-                                 predecessor);
-    }
-  }
-  template <typename T>
-  T LabelToRef(T&& val) {
-    return std::forward<T>(val);
-  }
-
-  MaglevGraphBuilder* builder_;
-  MaglevCompilationUnit* compilation_unit_;
-  InterpreterFrameState pseudo_frame_;
+  friend class MaglevSubGraphBuilder;
+  MergePointInterpreterFrameState* merge_state_ = nullptr;
+  int predecessor_count_ = -1;
+  compiler::BytecodeLivenessState* liveness_ = nullptr;
+  BasicBlockRef ref_;
 };
+
+class MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
+ public:
+ private:
+  explicit LoopLabel(MergePointInterpreterFrameState* merge_state,
+                     BasicBlock* loop_header)
+      : merge_state_(merge_state), loop_header_(loop_header) {}
+
+  friend class MaglevSubGraphBuilder;
+  MergePointInterpreterFrameState* merge_state_ = nullptr;
+  BasicBlock* loop_header_;
+};
+
+class MaglevGraphBuilder::MaglevSubGraphBuilder::BorrowParentKnownNodeAspects {
+ public:
+  explicit BorrowParentKnownNodeAspects(MaglevSubGraphBuilder* sub_builder)
+      : sub_builder_(sub_builder) {
+    sub_builder_->TakeKnownNodeAspectsFromParent();
+  }
+  ~BorrowParentKnownNodeAspects() {
+    sub_builder_->MoveKnownNodeAspectsToParent();
+  }
+
+ private:
+  MaglevSubGraphBuilder* sub_builder_;
+};
+
+MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
+    MaglevGraphBuilder* builder, int variable_count)
+    : builder_(builder),
+      compilation_unit_(MaglevCompilationUnit::NewDummy(
+          builder->zone(), builder->compilation_unit(), variable_count, 0)),
+      pseudo_frame_(*compilation_unit_, nullptr) {
+  // We need to set a context, since this is unconditional in the frame state,
+  // so set it to the real context.
+  pseudo_frame_.set(interpreter::Register::current_context(),
+                    builder_->current_interpreter_frame().get(
+                        interpreter::Register::current_context()));
+  DCHECK_NULL(pseudo_frame_.known_node_aspects());
+}
+
+MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel
+MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
+    std::initializer_list<Variable*> loop_vars) {
+  // Create fake liveness and loop info for the loop, with all given loop vars
+  // set to be live and assigned inside the loop.
+  compiler::BytecodeLivenessState* loop_header_liveness =
+      builder_->zone()->New<compiler::BytecodeLivenessState>(
+          compilation_unit_->register_count(), builder_->zone());
+  compiler::LoopInfo* loop_info = builder_->zone()->New<compiler::LoopInfo>(
+      -1, 0, kMaxInt, compilation_unit_->parameter_count(),
+      compilation_unit_->register_count(), builder_->zone());
+  for (Variable* var : loop_vars) {
+    loop_header_liveness->MarkRegisterLive(var->pseudo_register_.index());
+    loop_info->assignments().Add(var->pseudo_register_);
+  }
+
+  // Finish the current block, jumping (as a fallthrough) to the loop header.
+  BasicBlockRef loop_header_ref;
+  BasicBlock* loop_predecessor =
+      builder_->FinishBlock<Jump>({}, &loop_header_ref);
+
+  // Create a state for the loop header, with two predecessors (the above jump
+  // and the back edge), and initialise with the current state.
+  MergePointInterpreterFrameState* loop_state =
+      MergePointInterpreterFrameState::NewForLoop(
+          pseudo_frame_, *compilation_unit_, 0, 2, loop_header_liveness,
+          loop_info);
+
+  {
+    BorrowParentKnownNodeAspects borrow(this);
+    loop_state->Merge(builder_, *compilation_unit_, pseudo_frame_,
+                      loop_predecessor);
+  }
+
+  // Start a new basic block for the loop.
+  DCHECK_NULL(pseudo_frame_.known_node_aspects());
+  pseudo_frame_.CopyFrom(*compilation_unit_, *loop_state);
+  MoveKnownNodeAspectsToParent();
+
+  builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
+  builder_->StartNewBlock(nullptr, loop_state, loop_header_ref);
+
+  return LoopLabel{loop_state, loop_header_ref.block_ptr()};
+}
+
+template <typename ControlNodeT, typename... Args>
+void MaglevGraphBuilder::MaglevSubGraphBuilder::GotoIfTrue(
+    Label* true_target, std::initializer_list<ValueNode*> control_inputs,
+    Args&&... args) {
+  static_assert(IsConditionalControlNode(Node::opcode_of<ControlNodeT>));
+
+  BasicBlockRef fallthrough_ref;
+
+  // Pass through to FinishBlock, converting Labels to BasicBlockRefs and the
+  // fallthrough label to the fallthrough ref.
+  BasicBlock* block = builder_->FinishBlock<ControlNodeT>(
+      control_inputs, std::forward<Args>(args)..., &true_target->ref_,
+      &fallthrough_ref);
+
+  MergeIntoLabel(true_target, block);
+
+  builder_->StartNewBlock(block, nullptr, fallthrough_ref);
+}
+
+template <typename ControlNodeT, typename... Args>
+void MaglevGraphBuilder::MaglevSubGraphBuilder::GotoIfFalse(
+    Label* false_target, std::initializer_list<ValueNode*> control_inputs,
+    Args&&... args) {
+  static_assert(IsConditionalControlNode(Node::opcode_of<ControlNodeT>));
+
+  BasicBlockRef fallthrough_ref;
+
+  // Pass through to FinishBlock, converting Labels to BasicBlockRefs and the
+  // fallthrough label to the fallthrough ref.
+  BasicBlock* block = builder_->FinishBlock<ControlNodeT>(
+      control_inputs, std::forward<Args>(args)..., &fallthrough_ref,
+      &false_target->ref_);
+
+  MergeIntoLabel(false_target, block);
+
+  builder_->StartNewBlock(block, nullptr, fallthrough_ref);
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::Goto(Label* label) {
+  if (builder_->current_block_ == nullptr) {
+    label->merge_state_->MergeDead(*compilation_unit_);
+    return;
+  }
+
+  BasicBlock* block = builder_->FinishBlock<Jump>({}, &label->ref_);
+  MergeIntoLabel(label, block);
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
+  if (builder_->current_block_ == nullptr) {
+    loop_label->merge_state_->MergeDeadLoop(*compilation_unit_);
+    return;
+  }
+
+  BasicBlock* block =
+      builder_->FinishBlock<JumpLoop>({}, loop_label->loop_header_);
+  {
+    BorrowParentKnownNodeAspects borrow(this);
+    loop_label->merge_state_->MergeLoop(builder_, *compilation_unit_,
+                                        pseudo_frame_, block);
+  }
+  block->set_predecessor_id(loop_label->merge_state_->predecessor_count() - 1);
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
+  DCHECK_NULL(builder_->current_block_);
+
+  DCHECK_NULL(pseudo_frame_.known_node_aspects());
+  pseudo_frame_.CopyFrom(*compilation_unit_, *label->merge_state_);
+  MoveKnownNodeAspectsToParent();
+
+  builder_->ProcessMergePointPredecessors(*label->merge_state_, label->ref_);
+  builder_->StartNewBlock(nullptr, label->merge_state_, label->ref_);
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::set(Variable& var,
+                                                    ValueNode* value) {
+  pseudo_frame_.set(var.pseudo_register_, value);
+}
+ValueNode* MaglevGraphBuilder::MaglevSubGraphBuilder::get(
+    const Variable& var) const {
+  return pseudo_frame_.get(var.pseudo_register_);
+}
+
+// Known node aspects for the pseudo frame are null aside from when merging --
+// before each merge, we should borrow the node aspects from the parent
+// builder, and after each merge point, we should copy the node aspects back
+// to the parent. This is so that the parent graph builder can update its own
+// known node aspects without having to worry about this pseudo frame.
+void MaglevGraphBuilder::MaglevSubGraphBuilder::
+    TakeKnownNodeAspectsFromParent() {
+  DCHECK_NULL(pseudo_frame_.known_node_aspects());
+  pseudo_frame_.set_known_node_aspects(
+      builder_->current_interpreter_frame_.known_node_aspects());
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::MoveKnownNodeAspectsToParent() {
+  DCHECK_NOT_NULL(pseudo_frame_.known_node_aspects());
+  builder_->current_interpreter_frame_.set_known_node_aspects(
+      pseudo_frame_.known_node_aspects());
+  pseudo_frame_.clear_known_node_aspects();
+}
+
+void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
+    Label* label, BasicBlock* predecessor) {
+  BorrowParentKnownNodeAspects borrow(this);
+
+  if (label->merge_state_ == nullptr) {
+    // If there's no merge state, allocate a new one.
+    label->merge_state_ = MergePointInterpreterFrameState::New(
+        *compilation_unit_, pseudo_frame_, 0, label->predecessor_count_,
+        predecessor, label->liveness_);
+  } else {
+    // If there already is a frame state, merge.
+    label->merge_state_->Merge(builder_, *compilation_unit_, pseudo_frame_,
+                               predecessor);
+  }
+}
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
@@ -5977,6 +5965,89 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   return ReduceCall(receiver, args, source, call_feedback.speculation_mode());
 }
 
+namespace {
+
+template <size_t MaxKindCount, typename KindsToIndexFunc>
+bool CanInlineArrayResizingBuiltin(
+    compiler::JSHeapBroker* broker, const PossibleMaps& possible_maps,
+    std::array<SmallZoneVector<compiler::MapRef, 2>, MaxKindCount>& map_kinds,
+    KindsToIndexFunc&& elements_kind_to_index, int* unique_kind_count,
+    bool is_loading) {
+  uint8_t kind_bitmap = 0;
+  for (compiler::MapRef map : possible_maps) {
+    if (!map.supports_fast_array_resize(broker)) {
+      return false;
+    }
+    ElementsKind kind = map.elements_kind();
+    if (is_loading && kind == HOLEY_DOUBLE_ELEMENTS) {
+      return false;
+    }
+    // Group maps by elements kind, using the provided function to translate
+    // elements kinds to indices.
+    // kind_bitmap is used to get the unique kinds (predecessor count for the
+    // next block).
+    uint8_t kind_index = elements_kind_to_index(kind);
+    kind_bitmap |= 1 << kind_index;
+    map_kinds[kind_index].push_back(map);
+  }
+
+  *unique_kind_count = base::bits::CountPopulation(kind_bitmap);
+  DCHECK_GE(*unique_kind_count, 1);
+  return true;
+}
+
+}  // namespace
+
+template <typename MapKindsT, typename IndexToElementsKindFunc,
+          typename BuildKindSpecificFunc>
+void MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
+    ValueNode* receiver, const MapKindsT& map_kinds,
+    MaglevSubGraphBuilder& sub_graph,
+    base::Optional<MaglevSubGraphBuilder::Label>& do_return,
+    int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
+    BuildKindSpecificFunc&& build_kind_specific) {
+  // TODO(pthier): Support map packing.
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  ValueNode* receiver_map =
+      AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
+  int emitted_kind_checks = 0;
+  for (size_t kind_index = 0; kind_index < map_kinds.size(); kind_index++) {
+    const auto& maps = map_kinds[kind_index];
+    // Skip kinds we haven't observed.
+    if (maps.empty()) continue;
+    ElementsKind kind = index_to_elements_kind(kind_index);
+    // Create branches for all but the last elements kind. We don't need
+    // to check the maps of the last kind, as all possible maps have already
+    // been checked when the property (builtin name) was loaded.
+    if (++emitted_kind_checks < unique_kind_count) {
+      MaglevSubGraphBuilder::Label check_next_map(&sub_graph, 1);
+      base::Optional<MaglevSubGraphBuilder::Label> do_push;
+      if (maps.size() > 1) {
+        do_push.emplace(&sub_graph, static_cast<int>(maps.size()));
+        for (size_t map_index = 1; map_index < maps.size(); map_index++) {
+          sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
+              &*do_push, {receiver_map, GetConstant(maps[map_index])});
+        }
+      }
+      sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+          &check_next_map, {receiver_map, GetConstant(maps[0])});
+      if (do_push.has_value()) {
+        sub_graph.Goto(&*do_push);
+        sub_graph.Bind(&*do_push);
+      }
+      build_kind_specific(kind);
+      DCHECK(do_return.has_value());
+      sub_graph.Goto(&*do_return);
+      sub_graph.Bind(&check_next_map);
+    } else {
+      build_kind_specific(kind);
+      if (do_return.has_value()) {
+        sub_graph.Goto(&*do_return);
+      }
+    }
+  }
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We can't reduce Function#call when there is no receiver function.
@@ -6036,34 +6107,31 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       SmallZoneVector<compiler::MapRef, 2>(zone()),
       SmallZoneVector<compiler::MapRef, 2>(zone()),
       SmallZoneVector<compiler::MapRef, 2>(zone())};
-  uint8_t kind_bitmap = 0;
-  for (compiler::MapRef map : possible_maps) {
-    if (!map.supports_fast_array_resize(broker())) {
-      if (v8_flags.trace_maglev_graph_building) {
-        std::cout << "  ! Failed to reduce Array.prototype.push - Map doesn't "
-                     "support fast resizing"
-                  << std::endl;
-      }
-      return ReduceResult::Fail();
-    }
-    // Group maps by elements kind, ignoring packedness. Packedness doesn't
-    // matter for push().
-    // Kinds we care about are all paired in the first 6 values of ElementsKind,
-    // so we can use integer division to truncate holeyness.
-    // kind_bitmap is used to get the unique kinds (predecessor count of
-    // `do_return`).
+  // Function to group maps by elements kind, ignoring packedness. Packedness
+  // doesn't matter for push().
+  // Kinds we care about are all paired in the first 6 values of ElementsKind,
+  // so we can use integer division to truncate holeyness.
+  auto elements_kind_to_index = [&](ElementsKind kind) {
     static_assert(kFastElementsKindCount <= 6);
     static_assert(kFastElementsKindPackedToHoley == 1);
-    uint8_t kind = static_cast<uint8_t>(map.elements_kind());
-    uint8_t packed_kind = kind / 2;
-    kind_bitmap |= 1 << packed_kind;
-    map_kinds[packed_kind].push_back(map);
+    return static_cast<uint8_t>(kind) / 2;
+  };
+  auto index_to_elements_kind = [&](uint8_t kind_index) {
+    return static_cast<ElementsKind>(kind_index * 2);
+  };
+  int unique_kind_count;
+  if (!CanInlineArrayResizingBuiltin(broker(), possible_maps, map_kinds,
+                                     elements_kind_to_index, &unique_kind_count,
+                                     false)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.push - Map doesn't "
+                   "support fast resizing"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
   }
 
   MaglevSubGraphBuilder sub_graph(this, 0);
-
-  int unique_kind_count = base::bits::CountPopulation(kind_bitmap);
-  DCHECK_GE(unique_kind_count, 1);
 
   base::Optional<MaglevSubGraphBuilder::Label> do_return;
   if (unique_kind_count > 1) {
@@ -6105,47 +6173,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     }
   };
 
-  // TODO(pthier): Support map packing.
-  DCHECK(!V8_MAP_PACKING_BOOL);
-  ValueNode* receiver_map =
-      AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
-  int emitted_kind_checks = 0;
-  for (size_t kind_index = 0; kind_index < map_kinds.size(); kind_index++) {
-    const auto& maps = map_kinds[kind_index];
-    // Skip kinds we haven't observed.
-    if (maps.empty()) continue;
-    ElementsKind kind = static_cast<ElementsKind>(kind_index * 2);
-
-    // Create branches for all but the last elements kind. We don't need
-    // to check the maps of the last kind, as all possible maps have already
-    // been checked when the property (push) was loaded.
-    if (++emitted_kind_checks < unique_kind_count) {
-      MaglevSubGraphBuilder::Label check_next_map(&sub_graph, 1);
-      base::Optional<MaglevSubGraphBuilder::Label> do_push;
-      if (maps.size() > 1) {
-        do_push.emplace(&sub_graph, static_cast<int>(maps.size()));
-        for (size_t map_index = 1; map_index < maps.size(); map_index++) {
-          sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
-              &*do_push, {receiver_map, GetConstant(maps[map_index])});
-        }
-      }
-      sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
-          &check_next_map, {receiver_map, GetConstant(maps[0])});
-      if (do_push.has_value()) {
-        sub_graph.Goto(&*do_push);
-        sub_graph.Bind(&*do_push);
-      }
-      build_array_push(kind);
-      sub_graph.Goto(&*do_return);
-      sub_graph.Bind(&check_next_map);
-    } else {
-      DCHECK_EQ(emitted_kind_checks, unique_kind_count);
-      build_array_push(kind);
-      if (do_return.has_value()) {
-        sub_graph.Goto(&*do_return);
-      }
-    }
-  }
+  BuildJSArrayBuiltinMapSwitchOnElementsKind(
+      receiver, map_kinds, sub_graph, do_return, unique_kind_count,
+      index_to_elements_kind, build_array_push);
 
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
@@ -6153,6 +6183,175 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   RecordKnownProperty(receiver, broker()->length_string(), new_array_length_smi,
                       false, compiler::AccessMode::kStore);
   return new_array_length_smi;
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  // We can't reduce Function#call when there is no receiver function.
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.pop - no receiver"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  if (!node_info || !node_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Array.prototype.pop - unknown receiver map"
+          << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  const PossibleMaps& possible_maps = node_info->possible_maps();
+
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_maps.is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.pop - "
+                   "NoElementsProtector invalidated"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  constexpr int max_kind_count = 4;
+  std::array<SmallZoneVector<compiler::MapRef, 2>, max_kind_count> map_kinds = {
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone())};
+  // Smi and Object elements kinds are treated as identical for pop, so we can
+  // group them together without differentiation.
+  // ElementsKind is mapped to an index in the 4 element array using:
+  //   - Bit 2 (Only set for double in the fast element range) is mapped to bit
+  //   1)
+  //   - Bit 0 (packedness)
+  // The complete mapping:
+  // +-------+----------------------------------------------+
+  // | Index |    ElementsKinds                             |
+  // +-------+----------------------------------------------+
+  // |   0   |    PACKED_SMI_ELEMENTS and PACKED_ELEMENTS   |
+  // |   1   |    HOLEY_SMI_ELEMENETS and HOLEY_ELEMENTS    |
+  // |   2   |    PACKED_DOUBLE_ELEMENTS                    |
+  // |   3   |    HOLEY_DOUBLE_ELEMENTS                     |
+  // +-------+----------------------------------------------+
+  auto elements_kind_to_index = [&](ElementsKind kind) {
+    uint8_t kind_int = static_cast<uint8_t>(kind);
+    uint8_t kind_index = ((kind_int & 0x4) >> 1) | (kind_int & 0x1);
+    DCHECK_LT(kind_index, max_kind_count);
+    return kind_index;
+  };
+  auto index_to_elements_kind = [&](uint8_t kind_index) {
+    uint8_t kind_int;
+    kind_int = ((kind_index & 0x2) << 1) | (kind_index & 0x1);
+    return static_cast<ElementsKind>(kind_int);
+  };
+
+  int unique_kind_count;
+  if (!CanInlineArrayResizingBuiltin(broker(), possible_maps, map_kinds,
+                                     elements_kind_to_index, &unique_kind_count,
+                                     true)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.pop - Map doesn't "
+                   "support fast resizing"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  MaglevSubGraphBuilder sub_graph(this, 2);
+  MaglevSubGraphBuilder::Variable var_value(0);
+  MaglevSubGraphBuilder::Variable var_new_array_length(1);
+
+  base::Optional<MaglevSubGraphBuilder::Label> do_return =
+      base::make_optional<MaglevSubGraphBuilder::Label>(
+          &sub_graph, unique_kind_count + 1,
+          std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+              &var_value, &var_new_array_length});
+  MaglevSubGraphBuilder::Label empty_array(&sub_graph, 1);
+
+  ValueNode* old_array_length_smi = BuildLoadJSArrayLength(receiver).value();
+
+  // If the array is empty, skip the pop and return undefined.
+  sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
+      &empty_array, {old_array_length_smi, GetSmiConstant(0)});
+
+  ValueNode* elements_array =
+      AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
+
+  ValueNode* new_array_length_smi =
+      AddNewNode<CheckedSmiDecrement>({old_array_length_smi});
+  ValueNode* new_array_length =
+      AddNewNode<UnsafeSmiUntag>({new_array_length_smi});
+  sub_graph.set(var_new_array_length, new_array_length_smi);
+
+  auto build_array_pop = [&](ElementsKind kind) {
+    // Handle COW if needed.
+    ValueNode* writable_elements_array =
+        IsSmiOrObjectElementsKind(kind)
+            ? AddNewNode<EnsureWritableFastElements>({elements_array, receiver})
+            : elements_array;
+
+    // Store new length.
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
+                                               JSArray::kLengthOffset);
+
+    // Load the value and store the hole in it's place.
+    ValueNode* value;
+    if (IsDoubleElementsKind(kind)) {
+      value = AddNewNode<LoadFixedDoubleArrayElement>(
+          {writable_elements_array, new_array_length});
+      AddNewNode<StoreFixedDoubleArrayElement>(
+          {writable_elements_array, new_array_length,
+           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))});
+    } else {
+      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+      value = AddNewNode<LoadFixedArrayElement>(
+          {writable_elements_array, new_array_length});
+      DCHECK(CanElideWriteBarrier(writable_elements_array,
+                                  GetRootConstant(RootIndex::kTheHoleValue)));
+      AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
+          {writable_elements_array, new_array_length,
+           GetRootConstant(RootIndex::kTheHoleValue)});
+    }
+
+    if (IsHoleyElementsKind(kind)) {
+      value = AddNewNode<ConvertHoleToUndefined>({value});
+    }
+    sub_graph.set(var_value, value);
+  };
+
+  BuildJSArrayBuiltinMapSwitchOnElementsKind(
+      receiver, map_kinds, sub_graph, do_return, unique_kind_count,
+      index_to_elements_kind, build_array_pop);
+
+  sub_graph.Bind(&empty_array);
+  sub_graph.set(var_new_array_length, GetSmiConstant(0));
+  sub_graph.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
+  sub_graph.Goto(&*do_return);
+
+  sub_graph.Bind(&*do_return);
+  RecordKnownProperty(receiver, broker()->length_string(),
+                      sub_graph.get(var_new_array_length), false,
+                      compiler::AccessMode::kStore);
+  return sub_graph.get(var_value);
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(

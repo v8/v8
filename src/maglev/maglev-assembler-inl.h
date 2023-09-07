@@ -748,6 +748,12 @@ inline void MaglevAssembler::SmiAddConstant(Register reg, int value,
   return SmiAddConstant(reg, reg, value, fail, distance);
 }
 
+inline void MaglevAssembler::SmiSubConstant(Register reg, int value,
+                                            Label* fail,
+                                            Label::Distance distance) {
+  return SmiSubConstant(reg, reg, value, fail, distance);
+}
+
 inline void MaglevAssembler::StringLength(Register result, Register string) {
   if (v8_flags.debug_code) {
     // Check if {string} is a string.

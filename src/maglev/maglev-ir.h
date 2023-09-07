@@ -118,7 +118,9 @@ class MergePointInterpreterFrameState;
   V(Float64ToBoolean)                   \
   V(Float64Ieee754Unary)
 
-#define SMI_OPERATIONS_NODE_LIST(V) V(CheckedSmiIncrement)
+#define SMI_OPERATIONS_NODE_LIST(V) \
+  V(CheckedSmiIncrement)            \
+  V(CheckedSmiDecrement)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
@@ -2676,6 +2678,25 @@ class CheckedSmiIncrement
 
  public:
   explicit CheckedSmiIncrement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return Node::input(kValueIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedSmiDecrement
+    : public FixedInputValueNodeT<1, CheckedSmiDecrement> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiDecrement>;
+
+ public:
+  explicit CheckedSmiDecrement(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr

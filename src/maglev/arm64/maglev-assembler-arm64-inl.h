@@ -405,6 +405,23 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
   }
 }
 
+inline void MaglevAssembler::SmiSubConstant(Register dst, Register src,
+                                            int value, Label* fail,
+                                            Label::Distance distance) {
+  AssertSmi(src);
+  if (value != 0) {
+    if (SmiValuesAre31Bits()) {
+      Subs(dst.W(), src.W(), Immediate(Smi::FromInt(value)));
+    } else {
+      DCHECK(dst.IsX());
+      Subs(dst.X(), src.X(), Immediate(Smi::FromInt(value)));
+    }
+    JumpIf(kOverflow, fail, distance);
+  } else {
+    Move(dst, src);
+  }
+}
+
 inline void MaglevAssembler::MoveHeapNumber(Register dst, double value) {
   Mov(dst, Operand::EmbeddedHeapNumber(value));
 }

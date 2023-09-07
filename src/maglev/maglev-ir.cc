@@ -1263,6 +1263,17 @@ void CheckedSmiIncrement::GenerateCode(MaglevAssembler* masm,
   __ SmiAddConstant(ToRegister(value_input()), 1, deopt_label);
 }
 
+void CheckedSmiDecrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+
+void CheckedSmiDecrement::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kOverflow);
+  __ SmiSubConstant(ToRegister(value_input()), 1, deopt_label);
+}
+
 namespace {
 
 void JumpToFailIfNotHeapNumberOrOddball(
