@@ -83,10 +83,6 @@ class Operand {
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
-
-  V8_INLINE explicit Operand(Tagged<Smi> value)
-      : Operand(static_cast<intptr_t>(value.ptr())) {}
-
   V8_INLINE explicit Operand(const ExternalReference& f)
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<intptr_t>(f.address());
