@@ -141,6 +141,12 @@ ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
 }
 
 // static
+ThreadIsolation::WritableJitPage ThreadIsolation::LookupWritableJitPage(
+    Address addr, size_t size) {
+  return WritableJitPage(addr, size);
+}
+
+// static
 base::Optional<ThreadIsolation::JitPageReference>
 ThreadIsolation::TryLookupJitPage(Address addr, size_t size) {
   base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
@@ -341,12 +347,18 @@ void ThreadIsolation::JitPageReference::UnregisterAllocationsExcept(
 
 base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
     base::Address inner_pointer) {
+  return AllocationContaining(inner_pointer).first;
+}
+
+std::pair<base::Address, ThreadIsolation::JitAllocation&>
+ThreadIsolation::JitPageReference::AllocationContaining(
+    base::Address inner_pointer) {
   auto it = jit_page_->allocations_.upper_bound(inner_pointer);
   CHECK_NE(it, jit_page_->allocations_.begin());
   it--;
   size_t offset = inner_pointer - it->first;
   CHECK_GT(it->second.Size(), offset);
-  return it->first;
+  return {it->first, it->second};
 }
 
 // static

@@ -169,6 +169,7 @@ class V8_EXPORT ThreadIsolation {
   // if Enabled() is true.
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
 
+  class WritableJitPage;
   class WritableJitAllocation;
   class WritableJumpTablePair;
 
@@ -185,14 +186,21 @@ class V8_EXPORT ThreadIsolation {
   static void RegisterJitAllocations(Address start,
                                      const std::vector<size_t>& sizes,
                                      JitAllocationType type);
+
+  // Get writable reference to a previously registered allocation. All writes to
+  // executable memory need to go through one of these Writable* objects since
+  // this is where we perform CFI validation.
   static WritableJitAllocation LookupJitAllocation(Address addr, size_t size,
                                                    JitAllocationType type);
-
   // A special case of LookupJitAllocation since in Wasm, we sometimes have to
   // unlock two allocations (jump tables) together.
   static WritableJumpTablePair LookupJumpTableAllocations(
       Address jump_table_address, size_t jump_table_size,
       Address far_jump_table_address, size_t far_jump_table_size);
+  // Unlock a larger region. This allowsV us to lookup allocations in this
+  // region more quickly without switching the write permissions all the time.
+  static WritableJitPage LookupWritableJitPage(Address addr, size_t size);
+
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
   static void UnregisterWasmAllocation(Address addr, size_t size);
@@ -283,6 +291,8 @@ class V8_EXPORT ThreadIsolation {
                                      const std::vector<base::Address>& addr);
 
     base::Address StartOfAllocationAt(base::Address inner_pointer);
+    std::pair<base::Address, JitAllocation&> AllocationContaining(
+        base::Address addr);
 
     bool Empty() const;
     void Shrink(class JitPage* tail);
@@ -364,6 +374,23 @@ class V8_EXPORT ThreadIsolation {
     const JitAllocation allocation_;
 
     friend class ThreadIsolation;
+    friend class WritableJitPage;
+  };
+
+  class WritableJitPage {
+   public:
+    WritableJitPage(const WritableJitPage&) = delete;
+    WritableJitPage& operator=(const WritableJitPage&) = delete;
+    V8_INLINE ~WritableJitPage();
+    friend class ThreadIsolation;
+
+    V8_INLINE WritableJitAllocation LookupAllocationContaining(Address addr);
+
+   private:
+    V8_INLINE WritableJitPage(Address addr, size_t size);
+
+    RwxMemoryWriteScope write_scope_;
+    JitPageReference page_ref_;
   };
 
   class WritableJumpTablePair {

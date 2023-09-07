@@ -126,6 +126,19 @@ void ThreadIsolation::WritableJitAllocation::ClearBytes(size_t offset,
   memset(reinterpret_cast<void*>(address_ + offset), 0, len);
 }
 
+ThreadIsolation::WritableJitPage::~WritableJitPage() = default;
+
+ThreadIsolation::WritableJitPage::WritableJitPage(Address addr, size_t size)
+    : write_scope_("WritableJitPage"),
+      page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {}
+
+ThreadIsolation::WritableJitAllocation
+ThreadIsolation::WritableJitPage::LookupAllocationContaining(Address addr) {
+  auto pair = page_ref_.AllocationContaining(addr);
+  return WritableJitAllocation(pair.first, pair.second.Size(),
+                               pair.second.Type());
+}
+
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 // static
