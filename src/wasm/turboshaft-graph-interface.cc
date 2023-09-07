@@ -15,6 +15,7 @@
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
@@ -1757,11 +1758,23 @@ class TurboshaftGraphBuildingInterface {
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
                  const Value args[], Value* result) {
-    Bailout(decoder);
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<OpIndex, 8> args_vector(field_count);
+    for (uint32_t i = 0; i < field_count; ++i) {
+      args_vector[i] = args[i].op;
+    }
+    result->op = StructNewImpl(imm, args_vector.data());
   }
+
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
                         Value* result) {
-    Bailout(decoder);
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<OpIndex, 8> args(field_count);
+    for (uint32_t i = 0; i < field_count; i++) {
+      ValueType field_type = imm.struct_type->field(i);
+      args[i] = DefaultValue(field_type);
+    }
+    result->op = StructNewImpl(imm, args.data());
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -4709,6 +4722,29 @@ class TurboshaftGraphBuildingInterface {
         initial_value.valid() ? initial_value : DefaultValue(element_type),
         length, array_type, false);
     return array;
+  }
+
+  V<HeapObject> StructNewImpl(const StructIndexImmediate& imm, OpIndex args[]) {
+    int size = WasmStruct::Size(imm.struct_type);
+    Uninitialized<HeapObject> s = __ Allocate(size, AllocationType::kYoung);
+    V<Map> rtt = asm_.RttCanon(instance_node_, imm.index);
+    asm_.InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                         rtt);
+    asm_.InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                         LOAD_ROOT(EmptyFixedArray));
+    // TODO(14108): Struct initialization isn't finished here but we need the
+    // OpIndex and not some Uninitialized<HeapObject>.
+    V<HeapObject> struct_value = __ FinishInitialization(std::move(s));
+    for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
+      __ StructSet(struct_value, args[i], imm.struct_type, i,
+                   compiler::kWithoutNullCheck);
+    }
+    // If this assert fails then initialization of padding field might be
+    // necessary.
+    static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
+                      WasmStruct::kHeaderSize == 2 * kTaggedSize,
+                  "empty struct might require initialization of padding field");
+    return struct_value;
   }
 
   bool IsSimd128ZeroConstant(OpIndex op) {
