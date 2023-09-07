@@ -41,8 +41,19 @@ ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
       write_scope_("WritableJitAllocation"),
       page_ref_(ThreadIsolation::LookupJitPage(addr, size)),
       allocation_(source == JitAllocationSource::kRegister
-                      ? page_ref_.RegisterAllocation(addr, size, type)
-                      : page_ref_.LookupAllocation(addr, size, type)) {}
+                      ? page_ref_->RegisterAllocation(addr, size, type)
+                      : page_ref_->LookupAllocation(addr, size, type)) {}
+
+ThreadIsolation::WritableJitAllocation::WritableJitAllocation(
+    Address addr, size_t size, JitAllocationType type)
+    : address_(addr), allocation_(size, type) {}
+
+// static
+ThreadIsolation::WritableJitAllocation
+ThreadIsolation::WritableJitAllocation::ForNonExecutableMemory(
+    Address addr, size_t size, JitAllocationType type) {
+  return WritableJitAllocation(addr, size, type);
+}
 
 ThreadIsolation::WritableJumpTablePair::WritableJumpTablePair(
     Address jump_table_address, size_t jump_table_size,

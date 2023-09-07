@@ -283,7 +283,6 @@ class V8_EXPORT ThreadIsolation {
                                      const std::vector<base::Address>& addr);
 
     base::Address StartOfAllocationAt(base::Address inner_pointer);
-    bool HasAllocation(base::Address address, size_t size);
 
     bool Empty() const;
     void Shrink(class JitPage* tail);
@@ -307,6 +306,13 @@ class V8_EXPORT ThreadIsolation {
     WritableJitAllocation(const WritableJitAllocation&) = delete;
     WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
     V8_INLINE ~WritableJitAllocation();
+
+    // WritableJitAllocations are used during reloc iteration. But in some
+    // cases, we relocate code off-heap, e.g. when growing AssemblerBuffers.
+    // This function creates a WritableJitAllocation that doesn't unlock the
+    // executable memory.
+    static V8_INLINE WritableJitAllocation
+    ForNonExecutableMemory(Address addr, size_t size, JitAllocationType type);
 
     // Writes a header slot either as a primitive or as a Tagged value.
     // Important: this function will not trigger a write barrier by itself,
@@ -340,16 +346,22 @@ class V8_EXPORT ThreadIsolation {
     V8_INLINE WritableJitAllocation(Address addr, size_t size,
                                     JitAllocationType type,
                                     JitAllocationSource source);
+    // Used for non-executable memory.
+    V8_INLINE WritableJitAllocation(Address addr, size_t size,
+                                    JitAllocationType type);
 
-    JitPageReference& page_ref() { return page_ref_; }
+    JitPageReference& page_ref() { return page_ref_.value(); }
 
     const Address address_;
     // TODO(sroettger): we can move the memory write scopes into the Write*
     // functions in debug builds. This would allow us to ensure that all writes
     // go through this object.
-    RwxMemoryWriteScope write_scope_;
-    JitPageReference page_ref_;
-    const JitAllocation& allocation_;
+    // The scope and page reference are optional in case we're creating a
+    // WritableJitAllocation for off-heap memory. See ForNonExecutableMemory
+    // above.
+    base::Optional<RwxMemoryWriteScope> write_scope_;
+    base::Optional<JitPageReference> page_ref_;
+    const JitAllocation allocation_;
 
     friend class ThreadIsolation;
   };

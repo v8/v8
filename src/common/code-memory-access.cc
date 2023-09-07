@@ -349,16 +349,6 @@ base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
   return it->first;
 }
 
-bool ThreadIsolation::JitPageReference::HasAllocation(base::Address address,
-                                                      size_t size) {
-  const auto it = jit_page_->allocations_.find(address);
-  if (it == jit_page_->allocations_.end()) {
-    return false;
-  }
-  CHECK_EQ(it->second.Size(), size);
-  return true;
-}
-
 // static
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
