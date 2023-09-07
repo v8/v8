@@ -114,6 +114,10 @@ class MachineOptimizationReducer : public Next {
         return Asm().Float64Constant(
             static_cast<double>(static_cast<uint32_t>(value)));
       }
+      if (kind == Kind::kTruncate && from == WordRepresentation::Word64() &&
+          to == WordRepresentation::Word32()) {
+        return Asm().Word32Constant(static_cast<uint32_t>(value));
+      }
     }
     if (float value; from == RegisterRepresentation::Float32() &&
                      Asm().MatchFloat32Constant(input, &value)) {
@@ -213,6 +217,20 @@ class MachineOptimizationReducer : public Next {
               RegisterRepresentation::PointerSized() &&
           all_of(input_bitcast->from, to) == RegisterRepresentation::Tagged()) {
         return input_bitcast->input();
+      }
+    }
+    // Try to constant-fold TaggedBitcast from Word Constant to Word.
+    if (to.IsWord()) {
+      if (const ConstantOp* cst = Asm().template TryCast<ConstantOp>(input)) {
+        if (cst->kind == ConstantOp::Kind::kWord32 ||
+            cst->kind == ConstantOp::Kind::kWord64) {
+          if (to == RegisterRepresentation::Word64()) {
+            return Asm().Word64Constant(cst->integral());
+          } else {
+            DCHECK_EQ(to, RegisterRepresentation::Word32());
+            return Asm().Word32Constant(static_cast<uint32_t>(cst->integral()));
+          }
+        }
       }
     }
     return Next::ReduceTaggedBitcast(input, from, to);
