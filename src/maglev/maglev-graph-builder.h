@@ -823,9 +823,9 @@ class MaglevGraphBuilder {
   void AttachLazyDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       auto [register_result, register_count] = GetResultLocationAndSize();
-      new (node->lazy_deopt_info())
-          LazyDeoptInfo(zone(), GetDeoptFrameForLazyDeopt(), register_result,
-                        register_count, current_speculation_feedback_);
+      new (node->lazy_deopt_info()) LazyDeoptInfo(
+          zone(), GetDeoptFrameForLazyDeopt(register_result, register_count),
+          register_result, register_count, current_speculation_feedback_);
     }
   }
 
@@ -1345,9 +1345,11 @@ class MaglevGraphBuilder {
 #endif
 
   DeoptFrame* GetParentDeoptFrame();
-  DeoptFrame GetDeoptFrameForLazyDeopt();
-  DeoptFrame GetDeoptFrameForLazyDeoptHelper(DeoptFrameScope* scope,
-                                             bool mark_accumulator_dead);
+  DeoptFrame GetDeoptFrameForLazyDeopt(interpreter::Register result_location,
+                                       int result_size);
+  DeoptFrame GetDeoptFrameForLazyDeoptHelper(
+      interpreter::Register result_location, int result_size,
+      DeoptFrameScope* scope, bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
   template <typename NodeT>

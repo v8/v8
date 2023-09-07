@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
@@ -266,6 +267,9 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
         data_(DeoptFrame::BuiltinContinuationFrameData{
             continuation, {}, builder->GetContext(), maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
+    data_.get<DeoptFrame::BuiltinContinuationFrameData>().context->add_use();
+    DCHECK(data_.get<DeoptFrame::BuiltinContinuationFrameData>()
+               .parameters.empty());
   }
 
   DeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
@@ -277,6 +281,11 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
             continuation, builder->zone()->CloneVector(parameters),
             builder->GetContext(), maybe_js_target}) {
     builder_->current_deopt_scope_ = this;
+    data_.get<DeoptFrame::BuiltinContinuationFrameData>().context->add_use();
+    for (ValueNode* node :
+         data_.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
+      node->add_use();
+    }
   }
 
   DeoptFrameScope(MaglevGraphBuilder* builder, ValueNode* receiver)
@@ -286,6 +295,8 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
             *builder->compilation_unit(), builder->current_source_position_,
             receiver, builder->GetContext()}) {
     builder_->current_deopt_scope_ = this;
+    data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver->add_use();
+    data_.get<DeoptFrame::ConstructInvokeStubFrameData>().context->add_use();
   }
 
   ~DeoptFrameScope() { builder_->current_deopt_scope_ = parent_; }
@@ -913,11 +924,16 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
 
     parent_deopt_frame_ =
         zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
+            interpreter::Register::invalid_value(), 0,
             parent_->current_deopt_scope_, true));
     if (inlined_arguments_) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
           *compilation_unit_, caller_bytecode_offset_, GetClosure(),
           *inlined_arguments_, parent_deopt_frame_);
+      GetClosure()->add_use();
+      for (ValueNode* arg : *inlined_arguments_) {
+        arg->add_use();
+      }
     }
   }
   return parent_deopt_frame_;
@@ -931,6 +947,11 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
         current_source_position_, GetParentDeoptFrame()));
+
+    latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
+        *compilation_unit_,
+        [](ValueNode* node, interpreter::Register) { node->add_use(); });
+    latest_checkpointed_frame_->as_interpreted().closure()->add_use();
 
     if (current_deopt_scope_ != nullptr) {
       // Support exactly one eager deopt builtin continuation. This can be
@@ -965,11 +986,14 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   return *latest_checkpointed_frame_;
 }
 
-DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
-  return GetDeoptFrameForLazyDeoptHelper(current_deopt_scope_, false);
+DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(
+    interpreter::Register result_location, int result_size) {
+  return GetDeoptFrameForLazyDeoptHelper(result_location, result_size,
+                                         current_deopt_scope_, false);
 }
 
 DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
+    interpreter::Register result_location, int result_size,
     DeoptFrameScope* scope, bool mark_accumulator_dead) {
   if (scope == nullptr) {
     // Potentially copy the out liveness if we want to explicitly drop the
@@ -981,12 +1005,23 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
       liveness_copy->MarkAccumulatorDead();
       liveness = liveness_copy;
     }
-    return InterpretedDeoptFrame(
+    InterpretedDeoptFrame ret(
         *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
         current_source_position_, GetParentDeoptFrame());
+    ret.frame_state()->ForEachValue(
+        *compilation_unit_, [result_location, result_size](
+                                ValueNode* node, interpreter::Register reg) {
+          if (result_size == 0 ||
+              !base::IsInRange(reg.index(), result_location.index(),
+                               result_location.index() + result_size - 1)) {
+            node->add_use();
+          }
+        });
+    ret.closure()->add_use();
+    return ret;
   }
 
   // Currently only support builtin continuations for bytecodes that write to
@@ -1021,7 +1056,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   // continuation will write it.
   return DeoptFrame(scope->data(),
                     zone()->New<DeoptFrame>(GetDeoptFrameForLazyDeoptHelper(
-                        scope->parent(),
+                        result_location, result_size, scope->parent(),
                         scope->data().tag() ==
                             DeoptFrame::FrameType::kBuiltinContinuationFrame)));
 }
@@ -1033,7 +1068,7 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   if (graph_->is_osr()) {
     osr_jump_loop_pos = bytecode_analysis_.osr_bailout_id().ToInt();
   }
-  return InterpretedDeoptFrame(
+  InterpretedDeoptFrame ret(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
           *compilation_unit_,
@@ -1043,6 +1078,12 @@ InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       BytecodeOffset(graph_->is_osr() ? osr_jump_loop_pos
                                       : kFunctionEntryBytecodeOffset),
       current_source_position_, nullptr);
+
+  ret.frame_state()->ForEachValue(
+      *compilation_unit_,
+      [](ValueNode* node, interpreter::Register) { node->add_use(); });
+  ret.closure()->add_use();
+  return ret;
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(
@@ -5148,7 +5189,10 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
           object = BuildCallBuiltin<Builtin::kFastNewObject>(
               {GetConstant(current_function), new_target});
           // We've already stored "true" into result.first, so a deopt here just
-          // has to store result.second.
+          // has to store result.second. Also mark result.first as being used,
+          // since the lazy deopt frame won't have marked it since it used to be
+          // a result register.
+          current_interpreter_frame_.get(result.first)->add_use();
           object->lazy_deopt_info()->UpdateResultLocation(result.second, 1);
         }
         StoreRegister(result.second, object);
