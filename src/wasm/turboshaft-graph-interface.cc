@@ -4746,6 +4746,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   bool IsSimd128ZeroConstant(OpIndex op) {
+    DCHECK_IMPLIES(!op.valid(), asm_.generating_unreachable_operations());
+    if (asm_.generating_unreachable_operations()) return false;
     const Simd128ConstantOp* s128_op =
         asm_.output_graph().Get(op).TryCast<Simd128ConstantOp>();
     return s128_op && s128_op->IsZero();
