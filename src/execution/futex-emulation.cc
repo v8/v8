@@ -672,12 +672,9 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
   if (it == location_lists.end()) {
     return Smi::zero();
   }
+
   FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
-    bool delete_this_node = false;
-    std::shared_ptr<BackingStore> node_backing_store =
-        node->backing_store_.lock();
-
     if (!node->waiting_) {
       node = node->next_;
       continue;
@@ -685,7 +682,11 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
     // Relying on wait_location_ here is not enough, since we need to guard
     // against the case where the BackingStore of the node has been deleted and
     // a new BackingStore recreated in the same memory area.
-    if (backing_store.get() == node_backing_store.get()) {
+    if (V8_LIKELY(!node->backing_store_.expired())) {
+      // We only check if the node's backing store is expired, as that is
+      // cheaper than reconstructing a shared_ptr from the weak_ptr. If the
+      // weak_ptr is not expired, we know that it is equal to backing_store.
+      DCHECK_EQ(backing_store, node->backing_store_.lock());
       DCHECK_EQ(addr, node->wait_addr_);
       node->waiting_ = false;
 
@@ -705,8 +706,14 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
       waiters_woken++;
       continue;
     }
-    DCHECK_EQ(nullptr, node_backing_store.get());
-    if (node->async_timeout_time_ == base::TimeTicks()) {
+
+    // ---
+    // Code below handles the unlikely case that this node's backing store was
+    // deleted in the meantime and a new one was allocated in its place.
+    // We delete the node if possible (no timeout, or context is gone).
+    // ---
+    bool delete_this_node = false;
+    if (node->async_timeout_time_.IsNull()) {
       // Backing store has been deleted and the node is still waiting, and
       // there's no timeout. It's never going to be woken up, so we can clean
       // it up now. We don't need to cancel the timeout task, because there is
@@ -734,7 +741,7 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
     }
 
     if (delete_this_node) {
-      auto old_node = node;
+      FutexWaitListNode* old_node = node;
       node = node->next_;
       g_wait_list.Pointer()->RemoveNode(old_node);
       DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
