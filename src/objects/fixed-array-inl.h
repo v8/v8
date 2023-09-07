@@ -34,7 +34,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
@@ -795,22 +794,6 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 template <class T>
 int PodArray<T>::length() const {
   return ByteArray::length() / sizeof(T);
-}
-
-int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
-}
-
-Tagged<Object> TemplateList::get(int index) const {
-  return FixedArray::cast(*this)->get(kFirstElementIndex + index);
-}
-
-Tagged<Object> TemplateList::get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this)->get(cage_base, kFirstElementIndex + index);
-}
-
-void TemplateList::set(int index, Tagged<Object> value) {
-  FixedArray::cast(*this)->set(kFirstElementIndex + index, value);
 }
 
 }  // namespace internal

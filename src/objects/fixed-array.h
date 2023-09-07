@@ -685,23 +685,6 @@ class PodArray : public ByteArray {
   OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
 };
 
-class TemplateList
-    : public TorqueGeneratedTemplateList<TemplateList, FixedArray> {
- public:
-  static Handle<TemplateList> New(Isolate* isolate, int size);
-  inline int length() const;
-  inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
-  inline void set(int index, Tagged<Object> value);
-  static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
-                                  Handle<Object> value);
- private:
-  static const int kLengthIndex = 0;
-  static const int kFirstElementIndex = kLengthIndex + 1;
-
-  TQ_OBJECT_CONSTRUCTORS(TemplateList)
-};
-
 }  // namespace internal
 }  // namespace v8
 

@@ -2673,18 +2673,19 @@ MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
   return MaybeHandle<Object>();
 }
 
+namespace {
+
 template <class T>
-static int AppendUniqueCallbacks(Isolate* isolate,
-                                 Handle<TemplateList> callbacks,
-                                 Handle<typename T::Array> array,
-                                 int valid_descriptors) {
-  int nof_callbacks = callbacks->length();
+int AppendUniqueCallbacks(Isolate* isolate, Handle<ArrayList> callbacks,
+                          Handle<typename T::Array> array,
+                          int valid_descriptors) {
+  int nof_callbacks = callbacks->Length();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)), isolate);
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->Get(i)), isolate);
     Handle<Name> key(Name::cast(entry->name()), isolate);
     DCHECK(IsUniqueName(*key));
     // Check if a descriptor with this name already exists before writing.
@@ -2713,11 +2714,13 @@ struct FixedArrayAppender {
   }
 };
 
+}  // namespace
+
 int AccessorInfo::AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                                Handle<FixedArray> array,
                                int valid_descriptors) {
-  Handle<TemplateList> callbacks = Handle<TemplateList>::cast(descriptors);
-  DCHECK_GE(array->length(), callbacks->length() + valid_descriptors);
+  Handle<ArrayList> callbacks = Handle<ArrayList>::cast(descriptors);
+  DCHECK_GE(array->length(), callbacks->Length() + valid_descriptors);
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }

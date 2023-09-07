@@ -63,7 +63,6 @@ class FeedbackVector;
 class UncompiledData;
 class TemplateInfo;
 class TransitionArray;
-class TemplateList;
 class WasmInstanceObject;
 class WasmMemoryObject;
 template <typename T>
@@ -251,7 +250,6 @@ class ZoneForwardList;
   V(SymbolWrapper)                              \
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
-  V(TemplateList)                               \
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \

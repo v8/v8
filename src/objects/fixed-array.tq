@@ -39,10 +39,6 @@ extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 @doNotGenerateCast
 extern class ArrayList extends FixedArray {}
 
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class TemplateList extends FixedArray {}
-
 @generateBodyDescriptor
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;

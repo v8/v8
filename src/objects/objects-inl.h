@@ -406,12 +406,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHandlerTable) {
   return IsFixedArrayExact(obj, cage_base);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateList) {
-  if (!IsFixedArrayExact(obj, cage_base)) return false;
-  if (FixedArray::cast(obj)->length() < 1) return false;
-  return true;
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDependentCode) {
   return IsWeakArrayList(obj, cage_base);
 }
