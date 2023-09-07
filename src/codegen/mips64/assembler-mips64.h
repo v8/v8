@@ -71,6 +71,9 @@ class Operand {
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<int64_t>(f.address());
   }
+  V8_INLINE explicit Operand(Tagged<Smi> value)
+      : Operand(static_cast<intptr_t>(value.ptr())) {}
+
   explicit Operand(Handle<HeapObject> handle);
   V8_INLINE explicit Operand(Smi value)
       : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {

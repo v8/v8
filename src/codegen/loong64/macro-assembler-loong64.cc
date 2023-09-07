@@ -2990,7 +2990,7 @@ void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
 
 void MacroAssembler::Call(Label* target) { Branch(target, true); }
 
-void MacroAssembler::Push(Smi smi) {
+void MacroAssembler::Push(Tagged<Smi> smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, Operand(smi));

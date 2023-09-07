@@ -325,7 +325,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void Push(Register src) { push(src); }
   void Push(Handle<HeapObject> handle);
-  void Push(Smi smi);
+  void Push(Tagged<Smi> smi);
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -732,6 +732,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
+  inline void Move(Register dst, Tagged<Smi> value) { li(dst, Operand(value)); }
   inline void Move(Register dst, Smi smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
