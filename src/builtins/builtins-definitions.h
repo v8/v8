@@ -707,6 +707,7 @@ namespace internal {
   TFS(IterableToFixedArrayWithSymbolLookupSlow, NeedsContext::kYes, kIterable) \
   TFS(IterableToListMayPreserveHoles, NeedsContext::kYes, kIterable,           \
       kIteratorFn)                                                             \
+  TFS(IterableToListConvertHoles, NeedsContext::kYes, kIterable, kIteratorFn)  \
   IF_WASM(TFS, IterableToFixedArrayForWasm, NeedsContext::kYes, kIterable,     \
           kExpectedLength)                                                     \
                                                                                \
