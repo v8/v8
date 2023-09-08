@@ -210,7 +210,9 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     Handle<FixedArray> array =
         isolate->factory()->NewFixedArray(max_number_of_properties);
 
-    for (Handle<TemplateInfoT> temp(*data, isolate); !temp->is_null();
+    // TODO(leszeks): Avoid creating unnecessary handles for cases where we
+    // don't need to append anything.
+    for (Handle<TemplateInfoT> temp(*data, isolate); !(*temp).is_null();
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
       Tagged<Object> maybe_properties = temp->property_accessors();

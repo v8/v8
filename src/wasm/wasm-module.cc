@@ -434,7 +434,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = tag_string;
         break;
     }
-    DCHECK(!import_kind->is_null());
+    DCHECK(!import_kind.is_null());
 
     Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(

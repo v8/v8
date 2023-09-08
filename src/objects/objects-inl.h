@@ -1042,10 +1042,10 @@ void HeapObject::set_map_after_allocation(Tagged<Map> value,
   } else {
     SLOW_DCHECK(
         // We allow writes of a null map before root initialisation.
-        value->is_null() ? !GetIsolateFromWritableObject(*this)
-                                ->read_only_heap()
-                                ->roots_init_complete()
-                         : !WriteBarrier::IsRequired(*this, value));
+        value.is_null() ? !GetIsolateFromWritableObject(*this)
+                               ->read_only_heap()
+                               ->roots_init_complete()
+                        : !WriteBarrier::IsRequired(*this, value));
   }
 #endif
 }

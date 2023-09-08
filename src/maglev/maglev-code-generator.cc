@@ -1617,7 +1617,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
        !v8_flags.maglev_build_code_on_background)
           ? deopt_data_
           : GenerateDeoptimizationData(local_isolate);
-  CHECK(!deopt_data->is_null());
+  CHECK(!deopt_data.is_null());
 
   CodeDesc desc;
   masm()->GetCode(local_isolate, &desc, &safepoint_table_builder_,

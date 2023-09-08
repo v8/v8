@@ -142,7 +142,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
   Tagged<HeapObject> istream_allocation =
       AllocateUninitializedInstructionStream(retry_allocation_or_fail);
-  if (istream_allocation->is_null()) {
+  if (istream_allocation.is_null()) {
     return {};
   }
 

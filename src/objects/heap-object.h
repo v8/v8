@@ -27,10 +27,6 @@ class Tagged;
 // objects.
 class HeapObject : public Object {
  public:
-  bool is_null() const {
-    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(kNullAddress);
-  }
-
   // [map]: Contains a map which contains the object's reflective
   // information.
   DECL_GETTER(map, Tagged<Map>)

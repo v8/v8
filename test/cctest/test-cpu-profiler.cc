@@ -1315,7 +1315,7 @@ static void TickLines(bool optimize) {
   CHECK(!optimize || func->HasAttachedOptimizedCode() ||
         !CcTest::i_isolate()->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
-  CHECK(!code->is_null());
+  CHECK(!(*code).is_null());
   i::Address code_address = code->InstructionStart(isolate);
   CHECK_NE(code_address, kNullAddress);
 
