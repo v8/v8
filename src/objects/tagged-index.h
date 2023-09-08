@@ -32,14 +32,8 @@ namespace internal {
 //   to pass TaggedIndex values to runtime functions or builtins on the stack
 // 2) since the TaggedIndex values are already properly sign-extended it's
 //   safe to use them as indices in offset-computation functions.
-class TaggedIndex : public Object {
+class TaggedIndex : public AllStatic {
  public:
-  // Returns the integer value.
-  inline intptr_t value() const {
-    // Truncate and shift down (requires >> to be sign extending).
-    return static_cast<intptr_t>(ptr()) >> kSmiTagSize;
-  }
-
   // Convert a value to a TaggedIndex object.
   static inline Tagged<TaggedIndex> FromIntptr(intptr_t value) {
     DCHECK(TaggedIndex::IsValid(value));

@@ -15,6 +15,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
+#include "src/objects/tagged.h"
 
 namespace v8::internal::compiler::turboshaft {
 namespace detail {
@@ -238,7 +239,7 @@ struct v_traits<Simd128> {
 };
 
 template <typename T>
-struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
+struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   static constexpr bool is_abstract_tag = false;
   static constexpr auto rep = RegisterRepresentation::Tagged();
   static constexpr bool allows_representation(RegisterRepresentation rep) {
@@ -247,12 +248,13 @@ struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, T> || std::is_same_v<U, Any> ||
-                           is_subtype<T, U>::value> {};
+      : std::bool_constant<std::is_same_v<U, Any> || is_subtype<T, U>::value> {
+  };
 };
 
 template <typename T1, typename T2>
-struct v_traits<UnionT<T1, T2>> {
+struct v_traits<UnionT<T1, T2>,
+                std::enable_if_t<is_taggable_v<UnionT<T1, T2>>>> {
   static_assert(!v_traits<T1>::is_abstract_tag);
   static_assert(!v_traits<T2>::is_abstract_tag);
   static constexpr bool is_abstract_tag = false;

@@ -4996,7 +4996,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // `AllocateJSObjectFromMap`.
     CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(source_map),
                                        JS_OBJECT_TYPE));
-    CSA_DCHECK(this, IsStrong(result_map.value()));
+    CSA_DCHECK(this, IsStrong(TNode<MaybeObject>(result_map.value())));
     CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(result_map.value()),
                                        JS_OBJECT_TYPE));
 

@@ -55,6 +55,34 @@ class FieldType;
 template <typename T>
 class Tagged;
 
+// `is_subtype<Derived, Base>::value` is true when Derived is a subtype of Base
+// according to our object hierarchy. In particular, Smi is considered a subtype
+// of Object.
+template <typename Derived, typename Base, typename Enabled = void>
+struct is_subtype : public std::is_base_of<Base, Derived> {};
+template <>
+struct is_subtype<Smi, Object> : public std::true_type {};
+template <>
+struct is_subtype<TaggedIndex, Object> : public std::true_type {};
+template <typename Derived, typename Base>
+static constexpr bool is_subtype_v = is_subtype<Derived, Base>::value;
+
+// `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
+// de-facto being a subtype of Object.
+template <typename T>
+using is_taggable = is_subtype<T, Object>;
+template <typename T>
+static constexpr bool is_taggable_v = is_taggable<T>::value;
+
+// `is_castable<From, To>::value` is true when you can use `::cast` to cast from
+// From to To. This means an upcast or downcast, which in practice means
+// checking `is_subtype` symmetrically.
+template <typename From, typename To>
+using is_castable =
+    std::disjunction<is_subtype<To, From>, is_subtype<From, To>>;
+template <typename From, typename To>
+static constexpr bool is_castable_v = is_castable<From, To>::value;
+
 // TODO(leszeks): Remove this once there are no more conversions between
 // Tagged<Foo> and Foo.
 static constexpr bool kTaggedCanConvertToRawObjects = true;
@@ -155,9 +183,7 @@ class Tagged<Smi> : public TaggedBase {
   // this static assert).
   template <typename U>
   static constexpr Tagged<Smi> cast(Tagged<U> other) {
-    static_assert(std::is_base_of_v<Smi, U> ||
-                  std::is_convertible_v<U*, Smi*> ||
-                  std::is_base_of_v<U, Smi> || std::is_convertible_v<Smi*, U*>);
+    static_assert(is_castable_v<U, Smi>);
     DCHECK(other.IsSmi());
     return Tagged<Smi>(other.ptr());
   }
@@ -186,10 +212,7 @@ class Tagged<TaggedIndex> : public TaggedBase {
   // this static assert).
   template <typename U>
   static constexpr Tagged<TaggedIndex> cast(Tagged<U> other) {
-    static_assert(std::is_base_of_v<TaggedIndex, U> ||
-                  std::is_convertible_v<U*, TaggedIndex*> ||
-                  std::is_base_of_v<U, TaggedIndex> ||
-                  std::is_convertible_v<TaggedIndex*, U*>);
+    static_assert(is_castable_v<U, TaggedIndex>);
     DCHECK(IsTaggedIndex(other));
     return Tagged<TaggedIndex>(other.ptr());
   }
@@ -236,10 +259,7 @@ class Tagged<HeapObject> : public TaggedBase {
   // Explicit cast for sub- and superclasses.
   template <typename U>
   static constexpr Tagged<HeapObject> cast(Tagged<U> other) {
-    static_assert(std::is_base_of_v<HeapObject, U> ||
-                  std::is_convertible_v<U*, HeapObject*> ||
-                  std::is_base_of_v<U, HeapObject> ||
-                  std::is_convertible_v<HeapObject*, U*>);
+    static_assert(is_castable_v<U, HeapObject>);
     DCHECK(other.IsHeapObject());
     return Tagged<HeapObject>(other.ptr());
   }
@@ -253,16 +273,14 @@ class Tagged<HeapObject> : public TaggedBase {
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
-                                        std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<is_subtype_v<U, HeapObject>>>
   constexpr Tagged& operator=(Tagged<U> other) {
     return *this = Tagged(other);
   }
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
-                                        std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<is_subtype_v<U, HeapObject>>>
   // NOLINTNEXTLINE
   constexpr Tagged(Tagged<U> other) : Base(other) {}
 
@@ -284,8 +302,7 @@ class Tagged<HeapObject> : public TaggedBase {
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
-                                        std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<is_subtype_v<U, HeapObject>>>
   // NOLINTNEXTLINE
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -327,8 +344,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // Explicit cast for sub- and superclasses.
   template <typename U>
   static constexpr Tagged<T> cast(Tagged<U> other) {
-    static_assert(std::is_base_of_v<T, U> || std::is_convertible_v<U*, T*> ||
-                  std::is_base_of_v<U, T> || std::is_convertible_v<T*, U*>);
+    static_assert(is_castable_v<T, U>);
     return T::cast(other);
   }
   static constexpr Tagged<T> unchecked_cast(TaggedBase other) {
@@ -340,18 +356,14 @@ class Tagged : public detail::BaseForTagged<T>::type {
   constexpr Tagged() = default;
 
   // Implicit conversion for subclasses.
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
-                                        std::is_convertible_v<U*, T*>>>
+  template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
   constexpr Tagged& operator=(Tagged<U> other) {
     *this = Tagged(other);
     return *this;
   }
 
   // Implicit conversion for subclasses.
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
-                                        std::is_convertible_v<U*, T*>>>
+  template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
   // NOLINTNEXTLINE
   constexpr Tagged(Tagged<U> other) : Base(other) {}
 
@@ -362,9 +374,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
 
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
-                                        std::is_convertible_v<U*, T*>>>
+  template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
   // NOLINTNEXTLINE
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -387,6 +397,9 @@ class Tagged : public detail::BaseForTagged<T>::type {
 
   constexpr explicit Tagged(Address ptr) : Base(ptr) {}
   constexpr T ToRawPtr() const {
+    // Check whether T is taggable on raw ptr access rather than top-level, to
+    // allow forward declarations.
+    static_assert(is_taggable_v<T>);
     return T(this->ptr(), typename T::SkipTypeCheckTag{});
   }
 };

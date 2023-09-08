@@ -32,6 +32,7 @@
 #include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
 

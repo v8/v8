@@ -6,7 +6,7 @@
 #define V8_OBJECTS_SMI_H_
 
 #include "src/common/globals.h"
-#include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,7 +20,7 @@ namespace internal {
 // For long smis it has the following format:
 //     [32 bit signed int] [31 bits zero padding] 0
 // Smi stands for small integer.
-class Smi : public Object {
+class Smi : public AllStatic {
  public:
   static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
     if (smi.value() <= 0) return Smi::FromInt(0);

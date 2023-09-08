@@ -7,6 +7,7 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
+#include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
 #endif
@@ -75,7 +76,7 @@ template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(T value) {
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.
-  static_assert(!std::is_convertible_v<T, Object>);
+  static_assert(!is_taggable_v<T>);
   static_assert(offset != HeapObject::kMapOffset);
 
   WriteMaybeUnalignedValue<T>(address_ + offset, value);
@@ -86,7 +87,6 @@ void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(Tagged<T> value,
                                                              ReleaseStoreTag) {
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.
-  static_assert(std::is_convertible_v<T, Object>);
   static_assert(offset != HeapObject::kMapOffset);
 
   TaggedField<T, offset>::Release_Store(HeapObject::FromAddress(address_),
@@ -96,10 +96,6 @@ void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(Tagged<T> value,
 template <typename T, size_t offset>
 void ThreadIsolation::WritableJitAllocation::WriteHeaderSlot(Tagged<T> value,
                                                              RelaxedStoreTag) {
-  // These asserts are no strict requirements, they just guard against
-  // non-implemented functionality.
-  static_assert(std::is_convertible_v<T, Object>);
-
   if constexpr (offset == HeapObject::kMapOffset) {
     TaggedField<T, offset>::Relaxed_Store_Map_Word(
         HeapObject::FromAddress(address_), value);
