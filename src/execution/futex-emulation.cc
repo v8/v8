@@ -442,39 +442,40 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
     wait_list->AddNode(node);
 
     while (true) {
-      bool interrupted = node->interrupted_;
-      node->interrupted_ = false;
+      if (V8_UNLIKELY(node->interrupted_)) {
+        // Reset the interrupted flag while still holding the mutex.
+        node->interrupted_ = false;
 
-      // Unlock the mutex here to prevent deadlock from lock ordering between
-      // mutex and mutexes locked by HandleInterrupts.
-      lock_guard.Unlock();
+        // Unlock the mutex here to prevent deadlock from lock ordering between
+        // mutex and mutexes locked by HandleInterrupts.
+        lock_guard.Unlock();
 
-      // Because the mutex is unlocked, we have to be careful about not dropping
-      // an interrupt. The notification can happen in three different places:
-      // 1) Before Wait is called: the notification will be dropped, but
-      //    interrupted_ will be set to 1. This will be checked below.
-      // 2) After interrupted has been checked here, but before mutex is
-      //    acquired: interrupted is checked again below, with mutex locked.
-      //    Because the wakeup signal also acquires mutex, we know it will not
-      //    be able to notify until mutex is released below, when waiting on
-      //    the condition variable.
-      // 3) After the mutex is released in the call to WaitFor(): this
-      // notification will wake up the condition variable. node->waiting() will
-      // be false, so we'll loop and then check interrupts.
-      if (interrupted) {
+        // Because the mutex is unlocked, we have to be careful about not
+        // dropping an interrupt. The notification can happen in three different
+        // places:
+        // 1) Before Wait is called: the notification will be dropped, but
+        //    interrupted_ will be set to 1. This will be checked below.
+        // 2) After interrupted has been checked here, but before mutex is
+        //    acquired: interrupted is checked in a loop, with mutex locked.
+        //    Because the wakeup signal also acquires mutex, we know it will not
+        //    be able to notify until mutex is released below, when waiting on
+        //    the condition variable.
+        // 3) After the mutex is released in the call to WaitFor(): this
+        //    notification will wake up the condition variable. node->waiting()
+        //    will be false, so we'll loop and then check interrupts.
         Tagged<Object> interrupt_object =
             isolate->stack_guard()->HandleInterrupts();
+
+        lock_guard.Lock();
+
         if (IsException(interrupt_object, isolate)) {
           result = handle(interrupt_object, isolate);
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
-          lock_guard.Lock();
           break;
         }
       }
 
-      lock_guard.Lock();
-
-      if (node->interrupted_) {
+      if (V8_UNLIKELY(node->interrupted_)) {
         // An interrupt occurred while the mutex was unlocked. Don't wait yet.
         continue;
       }
@@ -707,7 +708,7 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
       // since NotifyAsyncWaiter will take the node out of the linked list.
-      auto old_node = node;
+      auto* old_node = node;
       node = node->next_;
       if (old_node->IsAsync()) {
         NotifyAsyncWaiter(old_node);
