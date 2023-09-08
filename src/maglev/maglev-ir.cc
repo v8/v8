@@ -158,6 +158,9 @@ void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
     os << ", live range: [" << node->live_range().start << "-"
        << node->live_range().end << "]";
   }
+  if (!node->has_id()) {
+    os << ", " << node->use_count() << " uses";
+  }
 }
 
 void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,

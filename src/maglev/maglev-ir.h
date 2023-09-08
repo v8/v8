@@ -1965,7 +1965,13 @@ class ValueNode : public Node {
   ValueLocation& result() { return result_; }
   const ValueLocation& result() const { return result_; }
 
+  int use_count() const {
+    // Invalid to check use_count externally once an id is allocated.
+    DCHECK(!has_id());
+    return use_count_;
+  }
   bool is_used() const { return use_count_ > 0; }
+  bool unused_inputs_were_visited() const { return use_count_ == -1; }
   void add_use() {
     // Make sure a saturated use count won't overflow.
     DCHECK_LT(use_count_, kMaxInt);
@@ -1975,6 +1981,12 @@ class ValueNode : public Node {
     // Make sure a saturated use count won't drop below zero.
     DCHECK_GT(use_count_, 0);
     use_count_--;
+  }
+  // Avoid revisiting nodes when processing an unused node's inputs, by marking
+  // it as visited.
+  void mark_unused_inputs_visited() {
+    DCHECK_EQ(use_count_, 0);
+    use_count_ = -1;
   }
 
   void SetHint(compiler::InstructionOperand hint);

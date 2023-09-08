@@ -178,7 +178,9 @@ class AnyUseMarkingProcessor {
     if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
                   !NodeT::kProperties.is_required_when_unused()) {
       if (!node->is_used()) {
-        DropInputUses(node);
+        if (!node->unused_inputs_were_visited()) {
+          DropInputUses(node);
+        }
         return ProcessResult::kRemove;
       }
     }
@@ -191,12 +193,13 @@ class AnyUseMarkingProcessor {
       ValueNode* input_node = input.node();
       if (input_node->properties().is_required_when_unused()) continue;
       input_node->remove_use();
-      if (!input_node->is_used()) {
+      if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
         DropInputUses(input_node);
       }
     }
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
+    node->mark_unused_inputs_visited();
   }
 };
 
