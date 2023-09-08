@@ -1807,7 +1807,7 @@ class TurboshaftGraphBuildingInterface {
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, Value* result) {
-    OpIndex initial_value = OpIndex::Invalid();
+    OpIndex initial_value = DefaultValue(imm.array_type->element_type());
     result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
                               initial_value);
   }
@@ -4752,10 +4752,8 @@ class TurboshaftGraphBuildingInterface {
     // TODO(14108): Array initialization isn't finished here but we need the
     // OpIndex and not some Uninitialized<HeapObject>.
     V<HeapObject> array = __ FinishInitialization(std::move(a));
-    ArrayFillImpl(
-        array, asm_.Word32Constant(0),
-        initial_value.valid() ? initial_value : DefaultValue(element_type),
-        length, array_type, false);
+    ArrayFillImpl(array, asm_.Word32Constant(0), initial_value, length,
+                  array_type, false);
     return array;
   }
 

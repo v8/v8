@@ -1643,7 +1643,7 @@
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/simd-*': [SKIP],
-  'wasm/turboshaft/array-new-unreachable-s128': [SKIP],
+  'wasm/turboshaft/array-new-unreachable': [SKIP],
   'regress/wasm/regress-9447': [SKIP],
   'regress/wasm/regress-10309': [SKIP],
   'regress/wasm/regress-10831': [SKIP],
