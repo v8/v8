@@ -374,8 +374,8 @@ class Int64LoweringReducer : public Next {
     if (input_phi.rep == RegisterRepresentation::Word64()) {
       const TupleOp& tuple = __ Get(output_index).template Cast<TupleOp>();
       DCHECK_EQ(tuple.input_count, 2);
-      OpIndex new_inputs[2] = {Asm().MapToNewGraph(input_phi.input(0)),
-                               Asm().MapToNewGraph(input_phi.input(1))};
+      OpIndex new_inputs[2] = {__ MapToNewGraph(input_phi.input(0)),
+                               __ MapToNewGraph(input_phi.input(1))};
       for (size_t i = 0; i < 2; ++i) {
         OpIndex phi_index = tuple.input(i);
         if (!output_graph_loop->Contains(phi_index)) {
@@ -445,21 +445,21 @@ class Int64LoweringReducer : public Next {
  private:
   bool CheckPairOrPairOp(OpIndex input) {
 #ifdef DEBUG
-    if (const TupleOp* tuple = Asm().template TryCast<TupleOp>(input)) {
+    if (const TupleOp* tuple = matcher_.TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
     } else if (const DidntThrowOp* didnt_throw =
-                   Asm().template TryCast<DidntThrowOp>(input)) {
+                   matcher_.TryCast<DidntThrowOp>(input)) {
       // If it's a call, it must be a call that returns exactly one i64.
       // (Note that the CallDescriptor has already been lowered to [i32, i32].)
       const CallOp& call =
-          Asm().Get(didnt_throw->throwing_operation()).template Cast<CallOp>();
+          __ Get(didnt_throw->throwing_operation()).template Cast<CallOp>();
       DCHECK_EQ(call.descriptor->descriptor->ReturnCount(), 2);
       DCHECK_EQ(call.descriptor->descriptor->GetReturnType(0),
                 MachineType::Int32());
       DCHECK_EQ(call.descriptor->descriptor->GetReturnType(1),
                 MachineType::Int32());
     } else {
-      DCHECK(Asm().template Is<Word32PairBinopOp>(input));
+      DCHECK(matcher_.Is<Word32PairBinopOp>(input));
     }
 #endif
     return true;
@@ -570,7 +570,7 @@ class Int64LoweringReducer : public Next {
     V<Word32> shift = right;
     uint32_t constant_shift = 0;
 
-    if (Asm().MatchWord32Constant(shift, &constant_shift)) {
+    if (matcher_.MatchWord32Constant(shift, &constant_shift)) {
       // Precondition: 0 <= shift < 64.
       uint32_t shift_value = constant_shift & 0x3F;
       if (shift_value == 0) {
@@ -664,7 +664,7 @@ class Int64LoweringReducer : public Next {
 
     // Create descriptor with 2 i32s for every i64.
     const CallDescriptor* lowered_descriptor =
-        GetI32WasmCallDescriptor(Asm().graph_zone(), call_descriptor);
+        GetI32WasmCallDescriptor(__ graph_zone(), call_descriptor);
 
     // Map the arguments by unpacking i64 arguments (which have already been
     // lowered to Tuple(i32, i32).)
@@ -761,6 +761,7 @@ class Int64LoweringReducer : public Next {
   Zone* zone_ = PipelineData::Get().graph_zone();
   ZoneVector<int32_t> param_index_map_{__ phase_zone()};
   bool returns_i64_ = false;  // Returns at least one i64.
+  const OperationMatcher& matcher_{__ matcher()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

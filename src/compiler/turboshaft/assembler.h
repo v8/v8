@@ -3062,7 +3062,6 @@ class AssemblerOpInterface {
 template <class Reducers>
 class Assembler : public GraphVisitor<Assembler<Reducers>>,
                   public reducer_stack_type<Reducers>::type,
-                  public OperationMatcher,
                   public AssemblerOpInterface<Assembler<Reducers>> {
   using Stack = typename reducer_stack_type<Reducers>::type;
 
@@ -3073,7 +3072,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
                      compiler::NodeOriginTable* origins)
       : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone, origins),
         Stack(),
-        OperationMatcher(output_graph) {
+        matcher_(output_graph) {
     SupportedOperations::Initialize();
   }
 
@@ -3128,6 +3127,11 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     return generating_unreachable_operations_;
   }
   OpIndex current_operation_origin() const { return current_operation_origin_; }
+  const OperationMatcher& matcher() const { return matcher_; }
+
+  const Operation& Get(OpIndex op_idx) const {
+    return this->output_graph().Get(op_idx);
+  }
 
   // ReduceProjection eliminates projections to tuples and returns instead the
   // corresponding tuple input. We do this at the top of the stack to avoid
@@ -3138,7 +3142,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   // assumption of the ValueNumberingReducer will break.
   OpIndex ReduceProjection(OpIndex tuple, uint16_t index,
                            RegisterRepresentation rep) {
-    if (auto* tuple_op = this->template TryCast<TupleOp>(tuple)) {
+    if (auto* tuple_op = matcher().template TryCast<TupleOp>(tuple)) {
       return tuple_op->input(index);
     }
     return Stack::ReduceProjection(tuple, index, rep);
@@ -3315,6 +3319,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();
+  OperationMatcher matcher_;
 #ifdef DEBUG
   GrowingSidetable<Block*> op_to_block_{this->phase_zone()};
 

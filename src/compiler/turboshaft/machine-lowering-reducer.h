@@ -14,7 +14,6 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -3034,7 +3033,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<WordPtr> BuildTypedArrayDataPointer(V<Object> base, V<WordPtr> external) {
-    if (__ MatchZero(base)) return external;
+    if (__ matcher().MatchZero(base)) return external;
     V<WordPtr> untagged_base = __ BitcastTaggedToWord(base);
     if (COMPRESS_POINTERS_BOOL) {
       // Zero-extend Tagged_t to UintPtr according to current compression
