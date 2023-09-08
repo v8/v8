@@ -82,6 +82,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
         notifies = ["V8 Flake Sheriff"],
+        disable_resultdb_exports = True,
     ),
     multibranch_builder(
         name = "V8 Arm - debug",
@@ -89,6 +90,7 @@ in_category(
         execution_timeout = 27000,
         properties = {"builder_group": "client.v8.ports"},
         notifies = ["V8 Flake Sheriff"],
+        disable_resultdb_exports = True,
     ),
     multibranch_builder(
         name = "V8 Arm GC Stress",
@@ -96,6 +98,7 @@ in_category(
         execution_timeout = 30600,
         properties = {"builder_group": "client.v8.ports"},
         notifies = ["V8 Flake Sheriff"],
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -130,6 +133,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
         notifies = ["V8 Flake Sheriff"],
+        disable_resultdb_exports = True,
     ),
     multibranch_builder(
         name = "V8 Linux64 - arm64 - no wasm - debug builder",
@@ -178,6 +182,7 @@ in_category(
         tester_notifies = ["V8 Flake Sheriff"],
         first_branch_version = "10.6",
         use_remoteexec = RECLIENT.DEFAULT,
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -191,6 +196,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -204,6 +210,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - s390x - sim",
@@ -213,6 +220,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -225,6 +233,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
         first_branch_version = "10.5",
+        disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim",
@@ -232,6 +241,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim - pointer compression",
@@ -240,6 +250,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
         first_branch_version = "11.8",
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -253,5 +264,6 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
 )

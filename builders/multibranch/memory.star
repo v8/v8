@@ -18,12 +18,14 @@ in_category(
         name = "V8 Mac64 ASAN",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac", "cpu": "x86-64"},
+        disable_resultdb_exports = True,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 ASAN",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
 )
 

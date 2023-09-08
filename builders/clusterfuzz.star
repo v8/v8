@@ -140,6 +140,7 @@ in_category(
         close_tree = False,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
+        disable_resultdb_exports = True,
     ),
     v8_builder(
         name = "V8 NumFuzz - debug",
@@ -150,6 +151,7 @@ in_category(
         close_tree = False,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
+        disable_resultdb_exports = True,
     ),
     v8_builder(
         name = "V8 NumFuzz - TSAN",
@@ -160,5 +162,6 @@ in_category(
         close_tree = False,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
+        disable_resultdb_exports = True,
     ),
 )

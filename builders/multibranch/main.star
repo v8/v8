@@ -27,6 +27,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - shared",
@@ -83,6 +84,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "11.5",
+        disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - custom snapshot - debug builder",
@@ -118,6 +120,7 @@ in_category(
         name = "V8 Linux64 - no pointer compression",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - no wasm - builder",
@@ -233,6 +236,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         close_tree = False,
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -300,6 +304,7 @@ in_category(
         name = "V8 Mac - arm64 - no pointer compression debug",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        disable_resultdb_exports = True,
     ),
 )
 
@@ -331,10 +336,12 @@ in_category(
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NONE,
+        disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
         name = "V8 Test Tools",
         executable = "recipe:v8/test_tools",
         dimensions = {"host_class": "docker", "os": "Ubuntu-22.04", "cpu": "x86-64"},
+        disable_resultdb_exports = True,
     ),
 )

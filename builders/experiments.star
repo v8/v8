@@ -23,6 +23,7 @@ def experiment_builder(**kwargs):
         bucket = bucket,
         properties = properties,
         experiments = experiments,
+        disable_resultdb_exports = True,
         **kwargs
     )
 
