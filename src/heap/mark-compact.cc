@@ -1210,11 +1210,8 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
 class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
  public:
-  explicit RecordMigratedSlotVisitor(
-      Heap* heap, EphemeronRememberedSet::TableMap* ephemeron_remembered_set)
-      : ObjectVisitorWithCageBases(heap->isolate()),
-        heap_(heap),
-        ephemeron_remembered_set_(ephemeron_remembered_set) {}
+  explicit RecordMigratedSlotVisitor(Heap* heap)
+      : ObjectVisitorWithCageBases(heap->isolate()), heap_(heap) {}
 
   inline void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
@@ -1261,16 +1258,13 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     DCHECK(IsEphemeronHashTable(host));
     DCHECK(!Heap::InYoungGeneration(host));
 
+    // Simply record ephemeron keys in OLD_TO_NEW if it points into the young
+    // generation instead of recording it in ephemeron_remembered_set here for
+    // migrated objects. OLD_TO_NEW is per page and we can therefore easily
+    // record in OLD_TO_NEW on different pages in parallel without merging. Both
+    // sets are anyways guaranteed to be empty after a full GC.
+    VisitPointer(host, key);
     VisitPointer(host, value);
-
-    if (ephemeron_remembered_set_ && Heap::InYoungGeneration(*key)) {
-      auto table = EphemeronHashTable::unchecked_cast(host);
-      auto insert_result =
-          ephemeron_remembered_set_->insert({table, std::unordered_set<int>()});
-      insert_result.first->second.insert(index);
-    } else {
-      VisitPointer(host, key);
-    }
   }
 
   inline void VisitCodeTarget(Tagged<InstructionStream> host,
@@ -1350,7 +1344,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   }
 
   Heap* const heap_;
-  EphemeronRememberedSet::TableMap* ephemeron_remembered_set_;
 };
 
 class MigrationObserver {
@@ -1756,8 +1749,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
       : heap_(heap), cage_base_(heap->isolate()) {}
 
   bool Visit(Tagged<HeapObject> object, int size) override {
-    RecordMigratedSlotVisitor visitor(
-        heap_, heap_->ephemeron_remembered_set()->tables());
+    RecordMigratedSlotVisitor visitor(heap_);
     Tagged<Map> map = object->map(cage_base_);
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
@@ -3920,7 +3912,7 @@ class Evacuator final : public Malloced {
         local_allocator_(heap_,
                          CompactionSpaceKind::kCompactionSpaceForMarkCompact),
         shared_old_allocator_(CreateSharedOldAllocator(heap_)),
-        record_visitor_(heap_, &ephemeron_remembered_set_),
+        record_visitor_(heap_),
         new_space_visitor_(heap_, &local_allocator_,
                            shared_old_allocator_.get(), &record_visitor_,
                            &local_pretenuring_feedback_),
@@ -3964,7 +3956,6 @@ class Evacuator final : public Malloced {
   // Allocator for the shared heap.
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
 
-  EphemeronRememberedSet::TableMap ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
 
   // Visitors for the corresponding spaces.
@@ -4017,19 +4008,6 @@ void Evacuator::Finalize() {
       new_to_old_page_visitor_.moved_bytes());
   heap_->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
-
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = ephemeron_remembered_set_.begin();
-       it != ephemeron_remembered_set_.end(); ++it) {
-    auto insert_result = table_map->insert({it->first, it->second});
-    if (!insert_result.second) {
-      // Insertion didn't happen, there was already an item.
-      auto set = insert_result.first->second;
-      for (int entry : it->second) {
-        set.insert(entry);
-      }
-    }
-  }
 }
 
 class LiveObjectVisitor final : AllStatic {
@@ -4795,18 +4773,16 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
     PtrComprCageBase cage_base(heap_->isolate());
 
     auto* table_map = heap_->ephemeron_remembered_set()->tables();
-    for (auto it = table_map->begin(); it != table_map->end();) {
+    for (auto it = table_map->begin(); it != table_map->end(); it++) {
       Tagged<EphemeronHashTable> table = it->first;
       auto& indices = it->second;
       if (table->map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
-        // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
-        // inserts entries for the moved table into ephemeron_remembered_set_.
-        it = table_map->erase(it);
+        // The object has moved, so ignore slots in dead memory here.
         continue;
       }
       DCHECK(IsMap(table->map(cage_base), cage_base));
       DCHECK(IsEphemeronHashTable(table, cage_base));
-      for (auto iti = indices.begin(); iti != indices.end();) {
+      for (auto iti = indices.begin(); iti != indices.end(); ++iti) {
         // EphemeronHashTable keys must be heap objects.
         ObjectSlot key_slot(table->RawFieldOfElementAt(
             EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
@@ -4818,18 +4794,9 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
           key = map_word.ToForwardingAddress(key);
           key_slot.Relaxed_Store(key);
         }
-        if (!heap_->InYoungGeneration(key)) {
-          iti = indices.erase(iti);
-        } else {
-          ++iti;
-        }
-      }
-      if (indices.size() == 0) {
-        it = table_map->erase(it);
-      } else {
-        ++it;
       }
     }
+    table_map->clear();
   }
 
  private:
