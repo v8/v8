@@ -290,6 +290,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Condition CheckSmi(Register src);
   Condition CheckSmi(Operand src);
 
+  // This can be used in testing to ensure we never rely on what is in the
+  // unused smi bits.
+  void ClobberDecompressedSmiBits(Register smi);
+
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
 
