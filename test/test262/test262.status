@@ -2070,9 +2070,14 @@
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference': [FAIL],
 
-  # https://github.com/tc39/test262/pull/3903
-  'intl402/DurationFormat/prototype/format/style-digital-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-digital-en': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14304
+  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds': [FAIL],
+
+  # intl402/DurationFormat/prototype/format/precision-exact-mathematical-values
+  'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14303
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.1': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
@@ -2291,12 +2296,16 @@
   'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-character-property-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-property-of-strings-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/property-of-strings-escape-union-string-literal': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-13.1': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-14.0': [SKIP],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.0': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-difference-character-property-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-difference-property-of-strings-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-intersection-character-property-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-intersection-property-of-strings-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-union-character-property-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-union-property-of-strings-escape': [SKIP],
+
 
   # Unicode in identifiers.
   'language/identifiers/part-unicode-*': [FAIL],
