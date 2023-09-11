@@ -1204,6 +1204,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // Access to the machine stack.
   const Operator* LoadFramePointer();
+  const Operator* LoadStackPointer();
+  const Operator* SetStackPointer();
   const Operator* LoadParentFramePointer();
 
   // Compares: stack_pointer [- offset] > value. The offset is optionally

@@ -1708,6 +1708,19 @@ void InstructionSelectorT<Adapter>::VisitLoadFramePointer(node_t node) {
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadStackPointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchStackPointer, g.DefineAsRegister(node));
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  OperandGenerator g(this);
+  auto input = g.UseAny(node->InputAt(0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(node_t node) {
   OperandGenerator g(this);
@@ -3358,6 +3371,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return VisitLoadStackCheckOffset(node);
     case IrOpcode::kLoadFramePointer:
       return VisitLoadFramePointer(node);
+    case IrOpcode::kLoadStackPointer:
+      return VisitLoadStackPointer(node);
+    case IrOpcode::kSetStackPointer:
+      return VisitSetStackPointer(node);
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
     case IrOpcode::kLoadRootRegister:

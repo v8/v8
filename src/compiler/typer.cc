@@ -240,6 +240,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Float64Select)
       DECLARE_IMPOSSIBLE_CASE(LoadStackCheckOffset)
       DECLARE_IMPOSSIBLE_CASE(LoadFramePointer)
+      DECLARE_IMPOSSIBLE_CASE(LoadStackPointer)
+      DECLARE_IMPOSSIBLE_CASE(SetStackPointer)
       DECLARE_IMPOSSIBLE_CASE(LoadParentFramePointer)
       DECLARE_IMPOSSIBLE_CASE(LoadRootRegister)
       DECLARE_IMPOSSIBLE_CASE(UnalignedLoad)

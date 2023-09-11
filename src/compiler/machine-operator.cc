@@ -2614,6 +2614,26 @@ const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
   return zone_->New<ExtractF128Operator>(lane_index);
 }
 
+const Operator* MachineOperatorBuilder::LoadStackPointer() {
+  class LoadStackPointerOperator final : public Operator {
+   public:
+    LoadStackPointerOperator()
+        : Operator(IrOpcode::kLoadStackPointer, kNoProperties,
+                   "LoadStackPointer", 0, 1, 0, 1, 1, 0) {}
+  };
+  return zone_->New<LoadStackPointerOperator>();
+}
+
+const Operator* MachineOperatorBuilder::SetStackPointer() {
+  class SetStackPointerOperator final : public Operator {
+   public:
+    SetStackPointerOperator()
+        : Operator(IrOpcode::kSetStackPointer, kNoProperties, "SetStackPointer",
+                   1, 1, 0, 0, 1, 0) {}
+  };
+  return zone_->New<SetStackPointerOperator>();
+}
+
 #undef PURE_BINARY_OP_LIST_32
 #undef PURE_BINARY_OP_LIST_64
 #undef MACHINE_PURE_OP_LIST

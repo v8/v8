@@ -821,6 +821,8 @@
   V(Float64Select)                       \
   V(LoadStackCheckOffset)                \
   V(LoadFramePointer)                    \
+  V(LoadStackPointer)                    \
+  V(SetStackPointer)                     \
   V(LoadParentFramePointer)              \
   V(LoadRootRegister)                    \
   V(UnalignedLoad)                       \

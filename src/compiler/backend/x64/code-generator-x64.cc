@@ -1549,6 +1549,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchFramePointer:
       __ movq(i.OutputRegister(), rbp);
       break;
+    case kArchStackPointer:
+      __ movq(i.OutputRegister(), rsp);
+      break;
+    case kArchSetStackPointer:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movq(rsp, i.InputRegister(0));
+      } else {
+        __ movq(rsp, i.InputOperand(0));
+      }
+      break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
         __ movq(i.OutputRegister(), Operand(rbp, 0));

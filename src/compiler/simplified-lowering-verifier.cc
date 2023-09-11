@@ -671,6 +671,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Float64Select)
       CASE(LoadStackCheckOffset)
       CASE(LoadFramePointer)
+      CASE(LoadStackPointer)
+      CASE(SetStackPointer)
       CASE(LoadParentFramePointer)
       CASE(LoadRootRegister)
       CASE(UnalignedLoad)
