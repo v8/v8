@@ -4332,9 +4332,9 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   CHECK_EQ(metadata.instance_counter, 1);
 
   v8::base::ScopedVector<uint8_t> source(200000);
-  v8::HandleScope handle_scope(isolate);
   // Creating a few large strings suffices to trigger GC.
   while (metadata.instance_counter == 1) {
+    v8::HandleScope handle_scope(isolate);
     USE(v8::String::NewFromOneByte(isolate, source.begin(),
                                    v8::NewStringType::kNormal,
                                    static_cast<int>(source.size())));

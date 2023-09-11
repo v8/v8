@@ -6405,7 +6405,7 @@ HEAP_TEST(Regress670675) {
   }
   size_t array_length = 128 * KB;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;
-  for (size_t i = 0; i < n + 40; i++) {
+  for (size_t i = 0; i < n + 60; i++) {
     {
       HandleScope inner_scope(isolate);
       isolate->factory()->NewFixedArray(static_cast<int>(array_length),

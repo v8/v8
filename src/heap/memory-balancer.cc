@@ -24,7 +24,8 @@ void MemoryBalancer::RecomputeLimits(size_t embedder_allocation_limit,
 }
 
 void MemoryBalancer::RefreshLimit() {
-  DCHECK(major_allocation_rate_ && major_gc_speed_);
+  CHECK(major_allocation_rate_.has_value());
+  CHECK(major_gc_speed_.has_value());
   const size_t computed_limit =
       live_memory_after_gc_ +
       sqrt(live_memory_after_gc_ * (major_allocation_rate_.value().rate()) /

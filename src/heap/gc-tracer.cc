@@ -417,7 +417,7 @@ void GCTracer::NotifyMemoryBalancer() {
   const base::TimeDelta major_allocation_duration =
       (current_.end_atomic_pause_time - previous_mark_compact_end_time_) -
       blocked_time_taken;
-  CHECK_GT(major_allocation_duration, base::TimeDelta());
+  CHECK_GE(major_allocation_duration, base::TimeDelta());
 
   heap_->mb_->UpdateGCSpeed(major_gc_bytes, major_gc_duration);
 
