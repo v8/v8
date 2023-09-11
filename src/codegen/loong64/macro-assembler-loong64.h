@@ -629,7 +629,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
   inline void Move(Register dst, Tagged<Smi> value) { li(dst, Operand(value)); }
-  inline void Move(Register dst, Smi smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
     if (dst != src) {
