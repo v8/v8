@@ -4,6 +4,8 @@
 
 // Flags: --experimental-wasm-gc --wasm-disable-deprecated
 
+// TODO(14034): Drop this test.
+
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 

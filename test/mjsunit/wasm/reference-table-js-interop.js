@@ -75,7 +75,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetStructVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsStruct,
       kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
@@ -83,7 +82,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetArrayVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,

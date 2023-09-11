@@ -117,92 +117,92 @@ kExprF32Ceil,  // f32.ceil
 kExprF32Ceil,  // f32.ceil
 kExprI32SConvertF32,  // i32.trunc_f32_s
 kExprI32Const, 0x95, 0x80, 0xb2, 0xc3, 0x7b,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x04,  // local.set
 kExprI32Const, 0x84, 0xe8, 0x86, 0xfc, 0x78,  // i32.const
 kExprI32Const, 0xab, 0xa8, 0xf9, 0x8a, 0x7c,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x05,  // local.set
 kExprI32Const, 0xd6, 0xce, 0xfb, 0xa6, 0x7c,  // i32.const
 kExprI32Const, 0xc5, 0xc8, 0xa7, 0x92, 0x07,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x06,  // local.set
 kExprI32Const, 0xec, 0xae, 0xd6, 0xe0, 0x07,  // i32.const
 kExprI32Const, 0xd7, 0xee, 0xb2, 0x90, 0x78,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x07,  // local.set
 kExprI32Const, 0xf7, 0xcf, 0xdb, 0xd9, 0x7c,  // i32.const
 kExprI32Const, 0x92, 0xe8, 0x82, 0x26,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x08,  // local.set
 kExprI32Const, 0xcb, 0xac, 0xc3, 0xcc, 0x01,  // i32.const
 kExprI32Const, 0xdf, 0xd1, 0xdf, 0xce, 0x02,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x09,  // local.set
 kExprI32Const, 0xe4, 0xd7, 0x8b, 0xe6, 0x04,  // i32.const
 kExprI32Const, 0xdd, 0x95, 0xda, 0xe9, 0x04,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0a,  // local.set
 kExprI32Const, 0x8d, 0x98, 0xc9, 0xe0, 0x05,  // i32.const
 kExprI32Const, 0xfc, 0x8b, 0xd9, 0x97, 0x07,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0b,  // local.set
 kExprI32Const, 0xdb, 0xd4, 0xc5, 0xe2, 0x04,  // i32.const
 kExprI32Const, 0xd8, 0xa9, 0xb7, 0xe0, 0x06,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0c,  // local.set
 kExprI32Const, 0xb9, 0x80, 0xc4, 0xa1, 0x03,  // i32.const
 kExprI32Const, 0xf8, 0x84, 0xc4, 0xbe, 0x7c,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0d,  // local.set
 kExprI32Const, 0xfe, 0xd7, 0xe3, 0x8e, 0x02,  // i32.const
 kExprI32Const, 0xff, 0xcf, 0xcb, 0xde, 0x7c,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0e,  // local.set
 kExprI32Const, 0x8f, 0xbd, 0xd4, 0xa0, 0x79,  // i32.const
 kExprI32Const, 0xdc, 0xc0, 0x9d, 0xfd, 0x06,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x0f,  // local.set
 kExprI32Const, 0x91, 0xd6, 0x94, 0xfb, 0x04,  // i32.const
 kExprI32Const, 0xc6, 0xf9, 0xbf, 0x92, 0x7a,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x10,  // local.set
 kExprI32Const, 0x86, 0xb2, 0xd1, 0x95, 0x78,  // i32.const
 kExprI32Const, 0xfc, 0xb6, 0xa1, 0xe1, 0x7d,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x11,  // local.set
 kExprI32Const, 0x9e, 0xf5, 0x9b, 0xe4, 0x01,  // i32.const
 kExprI32Const, 0x82, 0xcd, 0xd0, 0x92, 0x7e,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x12,  // local.set
 kExprI32Const, 0xeb, 0x82, 0xc1, 0xaa, 0x06,  // i32.const
 kExprI32Const, 0xe6, 0xa8, 0x90, 0x67,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x13,  // local.set
 kExprI32Const, 0xbd, 0xea, 0xac, 0xd7, 0x7b,  // i32.const
 kExprI32Const, 0xdb, 0xe7, 0x96, 0x87, 0x78,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x14,  // local.set
 kExprI32Const, 0xca, 0xea, 0x9f, 0xb2, 0x7f,  // i32.const
 kExprI32Const, 0xaa, 0xff, 0x9e, 0xfa, 0x7d,  // i32.const
-kExprRefNull, 0x68,  // ref.null
+kExprRefNull, kNullFuncRefCode,  // ref.null
 kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprLocalSet, 0x15,  // local.set
 kExprI32Const, 0xb1, 0xaf, 0xeb, 0x83, 0x03,  // i32.const

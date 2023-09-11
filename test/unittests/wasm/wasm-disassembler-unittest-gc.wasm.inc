@@ -109,10 +109,10 @@
   0xd5,                    // ref.eq
   0x1a,                    // drop
   0x20, 0x01,              // local.get $var1
-  0xfb, 0x44, 0x00,        // ref.test $type0
+  0xfb, 0x40, 0x00,        // ref.test $type0
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0
-  0xfb, 0x45, 0x00,        // ref.cast $type0
+  0xfb, 0x41, 0x00,        // ref.cast $type0
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0
   0xfb, 0x48, 0x00,        // ref.test null $type0
