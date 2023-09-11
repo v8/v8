@@ -10,6 +10,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/small-map.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/handles-inl.h"
@@ -103,11 +104,14 @@ class FutexWaitList {
 
   // Location inside a shared buffer -> linked list of Nodes waiting on that
   // location.
-  std::map<int8_t*, HeadAndTail> location_lists_;
+  // As long as the map does not grow beyond 16 entries, there is no dynamic
+  // allocation and deallocation happening in wait or wake, which reduces the
+  // time spend in the critical section.
+  base::SmallMap<std::map<void*, HeadAndTail>, 16> location_lists_;
 
   // Isolate* -> linked list of Nodes which are waiting for their Promises to
   // be resolved.
-  std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
+  base::SmallMap<std::map<Isolate*, HeadAndTail>> isolate_promises_to_resolve_;
 };
 
 namespace {
@@ -922,7 +926,7 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
       // head and tail are either both nullptr or both non-nullptr.
       DCHECK_EQ(head == nullptr, tail == nullptr);
       if (head == nullptr) {
-        location_lists.erase(it++);
+        it = location_lists.erase(it);
       } else {
         ++it;
       }
