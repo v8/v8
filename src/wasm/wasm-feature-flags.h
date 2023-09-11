@@ -23,10 +23,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Inlining of small wasm GC functions into JavaScript */                    \
-  /* V8 side owner: mliedtke */                                                \
-  V(js_inlining, "inline small wasm functions into JS", false)                 \
-                                                                               \
   /* Non-specified, V8-only experimental additions to the GC proposal */       \
   /* V8 side owner: jkummerow */                                               \
   V(assume_ref_cast_succeeds,                                                  \
@@ -97,6 +93,10 @@
   /* Staged in v11.3 */                                                        \
   /* Launch bug: https://crbug.com/1424350 */                                  \
   V(inlining, "wasm-into-wasm inlining", false)                                \
+                                                                               \
+  /* Inlining of small wasm GC functions into JavaScript */                    \
+  /* V8 side owner: mliedtke */                                                \
+  V(js_inlining, "inline small wasm functions into JS", false)                 \
                                                                                \
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
