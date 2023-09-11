@@ -7,6 +7,9 @@
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
@@ -24,7 +27,10 @@ namespace v8::internal::wasm {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 using Assembler =
-    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
+    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
+        compiler::turboshaft::SelectLoweringReducer,
+        compiler::turboshaft::VariableReducer,
+        compiler::turboshaft::RequiredOptimizationReducer>>;
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
@@ -50,6 +56,7 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tagged;
+using compiler::turboshaft::Variable;
 using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::TSCallDescriptor;
@@ -180,7 +187,7 @@ class TurboshaftGraphBuildingInterface {
   //   to patch the backedge of the PendingLoopPhis of the loop.
 
   void Block(FullDecoder* decoder, Control* block) {
-    block->merge_block = NewBlock(decoder, block->br_merge());
+    block->merge_block = NewBlockWithPhis(decoder, block->br_merge());
   }
 
   void Loop(FullDecoder* decoder, Control* block) {
@@ -202,22 +209,21 @@ class TurboshaftGraphBuildingInterface {
 
     StackCheck();
 
-    TSBlock* loop_merge = NewBlock(decoder, &block->start_merge);
+    TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
     block->false_or_loop_or_catch_block = loop;
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
-    TSBlock* true_block = NewBlock(decoder, nullptr);
-    TSBlock* false_block = NewBlock(decoder, nullptr);
-    TSBlock* merge_block = NewBlock(decoder, &if_block->end_merge);
+    TSBlock* true_block = asm_.NewBlock();
+    TSBlock* false_block = NewBlockWithPhis(decoder, nullptr);
+    TSBlock* merge_block = NewBlockWithPhis(decoder, &if_block->end_merge);
     if_block->false_or_loop_or_catch_block = false_block;
     if_block->merge_block = merge_block;
-    SetupControlFlowEdge(decoder, true_block);
     SetupControlFlowEdge(decoder, false_block);
     // TODO(14108): Branch hints.
     asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
-    EnterBlock(decoder, true_block, nullptr);
+    asm_.Bind(true_block);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
@@ -225,7 +231,8 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, if_block->merge_block);
       asm_.Goto(if_block->merge_block);
     }
-    EnterBlock(decoder, if_block->false_or_loop_or_catch_block, nullptr);
+    BindBlockAndGeneratePhis(decoder, if_block->false_or_loop_or_catch_block,
+                             nullptr);
   }
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
@@ -239,23 +246,19 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
+    // TODO(14108): Branch hints.
     if (depth == decoder->control_depth() - 1) {
-      TSBlock* return_block = NewBlock(decoder, nullptr);
-      SetupControlFlowEdge(decoder, return_block);
-      TSBlock* non_branching = NewBlock(decoder, nullptr);
-      SetupControlFlowEdge(decoder, non_branching);
-      asm_.Branch(ConditionWithHint(cond.op), return_block, non_branching);
-      EnterBlock(decoder, return_block, nullptr);
-      DoReturn(decoder, 0);
-      EnterBlock(decoder, non_branching, nullptr);
+      IF (cond.op) {
+        DoReturn(decoder, 0);
+      }
+      END_IF
     } else {
       Control* target = decoder->control_at(depth);
       SetupControlFlowEdge(decoder, target->merge_block);
-      TSBlock* non_branching = NewBlock(decoder, nullptr);
-      SetupControlFlowEdge(decoder, non_branching);
+      TSBlock* non_branching = asm_.NewBlock();
       asm_.Branch(ConditionWithHint(cond.op), target->merge_block,
                   non_branching);
-      EnterBlock(decoder, non_branching, nullptr);
+      asm_.Bind(non_branching);
     }
   }
 
@@ -270,8 +273,7 @@ class TurboshaftGraphBuildingInterface {
     std::vector<TSBlock*> intermediate_blocks;
     TSBlock* default_case = nullptr;
     while (new_block_iterator.has_next()) {
-      TSBlock* intermediate = NewBlock(decoder, nullptr);
-      SetupControlFlowEdge(decoder, intermediate);
+      TSBlock* intermediate = asm_.NewBlock();
       intermediate_blocks.emplace_back(intermediate);
       uint32_t i = new_block_iterator.cur_index();
       if (i == imm.table_count) {
@@ -289,7 +291,7 @@ class TurboshaftGraphBuildingInterface {
     while (branch_iterator.has_next()) {
       TSBlock* intermediate = intermediate_blocks[i];
       i++;
-      EnterBlock(decoder, intermediate, nullptr);
+      asm_.Bind(intermediate);
       BrOrRet(decoder, branch_iterator.next(), 0);
     }
   }
@@ -310,14 +312,16 @@ class TurboshaftGraphBuildingInterface {
           SetupControlFlowEdge(decoder, block->merge_block);
           asm_.Goto(block->merge_block);
         }
-        EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr);
+        BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                                 nullptr);
         // Exceptionally for one-armed if, we cannot take the values from the
         // stack; we have to pass the stack values at the beginning of the
         // if-block.
         SetupControlFlowEdge(decoder, block->merge_block, 0, OpIndex::Invalid(),
                              &block->start_merge);
         asm_.Goto(block->merge_block);
-        EnterBlock(decoder, block->merge_block, block->br_merge());
+        BindBlockAndGeneratePhis(decoder, block->merge_block,
+                                 block->br_merge());
         break;
       case kControlIfElse:
       case kControlBlock:
@@ -331,10 +335,11 @@ class TurboshaftGraphBuildingInterface {
           SetupControlFlowEdge(decoder, block->merge_block);
           asm_.Goto(block->merge_block);
         }
-        EnterBlock(decoder, block->merge_block, block->br_merge());
+        BindBlockAndGeneratePhis(decoder, block->merge_block,
+                                 block->br_merge());
         break;
       case kControlLoop: {
-        TSBlock* post_loop = NewBlock(decoder, nullptr);
+        TSBlock* post_loop = NewBlockWithPhis(decoder, nullptr);
         if (block->reachable()) {
           SetupControlFlowEdge(decoder, post_loop);
           asm_.Goto(post_loop);
@@ -364,7 +369,8 @@ class TurboshaftGraphBuildingInterface {
           // We abuse the start merge of the loop, which is not used otherwise
           // anymore, to store backedge inputs for the pending phi stack values
           // of the loop.
-          EnterBlock(decoder, block->merge_block, block->br_merge());
+          BindBlockAndGeneratePhis(decoder, block->merge_block,
+                                   block->br_merge());
           asm_.Goto(block->false_or_loop_or_catch_block);
           auto to = asm_.output_graph()
                         .operations(*block->false_or_loop_or_catch_block)
@@ -386,7 +392,7 @@ class TurboshaftGraphBuildingInterface {
                 pending_phi.rep);
           }
         }
-        EnterBlock(decoder, post_loop, nullptr);
+        BindBlockAndGeneratePhis(decoder, post_loop, nullptr);
         break;
       }
     }
@@ -465,7 +471,7 @@ class TurboshaftGraphBuildingInterface {
     V<Tagged> maybe_function = LoadFixedArrayElement(functions, function_index);
 
     Label<WasmInternalFunction> done(&asm_);
-    IF (asm_.IsSmi(maybe_function)) {
+    IF (UNLIKELY(asm_.IsSmi(maybe_function))) {
       V<Word32> function_index_constant = asm_.Word32Constant(function_index);
       V<WasmInternalFunction> from_builtin = CallBuiltinFromRuntimeStub(
           decoder, wasm::WasmCode::kWasmRefFunc, {function_index_constant});
@@ -563,24 +569,10 @@ class TurboshaftGraphBuildingInterface {
       case kBottom:
         UNREACHABLE();
     }
-
-    if (use_select) {
-      result->op =
-          asm_.Select(cond.op, tval.op, fval.op, RepresentationFor(tval.type),
-                      BranchHint::kNone, Implementation::kCMove);
-      return;
-    } else {
-      TSBlock* true_block = asm_.NewBlock();
-      TSBlock* false_block = asm_.NewBlock();
-      TSBlock* merge_block = asm_.NewBlock();
-      asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
-      asm_.Bind(true_block);
-      asm_.Goto(merge_block);
-      asm_.Bind(false_block);
-      asm_.Goto(merge_block);
-      asm_.Bind(merge_block);
-      result->op = asm_.Phi({tval.op, fval.op}, RepresentationFor(tval.type));
-    }
+    result->op = asm_.Select(
+        cond.op, tval.op, fval.op, RepresentationFor(tval.type),
+        BranchHint::kNone,
+        use_select ? Implementation::kCMove : Implementation::kBranch);
   }
 
   // TODO(14108): Cache memories' starts and sizes. Consider VariableReducer,
@@ -855,8 +847,8 @@ class TurboshaftGraphBuildingInterface {
     } else {
       Label<Word64> done(&asm_);
 
-      IF (asm_.Uint64LessThanOrEqual(
-              value.op, asm_.Word64Constant(static_cast<int64_t>(kMaxInt)))) {
+      IF (LIKELY(asm_.Uint64LessThanOrEqual(
+              value.op, asm_.Word64Constant(static_cast<int64_t>(kMaxInt))))) {
         GOTO(done, asm_.ChangeInt32ToInt64(CallBuiltinFromRuntimeStub(
                        decoder, WasmCode::kWasmMemoryGrow,
                        {asm_.Word32Constant(imm.index),
@@ -932,27 +924,19 @@ class TurboshaftGraphBuildingInterface {
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
                 bool pass_null_along_branch, Value* result_on_fallthrough) {
     result_on_fallthrough->op = ref_object.op;
-    TSBlock* null_branch = asm_.NewBlock();
-    TSBlock* non_null_branch = asm_.NewBlock();
-    asm_.Branch(ConditionWithHint(asm_.IsNull(ref_object.op, ref_object.type),
-                                  BranchHint::kFalse),
-                null_branch, non_null_branch);
-    asm_.Bind(null_branch);
-    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
-    asm_.Bind(non_null_branch);
+    IF (UNLIKELY(asm_.IsNull(ref_object.op, ref_object.type))) {
+      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+    }
+    END_IF
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
                    uint32_t depth, bool /* drop_null_on_fallthrough */) {
     result->op = ref_object.op;
-    TSBlock* null_branch = asm_.NewBlock();
-    TSBlock* non_null_branch = asm_.NewBlock();
-    asm_.Branch(ConditionWithHint(asm_.IsNull(ref_object.op, ref_object.type),
-                                  BranchHint::kFalse),
-                null_branch, non_null_branch);
-    asm_.Bind(non_null_branch);
-    BrOrRet(decoder, depth, 0);
-    asm_.Bind(null_branch);
+    IF_NOT (UNLIKELY(asm_.IsNull(ref_object.op, ref_object.type))) {
+      BrOrRet(decoder, depth, 0);
+    }
+    END_IF
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
@@ -1164,8 +1148,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->false_or_loop_or_catch_block = NewBlock(decoder, nullptr);
-    block->merge_block = NewBlock(decoder, block->br_merge());
+    block->false_or_loop_or_catch_block = NewBlockWithPhis(decoder, nullptr);
+    block->merge_block = NewBlockWithPhis(decoder, block->br_merge());
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
@@ -1266,8 +1250,8 @@ class TurboshaftGraphBuildingInterface {
   // TODO(14108): Optimize in case of unreachable catch block?
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
-    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
-               &block->exception);
+    BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                             nullptr, &block->exception);
     V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
         NativeContext, MemoryRepresentation::TaggedPointer());
     V<WasmTagObject> caught_tag = CallBuiltinFromRuntimeStub(
@@ -1279,7 +1263,7 @@ class TurboshaftGraphBuildingInterface {
     auto expected_tag =
         V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_catch = asm_.NewBlock();
-    TSBlock* if_no_catch = NewBlock(decoder, nullptr);
+    TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
     // If the tags don't match we continue with the next tag by setting the
@@ -1296,37 +1280,38 @@ class TurboshaftGraphBuildingInterface {
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
           asm_.TaggedEqual(caught_tag, LOAD_IMMUTABLE_ROOT(UndefinedValue));
-      TSBlock* js_exception = asm_.NewBlock();
-      TSBlock* wasm_exception = asm_.NewBlock();
-      TSBlock* no_catch_merge = asm_.NewBlock();
-      asm_.Branch(ConditionWithHint(caught_tag_undefined, BranchHint::kFalse),
-                  js_exception, wasm_exception);
+      Label<Tagged> if_catch(&asm_);
+      Label<> no_catch_merge(&asm_);
 
-      asm_.Bind(js_exception);
-      V<Tagged> tag_object = asm_.Load(
-          native_context, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::TaggedPointer(),
-          NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
-      V<Tagged> js_tag = asm_.Load(tag_object, LoadOp::Kind::TaggedBase(),
-                                   MemoryRepresentation::TaggedPointer(),
-                                   WasmTagObject::kTagOffset);
-      asm_.Branch(ConditionWithHint(asm_.TaggedEqual(expected_tag, js_tag)),
-                  if_catch, no_catch_merge);
+      IF (UNLIKELY(caught_tag_undefined)) {
+        V<Tagged> tag_object = asm_.Load(
+            native_context, LoadOp::Kind::TaggedBase(),
+            MemoryRepresentation::TaggedPointer(),
+            NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
+        V<Tagged> js_tag = asm_.Load(tag_object, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
+                                     WasmTagObject::kTagOffset);
+        GOTO_IF(asm_.TaggedEqual(expected_tag, js_tag), if_catch,
+                block->exception);
+        GOTO(no_catch_merge);
+      }
+      ELSE {
+        IF (asm_.TaggedEqual(caught_tag, expected_tag)) {
+          UnpackWasmException(decoder, block->exception, values);
+          GOTO(if_catch, values[0].op);
+        }
+        END_IF
+        GOTO(no_catch_merge);
+      }
+      END_IF
 
-      asm_.Bind(wasm_exception);
-      TSBlock* unpack_block = asm_.NewBlock();
-      asm_.Branch(ConditionWithHint(asm_.TaggedEqual(caught_tag, expected_tag)),
-                  unpack_block, no_catch_merge);
-      asm_.Bind(unpack_block);
-      UnpackWasmException(decoder, block->exception, values);
-      asm_.Goto(if_catch);
-
-      asm_.Bind(no_catch_merge);
+      BIND(no_catch_merge);
       asm_.Goto(if_no_catch);
 
-      asm_.Bind(if_catch);
-      V<Tagged> args[2] = {block->exception, V<Tagged>::Cast(values[0].op)};
-      values[0].op = asm_.Phi(base::VectorOf(args, 2));
+      BIND(if_catch, caught_exception);
+      // The first unpacked value is the exception itself in the case of a JS
+      // exception.
+      values[0].op = caught_exception;
     } else {
       asm_.Branch(ConditionWithHint(asm_.TaggedEqual(caught_tag, expected_tag)),
                   if_catch, if_no_catch);
@@ -1337,8 +1322,8 @@ class TurboshaftGraphBuildingInterface {
 
   // TODO(14108): Optimize in case of unreachable catch block?
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
-    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
-               &block->exception);
+    BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                             nullptr, &block->exception);
     if (depth == decoder->control_depth() - 1) {
       // We just throw to the caller, no need to handle the exception in this
       // frame.
@@ -1357,8 +1342,8 @@ class TurboshaftGraphBuildingInterface {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
-    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
-               &block->exception);
+    BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                             nullptr, &block->exception);
   }
 
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input) {
@@ -1381,7 +1366,7 @@ class TurboshaftGraphBuildingInterface {
             StubCallMode::kCallWasmRuntimeStub);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
-    if (Is64()) {
+    if constexpr (Is64()) {
       return asm_.Call(builtin, {input}, ts_call_descriptor);
     }
     V<Word32> low_word = asm_.TruncateWord64ToWord32(input);
@@ -2020,7 +2005,7 @@ class TurboshaftGraphBuildingInterface {
     if constexpr (SmiValuesAre31Bits()) {
       V<Word32> shifted =
           asm_.Word32ShiftLeft(input.op, kSmiTagSize + kSmiShiftSize);
-      if (Is64()) {
+      if constexpr (Is64()) {
         // The uppermost bits don't matter.
         result->op = asm_.BitcastWord32ToWord64(shifted);
       } else {
@@ -2533,18 +2518,12 @@ class TurboshaftGraphBuildingInterface {
     did_bailout_ = true;
   }
 
-  void BailoutWithoutOpcode(FullDecoder* decoder, const char* message) {
-    decoder->errorf("Unsupported operation: %s", message);
-    did_bailout_ = true;
-  }
-
   // Perform a null check if the input type is nullable.
   V<Object> NullCheck(const Value& value,
                       TrapId trap_id = TrapId::kTrapNullDereference) {
     OpIndex not_null_value = value.op;
     if (value.type.is_nullable()) {
-      not_null_value =
-          __ AssertNotNull(value.op, value.type, TrapId::kTrapNullDereference);
+      not_null_value = __ AssertNotNull(value.op, value.type, trap_id);
     }
     return not_null_value;
   }
@@ -2552,7 +2531,7 @@ class TurboshaftGraphBuildingInterface {
   // Creates a new block, initializes a {BlockPhis} for it, and registers it
   // with block_phis_. We pass a {merge} only if we later need to recover values
   // for that merge.
-  TSBlock* NewBlock(FullDecoder* decoder, Merge<Value>* merge) {
+  TSBlock* NewBlockWithPhis(FullDecoder* decoder, Merge<Value>* merge) {
     TSBlock* block = asm_.NewBlock();
     BlockPhis block_phis(decoder->num_locals() +
                          (merge != nullptr ? merge->arity : 0));
@@ -2613,8 +2592,9 @@ class TurboshaftGraphBuildingInterface {
   // Binds a block, initializes phis for its SSA environment from its entry in
   // {block_phis_}, and sets values to its {merge} (if available) from the
   // its entry in {block_phis_}.
-  void EnterBlock(FullDecoder* decoder, TSBlock* tsblock, Merge<Value>* merge,
-                  OpIndex* exception = nullptr) {
+  void BindBlockAndGeneratePhis(FullDecoder* decoder, TSBlock* tsblock,
+                                Merge<Value>* merge,
+                                OpIndex* exception = nullptr) {
     asm_.Bind(tsblock);
     BlockPhis& block_phis = block_phis_.at(tsblock);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
@@ -3008,7 +2988,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64SConvertSatF32: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           bool is_signed = true;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float32(),
@@ -3054,7 +3034,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64UConvertSatF32: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           bool is_signed = false;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float32(),
@@ -3100,7 +3080,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64SConvertSatF64: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           bool is_signed = true;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float64(),
@@ -3147,7 +3127,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64UConvertSatF64: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           bool is_signed = false;
           return BuildCcallConvertFloatSat(
               arg, MemoryRepresentation::Float64(),
@@ -3337,28 +3317,28 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Eqz:
         return asm_.Word64Equal(arg, 0);
       case kExprF32SConvertI64:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildIntToFloatConversionInstruction(
               arg, ExternalReference::wasm_int64_to_float32(),
               MemoryRepresentation::Int64(), MemoryRepresentation::Float32());
         }
         return asm_.ChangeInt64ToFloat32(arg);
       case kExprF32UConvertI64:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildIntToFloatConversionInstruction(
               arg, ExternalReference::wasm_uint64_to_float32(),
               MemoryRepresentation::Uint64(), MemoryRepresentation::Float32());
         }
         return asm_.ChangeUint64ToFloat32(arg);
       case kExprF64SConvertI64:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildIntToFloatConversionInstruction(
               arg, ExternalReference::wasm_int64_to_float64(),
               MemoryRepresentation::Int64(), MemoryRepresentation::Float64());
         }
         return asm_.ChangeInt64ToFloat64(arg);
       case kExprF64UConvertI64:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildIntToFloatConversionInstruction(
               arg, ExternalReference::wasm_uint64_to_float64(),
               MemoryRepresentation::Uint64(), MemoryRepresentation::Float64());
@@ -3502,7 +3482,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Mul:
         return asm_.Word64Mul(lhs, rhs);
       case kExprI64DivS: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
@@ -3516,7 +3496,7 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Int64Div(lhs, rhs);
       }
       case kExprI64DivU:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
@@ -3524,7 +3504,7 @@ class TurboshaftGraphBuildingInterface {
                     TrapId::kTrapDivByZero);
         return asm_.Uint64Div(lhs, rhs);
       case kExprI64RemS: {
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
@@ -3543,7 +3523,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64RemU:
-        if (!Is64()) {
+        if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
@@ -4279,7 +4259,7 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* exception_block = asm_.NewBlock();
     OpIndex call;
     {
-      decltype(asm_)::CatchScope scope(asm_, exception_block);
+      Assembler::CatchScope scope(asm_, exception_block);
 
       call = asm_.Call(callee, OpIndex::Invalid(), args, descriptor);
       asm_.Goto(success_block);
@@ -4581,49 +4561,43 @@ class TurboshaftGraphBuildingInterface {
   OpIndex AsmjsLoadMem(V<Word32> index, MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    TSBlock* in_bounds = asm_.NewBlock();
-    TSBlock* out_of_bounds = asm_.NewBlock();
-    TSBlock* done = asm_.NewBlock();
+    Variable result = asm_.NewVariable(repr.ToRegisterRepresentation());
 
-    asm_.Branch(
-        ConditionWithHint(asm_.Uint32LessThan(
-                              index, asm_.TruncateWordPtrToWord32(MemSize(0))),
-                          BranchHint::kTrue),
-        in_bounds, out_of_bounds);
-
-    asm_.Bind(in_bounds);
-    OpIndex loaded_value =
-        asm_.Load(MemStart(0), asm_.ChangeInt32ToIntPtr(index),
-                  LoadOp::Kind::RawAligned(), repr);
-    asm_.Goto(done);
-
-    asm_.Bind(out_of_bounds);
-    OpIndex default_value;
-    switch (repr) {
-      case MemoryRepresentation::Int8():
-      case MemoryRepresentation::Int16():
-      case MemoryRepresentation::Int32():
-      case MemoryRepresentation::Uint8():
-      case MemoryRepresentation::Uint16():
-      case MemoryRepresentation::Uint32():
-        default_value = asm_.Word32Constant(0);
-        break;
-      case MemoryRepresentation::Float32():
-        default_value =
-            asm_.Float32Constant(std::numeric_limits<float>::quiet_NaN());
-        break;
-      case MemoryRepresentation::Float64():
-        default_value =
-            asm_.Float64Constant(std::numeric_limits<double>::quiet_NaN());
-        break;
-      default:
-        UNREACHABLE();
+    IF (LIKELY(asm_.Uint32LessThan(index,
+                                   asm_.TruncateWordPtrToWord32(MemSize(0))))) {
+      asm_.SetVariable(result,
+                       asm_.Load(MemStart(0), asm_.ChangeInt32ToIntPtr(index),
+                                 LoadOp::Kind::RawAligned(), repr));
     }
-    asm_.Goto(done);
+    ELSE {
+      switch (repr) {
+        case MemoryRepresentation::Int8():
+        case MemoryRepresentation::Int16():
+        case MemoryRepresentation::Int32():
+        case MemoryRepresentation::Uint8():
+        case MemoryRepresentation::Uint16():
+        case MemoryRepresentation::Uint32():
+          asm_.SetVariable(result, asm_.Word32Constant(0));
+          break;
+        case MemoryRepresentation::Float32():
+          asm_.SetVariable(
+              result,
+              asm_.Float32Constant(std::numeric_limits<float>::quiet_NaN()));
+          break;
+        case MemoryRepresentation::Float64():
+          asm_.SetVariable(
+              result,
+              asm_.Float64Constant(std::numeric_limits<double>::quiet_NaN()));
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+    END_IF
 
-    asm_.Bind(done);
-    return asm_.Phi(base::VectorOf({loaded_value, default_value}),
-                    repr.ToRegisterRepresentation());
+    OpIndex result_op = asm_.GetVariable(result);
+    asm_.SetVariable(result, OpIndex::Invalid());
+    return result_op;
   }
 
   void BoundsCheckArray(V<HeapObject> array, V<Word32> index,
