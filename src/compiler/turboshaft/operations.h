@@ -6927,8 +6927,7 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   OpIndex value() const { return input(2); }
 
   void Validate(const Graph& graph) {
-    DCHECK(kind ==
-           any_of(Kind::RawAligned(), Kind::RawUnaligned(), Kind::Protected()));
+    DCHECK(!kind.tagged_base);
 #if DEBUG
     uint8_t lane_count;
     switch (lane_kind) {
@@ -7020,10 +7019,7 @@ struct Simd128LoadTransformOp
   OpIndex base() const { return input(0); }
   OpIndex index() const { return input(1); }
 
-  void Validate(const Graph& graph) {
-    DCHECK(load_kind == any_of(LoadKind::RawAligned(), LoadKind::RawUnaligned(),
-                               LoadKind::Protected()));
-  }
+  void Validate(const Graph& graph) { DCHECK(!load_kind.tagged_base); }
 
   auto options() const { return std::tuple{load_kind, transform_kind, offset}; }
   void PrintOptions(std::ostream& os) const;

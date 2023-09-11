@@ -6,6 +6,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
+#include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
@@ -26,7 +27,8 @@ void WasmOptimizePhase::Run(Zone* temp_zone) {
   OptimizationPhase<
       WasmLoweringReducer, MachineOptimizationReducerSignallingNanPossible,
       MemoryOptimizationReducer, VariableReducer, RequiredOptimizationReducer,
-      BranchEliminationReducer, ValueNumberingReducer>::Run(temp_zone);
+      BranchEliminationReducer, LateLoadEliminationReducer,
+      ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

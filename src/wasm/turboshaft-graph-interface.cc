@@ -3884,18 +3884,20 @@ class TurboshaftGraphBuildingInterface {
   LoadOp::Kind GetMemoryAccessKind(
       MemoryRepresentation repr,
       compiler::BoundsCheckResult bounds_check_result) {
+    LoadOp::Kind result;
     if (bounds_check_result == compiler::BoundsCheckResult::kTrapHandler) {
       DCHECK(repr == MemoryRepresentation::Int8() ||
              repr == MemoryRepresentation::Uint8() ||
              SupportedOperations::IsUnalignedLoadSupported(repr));
-      return LoadOp::Kind::Protected();
+      result = LoadOp::Kind::Protected();
     } else if (repr != MemoryRepresentation::Int8() &&
                repr != MemoryRepresentation::Uint8() &&
                !SupportedOperations::IsUnalignedLoadSupported(repr)) {
-      return LoadOp::Kind::RawUnaligned();
+      result = LoadOp::Kind::RawUnaligned();
     } else {
-      return LoadOp::Kind::RawAligned();
+      result = LoadOp::Kind::RawAligned();
     }
+    return result.NotAlwaysCanonicallyAccessed();
   }
 
   void TraceMemoryOperation(bool is_store, MemoryRepresentation repr,

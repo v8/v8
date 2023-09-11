@@ -477,7 +477,11 @@ class MemoryContentTable
     DCHECK_EQ(base, ResolveBase(base));
 
     MemoryAddress mem{base, index, offset, element_size_log2, size};
-    DCHECK_EQ(all_keys_.find(mem), all_keys_.end());
+    auto existing_key = all_keys_.find(mem);
+    if (existing_key != all_keys_.end()) {
+      SetNoNotify(existing_key->second, value);
+      return;
+    }
 
     // Creating a new key.
     Key key = NewKey({mem});
@@ -599,6 +603,9 @@ class LateLoadEliminationAnalyzer {
                               JSHeapBroker* broker)
       : graph_(graph),
         broker_(broker),
+#if V8_ENABLE_WEBASSEMBLY
+        is_wasm_(PipelineData::Get().is_wasm()),
+#endif
         replacements_(graph.op_id_count(), phase_zone),
         non_aliasing_objects_(graph, phase_zone),
         object_maps_(graph, phase_zone),
@@ -606,7 +613,8 @@ class LateLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {}
+        predecessor_memory_snapshots_(phase_zone) {
+  }
 
   void Run() {
     bool compute_start_snapshot = true;
@@ -692,6 +700,10 @@ class LateLoadEliminationAnalyzer {
 
   Graph& graph_;
   JSHeapBroker* broker_;
+
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_;
+#endif
 
   FixedSidetable<OpIndex> replacements_;
 

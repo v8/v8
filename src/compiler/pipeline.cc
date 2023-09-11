@@ -3759,10 +3759,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   {
     turboshaft::PipelineData::Scope turboshaft_pipeline(
         pipeline.CreateTurboshaftPipeline());
-    turboshaft::PipelineData::Get().set_wasm_sig(
-        compilation_data.func_body.sig);
+    turboshaft::PipelineData::Get().SetIsWasm(env->module,
+                                              compilation_data.func_body.sig);
 
-    turboshaft::PipelineData::Get().set_wasm_module(env->module);
     DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
 
     AccountingAllocator allocator;

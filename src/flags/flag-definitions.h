@@ -1227,6 +1227,7 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "CheckTurboshaftTypeOf operations")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
                             "enable TurboFan's Turboshaft phases for wasm")
+DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_load_elimination)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
