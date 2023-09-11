@@ -325,7 +325,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   JSObject::AddProperty(isolate, object, shared_string,
                         factory->ToBoolean(shared), NONE);
 
-  auto index = is_memory64 ? "u64" : "u32";
+  auto index = is_memory64 ? "i64" : "i32";
   JSObject::AddProperty(isolate, object, index_string,
                         factory->InternalizeUtf8String(index), NONE);
 

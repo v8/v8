@@ -1337,10 +1337,10 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       DCHECK(i_isolate->has_scheduled_exception());
       return;
     }
-    if (index->StringEquals(v8_str(isolate, "u64"))) {
+    if (index->StringEquals(v8_str(isolate, "i64"))) {
       memory_flag = i::WasmMemoryFlag::kWasmMemory64;
       max_pages = i::wasm::kSpecMaxMemory64Pages;
-    } else if (!index->StringEquals(v8_str(isolate, "u32"))) {
+    } else if (!index->StringEquals(v8_str(isolate, "i32"))) {
       thrower.TypeError("Unknown memory index");
       return;
     }
