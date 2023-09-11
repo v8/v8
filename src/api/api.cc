@@ -10223,13 +10223,13 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 #endif  // V8_INTL_SUPPORT
 }
 
-#if defined(V8_OS_WIN)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
 void Isolate::SetFilterETWSessionByURLCallback(
     FilterETWSessionByURLCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetFilterETWSessionByURLCallback(callback);
 }
-#endif  // V8_OS_WIN
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
 bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
