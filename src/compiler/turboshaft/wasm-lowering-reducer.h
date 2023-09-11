@@ -293,7 +293,7 @@ class WasmLoweringReducer : public Next {
       UNREACHABLE();
     } while (false);
 
-    DCHECK(result.valid());
+    DCHECK(__ generating_unreachable_operations() || result.valid());
     GOTO(end_label, result);
     BIND(end_label, final_result);
     return final_result;
