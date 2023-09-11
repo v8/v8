@@ -66,6 +66,12 @@ using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
 
+struct RootTypes {
+#define DEFINE_TYPE(type, name, CamelName) using k##CamelName##Type = type;
+  ROOT_LIST(DEFINE_TYPE)
+#undef DEFINE_TYPE
+};
+
 #define LOAD_INSTANCE_FIELD(name, representation)                     \
   __ Load(instance_node_, LoadOp::Kind::TaggedBase(), representation, \
           WasmInstanceObject::k##name##Offset)
@@ -74,15 +80,17 @@ using compiler::turboshaft::WordPtr;
   __ Load(instance_node_, LoadOp::Kind::TaggedBase().Immutable(), \
           representation, WasmInstanceObject::k##name##Offset)
 
-#define LOAD_ROOT(name)                                      \
-  __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
-          MemoryRepresentation::PointerSized(),              \
-          IsolateData::root_slot_offset(RootIndex::k##name))
+#define LOAD_ROOT(name)                                          \
+  V<RootTypes::k##name##Type>::Cast(                             \
+      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
+              MemoryRepresentation::PointerSized(),              \
+              IsolateData::root_slot_offset(RootIndex::k##name)))
 
-#define LOAD_IMMUTABLE_ROOT(name)                                        \
-  __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
-          MemoryRepresentation::PointerSized(),                          \
-          IsolateData::root_slot_offset(RootIndex::k##name))
+#define LOAD_IMMUTABLE_ROOT(name)                                            \
+  V<RootTypes::k##name##Type>::Cast(                                         \
+      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
+              MemoryRepresentation::PointerSized(),                          \
+              IsolateData::root_slot_offset(RootIndex::k##name)))
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -4022,11 +4030,11 @@ class TurboshaftGraphBuildingInterface {
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakFixedArray> rtts = LOAD_ROOT(WasmCanonicalRtts);
+        V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
         V<Tagged> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-            WeakFixedArray::kHeaderSize, kTaggedSizeLog2);
+            WeakArrayList::kHeaderSize, kTaggedSizeLog2);
         V<Map> real_rtt = V<Map>::Cast(__ WordPtrBitwiseAnd(
             __ BitcastTaggedToWord(weak_rtt), ~kWeakHeapObjectMask));
         V<WasmTypeInfo> type_info =
