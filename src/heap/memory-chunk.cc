@@ -272,6 +272,17 @@ void MemoryChunk::ClearLiveness() {
   SetLiveBytes(0);
 }
 
+int MemoryChunk::ComputeFreeListsLength() {
+  int length = 0;
+  for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
+       cat++) {
+    if (categories_[cat] != nullptr) {
+      length += categories_[cat]->FreeListLength();
+    }
+  }
+  return length;
+}
+
 #ifdef DEBUG
 void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   // Note that we cannot use offsetof because MemoryChunk is not a POD.

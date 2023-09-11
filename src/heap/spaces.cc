@@ -237,6 +237,80 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
             allocation_counter_.NextBytes());
 }
 
+AllocationResult SpaceWithLinearArea::AllocateRawForceAlignmentForTesting(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+
+  AllocationResult result =
+      AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
+
+  return V8_UNLIKELY(result.IsFailure())
+             ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
+             : result;
+}
+
+AllocationResult SpaceWithLinearArea::AllocateRawSlow(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+  AllocationResult result =
+      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
+          ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
+          : AllocateRawSlowUnaligned(size_in_bytes, origin);
+  return result;
+}
+
+AllocationResult SpaceWithLinearArea::AllocateRawSlowUnaligned(
+    int size_in_bytes, AllocationOrigin origin) {
+  DCHECK(!v8_flags.enable_third_party_heap);
+  int max_aligned_size;
+  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
+                        &max_aligned_size)) {
+    return AllocationResult::Failure();
+  }
+
+  DCHECK_EQ(max_aligned_size, size_in_bytes);
+  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
+
+  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
+  DCHECK(!result.IsFailure());
+
+  if (v8_flags.trace_allocations_origins) {
+    UpdateAllocationOrigins(origin);
+  }
+
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
+                            size_in_bytes);
+
+  return result;
+}
+
+AllocationResult SpaceWithLinearArea::AllocateRawSlowAligned(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+  DCHECK(!v8_flags.enable_third_party_heap);
+  int max_aligned_size;
+  if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
+    return AllocationResult::Failure();
+  }
+
+  DCHECK_GE(max_aligned_size, size_in_bytes);
+  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
+
+  int aligned_size_in_bytes;
+
+  AllocationResult result = AllocateFastAligned(
+      size_in_bytes, &aligned_size_in_bytes, alignment, origin);
+  DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
+  DCHECK(!result.IsFailure());
+
+  if (v8_flags.trace_allocations_origins) {
+    UpdateAllocationOrigins(origin);
+  }
+
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
+                            aligned_size_in_bytes, max_aligned_size);
+
+  return result;
+}
+
 #if DEBUG
 void SpaceWithLinearArea::VerifyTop() const {
   // Ensure validity of LAB: start <= top <= limit
@@ -244,17 +318,6 @@ void SpaceWithLinearArea::VerifyTop() const {
   DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
 }
 #endif  // DEBUG
-
-int MemoryChunk::FreeListsLength() {
-  int length = 0;
-  for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
-       cat++) {
-    if (categories_[cat] != nullptr) {
-      length += categories_[cat]->FreeListLength();
-    }
-  }
-  return length;
-}
 
 SpaceIterator::SpaceIterator(Heap* heap)
     : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}

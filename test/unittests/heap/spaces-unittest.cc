@@ -46,7 +46,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
     Tagged<HeapObject> object =
-        compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+        compaction_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }

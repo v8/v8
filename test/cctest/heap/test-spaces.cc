@@ -373,7 +373,8 @@ TEST(OldSpace) {
   size_t successful_allocations = 0;
 
   while (true) {
-    AllocationResult allocation = old_space->AllocateRawUnaligned(obj_size);
+    AllocationResult allocation =
+        old_space->AllocateRaw(obj_size, kTaggedAligned);
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();

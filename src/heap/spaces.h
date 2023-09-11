@@ -384,16 +384,10 @@ class SpaceWithLinearArea : public Space {
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
+  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
+  AllocateRawForceAlignmentForTesting(
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin = AllocationOrigin::kRuntime);
 
   base::SharedMutex* linear_area_lock() {
     return linear_area_original_data_.linear_area_lock();
@@ -429,9 +423,20 @@ class SpaceWithLinearArea : public Space {
                       AllocationAlignment alignment, AllocationOrigin origin);
 
   // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
   AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
                   AllocationOrigin origin);
+
+  // Allocate the requested number of bytes in the space if possible, return a
+  // failure object if not.
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawSlowUnaligned(
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  // Allocate the requested number of bytes in the space double aligned if
+  // possible, return a failure object if not.
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
+                         AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry

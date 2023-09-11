@@ -300,7 +300,7 @@ void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
     PrintIsolate(
         heap_->isolate(),
         "Evacuation candidate: Free bytes: %6zu. Free Lists length: %4d.\n",
-        p->area_size() - p->allocated_bytes(), p->FreeListsLength());
+        p->area_size() - p->allocated_bytes(), p->ComputeFreeListsLength());
   }
 
   p->MarkEvacuationCandidate();
