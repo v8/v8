@@ -572,6 +572,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // finished sweeping.
   bool notified_full_sweeping_completed_ = false;
   bool notified_full_cppgc_completed_ = false;
+  bool full_cppgc_completed_during_minor_gc_ = false;
 
   bool notified_young_sweeping_completed_ = false;
   // Similar to full GCs, a young GC cycle stops only when both v8 and cppgc GCs
