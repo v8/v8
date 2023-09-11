@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_HEAP_OBJECT_H_
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/tagged-field.h"
@@ -19,8 +20,13 @@ class Heap;
 class PrimitiveHeapObject;
 class ExternalPointerSlot;
 class IndirectPointerSlot;
-template <typename T>
-class Tagged;
+
+V8_OBJECT class HeapObjectLayout {
+ private:
+  friend class HeapObject;
+
+  TaggedMember<Map> map_;
+} V8_OBJECT_END;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
@@ -292,13 +298,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   void RehashBasedOnMap(IsolateT* isolate);
 
   // Layout description.
-#define HEAP_OBJECT_FIELDS(V) \
-  V(kMapOffset, kTaggedSize)  \
-  /* Header size. */          \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Object::kHeaderSize, HEAP_OBJECT_FIELDS)
-#undef HEAP_OBJECT_FIELDS
+  static constexpr int kMapOffset = offsetof(HeapObjectLayout, map_);
+  static constexpr int kHeaderSize = sizeof(HeapObjectLayout);
 
   static_assert(kMapOffset == Internals::kHeapObjectMapOffset);
 

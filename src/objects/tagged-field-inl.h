@@ -7,6 +7,7 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/tagged-field.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {

@@ -11,6 +11,30 @@
 
 namespace v8::internal {
 
+// TaggedMember<T> represents an potentially compressed V8 tagged pointer, which
+// is intended to be used as a member of a V8 object class.
+//
+// TODO(leszeks): Merge with TaggedField.
+template <typename T, typename CompressionScheme = V8HeapCompressionScheme>
+class TaggedMember;
+
+// Base class for all TaggedMember<T> classes.
+// TODO(leszeks): Merge with TaggedImpl.
+using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::STRONG, Tagged_t>;
+
+template <typename T, typename CompressionScheme>
+class TaggedMember : public TaggedMemberBase {
+ public:
+  constexpr TaggedMember() = default;
+#ifdef V8_COMPRESS_POINTERS
+  constexpr explicit TaggedMember(Tagged<T> value)
+      : TaggedMemberBase(CompressionScheme::CompressObject(value.ptr())) {}
+#else
+  constexpr explicit TaggedMember(Tagged<T> value)
+      : TaggedMemberBase(value.ptr()) {}
+#endif
+};
+
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.
 // For full-pointer mode this type adds no overhead but when pointer

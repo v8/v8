@@ -20,6 +20,8 @@ class HeapObject;
 class TaggedIndex;
 class FieldType;
 
+class HeapObjectLayout;
+
 // Tagged<T> represents an uncompressed V8 tagged pointer.
 //
 // The tagged pointer is a pointer-sized value with a tag in the LSB. The value
@@ -135,9 +137,6 @@ struct BaseForTagged<FieldType> {
 };
 
 }  // namespace detail
-
-template <typename T>
-class Tagged;
 
 // Specialization for Object, where it's unknown whether this is a Smi or a
 // HeapObject.

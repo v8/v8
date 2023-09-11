@@ -16,6 +16,33 @@
 
 #include "src/base/memory.h"
 
+// V8 objects are defined as:
+//
+//     V8_OBJECT class Foo : class Base {
+//       ...
+//     } V8_OBJECT_END;
+//
+// These macros are to enable warnings which ensure that there is no unwanted
+// within-object padding.
+#if V8_CC_GNU
+#define V8_OBJECT \
+  _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic error \"-Wpadded\"")
+
+// GCC wants this pragma to be a new statement, but we prefer to have
+// V8_OBJECT_END look like part of the definition. Insert a semicolon before the
+// pragma to make gcc happy, and use static_assert(true) to swallow the next
+// semicolon.
+#define V8_OBJECT_END \
+  ;                   \
+  _Pragma("GCC diagnostic pop") static_assert(true)
+#elif V8_CC_MSVC
+#define V8_OBJECT __pragma(warning(push)) __pragma(warning(default : 4820))
+#define V8_OBJECT_END __pragma(warning(pop))
+#else
+#define V8_OBJECT
+#define V8_OBJECT_END
+#endif
+
 // Since this changes visibility, it should always be last in a class
 // definition.
 #define OBJECT_CONSTRUCTORS(Type, ...)                                         \
