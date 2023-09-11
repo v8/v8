@@ -2672,6 +2672,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     return std::tuple{bin_op, result_rep, input_rep, memory_access_kind};
   }
 };
+DEFINE_MULTI_SWITCH_INTEGRAL(AtomicRMWOp::BinOp, 8)
 
 std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp kind);
 

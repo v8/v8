@@ -769,9 +769,7 @@ class PipelineImpl final {
   bool SelectInstructions(Linkage* linkage);
 
   // Substep B.2.turboshaft Select instructions from a turboshaft graph.
-  bool SelectInstructionsTurboshaft(
-      Linkage* linkage,
-      base::Optional<turboshaft::PipelineData::Scope>& turboshaft_scope);
+  bool SelectInstructionsTurboshaft(Linkage* linkage);
 
   // Substep B.3. Run register allocation on the instruction sequence.
   bool AllocateRegisters(CallDescriptor* call_descriptor,
@@ -3126,7 +3124,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     if (v8_flags.turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
-      return SelectInstructionsTurboshaft(linkage, turboshaft_pipeline);
+      if (!SelectInstructionsTurboshaft(linkage)) {
+        return false;
+      }
+
+      turboshaft_pipeline.reset();
+      data->DeleteGraphZone();
+      return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
     }
 
     // Otherwise, translate back to Turbofan and run instruction selection on
@@ -3757,11 +3761,11 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   Linkage linkage(call_descriptor);
 
   {
-    turboshaft::PipelineData::Scope turboshaft_pipeline(
+    base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
         pipeline.CreateTurboshaftPipeline());
-    turboshaft::PipelineData::Get().SetIsWasm(env->module,
-                                              compilation_data.func_body.sig);
-
+    auto& turboshaft_pipeline = turboshaft_scope.value();
+    turboshaft_pipeline.Value().SetIsWasm(env->module,
+                                          compilation_data.func_body.sig);
     DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
 
     AccountingAllocator allocator;
@@ -3789,15 +3793,28 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       pipeline.Run<turboshaft::Int64LoweringPhase>();
     }
 
-    auto [new_graph, new_schedule] =
-        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
-    data.set_graph(new_graph);
-    data.set_schedule(new_schedule);
-    TraceSchedule(data.info(), &data, data.schedule(),
-                  turboshaft::RecreateSchedulePhase::phase_name());
+    if (v8_flags.turboshaft_wasm_instruction_selection) {
+      // Run Turboshaft instruction selection.
+      if (!pipeline.SelectInstructionsTurboshaft(&linkage)) {
+        return false;
+      }
+
+      turboshaft_scope.reset();
+      data.DeleteGraphZone();
+      pipeline.AllocateRegisters(linkage.GetIncomingDescriptor(), false);
+    } else {
+      auto [new_graph, new_schedule] =
+          pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+      data.set_graph(new_graph);
+      data.set_schedule(new_schedule);
+      TraceSchedule(data.info(), &data, data.schedule(),
+                    turboshaft::RecreateSchedulePhase::phase_name());
+
+      turboshaft_scope.reset();
+      CHECK(pipeline.SelectInstructions(&linkage));
+    }
   }
 
-  CHECK(pipeline.SelectInstructions(&linkage));
   pipeline.AssembleCode(&linkage);
 
   auto result = std::make_unique<wasm::WasmCompilationResult>();
@@ -4096,9 +4113,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   return AllocateRegisters(call_descriptor, true);
 }
 
-bool PipelineImpl::SelectInstructionsTurboshaft(
-    Linkage* linkage,
-    base::Optional<turboshaft::PipelineData::Scope>& turboshaft_scope) {
+bool PipelineImpl::SelectInstructionsTurboshaft(Linkage* linkage) {
   auto call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* turbofan_data = this->data_;
 
@@ -4124,6 +4139,8 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
     return false;
   }
 
+  return true;
+
   // TODO(nicohartmann@): We might need to provide this.
   // if (info()->trace_turbo_json()) {
   //   UnparkedScopeIfNeeded scope(turbofan_data->broker());
@@ -4144,11 +4161,6 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
   //   data_->node_origins()->PrintJson(source_position_output);
   //   data_->set_source_position_output(source_position_output.str());
   // }
-
-  turboshaft_scope.reset();
-  turbofan_data->DeleteGraphZone();
-
-  return AllocateRegisters(call_descriptor, false);
 }
 
 bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor,

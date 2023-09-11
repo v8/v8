@@ -1546,13 +1546,15 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const Operation& operation = this->Get(node);
-    if (operation.Is<TrapIfOp>()) return true;
+    // DidntThrow is where the actual call is generated.
+    if (operation.Is<DidntThrowOp>()) return true;
     if (const LoadOp* load = operation.TryCast<LoadOp>()) {
       return load->kind.with_trap_handler;
     }
     if (const StoreOp* store = operation.TryCast<StoreOp>()) {
       return store->kind.with_trap_handler;
     }
+    if (operation.Is<TrapIfOp>()) return true;
     return false;
   } else {
     switch (node->opcode()) {
@@ -2009,42 +2011,14 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
 }
 
 VISIT_UNSUPPORTED_OP(Word64AtomicStore)
+VISIT_UNSUPPORTED_OP(Word64AtomicAdd)
+VISIT_UNSUPPORTED_OP(Word64AtomicSub)
+VISIT_UNSUPPORTED_OP(Word64AtomicAnd)
+VISIT_UNSUPPORTED_OP(Word64AtomicOr)
+VISIT_UNSUPPORTED_OP(Word64AtomicXor)
+VISIT_UNSUPPORTED_OP(Word64AtomicExchange)
+VISIT_UNSUPPORTED_OP(Word64AtomicCompareExchange)
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicAdd(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicSub(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicAnd(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicOr(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicXor(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
-    Node* node) {
-  UNIMPLEMENTED();
-}
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC64
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
@@ -4829,13 +4803,53 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kLoad: {
+      const LoadOp& load = op.Cast<LoadOp>();
       MachineRepresentation rep =
-          op.Cast<LoadOp>().loaded_rep.ToMachineType().representation();
+          load.loaded_rep.ToMachineType().representation();
       MarkAsRepresentation(rep, node);
-      return VisitLoad(node);
+      if (load.kind.maybe_unaligned) {
+        DCHECK(!load.kind.with_trap_handler);
+        if (rep == MachineRepresentation::kWord8 ||
+            InstructionSelector::AlignmentRequirements()
+                .IsUnalignedLoadSupported(rep)) {
+          return VisitLoad(node);
+        } else {
+          return VisitUnalignedLoad(node);
+        }
+      } else if (load.kind.is_atomic) {
+        UNIMPLEMENTED();
+      } else if (load.kind.with_trap_handler) {
+        DCHECK(!load.kind.maybe_unaligned);
+        return VisitProtectedLoad(node);
+      } else {
+        return VisitLoad(node);
+      }
+      UNREACHABLE();
     }
-    case Opcode::kStore:
-      return VisitStore(node);
+    case Opcode::kStore: {
+      const StoreOp& store = op.Cast<StoreOp>();
+      MachineRepresentation rep =
+          store.stored_rep.ToMachineType().representation();
+      if (store.kind.maybe_unaligned) {
+        DCHECK(!store.kind.with_trap_handler);
+        DCHECK_EQ(store.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+        if (rep == MachineRepresentation::kWord8 ||
+            InstructionSelector::AlignmentRequirements()
+                .IsUnalignedStoreSupported(rep)) {
+          return VisitStore(node);
+        } else {
+          return VisitUnalignedStore(node);
+        }
+      } else if (store.kind.is_atomic) {
+        UNIMPLEMENTED();
+      } else if (store.kind.with_trap_handler) {
+        DCHECK(!store.kind.maybe_unaligned);
+        return VisitProtectedStore(node);
+      } else {
+        return VisitStore(node);
+      }
+      UNREACHABLE();
+    }
     case Opcode::kTaggedBitcast: {
       const TaggedBitcastOp& cast = op.Cast<TaggedBitcastOp>();
       if (cast.from == RegisterRepresentation::Tagged() &&
@@ -4922,14 +4936,55 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     }
     case Opcode::kBitcastWord32PairToFloat64:
       return VisitBitcastWord32PairToFloat64(node);
+    case Opcode::kAtomicRMW: {
+      const AtomicRMWOp& atomic_op = op.Cast<AtomicRMWOp>();
+      MarkAsRepresentation(atomic_op.input_rep.ToRegisterRepresentation(),
+                           node);
+      if (atomic_op.result_rep == Rep::Word32()) {
+        switch (atomic_op.bin_op) {
+          case AtomicRMWOp::BinOp::kAdd:
+            return VisitWord32AtomicAdd(node);
+          case AtomicRMWOp::BinOp::kSub:
+            return VisitWord32AtomicSub(node);
+          case AtomicRMWOp::BinOp::kAnd:
+            return VisitWord32AtomicAnd(node);
+          case AtomicRMWOp::BinOp::kOr:
+            return VisitWord32AtomicOr(node);
+          case AtomicRMWOp::BinOp::kXor:
+            return VisitWord32AtomicXor(node);
+          case AtomicRMWOp::BinOp::kExchange:
+            return VisitWord32AtomicExchange(node);
+          case AtomicRMWOp::BinOp::kCompareExchange:
+            return VisitWord32AtomicCompareExchange(node);
+        }
+      } else {
+        DCHECK_EQ(atomic_op.result_rep, Rep::Word64());
+        switch (atomic_op.bin_op) {
+          case AtomicRMWOp::BinOp::kAdd:
+            return VisitWord64AtomicAdd(node);
+          case AtomicRMWOp::BinOp::kSub:
+            return VisitWord64AtomicSub(node);
+          case AtomicRMWOp::BinOp::kAnd:
+            return VisitWord64AtomicAnd(node);
+          case AtomicRMWOp::BinOp::kOr:
+            return VisitWord64AtomicOr(node);
+          case AtomicRMWOp::BinOp::kXor:
+            return VisitWord64AtomicXor(node);
+          case AtomicRMWOp::BinOp::kExchange:
+            return VisitWord64AtomicExchange(node);
+          case AtomicRMWOp::BinOp::kCompareExchange:
+            return VisitWord64AtomicCompareExchange(node);
+        }
+      }
+      UNREACHABLE();
+    }
 
 #define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
       TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
       TURBOSHAFT_SIMD_OPERATION_LIST(UNIMPLEMENTED_CASE)
 #undef UNIMPLEMENTED_CASE
     case Opcode::kAtomicWord32Pair:
-    case Opcode::kMemoryBarrier:
-    case Opcode::kAtomicRMW: {
+    case Opcode::kMemoryBarrier: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
       FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());

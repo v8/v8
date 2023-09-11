@@ -1122,17 +1122,13 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count, reg_kind);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
-  } else {
-    if (node->opcode() == IrOpcode::kProtectedLoad ||
-        ((node->opcode() == IrOpcode::kWord32AtomicLoad ||
-          node->opcode() == IrOpcode::kWord64AtomicLoad) &&
-         (AtomicLoadParametersOf(node->op()).kind() ==
-          MemoryAccessKind::kProtected))) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    } else if (node->opcode() == IrOpcode::kLoadTrapOnNull) {
+  auto load = this->load_view(node);
+  bool traps_on_null;
+  if (load.is_protected(&traps_on_null)) {
+    if (traps_on_null) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+    } else {
+      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
@@ -1154,30 +1150,23 @@ namespace {
 
 // Shared routine for Word32/Word64 Atomic Exchange
 template <typename Adapter>
-void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
-                         ArchOpcode opcode, AtomicWidth width,
-                         MemoryAccessKind access_kind) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    X64OperandGeneratorT<Adapter> g(selector);
-    Node* base = node->InputAt(0);
-    Node* index = node->InputAt(1);
-    Node* value = node->InputAt(2);
-    AddressingMode addressing_mode;
-    InstructionOperand inputs[] = {
-        g.UseUniqueRegister(value), g.UseUniqueRegister(base),
-        g.GetEffectiveIndexOperand(index, &addressing_mode)};
-    InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
-    InstructionCode code = opcode |
-                           AddressingModeField::encode(addressing_mode) |
-                           AtomicWidthField::encode(width);
-    if (access_kind == MemoryAccessKind::kProtected) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    }
-    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs),
-                   inputs);
+void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node, ArchOpcode opcode,
+                         AtomicWidth width, MemoryAccessKind access_kind) {
+  auto atomic_op = selector->atomic_rmw_view(node);
+  X64OperandGeneratorT<Adapter> g(selector);
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(atomic_op.value()),
+      g.UseUniqueRegister(atomic_op.base()),
+      g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};
+  InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
+                         AtomicWidthField::encode(width);
+  if (access_kind == MemoryAccessKind::kProtected) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 template <typename Adapter>
@@ -3891,17 +3880,17 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
 }
 
 // Shared routine for Word32/Word64 Atomic Binops
-void VisitAtomicBinop(InstructionSelectorT<TurbofanAdapter>* selector,
-                      Node* node, ArchOpcode opcode, AtomicWidth width,
-                      MemoryAccessKind access_kind) {
-  X64OperandGeneratorT<TurbofanAdapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
+template <typename Adapter>
+void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node, ArchOpcode opcode,
+                      AtomicWidth width, MemoryAccessKind access_kind) {
+  auto atomic_op = selector->atomic_rmw_view(node);
+  X64OperandGeneratorT<Adapter> g(selector);
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
-      g.UseUniqueRegister(value), g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
+      g.UseUniqueRegister(atomic_op.value()),
+      g.UseUniqueRegister(atomic_op.base()),
+      g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
@@ -3914,20 +3903,19 @@ void VisitAtomicBinop(InstructionSelectorT<TurbofanAdapter>* selector,
 }
 
 // Shared routine for Word32/Word64 Atomic CmpExchg
-void VisitAtomicCompareExchange(InstructionSelectorT<TurbofanAdapter>* selector,
-                                Node* node, ArchOpcode opcode,
-                                AtomicWidth width,
+template <typename Adapter>
+void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
+                                typename Adapter::node_t node,
+                                ArchOpcode opcode, AtomicWidth width,
                                 MemoryAccessKind access_kind) {
-  X64OperandGeneratorT<TurbofanAdapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* old_value = node->InputAt(2);
-  Node* new_value = node->InputAt(3);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  X64OperandGeneratorT<Adapter> g(selector);
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
-      g.UseFixed(old_value, rax), g.UseUniqueRegister(new_value),
-      g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
+      g.UseFixed(atomic_op.expected(), rax),
+      g.UseUniqueRegister(atomic_op.value()),
+      g.UseUniqueRegister(atomic_op.base()),
+      g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
@@ -4627,8 +4615,9 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
   VisitStoreCommon(this, store);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
+    Node* node) {
   AtomicOpParameters params = AtomicOpParametersOf(node->op());
   ArchOpcode opcode;
   if (params.type() == MachineType::Int8()) {
@@ -4648,8 +4637,33 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32, params.kind());
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
+             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32,
+                      atomic_op.memory_access_kind);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicExchange(
+    Node* node) {
   AtomicOpParameters params = AtomicOpParametersOf(node->op());
   ArchOpcode opcode;
   if (params.type() == MachineType::Uint8()) {
@@ -4664,6 +4678,27 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
     UNREACHABLE();
   }
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64, params.kind());
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    opcode = kX64Word64AtomicExchangeUint64;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64,
+                      atomic_op.memory_access_kind);
 }
 
 template <>
@@ -4690,6 +4725,30 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
 }
 
 template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    opcode = kAtomicCompareExchangeInt8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = kAtomicCompareExchangeUint8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    opcode = kAtomicCompareExchangeInt16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = kAtomicCompareExchangeUint16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
+             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = kAtomicCompareExchangeWord32;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32,
+                             atomic_op.memory_access_kind);
+}
+
+template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
     Node* node) {
   AtomicOpParameters params = AtomicOpParametersOf(node->op());
@@ -4710,10 +4769,49 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
 }
 
 template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = kAtomicCompareExchangeUint8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = kAtomicCompareExchangeUint16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = kAtomicCompareExchangeWord32;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    opcode = kX64Word64AtomicCompareExchangeUint64;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64,
+                             atomic_op.memory_access_kind);
+}
+
+template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicBinaryOperation(
     turboshaft::OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op,
     ArchOpcode int16_op, ArchOpcode uint16_op, ArchOpcode word32_op) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    opcode = int8_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = uint8_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    opcode = int16_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = uint16_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
+             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = word32_op;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32,
+                   atomic_op.memory_access_kind);
 }
 
 template <>
@@ -4739,12 +4837,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicBinaryOperation(
   VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32, params.kind());
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                            \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) { \
-    VisitWord32AtomicBinaryOperation(                                     \
-        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16,  \
-        kAtomic##op##Uint16, kAtomic##op##Word32);                        \
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
+    VisitWord32AtomicBinaryOperation(                                      \
+        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16,   \
+        kAtomic##op##Uint16, kAtomic##op##Word32);                         \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -4757,7 +4855,22 @@ template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicBinaryOperation(
     node_t node, ArchOpcode uint8_op, ArchOpcode uint16_op,
     ArchOpcode uint32_op, ArchOpcode word64_op) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = uint8_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = uint16_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = uint32_op;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    opcode = word64_op;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64,
+                   atomic_op.memory_access_kind);
 }
 
 template <>
@@ -4782,7 +4895,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                                 \
   template <typename Adapter>                                                  \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) {      \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) {     \
     VisitWord64AtomicBinaryOperation(node, kAtomic##op##Uint8,                 \
                                      kAtomic##op##Uint16, kAtomic##op##Word32, \
                                      kX64Word64Atomic##op##Uint64);            \

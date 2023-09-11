@@ -182,15 +182,24 @@ struct TurbofanAdapter {
 
   class LoadView {
    public:
-    explicit LoadView(node_t node) : node_(node) {
-      DCHECK(node_->opcode() == IrOpcode::kLoad ||
-             node_->opcode() == IrOpcode::kLoadImmutable ||
-             node_->opcode() == IrOpcode::kProtectedLoad ||
-             node_->opcode() == IrOpcode::kLoadTrapOnNull);
-    }
+    explicit LoadView(node_t node) : node_(node) {}
 
     LoadRepresentation loaded_rep() const {
       return LoadRepresentationOf(node_->op());
+    }
+    bool is_protected(bool* traps_on_null) const {
+      if (node_->opcode() == IrOpcode::kLoadTrapOnNull) {
+        *traps_on_null = true;
+        return true;
+      }
+      *traps_on_null = false;
+      return node_->opcode() == IrOpcode::kProtectedLoad ||
+             (is_atomic() && AtomicLoadParametersOf(node_->op()).kind() ==
+                                 MemoryAccessKind::kProtected);
+    }
+    bool is_atomic() const {
+      return node_->opcode() == IrOpcode::kWord32AtomicLoad ||
+             node_->opcode() == IrOpcode::kWord64AtomicLoad;
     }
 
     node_t base() const { return node_->InputAt(0); }
@@ -316,6 +325,46 @@ struct TurbofanAdapter {
     node_t node_;
   };
 
+  class AtomicRMWView {
+   public:
+    explicit AtomicRMWView(node_t node) : node_(node) {
+      DCHECK(node_->opcode() == IrOpcode::kWord32AtomicAdd ||
+             node_->opcode() == IrOpcode::kWord32AtomicSub ||
+             node_->opcode() == IrOpcode::kWord32AtomicAnd ||
+             node_->opcode() == IrOpcode::kWord32AtomicOr ||
+             node_->opcode() == IrOpcode::kWord32AtomicXor ||
+             node_->opcode() == IrOpcode::kWord32AtomicExchange ||
+             node_->opcode() == IrOpcode::kWord32AtomicCompareExchange ||
+             node_->opcode() == IrOpcode::kWord64AtomicAdd ||
+             node_->opcode() == IrOpcode::kWord64AtomicSub ||
+             node_->opcode() == IrOpcode::kWord64AtomicAnd ||
+             node_->opcode() == IrOpcode::kWord64AtomicOr ||
+             node_->opcode() == IrOpcode::kWord64AtomicXor ||
+             node_->opcode() == IrOpcode::kWord64AtomicExchange ||
+             node_->opcode() == IrOpcode::kWord64AtomicCompareExchange);
+    }
+
+    node_t base() const { return node_->InputAt(0); }
+    node_t index() const { return node_->InputAt(1); }
+    node_t value() const {
+      if (node_->opcode() == IrOpcode::kWord32AtomicCompareExchange ||
+          node_->opcode() == IrOpcode::kWord64AtomicCompareExchange) {
+        return node_->InputAt(3);
+      }
+      return node_->InputAt(2);
+    }
+    node_t expected() const {
+      DCHECK(node_->opcode() == IrOpcode::kWord32AtomicCompareExchange ||
+             node_->opcode() == IrOpcode::kWord64AtomicCompareExchange);
+      return node_->InputAt(2);
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+  };
+
   bool is_constant(node_t node) const {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
@@ -336,7 +385,11 @@ struct TurbofanAdapter {
     return node->opcode() == IrOpcode::kLoad ||
            node->opcode() == IrOpcode::kLoadImmutable ||
            node->opcode() == IrOpcode::kProtectedLoad ||
-           node->opcode() == IrOpcode::kLoadTrapOnNull;
+           node->opcode() == IrOpcode::kLoadTrapOnNull ||
+           node->opcode() == IrOpcode::kWord32AtomicLoad ||
+           node->opcode() == IrOpcode::kWord64AtomicLoad ||
+           node->opcode() == IrOpcode::kLoadTransform ||
+           node->opcode() == IrOpcode::kF64x2PromoteLowF32x4;
   }
   ConstantView constant_view(node_t node) const { return ConstantView{node}; }
   CallView call_view(node_t node) { return CallView{node}; }
@@ -348,6 +401,7 @@ struct TurbofanAdapter {
   }
   StoreView store_view(node_t node) { return StoreView(node); }
   DeoptimizeView deoptimize_view(node_t node) { return DeoptimizeView(node); }
+  AtomicRMWView atomic_rmw_view(node_t node) { return AtomicRMWView(node); }
 
   block_t block(schedule_t schedule, node_t node) const {
     return schedule->block(node);
@@ -642,6 +696,14 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     LoadRepresentation loaded_rep() const {
       return op_->loaded_rep.ToMachineType();
     }
+    bool is_protected(bool* traps_on_null) const {
+      if (op_->kind.with_trap_handler) {
+        *traps_on_null = op_->kind.tagged_base;
+        return true;
+      }
+      return false;
+    }
+    bool is_atomic() const { return op_->kind.is_atomic; }
 
     node_t base() const { return op_->base(); }
     node_t index() const { return op_->index(); }
@@ -681,11 +743,12 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
     base::Optional<AtomicMemoryOrder> memory_order() const {
       // TODO(nicohartmann@): Currently we only have non-atomic stores.
+      DCHECK(!op_->kind.is_atomic);
       return base::nullopt;
     }
     MemoryAccessKind access_kind() const {
-      // TODO(nicohartmann@): Currently we only have non-atomic stores.
-      return MemoryAccessKind::kNormal;
+      return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected
+                                         : MemoryAccessKind::kNormal;
     }
 
     node_t base() const { return op_->base(); }
@@ -708,7 +771,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return op_->element_size_log2;
     }
 
-    bool is_store_trap_on_null() const { return false; }
+    bool is_store_trap_on_null() const {
+      return op_->kind.with_trap_handler && op_->kind.tagged_base;
+    }
 
     operator node_t() const { return node_; }
 
@@ -719,8 +784,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
   class DeoptimizeView {
    public:
-    explicit DeoptimizeView(const turboshaft::Graph* graph, node_t node)
-        : node_(node) {
+    DeoptimizeView(const turboshaft::Graph* graph, node_t node) : node_(node) {
       const auto& op = graph->Get(node);
       if (op.Is<turboshaft::DeoptimizeOp>()) {
         deoptimize_op_ = &op.Cast<turboshaft::DeoptimizeOp>();
@@ -761,6 +825,27 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const DeoptimizeParameters* parameters_;
   };
 
+  class AtomicRMWView {
+   public:
+    AtomicRMWView(const turboshaft::Graph* graph, node_t node) : node_(node) {
+      op_ = &graph->Get(node).Cast<turboshaft::AtomicRMWOp>();
+    }
+
+    node_t base() const { return op_->base(); }
+    node_t index() const { return op_->index(); }
+    node_t value() const { return op_->value(); }
+    node_t expected() const {
+      DCHECK_EQ(op_->bin_op, turboshaft::AtomicRMWOp::BinOp::kCompareExchange);
+      return op_->expected();
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+    const turboshaft::AtomicRMWOp* op_;
+  };
+
   bool is_constant(node_t node) const {
     return graph_->Get(node).Is<turboshaft::ConstantOp>();
   }
@@ -780,6 +865,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   StoreView store_view(node_t node) { return StoreView(graph_, node); }
   DeoptimizeView deoptimize_view(node_t node) {
     return DeoptimizeView(graph_, node);
+  }
+  AtomicRMWView atomic_rmw_view(node_t node) {
+    return AtomicRMWView(graph_, node);
   }
 
   turboshaft::Graph* turboshaft_graph() const { return graph_; }
