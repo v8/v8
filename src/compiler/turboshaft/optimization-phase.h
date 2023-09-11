@@ -300,10 +300,15 @@ class GraphVisitor {
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
         const Operation& new_op = output_graph().Get(new_index);
-        DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
-        for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
-          DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
-              op.outputs_rep()[i]));
+        if (!new_op.Is<TupleOp>()) {
+          // Checking that the outputs_rep of the new operation are the same as
+          // the old operation. (except for tuples, since they don't have
+          // outputs_rep)
+          DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
+          for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
+            DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
+                op.outputs_rep()[i]));
+          }
         }
         assembler().Verify(index, new_index);
       }
