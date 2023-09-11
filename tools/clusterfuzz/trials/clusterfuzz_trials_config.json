@@ -45,5 +45,6 @@
     {"app_args": "--turbo-stress-instruction-scheduling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-wasm-code-gc", "app_name": "d8", "probability": 0.1},
     {"app_args": "--lazy", "app_name": "d8", "probability": 0.1},
-    {"app_args": "--no-stress-lazy-source-positions", "app_name": "d8", "probability": 0.1}
+    {"app_args": "--no-stress-lazy-source-positions", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--wasm-staging", "app_name": "d8", "probability": 0.25}
 ]
