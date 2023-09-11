@@ -397,18 +397,27 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   FutexWaitList* wait_list = GetWaitList();
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_NOT_NULL(backing_store);
+  FutexWaitListNode* node = isolate->futex_wait_list_node();
+  int8_t* wait_location =
+      FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
-  do {  // Not really a loop, just makes it easier to break out early.
+  base::TimeTicks timeout_time;
+  if (use_timeout) {
+    base::TimeTicks current_time = base::TimeTicks::Now();
+    timeout_time = current_time + rel_timeout;
+  }
+
+  // The following is not really a loop; the do-while construct makes it easier
+  // to break out early.
+  // Keep the code in the loop as minimal as possible, because this is all in
+  // the critical section.
+  do {
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    std::shared_ptr<BackingStore> backing_store =
-        array_buffer->GetBackingStore();
-    DCHECK(backing_store);
-    FutexWaitListNode* node = isolate->futex_wait_list_node();
     node->backing_store_ = backing_store;
     node->wait_addr_ = addr;
-    auto wait_location =
-        FutexWaitList::ToWaitLocation(backing_store.get(), addr);
     node->wait_location_ = wait_location;
     node->waiting_ = true;
 
@@ -429,14 +438,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       result = handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
-    }
-
-    base::TimeTicks timeout_time;
-    base::TimeTicks current_time;
-
-    if (use_timeout) {
-      current_time = base::TimeTicks::Now();
-      timeout_time = current_time + rel_timeout;
     }
 
     wait_list->AddNode(node);
@@ -492,7 +493,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
 
       // No interrupts, now wait.
       if (use_timeout) {
-        current_time = base::TimeTicks::Now();
+        base::TimeTicks current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
           result = handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
           callback_result = AtomicsWaitEvent::kTimedOut;
