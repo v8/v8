@@ -968,9 +968,9 @@ void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_IMPLIES(
-      !force_allocation_success_ && !heap_->ShouldOptimizeForLoadTime(),
-      UsableCapacity() <= TotalCapacity());
+  DCHECK_IMPLIES(!should_exceed_target_capacity_,
+                 UsableCapacity() <= TotalCapacity());
+  should_exceed_target_capacity_ = false;
   return PagedSpaceBase::AddPage(page);
 }
 
@@ -1012,10 +1012,11 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
   // Allocate another page is `force_allocation_success_` is true,
   // `UsableCapacity()` is below `TotalCapacity()` and allocating another page
   // won't exceed `TotalCapacity()`, or `ShouldOptimizeForLoadTime()` is true.
-  if (force_allocation_success_ ||
+  should_exceed_target_capacity_ =
+      force_allocation_success_ || heap_->ShouldOptimizeForLoadTime();
+  if (should_exceed_target_capacity_ ||
       ((UsableCapacity() < TotalCapacity()) &&
-       (TotalCapacity() - UsableCapacity() >= Page::kPageSize)) ||
-      heap_->ShouldOptimizeForLoadTime()) {
+       (TotalCapacity() - UsableCapacity() >= Page::kPageSize))) {
     if (!heap()->CanExpandOldGeneration(
             Size() + heap()->new_lo_space()->Size() + Page::kPageSize)) {
       // Assuming all of new space is alive, doing a full GC and promoting all
