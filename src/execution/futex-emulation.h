@@ -97,16 +97,12 @@ class FutexWaitListNode {
   FutexWaitListNode* next_ = nullptr;
 
   std::weak_ptr<BackingStore> backing_store_;
-  size_t wait_addr_ = 0;
 
   // The memory location the FutexWaitListNode is waiting on. Equals
-  // backing_store_->buffer_start() + wait_addr_ at FutexWaitListNode creation
-  // time. Storing the wait_location_ separately is needed, since we can't
-  // necessarily reconstruct it, because the BackingStore might get deleted
-  // while the FutexWaitListNode is still alive. FutexWaitListNode must know its
-  // wait location, since they are stored in per-location lists, and to remove
-  // the node, we need to be able to find the list it's on (to be able to
-  // update the head and tail of the list).
+  // backing_store_->buffer_start() + wait_addr at FutexWaitListNode creation
+  // time. This address is used find the node in the per-location list, or to
+  // remove it.
+  // Note that the BackingStore might get deleted while this node is alive.
   int8_t* wait_location_ = nullptr;
 
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex

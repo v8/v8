@@ -417,7 +417,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
     node->backing_store_ = backing_store;
-    node->wait_addr_ = addr;
     node->wait_location_ = wait_location;
     node->waiting_ = true;
 
@@ -531,7 +530,6 @@ FutexWaitListNode::FutexWaitListNode(
     Handle<JSObject> promise, Isolate* isolate)
     : isolate_for_async_waiters_(isolate),
       backing_store_(backing_store),
-      wait_addr_(wait_addr),
       wait_location_(
           FutexWaitList::ToWaitLocation(backing_store.get(), wait_addr)),
       waiting_(true) {
@@ -704,7 +702,6 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
       // cheaper than reconstructing a shared_ptr from the weak_ptr. If the
       // weak_ptr is not expired, we know that it is equal to backing_store.
       DCHECK_EQ(backing_store, node->backing_store_.lock());
-      DCHECK_EQ(addr, node->wait_addr_);
       node->waiting_ = false;
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
@@ -1000,6 +997,8 @@ Tagged<Object> FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
     Handle<JSArrayBuffer> array_buffer, size_t addr) {
   DCHECK_LT(addr, array_buffer->GetByteLength());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  int8_t* wait_location =
+      FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
@@ -1007,16 +1006,14 @@ Tagged<Object> FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   int waiters = 0;
   auto& isolate_map = wait_list->isolate_promises_to_resolve_;
   for (const auto& it : isolate_map) {
-    FutexWaitListNode* node = it.second.head;
-    while (node != nullptr) {
+    for (FutexWaitListNode* node = it.second.head; node != nullptr;
+         node = node->next_) {
       std::shared_ptr<BackingStore> node_backing_store =
           node->backing_store_.lock();
-      if (backing_store.get() == node_backing_store.get() &&
-          addr == node->wait_addr_ && !node->waiting_) {
+      if (backing_store == node_backing_store &&
+          wait_location == node->wait_location_ && !node->waiting_) {
         waiters++;
       }
-
-      node = node->next_;
     }
   }
 
