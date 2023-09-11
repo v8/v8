@@ -400,12 +400,10 @@ class DirectHandle final : public DirectHandleBase {
   // Constructor for handling automatic up casting.
   // Ex. DirectHandle<JSFunction> can be passed when DirectHandle<Object> is
   // expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE DirectHandle(DirectHandle<S> handle) : DirectHandle(handle.obj_) {}
 
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE DirectHandle(Handle<S> handle)
       : DirectHandle(handle.location() != nullptr ? *handle.location()
                                                   : kTaggedNullAddress) {}
@@ -430,9 +428,7 @@ class DirectHandle final : public DirectHandleBase {
     // This static type check also fails for forward class declarations. We
     // check on access instead of on construction to allow DirectHandles to
     // forward declared types.
-    static_assert(
-        std::is_base_of_v<Object, T> || std::is_convertible_v<T*, Object*>,
-        "static type violation");
+    static_assert(is_taggable_v<T>, "static type violation");
     // Direct construction of Tagged from address, without a type check, because
     // we rather trust DirectHandle<T> to contain a T than include all the
     // respective -inl.h headers for SLOW_DCHECKs.

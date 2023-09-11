@@ -32,8 +32,8 @@
                                                                                \
   /* Special constructor for constexpr construction which allows skipping type \
    * checks. */                                                                \
-  explicit constexpr inline Type(Address ptr, Object::SkipTypeCheckTag)        \
-      : __VA_ARGS__(ptr, Object::SkipTypeCheckTag()) {}                        \
+  explicit constexpr inline Type(Address ptr, HeapObject::SkipTypeCheckTag)    \
+      : __VA_ARGS__(ptr, HeapObject::SkipTypeCheckTag()) {}                    \
                                                                                \
   explicit inline Type(Address ptr)
 

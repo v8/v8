@@ -1747,7 +1747,7 @@ void __attribute__((noinline)) __jit_debug_register_code() { __asm__(""); }
 JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
-void __gdb_print_v8_object(Object object) {
+void __gdb_print_v8_object(TaggedBase object) {
   StdoutStream os;
   Print(object, os);
   os << std::flush;

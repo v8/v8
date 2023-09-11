@@ -185,7 +185,7 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject(*this));
   PtrComprCageBase cage_base(isolate);
-  VerifyPointer(isolate, map(cage_base));
+  Object::VerifyPointer(isolate, map(cage_base));
   CHECK(IsMap(map(cage_base), cage_base));
 
   CHECK(CheckRequiredAlignment(isolate));
@@ -468,7 +468,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         if (r.IsNone()) {
           CHECK(type_is_none);
         } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-          CHECK(!field_type->NowStable() || field_type->NowContains(value));
+          CHECK(!FieldType::NowStable(field_type) ||
+                FieldType::NowContains(field_type, value));
         }
         CHECK_IMPLIES(is_transitionable_fast_elements_kind,
                       Map::IsMostGeneralFieldType(r, field_type));
@@ -963,13 +964,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
-  VerifyPointer(isolate, shared(isolate));
+  Object::VerifyPointer(isolate, shared(isolate));
   CHECK(IsSharedFunctionInfo(shared(isolate)));
-  VerifyPointer(isolate, context(isolate, kRelaxedLoad));
+  Object::VerifyPointer(isolate, context(isolate, kRelaxedLoad));
   CHECK(IsContext(context(isolate, kRelaxedLoad)));
-  VerifyPointer(isolate, raw_feedback_cell(isolate));
+  Object::VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(IsFeedbackCell(raw_feedback_cell(isolate)));
-  VerifyPointer(isolate, code(isolate));
+  Object::VerifyPointer(isolate, code(isolate));
   CHECK(IsCode(code(isolate)));
   CHECK(map(isolate)->is_callable());
   Handle<JSFunction> function(*this, isolate);
@@ -1096,17 +1097,17 @@ void Oddball::OddballVerify(Isolate* isolate) {
 
   Heap* heap = isolate->heap();
   Tagged<Object> string = to_string();
-  VerifyPointer(isolate, string);
+  Object::VerifyPointer(isolate, string);
   CHECK(IsString(string));
   Tagged<Object> type = type_of();
-  VerifyPointer(isolate, type);
+  Object::VerifyPointer(isolate, type);
   CHECK(IsString(type));
   Tagged<Object> kind_value = TaggedField<Object>::load(*this, kKindOffset);
-  VerifyPointer(isolate, kind_value);
+  Object::VerifyPointer(isolate, kind_value);
   CHECK(IsSmi(kind_value));
 
   Tagged<Object> number = to_number();
-  VerifyPointer(isolate, number);
+  Object::VerifyPointer(isolate, number);
   CHECK(IsSmi(number) || IsHeapNumber(number));
   if (IsHeapObject(number)) {
     CHECK(number == ReadOnlyRoots(heap).nan_value() ||
@@ -1520,7 +1521,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      VerifyPointer(isolate, val);
+      Object::VerifyPointer(isolate, val);
     }
   }
 
@@ -1990,10 +1991,10 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
 
   StructVerify(isolate);
   CHECK(IsDataHandler(*this));
-  VerifyPointer(isolate, smi_handler(isolate));
+  Object::VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!IsSmi(smi_handler()),
                 IsStoreHandler(*this) && IsCode(smi_handler()));
-  VerifyPointer(isolate, validity_cell(isolate));
+  Object::VerifyPointer(isolate, validity_cell(isolate));
   CHECK(IsSmi(validity_cell()) || IsCell(validity_cell()));
   int data_count = data_field_count();
   if (data_count >= 1) {
@@ -2076,7 +2077,7 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
   for (int i = 0; i < children_length(); ++i) {
     Tagged<Object> child = get_child_raw(i);
     CHECK(IsNull(child) || IsPreparseData(child));
-    VerifyPointer(isolate, child);
+    Object::VerifyPointer(isolate, child);
   }
 }
 

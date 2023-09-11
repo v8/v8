@@ -60,12 +60,24 @@ class Tagged;
 // of Object.
 template <typename Derived, typename Base, typename Enabled = void>
 struct is_subtype : public std::is_base_of<Base, Derived> {};
+template <typename Derived, typename Base>
+static constexpr bool is_subtype_v = is_subtype<Derived, Base>::value;
+
+template <>
+struct is_subtype<Object, Object> : public std::true_type {};
 template <>
 struct is_subtype<Smi, Object> : public std::true_type {};
 template <>
 struct is_subtype<TaggedIndex, Object> : public std::true_type {};
-template <typename Derived, typename Base>
-static constexpr bool is_subtype_v = is_subtype<Derived, Base>::value;
+template <>
+struct is_subtype<FieldType, Object> : public std::true_type {};
+template <typename Base>
+struct is_subtype<Base, Object,
+                  std::enable_if_t<std::is_base_of_v<HeapObject, Base>>>
+    : public std::true_type {};
+
+static_assert(is_subtype_v<Smi, Object>);
+static_assert(is_subtype_v<HeapObject, Object>);
 
 // `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
 // de-facto being a subtype of Object.
@@ -122,13 +134,6 @@ struct BaseForTagged<FieldType> {
   using type = Tagged<Object>;
 };
 
-// TaggedIndex is special, since it's a more strict Smi. It could probably even
-// be its own specialization, to avoid exposing an operator->.
-template <>
-struct BaseForTagged<TaggedIndex> {
-  using type = Tagged<Object>;
-};
-
 }  // namespace detail
 
 template <typename T>
@@ -167,11 +172,6 @@ class Tagged<Object> : public TaggedBase {
   constexpr Tagged& operator=(TaggedBase other) {
     return *this = Tagged(other);
   }
-
-  // Implicit conversions to/from raw pointers
-  // TODO(leszeks): Remove once we're using Tagged everywhere.
-  // NOLINTNEXTLINE
-  inline constexpr Tagged(Object raw);
 };
 
 // Specialization for Smi disallowing any implicit creation or access via ->,
@@ -422,5 +422,23 @@ struct RemoveTagged<Tagged<T>> {
 
 }  // namespace internal
 }  // namespace v8
+
+namespace std {
+
+// Template specialize std::common_type to always return Object when compared
+// against a subtype of Object.
+//
+// This is an incomplete specialization for objects and common_type, but
+// sufficient for existing use-cases. A proper specialization would need to be
+// conditionally enabled via `requires`, which is C++20, or with `enable_if`,
+// which would require a custom common_type implementation.
+template <class T>
+struct common_type<T, i::Object> {
+  static_assert(i::is_subtype_v<T, i::Object>,
+                "common_type with Object is only partially specialized.");
+  using type = i::Object;
+};
+
+}  // namespace std
 
 #endif  // V8_OBJECTS_TAGGED_H_

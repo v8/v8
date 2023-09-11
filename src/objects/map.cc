@@ -424,9 +424,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 }
 
 // static
-MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
+MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
   if (IsClass(*type)) {
-    return MaybeObjectHandle::Weak((*type)->AsClass(), isolate);
+    return MaybeObjectHandle::Weak(FieldType::AsClass(type));
   }
   return MaybeObjectHandle(type);
 }
@@ -470,7 +470,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
         isolate, map->instance_type(), &representation, &type);
   }
 
-  MaybeObjectHandle wrapped_type = WrapFieldType(isolate, type);
+  MaybeObjectHandle wrapped_type = WrapFieldType(type);
 
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
@@ -772,7 +772,7 @@ Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
         DCHECK_EQ(PropertyLocation::kField, old_details.location());
         Tagged<FieldType> old_type = old_descriptors->GetFieldType(i);
         if (FieldTypeIsCleared(old_details.representation(), old_type) ||
-            !old_type->NowIs(new_type)) {
+            !FieldType::NowIs(old_type, new_type)) {
           return Map();
         }
       } else {
@@ -1796,7 +1796,8 @@ bool CanHoldValue(Tagged<DescriptorArray> descriptors, InternalIndex descriptor,
     if (details.kind() == PropertyKind::kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
              Object::FitsRepresentation(value, details.representation()) &&
-             descriptors->GetFieldType(descriptor)->NowContains(value);
+             FieldType::NowContains(descriptors->GetFieldType(descriptor),
+                                    value);
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       return false;

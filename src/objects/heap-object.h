@@ -7,7 +7,6 @@
 
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/objects.h"
 #include "src/objects/tagged-field.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -25,8 +24,10 @@ class Tagged;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
-class HeapObject : public Object {
+class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  public:
+  constexpr HeapObject() = default;
+
   // [map]: Contains a map which contains the object's reflective
   // information.
   DECL_GETTER(map, Tagged<Map>)
@@ -305,8 +306,23 @@ class HeapObject : public Object {
 
   inline Address GetFieldAddress(int field_offset) const;
 
+  HeapObject* operator->() { return this; }
+  const HeapObject* operator->() const { return this; }
+
  protected:
-  OBJECT_CONSTRUCTORS(HeapObject, Object);
+  struct SkipTypeCheckTag {};
+  friend class Tagged<HeapObject>;
+  explicit constexpr inline HeapObject(Address ptr,
+                                       HeapObject::SkipTypeCheckTag)
+      : TaggedImpl(ptr) {}
+  explicit inline HeapObject(Address ptr);
+
+  // Static overwrites of TaggedImpl's IsSmi/IsHeapObject, to avoid conflicts
+  // with IsSmi(Tagged<HeapObject>) inside HeapObject subclasses' methods.
+  template <typename T>
+  static bool IsSmi(T obj);
+  template <typename T>
+  static bool IsHeapObject(T obj);
 
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;
@@ -328,8 +344,21 @@ class HeapObject : public Object {
                          VerificationMode mode);
 };
 
-OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
+inline HeapObject::HeapObject(Address ptr) : TaggedImpl(ptr) {
+  IsHeapObject(*this);
+}
 CAST_ACCESSOR(HeapObject)
+
+template <typename T>
+// static
+bool HeapObject::IsSmi(T obj) {
+  return i::IsSmi(obj);
+}
+template <typename T>
+// static
+bool HeapObject::IsHeapObject(T obj) {
+  return i::IsHeapObject(obj);
+}
 
 // Define Tagged<HeapObject> now that HeapObject exists.
 constexpr HeapObject Tagged<HeapObject>::operator*() const {

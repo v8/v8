@@ -3315,7 +3315,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
   switch (details.location()) {
     case PropertyLocation::kField: {
       Tagged<FieldType> field_type = GetFieldType(descriptor);
-      field_type->PrintTo(os);
+      FieldType::PrintTo(field_type, os);
       break;
     }
     case PropertyLocation::kDescriptor:

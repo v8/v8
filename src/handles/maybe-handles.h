@@ -140,32 +140,28 @@ class MaybeDirectHandle final {
   // Constructor for handling automatic up casting from DirectHandle.
   // Ex. DirectHandle<JSArray> can be passed when MaybeDirectHandle<Object> is
   // expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE MaybeDirectHandle(DirectHandle<S> handle)
       : location_(handle.address()) {}
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeDirectHandle<Object> is
   // expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE MaybeDirectHandle(Handle<S> handle)
       : MaybeDirectHandle(DirectHandle<S>(handle)) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeDirectHandle<JSArray> can be passed when MaybeDirectHandle<Object>
   // is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE MaybeDirectHandle(MaybeDirectHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 
   // Constructor for handling automatic up casting from MaybeHandle.
   // Ex. MaybeHandle<JSArray> can be passed when
   // MaybeDirectHandle<Object> is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE MaybeDirectHandle(MaybeHandle<S> maybe_handle)
       : location_(maybe_handle.location_ == nullptr ? kTaggedNullAddress
                                                     : *maybe_handle.location_) {

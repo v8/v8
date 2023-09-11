@@ -772,9 +772,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                                   details.constness(), representation,
                                   value_type);
     } else if (expected_representation.IsHeapObject() &&
-               !target->instance_descriptors(isolate())
-                    ->GetFieldType(descriptor_index)
-                    ->NowContains(value)) {
+               !FieldType::NowContains(
+                   target->instance_descriptors(isolate())->GetFieldType(
+                       descriptor_index),
+                   value)) {
       Handle<FieldType> value_type =
           Object::OptimalType(*value, isolate(), expected_representation);
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
@@ -784,9 +785,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       new_mutable_double++;
     }
 
-    DCHECK(target->instance_descriptors(isolate())
-               ->GetFieldType(descriptor_index)
-               ->NowContains(value));
+    DCHECK(FieldType::NowContains(
+        target->instance_descriptors(isolate())->GetFieldType(descriptor_index),
+        value));
     map = target;
     descriptor++;
   }

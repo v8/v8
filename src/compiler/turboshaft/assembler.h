@@ -1681,7 +1681,7 @@ class AssemblerOpInterface {
 
   template <typename Rep = Any, typename Base>
   V<Rep> LoadField(V<Base> object, const FieldAccess& access) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
+    if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
       static_assert(std::is_same_v<Base, WordPtr>);
@@ -1744,7 +1744,7 @@ class AssemblerOpInterface {
   template <typename Base>
   void StoreFieldImpl(V<Base> object, const FieldAccess& access, V<Any> value,
                       bool maybe_initializing_or_transitioning) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
+    if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
       static_assert(std::is_same_v<Base, WordPtr>);
@@ -2989,7 +2989,7 @@ class AssemblerOpInterface {
   template <typename T = Any, typename Base>
   V<T> LoadElement(V<Base> object, const ElementAccess& access,
                    V<WordPtr> index, bool is_array_buffer) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
+    if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
       static_assert(std::is_same_v<Base, WordPtr>);
@@ -3008,7 +3008,7 @@ class AssemblerOpInterface {
   template <typename Base>
   void StoreElement(V<Base> object, const ElementAccess& access,
                     V<WordPtr> index, V<Any> value, bool is_array_buffer) {
-    if constexpr (std::is_base_of_v<Object, Base>) {
+    if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
       static_assert(std::is_same_v<Base, WordPtr>);

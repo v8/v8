@@ -731,8 +731,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, Handle<Map> map, Descriptor* descriptor,
       TransitionFlag flag);
 
-  static MaybeObjectHandle WrapFieldType(Isolate* isolate,
-                                         Handle<FieldType> type);
+  static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
   V8_EXPORT_PRIVATE static Tagged<FieldType> UnwrapFieldType(
       MaybeObject wrapped_type);
 

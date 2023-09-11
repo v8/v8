@@ -456,7 +456,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
   }
 
   Handle<JSReceiver> receiver =
-      JSReceiver::ToObject(isolate, receiver_or_instance).ToHandleChecked();
+      Object::ToObject(isolate, receiver_or_instance).ToHandleChecked();
   Handle<String> name(function->shared()->Name(), isolate);
   name = String::Flatten(isolate, name);
 
@@ -509,8 +509,7 @@ Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
     return isolate->factory()->null_value();
   }
   Handle<JSReceiver> receiver =
-      JSReceiver::ToObject(isolate,
-                           handle(info->receiver_or_instance(), isolate))
+      Object::ToObject(isolate, handle(info->receiver_or_instance(), isolate))
           .ToHandleChecked();
   if (IsJSProxy(*receiver)) {
     return isolate->factory()->Proxy_string();

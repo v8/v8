@@ -472,7 +472,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     if (IsClass(*descriptors_field_type)) {
       // Remember the field map, and try to infer a useful type.
       OptionalMapRef maybe_field_map =
-          TryMakeRef(broker(), (*descriptors_field_type)->AsClass());
+          TryMakeRef(broker(), FieldType::AsClass(*descriptors_field_type));
       if (!maybe_field_map.has_value()) return Invalid();
       field_type = Type::For(maybe_field_map.value(), broker());
       field_map = maybe_field_map;
@@ -1149,7 +1149,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
               *descriptors_field_type_ref));
       // Remember the field map, and try to infer a useful type.
       OptionalMapRef maybe_field_map =
-          TryMakeRef(broker(), (*descriptors_field_type)->AsClass());
+          TryMakeRef(broker(), FieldType::AsClass(*descriptors_field_type));
       if (!maybe_field_map.has_value()) return Invalid();
       field_type = Type::For(maybe_field_map.value(), broker());
       field_map = maybe_field_map;

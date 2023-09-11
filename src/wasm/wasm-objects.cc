@@ -779,7 +779,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   // For debugging purposes we memorize a link from the JSArrayBuffer
   // to it's owning WasmMemoryObject instance.
   Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
-  JSObject::SetProperty(isolate, buffer, symbol, memory_object).Check();
+  Object::SetProperty(isolate, buffer, symbol, memory_object).Check();
 
   return memory_object;
 }
@@ -949,7 +949,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // to it's owning WasmMemoryObject instance.
     Handle<Symbol> symbol =
         isolate->factory()->array_buffer_wasm_memory_symbol();
-    JSObject::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
+    Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
     DCHECK_EQ(result_inplace.value(), old_pages);
     return static_cast<int32_t>(result_inplace.value());  // success
   }
@@ -988,7 +988,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // For debugging purposes we memorize a link from the JSArrayBuffer
   // to it's owning WasmMemoryObject instance.
   Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
-  JSObject::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
+  Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
   return static_cast<int32_t>(old_pages);  // success
 }
 

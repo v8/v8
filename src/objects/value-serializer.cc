@@ -2514,18 +2514,20 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           Representation expected_representation = details.representation();
           if (Object::FitsRepresentation(*value, expected_representation)) {
             if (expected_representation.IsHeapObject() &&
-                !target->instance_descriptors(isolate_)
-                     ->GetFieldType(descriptor)
-                     ->NowContains(value)) {
+                !FieldType::NowContains(
+                    target->instance_descriptors(isolate_)->GetFieldType(
+                        descriptor),
+                    value)) {
               Handle<FieldType> value_type = Object::OptimalType(
                   *value, isolate_, expected_representation);
               MapUpdater::GeneralizeField(isolate_, target, descriptor,
                                           details.constness(),
                                           expected_representation, value_type);
             }
-            DCHECK(target->instance_descriptors(isolate_)
-                       ->GetFieldType(descriptor)
-                       ->NowContains(value));
+            DCHECK(FieldType::NowContains(
+                target->instance_descriptors(isolate_)->GetFieldType(
+                    descriptor),
+                value));
             properties.push_back(value);
             map = target;
             continue;

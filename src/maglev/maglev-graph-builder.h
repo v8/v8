@@ -1026,8 +1026,7 @@ class MaglevGraphBuilder {
     return iterator_.GetFlag16Operand(operand_index);
   }
 
-  template <class T, typename = std::enable_if_t<
-                         std::is_convertible<T*, Object*>::value>>
+  template <class T, typename = std::enable_if_t<is_taggable_v<T>>>
   typename compiler::ref_traits<T>::ref_type GetRefOperand(int operand_index) {
     // The BytecodeArray itself was fetched by using a barrier so all reads
     // from the constant pool are safe.

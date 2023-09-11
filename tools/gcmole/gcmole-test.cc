@@ -63,13 +63,13 @@ void TestTwoSizeTArguments(Isolate* isolate) {
 
 // --------- Test problFems with method arguments ----------
 
-class SomeObject : public Object {
+class SomeObject : public HeapObject {
  public:
   void Method(Tagged<Object> a) { Print(a); }
 
   DECL_CAST(SomeObject)
 
-  OBJECT_CONSTRUCTORS(SomeObject, Object);
+  OBJECT_CONSTRUCTORS(SomeObject, HeapObject);
 };
 
 void TestMethodCall(Isolate* isolate) {

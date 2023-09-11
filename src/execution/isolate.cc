@@ -1284,9 +1284,9 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
 
   RETURN_ON_EXCEPTION(
       this,
-      JSObject::SetProperty(this, error_object, factory()->error_stack_symbol(),
-                            error_stack, StoreOrigin::kMaybeKeyed,
-                            Just(ShouldThrow::kThrowOnError)),
+      Object::SetProperty(this, error_object, factory()->error_stack_symbol(),
+                          error_stack, StoreOrigin::kMaybeKeyed,
+                          Just(ShouldThrow::kThrowOnError)),
       JSObject);
   return error_object;
 }

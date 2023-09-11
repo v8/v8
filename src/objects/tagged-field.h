@@ -7,7 +7,6 @@
 
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
-#include "src/objects/objects.h"
 #include "src/objects/tagged-value.h"
 
 namespace v8::internal {

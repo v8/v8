@@ -907,7 +907,8 @@ Tagged<HeapObject> MapWord::ToForwardingAddress(
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
-  VerifyPointer(isolate, TaggedField<Object>::load(isolate, *this, offset));
+  Object::VerifyPointer(isolate,
+                        TaggedField<Object>::load(isolate, *this, offset));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 

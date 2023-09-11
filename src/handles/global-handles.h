@@ -76,8 +76,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   template <typename T>
   inline Handle<T> Create(Tagged<T> value);
-  template <typename T>
-  inline Handle<T> Create(T value);
 
   void RecordStats(HeapStats* stats);
 
