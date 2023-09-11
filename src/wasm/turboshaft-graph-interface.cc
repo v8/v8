@@ -121,8 +121,9 @@ class TurboshaftGraphBuildingInterface {
   };
 
   TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone,
-                                   compiler::NodeOriginTable* node_origins)
-      : asm_(graph, graph, zone, node_origins) {}
+                                   compiler::NodeOriginTable* node_origins,
+                                   int func_index)
+      : asm_(graph, graph, zone, node_origins), func_index_(func_index) {}
 
   void StartFunction(FullDecoder* decoder) {
     TSBlock* block = __ NewBlock();
@@ -159,6 +160,11 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.trace_wasm) {
       __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
       CallRuntime(Runtime::kWasmTraceEnter, {});
+    }
+
+    auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
+    if (branch_hints_it != decoder->module_->branch_hints.end()) {
+      branch_hints_ = &branch_hints_it->second;
     }
   }
 
@@ -229,8 +235,7 @@ class TurboshaftGraphBuildingInterface {
     if_block->false_or_loop_or_catch_block = false_block;
     if_block->merge_block = merge_block;
     SetupControlFlowEdge(decoder, false_block);
-    // TODO(14108): Branch hints.
-    __ Branch(ConditionWithHint(cond.op), true_block, false_block);
+    __ Branch({cond.op, GetBranchHint(decoder)}, true_block, false_block);
     __ Bind(true_block);
   }
 
@@ -255,8 +260,9 @@ class TurboshaftGraphBuildingInterface {
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
     // TODO(14108): Branch hints.
+    BranchHint hint = GetBranchHint(decoder);
     if (depth == decoder->control_depth() - 1) {
-      IF (cond.op) {
+      IF ({cond.op, hint}) {
         DoReturn(decoder, 0);
       }
       END_IF
@@ -264,7 +270,7 @@ class TurboshaftGraphBuildingInterface {
       Control* target = decoder->control_at(depth);
       SetupControlFlowEdge(decoder, target->merge_block);
       TSBlock* non_branching = __ NewBlock();
-      __ Branch(ConditionWithHint(cond.op), target->merge_block, non_branching);
+      __ Branch({cond.op, hint}, target->merge_block, non_branching);
       __ Bind(non_branching);
     }
   }
@@ -4854,6 +4860,20 @@ class TurboshaftGraphBuildingInterface {
                : kNoCodePosition;
   }
 
+  BranchHint GetBranchHint(FullDecoder* decoder) {
+    WasmBranchHint hint =
+        branch_hints_ ? branch_hints_->GetHintFor(decoder->pc_relative_offset())
+                      : WasmBranchHint::kNoHint;
+    switch (hint) {
+      case WasmBranchHint::kNoHint:
+        return BranchHint::kNone;
+      case WasmBranchHint::kUnlikely:
+        return BranchHint::kFalse;
+      case WasmBranchHint::kLikely:
+        return BranchHint::kTrue;
+    }
+  }
+
   Assembler& Asm() { return asm_; }
 
   V<WasmInstanceObject> instance_node_;
@@ -4865,18 +4885,18 @@ class TurboshaftGraphBuildingInterface {
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? compiler::NullCheckStrategy::kTrapHandler
           : compiler::NullCheckStrategy::kExplicit;
+  int func_index_;
+  const BranchHintMap* branch_hints_ = nullptr;
 };
 
-V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
-                                    WasmFeatures enabled,
-                                    const WasmModule* module,
-                                    WasmFeatures* detected,
-                                    const FunctionBody& body, Graph& graph,
-                                    compiler::NodeOriginTable* node_origins) {
+V8_EXPORT_PRIVATE bool BuildTSGraph(
+    AccountingAllocator* allocator, WasmFeatures enabled,
+    const WasmModule* module, WasmFeatures* detected, const FunctionBody& body,
+    Graph& graph, compiler::NodeOriginTable* node_origins, int func_index) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
       decoder(&zone, module, enabled, detected, body, graph, &zone,
-              node_origins);
+              node_origins, func_index);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.

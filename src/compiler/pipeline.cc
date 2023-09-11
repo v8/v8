@@ -3771,7 +3771,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     AccountingAllocator allocator;
     if (!wasm::BuildTSGraph(&allocator, env->enabled_features, env->module,
                             detected, body, turboshaft_pipeline.Value().graph(),
-                            data.node_origins())) {
+                            data.node_origins(), compilation_data.func_index)) {
       return false;
     }
     CodeTracer* code_tracer = nullptr;
