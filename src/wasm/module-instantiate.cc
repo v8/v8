@@ -89,27 +89,6 @@ class CompileImportWrapperJob final : public JobTask {
   WasmImportWrapperCache::ModificationScope* const cache_scope_;
 };
 
-Handle<DescriptorArray> CreateArrayDescriptorArray(
-    Isolate* isolate, const wasm::ArrayType* type) {
-  uint32_t kDescriptorsCount = 1;
-  Handle<DescriptorArray> descriptors =
-      isolate->factory()->NewDescriptorArray(kDescriptorsCount);
-
-  // TODO(ishell): cache Wasm field type in FieldType value.
-  MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
-  DCHECK(IsSmi(any_type));
-
-  // Add descriptor for length property.
-  PropertyDetails details(PropertyKind::kData, FROZEN, PropertyLocation::kField,
-                          PropertyConstness::kConst,
-                          Representation::WasmValue(), static_cast<int>(0));
-  descriptors->Set(InternalIndex(0), *isolate->factory()->length_string(),
-                   any_type, details);
-
-  descriptors->Sort();
-  return descriptors;
-}
-
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> opt_rtt_parent,
                             Handle<WasmInstanceObject> instance) {
@@ -148,19 +127,18 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
       instance, array_index);
-  // TODO(ishell): get canonical descriptor array for WasmArrays from roots.
-  Handle<DescriptorArray> descriptors =
-      CreateArrayDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate, *descriptors,
-                              descriptors->number_of_descriptors());
+  map->SetInstanceDescriptors(isolate,
+                              *isolate->factory()->empty_descriptor_array(), 0);
   map->set_is_extensible(false);
   WasmArray::EncodeElementSizeInMap(type->element_type().value_kind_size(),
                                     *map);
   return map;
 }
+
+}  // namespace
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       int type_index, Handle<WasmInstanceObject> instance,
@@ -209,6 +187,8 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
   maps->set(type_index, *map);
 }
+
+namespace {
 
 MachineRepresentation NormalizeFastApiRepresentation(const CTypeInfo& info) {
   MachineType t = MachineType::TypeForCType(info);
@@ -1181,8 +1161,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Create maps for managed objects (GC proposal).
   // Must happen before {InitGlobals} because globals can refer to these maps.
-  // We do not need to cache the canonical rtts to (rtt.canon any)'s subtype
-  // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     if (module_->isorecursive_canonical_type_ids.size() > 0) {
