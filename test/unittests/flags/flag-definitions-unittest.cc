@@ -263,15 +263,20 @@ std::string FlagNameToTestName(::testing::TestParamInfo<FlagAndName> info) {
   return info.param.test_name;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ExperimentalFlagImplication, ExperimentalFlagImplicationTest,
-    ::testing::Values(FlagAndName{nullptr, nullptr, "Default"},
-                      FlagAndName{&v8_flags.future, "--future", "Future"},
+// MVSC does not like an "#if" inside of a macro, hence define this list outside
+// of INSTANTIATE_TEST_SUITE_P.
+auto GetFlagImplicationTestVariants() {
+  return ::testing::Values(
+      FlagAndName{nullptr, nullptr, "Default"},
+      FlagAndName{&v8_flags.future, "--future", "Future"},
 #if V8_ENABLE_WEBASSEMBLY
-                      FlagAndName{&v8_flags.wasm_staging, "--wasm-staging",
-                                  "WasmStaging"},
+      FlagAndName{&v8_flags.wasm_staging, "--wasm-staging", "WasmStaging"},
 #endif  // V8_ENABLE_WEBASSEMBLY
-                      FlagAndName{&v8_flags.harmony, "--harmony", "Harmony"}),
-    FlagNameToTestName);
+      FlagAndName{&v8_flags.harmony, "--harmony", "Harmony"});
+}
+
+INSTANTIATE_TEST_SUITE_P(ExperimentalFlagImplication,
+                         ExperimentalFlagImplicationTest,
+                         GetFlagImplicationTestVariants(), FlagNameToTestName);
 
 }  // namespace v8::internal
