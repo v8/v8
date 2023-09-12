@@ -2916,8 +2916,15 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
   selector->Emit(code, 1, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
@@ -2936,8 +2943,15 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Uint8()) {
@@ -2980,8 +2994,14 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
     Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
@@ -3001,8 +3021,14 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
   VisitAtomicCompareExchange(this, node, opcode);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
     Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
@@ -3087,22 +3113,30 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
   UNREACHABLE();
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                            \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) { \
-    VisitAtomicBinaryOperation(                                           \
-        this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,        \
-        kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                  \
-        kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                  \
-        kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                 \
-  }                                                                       \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) { \
-    VisitAtomicBinaryOperation(                                           \
-        this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,        \
-        kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                  \
-        kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                  \
-        kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                 \
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      VisitAtomicBinaryOperation(                                          \
+          this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,       \
+          kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                 \
+          kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                 \
+          kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                \
+    }                                                                      \
+  }                                                                        \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      VisitAtomicBinaryOperation(                                          \
+          this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,       \
+          kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                 \
+          kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                 \
+          kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                \
+    }                                                                      \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
