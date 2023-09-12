@@ -69,14 +69,14 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
     int* out_max_aligned_size) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocator_.allocation_info(), to_space_);
 #if DEBUG
   VerifyTop();
 #endif  // DEBUG
 
   AdvanceAllocationObservers();
 
-  Address old_top = allocation_info_.top();
+  Address old_top = allocator_.top();
   Address high = to_space_.page_high();
   int filler_size = Heap::GetFillToAlign(old_top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -90,7 +90,7 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
         return false;
     }
 
-    old_top = allocation_info_.top();
+    old_top = allocator_.top();
     high = to_space_.page_high();
     filler_size = Heap::GetFillToAlign(old_top, alignment);
     aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -102,8 +102,8 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
 
   DCHECK(old_top + aligned_size_in_bytes <= high);
   UpdateInlineAllocationLimitForAllocation(aligned_size_in_bytes);
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_EQ(allocator_.start(), allocator_.top());
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocator_.allocation_info(), to_space_);
   return true;
 }
 

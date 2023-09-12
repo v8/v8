@@ -211,11 +211,11 @@ AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
 AllocationResult SpaceWithLinearArea::AllocateFastUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
+  if (!allocator_.allocation_info().CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Failure();
   }
-  Tagged<HeapObject> obj =
-      HeapObject::FromAddress(allocation_info_.IncrementTop(size_in_bytes));
+  Tagged<HeapObject> obj = HeapObject::FromAddress(
+      allocator_.allocation_info().IncrementTop(size_in_bytes));
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
 
@@ -225,15 +225,15 @@ AllocationResult SpaceWithLinearArea::AllocateFastUnaligned(
 AllocationResult SpaceWithLinearArea::AllocateFastAligned(
     int size_in_bytes, int* result_aligned_size_in_bytes,
     AllocationAlignment alignment, AllocationOrigin origin) {
-  Address top = allocation_info_.top();
+  Address top = allocator_.top();
   int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (!allocation_info_.CanIncrementTop(aligned_size_in_bytes)) {
+  if (!allocator_.allocation_info().CanIncrementTop(aligned_size_in_bytes)) {
     return AllocationResult::Failure();
   }
   Tagged<HeapObject> obj = HeapObject::FromAddress(
-      allocation_info_.IncrementTop(aligned_size_in_bytes));
+      allocator_.allocation_info().IncrementTop(aligned_size_in_bytes));
   if (result_aligned_size_in_bytes)
     *result_aligned_size_in_bytes = aligned_size_in_bytes;
 

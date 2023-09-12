@@ -85,8 +85,9 @@ bool PagedSpaceBase::Contains(Tagged<Object> o) const {
 }
 
 bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
-  if (allocation_info_.top() != kNullAddress) {
-    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
+  if (top() != kNullAddress) {
+    return allocator_.allocation_info().DecrementTopIfAdjacent(object_address,
+                                                               object_size);
   }
   return false;
 }

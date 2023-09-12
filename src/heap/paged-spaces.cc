@@ -161,7 +161,7 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
   CodePageHeaderModificationScope rwx_write_scope(
       "Updating high water mark for Code pages requires write access to "
       "the Code page headers");
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_.top());
   return committed_physical_memory();
 }
 
@@ -279,19 +279,19 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   DCHECK_GE(end, limit);
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(top, limit);
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_.top());
+  allocator_.allocation_info().Reset(top, limit);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
   if (!is_compaction_space()) optional_guard.emplace(linear_area_lock());
-  linear_area_original_data_.set_original_limit_relaxed(end);
-  linear_area_original_data_.set_original_top_release(top);
+  allocator_.linear_area_original_data().set_original_limit_relaxed(end);
+  allocator_.linear_area_original_data().set_original_top_release(top);
 }
 
 void PagedSpaceBase::SetLimit(Address limit) {
   DCHECK(SupportsExtendingLAB());
   DCHECK_LE(limit, original_limit_relaxed());
-  allocation_info_.SetLimit(limit);
+  allocator_.allocation_info().SetLimit(limit);
 }
 
 size_t PagedSpaceBase::ShrinkPageToHighWaterMark(Page* page) {
@@ -316,7 +316,7 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
         "ShrinkImmortalImmovablePages writes to the page header.");
   }
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_.allocation_info().top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -511,7 +511,8 @@ void PagedSpaceBase::ReleasePageImpl(Page* page,
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
+  if (Page::FromAllocationAreaAddress(allocator_.allocation_info().top()) ==
+      page) {
     SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
   }
 
@@ -580,7 +581,8 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocator_.allocation_info().start(),
+            allocator_.allocation_info().top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
   Address limit = ComputeLimit(start, end, size_in_bytes);
@@ -651,7 +653,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
   bool allocation_pointer_found_in_space =
-      (allocation_info_.top() == allocation_info_.limit());
+      (allocator_.allocation_info().top() ==
+       allocator_.allocation_info().limit());
   size_t external_space_bytes[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
@@ -663,7 +666,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
 
-    if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
+    if (page ==
+        Page::FromAllocationAreaAddress(allocator_.allocation_info().top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -784,7 +788,8 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 
 void PagedSpaceBase::UpdateInlineAllocationLimit() {
   // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocator_.allocation_info().start(),
+            allocator_.allocation_info().top());
 
   Address new_limit = ComputeLimit(top(), limit(), 0);
   DCHECK_LE(top(), new_limit);
@@ -815,7 +820,8 @@ bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
   if (out_max_aligned_size) {
     *out_max_aligned_size = size_in_bytes;
   }
-  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
+  if (allocator_.allocation_info().top() + size_in_bytes <=
+      allocator_.allocation_info().limit()) {
     return true;
   }
   return RefillLabMain(size_in_bytes, origin);
