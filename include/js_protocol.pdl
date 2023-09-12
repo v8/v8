@@ -1066,6 +1066,7 @@ domain Runtime
         arraybuffer
         node
         window
+        generator
       optional any value
       optional string objectId
       # Set if value reference met more then once during serialization. In such

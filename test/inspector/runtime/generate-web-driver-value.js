@@ -76,6 +76,9 @@ InspectorTest.runAsyncTestSuite([
   async function ArrayBuffer() {
     await testExpression("new ArrayBuffer()");
   },
+  async function Generator() {
+    await testExpression("(function*() { yield 'a'; })()");
+  },
   async function Duplicate() {
     await testExpression("(()=>{const foo={a: []}; const bar=[1,2]; const result={1: foo, 2: foo, 3: bar, 4: bar}; result.self=result; return result; })()");
   },

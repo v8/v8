@@ -501,6 +501,17 @@ Runtime.callFunctionOn
     type : arraybuffer
 }
 
+Running test: Generator
+testing expression: (function*() { yield 'a'; })()
+Runtime.evaluate
+{
+    type : generator
+}
+Runtime.callFunctionOn
+{
+    type : generator
+}
+
 Running test: Duplicate
 testing expression: (()=>{const foo={a: []}; const bar=[1,2]; const result={1: foo, 2: foo, 3: bar, 4: bar}; result.self=result; return result; })()
 Runtime.evaluate
