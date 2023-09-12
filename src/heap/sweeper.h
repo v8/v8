@@ -295,7 +295,7 @@ class Sweeper {
     std::atomic<bool> in_progress_{false};
     std::unique_ptr<JobHandle> job_handle_;
     std::vector<ConcurrentSweeper> concurrent_sweepers_;
-    uint64_t trace_id_;
+    uint64_t trace_id_ = 0;
     bool should_reduce_memory_ = false;
   };
 

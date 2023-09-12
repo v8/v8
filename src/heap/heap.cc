@@ -7228,7 +7228,28 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
   if (sweeper()->sweeping_in_progress()) {
     bool was_minor_sweeping_in_progress = minor_sweeping_in_progress();
+    bool was_major_sweeping_in_progress = major_sweeping_in_progress();
     sweeper()->EnsureMajorCompleted();
+
+    if (was_major_sweeping_in_progress) {
+      TRACE_GC_EPOCH_WITH_FLOW(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                               ThreadKind::kMain,
+                               sweeper_->GetTraceIdForFlowEvent(
+                                   GCTracer::Scope::MC_COMPLETE_SWEEPING),
+                               TRACE_EVENT_FLAG_FLOW_IN);
+      old_space()->RefillFreeList();
+      {
+        CodePageHeaderModificationScope rwx_write_scope(
+            "Updating per-page stats stored in page headers requires write "
+            "access to Code page headers");
+        code_space()->RefillFreeList();
+      }
+      if (shared_space()) {
+        shared_space()->RefillFreeList();
+      }
+
+      trusted_space()->RefillFreeList();
+    }
 
     if (v8_flags.minor_ms && new_space() && was_minor_sweeping_in_progress) {
       TRACE_GC_EPOCH_WITH_FLOW(
@@ -7238,24 +7259,9 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
               GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING),
           TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       paged_new_space()->paged_space()->RefillFreeList();
+      // Refill OLD_SPACE's freelist again for swept promoted pages.
+      old_space()->RefillFreeList();
     }
-
-    TRACE_GC_EPOCH_WITH_FLOW(
-        tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING, ThreadKind::kMain,
-        sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MC_COMPLETE_SWEEPING),
-        TRACE_EVENT_FLAG_FLOW_IN);
-    old_space()->RefillFreeList();
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Updating per-page stats stored in page headers requires write "
-          "access to Code page headers");
-      code_space()->RefillFreeList();
-    }
-    if (shared_space()) {
-      shared_space()->RefillFreeList();
-    }
-
-    trusted_space()->RefillFreeList();
 
     tracer()->NotifyFullSweepingCompleted();
 
