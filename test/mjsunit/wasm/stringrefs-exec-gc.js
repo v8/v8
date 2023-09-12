@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --experimental-wasm-gc
+// Flags: --expose-externalize-string
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -35,6 +36,8 @@ function encodeWtf8(str) {
   return out;
 }
 
+let externalString = "I'm an external string";
+externalizeString(externalString);
 let interestingStrings = [
   '',
   'ascii',
@@ -48,6 +51,7 @@ let interestingStrings = [
   'ab \ud800',         // Lone lead surrogate at the end.
   'ab \udc00',         // Lone trail surrogate at the end.
   'a \udc00\ud800 b',  // Swapped surrogate pair.
+  externalString,      // External string.
 ];
 
 function IsSurrogate(codepoint) {

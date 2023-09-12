@@ -897,8 +897,8 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
 
   gasm_.Bind(&dispatch);
   {
-    auto thin_string = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
-    auto cons_string = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+    auto thin_string = gasm_.MakeLabel();
+    auto cons_string = gasm_.MakeLabel();
 
     Node* string = dispatch.PhiAt(0);
     Node* instance_type = dispatch.PhiAt(1);
@@ -916,10 +916,10 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
         instance_type, gasm_.Int32Constant(kStringRepresentationMask));
     gasm_.GotoIf(gasm_.Word32Equal(string_representation,
                                    gasm_.Int32Constant(kThinStringTag)),
-                 &thin_string, string);
+                 &thin_string);
     gasm_.GotoIf(gasm_.Word32Equal(string_representation,
                                    gasm_.Int32Constant(kConsStringTag)),
-                 &cons_string, string);
+                 &cons_string);
 
     // Sliced string.
     Node* new_offset = gasm_.Int32Add(

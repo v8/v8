@@ -327,6 +327,8 @@ class TypeInferenceAnalysis {
         case Opcode::kSimd128LaneMemory:
         case Opcode::kSimd128LoadTransform:
         case Opcode::kSimd128Shuffle:
+        case Opcode::kStringAsWtf16:
+        case Opcode::kStringPrepareForGetCodeUnit:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

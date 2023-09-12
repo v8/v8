@@ -519,6 +519,14 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const Simd128ShuffleOp& op) {
     return callback_(op.left(), op.right(), op.shuffle);
   }
+
+  OpIndex operator()(const StringAsWtf16Op& op) {
+    return callback_(op.string());
+  }
+
+  OpIndex operator()(const StringPrepareForGetCodeUnitOp& op) {
+    return callback_(op.string());
+  }
 #endif
 
  private:

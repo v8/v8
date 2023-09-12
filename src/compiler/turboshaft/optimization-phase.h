@@ -1060,6 +1060,16 @@ class GraphVisitor {
                                          op.null_check);
   }
 
+  OpIndex AssembleOutputGraphStringAsWtf16(const StringAsWtf16Op& op) {
+    return assembler().ReduceStringAsWtf16(MapToNewGraph(op.string()));
+  }
+
+  OpIndex AssembleOutputGraphStringPrepareForGetCodeUnit(
+      const StringPrepareForGetCodeUnitOp& op) {
+    return assembler().ReduceStringPrepareForGetCodeUnit(
+        MapToNewGraph(op.string()));
+  }
+
   OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
     return assembler().ReduceSimd128Constant(op.value);
   }

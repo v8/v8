@@ -2420,7 +2420,9 @@ class TurboshaftGraphBuildingInterface {
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewWtf8Advance,
+        {NullCheck(view), pos.op, bytes.op}, Operator::kEliminatable);
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
@@ -2429,22 +2431,90 @@ class TurboshaftGraphBuildingInterface {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    Bailout(decoder);
+    OpIndex result = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewWtf8Encode,
+        {addr.op, pos.op, bytes.op, NullCheck(view),
+         __ SmiConstant(Smi::FromInt(memory.index)),
+         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
+        Operator::kNoDeopt | Operator::kNoThrow);
+    next_pos->op = __ Projection(result, 0, RepresentationFor(next_pos->type));
+    bytes_written->op =
+        __ Projection(result, 1, RepresentationFor(bytes_written->type));
   }
 
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    Bailout(decoder);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewWtf8Slice,
+        {NullCheck(view), start.op, end.op}, Operator::kEliminatable);
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
+    result->op = __ StringAsWtf16(NullCheck(str));
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Tagged> base =
+        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
+    V<WordPtr> base_offset =
+        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
+    V<Word32> charwidth_shift =
+        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+
+    // Bounds check.
+    V<Word32> length = __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
+    __ TrapIfNot(__ Uint32LessThan(pos.op, length), OpIndex::Invalid(),
+                 TrapId::kTrapStringOffsetOutOfBounds);
+
+    Label<> onebyte(&asm_);
+    // TODO(14108): The bailout label should be deferred.
+    Label<> bailout(&asm_);
+    Label<Word32> done(&asm_);
+    GOTO_IF(
+        __ Word32Equal(charwidth_shift, compiler::kCharWidthBailoutSentinel),
+        bailout);
+    GOTO_IF(__ Word32Equal(charwidth_shift, 0), onebyte);
+
+    // Two-byte.
+    V<WordPtr> object_offset = __ WordPtrAdd(
+        __ WordPtrMul(__ ChangeInt32ToIntPtr(pos.op), 2), base_offset);
+    // Bitcast the tagged to a wordptr as the offset already contains the
+    // kHeapObjectTag handling. Furthermore, in case of external strings the
+    // tagged value is a smi 0, which doesn't really encode a tagged load.
+    V<WordPtr> base_ptr = __ BitcastTaggedToWord(base);
+    V<Word32> result_value =
+        __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::Uint16());
+    GOTO(done, result_value);
+
+    // One-byte.
+    BIND(onebyte);
+    object_offset = __ WordPtrAdd(__ ChangeInt32ToIntPtr(pos.op), base_offset);
+    // Bitcast the tagged to a wordptr as the offset already contains the
+    // kHeapObjectTag handling. Furthermore, in case of external strings the
+    // tagged value is a smi 0, which doesn't really encode a tagged load.
+    base_ptr = __ BitcastTaggedToWord(base);
+    result_value =
+        __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::Uint8());
+    GOTO(done, result_value);
+
+    BIND(bailout);
+    GOTO(done, CallBuiltinFromRuntimeStub(
+                   decoder, WasmCode::kWasmStringViewWtf16GetCodeUnit,
+                   {string, pos.op}, Operator::kPure));
+
+    BIND(done, final_result);
+    // Make sure the original string is kept alive as long as we're operating
+    // on pointers extracted from it (otherwise e.g. external strings' resources
+    // might get freed prematurely).
+    __ Retain(string);
+    result->op = final_result;
   }
 
   void StringViewWtf16Encode(FullDecoder* decoder,
@@ -2526,7 +2596,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   // Perform a null check if the input type is nullable.
-  V<Object> NullCheck(const Value& value,
+  V<Tagged> NullCheck(const Value& value,
                       TrapId trap_id = TrapId::kTrapNullDereference) {
     OpIndex not_null_value = value.op;
     if (value.type.is_nullable()) {
@@ -4397,6 +4467,7 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  // TODO(mliedtke): Emit __DecodeExternalPointer instead if sandbox enabled.
   V<WordPtr> BuildDecodeExternalPointer(V<Word32> handle,
                                         ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX

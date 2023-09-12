@@ -2345,6 +2345,9 @@ class AssemblerOpInterface {
   OpIndex Tuple(base::Vector<OpIndex> indices) {
     return ReduceIfReachableTuple(indices);
   }
+  OpIndex Tuple(std::initializer_list<OpIndex> indices) {
+    return ReduceIfReachableTuple(base::VectorOf(indices));
+  }
   OpIndex Tuple(OpIndex a, OpIndex b) {
     return ReduceIfReachableTuple(base::VectorOf({a, b}));
   }
@@ -2787,6 +2790,14 @@ class AssemblerOpInterface {
 
   V<Word32> ArrayLength(V<HeapObject> array, CheckForNull null_check) {
     return ReduceIfReachableArrayLength(array, null_check);
+  }
+
+  V<Tagged> StringAsWtf16(V<Tagged> string) {
+    return ReduceIfReachableStringAsWtf16(string);
+  }
+
+  V<Tagged> StringPrepareForGetCodeUnit(V<Tagged> string) {
+    return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {

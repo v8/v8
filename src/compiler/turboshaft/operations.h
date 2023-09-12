@@ -111,7 +111,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StructSet)                            \
   V(ArrayGet)                             \
   V(ArraySet)                             \
-  V(ArrayLength)
+  V(ArrayLength)                          \
+  V(StringAsWtf16)                        \
+  V(StringPrepareForGetCodeUnit)
 
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
@@ -6297,6 +6299,61 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{null_check}; }
+};
+
+// Casts a JavaScript string to a flattened wtf16 string.
+// TODO(14108): Can we optimize stringref operations without adding this as a
+// special operations?
+struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
+  static constexpr OpEffects effects =
+      OpEffects()
+          // This should not float above a protective null/length check.
+          .CanDependOnChecks()
+          .CanReadMemory();
+
+  explicit StringAsWtf16Op(V<Tagged> string) : Base(string) {}
+
+  OpIndex string() const { return input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
+
+// Takes a flattened string and extracts the first string pointer, the base
+// offset and the character width shift.
+struct StringPrepareForGetCodeUnitOp
+    : FixedArityOperationT<1, StringPrepareForGetCodeUnitOp> {
+  static constexpr OpEffects effects =
+      OpEffects()
+          // This should not float above a protective null/length check.
+          .CanDependOnChecks();
+
+  explicit StringPrepareForGetCodeUnitOp(V<Tagged> string) : Base(string) {}
+
+  OpIndex string() const { return input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged(),
+                     RegisterRepresentation::PointerSized(),
+                     RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
 };
 
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {

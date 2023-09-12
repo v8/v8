@@ -197,6 +197,133 @@ class WasmLoweringReducer : public Next {
                    WasmArray::kLengthOffset);
   }
 
+  OpIndex REDUCE(StringAsWtf16)(OpIndex string) {
+    Label<Tagged> done(&Asm());
+    V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(string));
+    V<Word32> string_representation = __ Word32BitwiseAnd(
+        instance_type, __ Word32Constant(kStringRepresentationMask));
+    GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
+    GOTO(done, CallBuiltin(wasm::WasmCode::kWasmStringAsWtf16, {string},
+                           Operator::kPure));
+    BIND(done, result);
+    return result;
+  }
+
+  OpIndex REDUCE(StringPrepareForGetCodeUnit)(V<Tagged> original_string) {
+    LoopLabel<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+        dispatch(&Asm());
+    Label<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+        direct_string(&Asm());
+
+    // These values will be used to replace the original node's projections.
+    // The first, "string", is either a SeqString or Tagged<Smi>(0) (in case of
+    // external string). Notably this makes it GC-safe: if that string moves,
+    // this pointer will be updated accordingly. The second, "offset", has full
+    // register width so that it can be used to store external pointers: for
+    // external strings, we add up the character backing store's base address
+    // and any slice offset. The third, "character width", is a shift width,
+    // i.e. it is 0 for one-byte strings, 1 for two-byte strings,
+    // kCharWidthBailoutSentinel for uncached external strings (for which
+    // "string"/"offset" are invalid and unusable).
+    Label<Tagged /*string*/, WordPtr /*offset*/, Word32 /*character width*/>
+        done(&Asm());
+
+    V<Word32> original_type =
+        __ LoadInstanceTypeField(__ LoadMapField(original_string));
+    GOTO(dispatch, original_string, original_type, __ Word32Constant(0));
+
+    LOOP(dispatch, string, instance_type, offset) {
+      Label<> thin_string(&Asm());
+      Label<> cons_string(&Asm());
+
+      static_assert(kIsIndirectStringTag == 1);
+      static constexpr int kIsDirectStringTag = 0;
+      GOTO_IF(__ Word32Equal(
+                  __ Word32BitwiseAnd(instance_type, kIsIndirectStringMask),
+                  kIsDirectStringTag),
+              direct_string, string, instance_type, offset);
+
+      // Handle indirect strings.
+      V<Word32> string_representation =
+          __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
+      GOTO_IF(__ Word32Equal(string_representation, kThinStringTag),
+              thin_string);
+      GOTO_IF(__ Word32Equal(string_representation, kConsStringTag),
+              cons_string);
+
+      // Sliced string.
+      V<Word32> new_offset = __ Word32Add(
+          offset,
+          __ UntagSmi(__ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                              MemoryRepresentation::TaggedSigned(),
+                              SlicedString::kOffsetOffset)));
+      V<Tagged> parent = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                 MemoryRepresentation::TaggedPointer(),
+                                 SlicedString::kParentOffset);
+      V<Word32> parent_type = __ LoadInstanceTypeField(__ LoadMapField(parent));
+      GOTO(dispatch, parent, parent_type, new_offset);
+
+      // Thin string.
+      BIND(thin_string);
+      V<Tagged> actual = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                 MemoryRepresentation::TaggedPointer(),
+                                 ThinString::kActualOffset);
+      V<Word32> actual_type = __ LoadInstanceTypeField(__ LoadMapField(actual));
+      // ThinStrings always reference (internalized) direct strings.
+      GOTO(direct_string, actual, actual_type, offset);
+
+      // Flat cons string. (Non-flat cons strings are ruled out by
+      // string.as_wtf16.)
+      BIND(cons_string);
+      V<Tagged> first = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                MemoryRepresentation::TaggedPointer(),
+                                ConsString::kFirstOffset);
+      V<Word32> first_type = __ LoadInstanceTypeField(__ LoadMapField(first));
+      GOTO(dispatch, first, first_type, offset);
+    }
+    {
+      BIND(direct_string, string, instance_type, offset);
+
+      V<Word32> is_onebyte =
+          __ Word32BitwiseAnd(instance_type, kStringEncodingMask);
+      // Char width shift is 1 - (is_onebyte).
+      static_assert(kStringEncodingMask == 1 << 3);
+      V<Word32> charwidth_shift =
+          __ Word32Sub(1, __ Word32ShiftRightLogical(is_onebyte, 3));
+
+      Label<> external(&Asm());
+      V<Word32> string_representation =
+          __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
+      GOTO_IF(__ Word32Equal(string_representation, kExternalStringTag),
+              external);
+
+      // Sequential string.
+      static_assert(SeqOneByteString::kCharsOffset ==
+                    SeqTwoByteString::kCharsOffset);
+      V<Word32> final_offset =
+          __ Word32Add(SeqOneByteString::kCharsOffset - kHeapObjectTag,
+                       __ Word32ShiftLeft(offset, charwidth_shift));
+      GOTO(done, string, __ ChangeInt32ToIntPtr(final_offset), charwidth_shift);
+
+      // External string.
+      BIND(external);
+      GOTO_IF(__ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
+              done, string, /*offset*/ 0, kCharWidthBailoutSentinel);
+      V<WordPtr> resource = BuildLoadExternalPointerFromObject(
+          string, ExternalString::kResourceDataOffset,
+          kExternalStringResourceDataTag);
+      V<Word32> shifted_offset = __ Word32ShiftLeft(offset, charwidth_shift);
+      V<WordPtr> final_offset_external =
+          __ WordPtrAdd(resource, __ ChangeInt32ToIntPtr(shifted_offset));
+      GOTO(done, __ SmiConstant(Smi::FromInt(0)), final_offset_external,
+           charwidth_shift);
+    }
+    {
+      BIND(done, base, final_offset, charwidth_shift);
+      return __ Tuple({base, final_offset, charwidth_shift});
+    }
+  }
+
  private:
   enum class GlobalMode { kLoad, kStore };
 
@@ -232,6 +359,41 @@ class WasmLoweringReducer : public Next {
       case wasm::kBottom:
         UNREACHABLE();
     }
+  }
+
+  V<WordPtr> BuildLoadExternalPointerFromObject(V<Tagged> object,
+                                                int field_offset,
+                                                ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    DCHECK_NE(tag, kExternalPointerNullTag);
+    V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(), field_offset);
+    return __ DecodeExternalPointer(handle, tag);
+#else
+    return __ Load(object, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::PointerSized(), field_offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  OpIndex CallBuiltin(wasm::WasmCode::RuntimeStubId stub_id,
+                      std::initializer_list<OpIndex> args,
+                      Operator::Properties properties) {
+    // TODO(14108): Can we share parts of this with the graph builder?
+    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
+    CallInterfaceDescriptor interface_descriptor =
+        Builtins::CallInterfaceDescriptorFor(builtin_name);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetStubCallDescriptor(
+            __ graph_zone(), interface_descriptor,
+            interface_descriptor.GetStackParameterCount(),
+            CallDescriptor::kNoFlags, properties,
+            StubCallMode::kCallWasmRuntimeStub);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
+    V<WordPtr> call_target =
+        __ RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
+    return __ Call(call_target, OpIndex::Invalid(), base::VectorOf(args),
+                   ts_call_descriptor);
   }
 
   OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,

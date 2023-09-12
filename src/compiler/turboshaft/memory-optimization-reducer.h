@@ -285,28 +285,53 @@ class MemoryOptimizationReducer : public Next {
   OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
                                         ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-    DCHECK(isolate_ != nullptr);
     // Decode loaded external pointer.
-    //
-    // Here we access the external pointer table through an ExternalReference.
-    // Alternatively, we could also hardcode the address of the table since it
-    // is never reallocated. However, in that case we must be able to guarantee
-    // that the generated code is never executed under a different Isolate, as
-    // that would allow access to external objects from different Isolates. It
-    // also would break if the code is serialized/deserialized at some point.
-    OpIndex table_address =
-        IsSharedExternalPointerType(tag)
-            ? __
-              LoadOffHeap(__ ExternalConstant(
-                              ExternalReference::
-                                  shared_external_pointer_table_address_address(
-                                      isolate_)),
-                          MemoryRepresentation::PointerSized())
-            : __ ExternalConstant(
-                  ExternalReference::external_pointer_table_address(isolate_));
-    OpIndex table = __ LoadOffHeap(
-        table_address, Internals::kExternalPointerTableBasePointerOffset,
-        MemoryRepresentation::PointerSized());
+    V<WordPtr> table;
+    if (isolate_ != nullptr) {
+      // Here we access the external pointer table through an ExternalReference.
+      // Alternatively, we could also hardcode the address of the table since it
+      // is never reallocated. However, in that case we must be able to
+      // guarantee that the generated code is never executed under a different
+      // Isolate, as that would allow access to external objects from different
+      // Isolates. It also would break if the code is serialized/deserialized at
+      // some point.
+      V<WordPtr> table_address =
+          IsSharedExternalPointerType(tag)
+              ? __
+                LoadOffHeap(
+                    __ ExternalConstant(
+                        ExternalReference::
+                            shared_external_pointer_table_address_address(
+                                isolate_)),
+                    MemoryRepresentation::PointerSized())
+              : __ ExternalConstant(
+                    ExternalReference::external_pointer_table_address(
+                        isolate_));
+      table = __ LoadOffHeap(table_address,
+                             Internals::kExternalPointerTableBasePointerOffset,
+                             MemoryRepresentation::PointerSized());
+    } else {
+#if V8_ENABLE_WEBASSEMBLY
+      V<WordPtr> isolate_root = __ LoadRootRegister();
+      if (IsSharedExternalPointerType(tag)) {
+        V<WordPtr> table_address =
+            __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                    MemoryRepresentation::PointerSized(),
+                    IsolateData::shared_external_pointer_table_offset());
+        table = __ Load(table_address, LoadOp::Kind::RawAligned(),
+                        MemoryRepresentation::PointerSized(),
+                        Internals::kExternalPointerTableBasePointerOffset);
+      } else {
+        table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                        MemoryRepresentation::PointerSized(),
+                        IsolateData::external_pointer_table_offset() +
+                            Internals::kExternalPointerTableBasePointerOffset);
+      }
+#else
+      UNREACHABLE();
+#endif
+    }
+
     OpIndex index = __ ShiftRightLogical(handle, kExternalPointerIndexShift,
                                          WordRepresentation::Word32());
     OpIndex pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
