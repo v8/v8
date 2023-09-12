@@ -792,6 +792,35 @@ void PagedSpaceBase::UpdateInlineAllocationLimit() {
   DecreaseLimit(new_limit);
 }
 
+bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin,
+                                      int* out_max_aligned_size) {
+  if (!is_compaction_space() &&
+      !((identity() == NEW_SPACE) && heap_->ShouldOptimizeForLoadTime())) {
+    // Start incremental marking before the actual allocation, this allows the
+    // allocation function to mark the object black when incremental marking is
+    // running.
+    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+  }
+  if (identity() == NEW_SPACE && heap()->incremental_marking()->IsStopped()) {
+    heap()->StartMinorMSIncrementalMarkingIfNeeded();
+  }
+
+  // We don't know exactly how much filler we need to align until space is
+  // allocated, so assume the worst case.
+  size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = size_in_bytes;
+  }
+  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
+    return true;
+  }
+  return RefillLabMain(size_in_bytes, origin);
+}
+
 bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
   RCS_SCOPE(heap()->isolate(),
