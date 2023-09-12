@@ -79,6 +79,10 @@ class ConcurrentAllocator {
       size_t min_size_in_bytes, size_t max_size_in_bytes,
       AllocationOrigin origin);
 
+  base::Optional<std::pair<Address, size_t>> TryFreeListAllocation(
+      size_t min_size_in_bytes, size_t max_size_in_bytes,
+      AllocationOrigin origin);
+
   V8_EXPORT_PRIVATE AllocationResult
   AllocateOutsideLab(int size_in_bytes, AllocationAlignment alignment,
                      AllocationOrigin origin);
@@ -93,6 +97,8 @@ class ConcurrentAllocator {
 
   // Installs a filler object between the LABs top and limit pointers.
   void MakeLabIterable();
+
+  AllocationSpace identity() const;
 
   // Returns the Heap of space_. This might differ from the LocalHeap's Heap for
   // shared spaces.

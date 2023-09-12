@@ -339,13 +339,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void ReduceActiveSystemPages(Page* page,
                                ActiveSystemPages active_system_pages);
 
-  // Allocates memory with the given size constraints from the space's free
-  // list.
-  V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
-                                      size_t max_size_in_bytes,
-                                      AllocationOrigin origin);
-
   // Expands the space by a single page from a background thread and allocates
   // a memory area of the given size in it. If successful the method returns
   // the address and size of the area.
@@ -454,6 +447,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return !is_compaction_space();
   }
 
+  friend class ConcurrentAllocator;
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
 
