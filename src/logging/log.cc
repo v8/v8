@@ -1014,6 +1014,7 @@ class SamplingThread : public base::Thread {
             base::Thread::Options("SamplingThread", kSamplingThreadStackSize)),
         sampler_(sampler),
         interval_microseconds_(interval_microseconds) {}
+
   void Run() override {
     while (sampler_->IsActive()) {
       sampler_->DoSample();
@@ -1202,7 +1203,7 @@ void Profiler::Run() {
 //
 #define MSG_BUILDER()                                \
   std::unique_ptr<LogFile::MessageBuilder> msg_ptr = \
-      log_->NewMessageBuilder();                     \
+      log_file_->NewMessageBuilder();                \
   if (!msg_ptr) return;                              \
   LogFile::MessageBuilder& msg = *msg_ptr.get();
 
@@ -1221,15 +1222,6 @@ int64_t V8FileLogger::Time() {
     return isolate_->heap()->MonotonicallyIncreasingTimeInMs() * 1000;
   }
   return timer_.Elapsed().InMicroseconds();
-}
-
-void V8FileLogger::AddLogEventListener(LogEventListener* listener) {
-  bool result = isolate_->logger()->AddListener(listener);
-  CHECK(result);
-}
-
-void V8FileLogger::RemoveLogEventListener(LogEventListener* listener) {
-  isolate_->logger()->RemoveListener(listener);
 }
 
 void V8FileLogger::ProfilerBeginEvent() {
@@ -1865,7 +1857,8 @@ bool V8FileLogger::EnsureLogScriptSource(Tagged<Script> script) {
   Tagged<Object> source_object = script->source();
   if (!IsString(source_object)) return false;
 
-  std::unique_ptr<LogFile::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
+  std::unique_ptr<LogFile::MessageBuilder> msg_ptr =
+      log_file_->NewMessageBuilder();
   if (!msg_ptr) return false;
   LogFile::MessageBuilder& msg = *msg_ptr.get();
 
@@ -2223,17 +2216,17 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
 
   std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, v8_flags.logfile);
-  log_ = std::make_unique<LogFile>(this, log_file_name.str());
+  log_file_ = std::make_unique<LogFile>(this, log_file_name.str());
 
 #if V8_OS_LINUX
   if (v8_flags.perf_basic_prof) {
     perf_basic_logger_ = std::make_unique<LinuxPerfBasicLogger>(isolate);
-    AddLogEventListener(perf_basic_logger_.get());
+    CHECK(logger()->AddListener(perf_basic_logger_.get()));
   }
 
   if (v8_flags.perf_prof) {
     perf_jit_logger_ = std::make_unique<LinuxPerfJitLogger>(isolate);
-    AddLogEventListener(perf_jit_logger_.get());
+    CHECK(logger()->AddListener(perf_jit_logger_.get()));
   }
 #else
   static_assert(
@@ -2248,7 +2241,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   if (v8_flags.gdbjit) {
     gdb_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::GDBJITInterface::EventHandler);
-    AddLogEventListener(gdb_jit_logger_.get());
+    CHECK(logger()->AddListener(gdb_jit_logger_.get()));
     CHECK(isolate->logger()->is_listening_to_code_events());
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
@@ -2256,7 +2249,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   if (v8_flags.ll_prof) {
     ll_logger_ =
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
-    AddLogEventListener(ll_logger_.get());
+    CHECK(logger()->AddListener(ll_logger_.get()));
   }
   ticker_ = std::make_unique<Ticker>(isolate, v8_flags.prof_sampling_interval);
   if (v8_flags.log) UpdateIsLogging(true);
@@ -2267,7 +2260,9 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
     profiler_ = std::make_unique<Profiler>(isolate);
     profiler_->Engage();
   }
-  if (is_logging_) AddLogEventListener(this);
+  if (is_logging_) {
+    CHECK(logger()->AddListener(this));
+  }
   return true;
 }
 
@@ -2289,8 +2284,8 @@ void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
 
   if (!etw_jit_logger_) {
     etw_jit_logger_ = std::make_unique<ETWJitLogger>(isolate_);
-    AddLogEventListener(etw_jit_logger_.get());
-    CHECK(isolate_->logger()->is_listening_to_code_events());
+    CHECK(logger()->AddListener(etw_jit_logger_.get()));
+    CHECK(logger()->is_listening_to_code_events());
     // Generate builtins for new isolates always. Otherwise it will not
     // traverse the builtins.
     options |= kJitCodeEventEnumExisting;
@@ -2315,7 +2310,7 @@ void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
 void V8FileLogger::ResetEtwCodeEventHandler() {
   DCHECK(v8_flags.enable_etw_stack_walking);
   if (etw_jit_logger_) {
-    RemoveLogEventListener(etw_jit_logger_.get());
+    CHECK(logger()->RemoveListener(etw_jit_logger_.get()));
     etw_jit_logger_.reset();
   }
 }
@@ -2324,7 +2319,7 @@ void V8FileLogger::ResetEtwCodeEventHandler() {
 void V8FileLogger::SetCodeEventHandler(uint32_t options,
                                        JitCodeEventHandler event_handler) {
   if (jit_logger_) {
-    RemoveLogEventListener(jit_logger_.get());
+    CHECK(logger()->RemoveListener(jit_logger_.get()));
     jit_logger_.reset();
     isolate_->UpdateLogObjectRelocation();
   }
@@ -2335,7 +2330,7 @@ void V8FileLogger::SetCodeEventHandler(uint32_t options,
 #endif  // V8_ENABLE_WEBASSEMBLY
     jit_logger_ = std::make_unique<JitLogger>(isolate_, event_handler);
     isolate_->UpdateLogObjectRelocation();
-    AddLogEventListener(jit_logger_.get());
+    CHECK(logger()->AddListener(jit_logger_.get()));
     if (options & kJitCodeEventEnumExisting) {
       HandleScope scope(isolate_);
       LogBuiltins();
@@ -2346,7 +2341,9 @@ void V8FileLogger::SetCodeEventHandler(uint32_t options,
 }
 
 sampler::Sampler* V8FileLogger::sampler() { return ticker_.get(); }
-std::string V8FileLogger::file_name() const { return log_.get()->file_name(); }
+std::string V8FileLogger::file_name() const {
+  return log_file_.get()->file_name();
+}
 
 void V8FileLogger::StopProfilerThread() {
   if (profiler_ != nullptr) {
@@ -2368,38 +2365,42 @@ FILE* V8FileLogger::TearDownAndGetLogFile() {
 
 #if V8_OS_LINUX
   if (perf_basic_logger_) {
-    RemoveLogEventListener(perf_basic_logger_.get());
+    CHECK(logger()->RemoveListener(perf_basic_logger_.get()));
     perf_basic_logger_.reset();
   }
 
   if (perf_jit_logger_) {
-    RemoveLogEventListener(perf_jit_logger_.get());
+    CHECK(logger()->RemoveListener(perf_jit_logger_.get()));
     perf_jit_logger_.reset();
   }
 #endif
 
   if (ll_logger_) {
-    RemoveLogEventListener(ll_logger_.get());
+    CHECK(logger()->RemoveListener(ll_logger_.get()));
     ll_logger_.reset();
   }
 
   if (jit_logger_) {
-    RemoveLogEventListener(jit_logger_.get());
+    CHECK(logger()->RemoveListener(jit_logger_.get()));
     jit_logger_.reset();
     isolate_->UpdateLogObjectRelocation();
   }
 
-  return log_->Close();
+  return log_file_->Close();
 }
 
+Logger* V8FileLogger::logger() const { return isolate_->logger(); }
+
 void V8FileLogger::UpdateIsLogging(bool value) {
-  base::MutexGuard guard(log_->mutex());
   if (value) {
     isolate_->CollectSourcePositionsForAllBytecodeArrays();
   }
-  // Relaxed atomic to avoid locking the mutex for the most common case: when
-  // logging is disabled.
-  is_logging_.store(value, std::memory_order_relaxed);
+  {
+    base::MutexGuard guard(log_file_->mutex());
+    // Relaxed atomic to avoid locking the mutex for the most common case: when
+    // logging is disabled.
+    is_logging_.store(value, std::memory_order_relaxed);
+  }
   isolate_->UpdateLogObjectRelocation();
 }
 
