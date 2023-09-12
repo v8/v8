@@ -1216,7 +1216,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
             if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
-            ExpectNext(JsonToken::COLON);
+            ExpectNext(
+                JsonToken::COLON,
+                MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
 
             // Break to start producing the subsequent property value.
             break;
