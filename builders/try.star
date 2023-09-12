@@ -210,6 +210,7 @@ try_builder(
     cq_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    properties = {"default_targets": "v8_clusterfuzz"},
 )
 
 try_builder(
