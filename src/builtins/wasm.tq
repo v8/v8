@@ -331,6 +331,14 @@ builtin WasmInternalFunctionCreateExternal(
   return runtime::WasmInternalFunctionCreateExternal(context, func);
 }
 
+builtin WasmAllocateZeroedFixedArray(size: intptr): FixedArray {
+  if (size == 0) return kEmptyFixedArray;
+  const result = UnsafeCast<FixedArray>(AllocateFixedArray(
+      ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
+  FillEntireFixedArrayWithSmiZero(ElementsKind::PACKED_ELEMENTS, result, size);
+  return result;
+}
+
 builtin WasmAllocateFixedArray(size: intptr): FixedArray {
   if (size == 0) return kEmptyFixedArray;
   return UnsafeCast<FixedArray>(AllocateFixedArray(

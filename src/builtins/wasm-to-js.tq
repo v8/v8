@@ -62,7 +62,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
       otherwise unreachable;
 
-  const outParams = WasmAllocateFixedArray(paramCount + 1);
+  const outParams = WasmAllocateZeroedFixedArray(paramCount + 1);
   let nextIndex: intptr = 0;
   // Set the receiver to `Undefined` as the default. If the receiver would be
   // different, e.g. the global proxy for sloppy functions, then the CallVarargs

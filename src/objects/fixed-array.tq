@@ -100,6 +100,9 @@ extern macro AllocateFixedArray(
 extern macro AllocateFixedArray(
     constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
 
+extern macro FillEntireFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr): void;
+
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;
