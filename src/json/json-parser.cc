@@ -564,18 +564,26 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
 MaybeHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
                                             Handle<String> key);
 
+namespace {
+template <typename Char>
+JsonToken GetTokenForCharacter(Char c) {
+  return V8_LIKELY(c <= unibrow::Latin1::kMaxChar) ? one_char_json_tokens[c]
+                                                   : JsonToken::ILLEGAL;
+}
+}  // namespace
+
 template <typename Char>
 void JsonParser<Char>::SkipWhitespace() {
-  next_ = JsonToken::EOS;
+  JsonToken local_next = JsonToken::EOS;
 
-  cursor_ = std::find_if(cursor_, end_, [this](Char c) {
-    JsonToken current = V8_LIKELY(c <= unibrow::Latin1::kMaxChar)
-                            ? one_char_json_tokens[c]
-                            : JsonToken::ILLEGAL;
+  cursor_ = std::find_if(cursor_, end_, [&](Char c) {
+    JsonToken current = GetTokenForCharacter(c);
     bool result = current != JsonToken::WHITESPACE;
-    if (result) next_ = current;
+    if (V8_LIKELY(result)) local_next = current;
     return result;
   });
+
+  next_ = local_next;
 }
 
 template <typename Char>
@@ -960,9 +968,7 @@ bool JsonParser<Char>::ParseRawJson() {
         MessageTemplate::kInvalidRawJsonValue));
     return false;
   }
-  next_ = V8_LIKELY(*cursor_ <= unibrow::Latin1::kMaxChar)
-              ? one_char_json_tokens[*cursor_]
-              : JsonToken::ILLEGAL;
+  next_ = GetTokenForCharacter(*cursor_);
   switch (peek()) {
     case JsonToken::STRING:
       Consume(JsonToken::STRING);
