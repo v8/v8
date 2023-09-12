@@ -8,6 +8,7 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -15,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class Space;
+class SpaceWithLinearArea;
 
 class LinearAreaOriginalData {
  public:
@@ -48,7 +49,8 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  MainAllocator(Heap* heap, Space* space, AllocationCounter& allocation_counter,
+  MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                AllocationCounter& allocation_counter,
                 LinearAllocationArea& allocation_info,
                 LinearAreaOriginalData& linear_area_original_data);
 
@@ -100,9 +102,49 @@ class MainAllocator {
     return linear_area_original_data_;
   }
 
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
+              AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
+  AllocateRawForceAlignmentForTesting(int size_in_bytes,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin);
+
  private:
+  // Allocates an object from the linear allocation area. Assumes that the
+  // linear allocation area is large enough to fit the object.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+
+  // Tries to allocate an aligned object from the linear allocation area.
+  // Returns nullptr if the linear allocation area does not fit the object.
+  // Otherwise, returns the object pointer and writes the allocation size
+  // (object size + alignment filler size) to the size_in_bytes.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
+                      AllocationAlignment alignment, AllocationOrigin origin);
+
+  // Slow path of allocation function
+  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
+  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
+                  AllocationOrigin origin);
+
+  // Allocate the requested number of bytes in the space if possible, return a
+  // failure object if not.
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawSlowUnaligned(
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  // Allocate the requested number of bytes in the space double aligned if
+  // possible, return a failure object if not.
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
+                         AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  Heap* heap() const { return heap_; }
+
   Heap* heap_;
-  Space* space_;
+  SpaceWithLinearArea* space_;
 
   AllocationCounter& allocation_counter_;
   LinearAllocationArea& allocation_info_;

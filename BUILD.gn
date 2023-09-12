@@ -3519,6 +3519,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/local-factory.h",
     "src/heap/local-heap-inl.h",
     "src/heap/local-heap.h",
+    "src/heap/main-allocator-inl.h",
     "src/heap/main-allocator.h",
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.h",

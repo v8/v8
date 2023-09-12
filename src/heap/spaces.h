@@ -375,34 +375,6 @@ class SpaceWithLinearArea : public Space {
  protected:
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
 
-  // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enough to fit the object.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
-  // Tries to allocate an aligned object from the linear allocation area.
-  // Returns nullptr if the linear allocation area does not fit the object.
-  // Otherwise, returns the object pointer and writes the allocation size
-  // (object size + alignment filler size) to the size_in_bytes.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
-                      AllocationAlignment alignment, AllocationOrigin origin);
-
-  // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
-
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawSlowUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
-                         AllocationOrigin origin = AllocationOrigin::kRuntime);
-
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry
   // after collecting garbage.
@@ -422,6 +394,8 @@ class SpaceWithLinearArea : public Space {
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
+
+  friend class MainAllocator;
 };
 
 class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {

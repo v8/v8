@@ -19,6 +19,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
@@ -253,78 +254,8 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 
 AllocationResult SpaceWithLinearArea::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-
-  AllocationResult result =
-      AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
-
-  return V8_UNLIKELY(result.IsFailure())
-             ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
-             : result;
-}
-
-AllocationResult SpaceWithLinearArea::AllocateRawSlow(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  AllocationResult result =
-      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
-          ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
-          : AllocateRawSlowUnaligned(size_in_bytes, origin);
-  return result;
-}
-
-AllocationResult SpaceWithLinearArea::AllocateRawSlowUnaligned(
-    int size_in_bytes, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
-                        &max_aligned_size)) {
-    return AllocationResult::Failure();
-  }
-
-  DCHECK_EQ(max_aligned_size, size_in_bytes);
-  DCHECK_LE(allocator_.allocation_info().start(),
-            allocator_.allocation_info().top());
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsFailure());
-
-  if (v8_flags.trace_allocations_origins) {
-    UpdateAllocationOrigins(origin);
-  }
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
-
-  return result;
-}
-
-AllocationResult SpaceWithLinearArea::AllocateRawSlowAligned(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
-    return AllocationResult::Failure();
-  }
-
-  DCHECK_GE(max_aligned_size, size_in_bytes);
-  DCHECK_LE(allocator_.allocation_info().start(),
-            allocator_.allocation_info().top());
-
-  int aligned_size_in_bytes;
-
-  AllocationResult result = AllocateFastAligned(
-      size_in_bytes, &aligned_size_in_bytes, alignment, origin);
-  DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
-  DCHECK(!result.IsFailure());
-
-  if (v8_flags.trace_allocations_origins) {
-    UpdateAllocationOrigins(origin);
-  }
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, max_aligned_size);
-
-  return result;
+  return allocator_.AllocateRawForceAlignmentForTesting(size_in_bytes,
+                                                        alignment, origin);
 }
 
 #if DEBUG

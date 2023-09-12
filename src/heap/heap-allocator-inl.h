@@ -10,6 +10,7 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
