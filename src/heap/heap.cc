@@ -3944,7 +3944,7 @@ size_t Heap::NewSpaceTargetCapacity() const {
 
 void Heap::FinalizeIncrementalMarkingAtomically(
     GarbageCollectionReason gc_reason) {
-  DCHECK(incremental_marking()->IsMajorMarking());
+  DCHECK(!incremental_marking()->IsStopped());
   CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
 }
 
