@@ -167,6 +167,10 @@ class BranchEliminationReducer : public Next {
   //    operation or is only preceded by FrameState operations),
   //    we can remove the merge and instead Goto the block from the new graph.
   //
+  //    5- Eliminating unneeded control flow edges: if a block has only one
+  //    successor and the successor only has one predecessor, we can merge these
+  //    blocks.
+  //
   // # Technical overview of the implementation
   //
   // We iterate the graph in dominator order, and maintain a hash map of
@@ -291,11 +295,10 @@ class BranchEliminationReducer : public Next {
     if (!destination_origin || !destination_origin->IsMerge()) goto no_change;
 
     if (destination_origin->HasExactlyNPredecessors(1)) {
-      // There is no point in trying the 2nd optimization: this would remove
-      // neither Phi nor Branch.
-      // TODO(dmercadier, tebbi): this block has a single predecessor and a
-      // single successor, so we might want to inline it.
-      goto no_change;
+      // This block has a single successor and `destination_origin` has a single
+      // predecessor. We can merge these blocks (optimization 5).
+      __ CloneAndInlineBlock(destination_origin);
+      return OpIndex::Invalid();
     }
 
     const Operation& last_op =
