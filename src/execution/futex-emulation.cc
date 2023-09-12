@@ -41,8 +41,9 @@ class FutexWaitList {
 
   // Deletes "node" and returns the next node of its list.
   static FutexWaitListNode* DeleteAsyncWaiterNode(FutexWaitListNode* node) {
-    DCHECK_NOT_NULL(node->isolate_for_async_waiters_);
-    auto next = node->next_;
+    DCHECK(node->IsAsync());
+    DCHECK_NOT_NULL(node->async_state_->isolate_for_async_waiters);
+    FutexWaitListNode* next = node->next_;
     if (node->prev_ != nullptr) {
       node->prev_->next_ = next;
     }
@@ -58,10 +59,11 @@ class FutexWaitList {
     // For updating head & tail once we've iterated all nodes.
     FutexWaitListNode* new_head = nullptr;
     FutexWaitListNode* new_tail = nullptr;
-    auto node = *head;
-    while (node != nullptr) {
-      if (node->isolate_for_async_waiters_ == isolate) {
-        node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+    for (FutexWaitListNode* node = *head; node;) {
+      if (node->IsAsync() &&
+          node->async_state_->isolate_for_async_waiters == isolate) {
+        node->async_state_->timeout_task_id =
+            CancelableTaskManager::kInvalidTaskId;
         node = DeleteAsyncWaiterNode(node);
       } else {
         if (new_head == nullptr) {
@@ -116,18 +118,17 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(FutexWaitList, GetWaitList)
 
 }  // namespace
 
-FutexWaitListNode::~FutexWaitListNode() {
-  // Assert that the timeout task was cancelled.
-  DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, timeout_task_id_);
-}
-
 bool FutexWaitListNode::CancelTimeoutTask() {
-  if (timeout_task_id_ != CancelableTaskManager::kInvalidTaskId) {
-    auto return_value = cancelable_task_manager_->TryAbort(timeout_task_id_);
-    timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
-    return return_value != TryAbortResult::kTaskRunning;
+  DCHECK(IsAsync());
+  if (async_state_->timeout_task_id == CancelableTaskManager::kInvalidTaskId) {
+    return true;
   }
-  return true;
+  auto* cancelable_task_manager =
+      async_state_->isolate_for_async_waiters->cancelable_task_manager();
+  TryAbortResult return_value =
+      cancelable_task_manager->TryAbort(async_state_->timeout_task_id);
+  async_state_->timeout_task_id = CancelableTaskManager::kInvalidTaskId;
+  return return_value != TryAbortResult::kTaskRunning;
 }
 
 void FutexWaitListNode::NotifyWake() {
@@ -147,9 +148,8 @@ void FutexWaitListNode::NotifyWake() {
 
 class ResolveAsyncWaiterPromisesTask : public CancelableTask {
  public:
-  ResolveAsyncWaiterPromisesTask(CancelableTaskManager* cancelable_task_manager,
-                                 Isolate* isolate)
-      : CancelableTask(cancelable_task_manager), isolate_(isolate) {}
+  ResolveAsyncWaiterPromisesTask(Isolate* isolate)
+      : CancelableTask(isolate), isolate_(isolate) {}
 
   void RunInternal() override {
     FutexEmulation::ResolveAsyncWaiterPromises(isolate_);
@@ -174,6 +174,7 @@ class AsyncWaiterTimeoutTask : public CancelableTask {
 };
 
 void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
+  DCHECK(node->IsAsync());
   // This function can run in any thread.
 
   FutexWaitList* wait_list = GetWaitList();
@@ -181,7 +182,7 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
 
   // Nullify the timeout time; this distinguishes timed out waiters from
   // woken up ones.
-  node->async_timeout_time_ = base::TimeTicks();
+  node->async_state_->timeout_time = base::TimeTicks();
 
   wait_list->RemoveNode(node);
 
@@ -189,14 +190,15 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
   // timeout task runs before the promise resolving task. In that case, the
   // timeout task will just ignore the node.
   auto& isolate_map = wait_list->isolate_promises_to_resolve_;
-  auto it = isolate_map.find(node->isolate_for_async_waiters_);
+  auto it = isolate_map.find(node->async_state_->isolate_for_async_waiters);
   if (it == isolate_map.end()) {
     // This Isolate doesn't have other Promises to resolve at the moment.
-    isolate_map.insert(std::make_pair(node->isolate_for_async_waiters_,
-                                      FutexWaitList::HeadAndTail{node, node}));
+    isolate_map.insert(
+        std::make_pair(node->async_state_->isolate_for_async_waiters,
+                       FutexWaitList::HeadAndTail{node, node}));
     auto task = std::make_unique<ResolveAsyncWaiterPromisesTask>(
-        node->cancelable_task_manager_, node->isolate_for_async_waiters_);
-    node->task_runner_->PostNonNestableTask(std::move(task));
+        node->async_state_->isolate_for_async_waiters);
+    node->async_state_->task_runner->PostNonNestableTask(std::move(task));
   } else {
     // Add this Node into the existing list.
     node->prev_ = it->second.tail;
@@ -415,7 +417,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   do {
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    node->backing_store_ = backing_store;
     node->wait_location_ = wait_location;
     node->waiting_ = true;
 
@@ -524,26 +525,28 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   return *result;
 }
 
+namespace {
+template <typename T>
+Global<T> GetWeakGlobal(Isolate* isolate, Local<T> object) {
+  auto* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Global<T> global{v8_isolate, object};
+  global.SetWeak();
+  return global;
+}
+}  // namespace
+
 FutexWaitListNode::FutexWaitListNode(
     const std::shared_ptr<BackingStore>& backing_store, size_t wait_addr,
     Handle<JSObject> promise, Isolate* isolate)
-    : isolate_for_async_waiters_(isolate),
-      backing_store_(backing_store),
-      wait_location_(
+    : wait_location_(
           FutexWaitList::ToWaitLocation(backing_store.get(), wait_addr)),
-      waiting_(true) {
-  auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(v8_isolate);
-  cancelable_task_manager_ = isolate->cancelable_task_manager();
-
-  v8::Local<v8::Promise> local_promise = Utils::PromiseToLocal(promise);
-  promise_.Reset(v8_isolate, local_promise);
-  promise_.SetWeak();
-  Handle<NativeContext> native_context(isolate->native_context());
-  v8::Local<v8::Context> local_native_context = Utils::ToLocal(native_context);
-  native_context_.Reset(v8_isolate, local_native_context);
-  native_context_.SetWeak();
-}
+      waiting_(true),
+      async_state_(std::make_unique<AsyncState>(
+          isolate,
+          V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+              reinterpret_cast<v8::Isolate*>(isolate)),
+          backing_store, GetWeakGlobal(isolate, Utils::PromiseToLocal(promise)),
+          GetWeakGlobal(isolate, Utils::ToLocal(isolate->native_context())))) {}
 
 template <typename T>
 Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
@@ -590,11 +593,13 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
           backing_store, addr, promise_capability, isolate);
 
       if (use_timeout) {
-        node->async_timeout_time_ = base::TimeTicks::Now() + rel_timeout;
+        node->async_state_->timeout_time = base::TimeTicks::Now() + rel_timeout;
         auto task = std::make_unique<AsyncWaiterTimeoutTask>(
-            node->cancelable_task_manager_, node);
-        node->timeout_task_id_ = task->id();
-        node->task_runner_->PostNonNestableDelayedTask(
+            node->async_state_->isolate_for_async_waiters
+                ->cancelable_task_manager(),
+            node);
+        node->async_state_->timeout_task_id = task->id();
+        node->async_state_->task_runner->PostNonNestableDelayedTask(
             std::move(task), rel_timeout.InSecondsF());
       }
 
@@ -694,13 +699,19 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
       continue;
     }
     // Relying on wait_location_ here is not enough, since we need to guard
-    // against the case where the BackingStore of the node has been deleted and
-    // a new BackingStore recreated in the same memory area.
-    if (V8_LIKELY(!node->backing_store_.expired())) {
-      // We only check if the node's backing store is expired, as that is
-      // cheaper than reconstructing a shared_ptr from the weak_ptr. If the
-      // weak_ptr is not expired, we know that it is equal to backing_store.
-      DCHECK_EQ(backing_store, node->backing_store_.lock());
+    // against the case where the BackingStore of the node has been deleted
+    // during an async wait and a new BackingStore recreated in the same memory
+    // area. Note that sync wait always keeps the backing store alive.
+    // 1) The backing store is expired, or
+    // 2) the backing store still points to the backing_store of the
+    //    array_buffer (which we hold strongly, so it can't expire while we are
+    //    executing this code).
+    // Checking (1) is much cheaper, so we do that, and only DCHECK for (2).
+    bool matching_backing_store =
+        !node->IsAsync() || !node->async_state_->backing_store.expired();
+    if (V8_LIKELY(matching_backing_store)) {
+      DCHECK(!node->IsAsync() ||
+             (node->async_state_->backing_store.lock() == backing_store));
       node->waiting_ = false;
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
@@ -722,24 +733,26 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
 
     // ---
     // Code below handles the unlikely case that this node's backing store was
-    // deleted in the meantime and a new one was allocated in its place.
+    // deleted during an async wait and a new one was allocated in its place.
     // We delete the node if possible (no timeout, or context is gone).
     // ---
     bool delete_this_node = false;
-    if (node->async_timeout_time_.IsNull()) {
+    DCHECK(node->IsAsync());
+    if (node->async_state_->timeout_time.IsNull()) {
       // Backing store has been deleted and the node is still waiting, and
-      // there's no timeout. It's never going to be woken up, so we can clean
-      // it up now. We don't need to cancel the timeout task, because there is
+      // there's no timeout. It's never going to be woken up, so we can clean it
+      // up now. We don't need to cancel the timeout task, because there is
       // none.
 
       // This cleanup code is not very efficient, since it only kicks in when
       // a new BackingStore has been created in the same memory area where the
       // deleted BackingStore was.
       DCHECK(node->IsAsync());
-      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
+      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
+                node->async_state_->timeout_task_id);
       delete_this_node = true;
     }
-    if (node->IsAsync() && node->native_context_.IsEmpty()) {
+    if (node->async_state_->native_context.IsEmpty()) {
       // The NativeContext related to the async waiter has been deleted.
       // Ditto, clean up now.
 
@@ -756,7 +769,6 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
     FutexWaitListNode* next_node = node->next_;
     if (delete_this_node) {
       wait_list->RemoveNode(node);
-      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
       delete node;
     }
     node = next_node;
@@ -766,22 +778,21 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
 }
 
 void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
+  DCHECK(node->IsAsync());
   // This function must run in the main thread of node's Isolate. This function
   // may allocate memory. To avoid deadlocks, we shouldn't be holding the
   // FutexEmulationGlobalState::mutex.
 
-  DCHECK(node->IsAsync());
-
-  Isolate* isolate = node->isolate_for_async_waiters_;
+  Isolate* isolate = node->async_state_->isolate_for_async_waiters;
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
-  if (!node->promise_.IsEmpty()) {
+  if (!node->async_state_->promise.IsEmpty()) {
     Handle<JSPromise> promise = Handle<JSPromise>::cast(
-        Utils::OpenHandle(*node->promise_.Get(v8_isolate)));
+        Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
     // Promise keeps the NativeContext alive.
-    DCHECK(!node->native_context_.IsEmpty());
+    DCHECK(!node->async_state_->native_context.IsEmpty());
     Handle<NativeContext> native_context = Handle<NativeContext>::cast(
-        Utils::OpenHandle(*node->native_context_.Get(v8_isolate)));
+        Utils::OpenHandle(*node->async_state_->native_context.Get(v8_isolate)));
 
     // Remove the Promise from the NativeContext's set.
     Handle<OrderedHashSet> promises(
@@ -794,15 +805,16 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   } else {
     // NativeContext keeps the Promise alive; if the Promise is dead then
     // surely NativeContext is too.
-    DCHECK(node->native_context_.IsEmpty());
+    DCHECK(node->async_state_->native_context.IsEmpty());
   }
 }
 
 void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
+  DCHECK(node->IsAsync());
   // This function must run in the main thread of node's Isolate.
 
-  auto v8_isolate =
-      reinterpret_cast<v8::Isolate*>(node->isolate_for_async_waiters_);
+  Isolate* isolate = node->async_state_->isolate_for_async_waiters;
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
   // Try to cancel the timeout task (if one exists). If the timeout task exists,
   // cancelling it will always succeed. It's not possible for the timeout task
@@ -815,22 +827,22 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
   DCHECK(success);
   USE(success);
 
-  if (!node->promise_.IsEmpty()) {
-    DCHECK(!node->native_context_.IsEmpty());
-    Local<v8::Context> native_context = node->native_context_.Get(v8_isolate);
+  if (!node->async_state_->promise.IsEmpty()) {
+    DCHECK(!node->async_state_->native_context.IsEmpty());
+    Local<v8::Context> native_context =
+        node->async_state_->native_context.Get(v8_isolate);
     v8::Context::Scope contextScope(native_context);
     Handle<JSPromise> promise = Handle<JSPromise>::cast(
-        Utils::OpenHandle(*node->promise_.Get(v8_isolate)));
+        Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
     Handle<String> result_string;
-    // When waiters are notified, their async_timeout_time_ is reset. Having a
-    // non-zero async_timeout_time_ here means the waiter timed out.
-    if (node->async_timeout_time_ != base::TimeTicks()) {
+    // When waiters are notified, their timeout_time is reset. Having a
+    // non-zero timeout_time here means the waiter timed out.
+    if (node->async_state_->timeout_time != base::TimeTicks()) {
       DCHECK(node->waiting_);
-      result_string =
-          node->isolate_for_async_waiters_->factory()->timed_out_string();
+      result_string = isolate->factory()->timed_out_string();
     } else {
       DCHECK(!node->waiting_);
-      result_string = node->isolate_for_async_waiters_->factory()->ok_string();
+      result_string = isolate->factory()->ok_string();
     }
     MaybeHandle<Object> resolve_result =
         JSPromise::Resolve(promise, result_string);
@@ -861,14 +873,16 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
   // memory.
   HandleScope handle_scope(isolate);
   while (node) {
-    DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
+    DCHECK(node->IsAsync());
+    DCHECK_EQ(isolate, node->async_state_->isolate_for_async_waiters);
     DCHECK(!node->waiting_);
     ResolveAsyncWaiterPromise(node);
     CleanupAsyncWaiterPromise(node);
     // We've already tried to cancel the timeout task for the node; since we're
     // now in the same thread the timeout task is supposed to run, we know the
     // timeout task will never happen, and it's safe to delete the node here.
-    DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
+    DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
+              node->async_state_->timeout_task_id);
     node = FutexWaitList::DeleteAsyncWaiterNode(node);
   }
 }
@@ -882,7 +896,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   {
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+    node->async_state_->timeout_task_id = CancelableTaskManager::kInvalidTaskId;
     if (!node->waiting_) {
       // If the Node is not waiting, it's already scheduled to have its Promise
       // resolved. Ignore the timeout.
@@ -894,7 +908,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   // "node" has been taken out of the lists, so it's ok to access it without
   // holding the mutex. We also need to not hold the mutex while calling
   // CleanupAsyncWaiterPromise, since it may allocate memory.
-  HandleScope handle_scope(node->isolate_for_async_waiters_);
+  HandleScope handle_scope(node->async_state_->isolate_for_async_waiters);
   ResolveAsyncWaiterPromise(node);
   CleanupAsyncWaiterPromise(node);
   delete node;
@@ -929,10 +943,11 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
     auto& isolate_map = wait_list->isolate_promises_to_resolve_;
     auto it = isolate_map.find(isolate);
     if (it != isolate_map.end()) {
-      auto node = it->second.head;
-      while (node) {
-        DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
-        node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+      for (FutexWaitListNode* node = it->second.head; node;) {
+        DCHECK(node->IsAsync());
+        DCHECK_EQ(isolate, node->async_state_->isolate_for_async_waiters);
+        node->async_state_->timeout_task_id =
+            CancelableTaskManager::kInvalidTaskId;
         node = FutexWaitList::DeleteAsyncWaiterNode(node);
       }
       isolate_map.erase(it);
@@ -958,11 +973,12 @@ int FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
   }
   int num_waiters = 0;
   for (FutexWaitListNode* node = it->second.head; node; node = node->next_) {
-    std::shared_ptr<BackingStore> node_backing_store =
-        node->backing_store_.lock();
-    if (backing_store.get() == node_backing_store.get() && node->waiting_) {
-      num_waiters++;
+    if (!node->waiting_) continue;
+    if (node->IsAsync()) {
+      if (node->async_state_->backing_store.expired()) continue;
+      DCHECK_EQ(backing_store, node->async_state_->backing_store.lock());
     }
+    num_waiters++;
   }
 
   return num_waiters;
@@ -975,9 +991,10 @@ int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
   int num_waiters = 0;
   for (const auto& it : wait_list->location_lists_) {
     for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      if (node->isolate_for_async_waiters_ == isolate && node->waiting_) {
-        num_waiters++;
-      }
+      if (!node->IsAsync()) continue;
+      if (!node->waiting_) continue;
+      if (node->async_state_->isolate_for_async_waiters != isolate) continue;
+      num_waiters++;
     }
   }
 
@@ -998,12 +1015,12 @@ int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   auto& isolate_map = wait_list->isolate_promises_to_resolve_;
   for (const auto& it : isolate_map) {
     for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      std::shared_ptr<BackingStore> node_backing_store =
-          node->backing_store_.lock();
-      if (backing_store == node_backing_store &&
-          wait_location == node->wait_location_ && !node->waiting_) {
-        num_waiters++;
-      }
+      DCHECK(node->IsAsync());
+      if (node->waiting_) continue;
+      if (node->async_state_->backing_store.expired()) continue;
+      DCHECK_EQ(backing_store, node->async_state_->backing_store.lock());
+      if (wait_location != node->wait_location_) continue;
+      num_waiters++;
     }
   }
 
@@ -1027,10 +1044,6 @@ void FutexWaitList::Verify() const {
       DCHECK_EQ(node, head);
     }
 
-    if (node->async_timeout_time_ != base::TimeTicks()) {
-      DCHECK(node->IsAsync());
-    }
-
     DCHECK(NodeIsOnList(node, head));
   };
 
@@ -1044,8 +1057,9 @@ void FutexWaitList::Verify() const {
   for (const auto& [isolate, head_and_tail] : isolate_promises_to_resolve_) {
     auto [head, tail] = head_and_tail;
     for (FutexWaitListNode* node = head; node; node = node->next_) {
+      DCHECK(node->IsAsync());
       VerifyNode(node, head, tail);
-      DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
+      DCHECK_EQ(isolate, node->async_state_->isolate_for_async_waiters);
     }
   }
 #endif  // DEBUG

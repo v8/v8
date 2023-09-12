@@ -60,13 +60,14 @@ class FutexWaitListNode {
   FutexWaitListNode(const std::shared_ptr<BackingStore>& backing_store,
                     size_t wait_addr, Handle<JSObject> promise_capability,
                     Isolate* isolate);
-  ~FutexWaitListNode();
+
+  // Disallow copying nodes.
   FutexWaitListNode(const FutexWaitListNode&) = delete;
   FutexWaitListNode& operator=(const FutexWaitListNode&) = delete;
 
   void NotifyWake();
 
-  bool IsAsync() const { return isolate_for_async_waiters_ != nullptr; }
+  bool IsAsync() const { return async_state_ != nullptr; }
 
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
@@ -86,23 +87,64 @@ class FutexWaitListNode {
   friend class FutexEmulation;
   friend class FutexWaitList;
 
-  // Set only for async FutexWaitListNodes.
-  Isolate* isolate_for_async_waiters_ = nullptr;
-  std::shared_ptr<TaskRunner> task_runner_;
-  CancelableTaskManager* cancelable_task_manager_ = nullptr;
+  // Async wait requires substantially more information than synchronous wait.
+  // Hence store that additional information in a heap-allocated struct to make
+  // it more obvious that this will only be needed for the async case.
+  struct AsyncState {
+    AsyncState(Isolate* isolate, std::shared_ptr<TaskRunner> task_runner,
+               std::weak_ptr<BackingStore> backing_store,
+               v8::Global<v8::Promise> promise,
+               v8::Global<v8::Context> native_context)
+        : isolate_for_async_waiters(isolate),
+          task_runner(std::move(task_runner)),
+          backing_store(std::move(backing_store)),
+          promise(std::move(promise)),
+          native_context(std::move(native_context)) {
+      DCHECK(this->promise.IsWeak());
+      DCHECK(this->native_context.IsWeak());
+    }
+
+    ~AsyncState() {
+      // Assert that the timeout task was cancelled.
+      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, timeout_task_id);
+    }
+
+    Isolate* const isolate_for_async_waiters;
+    std::shared_ptr<TaskRunner> const task_runner;
+
+    // The backing store on which we are waiting might die in an async wait.
+    // We keep a weak_ptr to verify during a wake operation that the original
+    // backing store is still mapped to that address.
+    std::weak_ptr<BackingStore> const backing_store;
+
+    // Weak Global handle. Must not be synchronously resolved by a non-owner
+    // Isolate.
+    v8::Global<v8::Promise> const promise;
+
+    // Weak Global handle.
+    v8::Global<v8::Context> const native_context;
+
+    // If timeout_time_ is base::TimeTicks(), this async waiter doesn't have a
+    // timeout or has already been notified. Values other than base::TimeTicks()
+    // are used for async waiters with an active timeout.
+    base::TimeTicks timeout_time;
+
+    // The task ID of the timeout task.
+    CancelableTaskManager::Id timeout_task_id =
+        CancelableTaskManager::kInvalidTaskId;
+  };
 
   base::ConditionVariable cond_;
   // prev_ and next_ are protected by FutexEmulationGlobalState::mutex.
   FutexWaitListNode* prev_ = nullptr;
   FutexWaitListNode* next_ = nullptr;
 
-  std::weak_ptr<BackingStore> backing_store_;
-
   // The memory location the FutexWaitListNode is waiting on. Equals
   // backing_store_->buffer_start() + wait_addr at FutexWaitListNode creation
   // time. This address is used find the node in the per-location list, or to
   // remove it.
-  // Note that the BackingStore might get deleted while this node is alive.
+  // Note that during an async wait the BackingStore might get deleted while
+  // this node is alive.
   void* wait_location_ = nullptr;
 
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
@@ -111,21 +153,8 @@ class FutexWaitListNode {
   bool waiting_ = false;
   bool interrupted_ = false;
 
-  // Only for async FutexWaitListNodes. Weak Global handle. Must not be
-  // synchronously resolved by a non-owner Isolate.
-  v8::Global<v8::Promise> promise_;
-
-  // Only for async FutexWaitListNodes. Weak Global handle.
-  v8::Global<v8::Context> native_context_;
-
-  // Only for async FutexWaitListNodes. If async_timeout_time_ is
-  // base::TimeTicks(), this async waiter doesn't have a timeout or has already
-  // been notified. Values other than base::TimeTicks() are used for async
-  // waiters with an active timeout.
-  base::TimeTicks async_timeout_time_;
-
-  CancelableTaskManager::Id timeout_task_id_ =
-      CancelableTaskManager::kInvalidTaskId;
+  // State used for an async wait; nullptr on sync waits.
+  const std::unique_ptr<AsyncState> async_state_;
 };
 
 class FutexEmulation : public AllStatic {
