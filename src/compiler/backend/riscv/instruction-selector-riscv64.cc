@@ -2624,7 +2624,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2649,7 +2649,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2672,7 +2672,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
-    Node* node) {
+    node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2698,7 +2698,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
-    Node* node) {
+    node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2747,7 +2747,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                             \
   template <typename Adapter>                                              \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) {  \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
     if constexpr (Adapter::IsTurboshaft) {                                 \
       UNIMPLEMENTED();                                                     \
                                                                            \
@@ -2790,7 +2790,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                                \
   template <typename Adapter>                                                 \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) {     \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) {    \
     if constexpr (Adapter::IsTurboshaft) {                                    \
       UNIMPLEMENTED();                                                        \
     } else {                                                                  \
