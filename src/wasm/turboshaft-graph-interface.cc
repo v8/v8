@@ -3381,9 +3381,10 @@ class TurboshaftGraphBuildingInterface {
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
       case kExprExternInternalize:
-      case kExprExternExternalize:
         Bailout(decoder);
         return OpIndex::Invalid();
+      case kExprExternExternalize:
+        return __ ExternExternalize(arg);
       default:
         UNREACHABLE();
     }

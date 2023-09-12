@@ -108,6 +108,14 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  OpIndex REDUCE(ExternExternalize)(V<Tagged> object) {
+    Label<Tagged> end(&Asm());
+    GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
+    GOTO(end, Null(wasm::kWasmExternRef));
+    BIND(end, result);
+    return result;
+  }
+
   OpIndex REDUCE(StructGet)(OpIndex object, const wasm::StructType* type,
                             int field_index, bool is_signed,
                             CheckForNull null_check) {

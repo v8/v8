@@ -106,6 +106,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(RttCanon)                             \
   V(WasmTypeCheck)                        \
   V(WasmTypeCast)                         \
+  V(ExternExternalize)                    \
   V(StructGet)                            \
   V(StructSet)                            \
   V(ArrayGet)                             \
@@ -6081,6 +6082,27 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
+};
+
+struct ExternExternalizeOp : FixedArityOperationT<1, ExternExternalizeOp> {
+  static constexpr OpEffects effects = OpEffects();
+
+  ExternExternalizeOp(OpIndex object) : Base(object) {}
+
+  OpIndex object() const { return Base::input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple(); }
 };
 
 struct StructGetOp : FixedArityOperationT<1, StructGetOp> {

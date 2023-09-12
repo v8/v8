@@ -309,6 +309,7 @@ class TypeInferenceAnalysis {
         case Opcode::kRttCanon:
         case Opcode::kWasmTypeCheck:
         case Opcode::kWasmTypeCast:
+        case Opcode::kExternExternalize:
         case Opcode::kStructGet:
         case Opcode::kStructSet:
         case Opcode::kArrayGet:

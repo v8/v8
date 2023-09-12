@@ -1027,6 +1027,10 @@ class GraphVisitor {
         MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
   }
 
+  OpIndex AssembleOutputGraphExternExternalize(const ExternExternalizeOp& op) {
+    return assembler().ReduceExternExternalize(MapToNewGraph(op.object()));
+  }
+
   OpIndex AssembleOutputGraphStructGet(const StructGetOp& op) {
     return assembler().ReduceStructGet(MapToNewGraph(op.object()), op.type,
                                        op.field_index, op.is_signed,

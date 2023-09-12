@@ -2755,6 +2755,10 @@ class AssemblerOpInterface {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
+  V<Tagged> ExternExternalize(V<Tagged> input) {
+    return ReduceIfReachableExternExternalize(input);
+  }
+
   OpIndex StructGet(V<HeapObject> object, const wasm::StructType* type,
                     int field_index, bool is_signed, CheckForNull null_check) {
     return ReduceIfReachableStructGet(object, type, field_index, is_signed,
