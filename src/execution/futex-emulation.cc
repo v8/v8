@@ -35,9 +35,8 @@ class FutexWaitList {
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
 
-  static int8_t* ToWaitLocation(const BackingStore* backing_store,
-                                size_t addr) {
-    return static_cast<int8_t*>(backing_store->buffer_start()) + addr;
+  static void* ToWaitLocation(const BackingStore* backing_store, size_t addr) {
+    return static_cast<uint8_t*>(backing_store->buffer_start()) + addr;
   }
 
   // Deletes "node" and returns the next node of its list.
@@ -77,11 +76,7 @@ class FutexWaitList {
   }
 
   // For checking the internal consistency of the FutexWaitList.
-  void Verify();
-  // Verifies the local consistency of |node|. If it's the first node of its
-  // list, it must be |head|, and if it's the last node, it must be |tail|.
-  void VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
-                  FutexWaitListNode* tail);
+  void Verify() const;
   // Returns true if |node| is on the linked list starting with |head|.
   static bool NodeIsOnList(FutexWaitListNode* node, FutexWaitListNode* head);
 
@@ -404,7 +399,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
   DCHECK_NOT_NULL(backing_store);
   FutexWaitListNode* node = isolate->futex_wait_list_node();
-  int8_t* wait_location =
+  void* wait_location =
       FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
   base::TimeTicks timeout_time;
@@ -575,7 +570,7 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
 
     // 17. Let w be ! AtomicLoad(typedArray, i).
     std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
-        static_cast<int8_t*>(backing_store->buffer_start()) + addr);
+        static_cast<uint8_t*>(backing_store->buffer_start()) + addr);
     T loaded_value = p->load();
 #if defined(V8_TARGET_BIG_ENDIAN)
     // If loading a Wasm value, it needs to be reversed on Big Endian platforms.
@@ -710,14 +705,14 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
       // since NotifyAsyncWaiter will take the node out of the linked list.
-      auto* old_node = node;
-      node = node->next_;
-      if (old_node->IsAsync()) {
-        NotifyAsyncWaiter(old_node);
+      FutexWaitListNode* next_node = node->next_;
+      if (node->IsAsync()) {
+        NotifyAsyncWaiter(node);
       } else {
         // WaitSync will remove the node from the list.
-        old_node->cond_.NotifyOne();
+        node->cond_.NotifyOne();
       }
+      node = next_node;
       if (num_waiters_to_wake != kWakeAll) {
         --num_waiters_to_wake;
       }
@@ -758,16 +753,13 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
       // running and will clean up the node.
     }
 
+    FutexWaitListNode* next_node = node->next_;
     if (delete_this_node) {
-      FutexWaitListNode* old_node = node;
-      node = node->next_;
-      wait_list->RemoveNode(old_node);
-      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
-                old_node->timeout_task_id_);
-      delete old_node;
-    } else {
-      node = node->next_;
+      wait_list->RemoveNode(node);
+      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
+      delete node;
     }
+    node = next_node;
   }
 
   return Smi::FromInt(waiters_woken);
@@ -950,8 +942,8 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
   wait_list->Verify();
 }
 
-Tagged<Object> FutexEmulation::NumWaitersForTesting(
-    Handle<JSArrayBuffer> array_buffer, size_t addr) {
+int FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+                                         size_t addr) {
   DCHECK_LT(addr, array_buffer->GetByteLength());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
@@ -962,108 +954,98 @@ Tagged<Object> FutexEmulation::NumWaitersForTesting(
   auto& location_lists = wait_list->location_lists_;
   auto it = location_lists.find(wait_location);
   if (it == location_lists.end()) {
-    return Smi::zero();
+    return 0;
   }
-  int waiters = 0;
-  FutexWaitListNode* node = it->second.head;
-  while (node != nullptr) {
+  int num_waiters = 0;
+  for (FutexWaitListNode* node = it->second.head; node; node = node->next_) {
     std::shared_ptr<BackingStore> node_backing_store =
         node->backing_store_.lock();
     if (backing_store.get() == node_backing_store.get() && node->waiting_) {
-      waiters++;
+      num_waiters++;
     }
-
-    node = node->next_;
   }
 
-  return Smi::FromInt(waiters);
+  return num_waiters;
 }
 
-Tagged<Object> FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
+int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-  int waiters = 0;
+  int num_waiters = 0;
   for (const auto& it : wait_list->location_lists_) {
-    FutexWaitListNode* node = it.second.head;
-    while (node != nullptr) {
+    for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
       if (node->isolate_for_async_waiters_ == isolate && node->waiting_) {
-        waiters++;
+        num_waiters++;
       }
-      node = node->next_;
     }
   }
 
-  return Smi::FromInt(waiters);
+  return num_waiters;
 }
 
-Tagged<Object> FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
+int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
     Handle<JSArrayBuffer> array_buffer, size_t addr) {
   DCHECK_LT(addr, array_buffer->GetByteLength());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-  int8_t* wait_location =
+  void* wait_location =
       FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-  int waiters = 0;
+  int num_waiters = 0;
   auto& isolate_map = wait_list->isolate_promises_to_resolve_;
   for (const auto& it : isolate_map) {
-    for (FutexWaitListNode* node = it.second.head; node != nullptr;
-         node = node->next_) {
+    for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
       std::shared_ptr<BackingStore> node_backing_store =
           node->backing_store_.lock();
       if (backing_store == node_backing_store &&
           wait_location == node->wait_location_ && !node->waiting_) {
-        waiters++;
+        num_waiters++;
       }
     }
   }
 
-  return Smi::FromInt(waiters);
+  return num_waiters;
 }
 
-void FutexWaitList::VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
-                               FutexWaitListNode* tail) {
+void FutexWaitList::Verify() const {
 #ifdef DEBUG
-  if (node->next_ != nullptr) {
-    DCHECK_NE(node, tail);
-    DCHECK_EQ(node, node->next_->prev_);
-  } else {
-    DCHECK_EQ(node, tail);
-  }
-  if (node->prev_ != nullptr) {
-    DCHECK_NE(node, head);
-    DCHECK_EQ(node, node->prev_->next_);
-  } else {
-    DCHECK_EQ(node, head);
-  }
+  auto VerifyNode = [](FutexWaitListNode* node, FutexWaitListNode* head,
+                       FutexWaitListNode* tail) {
+    if (node->next_ != nullptr) {
+      DCHECK_NE(node, tail);
+      DCHECK_EQ(node, node->next_->prev_);
+    } else {
+      DCHECK_EQ(node, tail);
+    }
+    if (node->prev_ != nullptr) {
+      DCHECK_NE(node, head);
+      DCHECK_EQ(node, node->prev_->next_);
+    } else {
+      DCHECK_EQ(node, head);
+    }
 
-  if (node->async_timeout_time_ != base::TimeTicks()) {
-    DCHECK(node->IsAsync());
-  }
+    if (node->async_timeout_time_ != base::TimeTicks()) {
+      DCHECK(node->IsAsync());
+    }
 
-  DCHECK(NodeIsOnList(node, head));
-#endif  // DEBUG
-}
+    DCHECK(NodeIsOnList(node, head));
+  };
 
-void FutexWaitList::Verify() {
-#ifdef DEBUG
-  for (const auto& it : location_lists_) {
-    FutexWaitListNode* node = it.second.head;
-    while (node != nullptr) {
-      VerifyNode(node, it.second.head, it.second.tail);
-      node = node->next_;
+  for (const auto& [addr, head_and_tail] : location_lists_) {
+    auto [head, tail] = head_and_tail;
+    for (FutexWaitListNode* node = head; node; node = node->next_) {
+      VerifyNode(node, head, tail);
     }
   }
 
-  for (const auto& it : isolate_promises_to_resolve_) {
-    auto node = it.second.head;
-    while (node != nullptr) {
-      VerifyNode(node, it.second.head, it.second.tail);
-      DCHECK_EQ(it.first, node->isolate_for_async_waiters_);
-      node = node->next_;
+  for (const auto& [isolate, head_and_tail] : isolate_promises_to_resolve_) {
+    auto [head, tail] = head_and_tail;
+    for (FutexWaitListNode* node = head; node; node = node->next_) {
+      VerifyNode(node, head, tail);
+      DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
     }
   }
 #endif  // DEBUG
@@ -1071,12 +1053,8 @@ void FutexWaitList::Verify() {
 
 bool FutexWaitList::NodeIsOnList(FutexWaitListNode* node,
                                  FutexWaitListNode* head) {
-  auto n = head;
-  while (n != nullptr) {
-    if (n == node) {
-      return true;
-    }
-    n = n->next_;
+  for (FutexWaitListNode* n = head; n; n = n->next_) {
+    if (n == node) return true;
   }
   return false;
 }

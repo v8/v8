@@ -103,7 +103,7 @@ class FutexWaitListNode {
   // time. This address is used find the node in the per-location list, or to
   // remove it.
   // Note that the BackingStore might get deleted while this node is alive.
-  int8_t* wait_location_ = nullptr;
+  void* wait_location_ = nullptr;
 
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
   // if this node is currently contained in FutexEmulationGlobalState::wait_list
@@ -178,17 +178,17 @@ class FutexEmulation : public AllStatic {
 
   // Return the number of threads or async waiters waiting on |addr|. Should
   // only be used for testing.
-  static Tagged<Object> NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr);
+  static int NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+                                  size_t addr);
 
   // Return the number of async waiters (which belong to |isolate|) waiting.
   // Should only be used for testing.
-  static Tagged<Object> NumAsyncWaitersForTesting(Isolate* isolate);
+  static int NumAsyncWaitersForTesting(Isolate* isolate);
 
   // Return the number of async waiters which were waiting for |addr| and are
   // now waiting for the Promises to be resolved. Should only be used for
   // testing.
-  static Tagged<Object> NumUnresolvedAsyncPromisesForTesting(
+  static int NumUnresolvedAsyncPromisesForTesting(
       Handle<JSArrayBuffer> array_buffer, size_t addr);
 
  private:
