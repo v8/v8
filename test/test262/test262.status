@@ -419,8 +419,6 @@
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-duration-years-and-months-number-max-value': [SKIP],
 
-  'harness/temporalHelpers-one-shift-time-zone': [SKIP],
-
   'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months': [FAIL],
   'staging/Intl402/Temporal/old/date-time-format': [FAIL],
   'staging/Intl402/Temporal/old/datetime-toLocaleString': [FAIL],
