@@ -3555,6 +3555,10 @@ void Isolate::CheckIsolateLayout() {
            Internals::kExternalPointerTableSize);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            ExternalPointerTable::kSize);
+  CHECK_EQ(static_cast<int>(sizeof(IndirectPointerTable)),
+           Internals::kIndirectPointerTableSize);
+  CHECK_EQ(static_cast<int>(sizeof(IndirectPointerTable)),
+           IndirectPointerTable::kSize);
 #endif
 
   CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
@@ -3600,6 +3604,9 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.indirect_pointer_table_)),
+           Internals::kIsolateIndirectPointerTableOffset);
 #endif
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
@@ -3812,6 +3819,8 @@ void Isolate::Deinit() {
     delete shared_external_pointer_space_;
     shared_external_pointer_space_ = nullptr;
   }
+  indirect_pointer_table().TearDownSpace(heap()->indirect_pointer_space());
+  indirect_pointer_table().TearDown();
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_CODE_POINTER_SANDBOXING
@@ -4513,6 +4522,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().AttachSpaceToReadOnlySegment(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+
+    indirect_pointer_table().Initialize();
+    indirect_pointer_table().InitializeSpace(heap()->indirect_pointer_space());
 #endif  // V8_COMPRESS_POINTERS
   }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);

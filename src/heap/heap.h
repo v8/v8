@@ -46,6 +46,7 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -783,6 +784,10 @@ class Heap final {
   }
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
+  }
+
+  IndirectPointerTable::Space* indirect_pointer_space() {
+    return &indirect_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -2125,6 +2130,9 @@ class Heap final {
   ExternalPointerTable::Space external_pointer_space_;
   // Likewise but for slots in host objects in ReadOnlySpace.
   ExternalPointerTable::Space read_only_external_pointer_space_;
+
+  // Likewise but for the indirect pointer table.
+  IndirectPointerTable::Space indirect_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_CODE_POINTER_SANDBOXING
