@@ -5665,7 +5665,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
         // before the call.
         if (receiver_info_after_call &&
             receiver_info_after_call->possible_maps_are_known()) {
-          recheck_maps_after_call = receiver_maps_before_loop.contains(
+          recheck_maps_after_call = !receiver_maps_before_loop.contains(
               receiver_info_after_call->possible_maps());
         }
       }
