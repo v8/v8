@@ -838,6 +838,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object), key);
     case JS_PRIMITIVE_WRAPPER_TYPE:
+      if (!need_stack_) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(object), key);
