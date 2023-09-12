@@ -2263,8 +2263,7 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
   return js_function->shared()->HasWasmJSFunctionData();
 }
 
-Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent,
-                             Handle<WasmInstanceObject> opt_instance) {
+Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   const int inobject_properties = 0;
   const int instance_size =
       Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
@@ -2273,7 +2272,8 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   constexpr uint32_t kNoIndex = ~0u;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, instance_size, opt_instance, kNoIndex);
+      kNullAddress, opt_rtt_parent, instance_size, Handle<WasmInstanceObject>(),
+      kNoIndex);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -2321,8 +2321,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         IsMap(maybe_canonical_map.GetHeapObject())) {
       rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
     } else {
-      rtt = CreateFuncRefMap(isolate, Handle<Map>(),
-                             Handle<WasmInstanceObject>());
+      rtt = CreateFuncRefMap(isolate, Handle<Map>());
       canonical_rtts->Set(canonical_type_index,
                           HeapObjectReference::Weak(*rtt));
     }

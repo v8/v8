@@ -181,7 +181,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, rtt_parent, instance);
+      map = CreateFuncRefMap(isolate, rtt_parent);
       break;
   }
   canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
