@@ -1259,7 +1259,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFinite:
@@ -1582,7 +1582,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kCheckFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
       break;
     case IrOpcode::kCheckNotTaggedHole:

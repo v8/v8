@@ -3261,7 +3261,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     // of holey backing stores.
     if (IsHoleyElementsKind(elements_kind)) {
       element_access.type =
-          Type::Union(element_type, Type::TheHole(), graph()->zone());
+          Type::Union(element_type, Type::Hole(), graph()->zone());
     }
     if (elements_kind == HOLEY_ELEMENTS ||
         elements_kind == HOLEY_SMI_ELEMENTS) {
@@ -3377,7 +3377,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       Node* vfalse = jsgraph()->FalseConstant();
 
       element_access.type =
-          Type::Union(element_type, Type::TheHole(), graph()->zone());
+          Type::Union(element_type, Type::Hole(), graph()->zone());
 
       if (elements_kind == HOLEY_ELEMENTS ||
           elements_kind == HOLEY_SMI_ELEMENTS) {
