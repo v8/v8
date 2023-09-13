@@ -49,8 +49,7 @@ class FixedArrayBase
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
-class FixedArray
-    : public TorqueGeneratedFixedArray<FixedArray, FixedArrayBase> {
+class FixedArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Tagged<Object> get(int index) const;
@@ -145,12 +144,11 @@ class FixedArray
   V8_EXPORT_PRIVATE void CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
                                 int len) const;
 
-  // Garbage collection support.
+  inline int AllocatedSize() const;
+
   static constexpr int SizeFor(int length) {
     return kHeaderSize + length * kTaggedSize;
   }
-
-  // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
     static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
@@ -169,11 +167,9 @@ class FixedArray
   static const int kMaxRegularLength =
       (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
-  // Dispatched behavior.
+  DECL_CAST(FixedArray)
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
-
-  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -185,10 +181,9 @@ class FixedArray
   static inline void NoWriteBarrierSet(Tagged<FixedArray> array, int index,
                                        Tagged<Object> value);
 
- private:
   static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
-  TQ_OBJECT_CONSTRUCTORS(FixedArray)
+  OBJECT_CONSTRUCTORS(FixedArray, FixedArrayBase);
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -197,8 +192,7 @@ class FixedArray
 class FixedArrayExact final : public FixedArray {};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray
-    : public TorqueGeneratedFixedDoubleArray<FixedDoubleArray, FixedArrayBase> {
+class FixedDoubleArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
@@ -234,13 +228,13 @@ class FixedDoubleArray
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedDoubleArray maxLength not a Smi");
 
-  // Dispatched behavior.
+  DECL_CAST(FixedDoubleArray)
   DECL_PRINTER(FixedDoubleArray)
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(FixedDoubleArray)
+  OBJECT_CONSTRUCTORS(FixedDoubleArray, FixedArrayBase);
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
@@ -283,7 +277,7 @@ class WeakFixedArray
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "WeakFixedArray maxLength not a Smi");
 
-  int AllocatedSize();
+  inline int AllocatedSize() const;
 
   static int OffsetOfElementAt(int index) {
     static_assert(kHeaderSize == SizeFor(0));
@@ -355,7 +349,7 @@ class WeakArrayList
 
   V8_EXPORT_PRIVATE bool IsFull() const;
 
-  int AllocatedSize();
+  inline int AllocatedSize() const;
 
   class BodyDescriptor;
 
@@ -412,7 +406,7 @@ class WeakArrayList::Iterator {
 // the allocated size. The number of elements is stored at kLengthIndex and is
 // updated with every insertion. The elements of the ArrayList are stored in the
 // underlying FixedArray starting at kFirstIndex.
-class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
+class ArrayList : public FixedArray {
  public:
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
       Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj,
@@ -463,13 +457,15 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   static const int kFirstIndex = 1;
   static_assert(kHeaderFields == kFirstIndex);
 
+  DECL_CAST(ArrayList)
   DECL_VERIFIER(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(
       Isolate* isolate, Handle<ArrayList> array, int length,
       AllocationType allocation = AllocationType::kYoung);
-  TQ_OBJECT_CONSTRUCTORS(ArrayList)
+
+  OBJECT_CONSTRUCTORS(ArrayList, FixedArray);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
@@ -481,10 +477,8 @@ inline int Search(T* array, Tagged<Name> name, int valid_entries = 0,
 
 // ByteArray represents fixed sized arrays containing raw bytes that will not
 // be scanned by the garbage collector.
-class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
+class ByteArray : public FixedArrayBase {
  public:
-  inline int Size();
-
   // Get/set the contents of this array.
   inline uint8_t get(int offset) const;
   inline void set(int offset, uint8_t value);
@@ -500,7 +494,9 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   // is deterministic.
   inline void clear_padding();
 
-  static int SizeFor(int length) {
+  inline int AllocatedSize() const;
+
+  static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
   // We use byte arrays for free blocks in the heap.  Given a desired size in
@@ -526,8 +522,9 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return kHeaderSize + index; }
 
-  // Dispatched behavior.
+  DECL_CAST(ByteArray)
   DECL_PRINTER(ByteArray)
+  DECL_VERIFIER(ByteArray)
 
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
@@ -539,8 +536,7 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
 
   class BodyDescriptor;
 
- protected:
-  TQ_OBJECT_CONSTRUCTORS(ByteArray)
+  OBJECT_CONSTRUCTORS(ByteArray, FixedArrayBase);
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
@@ -603,9 +599,7 @@ class FixedAddressArray : public FixedIntegerArray<Address> {
 // This class uses lazily-initialized external pointer slots. As such, its
 // content can simply be zero-initialized, and the external pointer table
 // entries are only allocated when an element is written to for the first time.
-class ExternalPointerArray
-    : public TorqueGeneratedExternalPointerArray<ExternalPointerArray,
-                                                 FixedArrayBase> {
+class ExternalPointerArray : public FixedArrayBase {
  public:
   template <ExternalPointerTag tag>
   inline Address get(int index, Isolate* isolate);
@@ -632,8 +626,11 @@ class ExternalPointerArray
 
   class BodyDescriptor;
 
- protected:
-  TQ_OBJECT_CONSTRUCTORS(ExternalPointerArray)
+  DECL_CAST(ExternalPointerArray)
+  DECL_PRINTER(ExternalPointerArray)
+  DECL_VERIFIER(ExternalPointerArray)
+
+  OBJECT_CONSTRUCTORS(ExternalPointerArray, FixedArrayBase);
 };
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long

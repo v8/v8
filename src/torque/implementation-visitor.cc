@@ -4279,17 +4279,16 @@ void CppClassGenerator::GenerateCppObjectDefinitionAsserts() {
   hdr_ << "\n";
 
   for (auto f : type_->fields()) {
-    std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
-    std::string type = f.name_and_type.type->SimpleName();
-    hdr_ << "  static_assert(" << field << " == D::" << field << ",\n"
-         << "                \"Values of " << name_ << "::" << field
-         << " defined in Torque and C++ do not match\");\n"
-         << "  static_assert(StaticStringsEqual(\"" << type << "\", D::k"
-         << CamelifyString(f.name_and_type.name) << "TqFieldType),\n"
-         << "                \"Types of " << name_ << "::" << field
-         << " specified in Torque and C++ do not match\");\n";
+    std::string field_offset =
+        "k" + CamelifyString(f.name_and_type.name) + "Offset";
+    hdr_ << "  static_assert(" << field_offset << " == D::" << field_offset
+         << ",\n"
+         << "                \"Values of " << name_ << "::" << field_offset
+         << " defined in Torque and C++ do not match\");\n";
   }
-  hdr_ << "  static_assert(kSize == D::kSize);\n";
+  if (!type_->IsAbstract() && type_->HasStaticSize()) {
+    hdr_ << "  static_assert(kSize == D::kSize);\n";
+  }
 
   hdr_ << "};\n\n";
 }

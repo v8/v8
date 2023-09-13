@@ -50,6 +50,7 @@ enum InstanceType : uint16_t;
   V(EphemeronHashTable)                 \
   V(ExternalString)                     \
   V(FeedbackCell)                       \
+  V(FixedArray)                         \
   V(FreeSpace)                          \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \

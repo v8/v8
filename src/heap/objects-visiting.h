@@ -38,6 +38,7 @@ namespace internal {
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
+  V(FixedArray)                         \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \

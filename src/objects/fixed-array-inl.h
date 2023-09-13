@@ -29,13 +29,23 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
+
+CAST_ACCESSOR(FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArrayBase)
+
+CAST_ACCESSOR(FixedDoubleArray)
+OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBase)
+
+CAST_ACCESSOR(ByteArray)
+OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
+
+CAST_ACCESSOR(ExternalPointerArray)
+OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
+
+CAST_ACCESSOR(ArrayList)
+OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
@@ -292,11 +302,13 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index,
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
-inline int WeakFixedArray::AllocatedSize() {
+inline int FixedArray::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));
 }
-inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
+inline int WeakFixedArray::AllocatedSize() const {
+  return SizeFor(length(kAcquireLoad));
+}
+inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -610,7 +622,7 @@ void ArrayList::Clear(int index, Tagged<Object> undefined) {
                                SKIP_WRITE_BARRIER);
 }
 
-int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
+int ByteArray::AllocatedSize() const { return SizeFor(length()); }
 
 uint8_t ByteArray::get(int offset) const {
   DCHECK_GE(offset, 0);
@@ -684,7 +696,8 @@ void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
 
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         AllocatedSize() - data_size);
 }
 
 Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {

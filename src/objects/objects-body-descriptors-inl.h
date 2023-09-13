@@ -1015,6 +1015,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
   switch (type) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return CALL_APPLY(EmbedderDataArray);
+    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -1397,6 +1398,14 @@ class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return kSize;
+  }
+};
+
+class FixedArray::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return FixedArray::unchecked_cast(raw_object)->AllocatedSize();
   }
 };
 

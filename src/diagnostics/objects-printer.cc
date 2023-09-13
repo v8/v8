@@ -831,6 +831,12 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, *this, "FixedArray");
 }
 
+void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
+  PrintHeader(os, "ExternalPointerArray");
+  os << "\n - length: " << length();
+  os << "\n";
+}
+
 namespace {
 const char* SideEffectType2String(SideEffectType type) {
   switch (type) {

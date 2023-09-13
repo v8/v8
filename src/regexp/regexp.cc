@@ -612,7 +612,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
            reinterpret_cast<void*>(re->ptr()),
            re->ShouldProduceBytecode() ? "bytecode" : "native code",
            re->ShouldProduceBytecode()
-               ? IrregexpByteCode(*data, is_one_byte)->Size()
+               ? IrregexpByteCode(*data, is_one_byte)->AllocatedSize()
                : IrregexpNativeCode(*data, is_one_byte)->Size());
   }
 

@@ -113,6 +113,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return kVisitEmbedderDataArray;
 
+    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:

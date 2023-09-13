@@ -364,16 +364,33 @@ void Symbol::SymbolVerify(Isolate* isolate) {
 }
 
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
+  FixedArrayBaseVerify(isolate);
+  {
+    auto o = constant_pool();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsFixedArray(o));
+  }
+  {
+    auto o = handler_table();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsByteArray(o));
+  }
+  {
+    auto o = source_position_table(kAcquireLoad);
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsUndefined(o) || IsException(o) || IsByteArray(o));
+  }
+
+  for (int i = 0; i < constant_pool()->length(); ++i) {
+    // No ThinStrings in the constant pool.
+    CHECK(!IsThinString(constant_pool()->get(isolate, i), isolate));
+  }
+
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
-  TorqueGeneratedClassVerifiers::BytecodeArrayVerify(*this, isolate);
-  for (int i = 0; i < constant_pool(isolate)->length(); ++i) {
-    // No ThinStrings in the constant pool.
-    CHECK(!IsThinString(constant_pool(isolate)->get(isolate, i), isolate));
-  }
 }
 
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
@@ -657,7 +674,12 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::FixedArrayVerify(*this, isolate);
+  FixedArrayBaseVerify(isolate);
+
+  for (int i = 0; i < length(); ++i) {
+    Object::VerifyPointer(isolate, get(i));
+  }
+
   if (*this == ReadOnlyRoots(isolate).empty_fixed_array()) {
     CHECK_EQ(length(), 0);
     CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
@@ -698,8 +720,16 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   }
 }
 
+void ByteArray::ByteArrayVerify(Isolate* isolate) {
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
+}
+
+void ExternalPointerArray::ExternalPointerArrayVerify(Isolate* isolate) {
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
+}
+
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::FixedDoubleArrayVerify(*this, isolate);
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);
