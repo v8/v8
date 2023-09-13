@@ -984,6 +984,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
         __ Lsr(capture_end.X(), capture_start.X(), kWRegSizeInBits);
         if ((i == 0) && global_with_zero_length_check()) {
           // Keep capture start for the zero-length check later.
+          // Note this only works when we have at least one cached register
+          // pair (otherwise we'd never reach this branch).
+          static_assert(kNumCachedRegisters > 0);
           __ Mov(first_capture_start, capture_start);
         }
         // Offsets need to be relative to the start of the string.
@@ -1017,10 +1020,6 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
           for (int i = 0; i < num_registers_left_on_stack / 2; i++) {
             __ Ldp(capture_end, capture_start,
                    MemOperand(base, -kSystemPointerSize, PostIndex));
-            if ((i == 0) && global_with_zero_length_check()) {
-              // Keep capture start for the zero-length check later.
-              __ Mov(first_capture_start, capture_start);
-            }
             // Offsets need to be relative to the start of the string.
             if (mode_ == UC16) {
               __ Add(capture_start,
@@ -1036,20 +1035,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
                    MemOperand(output_array(), kSystemPointerSize, PostIndex));
           }
         } else {
-          Label loop, start;
+          Label loop;
           __ Mov(x11, num_registers_left_on_stack);
-
-          __ Ldp(capture_end, capture_start,
-                 MemOperand(base, -kSystemPointerSize, PostIndex));
-          if (global_with_zero_length_check()) {
-            __ Mov(first_capture_start, capture_start);
-          }
-          __ B(&start);
 
           __ Bind(&loop);
           __ Ldp(capture_end, capture_start,
                  MemOperand(base, -kSystemPointerSize, PostIndex));
-          __ Bind(&start);
           if (mode_ == UC16) {
             __ Add(capture_start, input_length, Operand(capture_start, ASR, 1));
             __ Add(capture_end, input_length, Operand(capture_end, ASR, 1));
