@@ -920,8 +920,15 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
-  if (ref.HoleType() != HoleType::kNone) {
-    return Type::Hole();
+  switch (ref.HoleType()) {
+    case HoleType::kNone:
+      break;
+    case HoleType::kGeneric:
+      return Type::TheHole();
+    case HoleType::kPropertyCell:
+      return Type::PropertyCellHole();
+    case HoleType::kHashTable:
+      return Type::HashTableHole();
   }
   return HeapConstant(ref.AsHeapObject(), broker, zone);
 }

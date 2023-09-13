@@ -142,7 +142,9 @@ namespace compiler {
 // turbofan-types.tq uses two 32bit bitfield structs.
 #define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)                             \
   V(Machine,                  uint64_t{1} << 32)                           \
-  V(Hole,                     uint64_t{1} << 33)
+  V(TheHole,                  uint64_t{1} << 33)                           \
+  V(PropertyCellHole,         uint64_t{1} << 34)                           \
+  V(HashTableHole,            uint64_t{1} << 35)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -178,12 +180,13 @@ namespace compiler {
   V(BooleanOrNumber,              kBoolean | kNumber) \
   V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
+  V(Hole,                         kTheHole | kPropertyCellHole | kHashTableHole) \
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrHole,                 kNumber | kHole) \
+  V(NumberOrTheHole,              kNumber | kTheHole) \
   V(NumberOrOddball,              kNumber | kBooleanOrNullOrUndefined ) \
-  V(NumberOrOddballOrHole,        kNumberOrOddball| kHole ) \
+  V(NumberOrOddballOrTheHole,              kNumberOrOddball| kTheHole ) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
   V(PlainPrimitive,               kNumber | kString | kBoolean | \
@@ -474,7 +477,7 @@ class V8_EXPORT_PRIVATE Type {
   bool IsSingleton() const {
     if (IsNone()) return false;
     return Is(Type::Null()) || Is(Type::Undefined()) || Is(Type::MinusZero()) ||
-           Is(Type::NaN()) || IsHeapConstant() ||
+           Is(Type::NaN()) || Is(Type::Hole()) || IsHeapConstant() ||
            (Is(Type::PlainNumber()) && Min() == Max());
   }
 

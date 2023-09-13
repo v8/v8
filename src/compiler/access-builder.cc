@@ -1109,7 +1109,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
       access.machine_type = MachineType::Float64();
       break;
     case HOLEY_DOUBLE_ELEMENTS:
-      access.type = Type::NumberOrHole();
+      access.type = Type::NumberOrTheHole();
       access.write_barrier_kind = kNoWriteBarrier;
       access.machine_type = MachineType::Float64();
       break;
