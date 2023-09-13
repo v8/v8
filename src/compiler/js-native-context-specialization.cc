@@ -999,6 +999,17 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   // Create a %Promise% instance and resolve it with {value}.
   Node* promise = effect =
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // ResolvePromise operation (which yields undefined).
+  Node* parameters[] = {promise};
+  frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kAsyncFunctionLazyDeoptContinuation, context,
+      parameters, arraysize(parameters), frame_state,
+      ContinuationFrameStateMode::LAZY);
+
   effect = graph()->NewNode(javascript()->ResolvePromise(), promise, value,
                             context, frame_state, effect, control);
   ReplaceWithValue(node, promise, effect, control);
