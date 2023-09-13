@@ -5,6 +5,7 @@
 #include "src/heap/concurrent-marking.h"
 
 #include <algorithm>
+#include <atomic>
 #include <stack>
 #include <unordered_map>
 
@@ -131,6 +132,7 @@ struct ConcurrentMarking::TaskState {
   NativeContextStats native_context_stats;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
       PretenuringHandler::kInitialFeedbackCapacity};
+  bool was_started = false;
 };
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
@@ -382,6 +384,27 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   DCHECK(task_state->local_pretenuring_feedback.empty());
 }
 
+class ConcurrentMarking::MinorMarkingState {
+ public:
+  void MarkerStarted() {
+    markers_started_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  // Should only be called when the marker runs out of work. Markers that are
+  // preempted are not counted as done.
+  void MarkerDone() { markers_done_.fetch_add(1, std::memory_order_relaxed); }
+
+  bool IsOutOfWork() const {
+    int markers_started = markers_started_.load(std::memory_order_relaxed);
+    return (markers_started > 0) &&
+           (markers_started == markers_done_.load(std::memory_order_relaxed));
+  }
+
+ private:
+  std::atomic<int> markers_started_{0};
+  std::atomic<int> markers_done_{0};
+};
+
 namespace {
 
 V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
@@ -396,31 +419,37 @@ V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
          addr == new_large_object;
 }
 
+}  // namespace
+
 template <YoungGenerationMarkingVisitationMode marking_mode>
-V8_INLINE size_t MinorMarkingLoopImpl(
-    Heap* heap, JobDelegate* delegate,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
+V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
+                                                 TaskState* task_state) {
   static constexpr size_t kBytesUntilInterruptCheck = 64 * KB;
   static constexpr int kObjectsUntilInterruptCheck = 1000;
   size_t marked_bytes = 0;
   size_t current_marked_bytes = 0;
   int objects_processed = 0;
   YoungGenerationMarkingVisitor<marking_mode> visitor(
-      heap, local_pretenuring_feedback);
+      heap_, &task_state->local_pretenuring_feedback);
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
-      heap->minor_mark_sweep_collector()->remembered_sets_marking_handler());
+      heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   auto& marking_worklists_local = visitor.marking_worklists_local();
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = heap_->isolate();
+  if (!task_state->was_started) {
+    // Previously started markers are already accounted as markers with work.
+    task_state->was_started = true;
+    minor_marking_state_->MarkerStarted();
+  }
   do {
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
     }
     Tagged<HeapObject> heap_object;
-    TRACE_GC_EPOCH(heap->tracer(),
+    TRACE_GC_EPOCH(heap_->tracer(),
                    GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
                    ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
-      if (IsYoungObjectInLab(heap, heap_object)) {
+      if (IsYoungObjectInLab(heap_, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
         Tagged<Map> map = heap_object->map(isolate);
@@ -445,10 +474,10 @@ V8_INLINE size_t MinorMarkingLoopImpl(
       }
     }
   } while (remembered_sets.ProcessNextItem(&visitor));
+  minor_marking_state_->MarkerDone();
+  task_state->was_started = false;
   return marked_bytes + current_marked_bytes;
 }
-
-}  // namespace
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   DCHECK_NOT_NULL(heap_->new_space());
@@ -468,12 +497,12 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     TimedScope scope(&time_ms);
     if (heap_->minor_mark_sweep_collector()->is_in_atomic_pause()) {
       marked_bytes =
-          MinorMarkingLoopImpl<YoungGenerationMarkingVisitationMode::kParallel>(
-              heap_, delegate, &task_state->local_pretenuring_feedback);
+          RunMinorImpl<YoungGenerationMarkingVisitationMode::kParallel>(
+              delegate, task_state);
     } else {
-      marked_bytes = MinorMarkingLoopImpl<
-          YoungGenerationMarkingVisitationMode::kConcurrent>(
-          heap_, delegate, &task_state->local_pretenuring_feedback);
+      marked_bytes =
+          RunMinorImpl<YoungGenerationMarkingVisitationMode::kConcurrent>(
+              delegate, task_state);
     }
   }
 
@@ -526,6 +555,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
+  DCHECK_NULL(minor_marking_state_);
   DCHECK(
       std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
         return task_state->local_pretenuring_feedback.empty();
@@ -543,6 +573,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     job_handle_ = V8::GetCurrentPlatform()->PostJob(priority, std::move(job));
   } else {
     DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
+    minor_marking_state_ = std::make_unique<MinorMarkingState>();
     marking_worklists_ =
         heap_->minor_mark_sweep_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMinor>(this);
@@ -562,10 +593,7 @@ bool ConcurrentMarking::IsWorkLeft() const {
            !weak_objects_->discovered_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
-  return !marking_worklists_->shared()->IsEmpty() ||
-         (heap_->minor_mark_sweep_collector()
-              ->remembered_sets_marking_handler()
-              ->RemainingRememberedSetsMarkingIteams() > 0);
+  return !minor_marking_state_->IsOutOfWork();
 }
 
 void ConcurrentMarking::RescheduleJobIfNeeded(
@@ -619,6 +647,7 @@ void ConcurrentMarking::Join() {
   job_handle_->Join();
   current_job_trace_id_.reset();
   garbage_collector_.reset();
+  minor_marking_state_.reset();
 }
 
 bool ConcurrentMarking::Pause() {
