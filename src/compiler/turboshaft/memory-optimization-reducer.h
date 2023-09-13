@@ -145,8 +145,7 @@ class MemoryOptimizationReducer : public Next {
       // Wasm mode: producing isolate-independent code, loading the isolate
       // address at runtime.
 #if V8_ENABLE_WEBASSEMBLY
-      OpIndex instance_node = __ Parameter(wasm::kWasmInstanceParameterIndex,
-                                           RegisterRepresentation::Tagged());
+      V<WasmInstanceObject> instance_node = __ WasmInstanceParameter();
       int top_address_offset =
           type == AllocationType::kYoung
               ? WasmInstanceObject::kNewAllocationTopAddressOffset
@@ -380,8 +379,7 @@ class MemoryOptimizationReducer : public Next {
       // Wasm mode: producing isolate-independent code, loading the isolate
       // address at runtime.
 #if V8_ENABLE_WEBASSEMBLY
-      OpIndex instance_node = __ Parameter(wasm::kWasmInstanceParameterIndex,
-                                           RegisterRepresentation::Tagged());
+      V<WasmInstanceObject> instance_node = __ WasmInstanceParameter();
       int limit_address_offset =
           type == AllocationType::kYoung
               ? WasmInstanceObject::kNewAllocationLimitAddressOffset

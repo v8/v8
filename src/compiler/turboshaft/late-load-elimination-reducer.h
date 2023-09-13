@@ -603,9 +603,6 @@ class LateLoadEliminationAnalyzer {
                               JSHeapBroker* broker)
       : graph_(graph),
         broker_(broker),
-#if V8_ENABLE_WEBASSEMBLY
-        is_wasm_(PipelineData::Get().is_wasm()),
-#endif
         replacements_(graph.op_id_count(), phase_zone),
         non_aliasing_objects_(graph, phase_zone),
         object_maps_(graph, phase_zone),
@@ -702,7 +699,7 @@ class LateLoadEliminationAnalyzer {
   JSHeapBroker* broker_;
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_;
+  bool is_wasm_ = PipelineData::Get().is_wasm();
 #endif
 
   FixedSidetable<OpIndex> replacements_;

@@ -3788,6 +3788,12 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       pipeline.Run<turboshaft::Int64LoweringPhase>();
     }
 
+    if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
+      // This phase has to run very late to allow all previous phases to use
+      // debug features.
+      pipeline.Run<turboshaft::DebugFeatureLoweringPhase>();
+    }
+
     if (v8_flags.turboshaft_wasm_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!pipeline.SelectInstructionsTurboshaft(&linkage)) {

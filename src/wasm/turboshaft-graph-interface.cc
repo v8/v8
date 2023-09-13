@@ -130,7 +130,8 @@ class TurboshaftGraphBuildingInterface {
     __ Bind(block);
     // Set 0 as the current source position (before locals declarations).
     __ SetCurrentOrigin(WasmPositionToOpIndex(0));
-    instance_node_ = __ Parameter(0, RegisterRepresentation::Tagged());
+    static_assert(kWasmInstanceParameterIndex == 0);
+    instance_node_ = __ WasmInstanceParameter();
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
     for (; index < decoder->sig_->parameter_count(); index++) {

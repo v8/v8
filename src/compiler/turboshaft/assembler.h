@@ -2863,6 +2863,32 @@ class AssemblerOpInterface {
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
+  OpIndex CallBuiltin(wasm::WasmCode::RuntimeStubId stub_id,
+                      std::initializer_list<OpIndex> args,
+                      Operator::Properties properties) {
+    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
+    CallInterfaceDescriptor interface_descriptor =
+        Builtins::CallInterfaceDescriptorFor(builtin_name);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetStubCallDescriptor(
+            Asm().output_graph().graph_zone(), interface_descriptor,
+            interface_descriptor.GetStackParameterCount(),
+            CallDescriptor::kNoFlags, properties,
+            StubCallMode::kCallWasmRuntimeStub);
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kYes,
+                                 Asm().output_graph().graph_zone());
+    V<WordPtr> call_target =
+        RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
+    return Call(call_target, OpIndex::Invalid(), base::VectorOf(args),
+                ts_call_descriptor);
+  }
+
+  V<WasmInstanceObject> WasmInstanceParameter() {
+    return Parameter(wasm::kWasmInstanceParameterIndex,
+                     RegisterRepresentation::Tagged());
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Rep>

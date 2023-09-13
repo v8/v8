@@ -203,8 +203,8 @@ class WasmLoweringReducer : public Next {
     V<Word32> string_representation = __ Word32BitwiseAnd(
         instance_type, __ Word32Constant(kStringRepresentationMask));
     GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
-    GOTO(done, CallBuiltin(wasm::WasmCode::kWasmStringAsWtf16, {string},
-                           Operator::kPure));
+    GOTO(done, __ CallBuiltin(wasm::WasmCode::kWasmStringAsWtf16, {string},
+                              Operator::kPure));
     BIND(done, result);
     return result;
   }
@@ -373,27 +373,6 @@ class WasmLoweringReducer : public Next {
     return __ Load(object, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::PointerSized(), field_offset);
 #endif  // V8_ENABLE_SANDBOX
-  }
-
-  OpIndex CallBuiltin(wasm::WasmCode::RuntimeStubId stub_id,
-                      std::initializer_list<OpIndex> args,
-                      Operator::Properties properties) {
-    // TODO(14108): Can we share parts of this with the graph builder?
-    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
-    CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin_name);
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetStubCallDescriptor(
-            __ graph_zone(), interface_descriptor,
-            interface_descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, properties,
-            StubCallMode::kCallWasmRuntimeStub);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
-    V<WordPtr> call_target =
-        __ RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
-    return __ Call(call_target, OpIndex::Invalid(), base::VectorOf(args),
-                   ts_call_descriptor);
   }
 
   OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,
