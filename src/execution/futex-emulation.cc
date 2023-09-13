@@ -35,8 +35,13 @@ class FutexWaitList {
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
 
-  static void* ToWaitLocation(const BackingStore* backing_store, size_t addr) {
-    return static_cast<uint8_t*>(backing_store->buffer_start()) + addr;
+  static void* ToWaitLocation(Tagged<JSArrayBuffer> array_buffer, size_t addr) {
+    DCHECK_LT(addr, array_buffer->GetByteLength());
+    // Use the cheaper JSArrayBuffer::backing_store() accessor, but DCHECK that
+    // it matches the start of the JSArrayBuffer::GetBackingStore().
+    DCHECK_EQ(array_buffer->backing_store(),
+              array_buffer->GetBackingStore()->buffer_start());
+    return static_cast<uint8_t*>(array_buffer->backing_store()) + addr;
   }
 
   // Deletes "node" and returns the next node of its list.
@@ -398,11 +403,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   FutexWaitList* wait_list = GetWaitList();
-  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-  DCHECK_NOT_NULL(backing_store);
   FutexWaitListNode* node = isolate->futex_wait_list_node();
-  void* wait_location =
-      FutexWaitList::ToWaitLocation(backing_store.get(), addr);
+  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
 
   base::TimeTicks timeout_time;
   if (use_timeout) {
@@ -535,17 +537,17 @@ Global<T> GetWeakGlobal(Isolate* isolate, Local<T> object) {
 }
 }  // namespace
 
-FutexWaitListNode::FutexWaitListNode(
-    const std::shared_ptr<BackingStore>& backing_store, size_t wait_addr,
-    Handle<JSObject> promise, Isolate* isolate)
-    : wait_location_(
-          FutexWaitList::ToWaitLocation(backing_store.get(), wait_addr)),
+FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
+                                     void* wait_location,
+                                     Handle<JSObject> promise, Isolate* isolate)
+    : wait_location_(wait_location),
       waiting_(true),
       async_state_(std::make_unique<AsyncState>(
           isolate,
           V8::GetCurrentPlatform()->GetForegroundTaskRunner(
               reinterpret_cast<v8::Isolate*>(isolate)),
-          backing_store, GetWeakGlobal(isolate, Utils::PromiseToLocal(promise)),
+          std::move(backing_store),
+          GetWeakGlobal(isolate, Utils::PromiseToLocal(promise)),
           GetWeakGlobal(isolate, Utils::ToLocal(isolate->native_context())))) {}
 
 template <typename T>
@@ -563,17 +565,17 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
 
   enum class ResultKind { kNotEqual, kTimedOut, kAsync };
   ResultKind result_kind;
+  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
+  // Get a weak pointer to the backing store, to be stored in the async state of
+  // the node.
+  std::weak_ptr<BackingStore> backing_store{array_buffer->GetBackingStore()};
   FutexWaitList* wait_list = GetWaitList();
   {
     // 16. Perform EnterCriticalSection(WL).
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    std::shared_ptr<BackingStore> backing_store =
-        array_buffer->GetBackingStore();
-
     // 17. Let w be ! AtomicLoad(typedArray, i).
-    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
-        static_cast<uint8_t*>(backing_store->buffer_start()) + addr);
+    std::atomic<T>* p = static_cast<std::atomic<T>*>(wait_location);
     T loaded_value = p->load();
 #if defined(V8_TARGET_BIG_ENDIAN)
     // If loading a Wasm value, it needs to be reversed on Big Endian platforms.
@@ -590,7 +592,7 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
       result_kind = ResultKind::kAsync;
 
       FutexWaitListNode* node = new FutexWaitListNode(
-          backing_store, addr, promise_capability, isolate);
+          std::move(backing_store), wait_location, promise_capability, isolate);
 
       if (use_timeout) {
         node->async_state_->timeout_time = base::TimeTicks::Now() + rel_timeout;
@@ -677,12 +679,8 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
 
 Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
                                     size_t addr, uint32_t num_waiters_to_wake) {
-  DCHECK_LT(addr, array_buffer->GetByteLength());
-
   int waiters_woken = 0;
-  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-  auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
-
+  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
@@ -702,16 +700,15 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
     // against the case where the BackingStore of the node has been deleted
     // during an async wait and a new BackingStore recreated in the same memory
     // area. Note that sync wait always keeps the backing store alive.
-    // 1) The backing store is expired, or
-    // 2) the backing store still points to the backing_store of the
-    //    array_buffer (which we hold strongly, so it can't expire while we are
-    //    executing this code).
-    // Checking (1) is much cheaper, so we do that, and only DCHECK for (2).
+    // It is sufficient to check whether the node's backing store is expired
+    // (and consider this a non-match). If it is not expired, it must be
+    // identical to the backing store from which wait_location was computed by
+    // the caller. In that case, the current context holds the arraybuffer and
+    // backing store alive during this call, so it can not expire while we
+    // execute this code.
     bool matching_backing_store =
         !node->IsAsync() || !node->async_state_->backing_store.expired();
     if (V8_LIKELY(matching_backing_store)) {
-      DCHECK(!node->IsAsync() ||
-             (node->async_state_->backing_store.lock() == backing_store));
       node->waiting_ = false;
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
@@ -959,24 +956,21 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
 
 int FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
                                          size_t addr) {
-  DCHECK_LT(addr, array_buffer->GetByteLength());
-  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-
+  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-  auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
+  int num_waiters = 0;
   auto& location_lists = wait_list->location_lists_;
   auto it = location_lists.find(wait_location);
-  if (it == location_lists.end()) {
-    return 0;
-  }
-  int num_waiters = 0;
+  if (it == location_lists.end()) return num_waiters;
+
   for (FutexWaitListNode* node = it->second.head; node; node = node->next_) {
     if (!node->waiting_) continue;
     if (node->IsAsync()) {
       if (node->async_state_->backing_store.expired()) continue;
-      DCHECK_EQ(backing_store, node->async_state_->backing_store.lock());
+      DCHECK_EQ(array_buffer->GetBackingStore(),
+                node->async_state_->backing_store.lock());
     }
     num_waiters++;
   }
@@ -1003,11 +997,7 @@ int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
 
 int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
     Handle<JSArrayBuffer> array_buffer, size_t addr) {
-  DCHECK_LT(addr, array_buffer->GetByteLength());
-  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
-  void* wait_location =
-      FutexWaitList::ToWaitLocation(backing_store.get(), addr);
-
+  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
@@ -1018,7 +1008,8 @@ int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
       DCHECK(node->IsAsync());
       if (node->waiting_) continue;
       if (node->async_state_->backing_store.expired()) continue;
-      DCHECK_EQ(backing_store, node->async_state_->backing_store.lock());
+      DCHECK_EQ(array_buffer->GetBackingStore(),
+                node->async_state_->backing_store.lock());
       if (wait_location != node->wait_location_) continue;
       num_waiters++;
     }
