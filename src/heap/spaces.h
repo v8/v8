@@ -373,8 +373,6 @@ class SpaceWithLinearArea : public Space {
   void MoveOriginalTopForward() { allocator_.MoveOriginalTopForward(); }
 
  protected:
-  V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
-
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry
   // after collecting garbage.
@@ -391,9 +389,6 @@ class SpaceWithLinearArea : public Space {
 
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator allocator_;
-
-  size_t allocations_origins_[static_cast<int>(
-      AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
 
   friend class MainAllocator;
 };

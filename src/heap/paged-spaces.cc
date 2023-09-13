@@ -114,11 +114,6 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   //   area_size_
   other->FreeLinearAllocationArea();
 
-  for (int i = static_cast<int>(AllocationOrigin::kFirstAllocationOrigin);
-       i <= static_cast<int>(AllocationOrigin::kLastAllocationOrigin); i++) {
-    allocations_origins_[i] += other->allocations_origins_[i];
-  }
-
   // The linear allocation area of {other} should be destroyed now.
   DCHECK_EQ(kNullAddress, other->top());
   DCHECK_EQ(kNullAddress, other->limit());

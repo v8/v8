@@ -92,20 +92,6 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
   return start + std::max(step_size, min_size);
 }
 
-void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {
-  DCHECK(!((origin != AllocationOrigin::kGC) &&
-           (heap()->isolate()->current_vm_state() == GC)));
-  allocations_origins_[static_cast<int>(origin)]++;
-}
-
-void SpaceWithLinearArea::PrintAllocationsOrigins() const {
-  PrintIsolate(
-      heap()->isolate(),
-      "Allocations Origins for %s: GeneratedCode:%zu - Runtime:%zu - GC:%zu\n",
-      ToString(identity()), allocations_origins_[0], allocations_origins_[1],
-      allocations_origins_[2]);
-}
-
 LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
   if (IsValid()) {
     MakeIterable();

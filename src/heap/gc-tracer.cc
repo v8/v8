@@ -532,12 +532,6 @@ void GCTracer::NotifyFullSweepingCompleted() {
                  "FreeLists statistics after sweeping completed:\n");
     heap_->PrintFreeListsStats();
   }
-  if (v8_flags.trace_allocations_origins) {
-    heap_->new_space()->PrintAllocationsOrigins();
-    heap_->old_space()->PrintAllocationsOrigins();
-    heap_->code_space()->PrintAllocationsOrigins();
-    heap_->trusted_space()->PrintAllocationsOrigins();
-  }
   notified_full_sweeping_completed_ = true;
   StopFullCycleIfNeeded();
 }

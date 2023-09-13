@@ -1596,11 +1596,6 @@ DEFINE_BOOL(trace_gc_heap_layout_ignore_minor_gc, true,
             "do not print trace line before and after minor-gc")
 DEFINE_BOOL(trace_evacuation_candidates, false,
             "Show statistics about the pages evacuation by the compaction")
-DEFINE_BOOL(
-    trace_allocations_origins, false,
-    "Show statistics about the origins of allocations. "
-    "Combine with --no-inline-new to track allocations from generated code")
-DEFINE_NEG_IMPLICATION(trace_allocations_origins, inline_new)
 
 DEFINE_BOOL(trace_pending_allocations, false,
             "trace calls to Heap::IsAllocationPending that return true")

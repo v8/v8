@@ -59,10 +59,6 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
   DCHECK(!result.IsFailure());
 
-  if (v8_flags.trace_allocations_origins) {
-    space_->UpdateAllocationOrigins(origin);
-  }
-
   space_->InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
                                     size_in_bytes, size_in_bytes);
 
@@ -87,10 +83,6 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
       size_in_bytes, &aligned_size_in_bytes, alignment, origin);
   DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
-
-  if (v8_flags.trace_allocations_origins) {
-    space_->UpdateAllocationOrigins(origin);
-  }
 
   space_->InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
                                     aligned_size_in_bytes, max_aligned_size);
