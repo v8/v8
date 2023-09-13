@@ -39,6 +39,22 @@
   # binary encoding. We don't care, because the GC tests are up to date and
   # we'll ship both proposals together.
   'proposals/function-references/*': [SKIP],
+
+  # These break with the GC proposal (because they check that certain modules
+  # don't validate that become valid with GC). The GC proposal will update them
+  # when it is merged into the main spec repository.
+  'data': [FAIL],
+  'proposals/extended-const/data': [FAIL],
+  'proposals/multi-memory/data': [FAIL],
+
+  'elem': [FAIL],
+  'proposals/extended-const/elem': [FAIL],
+  'proposals/js-types/elem': [FAIL],
+  'proposals/multi-memory/elem': [FAIL],
+  'proposals/tail-call/elem': [FAIL],
+
+  'global': [FAIL],
+  'proposals/extended-const/global': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
