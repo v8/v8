@@ -834,14 +834,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
     if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
-      // TODO(jgruber,v8:12790): Extend this to other strings in read-only
-      // space. When doing so, make sure there are no unexpected regressions on
-      // jetstream2.
-      if (!broker()->IsMainThread() &&
-          *name.object() != ReadOnlyRoots(isolate()).length_string()) {
-        return Invalid();
-      }
-      if (IsSpecialIndex(String::cast(*name.object()))) return Invalid();
+      StringRef name_str = name.AsString();
+      SharedStringAccessGuardIfNeeded access_guard(
+          *name_str.object(), broker()->local_isolate_or_isolate());
+      if (IsSpecialIndex(*name_str.object(), access_guard)) return Invalid();
     }
 
     // Don't search on the prototype when storing in literals, or performing a

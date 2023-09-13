@@ -54,6 +54,13 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     }
   }
 
+  SharedStringAccessGuardIfNeeded(Tagged<String> str,
+                                  LocalIsolate* local_isolate) {
+    if (IsNeeded(str, local_isolate)) {
+      mutex_guard.emplace(local_isolate->internalized_string_access());
+    }
+  }
+
   static SharedStringAccessGuardIfNeeded NotNeeded() {
     return SharedStringAccessGuardIfNeeded();
   }
