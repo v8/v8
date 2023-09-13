@@ -1474,12 +1474,12 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size);
       {
-        ThreadIsolation::WritableJitAllocation writable_allocation =
+        WritableJitAllocation writable_allocation =
             ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr,
                                                                  size);
         base->heap_->CopyBlock(dst_addr, src_addr, size);
         Tagged<InstructionStream> istream = InstructionStream::cast(dst);
-        istream->Relocate(dst_addr - src_addr);
+        istream->Relocate(writable_allocation, dst_addr - src_addr);
       }
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);

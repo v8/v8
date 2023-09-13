@@ -219,9 +219,9 @@ RelocIterator::RelocIterator(base::Vector<uint8_t> instructions,
           reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
           mode_mask) {}
 
-WritableRelocIterator::WritableRelocIterator(Tagged<InstructionStream> istream,
-                                             Address constant_pool,
-                                             int mode_mask)
+WritableRelocIterator::WritableRelocIterator(
+    WritableJitAllocation& jit_allocation, Tagged<InstructionStream> istream,
+    Address constant_pool, int mode_mask)
     : RelocIteratorBase<WritableRelocInfo>(
           istream->instruction_start(), constant_pool,
           istream->unchecked_relocation_info()->GetDataEndAddress(),
@@ -229,8 +229,9 @@ WritableRelocIterator::WritableRelocIterator(Tagged<InstructionStream> istream,
           mode_mask) {}
 
 WritableRelocIterator::WritableRelocIterator(
-    base::Vector<uint8_t> instructions, base::Vector<const uint8_t> reloc_info,
-    Address constant_pool, int mode_mask)
+    WritableJitAllocation& jit_allocation, base::Vector<uint8_t> instructions,
+    base::Vector<const uint8_t> reloc_info, Address constant_pool,
+    int mode_mask)
     : RelocIteratorBase<WritableRelocInfo>(
           reinterpret_cast<Address>(instructions.begin()), constant_pool,
           reloc_info.begin() + reloc_info.size(), reloc_info.begin(),

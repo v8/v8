@@ -141,8 +141,8 @@ ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
 }
 
 // static
-ThreadIsolation::WritableJitPage ThreadIsolation::LookupWritableJitPage(
-    Address addr, size_t size) {
+WritableJitPage ThreadIsolation::LookupWritableJitPage(Address addr,
+                                                       size_t size) {
   return WritableJitPage(addr, size);
 }
 
@@ -436,33 +436,30 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 }
 
 // static
-ThreadIsolation::WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
+WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
     Address obj, size_t size, JitAllocationType type) {
   return WritableJitAllocation(
       obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister);
 }
 
 // static
-ThreadIsolation::WritableJitAllocation
-ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
-                                                     size_t size) {
+WritableJitAllocation ThreadIsolation::RegisterInstructionStreamAllocation(
+    Address addr, size_t size) {
   return RegisterJitAllocation(addr, size,
                                JitAllocationType::kInstructionStream);
 }
 
 // static
-ThreadIsolation::WritableJitAllocation ThreadIsolation::LookupJitAllocation(
+WritableJitAllocation ThreadIsolation::LookupJitAllocation(
     Address addr, size_t size, JitAllocationType type) {
   return WritableJitAllocation(
       addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup);
 }
 
 // static
-ThreadIsolation::WritableJumpTablePair
-ThreadIsolation::LookupJumpTableAllocations(Address jump_table_address,
-                                            size_t jump_table_size,
-                                            Address far_jump_table_address,
-                                            size_t far_jump_table_size) {
+WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
+    Address jump_table_address, size_t jump_table_size,
+    Address far_jump_table_address, size_t far_jump_table_size) {
   return WritableJumpTablePair(jump_table_address, jump_table_size,
                                far_jump_table_address, far_jump_table_size);
 }

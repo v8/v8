@@ -242,9 +242,12 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
        ++builtin) {
     Tagged<Code> code = builtins->code(builtin);
     Tagged<InstructionStream> istream = code->instruction_stream();
-    CodePageMemoryModificationScope code_modification_scope(istream);
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream.address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
     bool flush_icache = false;
-    for (WritableRelocIterator it(istream, code->constant_pool(), kRelocMask);
+    for (WritableRelocIterator it(jit_allocation, istream,
+                                  code->constant_pool(), kRelocMask);
          !it.done(); it.next()) {
       WritableRelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {

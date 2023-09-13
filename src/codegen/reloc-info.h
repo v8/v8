@@ -577,10 +577,12 @@ class V8_EXPORT_PRIVATE WritableRelocIterator
     : public RelocIteratorBase<WritableRelocInfo> {
  public:
   // Constructor for iterating InstructionStreams.
-  WritableRelocIterator(Tagged<InstructionStream> istream,
+  WritableRelocIterator(WritableJitAllocation& jit_allocation,
+                        Tagged<InstructionStream> istream,
                         Address constant_pool, int mode_mask);
   // Constructor for iterating Wasm code.
-  WritableRelocIterator(base::Vector<uint8_t> instructions,
+  WritableRelocIterator(WritableJitAllocation& jit_allocation,
+                        base::Vector<uint8_t> instructions,
                         base::Vector<const uint8_t> reloc_info,
                         Address constant_pool, int mode_mask = kAllModesMask);
 };

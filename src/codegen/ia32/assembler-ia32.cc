@@ -3351,7 +3351,12 @@ void Assembler::GrowBuffer() {
   base::Vector<uint8_t> instructions{buffer_start_,
                                      static_cast<size_t>(pc_offset())};
   base::Vector<const uint8_t> reloc_info{reloc_info_writer.pos(), reloc_size};
-  for (WritableRelocIterator it(instructions, reloc_info, 0, mode_mask);
+  WritableJitAllocation jit_allocation =
+      WritableJitAllocation::ForNonExecutableMemory(
+          reinterpret_cast<Address>(instructions.begin()), instructions.size(),
+          ThreadIsolation::JitAllocationType::kInstructionStream);
+  for (WritableRelocIterator it(jit_allocation, instructions, reloc_info, 0,
+                                mode_mask);
        !it.done(); it.next()) {
     it.rinfo()->apply(pc_delta);
   }
