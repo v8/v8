@@ -710,8 +710,7 @@ void MinorMarkSweepCollector::TraceFragmentation() {
   size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
   size_t live_bytes = 0;
   size_t allocatable_bytes = 0;
-  for (Page* p :
-       PageRange(new_space->first_allocatable_address(), new_space->top())) {
+  for (Page* p : *new_space) {
     Address free_start = p->area_start();
     for (auto [object, size] : LiveObjectRange(p)) {
       Address free_end = object.address();

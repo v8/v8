@@ -194,7 +194,6 @@ class PageRange {
   using iterator = PageIterator;
   PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
   inline explicit PageRange(Page* page);
-  inline PageRange(Address start, Address limit);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
@@ -210,7 +209,6 @@ class ConstPageRange {
   ConstPageRange(const Page* begin, const Page* end)
       : begin_(begin), end_(end) {}
   inline explicit ConstPageRange(const Page* page);
-  inline ConstPageRange(Address start, Address limit);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }

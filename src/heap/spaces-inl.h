@@ -34,26 +34,6 @@ PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
   return tmp;
 }
 
-PageRange::PageRange(Address start, Address limit)
-    : begin_(Page::FromAddress(start)),
-      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
-#ifdef DEBUG
-  if (begin_->InNewSpace()) {
-    SemiSpace::AssertValidRange(start, limit);
-  }
-#endif  // DEBUG
-}
-
-ConstPageRange::ConstPageRange(Address start, Address limit)
-    : begin_(Page::FromAddress(start)),
-      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
-#ifdef DEBUG
-  if (begin_->InNewSpace()) {
-    SemiSpace::AssertValidRange(start, limit);
-  }
-#endif  // DEBUG
-}
-
 void Space::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                size_t amount) {
   base::CheckedIncrement(&external_backing_store_bytes_[static_cast<int>(type)],

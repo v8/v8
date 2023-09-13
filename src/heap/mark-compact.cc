@@ -420,7 +420,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
     VerifyMarkbitsAreClean(PagedNewSpace::From(space)->paged_space());
     return;
   }
-  for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
+  for (Page* p : *space) {
     CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }

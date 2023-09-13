@@ -354,11 +354,13 @@ void SemiSpace::AddRangeToActiveSystemPages(Address start, Address end) {
 }
 
 void SemiSpace::set_age_mark(Address mark) {
-  DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
+  Page* age_mark_page = Page::FromAllocationAreaAddress(mark);
+  DCHECK_EQ(age_mark_page->owner(), this);
   // Mark all pages up to the one containing mark.
-  for (Page* p : PageRange(space_start(), mark)) {
+  for (Page* p : *this) {
     p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+    if (p == age_mark_page) break;
   }
 }
 
