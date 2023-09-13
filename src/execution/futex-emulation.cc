@@ -677,18 +677,16 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
   return *result;
 }
 
-Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
-                                    size_t addr, uint32_t num_waiters_to_wake) {
-  int waiters_woken = 0;
-  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
+int FutexEmulation::Wake(Tagged<JSArrayBuffer> array_buffer, size_t addr,
+                         uint32_t num_waiters_to_wake) {
+  int num_waiters_woken = 0;
+  void* wait_location = FutexWaitList::ToWaitLocation(array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
   auto& location_lists = wait_list->location_lists_;
   auto it = location_lists.find(wait_location);
-  if (it == location_lists.end()) {
-    return Smi::zero();
-  }
+  if (it == location_lists.end()) return num_waiters_woken;
 
   FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
@@ -724,7 +722,7 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
       if (num_waiters_to_wake != kWakeAll) {
         --num_waiters_to_wake;
       }
-      waiters_woken++;
+      num_waiters_woken++;
       continue;
     }
 
@@ -771,7 +769,7 @@ Tagged<Object> FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer,
     node = next_node;
   }
 
-  return Smi::FromInt(waiters_woken);
+  return num_waiters_woken;
 }
 
 void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
@@ -954,7 +952,7 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
   wait_list->Verify();
 }
 
-int FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+int FutexEmulation::NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
                                          size_t addr) {
   void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
@@ -996,8 +994,8 @@ int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
 }
 
 int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
-    Handle<JSArrayBuffer> array_buffer, size_t addr) {
-  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
+    Tagged<JSArrayBuffer> array_buffer, size_t addr) {
+  void* wait_location = FutexWaitList::ToWaitLocation(array_buffer, addr);
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 

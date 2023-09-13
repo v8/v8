@@ -198,16 +198,15 @@ class FutexEmulation : public AllStatic {
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
-  V8_EXPORT_PRIVATE static Tagged<Object> Wake(
-      Handle<JSArrayBuffer> array_buffer, size_t addr,
-      uint32_t num_waiters_to_wake);
+  V8_EXPORT_PRIVATE static int Wake(Tagged<JSArrayBuffer> array_buffer,
+                                    size_t addr, uint32_t num_waiters_to_wake);
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.
   static void IsolateDeinit(Isolate* isolate);
 
   // Return the number of threads or async waiters waiting on |addr|. Should
   // only be used for testing.
-  static int NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+  static int NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
                                   size_t addr);
 
   // Return the number of async waiters (which belong to |isolate|) waiting.
@@ -218,7 +217,7 @@ class FutexEmulation : public AllStatic {
   // now waiting for the Promises to be resolved. Should only be used for
   // testing.
   static int NumUnresolvedAsyncPromisesForTesting(
-      Handle<JSArrayBuffer> array_buffer, size_t addr);
+      Tagged<JSArrayBuffer> array_buffer, size_t addr);
 
  private:
   friend class FutexWaitListNode;
