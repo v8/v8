@@ -2521,51 +2521,108 @@ class TurboshaftGraphBuildingInterface {
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewWtf16Encode,
+        {offset.op, pos.op, codeunits.op, string,
+         __ SmiConstant(Smi::FromInt(imm.index))},
+        Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewWtf16Slice,
+        {string, start.op, end.op}, Operator::kEliminatable);
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(str);
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringAsIter,
+                                   {string}, Operator::kEliminatable);
   }
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringViewIterNext,
+                                   {string}, Operator::kEliminatable);
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewIterAdvance, {string, codepoints.op},
+        Operator::kEliminatable);
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewIterRewind, {string, codepoints.op},
+        Operator::kEliminatable);
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string = NullCheck(view);
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmStringViewIterSlice, {string, codepoints.op},
+        Operator::kEliminatable);
   }
 
   void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
                      Value* result) {
-    Bailout(decoder);
+    V<Tagged> lhs_val = NullCheck(lhs);
+    V<Tagged> rhs_val = NullCheck(rhs);
+    result->op = __ UntagSmi(CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kStringCompare, {lhs_val, rhs_val},
+        Operator::kEliminatable));
   }
 
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
-    Bailout(decoder);
+    result->op =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringFromCodePoint,
+                                   {code_point.op}, Operator::kEliminatable);
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
-    Bailout(decoder);
+    V<Tagged> string_val = NullCheck(string);
+
+    Label<> runtime_label(&Asm());
+    Label<Word32> end_label(&Asm());
+
+    V<Word32> raw_hash =
+        __ Load(string_val, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Int32(), Name::kRawHashFieldOffset);
+    V<Word32> hash_not_computed_mask =
+        __ Word32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
+    static_assert(Name::HashFieldTypeBits::kShift == 0);
+    V<Word32> hash_not_computed =
+        __ Word32BitwiseAnd(raw_hash, hash_not_computed_mask);
+    GOTO_IF(hash_not_computed, runtime_label);
+
+    // Fast path if hash is already computed: Decode raw hash value.
+    static_assert(Name::HashBits::kLastUsedBit == kBitsPerInt - 1);
+    V<Word32> hash = __ Word32ShiftRightLogical(
+        raw_hash, static_cast<int32_t>(Name::HashBits::kShift));
+    GOTO(end_label, hash);
+
+    BIND(runtime_label);
+    V<Word32> hash_runtime =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringHash,
+                                   {string_val}, Operator::kEliminatable);
+    GOTO(end_label, hash_runtime);
+
+    BIND(end_label, hash_val);
+    result->op = hash_val;
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
