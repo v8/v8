@@ -69,21 +69,18 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
 
-  Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-        AllocationCounter& allocation_counter)
-      : BaseSpace(heap, id),
-        free_list_(std::move(free_list)),
-        allocation_counter_(allocation_counter) {}
+  Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list)
+      : BaseSpace(heap, id), free_list_(std::move(free_list)) {}
 
   ~Space() override = default;
 
   Space(const Space&) = delete;
   Space& operator=(const Space&) = delete;
 
-  virtual void AddAllocationObserver(AllocationObserver* observer);
-  virtual void RemoveAllocationObserver(AllocationObserver* observer);
-  virtual void PauseAllocationObservers() {}
-  virtual void ResumeAllocationObservers() {}
+  virtual void AddAllocationObserver(AllocationObserver* observer) = 0;
+  virtual void RemoveAllocationObserver(AllocationObserver* observer) = 0;
+  virtual void PauseAllocationObservers() = 0;
+  virtual void ResumeAllocationObservers() = 0;
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
@@ -149,7 +146,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   std::unique_ptr<FreeList> free_list_;
-  AllocationCounter& allocation_counter_;
 };
 
 static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);

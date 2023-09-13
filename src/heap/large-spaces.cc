@@ -50,7 +50,7 @@ Tagged<HeapObject> LargeObjectSpaceObjectIterator::Next() {
 // OldLargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id, nullptr, allocation_counter_),
+    : Space(heap, id, nullptr),
       size_(0),
       page_count_(0),
       objects_size_(0),
@@ -89,6 +89,18 @@ void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
   // Large objects can be accounted immediately since no LAB is involved.
   allocation_counter_.AdvanceAllocationObservers(object_size);
 }
+
+void LargeObjectSpace::AddAllocationObserver(AllocationObserver* observer) {
+  allocation_counter_.AddAllocationObserver(observer);
+}
+
+void LargeObjectSpace::RemoveAllocationObserver(AllocationObserver* observer) {
+  allocation_counter_.RemoveAllocationObserver(observer);
+}
+
+void LargeObjectSpace::PauseAllocationObservers() {}
+
+void LargeObjectSpace::ResumeAllocationObservers() {}
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocateRaw(object_size, NOT_EXECUTABLE);

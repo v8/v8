@@ -81,6 +81,11 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
+  void AddAllocationObserver(AllocationObserver* observer) override;
+  void RemoveAllocationObserver(AllocationObserver* observer) override;
+  void PauseAllocationObservers() override;
+  void ResumeAllocationObservers() override;
+
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
 #endif

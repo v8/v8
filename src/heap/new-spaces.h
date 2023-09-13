@@ -44,7 +44,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, nullptr, allocation_counter_), id_(semispace) {}
+      : Space(heap, NEW_SPACE, nullptr), id_(semispace) {}
 
   inline bool Contains(Tagged<HeapObject> o) const;
   inline bool Contains(Tagged<Object> o) const;
@@ -104,6 +104,12 @@ class SemiSpace final : public Space {
   void PrependPage(Page* page);
   void MovePageToTheEnd(Page* page);
 
+  void AddAllocationObserver(AllocationObserver* observer) override {
+    UNREACHABLE();
+  }
+  void RemoveAllocationObserver(AllocationObserver* observer) override {
+    UNREACHABLE();
+  }
   void PauseAllocationObservers() override { UNREACHABLE(); }
   void ResumeAllocationObservers() override { UNREACHABLE(); }
 
@@ -200,7 +206,6 @@ class SemiSpace final : public Space {
   size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
   Page* current_page_ = nullptr;
-  AllocationCounter allocation_counter_;
 
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;

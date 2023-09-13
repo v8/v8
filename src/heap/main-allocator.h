@@ -94,6 +94,12 @@ class MainAllocator {
     return allocation_info_;
   }
 
+  AllocationCounter& allocation_counter() { return allocation_counter_; }
+
+  const AllocationCounter& allocation_counter() const {
+    return allocation_counter_;
+  }
+
   LinearAreaOriginalData& linear_area_original_data() {
     return linear_area_original_data_;
   }

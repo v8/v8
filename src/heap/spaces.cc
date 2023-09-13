@@ -38,20 +38,12 @@
 namespace v8 {
 namespace internal {
 
-void Space::AddAllocationObserver(AllocationObserver* observer) {
-  allocation_counter_.AddAllocationObserver(observer);
-}
-
-void Space::RemoveAllocationObserver(AllocationObserver* observer) {
-  allocation_counter_.RemoveAllocationObserver(observer);
-}
-
 SpaceWithLinearArea::SpaceWithLinearArea(
     Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
     AllocationCounter& allocation_counter,
     LinearAllocationArea& allocation_info,
     LinearAreaOriginalData& linear_area_original_data)
-    : Space(heap, id, std::move(free_list), allocation_counter),
+    : Space(heap, id, std::move(free_list)),
       allocator_(heap, this, allocation_counter, allocation_info,
                  linear_area_original_data) {}
 
@@ -75,7 +67,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     DCHECK_EQ(allocator_.allocation_info().start(),
               allocator_.allocation_info().top());
 
-    size_t step = allocation_counter_.NextBytes();
+    size_t step = allocator_.allocation_counter().NextBytes();
     DCHECK_NE(step, 0);
     // Generated code may allocate inline from the linear allocation area. To
     // make sure we can observe these allocations, we use a lower limit.
@@ -130,23 +122,23 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  if (!allocation_counter_.IsStepInProgress()) {
+  if (!allocator_.allocation_counter().IsStepInProgress()) {
     AdvanceAllocationObservers();
-    Space::AddAllocationObserver(observer);
+    allocator_.allocation_counter().AddAllocationObserver(observer);
     UpdateInlineAllocationLimit();
   } else {
-    Space::AddAllocationObserver(observer);
+    allocator_.allocation_counter().AddAllocationObserver(observer);
   }
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  if (!allocation_counter_.IsStepInProgress()) {
+  if (!allocator_.allocation_counter().IsStepInProgress()) {
     AdvanceAllocationObservers();
-    Space::RemoveAllocationObserver(observer);
+    allocator_.allocation_counter().RemoveAllocationObserver(observer);
     UpdateInlineAllocationLimit();
   } else {
-    Space::RemoveAllocationObserver(observer);
+    allocator_.allocation_counter().RemoveAllocationObserver(observer);
   }
 }
 
@@ -164,7 +156,7 @@ void SpaceWithLinearArea::AdvanceAllocationObservers() {
       allocator_.allocation_info().start() !=
           allocator_.allocation_info().top()) {
     if (heap()->IsAllocationObserverActive()) {
-      allocation_counter_.AdvanceAllocationObservers(
+      allocator_.allocation_counter().AdvanceAllocationObservers(
           allocator_.allocation_info().top() -
           allocator_.allocation_info().start());
     }
@@ -202,7 +194,7 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
   if (!SupportsAllocationObserver() || !heap()->IsAllocationObserverActive())
     return;
 
-  if (allocation_size >= allocation_counter_.NextBytes()) {
+  if (allocation_size >= allocator_.allocation_counter().NextBytes()) {
     // Only the first object in a LAB should reach the next step.
     DCHECK_EQ(soon_object, allocator_.allocation_info().start() +
                                aligned_size_in_bytes - size_in_bytes);
@@ -222,8 +214,8 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 #endif
 
     // Run AllocationObserver::Step through the AllocationCounter.
-    allocation_counter_.InvokeAllocationObservers(soon_object, size_in_bytes,
-                                                  allocation_size);
+    allocator_.allocation_counter().InvokeAllocationObservers(
+        soon_object, size_in_bytes, allocation_size);
 
     // Ensure that start/top/limit didn't change.
     DCHECK_EQ(saved_allocation_info.start(),
@@ -235,7 +227,7 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 
   DCHECK_LT(allocator_.allocation_info().limit() -
                 allocator_.allocation_info().start(),
-            allocation_counter_.NextBytes());
+            allocator_.allocation_counter().NextBytes());
 }
 
 AllocationResult SpaceWithLinearArea::AllocateRawForceAlignmentForTesting(
