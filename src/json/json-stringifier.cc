@@ -1103,6 +1103,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 
   if (!property_list_.is_null() ||
       !CanFastSerializeJSObject(cage_base, *object, isolate_)) {
+    if (!need_stack_) {
+      need_stack_ = true;
+      return NEED_STACK;
+    }
     Result stack_push = StackPush(object, key);
     if (stack_push != SUCCESS) return stack_push;
     Result result = SerializeJSReceiverSlow(object);
