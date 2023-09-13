@@ -2082,6 +2082,7 @@ struct LateOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LateOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    DCHECK(!v8_flags.turboshaft);
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
@@ -2101,19 +2102,13 @@ struct LateOptimizationPhase {
     JSGraphAssembler graph_assembler(data->broker(), data->jsgraph(), temp_zone,
                                      BranchSemantics::kMachine);
     SelectLowering select_lowering(&graph_assembler, data->graph());
-    if (!v8_flags.turboshaft) {
-      AddReducer(data, &graph_reducer, &escape_analysis);
-      AddReducer(data, &graph_reducer, &branch_condition_elimination);
-    }
+    AddReducer(data, &graph_reducer, &escape_analysis);
+    AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    if (!v8_flags.turboshaft) {
-      AddReducer(data, &graph_reducer, &machine_reducer);
-    }
+    AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
-    if (!v8_flags.turboshaft) {
-      AddReducer(data, &graph_reducer, &select_lowering);
-      AddReducer(data, &graph_reducer, &value_numbering);
-    }
+    AddReducer(data, &graph_reducer, &select_lowering);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };

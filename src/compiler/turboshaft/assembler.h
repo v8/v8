@@ -841,6 +841,10 @@ class AssemblerOpInterface {
   DECL_SINGLE_REP_BINOP_V(Uint64MulOverflownBits, WordBinop,
                           UnsignedMulOverflownBits, Word64)
 
+  OpIndex WordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+                    WordRepresentation rep) {
+    return ReduceIfReachableWordBinop(left, right, kind, rep);
+  }
   OpIndex OverflowCheckedBinop(OpIndex left, OpIndex right,
                                OverflowCheckedBinopOp::Kind kind,
                                WordRepresentation rep) {

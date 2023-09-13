@@ -1514,13 +1514,19 @@ class MachineOptimizationReducer : public Next {
 
   OpIndex REDUCE(Branch)(OpIndex condition, Block* if_true, Block* if_false,
                          BranchHint hint) {
-    if (ShouldSkipOptimizationStep()) {
+    LABEL_BLOCK(no_change) {
       return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
-    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Try to replace the Branch by a Goto.
+    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
       __ Goto(*decision ? if_true : if_false);
       return OpIndex::Invalid();
     }
+
+    // Try to simplify the Branch's condition (eg, `if (x == 0) A else B` can
+    // become `if (x) B else A`).
     bool negated = false;
     if (base::Optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
@@ -1530,9 +1536,9 @@ class MachineOptimizationReducer : public Next {
       }
 
       return __ ReduceBranch(new_condition.value(), if_true, if_false, hint);
-    } else {
-      return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
+
+    goto no_change;
   }
 
   OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
@@ -1542,7 +1548,7 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
                                       parameters);
     }
-    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
         __ Deoptimize(frame_state, parameters);
       }
@@ -1565,7 +1571,7 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
-    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
         Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
         __ Unreachable();
@@ -1582,11 +1588,27 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
+  OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+                         RegisterRepresentation rep, BranchHint hint,
+                         SelectOp::Implementation implem) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Try to remove the Select.
+    if (base::Optional<bool> decision = MatchBoolConstant(cond)) {
+      return *decision ? vtrue : vfalse;
+    }
+
+    goto no_change;
+  }
+
   OpIndex REDUCE(StaticAssert)(OpIndex condition, const char* source) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStaticAssert(condition, source);
     }
-    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision) {
         // Drop the assert, the condition holds true.
         return OpIndex::Invalid();
@@ -2091,12 +2113,29 @@ class MachineOptimizationReducer : public Next {
           continue;
         }
       }
+      // Select(x, true, false) => x
+      if (const SelectOp* select = matcher.TryCast<SelectOp>(condition)) {
+        auto left_val = MatchBoolConstant(select->vtrue());
+        auto right_val = MatchBoolConstant(select->vfalse());
+        if (left_val && right_val) {
+          if (*left_val == *right_val) {
+            // Select(x, v, v) => v
+            return __ Word32Constant(*left_val);
+          }
+          if (*left_val == false) {
+            // Select(x, false, true) => !x
+            *negated = !*negated;
+          }
+          condition = select->cond();
+          reduced = true;
+        }
+      }
       break;
     }
     return reduced ? base::Optional<OpIndex>(condition) : base::nullopt;
   }
 
-  base::Optional<bool> DecideBranchCondition(OpIndex condition) {
+  base::Optional<bool> MatchBoolConstant(OpIndex condition) {
     if (uint32_t value; matcher.MatchWord32Constant(condition, &value)) {
       return value != 0;
     }
