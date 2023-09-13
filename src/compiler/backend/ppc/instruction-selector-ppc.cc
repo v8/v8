@@ -3344,23 +3344,24 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(S128Not)                   \
   V(V128AnyTrue)
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                           \
-  template <typename Adapter>                                         \
-  void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign( \
-      Node* node) {                                                   \
-    PPCOperandGeneratorT<Adapter> g(this);                            \
-    int32_t lane = OpParameter<int32_t>(node->op());                  \
-    Emit(kPPC_##Type##ExtractLane##Sign, g.DefineAsRegister(node),    \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));      \
+#define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                \
+  template <typename Adapter>                                           \
+  void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign(   \
+      Node* node) {                                                     \
+    PPCOperandGeneratorT<Adapter> g(this);                              \
+    int32_t lane = OpParameter<int32_t>(node->op());                    \
+    Emit(kPPC_##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize), \
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),     \
+         g.UseImmediate(lane));                                         \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, )
-SIMD_VISIT_EXTRACT_LANE(F32x4, )
-SIMD_VISIT_EXTRACT_LANE(I64x2, )
-SIMD_VISIT_EXTRACT_LANE(I32x4, )
-SIMD_VISIT_EXTRACT_LANE(I16x8, U)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
+SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
+SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
+SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, 16)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 #define SIMD_VISIT_REPLACE_LANE(Type)                                        \

@@ -2548,44 +2548,78 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kPPC_F64x2ExtractLane: {
-      __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg, kScratchReg);
+    case kPPC_FExtractLane: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ F32x4ExtractLane(i.OutputDoubleRegister(),
+                              i.InputSimd128Register(0), i.InputInt8(1),
+                              kScratchSimd128Reg, kScratchReg, ip);
+          break;
+        }
+        case 64: {
+          __ F64x2ExtractLane(i.OutputDoubleRegister(),
+                              i.InputSimd128Register(0), i.InputInt8(1),
+                              kScratchSimd128Reg, kScratchReg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_F32x4ExtractLane: {
-      __ F32x4ExtractLane(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg, kScratchReg, ip);
+    case kPPC_IExtractLane: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ I32x4ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 64: {
+          __ I64x2ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_I64x2ExtractLane: {
-      __ I64x2ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg);
+    case kPPC_IExtractLaneU: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 16: {
+          __ I16x8ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_I32x4ExtractLane: {
-      __ I32x4ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8ExtractLaneU: {
-      __ I16x8ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8ExtractLaneS: {
-      __ I16x8ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16ExtractLaneU: {
-      __ I8x16ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16ExtractLaneS: {
-      __ I8x16ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
+    case kPPC_IExtractLaneS: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 16: {
+          __ I16x8ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
     case kPPC_F64x2ReplaceLane: {
