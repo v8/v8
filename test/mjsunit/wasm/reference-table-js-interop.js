@@ -111,7 +111,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let i31Sig = typeName != "structref" && typeName != "arrayref"
                ? creatorSig : creatorAnySig;
   builder.addFunction("createI31", i31Sig)
-    .addBody([kExprI32Const, 12, kGCPrefix, kExprI31New])
+    .addBody([kExprI32Const, 12, kGCPrefix, kExprRefI31])
     .exportFunc();
   let structSig = typeName != "arrayref" && typeName != "i31ref"
                   ? creatorSig : creatorAnySig;

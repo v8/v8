@@ -641,7 +641,7 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<uint8_t>(index), \
       static_cast<uint8_t>(length)
 
-#define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
+#define WASM_REF_I31(val) val, WASM_GC_OP(kExprRefI31)
 #define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)
 #define WASM_I31_GET_U(val) val, WASM_GC_OP(kExprI31GetU)
 

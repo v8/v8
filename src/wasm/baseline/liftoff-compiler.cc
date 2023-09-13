@@ -6051,7 +6051,7 @@ class LiftoffCompiler {
     __ DropValues(4);
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
     if constexpr (SmiValuesAre31Bits()) {

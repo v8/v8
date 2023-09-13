@@ -472,7 +472,7 @@ class WasmGraphBuilder {
   void ArrayInitSegment(uint32_t segment_index, Node* array, Node* array_index,
                         Node* segment_offset, Node* length, bool is_element,
                         wasm::WasmCodePosition position);
-  Node* I31New(Node* input);
+  Node* RefI31(Node* input);
   Node* I31GetS(Node* input, CheckForNull null_check,
                 wasm::WasmCodePosition position);
   Node* I31GetU(Node* input, CheckForNull null_check,

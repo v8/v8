@@ -77,14 +77,14 @@ let instance = (() => {
     builder.addFunction('i31_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprI31New])
+      kGCPrefix, kExprRefI31])
     .exportFunc();
 
     builder.addFunction('i31_externalize',
                         makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprI31New,
+      kGCPrefix, kExprRefI31,
       kGCPrefix, kExprExternExternalize,
     ])
     .exportFunc();

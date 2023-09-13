@@ -2011,7 +2011,7 @@ class TurboshaftGraphBuildingInterface {
          __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)), array.op});
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
     if constexpr (SmiValuesAre31Bits()) {
       V<Word32> shifted =
           __ Word32ShiftLeft(input.op, kSmiTagSize + kSmiShiftSize);

@@ -1521,8 +1521,8 @@ class WasmGraphBuildingInterface {
         decoder->position());
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    SetAndTypeNode(result, builder_->I31New(input.node));
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
+    SetAndTypeNode(result, builder_->RefI31(input.node));
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {

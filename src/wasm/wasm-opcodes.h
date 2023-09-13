@@ -717,7 +717,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
   V(ExternInternalize, 0xfb1a, _, "extern.internalize")                        \
   V(ExternExternalize, 0xfb1b, _, "extern.externalize")                        \
-  V(I31New, 0xfb1c, _, "i31.new")                                              \
+  V(RefI31, 0xfb1c, _, "ref.i31")                                              \
   V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
   /* TODO(14034): Drop the deprecated opcodes below. */                        \

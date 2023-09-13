@@ -155,7 +155,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     table, wasmI32Const(0),
     [[...wasmI32Const(111), ...wasmI32Const(222),
       kGCPrefix, kExprArrayNewFixed, array_type, 2],
-     [...wasmI32Const(-31), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-31), kGCPrefix, kExprRefI31],
      [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type],
      [kExprRefNull, kEqRefCode]],
     kWasmAnyRef);
@@ -219,7 +219,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     table, wasmI32Const(0),
     [[...wasmI32Const(111), ...wasmI32Const(222),
       kGCPrefix, kExprArrayNewFixed, array_type, 2],
-     [...wasmI32Const(-31), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-31), kGCPrefix, kExprRefI31],
      [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type]],
      wasmRefType(kWasmAnyRef));
 
@@ -327,8 +327,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let table = builder.addTable(kWasmI31Ref, 4, 4);
   builder.addActiveElementSegment(
     table, wasmI32Const(0),
-    [[...wasmI32Const(10), kGCPrefix, kExprI31New],
-     [...wasmI32Const(-42), kGCPrefix, kExprI31New],
+    [[...wasmI32Const(10), kGCPrefix, kExprRefI31],
+     [...wasmI32Const(-42), kGCPrefix, kExprRefI31],
      [kExprRefNull, kI31RefCode]],
      kWasmI31Ref);
 

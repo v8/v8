@@ -1352,7 +1352,7 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
       {WASM_REF_TEST(WASM_REF_NULL(kI31RefCode), kArrayRefCode), kExprEnd});
   const uint8_t kIsArrayUnrelatedNonNullable = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_I31_NEW(WASM_I32V(10)), kArrayRefCode), kExprEnd});
+      {WASM_REF_TEST(WASM_REF_I31(WASM_I32V(10)), kArrayRefCode), kExprEnd});
 
   const uint8_t kAsArrayNull =
       tester.DefineFunction(tester.sigs.i_v(), {},
@@ -1387,7 +1387,7 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
   const uint8_t kAsArrayUnrelatedNonNullable =
       tester.DefineFunction(tester.sigs.i_v(), {},
                             {WASM_REF_IS_NULL(WASM_REF_CAST(
-                                 WASM_I31_NEW(WASM_I32V(10)), kArrayRefCode)),
+                                 WASM_REF_I31(WASM_I32V(10)), kArrayRefCode)),
                              kExprEnd});
 
   tester.CompileModule();
@@ -1659,12 +1659,12 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   uint8_t kStructCheckSuccess =
       TYPE_CHECK(Struct, WASM_STRUCT_NEW_DEFAULT(struct_index));
-  uint8_t kStructCheckFailure = TYPE_CHECK(Struct, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kStructCheckFailure = TYPE_CHECK(Struct, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kArrayCheckSuccess =
       TYPE_CHECK(Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   uint8_t kArrayCheckFailure =
       TYPE_CHECK(Array, WASM_STRUCT_NEW_DEFAULT(struct_index));
-  uint8_t kI31CheckSuccess = TYPE_CHECK(I31, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kI31CheckSuccess = TYPE_CHECK(I31, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kI31CheckFailure =
       TYPE_CHECK(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
 #undef TYPE_CHECK
@@ -1677,11 +1677,11 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   uint8_t kStructCastSuccess =
       TYPE_CAST(Struct, WASM_STRUCT_NEW_DEFAULT(struct_index));
-  uint8_t kStructCastFailure = TYPE_CAST(Struct, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kStructCastFailure = TYPE_CAST(Struct, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kArrayCastSuccess =
       TYPE_CAST(Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
-  uint8_t kArrayCastFailure = TYPE_CAST(Array, WASM_I31_NEW(WASM_I32V(42)));
-  uint8_t kI31CastSuccess = TYPE_CAST(I31, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kArrayCastFailure = TYPE_CAST(Array, WASM_REF_I31(WASM_I32V(42)));
+  uint8_t kI31CastSuccess = TYPE_CAST(I31, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kI31CastFailure =
       TYPE_CAST(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
 #undef TYPE_CAST
@@ -1704,8 +1704,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   uint8_t kBrOnStructNotTaken = BR_ON(Struct, WASM_REF_NULL(kNoneCode));
   uint8_t kBrOnArrayTaken =
       BR_ON(Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
-  uint8_t kBrOnArrayNotTaken = BR_ON(Array, WASM_I31_NEW(WASM_I32V(42)));
-  uint8_t kBrOnI31Taken = BR_ON(I31, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kBrOnArrayNotTaken = BR_ON(Array, WASM_REF_I31(WASM_I32V(42)));
+  uint8_t kBrOnI31Taken = BR_ON(I31, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kBrOnI31NotTaken =
       BR_ON(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
 #undef BR_ON
@@ -1728,8 +1728,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   uint8_t kBrOnNonStructTaken = BR_ON_NON(Struct, WASM_REF_NULL(kNoneCode));
   uint8_t kBrOnNonArrayNotTaken =
       BR_ON_NON(Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
-  uint8_t kBrOnNonArrayTaken = BR_ON_NON(Array, WASM_I31_NEW(WASM_I32V(42)));
-  uint8_t kBrOnNonI31NotTaken = BR_ON_NON(I31, WASM_I31_NEW(WASM_I32V(42)));
+  uint8_t kBrOnNonArrayTaken = BR_ON_NON(Array, WASM_REF_I31(WASM_I32V(42)));
+  uint8_t kBrOnNonI31NotTaken = BR_ON_NON(I31, WASM_REF_I31(WASM_I32V(42)));
   uint8_t kBrOnNonI31Taken =
       BR_ON_NON(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
 #undef BR_ON_NON

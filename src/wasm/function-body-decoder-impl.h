@@ -1068,7 +1068,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(ArrayNewSegment, const ArrayIndexImmediate& array_imm,                     \
     const IndexImmediate& data_segment, const Value& offset,                   \
     const Value& length, Value* result)                                        \
-  F(I31New, const Value& input, Value* result)                                 \
+  F(RefI31, const Value& input, Value* result)                                 \
   F(StringConst, const StringConstImmediate& imm, Value* result)
 
 // TODO(manoskouk): Refactor table.init, table.copy to have individual named
@@ -2400,7 +2400,7 @@ class WasmDecoder : public Decoder {
             (ios.TypeIndex(index), ...);
             return length + branch.length + index.length;
           }
-          case kExprI31New:
+          case kExprRefI31:
           case kExprI31GetS:
           case kExprI31GetU:
           case kExprRefAsArray:
@@ -4798,10 +4798,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                            elements.data(), result);
         return opcode_length + array_imm.length + length_imm.length;
       }
-      case kExprI31New: {
+      case kExprRefI31: {
         Value input = Pop(kWasmI32);
         Value* value = Push(ValueType::Ref(HeapType::kI31));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31New, input, value);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefI31, input, value);
         return opcode_length;
       }
       case kExprI31GetS: {

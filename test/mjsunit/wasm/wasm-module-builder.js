@@ -520,7 +520,7 @@ let kExprBrOnCastGeneric = 0x18;      // TODO(14034): Drop "Generic" name.
 let kExprBrOnCastFailGeneric = 0x19;  // TODO(14034): Drop "Generic" name.
 let kExprExternInternalize = 0x1a;
 let kExprExternExternalize = 0x1b;
-let kExprI31New = 0x1c;
+let kExprRefI31 = 0x1c;
 let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
 

@@ -338,7 +338,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
   }
 }
 
-void ConstantExpressionInterface::I31New(FullDecoder* decoder,
+void ConstantExpressionInterface::RefI31(FullDecoder* decoder,
                                          const Value& input, Value* result) {
   if (!generate_value()) return;
   Address raw = input.runtime_value.to_i32();

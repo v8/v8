@@ -684,7 +684,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let createBodies = {
     nullref: [kExprRefNull, kNullRefCode],
-    i31ref: [kExprI32Const, 42, kGCPrefix, kExprI31New],
+    i31ref: [kExprI32Const, 42, kGCPrefix, kExprRefI31],
     structSuper: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSuper],
     structSub: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSub],
     array: [kExprI32Const, 42, kGCPrefix, kExprArrayNewFixed, array, 1],

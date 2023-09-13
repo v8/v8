@@ -6796,7 +6796,7 @@ Node* WasmGraphBuilder::WellKnown_IntToString(Node* n, Node* radix) {
   return result;
 }
 
-Node* WasmGraphBuilder::I31New(Node* input) {
+Node* WasmGraphBuilder::RefI31(Node* input) {
   if constexpr (SmiValuesAre31Bits()) {
     return gasm_->Word32Shl(input, gasm_->BuildSmiShiftBitsConstant32());
   } else {
