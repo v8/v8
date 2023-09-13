@@ -418,6 +418,8 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
 bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
   DCHECK(Enabled());
 
+  RwxMemoryWriteScope write_scope("ThreadIsolation::MakeExecutable");
+
   // TODO(sroettger): need to make sure that the memory is zero-initialized.
   // maybe map over it with MAP_FIXED, or call MADV_DONTNEED, or fall back to
   // memset.
@@ -508,6 +510,7 @@ void ThreadIsolation::UnregisterJitAllocationForTesting(Address addr,
 // static
 void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
     MemoryChunk* chunk, const std::vector<Address>& keep) {
+  RwxMemoryWriteScope write_scope("UnregisterInstructionStreamsInPageExcept");
   Address page = chunk->area_start();
   size_t page_size = chunk->area_size();
   LookupJitPage(page, page_size)
@@ -516,6 +519,7 @@ void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
 
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
+  RwxMemoryWriteScope write_scope("UnregisterWasmAllocation");
   LookupJitPage(addr, size).UnregisterAllocation(addr);
 }
 
@@ -569,6 +573,7 @@ ThreadIsolation::SplitJitPages(Address addr1, size_t size1, Address addr2,
 // static
 base::Optional<Address> ThreadIsolation::StartOfJitAllocationAt(
     Address inner_pointer) {
+  RwxMemoryWriteScope write_scope("StartOfJitAllocationAt");
   base::Optional<JitPageReference> page = TryLookupJitPage(inner_pointer, 1);
   if (!page) {
     return {};
@@ -597,6 +602,8 @@ class MutexUnlocker {
 
 // static
 bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address inner_pointer) {
+  RwxMemoryWriteScope write_scope("CanLookupStartOfJitAllocationAt");
+
   // Try to lock the pages mutex and the mutex of the page itself to prevent
   // potential dead locks. The profiler can try to do a lookup from a signal
   // handler. If that signal handler runs while the thread locked one of these
