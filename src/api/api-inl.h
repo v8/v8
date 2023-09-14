@@ -312,7 +312,7 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   }
 
   i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::JSArray> obj = *reinterpret_cast<i::JSArray*>(*src);
+  i::Tagged<i::JSArray> obj = *Utils::OpenHandle(*src);
   if (i::Object::IterationHasObservableEffects(obj)) {
     // The array has a custom iterator.
     return false;

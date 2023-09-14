@@ -8001,14 +8001,211 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, Local<Value>* elements,
       factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, len));
 }
 
+namespace internal {
+
+uint32_t GetLength(Tagged<JSArray> array) {
+  Tagged<Object> length = array->length();
+  if (IsSmi(length)) return Smi::ToInt(length);
+  return static_cast<uint32_t>(Object::Number(length));
+}
+
+}  // namespace internal
+
 uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
-  i::Tagged<i::Object> length = obj->length();
-  if (i::IsSmi(length)) {
-    return i::Smi::ToInt(length);
-  } else {
-    return static_cast<uint32_t>(i::Object::Number(length));
+  return i::GetLength(*obj);
+}
+
+namespace internal {
+
+bool CanUseFastIteration(Isolate* isolate, Handle<JSArray> array) {
+  if (IsCustomElementsReceiverMap(array->map())) return false;
+  if (array->GetElementsAccessor()->HasAccessors(*array)) return false;
+  if (!JSObject::PrototypeHasNoElements(isolate, *array)) return false;
+  return true;
+}
+
+enum class FastIterateResult {
+  kException = static_cast<int>(v8::Array::CallbackResult::kException),
+  kBreak = static_cast<int>(v8::Array::CallbackResult::kBreak),
+  kSlowPath,
+  kFinished,
+};
+
+FastIterateResult FastIterateArray(Handle<JSArray> array, Isolate* isolate,
+                                   v8::Array::IterationCallback callback,
+                                   void* callback_data) {
+  // Instead of relying on callers to check condition, this function returns
+  // {kSlowPath} for situations it can't handle.
+  // Most code paths below don't allocate, and rely on {callback} not allocating
+  // either, but this isn't enforced with {DisallowHeapAllocation} to allow
+  // embedders to allocate error objects before terminating the iteration.
+  // Since {callback} must not allocate anyway, we can get away with fake
+  // handles, reducing per-element overhead.
+  if (!CanUseFastIteration(isolate, array)) return FastIterateResult::kSlowPath;
+  using Result = v8::Array::CallbackResult;
+  DisallowJavascriptExecution no_js(isolate);
+  uint32_t length = GetLength(*array);
+  if (length == 0) return FastIterateResult::kFinished;
+  switch (array->GetElementsKind()) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS: {
+      Tagged<FixedArray> elements = FixedArray::cast(array->elements());
+      for (uint32_t i = 0; i < length; i++) {
+        Tagged<Object> element = elements->get(static_cast<int>(i));
+        // TODO(13270): When we switch to CSS, we can pass {element} to
+        // the callback directly, without {fake_handle}.
+        Handle<Object> fake_handle(reinterpret_cast<Address*>(&element));
+        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+        if (result != Result::kContinue) {
+          return static_cast<FastIterateResult>(result);
+        }
+        DCHECK(CanUseFastIteration(isolate, array));
+      }
+      return FastIterateResult::kFinished;
+    }
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
+    case HOLEY_ELEMENTS: {
+      Tagged<FixedArray> elements = FixedArray::cast(array->elements());
+      for (uint32_t i = 0; i < length; i++) {
+        Tagged<Object> element = elements->get(static_cast<int>(i));
+        if (IsTheHole(element)) continue;
+        // TODO(13270): When we switch to CSS, we can pass {element} to
+        // the callback directly, without {fake_handle}.
+        Handle<Object> fake_handle(reinterpret_cast<Address*>(&element));
+        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+        if (result != Result::kContinue) {
+          return static_cast<FastIterateResult>(result);
+        }
+        DCHECK(CanUseFastIteration(isolate, array));
+      }
+      return FastIterateResult::kFinished;
+    }
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
+      DCHECK_NE(length, 0);  // Cast to FixedDoubleArray would be invalid.
+      Handle<FixedDoubleArray> elements(
+          FixedDoubleArray::cast(array->elements()), isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, i++, {
+        if (elements->is_the_hole(i)) continue;
+        double element = elements->get_scalar(i);
+        Handle<Object> value = isolate->factory()->NewNumber(element);
+        Result result = callback(i, Utils::ToLocal(value), callback_data);
+        if (result != Result::kContinue) {
+          return static_cast<FastIterateResult>(result);
+        }
+        DCHECK(CanUseFastIteration(isolate, array));
+      });
+      return FastIterateResult::kFinished;
+    }
+    case DICTIONARY_ELEMENTS: {
+      DisallowGarbageCollection no_gc;
+      Tagged<NumberDictionary> dict = array->element_dictionary();
+      struct Entry {
+        uint32_t index;
+        InternalIndex entry;
+      };
+      std::vector<Entry> sorted;
+      sorted.reserve(dict->NumberOfElements());
+      ReadOnlyRoots roots(isolate);
+      for (InternalIndex i : dict->IterateEntries()) {
+        Tagged<Object> key = dict->KeyAt(isolate, i);
+        if (!dict->IsKey(roots, key)) continue;
+        uint32_t index = static_cast<uint32_t>(Object::Number(key));
+        sorted.push_back({index, i});
+      }
+      std::sort(
+          sorted.begin(), sorted.end(),
+          [](const Entry& a, const Entry& b) { return a.index < b.index; });
+      for (const Entry& entry : sorted) {
+        Tagged<Object> value = dict->ValueAt(entry.entry);
+        // TODO(13270): When we switch to CSS, we can pass {element} to
+        // the callback directly, without {fake_handle}.
+        Handle<Object> fake_handle(reinterpret_cast<Address*>(&value));
+        Result result =
+            callback(entry.index, Utils::ToLocal(fake_handle), callback_data);
+        if (result != Result::kContinue) {
+          return static_cast<FastIterateResult>(result);
+        }
+        SLOW_DCHECK(CanUseFastIteration(isolate, array));
+      }
+      return FastIterateResult::kFinished;
+    }
+    case NO_ELEMENTS:
+      return FastIterateResult::kFinished;
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      // Probably not worth implementing. Take the slow path.
+      return FastIterateResult::kSlowPath;
+    case WASM_ARRAY_ELEMENTS:
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      // These are never used by v8::Array instances.
+      UNREACHABLE();
   }
+}
+
+}  // namespace internal
+
+Maybe<void> v8::Array::Iterate(Local<Context> context,
+                               v8::Array::IterationCallback callback,
+                               void* callback_data) {
+  i::Handle<i::JSArray> array = Utils::OpenHandle(this);
+  i::Isolate* isolate = array->GetIsolate();
+  i::FastIterateResult fast_result =
+      i::FastIterateArray(array, isolate, callback, callback_data);
+  if (fast_result == i::FastIterateResult::kException) return Nothing<void>();
+  // Early breaks and completed iteration both return successfully.
+  if (fast_result != i::FastIterateResult::kSlowPath) return JustVoid();
+
+  // Slow path: retrieving elements could have side effects.
+  ENTER_V8(isolate, context, Array, Iterate, Nothing<void>(), i::HandleScope);
+  for (uint32_t i = 0; i < i::GetLength(*array); ++i) {
+    i::Handle<i::Object> element;
+    has_pending_exception =
+        !i::JSReceiver::GetElement(isolate, array, i).ToHandle(&element);
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(void);
+    using Result = v8::Array::CallbackResult;
+    Result result = callback(i, Utils::ToLocal(element), callback_data);
+    if (result == Result::kException) return Nothing<void>();
+    if (result == Result::kBreak) return JustVoid();
+  }
+  return JustVoid();
+}
+
+v8::TypecheckWitness::TypecheckWitness(Isolate* isolate)
+    // We need to reserve a handle that we can patch later.
+    // TODO(13270): When we switch to CSS, we can use a direct pointer
+    // instead of a handle.
+    : cached_map_(v8::Number::New(isolate, 1)) {}
+
+void v8::TypecheckWitness::Update(Local<Value> baseline) {
+  i::Tagged<i::Object> obj = *Utils::OpenHandle(*baseline);
+  i::Tagged<i::Object> map = i::Smi::zero();
+  if (!IsSmi(obj)) map = i::HeapObject::cast(obj)->map();
+  // Design overview: in the {TypecheckWitness} constructor, we create
+  // a single handle for the witness value. Whenever {Update} is called, we
+  // make this handle point at the fresh baseline/witness; the intention is
+  // to allow having short-lived HandleScopes (e.g. in {FastIterateArray}
+  // above) while a {TypecheckWitness} is alive: it therefore cannot hold
+  // on to one of the short-lived handles.
+  // Calling {OpenHandle} on the {cached_map_} only serves to "reinterpret_cast"
+  // it to an {i::Handle} on which we can call {PatchValue}.
+  // TODO(13270): When we switch to CSS, this can become simpler: we can
+  // then simply overwrite the direct pointer.
+  i::Handle<i::Object> cache = Utils::OpenHandle(*cached_map_);
+  cache.PatchValue(map);
 }
 
 Local<v8::Map> v8::Map::New(Isolate* v8_isolate) {

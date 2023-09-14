@@ -781,6 +781,15 @@ class Internals {
     return ReadRawField<uint16_t>(map, kMapInstanceTypeOffset);
   }
 
+  V8_INLINE static Address LoadMap(Address obj) {
+    if (!HasHeapObjectTag(obj)) return kNullAddress;
+    Address map = ReadTaggedPointerField(obj, kHeapObjectMapOffset);
+#ifdef V8_MAP_PACKING
+    map = UnpackMapWord(map);
+#endif
+    return map;
+  }
+
   V8_INLINE static int GetOddballKind(Address obj) {
     return SmiValue(ReadTaggedSignedField(obj, kOddballKindOffset));
   }
