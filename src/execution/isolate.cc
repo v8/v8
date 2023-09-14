@@ -3214,6 +3214,21 @@ void Isolate::SyncStackLimit() {
   RecordStackSwitchForScanning();
 }
 
+namespace {
+bool IsOnCentralStack(Isolate* isolate, Address addr) {
+#ifdef USE_SIMULATOR
+  auto simulator_stack = Simulator::current(isolate)->GetCurrentStackView();
+  uint8_t* addr_ptr = reinterpret_cast<uint8_t*>(addr);
+  return simulator_stack.begin() < addr_ptr &&
+         addr_ptr <= simulator_stack.end();
+#else
+  uintptr_t upper_bound = base::Stack::GetStackStart();
+  uintptr_t lower_bound = upper_bound - v8_flags.stack_size * KB;
+  return lower_bound < addr && addr <= upper_bound;
+#endif
+}
+}  // namespace
+
 void Isolate::RecordStackSwitchForScanning() {
   Tagged<Object> current = root(RootIndex::kActiveContinuation);
   DCHECK(!IsUndefined(current));
@@ -3226,6 +3241,8 @@ void Isolate::RecordStackSwitchForScanning() {
   current = WasmContinuationObject::cast(current)->parent();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
   thread_local_top()->is_on_central_stack_flag_ = IsUndefined(current);
+  // Update the central stack info on switch. Only consider the innermost stack
+  bool updated_central_stack = false;
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
   while (!IsUndefined(current)) {
@@ -3236,12 +3253,15 @@ void Isolate::RecordStackSwitchForScanning() {
         reinterpret_cast<const void*>(wasm_stack->base()),
         reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
     current = cont->parent();
-    // If the parent is undefined, wasm_stack is the central stack.
-    // Update the central stack SP for switching in CEntry.
-    if (IsUndefined(current)) {
+    if (!updated_central_stack &&
+        IsOnCentralStack(this, wasm_stack->jmpbuf()->sp)) {
+      // This is the most recent use of the central stack in the call chain.
+      // Switch to this SP if we need to switch to the central stack in the
+      // future.
       thread_local_top()->central_stack_sp_ = wasm_stack->jmpbuf()->sp;
       thread_local_top()->central_stack_limit_ =
           reinterpret_cast<Address>(wasm_stack->jmpbuf()->stack_limit);
+      updated_central_stack = true;
     }
   }
 }
