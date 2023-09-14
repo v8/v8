@@ -6593,19 +6593,19 @@ class LiftoffCompiler {
   }
 
   void RefAsEq(FullDecoder* decoder, const Value& object, Value* result,
-               bool null_succeeds = false) {
+               bool null_succeeds) {
     AbstractTypeCast<&LiftoffCompiler::EqCheck>(object, decoder, kRef,
                                                 null_succeeds);
   }
 
   void RefAsStruct(FullDecoder* decoder, const Value& object,
-                   Value* /* result */, bool null_succeeds = false) {
+                   Value* /* result */, bool null_succeeds) {
     AbstractTypeCast<&LiftoffCompiler::StructCheck>(object, decoder, kRef,
                                                     null_succeeds);
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result,
-                bool null_succeeds = false) {
+                bool null_succeeds) {
     AbstractTypeCast<&LiftoffCompiler::I31Check>(object, decoder, kRef,
                                                  null_succeeds);
   }
