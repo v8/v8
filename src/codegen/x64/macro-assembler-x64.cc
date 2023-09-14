@@ -487,17 +487,19 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
   // to set it using a bitwise OR as it may or may not be set.
   orq(destination, Immediate(kHeapObjectTag));
 #else
-  movq(destination, field_operand);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
                                                Register value) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
-  static_assert(kAllIndirectPointerObjectsAreCode);
+#ifdef V8_CODE_POINTER_SANDBOXING
   movl(kScratchRegister,
-       FieldOperand(value, Code::kCodePointerTableEntryOffset));
+       FieldOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
   movl(dst_field_operand, kScratchRegister);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void MacroAssembler::StoreMaybeIndirectPointerField(Operand dst_field_operand,
@@ -509,8 +511,8 @@ void MacroAssembler::StoreMaybeIndirectPointerField(Operand dst_field_operand,
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-void MacroAssembler::LoadCodeEntrypointField(Register destination,
-                                             Operand field_operand) {
+void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
+    Register destination, Operand field_operand) {
   DCHECK(!AreAliased(destination, kScratchRegister));
 #ifdef V8_CODE_POINTER_SANDBOXING
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
@@ -521,7 +523,7 @@ void MacroAssembler::LoadCodeEntrypointField(Register destination,
   shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
   movq(destination, Operand(kScratchRegister, destination, times_1, 0));
 #else
-  movq(destination, field_operand);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
@@ -2625,8 +2627,12 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntrypointField(
-      destination, FieldOperand(code_object, Code::kInstructionStartOffset));
+#ifdef V8_CODE_POINTER_SANDBOXING
+  LoadCodeEntrypointViaIndirectPointer(
+      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset));
+#else
+  movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
+#endif
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
@@ -2653,7 +2659,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointField(
+  LoadCodeEntrypointViaIndirectPointer(
       rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   call(rcx);
 #else
@@ -2669,7 +2675,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointField(
+  LoadCodeEntrypointViaIndirectPointer(
       rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);

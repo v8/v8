@@ -4272,7 +4272,7 @@ class TurboshaftGraphBuildingInterface {
 #ifdef V8_CODE_POINTER_SANDBOXING
       V<Word32> call_target_handle = __ Load(
           wrapper_code, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::Uint32(), Code::kInstructionStartOffset);
+          MemoryRepresentation::Uint32(), Code::kSelfIndirectPointerOffset);
       V<WordPtr> call_target =
           BuildDecodeExternalCodePointer(call_target_handle);
 #else

@@ -816,12 +816,14 @@ void HeapObject::InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
                                     entrypoint);
 }
 
-Address HeapObject::ReadCodeEntrypointField(size_t offset) const {
-  return i::ReadCodeEntrypointField(field_address(offset));
+Address HeapObject::ReadCodeEntrypointViaIndirectPointerField(
+    size_t offset) const {
+  return i::ReadCodeEntrypointViaIndirectPointerField(field_address(offset));
 }
 
-void HeapObject::WriteCodeEntrypointField(size_t offset, Address value) {
-  i::WriteCodeEntrypointField(field_address(offset), value);
+void HeapObject::WriteCodeEntrypointViaIndirectPointerField(size_t offset,
+                                                            Address value) {
+  i::WriteCodeEntrypointViaIndirectPointerField(field_address(offset), value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

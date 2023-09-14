@@ -1210,17 +1210,17 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                reinterpret_cast<const uint8_t*>(&field_value));
     } else if (IsCode(*object_, cage_base)) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-      // When the sandbox is enabled, this field instead contains the handle to
-      // this Code object's code pointer table entry. This will similarly be
-      // recomputed after deserialization.
+      // When the sandbox is enabled, this field contains the handle to this
+      // Code object's code pointer table entry. This will be recomputed after
+      // deserialization.
       static uint8_t field_value[kIndirectPointerSlotSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               Code::kCodePointerTableEntryOffset,
+                               Code::kSelfIndirectPointerOffset,
                                sizeof(field_value), field_value);
 #else
-      // instruction_start field contains a raw value that will be recomputed
-      // after deserialization, so write zeros to keep the snapshot
-      // deterministic.
+      // In this case, instruction_start field contains a raw value that will
+      // similarly be recomputed after deserialization, so write zeros to keep
+      // the snapshot deterministic.
       static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,

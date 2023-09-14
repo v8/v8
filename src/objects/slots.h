@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class Object;
+class ExposedTrustedObject;
 using TaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 
 template <typename Subclass, typename Data,
@@ -348,8 +349,6 @@ class ExternalPointerSlot
 // contains the "real" pointer to the referenced HeapObject. These slots are
 // used when the sandbox is enabled to securely reference HeapObjects outside
 // of the sandbox.
-// If we ever have multiple tables for indirect pointers, this class would
-// probably also contain a reference to the pointer table.
 class IndirectPointerSlot
     : public SlotBase<IndirectPointerSlot, IndirectPointerHandle,
                       kTaggedSize /* slot alignment */> {
@@ -357,20 +356,16 @@ class IndirectPointerSlot
   IndirectPointerSlot() : SlotBase(kNullAddress) {}
   explicit IndirectPointerSlot(Address ptr) : SlotBase(ptr) {}
 
-  // Even though only HeapObjects (TODO(saelo) or some ExternalObject class,
-  // see below) can be stored into an IndirectPointerSlot, these slots can be
-  // empty (containing kNullIndirectPointerHandle), in which case load() will
-  // return Smi::zero().
+  // Even though only HeapObjects can be stored into an IndirectPointerSlot,
+  // these slots can be empty (containing kNullIndirectPointerHandle), in which
+  // case load() will return Smi::zero().
   inline Tagged<Object> load() const;
-  // TODO(saelo) currently, Code objects are the only objects that can be
-  // referenced through an indirect pointer. Once we have more, we should
-  // generalize this to take ExternalObject or another appropriate base class.
-  inline void store(Tagged<Code> value) const;
+  inline void store(Tagged<ExposedTrustedObject> value) const;
 
   inline Tagged<Object> Relaxed_Load() const;
   inline Tagged<Object> Acquire_Load() const;
-  inline void Relaxed_Store(Tagged<Code> value) const;
-  inline void Release_Store(Tagged<Code> value) const;
+  inline void Relaxed_Store(Tagged<ExposedTrustedObject> value) const;
+  inline void Release_Store(Tagged<ExposedTrustedObject> value) const;
 
   inline IndirectPointerHandle Relaxed_LoadHandle() const;
   inline IndirectPointerHandle Acquire_LoadHandle() const;

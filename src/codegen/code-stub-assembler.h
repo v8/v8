@@ -1179,17 +1179,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadMaybeIndirectPointerFromObject(TNode<HeapObject> object,
                                                        int offset);
 
-  // When the sandbox is enabled, this will load the Code object pointer from
-  // the code pointer table entry.
-  // Load a code entrypoint pointer from an object.
-  // When the sandbox is enabled, this will load the entrypoint pointer from the
-  // code pointer table entry.
-  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
-                                              int offset) {
-    return LoadCodeEntrypointFromObject(object, IntPtrConstant(offset));
+  // Load the pointer to a Code's entrypoint via an indirect pointer to the
+  // Code object.
+  // Only available when the sandbox is enabled.
+  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
+      TNode<HeapObject> object, int offset) {
+    return LoadCodeEntrypointViaIndirectPointerField(object,
+                                                     IntPtrConstant(offset));
   }
-  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
-                                              TNode<IntPtrT> offset);
+  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
+      TNode<HeapObject> object, TNode<IntPtrT> offset);
 
 #ifdef V8_CODE_POINTER_SANDBOXING
   // Helper function to load a CodePointerHandle from an object and compute the

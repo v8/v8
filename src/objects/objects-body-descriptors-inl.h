@@ -941,7 +941,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
         obj->RawInstructionStreamField(kInstructionStreamOffset));
 #ifdef V8_CODE_POINTER_SANDBOXING
     v->VisitIndirectPointerTableEntry(
-        obj, obj->RawIndirectPointerField(kCodePointerTableEntryOffset));
+        obj, obj->RawIndirectPointerField(kSelfIndirectPointerOffset));
 #endif
   }
 

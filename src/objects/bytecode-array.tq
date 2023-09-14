@@ -14,4 +14,4 @@ extern class BytecodeArray extends FixedArrayBase {
   incoming_new_target_or_generator_register: int32;
 }
 
-extern class Code extends HeapObject;
+extern class Code extends ExposedTrustedObject;

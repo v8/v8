@@ -1825,7 +1825,7 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
 }
 #endif  // V8_CODE_POINTER_SANDBOXING
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointFromObject(
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   TNode<RawPtrT> table =
@@ -1834,7 +1834,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointFromObject(
       ComputeCodePointerTableEntryOffset(object, field_offset);
   return Load<RawPtrT>(table, offset);
 #else
-  return LoadObjectField<RawPtrT>(object, field_offset);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
@@ -16056,7 +16056,14 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
-  return LoadCodeEntrypointFromObject(code, Code::kInstructionStartOffset);
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // In this case, the entrypoint is stored in the code pointer table entry
+  // referenced via the Code object's 'self' indirect pointer.
+  return LoadCodeEntrypointViaIndirectPointerField(
+      code, Code::kSelfIndirectPointerOffset);
+#else
+  return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {

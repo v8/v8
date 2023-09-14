@@ -238,8 +238,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
                                              Tagged<Code> owning_code,
                                              Address entrypoint);
-  inline Address ReadCodeEntrypointField(size_t offset) const;
-  inline void WriteCodeEntrypointField(size_t offset, Address value);
+  inline Address ReadCodeEntrypointViaIndirectPointerField(size_t offset) const;
+  inline void WriteCodeEntrypointViaIndirectPointerField(size_t offset,
+                                                         Address value);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.

@@ -1589,10 +1589,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreMaybeIndirectPointerField(Register value,
                                       MemOperand dst_field_operand);
 
-  // Laod a pointer to a code entrypoint from the heap.
-  // When the sandbox is enabled the pointer is loaded indirectly via the code
-  // pointer table, otherwise it is loaded direclty as a raw pointer.
-  void LoadCodeEntrypointField(Register destination, MemOperand field_operand);
+  // Load the pointer to a Code's entrypoint via an indirect pointer to the
+  // Code object.
+  // Only available when the sandbox is enabled.
+  void LoadCodeEntrypointViaIndirectPointer(Register destination,
+                                            MemOperand field_operand);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.

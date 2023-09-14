@@ -836,7 +836,7 @@ class WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
 
-  Node* BuildLoadCodePointerFromObject(Node* object, int field_offset);
+  Node* BuildLoadCodeEntrypoint(Node* code_object);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 

@@ -36,7 +36,8 @@ V8_INLINE void InitCodePointerTableEntryField(Address field_address,
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-V8_INLINE Address ReadCodeEntrypointField(Address field_address) {
+V8_INLINE Address
+ReadCodeEntrypointViaIndirectPointerField(Address field_address) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
@@ -47,18 +48,19 @@ V8_INLINE Address ReadCodeEntrypointField(Address field_address) {
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   return GetProcessWideCodePointerTable()->GetEntrypoint(handle);
 #else
-  return ReadMaybeUnalignedValue<Address>(field_address);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
-V8_INLINE void WriteCodeEntrypointField(Address field_address, Address value) {
+V8_INLINE void WriteCodeEntrypointViaIndirectPointerField(Address field_address,
+                                                          Address value) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   // See comment above for why this is a Relaxed_Load.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   GetProcessWideCodePointerTable()->SetEntrypoint(handle, value);
 #else
-  WriteMaybeUnalignedValue<Address>(field_address, value);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 

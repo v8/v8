@@ -2447,8 +2447,13 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntrypointField(
-      destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
+#ifdef V8_CODE_POINTER_SANDBOXING
+  LoadCodeEntrypointViaIndirectPointer(
+      destination,
+      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset));
+#else
+  Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
+#endif
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
@@ -2476,7 +2481,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointField(
+  LoadCodeEntrypointViaIndirectPointer(
       code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   Call(code);
 #else
@@ -2493,7 +2498,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointField(
+  LoadCodeEntrypointViaIndirectPointer(
       code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   // We jump through x17 here because for Branch Identification (BTI) we use
@@ -3533,18 +3538,22 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
                  Immediate(kCodePointerTableEntryCodeObjectOffset)));
   Orr(destination, destination, Immediate(kHeapObjectTag));
 #else
-  Ldr(destination, field_operand);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void MacroAssembler::StoreIndirectPointerField(Register value,
                                                MemOperand dst_field_operand) {
+#ifdef V8_CODE_POINTER_SANDBOXING
   DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  static_assert(kAllIndirectPointerObjectsAreCode);
-  Ldr(scratch.W(), FieldMemOperand(value, Code::kCodePointerTableEntryOffset));
+  Ldr(scratch.W(),
+      FieldMemOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
   Str(scratch.W(), dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void MacroAssembler::StoreMaybeIndirectPointerField(
@@ -3556,8 +3565,8 @@ void MacroAssembler::StoreMaybeIndirectPointerField(
 #endif
 }
 
-void MacroAssembler::LoadCodeEntrypointField(Register destination,
-                                             MemOperand field_operand) {
+void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
+    Register destination, MemOperand field_operand) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_CODE_POINTER_SANDBOXING
   UseScratchRegisterScope temps(this);
@@ -3569,7 +3578,7 @@ void MacroAssembler::LoadCodeEntrypointField(Register destination,
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
   Ldr(destination, MemOperand(table, destination));
 #else
-  Ldr(destination, field_operand);
+  UNREACHABLE();
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
