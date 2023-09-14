@@ -3563,6 +3563,16 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     if (original_map.UnusedPropertyFields() == 0) {
       return ReduceResult::Fail();
     }
+    if (!field_index.is_inobject()) {
+      // If slack tracking ends after this compilation started but before it's
+      // finished, then {original_map} could be out-of-sync with {transition}.
+      // In particular, its UnusedPropertyFields could be non-zero, which would
+      // lead us to not extend the property backing store, while the underlying
+      // Map has actually zero UnusedPropertyFields. Thus, we install a
+      // dependency on {orininal_map} now, so that if such a situation happens,
+      // we'll throw away the code.
+      broker()->dependencies()->DependOnNoSlackTrackingChange(original_map);
+    }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
