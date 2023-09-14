@@ -117,6 +117,19 @@ class MainAllocator {
                                       AllocationAlignment alignment,
                                       AllocationOrigin);
 
+  void AddAllocationObserver(AllocationObserver* observer);
+  void RemoveAllocationObserver(AllocationObserver* observer);
+  void PauseAllocationObservers();
+  void ResumeAllocationObservers();
+
+  V8_EXPORT_PRIVATE void AdvanceAllocationObservers();
+  V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
+                                                   size_t size_in_bytes,
+                                                   size_t aligned_size_in_bytes,
+                                                   size_t allocation_size);
+
+  void MarkLabStartInitialized();
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
@@ -146,6 +159,8 @@ class MainAllocator {
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
                          AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  AllocationSpace identity() const;
 
   Heap* heap() const { return heap_; }
 

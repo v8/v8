@@ -34,6 +34,108 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
              : result;
 }
 
+void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {
+  if (!allocation_counter().IsStepInProgress()) {
+    AdvanceAllocationObservers();
+    allocation_counter().AddAllocationObserver(observer);
+    space_->UpdateInlineAllocationLimit();
+  } else {
+    allocation_counter().AddAllocationObserver(observer);
+  }
+}
+
+void MainAllocator::RemoveAllocationObserver(AllocationObserver* observer) {
+  if (!allocation_counter().IsStepInProgress()) {
+    AdvanceAllocationObservers();
+    allocation_counter().RemoveAllocationObserver(observer);
+    space_->UpdateInlineAllocationLimit();
+  } else {
+    allocation_counter().RemoveAllocationObserver(observer);
+  }
+}
+
+void MainAllocator::PauseAllocationObservers() { AdvanceAllocationObservers(); }
+
+void MainAllocator::ResumeAllocationObservers() {
+  MarkLabStartInitialized();
+  space_->UpdateInlineAllocationLimit();
+}
+
+void MainAllocator::AdvanceAllocationObservers() {
+  if (allocation_info().top() &&
+      allocation_info().start() != allocation_info().top()) {
+    if (heap()->IsAllocationObserverActive()) {
+      allocation_counter().AdvanceAllocationObservers(
+          allocation_info().top() - allocation_info().start());
+    }
+    MarkLabStartInitialized();
+  }
+}
+
+void MainAllocator::MarkLabStartInitialized() {
+  allocation_info().ResetStart();
+  if (identity() == NEW_SPACE) {
+    heap()->new_space()->MoveOriginalTopForward();
+
+#if DEBUG
+    heap()->VerifyNewSpaceTop();
+#endif
+  }
+}
+
+// Perform an allocation step when the step is reached. size_in_bytes is the
+// actual size needed for the object (required for InvokeAllocationObservers).
+// aligned_size_in_bytes is the size of the object including the filler right
+// before it to reach the right alignment (required to DCHECK the start of the
+// object). allocation_size is the size of the actual allocation which needs to
+// be used for the accounting. It can be different from aligned_size_in_bytes in
+// PagedSpace::AllocateRawAligned, where we have to overallocate in order to be
+// able to align the allocation afterwards.
+void MainAllocator::InvokeAllocationObservers(Address soon_object,
+                                              size_t size_in_bytes,
+                                              size_t aligned_size_in_bytes,
+                                              size_t allocation_size) {
+  DCHECK_LE(size_in_bytes, aligned_size_in_bytes);
+  DCHECK_LE(aligned_size_in_bytes, allocation_size);
+  DCHECK(size_in_bytes == aligned_size_in_bytes ||
+         aligned_size_in_bytes == allocation_size);
+
+  if (!space_->SupportsAllocationObserver() ||
+      !heap()->IsAllocationObserverActive())
+    return;
+
+  if (allocation_size >= allocation_counter().NextBytes()) {
+    // Only the first object in a LAB should reach the next step.
+    DCHECK_EQ(soon_object, allocation_info().start() + aligned_size_in_bytes -
+                               size_in_bytes);
+
+    // Right now the LAB only contains that one object.
+    DCHECK_EQ(allocation_info().top() + allocation_size - aligned_size_in_bytes,
+              allocation_info().limit());
+
+    // Ensure that there is a valid object
+    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes));
+
+#if DEBUG
+    // Ensure that allocation_info_ isn't modified during one of the
+    // AllocationObserver::Step methods.
+    LinearAllocationArea saved_allocation_info = allocation_info();
+#endif
+
+    // Run AllocationObserver::Step through the AllocationCounter.
+    allocation_counter().InvokeAllocationObservers(soon_object, size_in_bytes,
+                                                   allocation_size);
+
+    // Ensure that start/top/limit didn't change.
+    DCHECK_EQ(saved_allocation_info.start(), allocation_info().start());
+    DCHECK_EQ(saved_allocation_info.top(), allocation_info().top());
+    DCHECK_EQ(saved_allocation_info.limit(), allocation_info().limit());
+  }
+
+  DCHECK_LT(allocation_info().limit() - allocation_info().start(),
+            allocation_counter().NextBytes());
+}
+
 AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
@@ -89,6 +191,8 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
 
   return result;
 }
+
+AllocationSpace MainAllocator::identity() const { return space_->identity(); }
 
 }  // namespace internal
 }  // namespace v8

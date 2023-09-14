@@ -122,112 +122,35 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  if (!allocator_.allocation_counter().IsStepInProgress()) {
-    AdvanceAllocationObservers();
-    allocator_.allocation_counter().AddAllocationObserver(observer);
-    UpdateInlineAllocationLimit();
-  } else {
-    allocator_.allocation_counter().AddAllocationObserver(observer);
-  }
+  allocator_.AddAllocationObserver(observer);
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  if (!allocator_.allocation_counter().IsStepInProgress()) {
-    AdvanceAllocationObservers();
-    allocator_.allocation_counter().RemoveAllocationObserver(observer);
-    UpdateInlineAllocationLimit();
-  } else {
-    allocator_.allocation_counter().RemoveAllocationObserver(observer);
-  }
+  allocator_.RemoveAllocationObserver(observer);
 }
 
 void SpaceWithLinearArea::PauseAllocationObservers() {
-  AdvanceAllocationObservers();
+  allocator_.PauseAllocationObservers();
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
-  MarkLabStartInitialized();
-  UpdateInlineAllocationLimit();
+  allocator_.ResumeAllocationObservers();
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  if (allocator_.allocation_info().top() &&
-      allocator_.allocation_info().start() !=
-          allocator_.allocation_info().top()) {
-    if (heap()->IsAllocationObserverActive()) {
-      allocator_.allocation_counter().AdvanceAllocationObservers(
-          allocator_.allocation_info().top() -
-          allocator_.allocation_info().start());
-    }
-    MarkLabStartInitialized();
-  }
+  allocator_.AdvanceAllocationObservers();
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocator_.allocation_info().ResetStart();
-  if (identity() == NEW_SPACE) {
-    heap()->new_space()->MoveOriginalTopForward();
-
-#if DEBUG
-    heap()->VerifyNewSpaceTop();
-#endif
-  }
+  allocator_.MarkLabStartInitialized();
 }
 
-// Perform an allocation step when the step is reached. size_in_bytes is the
-// actual size needed for the object (required for InvokeAllocationObservers).
-// aligned_size_in_bytes is the size of the object including the filler right
-// before it to reach the right alignment (required to DCHECK the start of the
-// object). allocation_size is the size of the actual allocation which needs to
-// be used for the accounting. It can be different from aligned_size_in_bytes in
-// PagedSpace::AllocateRawAligned, where we have to overallocate in order to be
-// able to align the allocation afterwards.
 void SpaceWithLinearArea::InvokeAllocationObservers(
     Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
     size_t allocation_size) {
-  DCHECK_LE(size_in_bytes, aligned_size_in_bytes);
-  DCHECK_LE(aligned_size_in_bytes, allocation_size);
-  DCHECK(size_in_bytes == aligned_size_in_bytes ||
-         aligned_size_in_bytes == allocation_size);
-
-  if (!SupportsAllocationObserver() || !heap()->IsAllocationObserverActive())
-    return;
-
-  if (allocation_size >= allocator_.allocation_counter().NextBytes()) {
-    // Only the first object in a LAB should reach the next step.
-    DCHECK_EQ(soon_object, allocator_.allocation_info().start() +
-                               aligned_size_in_bytes - size_in_bytes);
-
-    // Right now the LAB only contains that one object.
-    DCHECK_EQ(allocator_.allocation_info().top() + allocation_size -
-                  aligned_size_in_bytes,
-              allocator_.allocation_info().limit());
-
-    // Ensure that there is a valid object
-    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes));
-
-#if DEBUG
-    // Ensure that allocation_info_ isn't modified during one of the
-    // AllocationObserver::Step methods.
-    LinearAllocationArea saved_allocation_info = allocator_.allocation_info();
-#endif
-
-    // Run AllocationObserver::Step through the AllocationCounter.
-    allocator_.allocation_counter().InvokeAllocationObservers(
-        soon_object, size_in_bytes, allocation_size);
-
-    // Ensure that start/top/limit didn't change.
-    DCHECK_EQ(saved_allocation_info.start(),
-              allocator_.allocation_info().start());
-    DCHECK_EQ(saved_allocation_info.top(), allocator_.allocation_info().top());
-    DCHECK_EQ(saved_allocation_info.limit(),
-              allocator_.allocation_info().limit());
-  }
-
-  DCHECK_LT(allocator_.allocation_info().limit() -
-                allocator_.allocation_info().start(),
-            allocator_.allocation_counter().NextBytes());
+  allocator_.InvokeAllocationObservers(soon_object, size_in_bytes,
+                                       aligned_size_in_bytes, allocation_size);
 }
 
 AllocationResult SpaceWithLinearArea::AllocateRawForceAlignmentForTesting(
