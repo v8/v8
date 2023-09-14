@@ -443,14 +443,8 @@ function allowOOM(fn) {
 
 (function TestMemory64SharedBetweenWorkers() {
   print(arguments.callee.name);
-  // Generate a shared memory64 by instantiating an module that exports one.
-  // TODO(clemensb): Use the proper API once that's decided.
-  let shared_mem64 = (function() {
-    let builder = new WasmModuleBuilder();
-    builder.addMemory64(1, 10, true);
-    builder.exportMemoryAs('memory');
-    return builder.instantiate().exports.memory;
-  })();
+  let shared_mem64 = new WebAssembly.Memory(
+      {initial: 1, maximum: 10, shared: true, index: 'i64'});
 
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory('imp', 'mem', 1, 10, true, true);
