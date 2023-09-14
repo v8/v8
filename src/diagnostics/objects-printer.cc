@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/builtins/builtins-inl.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"

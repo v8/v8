@@ -5,6 +5,7 @@
 #include "src/objects/call-site-info.h"
 
 #include "src/base/strings.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"

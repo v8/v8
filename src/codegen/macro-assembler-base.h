@@ -101,14 +101,8 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
-  V8_INLINE std::string CommentForOffHeapTrampoline(const char* prefix,
-                                                    Builtin builtin) {
-    if (!v8_flags.code_comments) return "";
-    std::ostringstream str;
-    str << "Inlined  Trampoline for " << prefix << " to "
-        << Builtins::name(builtin);
-    return str.str();
-  }
+  static std::string CommentForOffHeapTrampoline(const char* prefix,
+                                                 Builtin builtin);
 
   enum class RecordWriteCallMode { kDefault, kWasm };
 

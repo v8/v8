@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"

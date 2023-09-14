@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/hashmap.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"

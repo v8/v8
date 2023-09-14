@@ -23,6 +23,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/assert-scope.h"
