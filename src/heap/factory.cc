@@ -4085,20 +4085,23 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
         NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
   }
 
-  Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
-      NewJSObject(constructor, AllocationType::kSharedOld));
-
+  Handle<NumberDictionary> elements_dictionary;
   if (!IsUndefined(*maybe_elements_template)) {
-    Handle<NumberDictionary> dictionary = NumberDictionary::ShallowCopy(
+    elements_dictionary = NumberDictionary::ShallowCopy(
         isolate(), Handle<NumberDictionary>::cast(maybe_elements_template),
         AllocationType::kSharedOld);
-    instance->set_elements(*dictionary);
   }
+
+  Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
+      NewJSObject(constructor, AllocationType::kSharedOld));
 
   // The struct object has not been fully initialized yet. Disallow allocation
   // from this point on.
   DisallowGarbageCollection no_gc;
   if (!property_array.is_null()) instance->SetProperties(*property_array);
+  if (!elements_dictionary.is_null()) {
+    instance->set_elements(*elements_dictionary);
+  }
 
   return instance;
 }
