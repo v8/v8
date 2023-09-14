@@ -1027,6 +1027,10 @@ class GraphVisitor {
         MapToNewGraph(op.object()), MapToNewGraphIfValid(op.rtt()), op.config);
   }
 
+  OpIndex AssembleOutputGraphExternInternalize(const ExternInternalizeOp& op) {
+    return assembler().ReduceExternInternalize(MapToNewGraph(op.object()));
+  }
+
   OpIndex AssembleOutputGraphExternExternalize(const ExternExternalizeOp& op) {
     return assembler().ReduceExternExternalize(MapToNewGraph(op.object()));
   }

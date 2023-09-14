@@ -106,6 +106,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(RttCanon)                             \
   V(WasmTypeCheck)                        \
   V(WasmTypeCast)                         \
+  V(ExternInternalize)                    \
   V(ExternExternalize)                    \
   V(StructGet)                            \
   V(StructSet)                            \
@@ -6086,12 +6087,35 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   }
 };
 
+struct ExternInternalizeOp : FixedArityOperationT<1, ExternInternalizeOp> {
+  static constexpr OpEffects effects =
+      SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
+                           : OpEffects().CanReadMemory().CanAllocate();
+
+  explicit ExternInternalizeOp(V<Tagged> object) : Base(object) {}
+
+  V<Tagged> object() const { return Base::input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple(); }
+};
+
 struct ExternExternalizeOp : FixedArityOperationT<1, ExternExternalizeOp> {
   static constexpr OpEffects effects = OpEffects();
 
-  ExternExternalizeOp(OpIndex object) : Base(object) {}
+  explicit ExternExternalizeOp(V<Tagged> object) : Base(object) {}
 
-  OpIndex object() const { return Base::input(0); }
+  V<Tagged> object() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();

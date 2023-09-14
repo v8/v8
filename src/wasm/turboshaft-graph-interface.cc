@@ -442,7 +442,7 @@ class TurboshaftGraphBuildingInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    result->op = UnOpImpl(decoder, opcode, value.op, value.type);
+    result->op = UnOpImpl(opcode, value.op, value.type);
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
@@ -2885,8 +2885,7 @@ class TurboshaftGraphBuildingInterface {
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64_rep);
   }
 
-  // TODO(14108): Remove the decoder argument once we have no bailouts.
-  OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
+  OpIndex UnOpImpl(WasmOpcode opcode, OpIndex arg,
                    ValueType input_type /* for ref.is_null only*/) {
     switch (opcode) {
       case kExprI32Eqz:
@@ -2904,7 +2903,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprF64Sqrt:
         return __ Float64Sqrt(arg);
       case kExprI32SConvertF32: {
-        V<Float32> truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
+        V<Float32> truncated = UnOpImpl(kExprF32Trunc, arg, kWasmF32);
         V<Word32> result = __ TruncateFloat32ToInt32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeInt32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
@@ -2912,7 +2911,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertF32: {
-        V<Float32> truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
+        V<Float32> truncated = UnOpImpl(kExprF32Trunc, arg, kWasmF32);
         V<Word32> result = __ TruncateFloat32ToUint32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeUint32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
@@ -2920,7 +2919,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32SConvertF64: {
-        V<Float64> truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
+        V<Float64> truncated = UnOpImpl(kExprF64Trunc, arg, kWasmF64);
         V<Word32> result =
             __ TruncateFloat64ToInt32OverflowUndefined(truncated);
         V<Float64> converted_back = __ ChangeInt32ToFloat64(result);
@@ -2929,7 +2928,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertF64: {
-        V<Float64> truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
+        V<Float64> truncated = UnOpImpl(kExprF64Trunc, arg, kWasmF64);
         V<Word32> result = __ TruncateFloat64ToUint32OverflowToMin(truncated);
         V<Float64> converted_back = __ ChangeUint32ToFloat64(result);
         __ TrapIf(__ Word32Equal(__ Float64Equal(converted_back, truncated), 0),
@@ -2969,7 +2968,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprF32UConvertI32:
         return __ ChangeUint32ToFloat32(arg);
       case kExprI32SConvertSatF32: {
-        V<Float32> truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
+        V<Float32> truncated = UnOpImpl(kExprF32Trunc, arg, kWasmF32);
         V<Word32> converted =
             __ TruncateFloat32ToInt32OverflowUndefined(truncated);
         V<Float32> converted_back = __ ChangeInt32ToFloat32(converted);
@@ -3007,7 +3006,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertSatF32: {
-        V<Float32> truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
+        V<Float32> truncated = UnOpImpl(kExprF32Trunc, arg, kWasmF32);
         V<Word32> converted =
             __ TruncateFloat32ToUint32OverflowUndefined(truncated);
         V<Float32> converted_back = __ ChangeUint32ToFloat32(converted);
@@ -3044,7 +3043,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32SConvertSatF64: {
-        V<Float64> truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
+        V<Float64> truncated = UnOpImpl(kExprF64Trunc, arg, kWasmF64);
         V<Word32> converted =
             __ TruncateFloat64ToInt32OverflowUndefined(truncated);
         V<Float64> converted_back = __ ChangeInt32ToFloat64(converted);
@@ -3082,7 +3081,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertSatF64: {
-        V<Float64> truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
+        V<Float64> truncated = UnOpImpl(kExprF64Trunc, arg, kWasmF64);
         V<Word32> converted =
             __ TruncateFloat64ToUint32OverflowUndefined(truncated);
         V<Float64> converted_back = __ ChangeUint32ToFloat64(converted);
@@ -3509,8 +3508,7 @@ class TurboshaftGraphBuildingInterface {
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
       case kExprExternInternalize:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        return __ ExternInternalize(arg);
       case kExprExternExternalize:
         return __ ExternExternalize(arg);
       default:

@@ -2762,6 +2762,10 @@ class AssemblerOpInterface {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
+  V<Tagged> ExternInternalize(V<Tagged> input) {
+    return ReduceIfReachableExternInternalize(input);
+  }
+
   V<Tagged> ExternExternalize(V<Tagged> input) {
     return ReduceIfReachableExternExternalize(input);
   }

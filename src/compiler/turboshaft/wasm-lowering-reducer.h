@@ -9,6 +9,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -106,6 +107,88 @@ class WasmLoweringReducer : public Next {
     } else {
       return ReduceWasmTypeCastAbstract(object, config);
     }
+  }
+
+  OpIndex REDUCE(ExternInternalize)(V<Tagged> object) {
+    Label<Tagged> end_label(&Asm());
+    Label<> null_label(&Asm());
+    Label<> smi_label(&Asm());
+    Label<> int_to_smi_label(&Asm());
+    Label<> heap_number_label(&Asm());
+
+    constexpr int32_t kInt31MaxValue = 0x3fffffff;
+    constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
+
+    GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
+    GOTO_IF(__ IsSmi(object), smi_label);
+    GOTO_IF(HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
+    // For anything else, just pass through the value.
+    GOTO(end_label, object);
+
+    BIND(null_label);
+    GOTO(end_label, Null(wasm::kWasmAnyRef));
+
+    // Canonicalize SMI.
+    BIND(smi_label);
+    if constexpr (SmiValuesAre31Bits()) {
+      GOTO(end_label, object);
+    } else {
+      Label<> convert_to_heap_number_label(&Asm());
+      V<Word32> int_value = __ UntagSmi(object);
+
+      // Convert to heap number if the int32 does not fit into an i31ref.
+      GOTO_IF(__ Int32LessThan(__ Word32Constant(kInt31MaxValue), int_value),
+              convert_to_heap_number_label);
+      GOTO_IF(__ Int32LessThan(int_value, __ Word32Constant(kInt31MinValue)),
+              convert_to_heap_number_label);
+      GOTO(end_label, object);
+
+      BIND(convert_to_heap_number_label);
+      V<Tagged> heap_number = __ CallBuiltin(
+          wasm::WasmCode::kWasmInt32ToHeapNumber, {int_value}, Operator::kPure);
+      GOTO(end_label, heap_number);
+    }
+
+    // Convert HeapNumber to SMI if possible.
+    BIND(heap_number_label);
+    V<Float64> float_value =
+        __ Load(object, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Float64(), HeapNumber::kValueOffset);
+    // Check range of float value.
+    GOTO_IF(__ Float64LessThan(float_value, __ Float64Constant(kInt31MinValue)),
+            end_label, object);
+    GOTO_IF(__ Float64LessThan(__ Float64Constant(kInt31MaxValue), float_value),
+            end_label, object);
+    // Check if value is -0.
+    V<Word32> is_minus_zero;
+    if constexpr (Is64()) {
+      V<Word64> minus_zero = __ Word64Constant(kMinusZeroBits);
+      V<Word64> float_bits = __ BitcastFloat64ToWord64(float_value);
+      is_minus_zero = __ Word64Equal(float_bits, minus_zero);
+    } else {
+      Label<Word32> done(&Asm());
+
+      V<Word32> value_lo = __ Float64ExtractLowWord32(float_value);
+      GOTO_IF_NOT(__ Word32Equal(value_lo, __ Word32Constant(kMinusZeroLoBits)),
+                  done, __ Word32Constant(0));
+      V<Word32> value_hi = __ Float64ExtractHighWord32(float_value);
+      GOTO(done, __ Word32Equal(value_hi, __ Word32Constant(kMinusZeroHiBits)));
+      BIND(done, phi_is_minus_zero);
+      is_minus_zero = phi_is_minus_zero;
+    }
+    GOTO_IF(is_minus_zero, end_label, object);
+    // Check if value is integral.
+    V<Word32> int_value =
+        __ TruncateFloat64ToInt32OverflowUndefined(float_value);
+    GOTO_IF(__ Float64Equal(float_value, __ ChangeInt32ToFloat64(int_value)),
+            int_to_smi_label);
+    GOTO(end_label, object);
+
+    BIND(int_to_smi_label);
+    GOTO(end_label, __ TagSmi(int_value));
+
+    BIND(end_label, result);
+    return result;
   }
 
   OpIndex REDUCE(ExternExternalize)(V<Tagged> object) {
