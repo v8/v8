@@ -858,8 +858,6 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  DECL_ACCESSORS(wasm_to_js_wrapper_code, Tagged<Code>)
-
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 

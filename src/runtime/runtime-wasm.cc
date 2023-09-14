@@ -456,6 +456,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
             isolate, &sig, kind, static_cast<int>(expected_arity),
             static_cast<wasm::Suspend>(ref->suspend()))
             .ToHandleChecked();
+
     // We have to install the optimized wrapper as `code`, as the generated
     // code may move. `call_target` would become stale then.
     Handle<WasmInternalFunction>::cast(origin)->set_code(
@@ -515,6 +516,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         wasm_code->instructions().length());
     isolate->counters()->wasm_reloc_size()->Increment(
         wasm_code->reloc_info().length());
+    if (V8_UNLIKELY(native_module->log_code())) {
+      wasm::GetWasmEngine()->LogCode(base::VectorOf(&wasm_code, 1));
+      // Log the code immediately in the current isolate.
+      wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+    }
 
     wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
     wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,

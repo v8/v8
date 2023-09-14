@@ -230,18 +230,16 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
 }
 
 std::string WasmCode::DebugName() const {
-  if (IsAnonymous()) {
-    switch (kind()) {
-      case kWasmFunction:
-        UNREACHABLE();
-      case kWasmToCapiWrapper:
-        return "wasm to C-API wrapper";
-      case kWasmToJsWrapper:
-        return "wasm to js wrapper";
-      case kJumpTable:
-        return "jump table";
-    }
-    UNREACHABLE();
+  switch (kind()) {
+    case kWasmToCapiWrapper:
+      return "wasm-to-c";
+    case kJumpTable:
+      return "jump-table";
+    case kWasmToJsWrapper:
+      return "wasm-to-js";
+    case kWasmFunction:
+      // Gets handled below
+      break;
   }
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
@@ -250,21 +248,7 @@ std::string WasmCode::DebugName() const {
       module->lazily_generated_names.LookupFunctionName(wire_bytes, index());
   WasmName name = wire_bytes.GetNameOrNull(name_ref);
   std::string name_buffer;
-  if (kind() == kWasmToJsWrapper) {
-    name_buffer = "wasm-to-js:";
-    size_t prefix_len = name_buffer.size();
-    constexpr size_t kMaxSigLength = 128;
-    name_buffer.resize(prefix_len + kMaxSigLength);
-    const FunctionSig* sig = module->functions[index()].sig;
-    size_t sig_length = PrintSignature(
-        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
-    name_buffer.resize(prefix_len + sig_length);
-    // If the import has a name, also append that (separated by "-").
-    if (!name.empty()) {
-      name_buffer += '-';
-      name_buffer.append(name.begin(), name.size());
-    }
-  } else if (name.empty()) {
+  if (name.empty()) {
     name_buffer.resize(32);
     name_buffer.resize(
         SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
@@ -278,7 +262,7 @@ std::string WasmCode::DebugName() const {
 void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                        int script_id) const {
   DCHECK(ShouldBeLogged(isolate));
-  if (IsAnonymous()) return;
+  if (IsAnonymous() && kind() != WasmCode::Kind::kWasmToJsWrapper) return;
 
   ModuleWireBytes wire_bytes(native_module_->wire_bytes());
   const WasmModule* module = native_module_->module();
@@ -308,7 +292,10 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                                                            source_positions()));
   }
 
-  int code_offset = module->functions[index_].code.offset();
+  int code_offset = 0;
+  if (!IsAnonymous()) {
+    code_offset = module->functions[index_].code.offset();
+  }
   PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kFunction, this,
                                    name, source_url, code_offset, script_id));
 }

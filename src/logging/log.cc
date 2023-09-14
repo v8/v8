@@ -2042,6 +2042,14 @@ EnumerateCompiledFunctions(Heap* heap) {
       if (function->HasAttachedOptimizedCode() &&
           Script::cast(function->shared()->script())->HasValidSource()) {
         record(function->shared(), AbstractCode::cast(function->code()));
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (WasmJSFunction::IsWasmJSFunction(function)) {
+        record(function->shared(),
+               AbstractCode::cast(function->shared()
+                                      ->wasm_js_function_data()
+                                      ->internal()
+                                      ->code()));
+#endif  // V8_ENABLE_WEBASSEMBLY
       }
     }
   }
@@ -2594,6 +2602,11 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
             CallbackEvent(fun_name, fun_data->GetCFunction(i)))
       }
     }
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (shared->HasWasmJSFunctionData()) {
+    CALL_CODE_EVENT_HANDLER(
+        CodeCreateEvent(CodeTag::kFunction, code, "wasm-to-js"));
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 
