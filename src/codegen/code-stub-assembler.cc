@@ -14719,7 +14719,8 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
       return_function(this), return_undefined(this), return_object(this),
-      return_string(this), return_bigint(this), return_result(this);
+      return_string(this), return_bigint(this), return_symbol(this),
+      return_result(this);
 
   GotoIf(TaggedIsSmi(value), &return_number);
 
@@ -14750,9 +14751,9 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   GotoIf(IsBigIntInstanceType(instance_type), &return_bigint);
 
-  CSA_DCHECK(this, InstanceTypeEqual(instance_type, SYMBOL_TYPE));
-  result_var = HeapConstant(isolate()->factory()->symbol_string());
-  Goto(&return_result);
+  GotoIf(IsSymbolInstanceType(instance_type), &return_symbol);
+
+  Abort(AbortReason::kUnexpectedInstanceType);
 
   BIND(&return_number);
   {
@@ -14795,6 +14796,12 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
   BIND(&return_bigint);
   {
     result_var = HeapConstant(isolate()->factory()->bigint_string());
+    Goto(&return_result);
+  }
+
+  BIND(&return_symbol);
+  {
+    result_var = HeapConstant(isolate()->factory()->symbol_string());
     Goto(&return_result);
   }
 

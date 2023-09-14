@@ -100,7 +100,8 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
-  V(kInvalidReceiver, "Expected JS object or primitive object")
+  V(kInvalidReceiver, "Expected JS object or primitive object")                \
+  V(kUnexpectedInstanceType, "Unexpected instance type encountered")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
