@@ -1895,6 +1895,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return FixedArray::SizeFor(
         FixedArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
+  if (instance_type == SLOPPY_ARGUMENTS_ELEMENTS_TYPE) {
+    return SloppyArgumentsElements::unchecked_cast(*this)->AllocatedSize();
+  }
   if (base::IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return Context::SizeFor(Context::unchecked_cast(*this)->length());

@@ -21,15 +21,17 @@ namespace internal {
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
-class FixedArrayBase
-    : public TorqueGeneratedFixedArrayBase<FixedArrayBase, HeapObject> {
- public:
-  // Forward declare the non-atomic (set_)length defined in torque.
-  using TorqueGeneratedFixedArrayBase::length;
-  using TorqueGeneratedFixedArrayBase::set_length;
-  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
+// TODO(jgruber): This class is really specific to FixedArrays used as
+// elements backing stores and should not be part of the common FixedArray
+// hierarchy.
+class FixedArrayBase : public HeapObject {
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
 
-  inline Tagged<Object> unchecked_length(AcquireLoadTag) const;
+ public:
+  inline int length() const;
+  inline int length(AcquireLoadTag tag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag tag);
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -37,15 +39,20 @@ class FixedArrayBase
 
   // Maximal allowed size, in bytes, of a single FixedArrayBase.
   // Prevents overflowing size computations, as well as extreme memory
-  // consumption. It's either (512Mb - kTaggedSize) or (1024Mb - kTaggedSize).
-  // -kTaggedSize is here to ensure that this max size always fits into Smi
-  // which is necessary for being able to create a free space filler for the
-  // whole array of kMaxSize.
-  static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
+  // consumption.
+  static constexpr int kMaxSize = 128 * kTaggedSize * MB;
   static_assert(Smi::IsValid(kMaxSize));
 
- protected:
-  TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
+#define FIELD_LIST(V)           \
+  V(kLengthOffset, kTaggedSize) \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  DECL_CAST(FixedArrayBase)
+  DECL_PRINTER(FixedArrayBase)
+  DECL_VERIFIER(FixedArrayBase)
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.

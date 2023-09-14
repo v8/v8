@@ -442,15 +442,16 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             Tagged<Object> (*get)(Tagged<T>, int)) {
   // Print in array notation for non-sparse arrays.
   if (array->length() == 0) return;
-  Tagged<Object> previous_value = array->get(0);
+  Tagged<Object> previous_value = get(array, 0);
   Tagged<Object> value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get(i);
+    if (i < array->length()) value = get(array, i);
     if (previous_value == value && i != array->length()) {
       continue;
     }
@@ -464,6 +465,12 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
     previous_index = i;
     previous_value = value;
   }
+}
+
+template <typename T>
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+  PrintFixedArrayElements<T>(os, array,
+                             [](Tagged<T> xs, int i) { return xs->get(i); });
 }
 
 void PrintDictionaryElements(std::ostream& os,
@@ -835,6 +842,19 @@ void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
   PrintHeader(os, "ExternalPointerArray");
   os << "\n - length: " << length();
   os << "\n";
+}
+
+void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
+  PrintHeader(os, "SloppyArgumentsElements");
+  os << "\n - length: " << length();
+  os << "\n - context: " << Brief(context());
+  os << "\n - arguments: " << Brief(arguments());
+  os << "\n - mapped_entries:";
+  PrintFixedArrayElements<SloppyArgumentsElements>(
+      os, Tagged(*this), [](Tagged<SloppyArgumentsElements> xs, int i) {
+        return xs->mapped_entries(i, kRelaxedLoad);
+      });
+  os << '\n';
 }
 
 namespace {

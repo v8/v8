@@ -26,12 +26,12 @@ RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
                           Tagged<HeapObject>, kSourcePositionTableOffset)
 
 uint8_t BytecodeArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
 void BytecodeArray::set(int index, uint8_t value) {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   WriteField<uint8_t>(kHeaderSize + index * kCharSize, value);
 }
 

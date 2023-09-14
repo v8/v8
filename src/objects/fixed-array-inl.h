@@ -28,9 +28,14 @@ namespace internal {
 
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
+
+CAST_ACCESSOR(FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
+
+SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 CAST_ACCESSOR(FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArrayBase)
@@ -49,13 +54,7 @@ OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-
 RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
-
-Tagged<Object> FixedArrayBase::unchecked_length(AcquireLoadTag) const {
-  return ACQUIRE_READ_FIELD(*this, kLengthOffset);
-}
 
 ObjectSlot FixedArray::GetFirstElementAddress() {
   return RawField(OffsetOfElementAt(0));

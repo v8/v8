@@ -207,6 +207,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       Handle<PrimitiveHeapObject> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
+  Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(
+      int length, Handle<Context> context, Handle<FixedArray> arguments,
+      AllocationType allocation = AllocationType::kYoung);
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
 

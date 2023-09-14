@@ -61,6 +61,7 @@ namespace internal {
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(SharedFunctionInfo)                 \
+  V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \

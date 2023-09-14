@@ -129,6 +129,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
 
+    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
+      return kVisitSloppyArgumentsElements;
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:

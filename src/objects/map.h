@@ -74,6 +74,7 @@ enum InstanceType : uint16_t;
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(SharedFunctionInfo)                 \
+  V(SloppyArgumentsElements)            \
   V(ShortcutCandidate)                  \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \

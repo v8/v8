@@ -674,6 +674,10 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
+void FixedArrayBase::FixedArrayBaseVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+}
+
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
   FixedArrayBaseVerify(isolate);
 
@@ -2150,6 +2154,24 @@ void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
   CHECK_IMPLIES(!IsFixedArray(call_site_infos_or_formatted_stack()),
                 IsFixedArray(limit_or_stack_frame_infos()));
+}
+
+void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {
+  FixedArrayBaseVerify(isolate);
+  {
+    auto o = context();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsContext(o));
+  }
+  {
+    auto o = arguments();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsFixedArray(o));
+  }
+  for (int i = 0; i < length(); ++i) {
+    auto o = mapped_entries(i, kRelaxedLoad);
+    CHECK(IsSmi(o) || IsTheHole(o));
+  }
 }
 
 // Helper class for verifying the string table.
