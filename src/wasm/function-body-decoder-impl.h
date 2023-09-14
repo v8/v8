@@ -1195,9 +1195,6 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
   F(BrOnCastFailAbstract, const Value& obj, HeapType type,                     \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
-  F(RefIsStruct, const Value& object, Value* result)                           \
-  F(RefIsI31, const Value& object, Value* result)                              \
-  F(RefIsArray, const Value& object, Value* result)                            \
   F(RefAsStruct, const Value& object, Value* result)                           \
   F(RefAsI31, const Value& object, Value* result)                              \
   F(RefAsArray, const Value& object, Value* result)                            \
@@ -2406,9 +2403,6 @@ class WasmDecoder : public Decoder {
           case kExprRefAsArray:
           case kExprRefAsStruct:
           case kExprRefAsI31:
-          case kExprRefIsArray:
-          case kExprRefIsStruct:
-          case kExprRefIsI31:
           case kExprExternInternalize:
           case kExprExternExternalize:
           case kExprArrayLen:
@@ -5230,38 +5224,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Push(result_on_fallthrough);
         return pc_offset;
       }
-#define ABSTRACT_TYPE_CHECK(h_type)                                            \
-  case kExprRefIs##h_type: {                                                   \
-    GC_DEPRECATED                                                              \
-    NON_CONST_ONLY                                                             \
-    Value arg = Pop(kWasmAnyRef);                                              \
-    if (!VALIDATE(this->ok())) return 0;                                       \
-    Value* result = Push(kWasmI32);                                            \
-    if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
-      if (IsHeapSubtypeOf(arg.type.heap_type(), HeapType(HeapType::k##h_type), \
-                          this->module_)) {                                    \
-        if (arg.type.is_nullable()) {                                          \
-          /* We abuse ref.as_non_null, which isn't otherwise used as a unary   \
-           * operator, as a sentinel for the negation of ref.is_null. */       \
-          CALL_INTERFACE(UnOp, kExprRefAsNonNull, arg, result);                \
-        } else {                                                               \
-          CALL_INTERFACE(Drop);                                                \
-          CALL_INTERFACE(I32Const, result, 1);                                 \
-        }                                                                      \
-      } else if (!IsHeapSubtypeOf(HeapType(HeapType::k##h_type),               \
-                                  arg.type.heap_type(), this->module_)) {      \
-        CALL_INTERFACE(Drop);                                                  \
-        CALL_INTERFACE(I32Const, result, 0);                                   \
-      } else {                                                                 \
-        CALL_INTERFACE(RefIs##h_type, arg, result);                            \
-      }                                                                        \
-    }                                                                          \
-    return opcode_length;                                                      \
-  }
-        ABSTRACT_TYPE_CHECK(Struct)
-        ABSTRACT_TYPE_CHECK(I31)
-        ABSTRACT_TYPE_CHECK(Array)
-#undef ABSTRACT_TYPE_CHECK
 
 #define ABSTRACT_TYPE_CAST(h_type)                                             \
   case kExprRefAs##h_type: {                                                   \

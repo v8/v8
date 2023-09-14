@@ -1749,11 +1749,6 @@ class WasmGraphBuildingInterface {
         false, null_succeeds);
   }
 
-  void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
-  }
-
   void RefAsStruct(FullDecoder* decoder, const Value& object, Value* result) {
     WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
     TFNode* cast_object =
@@ -1778,11 +1773,6 @@ class WasmGraphBuildingInterface {
         false, null_succeeds);
   }
 
-  void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
-  }
-
   void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
     WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
     TFNode* cast_object =
@@ -1805,11 +1795,6 @@ class WasmGraphBuildingInterface {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
         false, null_succeeds);
-  }
-
-  void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kI31)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
