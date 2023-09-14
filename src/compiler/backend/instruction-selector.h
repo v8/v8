@@ -925,6 +925,8 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word64AtomicXor)
   DECLARE_GENERATOR_T(Word64AtomicExchange)
   DECLARE_GENERATOR_T(Word64AtomicCompareExchange)
+  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
+  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -942,8 +944,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Simd128ReverseBytes)
   DECLARE_GENERATOR(LoadStackPointer)
   DECLARE_GENERATOR(SetStackPointer)
-  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.
@@ -1007,6 +1007,7 @@ class InstructionSelectorT final : public Adapter {
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
+  void VisitI8x16RelaxedSwizzle(node_t node);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle

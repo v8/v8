@@ -28,6 +28,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/roots/roots-inl.h"
+#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -284,7 +285,20 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     result.displacement = store->offset;
     if (store->kind.tagged_base) result.displacement -= kHeapObjectTag;
     return result;
-  } else if (!op.Is<WordBinopOp>()) {
+  } else if (op.Is<WordBinopOp>()) {
+    // Nothing to do here, fall into the case below.
+#ifdef V8_ENABLE_WEBASSEMBLY
+  } else if (const Simd128LaneMemoryOp* lane_op =
+                 op.TryCast<Simd128LaneMemoryOp>()) {
+    BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+    result.base = lane_op->base();
+    result.index = lane_op->index();
+    result.scale = 0;
+    result.displacement = 0;
+    if (lane_op->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else {
     return base::nullopt;
   }
 
@@ -975,8 +989,54 @@ void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
        g.UseFixed(this->input_at(node, 0), rdx));
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LaneMemoryOp& load = this->Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kArchNop;
+  switch (load.lane_kind) {
+    case Simd128LaneMemoryOp::LaneKind::k8:
+      opcode = kX64Pinsrb;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k16:
+      opcode = kX64Pinsrw;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k32:
+      opcode = kX64Pinsrd;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k64:
+      opcode = kX64Pinsrq;
+      break;
+  }
+
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
+  // uses up to 3 inputs. This ordering is consistent with other operations that
+  // use the same opcode.
+  InstructionOperand inputs[5];
+  size_t input_count = 0;
+
+  inputs[input_count++] = g.UseRegister(load.value());
+  inputs[input_count++] = g.UseImmediate(load.lane);
+
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(mode);
+
+  DCHECK_GE(5, input_count);
+
+  // x64 supports unaligned loads.
+  DCHECK(!load.kind.maybe_unaligned);
+  if (load.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  Emit(opcode, 1, outputs, input_count, inputs);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
   LoadLaneParameters params = LoadLaneParametersOf(node->op());
   InstructionCode opcode = kArchNop;
   if (params.rep == MachineType::Int8()) {
@@ -991,7 +1051,7 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
     UNREACHABLE();
   }
 
-  X64OperandGeneratorT<Adapter> g(this);
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
   // uses up to 3 inputs. This ordering is consistent with other operations that
@@ -1016,8 +1076,62 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
   Emit(opcode, 1, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadTransform(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LoadTransformOp& op =
+      this->Get(node).Cast<Simd128LoadTransformOp>();
+  ArchOpcode opcode;
+  switch (op.transform_kind) {
+    case Simd128LoadTransformOp::TransformKind::k8x8S:
+      opcode = kX64S128Load8x8S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k8x8U:
+      opcode = kX64S128Load8x8U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16x4S:
+      opcode = kX64S128Load16x4S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16x4U:
+      opcode = kX64S128Load16x4U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32x2S:
+      opcode = kX64S128Load32x2S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32x2U:
+      opcode = kX64S128Load32x2U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k8Splat:
+      opcode = kX64S128Load8Splat;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16Splat:
+      opcode = kX64S128Load16Splat;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32Splat:
+      opcode = kX64S128Load32Splat;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k64Splat:
+      opcode = kX64S128Load64Splat;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32Zero:
+      opcode = kX64Movss;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k64Zero:
+      opcode = kX64Movsd;
+      break;
+  }
+
+  // x64 supports unaligned loads
+  DCHECK(!op.load_kind.maybe_unaligned);
+  InstructionCode code = opcode;
+  if (op.load_kind.with_trap_handler) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  VisitLoad(node, node, code);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   ArchOpcode opcode;
   switch (params.transformation) {
@@ -1099,6 +1213,7 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
   }
   VisitLoad(node, node, code);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
@@ -1318,9 +1433,49 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
-  X64OperandGeneratorT<Adapter> g(this);
+#ifdef V8_ENABLE_WEBASSEMBLY
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const Simd128LaneMemoryOp& store =
+      this->Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kArchNop;
+  switch (store.lane_kind) {
+    case Simd128LaneMemoryOp::LaneKind::k8:
+      opcode = kX64Pextrb;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k16:
+      opcode = kX64Pextrw;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k32:
+      opcode = kX64S128Store32Lane;
+      break;
+    case Simd128LaneMemoryOp::LaneKind::k64:
+      opcode = kX64S128Store64Lane;
+      break;
+  }
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(addressing_mode);
+
+  if (store.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+
+  InstructionOperand value_operand = g.UseRegister(store.value());
+  inputs[input_count++] = value_operand;
+  inputs[input_count++] = g.UseImmediate(store.lane);
+  DCHECK_GE(4, input_count);
+  Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
 
   StoreLaneParameters params = StoreLaneParametersOf(node->op());
   InstructionCode opcode = kArchNop;
@@ -1352,6 +1507,7 @@ void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
   DCHECK_GE(4, input_count);
   Emit(opcode, 0, nullptr, input_count, inputs);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Shared routine for multiple binary operations.
 template <typename Adapter>
@@ -2760,10 +2916,6 @@ void VisitRO(InstructionSelectorT<Adapter>* selector,
                  g.Use(selector->input_at(node, 0)));
 }
 
-void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, Node*, InstructionCode) {
-  UNREACHABLE();
-}
-
 template <typename Adapter>
 void VisitRR(InstructionSelectorT<Adapter>* selector,
              typename Adapter::node_t node, InstructionCode opcode) {
@@ -2842,11 +2994,6 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
   }
 }
 
-void VisitFloatUnop(InstructionSelectorT<TurboshaftAdapter>*, Node*, Node*,
-                    InstructionCode) {
-  UNIMPLEMENTED();
-}
-
 template <typename Adapter>
 void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
                     typename Adapter::node_t node,
@@ -2900,6 +3047,20 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                        \
   V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define RR_OP_T_LIST_WEBASSEMBLY(V)                                       \
+  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))              \
+  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
+  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
+  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest)) \
+  V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))              \
+  V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
+  V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \
+  V(F64x2NearestInt, kX64F64x2Round | MiscField::encode(kRoundToNearest))
+#else
+#define RR_OP_T_LIST_WEBASSEMBLY(V)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #define RR_OP_T_LIST(V)                                                       \
   V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0))      \
   V(SignExtendWord32ToInt64, kX64Movsxlq)                                     \
@@ -2911,17 +3072,9 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
   V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
   V(Float32RoundTiesEven,                                                     \
     kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
-
-#define RR_OP_LIST(V)                                                     \
-  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))              \
-  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
-  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
-  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest)) \
-  V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))              \
-  V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
-  V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \
-  V(F64x2NearestInt, kX64F64x2Round | MiscField::encode(kRoundToNearest))
+  V(Float64RoundTiesEven,                                                     \
+    kSSEFloat64Round | MiscField::encode(kRoundToNearest))                    \
+  RR_OP_T_LIST_WEBASSEMBLY(V)
 
 #define RO_VISITOR(Name, opcode)                                 \
   template <typename Adapter>                                    \
@@ -2931,15 +3084,6 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
 RO_OP_T_LIST(RO_VISITOR)
 #undef RO_VIISTOR
 #undef RO_OP_T_LIST
-
-#define RR_VISITOR(Name, opcode)                                \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRR(this, node, opcode);                                \
-  }
-RR_OP_LIST(RR_VISITOR)
-#undef RR_VISITOR
-#undef RR_OP_LIST
 
 #define RR_VISITOR(Name, opcode)                                 \
   template <typename Adapter>                                    \
@@ -4907,6 +5051,7 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
+#ifdef V8_ENABLE_WEBASSEMBLY
 #define SIMD_BINOP_SSE_AVX_LIST(V) \
   V(I64x2ExtMulLowI32x4S)          \
   V(I64x2ExtMulHighI32x4S)         \
@@ -5176,11 +5321,17 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16ShrU, IShrU, kL8, kV128)
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Const(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
-  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ConstantOp& constant =
+        this->Get(node).template Cast<turboshaft::Simd128ConstantOp>();
+    memcpy(val, constant.value, kSimd128Size);
+  } else {
+    memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  }
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -5196,9 +5347,14 @@ void InstructionSelectorT<Adapter>::VisitS128Const(Node* node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS256Const(Node* node) {
-  X64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS256Const(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS256Const(node_t node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   memcpy(val, S256ImmediateParameterOf(node->op()).data(), kSimd256Size);
@@ -5221,13 +5377,13 @@ void InstructionSelectorT<Adapter>::VisitS256Const(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Zero(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   Emit(kX64SZero | VectorLengthField::encode(kV128), g.DefineAsRegister(node));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS256Zero(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS256Zero(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   Emit(kX64SZero | VectorLengthField::encode(kV256), g.DefineAsRegister(node));
 }
@@ -5245,9 +5401,10 @@ void InstructionSelectorT<Adapter>::VisitS256Zero(Node* node) {
 // Splat with an optimization for const 0.
 #define VISIT_INT_SIMD_SPLAT(Type, LaneSize, VectorLength)                   \
   template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Type##Splat(Node* node) {       \
+  void InstructionSelectorT<Adapter>::Visit##Type##Splat(node_t node) {      \
     X64OperandGeneratorT<Adapter> g(this);                                   \
-    Node* input = node->InputAt(0);                                          \
+    DCHECK_EQ(this->value_input_count(node), 1);                             \
+    node_t input = this->input_at(node, 0);                                  \
     if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
       Emit(kX64SZero | VectorLengthField::encode(VectorLength),              \
            g.DefineAsRegister(node));                                        \
@@ -5262,48 +5419,66 @@ SIMD_INT_TYPES_FOR_SPLAT(VISIT_INT_SIMD_SPLAT)
 #undef SIMD_INT_TYPES_FOR_SPLAT
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Splat(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV128),
-       g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+       g.DefineAsRegister(node), g.Use(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4Splat(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV128),
-       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x4Splat(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x4Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV256),
-       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8Splat(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x8Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV256),
-       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
 }
 
-#define SIMD_VISIT_EXTRACT_LANE(IF, Type, Sign, LaneSize, VectorLength)  \
-  template <typename Adapter>                                            \
-  void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign(    \
-      Node* node) {                                                      \
-    X64OperandGeneratorT<Adapter> g(this);                               \
-    int32_t lane = OpParameter<int32_t>(node->op());                     \
-    Emit(kX64##IF##ExtractLane##Sign | LaneSizeField::encode(LaneSize) | \
-             VectorLengthField::encode(VectorLength),                    \
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),      \
-         g.UseImmediate(lane));                                          \
+#define SIMD_VISIT_EXTRACT_LANE(IF, Type, Sign, LaneSize, VectorLength)        \
+  template <>                                                                  \
+  void InstructionSelectorT<TurbofanAdapter>::Visit##Type##ExtractLane##Sign(  \
+      node_t node) {                                                           \
+    X64OperandGeneratorT<TurbofanAdapter> g(this);                             \
+    int32_t lane = OpParameter<int32_t>(node->op());                           \
+    Emit(kX64##IF##ExtractLane##Sign | LaneSizeField::encode(LaneSize) |       \
+             VectorLengthField::encode(VectorLength),                          \
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),            \
+         g.UseImmediate(lane));                                                \
+  }                                                                            \
+  template <>                                                                  \
+  void                                                                         \
+      InstructionSelectorT<TurboshaftAdapter>::Visit##Type##ExtractLane##Sign( \
+          node_t node) {                                                       \
+    X64OperandGeneratorT<TurboshaftAdapter> g(this);                           \
+    const turboshaft::Simd128ExtractLaneOp& op =                               \
+        this->Get(node).template Cast<turboshaft::Simd128ExtractLaneOp>();     \
+    int32_t lane = op.lane;                                                    \
+    Emit(kX64##IF##ExtractLane##Sign | LaneSizeField::encode(LaneSize) |       \
+             VectorLengthField::encode(VectorLength),                          \
+         g.DefineAsRegister(node), g.UseRegister(op.input()),                  \
+         g.UseImmediate(lane));                                                \
   }
+
 SIMD_VISIT_EXTRACT_LANE(F, F64x2, , kL64, kV128)
 SIMD_VISIT_EXTRACT_LANE(F, F32x4, , kL32, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I64x2, , kL64, kV128)
@@ -5313,51 +5488,94 @@ SIMD_VISIT_EXTRACT_LANE(I, I8x16, S, kL8, kV128)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8ExtractLaneU(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI16x8ExtractLaneU(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64Pextrw, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.UseImmediate(lane));
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ExtractLaneOp& op =
+        this->Get(node).template Cast<turboshaft::Simd128ExtractLaneOp>();
+    Emit(kX64Pextrw, g.DefineAsRegister(node), g.UseRegister(op.input()),
+         g.UseImmediate(static_cast<int32_t>(op.lane)));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64Pextrw, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(lane));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.UseImmediate(lane));
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ExtractLaneOp& op =
+        this->Get(node).template Cast<turboshaft::Simd128ExtractLaneOp>();
+    Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(op.input()),
+         g.UseImmediate(op.lane));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(lane));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4ReplaceLane(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4ReplaceLane(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64FReplaceLane | LaneSizeField::encode(kL32) |
-           VectorLengthField::encode(kV128),
-       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-       g.UseImmediate(lane), g.Use(node->InputAt(1)));
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ReplaceLaneOp& op =
+        this->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL32) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(op.into()),
+         g.UseImmediate(op.lane), g.Use(op.new_lane()));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL32) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(lane), g.Use(node->InputAt(1)));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2ReplaceLane(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2ReplaceLane(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  int32_t lane = OpParameter<int32_t>(node->op());
   // When no-AVX, define dst == src to save a move.
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64FReplaceLane | LaneSizeField::encode(kL64) |
-           VectorLengthField::encode(kV128),
-       dst, g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
-       g.UseRegister(node->InputAt(1)));
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ReplaceLaneOp& op =
+        this->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         dst, g.UseRegister(op.into()), g.UseImmediate(op.lane),
+         g.UseRegister(op.new_lane()));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL64) |
+             VectorLengthField::encode(kV128),
+         dst, g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+         g.UseRegister(node->InputAt(1)));
+  }
 }
 
-#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                                \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##TYPE##ReplaceLane(Node* node) { \
-    X64OperandGeneratorT<Adapter> g(this);                                   \
-    int32_t lane = OpParameter<int32_t>(node->op());                         \
-    Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),  \
-         g.UseImmediate(lane), g.Use(node->InputAt(1)));                     \
+#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                                 \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##TYPE##ReplaceLane(node_t node) { \
+    X64OperandGeneratorT<Adapter> g(this);                                    \
+    if constexpr (Adapter::IsTurboshaft) {                                    \
+      const turboshaft::Simd128ReplaceLaneOp& op =                            \
+          this->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();  \
+      Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(op.into()),        \
+           g.UseImmediate(op.lane), g.Use(op.new_lane()));                    \
+    } else {                                                                  \
+      int32_t lane = OpParameter<int32_t>(node->op());                        \
+      Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)), \
+           g.UseImmediate(lane), g.Use(node->InputAt(1)));                    \
+    }                                                                         \
   }
 
 #define SIMD_TYPES_FOR_REPLACE_LANE(V) \
@@ -5373,20 +5591,21 @@ SIMD_TYPES_FOR_REPLACE_LANE(VISIT_SIMD_REPLACE_LANE)
 #define VISIT_SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(                  \
     Name, Opcode, LaneSize, VectorLength)                                  \
   template <typename Adapter>                                              \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) {            \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {           \
     X64OperandGeneratorT<Adapter> g(this);                                 \
+    DCHECK_EQ(this->value_input_count(node), 2);                           \
     InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
                                               : g.DefineSameAsFirst(node); \
-    if (g.CanBeImmediate(node->InputAt(1))) {                              \
+    if (g.CanBeImmediate(this->input_at(node, 1))) {                       \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
                VectorLengthField::encode(VectorLength),                    \
-           dst, g.UseRegister(node->InputAt(0)),                           \
-           g.UseImmediate(node->InputAt(1)));                              \
+           dst, g.UseRegister(this->input_at(node, 0)),                    \
+           g.UseImmediate(this->input_at(node, 1)));                       \
     } else {                                                               \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
                VectorLengthField::encode(VectorLength),                    \
-           dst, g.UseRegister(node->InputAt(0)),                           \
-           g.UseRegister(node->InputAt(1)));                               \
+           dst, g.UseRegister(this->input_at(node, 0)),                    \
+           g.UseRegister(this->input_at(node, 1)));                        \
     }                                                                      \
   }
 SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
@@ -5398,21 +5617,23 @@ SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
 #define VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(            \
     Name, Opcode, LaneSize, VectorLength)                                   \
   template <typename Adapter>                                               \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) {             \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {            \
     X64OperandGeneratorT<Adapter> g(this);                                  \
+    DCHECK_EQ(this->value_input_count(node), 2);                            \
     InstructionOperand output =                                             \
         IsSupported(AVX) ? g.UseRegister(node) : g.DefineSameAsFirst(node); \
-    if (g.CanBeImmediate(node->InputAt(1))) {                               \
+    if (g.CanBeImmediate(this->input_at(node, 1))) {                        \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
                VectorLengthField::encode(VectorLength),                     \
-           output, g.UseRegister(node->InputAt(0)),                         \
-           g.UseImmediate(node->InputAt(1)));                               \
+           output, g.UseRegister(this->input_at(node, 0)),                  \
+           g.UseImmediate(this->input_at(node, 1)));                        \
     } else {                                                                \
       InstructionOperand temps[] = {g.TempSimd128Register()};               \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
                VectorLengthField::encode(VectorLength),                     \
-           output, g.UseUniqueRegister(node->InputAt(0)),                   \
-           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+           output, g.UseUniqueRegister(this->input_at(node, 0)),            \
+           g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps),  \
+           temps);                                                          \
     }                                                                       \
   }
 SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
@@ -5420,25 +5641,27 @@ SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
 #undef VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 #undef SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 
-#define VISIT_SIMD_UNOP(Opcode)                                   \
-  template <typename Adapter>                                     \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) { \
-    X64OperandGeneratorT<Adapter> g(this);                        \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),                  \
-         g.UseRegister(node->InputAt(0)));                        \
+#define VISIT_SIMD_UNOP(Opcode)                                    \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    X64OperandGeneratorT<Adapter> g(this);                         \
+    DCHECK_EQ(this->value_input_count(node), 1);                   \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),                   \
+         g.UseRegister(this->input_at(node, 0)));                  \
   }
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
-                                                VectorLength)           \
-  template <typename Adapter>                                           \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) {         \
-    X64OperandGeneratorT<Adapter> g(this);                              \
-    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |               \
-             VectorLengthField::encode(VectorLength),                   \
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));    \
+#define VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,     \
+                                                VectorLength)               \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {            \
+    X64OperandGeneratorT<Adapter> g(this);                                  \
+    DCHECK_EQ(this->value_input_count(node), 1);                            \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
+             VectorLengthField::encode(VectorLength),                       \
+         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0))); \
   }
 
 SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH)
@@ -5446,15 +5669,16 @@ SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH)
 #undef VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST
 
-#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
-                                                 VectorLength)           \
-  template <typename Adapter>                                            \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) {          \
-    X64OperandGeneratorT<Adapter> g(this);                               \
-    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
-             VectorLengthField::encode(VectorLength),                    \
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),     \
-         g.UseRegister(node->InputAt(1)));                               \
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,    \
+                                                 VectorLength)              \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {            \
+    X64OperandGeneratorT<Adapter> g(this);                                  \
+    DCHECK_EQ(this->value_input_count(node), 2);                            \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
+             VectorLengthField::encode(VectorLength),                       \
+         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)), \
+         g.UseRegister(this->input_at(node, 1)));                           \
   }
 
 SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
@@ -5463,39 +5687,43 @@ SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST
 
-#define VISIT_SIMD_BINOP(Opcode)                                              \
-  template <typename Adapter>                                                 \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {             \
-    X64OperandGeneratorT<Adapter> g(this);                                    \
-    if (IsSupported(AVX)) {                                                   \
-      Emit(kX64##Opcode, g.DefineAsRegister(node),                            \
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
-    } else {                                                                  \
-      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
-    }                                                                         \
+#define VISIT_SIMD_BINOP(Opcode)                                   \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    X64OperandGeneratorT<Adapter> g(this);                         \
+    DCHECK_EQ(this->value_input_count(node), 2);                   \
+    if (IsSupported(AVX)) {                                        \
+      Emit(kX64##Opcode, g.DefineAsRegister(node),                 \
+           g.UseRegister(this->input_at(node, 0)),                 \
+           g.UseRegister(this->input_at(node, 1)));                \
+    } else {                                                       \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                \
+           g.UseRegister(this->input_at(node, 0)),                 \
+           g.UseRegister(this->input_at(node, 1)));                \
+    }                                                              \
   }
 
 SIMD_BINOP_SSE_AVX_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_SSE_AVX_LIST
 
-#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
-                                                 VectorLength)           \
-  template <typename Adapter>                                            \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) {          \
-    X64OperandGeneratorT<Adapter> g(this);                               \
-    if (IsSupported(AVX)) {                                              \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
-               VectorLengthField::encode(VectorLength),                  \
-           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),    \
-           g.UseRegister(node->InputAt(1)));                             \
-    } else {                                                             \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
-               VectorLengthField::encode(VectorLength),                  \
-           g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),   \
-           g.UseRegister(node->InputAt(1)));                             \
-    }                                                                    \
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,      \
+                                                 VectorLength)                \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {              \
+    X64OperandGeneratorT<Adapter> g(this);                                    \
+    DCHECK_EQ(this->value_input_count(node), 2);                              \
+    if (IsSupported(AVX)) {                                                   \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
+               VectorLengthField::encode(VectorLength),                       \
+           g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),  \
+           g.UseRegister(this->input_at(node, 1)));                           \
+    } else {                                                                  \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
+               VectorLengthField::encode(VectorLength),                       \
+           g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)), \
+           g.UseRegister(this->input_at(node, 1)));                           \
+    }                                                                         \
   }
 
 SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
@@ -5504,10 +5732,11 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitV128AnyTrue(Node* node) {
+void InstructionSelectorT<Adapter>::VisitV128AnyTrue(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64V128AnyTrue, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
+       g.UseUniqueRegister(this->input_at(node, 0)));
 }
 
 namespace {
@@ -5527,87 +5756,113 @@ static bool IsV128ZeroConst(Node* node) {
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
-  X64OperandGeneratorT<Adapter> g(this);
-
-  InstructionOperand dst =
-      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  if (IsV128ZeroConst(node->InputAt(2))) {
-    // select(cond, input1, 0) -> and(cond, input1)
-    Emit(kX64SAnd | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-  } else if (IsV128ZeroConst(node->InputAt(1))) {
-    // select(cond, 0, input2) -> and(not(cond), input2)
-    Emit(kX64SAndNot | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
-  } else {
-    Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseRegister(node->InputAt(2)));
-  }
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128Select(node_t node) {
+  UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS256Select(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 3);
+
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  if (IsV128ZeroConst(this->input_at(node, 2))) {
+    // select(cond, input1, 0) -> and(cond, input1)
+    Emit(kX64SAnd | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
+  } else if (IsV128ZeroConst(this->input_at(node, 1))) {
+    // select(cond, 0, input2) -> and(not(cond), input2)
+    Emit(kX64SAndNot | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 2)));
+  } else {
+    Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)),
+         g.UseRegister(this->input_at(node, 2)));
+  }
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS256Select(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS256Select(node_t node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(kX64SSelect | VectorLengthField::encode(kV256), g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128AndNot(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS128AndNot(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV128),
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS256AndNot(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS256AndNot(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV256),
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0),
+void InstructionSelectorT<Adapter>::VisitF64x2Abs(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0),
                  kX64FAbs | LaneSizeField::encode(kL64) |
                      VectorLengthField::encode(kV128));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0),
+void InstructionSelectorT<Adapter>::VisitF64x2Neg(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0),
                  kX64FNeg | LaneSizeField::encode(kL64) |
                      VectorLengthField::encode(kV128));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
-#define VISIT_SIMD_QFMOP(Opcode)                                             \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {            \
-    X64OperandGeneratorT<Adapter> g(this);                                   \
-    Emit(kX64##Opcode, g.UseRegister(node), g.UseRegister(node->InputAt(0)), \
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));  \
+#define VISIT_SIMD_QFMOP(Opcode)                                               \
+  template <typename Adapter>                                                  \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {             \
+    if constexpr (Adapter::IsTurboshaft) {                                     \
+      UNIMPLEMENTED();                                                         \
+    } else {                                                                   \
+      X64OperandGeneratorT<Adapter> g(this);                                   \
+      Emit(kX64##Opcode, g.UseRegister(node), g.UseRegister(node->InputAt(0)), \
+           g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));  \
+    }                                                                          \
   }
 VISIT_SIMD_QFMOP(F64x2Qfma)
 VISIT_SIMD_QFMOP(F64x2Qfms)
@@ -5616,82 +5871,90 @@ VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Neg(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   // If AVX unsupported, make sure dst != src to avoid a move.
   InstructionOperand operand0 = IsSupported(AVX)
-                                    ? g.UseRegister(node->InputAt(0))
-                                    : g.UseUnique(node->InputAt(0));
+                                    ? g.UseRegister(this->input_at(node, 0))
+                                    : g.UseUnique(this->input_at(node, 0));
   Emit(
       kX64INeg | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
       g.DefineAsRegister(node), operand0);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2ShrS(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2ShrS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
 
-  if (g.CanBeImmediate(node->InputAt(1))) {
+  if (g.CanBeImmediate(this->input_at(node, 1))) {
     Emit(kX64IShrS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         dst, g.UseRegister(node->InputAt(0)),
-         g.UseImmediate(node->InputAt(1)));
+         dst, g.UseRegister(this->input_at(node, 0)),
+         g.UseImmediate(this->input_at(node, 1)));
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register()};
     Emit(kX64IShrS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         dst, g.UseUniqueRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+         dst, g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)), arraysize(temps), temps);
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2Mul(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(
       kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
-      g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
-      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+      g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
+      g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps), temps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x4Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x4Mul(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   InstructionOperand temps[] = {g.TempSimd256Register()};
   Emit(
       kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
-      g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
-      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+      g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
+      g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps), temps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4SConvertF32x4(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4SConvertF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64I32x4SConvertF32x4,
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4UConvertF32x4(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4UConvertF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand temps[] = {g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x8UConvertF32x8(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x8UConvertF32x8(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand temps[] = {g.TempSimd256Register(),
                                 g.TempSimd256Register()};
   Emit(kX64I32x8UConvertF32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
+#endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
@@ -5859,8 +6122,13 @@ static bool TryMatchOneInputIsZeros(Node* node, uint8_t* shuffle,
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(node_t node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -5872,7 +6140,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
   static const int kMaxTemps = 2;
   InstructionOperand temps[kMaxTemps];
 
-  X64OperandGeneratorT<Adapter> g(this);
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   // Swizzles don't generally need DefineSameAsFirst to avoid a move.
   bool no_same_as_first = is_swizzle;
   // We generally need UseRegister for input0, Use for input1.
@@ -6026,7 +6294,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
 
   // Use DefineAsRegister(node) and Use(src0) if we can without forcing an extra
   // move instruction in the CodeGenerator.
-  Node* input0 = node->InputAt(0);
+  node_t input0 = this->input_at(node, 0);
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   // TODO(v8:9198): Use src0_needs_reg when we have memory alignment for SIMD.
@@ -6039,7 +6307,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
   InstructionOperand inputs[2 + kMaxImms + kMaxTemps];
   inputs[input_count++] = src0;
   if (!is_swizzle) {
-    Node* input1 = node->InputAt(1);
+    node_t input1 = this->input_at(node, 1);
     // TODO(v8:9198): Use src1_needs_reg when we have memory alignment for SIMD.
     // We only need a unique register for input1 if we use temp registers.
     inputs[input_count++] =
@@ -6068,13 +6336,18 @@ bool TryMatchVpshufd(const uint8_t* shuffle32x8, uint8_t& control) {
   return true;
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x32Shuffle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x32Shuffle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x32Shuffle(node_t node) {
   uint8_t shuffle[kSimd256Size];
   bool is_swizzle;
   CanonicalizeShuffle<kSimd256Size>(node, shuffle, &is_swizzle);
 
-  X64OperandGeneratorT<Adapter> g(this);
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
 
   if (uint8_t shuffle32x8[8];
       wasm::SimdShuffle::TryMatch32x8Shuffle(shuffle, shuffle32x8)) {
@@ -6094,20 +6367,16 @@ void InstructionSelectorT<Adapter>::VisitI8x32Shuffle(Node* node) {
 
   UNIMPLEMENTED();
 }
-#else
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
-  UNREACHABLE();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x32Shuffle(Node* node) {
-  UNREACHABLE();
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WEBASSEMBLY
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Swizzle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(node_t node) {
   InstructionCode op = kX64I8x16Swizzle;
 
   bool relaxed = OpParameter<bool>(node->op());
@@ -6124,7 +6393,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
     }
   }
 
-  X64OperandGeneratorT<Adapter> g(this);
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(op,
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
@@ -6132,377 +6401,409 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
 
 namespace {
 template <typename Adapter>
-void VisitRelaxedLaneSelect(InstructionSelectorT<Adapter>* selector, Node* node,
+void VisitRelaxedLaneSelect(InstructionSelectorT<Adapter>* selector,
+                            typename Adapter::node_t node,
                             InstructionCode code = kX64Pblendvb) {
   X64OperandGeneratorT<Adapter> g(selector);
+  DCHECK_EQ(selector->value_input_count(node), 3);
   // pblendvb/blendvps/blendvpd copies src2 when mask is set, opposite from Wasm
   // semantics. Node's inputs are: mask, lhs, rhs (determined in
   // wasm-compiler.cc).
   if (selector->IsSupported(AVX)) {
-    selector->Emit(
-        code, g.DefineAsRegister(node), g.UseRegister(node->InputAt(2)),
-        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+    selector->Emit(code, g.DefineAsRegister(node),
+                   g.UseRegister(selector->input_at(node, 2)),
+                   g.UseRegister(selector->input_at(node, 1)),
+                   g.UseRegister(selector->input_at(node, 0)));
   } else {
     // SSE4.1 pblendvb/blendvps/blendvpd requires xmm0 to hold the mask as an
     // implicit operand.
-    selector->Emit(
-        code, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
-        g.UseRegister(node->InputAt(1)), g.UseFixed(node->InputAt(0), xmm0));
+    selector->Emit(code, g.DefineSameAsFirst(node),
+                   g.UseRegister(selector->input_at(node, 2)),
+                   g.UseRegister(selector->input_at(node, 1)),
+                   g.UseFixed(selector->input_at(node, 0), xmm0));
   }
 }
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16RelaxedLaneSelect(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node);
 }
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8RelaxedLaneSelect(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI16x8RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node);
 }
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4RelaxedLaneSelect(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node, kX64Blendvps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node, kX64Blendvpd);
 }
-#else
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
-  UNREACHABLE();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16RelaxedLaneSelect(Node* node) {
-  UNREACHABLE();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8RelaxedLaneSelect(Node* node) {
-  UNREACHABLE();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4RelaxedLaneSelect(Node* node) {
-  UNREACHABLE();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(Node* node) {
-  UNREACHABLE();
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 // Used for pmin/pmax and relaxed min/max.
 template <typename Adapter>
-void VisitMinOrMax(InstructionSelectorT<Adapter>* selector, Node* node,
-                   ArchOpcode opcode, bool flip_inputs) {
+void VisitMinOrMax(InstructionSelectorT<Adapter>* selector,
+                   typename Adapter::node_t node, ArchOpcode opcode,
+                   bool flip_inputs) {
   X64OperandGeneratorT<Adapter> g(selector);
+  DCHECK_EQ(selector->value_input_count(node), 2);
   InstructionOperand dst = selector->IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
   if (flip_inputs) {
     // Due to the way minps/minpd work, we want the dst to be same as the second
     // input: b = pmin(a, b) directly maps to minps b a.
-    selector->Emit(opcode, dst, g.UseRegister(node->InputAt(1)),
-                   g.UseRegister(node->InputAt(0)));
+    selector->Emit(opcode, dst, g.UseRegister(selector->input_at(node, 1)),
+                   g.UseRegister(selector->input_at(node, 0)));
   } else {
-    selector->Emit(opcode, dst, g.UseRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(1)));
+    selector->Emit(opcode, dst, g.UseRegister(selector->input_at(node, 0)),
+                   g.UseRegister(selector->input_at(node, 1)));
   }
 }
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {
   VisitMinOrMax(this, node, kX64Minps, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4Pmax(node_t node) {
   VisitMinOrMax(this, node, kX64Maxps, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2Pmin(node_t node) {
   VisitMinOrMax(this, node, kX64Minpd, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2Pmax(node_t node) {
   VisitMinOrMax(this, node, kX64Maxpd, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x8Pmin(node_t node) {
   VisitMinOrMax(this, node, kX64F32x8Pmin, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x8Pmax(node_t node) {
   VisitMinOrMax(this, node, kX64F32x8Pmax, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x4Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x4Pmin(node_t node) {
   VisitMinOrMax(this, node, kX64F64x4Pmin, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x4Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x4Pmax(node_t node) {
   VisitMinOrMax(this, node, kX64F64x4Pmax, true);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMin(node_t node) {
   VisitMinOrMax(this, node, kX64Minps, false);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMax(node_t node) {
   VisitMinOrMax(this, node, kX64Maxps, false);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMin(node_t node) {
   VisitMinOrMax(this, node, kX64Minpd, false);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMax(node_t node) {
   VisitMinOrMax(this, node, kX64Maxpd, false);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8S(
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst,
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x8ExtAddPairwiseI16x16S(
-    Node* node) {
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64I32x8ExtAddPairwiseI16x16S, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8U(
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst,
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x8ExtAddPairwiseI16x16U(
-    Node* node) {
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64I32x8ExtAddPairwiseI16x16U, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16S(
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   // Codegen depends on dst != src.
   Emit(kX64I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
+       g.UseUniqueRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x16ExtAddPairwiseI8x32S(
-    Node* node) {
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64I16x16ExtAddPairwiseI8x32S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
+       g.UseUniqueRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst,
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x16ExtAddPairwiseI8x32U(
-    Node* node) {
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
   X64OperandGeneratorT<Adapter> g(this);
   Emit(kX64I16x16ExtAddPairwiseI8x32U, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
+       g.UseUniqueRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Popcnt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16Popcnt(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
+       g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2ConvertLowI32x4U(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2ConvertLowI32x4U(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4TruncSatF64x2SZero(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4TruncSatF64x2SZero(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   if (CpuFeatures::IsSupported(AVX)) {
     // Requires dst != src.
     Emit(kX64I32x4TruncSatF64x2SZero, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)));
+         g.UseUniqueRegister(this->input_at(node, 0)));
   } else {
     Emit(kX64I32x4TruncSatF64x2SZero, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)));
+         g.UseRegister(this->input_at(node, 0)));
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4TruncSatF64x2UZero(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4TruncSatF64x2UZero(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64I32x4TruncSatF64x2UZero, dst,
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF64x2SZero(
-    Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Cvttpd2dq);
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Cvttpd2dq);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF64x2UZero(
-    Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64I32x4TruncF64x2UZero);
+    node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64I32x4TruncF64x2UZero);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4S(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Cvttps2dq);
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4S(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Cvttps2dq);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64I32x4TruncF32x4U);
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64I32x4TruncF32x4U);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2GtS(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2GtS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)));
+         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)));
+         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
   } else {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseUniqueRegister(this->input_at(node, 1)));
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2GeS(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2GeS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)));
+         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
   } else {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseUniqueRegister(this->input_at(node, 1)));
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x4GeS(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x4GeS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   DCHECK(CpuFeatures::IsSupported(AVX2));
   Emit(
       kX64IGeS | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
-      g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)));
+      g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
+      g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Abs(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI64x2Abs(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IAbs | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(node->InputAt(0)));
+         g.DefineAsRegister(node),
+         g.UseUniqueRegister(this->input_at(node, 0)));
   } else {
     Emit(kX64IAbs | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
+         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)));
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   InstructionCode code = kX64F64x2PromoteLowF32x4;
-  Node* input = node->InputAt(0);
-  LoadTransformMatcher m(input);
+  if constexpr (Adapter::IsTurboshaft) {
+    // TODO(nicohartmann@): Implement this special case for turboshaft.
+  } else {
+    node_t input = this->input_at(node, 0);
+    LoadTransformMatcher m(input);
 
-  if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
-    if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
+      if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
+        code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      }
+      // LoadTransforms cannot be eliminated, so they are visited even if
+      // unused. Mark it as defined so that we don't visit it.
+      MarkAsDefined(input);
+      VisitLoad(node, input, code);
+      return;
     }
-    // LoadTransforms cannot be eliminated, so they are visited even if
-    // unused. Mark it as defined so that we don't visit it.
-    MarkAsDefined(input);
-    VisitLoad(node, input, code);
-    return;
   }
 
   VisitRR(this, node, code);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
   Emit(kX64I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseUniqueRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 3);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)),
-       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+       g.UseUniqueRegister(this->input_at(node, 0)),
+       g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifndef V8_ENABLE_WEBASSEMBLY
+#define VISIT_UNSUPPORTED_OP(op)                          \
+  template <typename Adapter>                             \
+  void InstructionSelectorT<Adapter>::Visit##op(node_t) { \
+    UNREACHABLE();                                        \
+  }
+MACHINE_SIMD128_OP_LIST(VISIT_UNSUPPORTED_OP)
+MACHINE_SIMD256_OP_LIST(VISIT_UNSUPPORTED_OP)
+#endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(

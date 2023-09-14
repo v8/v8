@@ -1689,6 +1689,18 @@ void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(node_t node) {
   }
 }
 
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16RelaxedSwizzle(
+    node_t node) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16RelaxedSwizzle(
+    node_t node) {
+  return VisitI8x16Swizzle(node);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(node_t node) {
   FlagsContinuation cont =
@@ -2038,14 +2050,8 @@ VISIT_UNSUPPORTED_OP(Word64AtomicCompareExchange)
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
 // This is only needed on 32-bit to split the 64-bit value into two operands.
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2SplatI32Pair(Node* node) {
-  UNIMPLEMENTED();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLaneI32Pair(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(I64x2SplatI32Pair)
+VISIT_UNSUPPORTED_OP(I64x2ReplaceLaneI32Pair)
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&
         // !V8_TARGET_ARCH_RISCV32
 
@@ -2053,18 +2059,11 @@ void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 && \
     !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_RISCV64
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Splat(Node* node) {
-  UNIMPLEMENTED();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2ExtractLane(Node* node) {
-  UNIMPLEMENTED();
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLane(Node* node) {
-  UNIMPLEMENTED();
-}
+
+VISIT_UNSUPPORTED_OP(I64x2Splat)
+VISIT_UNSUPPORTED_OP(I64x2ExtractLane)
+VISIT_UNSUPPORTED_OP(I64x2ReplaceLane)
+
 #endif  // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
 #endif  // !V8_TARGET_ARCH_ARM64
@@ -4995,10 +4994,146 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       UNREACHABLE();
     }
+#ifdef V8_ENABLE_WEBASSEMBLY
+    case Opcode::kSimd128Constant: {
+      const Simd128ConstantOp& constant = op.Cast<Simd128ConstantOp>();
+      MarkAsSimd128(node);
+      if (constant.IsZero()) return VisitS128Zero(node);
+      return VisitS128Const(node);
+    }
+    case Opcode::kSimd128Unary: {
+      const Simd128UnaryOp& unary = op.Cast<Simd128UnaryOp>();
+      MarkAsSimd128(node);
+      switch (unary.kind) {
+#define VISIT_SIMD_UNARY(kind)        \
+  case Simd128UnaryOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_128_UNARY_OPCODE(VISIT_SIMD_UNARY)
+#undef VISIT_SIMD_UNARY
+      }
+    }
+    case Opcode::kSimd128Binop: {
+      const Simd128BinopOp& binop = op.Cast<Simd128BinopOp>();
+      MarkAsSimd128(node);
+      switch (binop.kind) {
+#define VISIT_SIMD_BINOP(kind)        \
+  case Simd128BinopOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_128_BINARY_OPCODE(VISIT_SIMD_BINOP)
+#undef VISIT_SIMD_BINOP
+      }
+    }
+    case Opcode::kSimd128Shift: {
+      const Simd128ShiftOp& shift = op.Cast<Simd128ShiftOp>();
+      MarkAsSimd128(node);
+      switch (shift.kind) {
+#define VISIT_SIMD_SHIFT(kind)        \
+  case Simd128ShiftOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_128_SHIFT_OPCODE(VISIT_SIMD_SHIFT)
+#undef VISIT_SIMD_SHIFT
+      }
+    }
+    case Opcode::kSimd128Test: {
+      const Simd128TestOp& test = op.Cast<Simd128TestOp>();
+      MarkAsWord32(node);
+      switch (test.kind) {
+#define VISIT_SIMD_TEST(kind)        \
+  case Simd128TestOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_128_TEST_OPCODE(VISIT_SIMD_TEST)
+#undef VISIT_SIMD_TEST
+      }
+    }
+    case Opcode::kSimd128Splat: {
+      const Simd128SplatOp& splat = op.Cast<Simd128SplatOp>();
+      MarkAsSimd128(node);
+      switch (splat.kind) {
+#define VISIT_SIMD_SPLAT(kind)        \
+  case Simd128SplatOp::Kind::k##kind: \
+    return Visit##kind##Splat(node);
+        FOREACH_SIMD_128_SPLAT_OPCODE(VISIT_SIMD_SPLAT)
+#undef VISIT_SIMD_SPLAT
+      }
+    }
+    case Opcode::kSimd128Shuffle:
+      MarkAsSimd128(node);
+      return VisitI8x16Shuffle(node);
+    case Opcode::kSimd128ReplaceLane: {
+      const Simd128ReplaceLaneOp& replace = op.Cast<Simd128ReplaceLaneOp>();
+      MarkAsSimd128(node);
+      switch (replace.kind) {
+        case Simd128ReplaceLaneOp::Kind::kI8x16:
+          return VisitI8x16ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kI16x8:
+          return VisitI16x8ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kI32x4:
+          return VisitI32x4ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kI64x2:
+          return VisitI64x2ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kF32x4:
+          return VisitF32x4ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kF64x2:
+          return VisitF64x2ReplaceLane(node);
+      }
+    }
+    case Opcode::kSimd128ExtractLane: {
+      const Simd128ExtractLaneOp& extract = op.Cast<Simd128ExtractLaneOp>();
+      switch (extract.kind) {
+        case Simd128ExtractLaneOp::Kind::kI8x16S:
+          MarkAsWord32(node);
+          return VisitI8x16ExtractLaneS(node);
+        case Simd128ExtractLaneOp::Kind::kI8x16U:
+          MarkAsWord32(node);
+          return VisitI8x16ExtractLaneU(node);
+        case Simd128ExtractLaneOp::Kind::kI16x8S:
+          MarkAsWord32(node);
+          return VisitI16x8ExtractLaneS(node);
+        case Simd128ExtractLaneOp::Kind::kI16x8U:
+          MarkAsWord32(node);
+          return VisitI16x8ExtractLaneU(node);
+        case Simd128ExtractLaneOp::Kind::kI32x4:
+          MarkAsWord32(node);
+          return VisitI32x4ExtractLane(node);
+        case Simd128ExtractLaneOp::Kind::kI64x2:
+          MarkAsWord64(node);
+          return VisitI64x2ExtractLane(node);
+        case Simd128ExtractLaneOp::Kind::kF32x4:
+          MarkAsFloat32(node);
+          return VisitF32x4ExtractLane(node);
+        case Simd128ExtractLaneOp::Kind::kF64x2:
+          MarkAsFloat64(node);
+          return VisitF64x2ExtractLane(node);
+      }
+    }
+    case Opcode::kSimd128LoadTransform:
+      MarkAsSimd128(node);
+      return VisitLoadTransform(node);
+    case Opcode::kSimd128LaneMemory: {
+      const Simd128LaneMemoryOp& memory = op.Cast<Simd128LaneMemoryOp>();
+      MarkAsSimd128(node);
+      if (memory.mode == Simd128LaneMemoryOp::Mode::kLoad) {
+        return VisitLoadLane(node);
+      } else {
+        DCHECK_EQ(memory.mode, Simd128LaneMemoryOp::Mode::kStore);
+        return VisitStoreLane(node);
+      }
+    }
+    case Opcode::kSimd128Ternary: {
+      const Simd128TernaryOp& ternary = op.Cast<Simd128TernaryOp>();
+      MarkAsSimd128(node);
+      switch (ternary.kind) {
+#define VISIT_SIMD_TERNARY(kind)        \
+  case Simd128TernaryOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_128_TERNARY_OPCODE(VISIT_SIMD_TERNARY)
+#undef VISIT_SIMD_TERNARY
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
       TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
-      TURBOSHAFT_SIMD_OPERATION_LIST(UNIMPLEMENTED_CASE)
 #undef UNIMPLEMENTED_CASE
     case Opcode::kAtomicWord32Pair:
     case Opcode::kMemoryBarrier: {
