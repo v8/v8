@@ -192,6 +192,35 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
   return result;
 }
 
+void MainAllocator::MakeLinearAllocationAreaIterable() {
+  Address current_top = top();
+  Address current_limit = original_limit_relaxed();
+  DCHECK_GE(current_limit, limit());
+  if (current_top != kNullAddress && current_top != current_limit) {
+    heap_->CreateFillerObjectAt(current_top,
+                                static_cast<int>(current_limit - current_top));
+  }
+}
+
+void MainAllocator::MarkLinearAllocationAreaBlack() {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != kNullAddress && current_top != current_limit) {
+    Page::FromAllocationAreaAddress(current_top)
+        ->CreateBlackArea(current_top, current_limit);
+  }
+}
+
+void MainAllocator::UnmarkLinearAllocationArea() {
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != kNullAddress && current_top != current_limit) {
+    Page::FromAllocationAreaAddress(current_top)
+        ->DestroyBlackArea(current_top, current_limit);
+  }
+}
+
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
 
 }  // namespace internal

@@ -216,11 +216,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Empty space linear allocation area, returning unused area to free list.
   void FreeLinearAllocationArea() override;
 
-  void MakeLinearAllocationAreaIterable();
-
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
-
   void DecreaseAllocatedBytes(size_t bytes, Page* page) {
     accounting_stats_.DecreaseAllocatedBytes(bytes, page);
   }

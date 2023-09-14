@@ -1188,5 +1188,9 @@ PagedNewSpace::~PagedNewSpace() {
   paged_space_.TearDown();
 }
 
+void PagedNewSpace::MakeLinearAllocationAreaIterable() {
+  allocator_.MakeLinearAllocationAreaIterable();
+}
+
 }  // namespace internal
 }  // namespace v8

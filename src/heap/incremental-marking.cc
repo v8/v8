@@ -421,12 +421,7 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
   DCHECK(IsMajorMarking());
   black_allocation_ = true;
-  heap()->old_space()->MarkLinearAllocationAreaBlack();
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    heap()->code_space()->MarkLinearAllocationAreaBlack();
-  }
+  heap()->allocator()->MarkLinearAllocationAreaBlack();
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
@@ -445,12 +440,7 @@ void IncrementalMarking::StartBlackAllocation() {
 
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMajorMarking());
-  heap()->old_space()->UnmarkLinearAllocationArea();
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    heap()->code_space()->UnmarkLinearAllocationArea();
-  }
+  heap()->allocator()->UnmarkLinearAllocationArea();
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(

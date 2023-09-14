@@ -16,6 +16,7 @@ namespace internal {
 class CodeLargeObjectSpace;
 class ConcurrentAllocator;
 class Heap;
+class MainAllocator;
 class NewSpace;
 class NewLargeObjectSpace;
 class OldLargeObjectSpace;
@@ -76,6 +77,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   static void InitializeOncePerProcess();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
+  void MakeLinearAllocationAreaIterable();
+
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
+
  private:
   V8_INLINE PagedSpace* code_space() const;
   V8_INLINE CodeLargeObjectSpace* code_lo_space() const;
@@ -107,6 +113,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   Heap* const heap_;
   Space* spaces_[LAST_SPACE + 1];
   ReadOnlySpace* read_only_space_;
+
+  MainAllocator* new_space_allocator_;
+  MainAllocator* old_space_allocator_;
+  MainAllocator* trusted_space_allocator_;
+  MainAllocator* code_space_allocator_;
 
   ConcurrentAllocator* shared_old_allocator_;
   OldLargeObjectSpace* shared_lo_space_;

@@ -769,9 +769,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.EnsureCurrentCapacity();
   }
 
-  void MakeLinearAllocationAreaIterable() final {
-    paged_space_.MakeLinearAllocationAreaIterable();
-  }
+  void MakeLinearAllocationAreaIterable() final;
 
   PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
 

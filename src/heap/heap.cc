@@ -3653,11 +3653,7 @@ void Heap::MakeHeapIterable() {
         });
   }
 
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    space->MakeLinearAllocationAreaIterable();
-  }
+  allocator()->MakeLinearAllocationAreaIterable();
 
   if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();

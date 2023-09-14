@@ -317,6 +317,8 @@ class SpaceWithLinearArea : public Space {
     return allocator_.allocation_limit_address();
   }
 
+  MainAllocator* main_allocator() { return &allocator_; }
+
   // Methods needed for allocation observers.
   V8_EXPORT_PRIVATE void AddAllocationObserver(
       AllocationObserver* observer) override;

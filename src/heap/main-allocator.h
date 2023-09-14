@@ -130,6 +130,11 @@ class MainAllocator {
 
   void MarkLabStartInitialized();
 
+  void MakeLinearAllocationAreaIterable();
+
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.

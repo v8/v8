@@ -107,21 +107,21 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
     } else {
       switch (type) {
         case AllocationType::kYoung:
-          allocation =
-              new_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = new_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
         case AllocationType::kMap:
         case AllocationType::kOld:
-          allocation =
-              old_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = old_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
         case AllocationType::kCode: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
           CodePageHeaderModificationScope header_modification_scope(
               "Code allocation needs header access.");
-          allocation = code_space()->AllocateRaw(
-              size_in_bytes, AllocationAlignment::kTaggedAligned);
+          allocation = code_space_allocator_->AllocateRaw(
+              size_in_bytes, AllocationAlignment::kTaggedAligned, origin);
           break;
         }
         case AllocationType::kReadOnly:
@@ -135,8 +135,8 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
                                                           alignment, origin);
           break;
         case AllocationType::kTrusted:
-          allocation =
-              trusted_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = trusted_space_allocator_->AllocateRaw(size_in_bytes,
+                                                             alignment, origin);
           break;
       }
     }
