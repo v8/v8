@@ -29,9 +29,12 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
         simplified_(zone) {}
 
-  // TODOC(mliedtke): What is the difference between CallRuntimeStub and
-  // CallBuiltin and what are the considerations to take into account when
-  // choosing between them?
+  // Calls the builtin specified via the stub_id.
+  // While CallBuiltin() translates to a direct call to the address of the
+  // builtin, CallRuntimeStub instead jumps to the stub_id's slot in a jump
+  // table that then calls the builtin. As the jump table is "close" to the
+  // generated code, this is encoded as a near call resulting in the instruction
+  // being shorter than a direct call to the builtin.
   template <typename... Args>
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
                         Operator::Properties properties, Args... args) {
