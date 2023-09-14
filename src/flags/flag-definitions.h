@@ -2110,6 +2110,14 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
            "maximum number of valid maps to track in POLYMORPHIC state")
 
+// map-inl.h
+DEFINE_INT(fast_properties_soft_limit, 12,
+           "limits the number of properties that can be added to an object "
+           "using keyed store before transitioning to dictionary mode")
+DEFINE_INT(max_fast_properties, 128,
+           "limits the number of mutable properties that can be added to an "
+           "object before transitioning to dictionary mode")
+
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 

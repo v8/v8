@@ -199,7 +199,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
   if (store_origin == StoreOrigin::kNamed) {
-    int limit = std::max({kMaxFastProperties, GetInObjectProperties()});
+    int limit = std::max(
+        {v8_flags.max_fast_properties.value(), GetInObjectProperties()});
     FieldCounts counts = GetFieldCounts();
     // Only count mutable fields so that objects with large numbers of
     // constant functions do not go to dictionary mode. That would be bad
@@ -207,7 +208,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     int external = counts.mutable_count() - GetInObjectProperties();
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
-    int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
+    int limit = std::max(
+        {v8_flags.fast_properties_soft_limit.value(), GetInObjectProperties()});
     int external =
         NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
     return external > limit;

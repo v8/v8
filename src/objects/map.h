@@ -998,9 +998,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Tagged<Object>)
   DECL_ACCESSORS(transitions_or_prototype_info, Tagged<Object>)
 
-  static const int kFastPropertiesSoftLimit = 12;
-  static const int kMaxFastProperties = 128;
-
   friend class MapUpdater;
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
