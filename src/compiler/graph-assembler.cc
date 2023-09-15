@@ -137,8 +137,8 @@ Node* GraphAssembler::LoadStackPointer() {
 }
 
 Node* GraphAssembler::SetStackPointer(Node* node) {
-  return AddNode(graph()->NewNode(machine()->SetStackPointer(), node, effect(),
-                                  control()));
+  return AddNode(
+      graph()->NewNode(machine()->SetStackPointer(), node, effect()));
 }
 
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {

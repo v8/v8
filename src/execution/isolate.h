@@ -1298,7 +1298,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
-  THREAD_LOCAL_TOP_ADDRESS(bool, is_on_central_stack_flag)
+  THREAD_LOCAL_TOP_ADDRESS(int32_t, is_on_central_stack_flag)
 
   MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;

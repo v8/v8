@@ -42,6 +42,9 @@ class StackMemory {
   void* jslimit() const { return limit_ + kJSLimitOffsetKB * KB; }
   Address base() const { return reinterpret_cast<Address>(limit_ + size_); }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
+  bool Contains(Address addr) {
+    return reinterpret_cast<Address>(jslimit()) <= addr && addr < base();
+  }
   int id() { return id_; }
 
   // Insert a stack in the linked list after this stack.
