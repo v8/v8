@@ -1183,6 +1183,7 @@ void Heap::GarbageCollectionPrologue(
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
   if (new_space()) {
+    new_space()->MakeLinearAllocationAreaIterable();
     DCHECK_NOT_NULL(minor_gc_job());
     minor_gc_job()->CancelTaskIfScheduled();
   }
@@ -3655,6 +3656,7 @@ void Heap::MakeHeapIterable() {
   if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();
   }
+  if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
 }
 
 void Heap::FreeLinearAllocationAreas() {

@@ -674,7 +674,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     }
 
     // Ensure the young generation space is iterable.
-    heap()->new_space()->main_allocator()->MakeLinearAllocationAreaIterable();
+    heap()->new_space()->MakeLinearAllocationAreaIterable();
 
     // Inner pointer resolution should work now, finding the objects in the
     // case of the inner pointers.

@@ -265,6 +265,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   // Grow the capacity of the space.
   virtual void Grow() = 0;
 
+  // Creates a filler object in the linear allocation area.
+  virtual void MakeLinearAllocationAreaIterable() = 0;
+
   virtual void MakeIterable() = 0;
 
   virtual iterator begin() = 0;
@@ -481,6 +484,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void ZapUnusedMemory();
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final;
+
+  void MakeLinearAllocationAreaIterable() final;
 
  private:
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
@@ -763,6 +768,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   bool EnsureCurrentCapacity() final {
     return paged_space_.EnsureCurrentCapacity();
   }
+
+  void MakeLinearAllocationAreaIterable() final;
 
   PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
 
