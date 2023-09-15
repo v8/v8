@@ -3569,7 +3569,8 @@ void Pipeline::GenerateCodeForWasmFunction(
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  if (enabled.has_inlining()) {
+  // Force inlining for wasm-gc modules.
+  if (enabled.has_inlining() || env->module->is_wasm_gc) {
     pipeline.Run<WasmInliningPhase>(env, compilation_data, inlining_positions,
                                     detected);
     pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);

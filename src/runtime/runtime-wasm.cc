@@ -335,7 +335,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
   wasm::NativeModule* native_module =
       instance->module_object()->native_module();
-  DCHECK(native_module->enabled_features().has_inlining());
+  DCHECK(native_module->enabled_features().has_inlining() ||
+         native_module->module()->is_wasm_gc);
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
   *native_module_stack_slot = native_module;
@@ -345,7 +346,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
   const wasm::WasmModule* module = native_module->module();
   int func_index = declared_func_index + module->num_imported_functions;
-  int num_slots = native_module->enabled_features().has_inlining()
+  int num_slots = (native_module->enabled_features().has_inlining() ||
+                   native_module->module()->is_wasm_gc)
                       ? NumFeedbackSlots(module, func_index)
                       : 0;
   Handle<FixedArray> vector =
