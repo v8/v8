@@ -291,7 +291,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopYoungCycleIfNeeded();
   void StopFullCycleIfNeeded();
 
-  void NotifyMemoryBalancer();
+  void UpdateMemoryBalancerGCSpeed();
 
   // Start and stop a cycle's atomic pause.
   void StartAtomicPause();
@@ -323,9 +323,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   void SampleAllocation(base::TimeTicks current, size_t new_space_counter_bytes,
                         size_t old_generation_counter_bytes,
                         size_t embedder_counter_bytes);
-
-  // Log the accumulated new space allocation bytes.
-  void AddAllocation(base::TimeTicks current);
 
   void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
@@ -540,12 +537,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   size_t new_space_allocation_counter_bytes_ = 0;
   size_t old_generation_allocation_counter_bytes_ = 0;
   size_t embedder_allocation_counter_bytes_ = 0;
-
-  // Accumulated duration (in ms) and allocated bytes since the last GC.
-  double allocation_duration_since_gc_ = 0.0;
-  size_t new_space_allocation_in_bytes_since_gc_ = 0;
-  size_t old_generation_allocation_in_bytes_since_gc_ = 0;
-  size_t embedder_allocation_in_bytes_since_gc_ = 0;
 
   double combined_mark_compact_speed_cache_ = 0.0;
 

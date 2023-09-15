@@ -2606,8 +2606,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
             mode);
 
     if (v8_flags.memory_balancer) {
-      // Update allocation rate and gc speed first.
-      tracer()->NotifyMemoryBalancer();
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(
           new_global_allocation_limit - new_old_generation_allocation_limit,

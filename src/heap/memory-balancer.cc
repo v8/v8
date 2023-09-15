@@ -44,10 +44,10 @@ void MemoryBalancer::RefreshLimit() {
 
   if (v8_flags.trace_memory_balancer) {
     heap_->isolate()->PrintWithTimestamp(
-        "MemoryBalancer: allocation-rate=%.2lfMB/ms gc-speed=%.2lfMB/ms "
+        "MemoryBalancer: allocation-rate=%.1lfKB/ms gc-speed=%.1lfKB/ms "
         "minium-limit=%.1lfM computed-limit=%.1lfM new-limit=%.1lfM\n",
-        major_allocation_rate_.value().rate() / MB,
-        major_gc_speed_.value().rate() / MB,
+        major_allocation_rate_.value().rate() / KB,
+        major_gc_speed_.value().rate() / KB,
         static_cast<double>(minimum_limit) / MB,
         static_cast<double>(computed_limit) / MB,
         static_cast<double>(new_limit) / MB);

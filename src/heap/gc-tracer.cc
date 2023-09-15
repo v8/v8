@@ -53,17 +53,16 @@ using BytesAndDuration = ::heap::base::BytesAndDuration;
 
 double BoundedAverageSpeed(
     const base::RingBuffer<BytesAndDuration>& buffer,
-    const BytesAndDuration& initial,
     v8::base::Optional<v8::base::TimeDelta> selected_duration) {
   constexpr size_t kMinNonEmptySpeedInBytesPerMs = 1;
   constexpr size_t kMaxSpeedInBytesPerMs = GB;
-  return ::heap::base::AverageSpeed(buffer, initial, selected_duration,
-                                    kMinNonEmptySpeedInBytesPerMs,
-                                    kMaxSpeedInBytesPerMs);
+  return ::heap::base::AverageSpeed(
+      buffer, BytesAndDuration(), selected_duration,
+      kMinNonEmptySpeedInBytesPerMs, kMaxSpeedInBytesPerMs);
 }
 
 double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
-  return BoundedAverageSpeed(buffer, BytesAndDuration(), base::nullopt);
+  return BoundedAverageSpeed(buffer, base::nullopt);
 }
 
 }  // namespace
@@ -314,6 +313,10 @@ void GCTracer::StopInSafepoint(base::TimeTicks time) {
   current_.end_holes_size = CountTotalHolesSize(heap_);
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
   current_.end_atomic_pause_time = time;
+
+  if (v8_flags.memory_balancer) {
+    UpdateMemoryBalancerGCSpeed();
+  }
 }
 
 void GCTracer::StopObservablePause(GarbageCollector collector,
@@ -326,7 +329,6 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   // currently the end time of the observable pause. This should be
   // reconsidered.
   current_.end_time = time;
-  AddAllocation(current_.end_time);
 
   FetchBackgroundCounters();
 
@@ -396,7 +398,7 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   }
 }
 
-void GCTracer::NotifyMemoryBalancer() {
+void GCTracer::UpdateMemoryBalancerGCSpeed() {
   DCHECK(v8_flags.memory_balancer);
   size_t major_gc_bytes = current_.start_object_size;
   const base::TimeDelta atomic_pause_duration =
@@ -420,10 +422,6 @@ void GCTracer::NotifyMemoryBalancer() {
   CHECK_GE(major_allocation_duration, base::TimeDelta());
 
   heap_->mb_->UpdateGCSpeed(major_gc_bytes, major_gc_duration);
-
-  heap_->mb_->UpdateAllocationRate(
-      old_generation_allocation_in_bytes_since_gc_,
-      base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_));
 }
 
 void GCTracer::StopAtomicPause() {
@@ -605,16 +603,24 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
       old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
   size_t embedder_allocated_bytes =
       embedder_counter_bytes - embedder_allocation_counter_bytes_;
-  const base::TimeDelta duration = current - allocation_time_;
+  const base::TimeDelta allocation_duration = current - allocation_time_;
   allocation_time_ = current;
+
   new_space_allocation_counter_bytes_ = new_space_counter_bytes;
   old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
   embedder_allocation_counter_bytes_ = embedder_counter_bytes;
-  allocation_duration_since_gc_ += duration.InMillisecondsF();
-  new_space_allocation_in_bytes_since_gc_ += new_space_allocated_bytes;
-  old_generation_allocation_in_bytes_since_gc_ +=
-      old_generation_allocated_bytes;
-  embedder_allocation_in_bytes_since_gc_ += embedder_allocated_bytes;
+
+  recorded_new_generation_allocations_.Push(
+      BytesAndDuration(new_space_allocated_bytes, allocation_duration));
+  recorded_old_generation_allocations_.Push(
+      BytesAndDuration(old_generation_allocated_bytes, allocation_duration));
+  recorded_embedder_generation_allocations_.Push(
+      BytesAndDuration(embedder_allocated_bytes, allocation_duration));
+
+  if (v8_flags.memory_balancer) {
+    heap_->mb_->UpdateAllocationRate(old_generation_allocated_bytes,
+                                     allocation_duration);
+  }
 }
 
 void GCTracer::NotifyMarkingStart() {
@@ -644,24 +650,6 @@ void GCTracer::NotifyMarkingStart() {
 
 uint16_t GCTracer::CodeFlushingIncrease() const {
   return code_flushing_increase_s_;
-}
-
-void GCTracer::AddAllocation(base::TimeTicks current) {
-  allocation_time_ = current;
-  if (allocation_duration_since_gc_ > 0) {
-    const auto duration_since_gc =
-        base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_);
-    recorded_new_generation_allocations_.Push(BytesAndDuration(
-        new_space_allocation_in_bytes_since_gc_, duration_since_gc));
-    recorded_old_generation_allocations_.Push(BytesAndDuration(
-        old_generation_allocation_in_bytes_since_gc_, duration_since_gc));
-    recorded_embedder_generation_allocations_.Push(BytesAndDuration(
-        embedder_allocation_in_bytes_since_gc_, duration_since_gc));
-  }
-  allocation_duration_since_gc_ = 0;
-  new_space_allocation_in_bytes_since_gc_ = 0;
-  old_generation_allocation_in_bytes_since_gc_ = 0;
-  embedder_allocation_in_bytes_since_gc_ = 0;
 }
 
 void GCTracer::AddCompactionEvent(double duration,
@@ -1287,9 +1275,6 @@ double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     base::Optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_new_generation_allocations_,
-      BytesAndDuration(
-          new_space_allocation_in_bytes_since_gc_,
-          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
       selected_duration);
 }
 
@@ -1297,9 +1282,6 @@ double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
     base::Optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_old_generation_allocations_,
-      BytesAndDuration(
-          old_generation_allocation_in_bytes_since_gc_,
-          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
       selected_duration);
 }
 
@@ -1307,9 +1289,6 @@ double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
     base::Optional<base::TimeDelta> selected_duration) const {
   return BoundedAverageSpeed(
       recorded_embedder_generation_allocations_,
-      BytesAndDuration(
-          embedder_allocation_in_bytes_since_gc_,
-          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
       selected_duration);
 }
 
