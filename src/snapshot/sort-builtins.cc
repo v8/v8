@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <fstream>
 
-#include "src/builtins/builtins-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 

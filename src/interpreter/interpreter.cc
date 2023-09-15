@@ -10,7 +10,6 @@
 #include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/globals.h"

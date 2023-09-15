@@ -4,7 +4,6 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"

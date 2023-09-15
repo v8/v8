@@ -4,7 +4,6 @@
 
 #include "src/snapshot/embedded/embedded-data.h"
 
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"

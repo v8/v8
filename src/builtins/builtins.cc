@@ -6,7 +6,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-descriptors.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -35,6 +34,9 @@ namespace {
 
 // TODO(jgruber): Pack in CallDescriptors::Key.
 struct BuiltinMetadata {
+  const char* name;
+  Builtins::Kind kind;
+
   struct BytecodeAndScale {
     interpreter::Bytecode bytecode : 8;
     interpreter::OperandScale scale : 8;
@@ -65,18 +67,41 @@ struct BuiltinMetadata {
   } data;
 };
 
-#define DECL_CPP(Name, ...) {{FUNCTION_ADDR(Builtin_##Name)}},
-#define DECL_TFJ(_, Count, ...) {{Count, 0}},
-#define DECL_BCH(Name, OperandScale, Bytecode) {{Bytecode, OperandScale}},
-#define NO_METADATA(...) {},
-const BuiltinMetadata builtin_metadata[] = {
-    BUILTIN_LIST(DECL_CPP, DECL_TFJ, NO_METADATA, NO_METADATA, NO_METADATA,
-                 DECL_BCH, NO_METADATA)};
+#define DECL_CPP(Name, ...) \
+  {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
+#define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
+#define DECL_TFC(Name, ...) {#Name, Builtins::TFC, {}},
+#define DECL_TFS(Name, ...) {#Name, Builtins::TFS, {}},
+#define DECL_TFH(Name, ...) {#Name, Builtins::TFH, {}},
+#define DECL_BCH(Name, OperandScale, Bytecode) \
+  {#Name, Builtins::BCH, {Bytecode, OperandScale}},
+#define DECL_ASM(Name, ...) {#Name, Builtins::ASM, {}},
+const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
+    DECL_CPP, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH, DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
 #undef DECL_TFJ
+#undef DECL_TFC
+#undef DECL_TFS
+#undef DECL_TFH
 #undef DECL_BCH
+#undef DECL_ASM
 
 }  // namespace
+
+BytecodeOffset Builtins::GetContinuationBytecodeOffset(Builtin builtin) {
+  DCHECK(Builtins::KindOf(builtin) == TFJ || Builtins::KindOf(builtin) == TFC ||
+         Builtins::KindOf(builtin) == TFS);
+  return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId +
+                        ToInt(builtin));
+}
+
+Builtin Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
+  Builtin builtin = Builtins::FromInt(
+      id.ToInt() - BytecodeOffset::kFirstBuiltinContinuationId);
+  DCHECK(Builtins::KindOf(builtin) == TFJ || Builtins::KindOf(builtin) == TFC ||
+         Builtins::KindOf(builtin) == TFS);
+  return builtin;
+}
 
 void Builtins::TearDown() { initialized_ = false; }
 
@@ -212,6 +237,48 @@ Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
 bool Builtins::HasJSLinkage(Builtin builtin) {
   DCHECK_NE(BCH, Builtins::KindOf(builtin));
   return CallInterfaceDescriptorFor(builtin) == JSTrampolineDescriptor{};
+}
+
+// static
+const char* Builtins::name(Builtin builtin) {
+  int index = ToInt(builtin);
+  DCHECK(IsBuiltinId(index));
+  return builtin_metadata[index].name;
+}
+
+// static
+const char* Builtins::NameForStackTrace(Builtin builtin) {
+#if V8_ENABLE_WEBASSEMBLY
+  // Most builtins are never shown in stack traces. Those that are exposed
+  // to JavaScript get their name from the object referring to them. Here
+  // we only support a few internal builtins that have special reasons for
+  // being shown on stack traces:
+  // - builtins that are allowlisted in {StubFrame::Summarize}.
+  // - builtins that throw the same error as one of those above, but would
+  //   lose information and e.g. print "indexOf" instead of "String.indexOf".
+  switch (builtin) {
+    case Builtin::kStringPrototypeToLocaleLowerCase:
+      return "String.toLocaleLowerCase";
+    case Builtin::kStringPrototypeIndexOf:
+    case Builtin::kThrowIndexOfCalledOnNull:
+      return "String.indexOf";
+#if V8_INTL_SUPPORT
+    case Builtin::kStringPrototypeToLowerCaseIntl:
+#endif
+    case Builtin::kThrowToLowerCaseCalledOnNull:
+      return "String.toLowerCase";
+    case Builtin::kWasmIntToString:
+      return "Number.toString";
+    default:
+      // Callers getting this might well crash, which might be desirable
+      // because it's similar to {UNREACHABLE()}, but contrary to that a
+      // careful caller can also check the value and use it as an "is a
+      // name available for this builtin?" check.
+      return nullptr;
+  }
+#else
+  return nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void Builtins::PrintBuiltinCode() {
@@ -363,6 +430,33 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
       // Mimic the InterpreterEntryTrampoline.
       .set_builtin(Builtin::kInterpreterEntryTrampoline)
       .Build();
+}
+
+Builtins::Kind Builtins::KindOf(Builtin builtin) {
+  DCHECK(IsBuiltinId(builtin));
+  return builtin_metadata[ToInt(builtin)].kind;
+}
+
+// static
+const char* Builtins::KindNameOf(Builtin builtin) {
+  Kind kind = Builtins::KindOf(builtin);
+  // clang-format off
+  switch (kind) {
+    case CPP: return "CPP";
+    case TFJ: return "TFJ";
+    case TFC: return "TFC";
+    case TFS: return "TFS";
+    case TFH: return "TFH";
+    case BCH: return "BCH";
+    case ASM: return "ASM";
+  }
+  // clang-format on
+  UNREACHABLE();
+}
+
+// static
+bool Builtins::IsCpp(Builtin builtin) {
+  return Builtins::KindOf(builtin) == CPP;
 }
 
 // static

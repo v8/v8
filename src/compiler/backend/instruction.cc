@@ -8,7 +8,6 @@
 #include <iomanip>
 
 #include "src/base/iterator.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"

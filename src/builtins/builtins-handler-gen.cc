@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/optional.h"
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/ic/ic.h"

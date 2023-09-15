@@ -8,7 +8,6 @@
 
 #include "src/base/bounds.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"

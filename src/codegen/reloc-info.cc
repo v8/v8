@@ -5,7 +5,6 @@
 #include "src/codegen/reloc-info.h"
 
 #include "src/base/vlq.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-reference.h"
 #include "src/codegen/external-reference-encoder.h"

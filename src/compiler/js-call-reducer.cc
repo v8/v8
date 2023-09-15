@@ -8,7 +8,6 @@
 
 #include "src/base/container-utils.h"
 #include "src/base/small-vector.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"

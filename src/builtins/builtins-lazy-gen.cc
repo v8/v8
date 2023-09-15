@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-lazy-gen.h"
 
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/objects/code-inl.h"

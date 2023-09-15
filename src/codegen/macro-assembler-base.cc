@@ -4,7 +4,7 @@
 
 #include "src/codegen/macro-assembler-base.h"
 
-#include "src/builtins/builtins-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/external-reference-encoder.h"
 #include "src/common/globals.h"
@@ -124,16 +124,6 @@ bool MacroAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);
-}
-
-// static
-std::string MacroAssemblerBase::CommentForOffHeapTrampoline(const char* prefix,
-                                                            Builtin builtin) {
-  if (!v8_flags.code_comments) return "";
-  std::ostringstream str;
-  str << "Inlined  Trampoline for " << prefix << " to "
-      << Builtins::name(builtin);
-  return str.str();
 }
 
 // static

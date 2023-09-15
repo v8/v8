@@ -6,7 +6,7 @@
 
 #include "src/builtins/builtins-collections-gen.h"
 #include "src/builtins/builtins-string-gen.h"
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/codegen/code-stub-assembler.h"

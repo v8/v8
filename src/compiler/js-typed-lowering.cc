@@ -5,7 +5,6 @@
 #include "src/compiler/js-typed-lowering.h"
 
 #include "src/ast/modules.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"

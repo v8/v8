@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BUILTINS_BUILTINS_UTILS_GEN_INL_H_
-#define V8_BUILTINS_BUILTINS_UTILS_GEN_INL_H_
+#ifndef V8_BUILTINS_BUILTINS_UTILS_GEN_H_
+#define V8_BUILTINS_BUILTINS_UTILS_GEN_H_
 
 #include "include/cppgc/source-location.h"
 #include "src/builtins/builtins-descriptors.h"
-#include "src/builtins/builtins-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -62,4 +61,4 @@ class CodeAssemblerState;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BUILTINS_BUILTINS_UTILS_GEN_INL_H_
+#endif  // V8_BUILTINS_BUILTINS_UTILS_GEN_H_

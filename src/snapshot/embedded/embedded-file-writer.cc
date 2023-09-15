@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cinttypes>
 
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #include "src/objects/code-inl.h"

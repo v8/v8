@@ -13,7 +13,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/builtins/builtins-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/assert-scope.h"

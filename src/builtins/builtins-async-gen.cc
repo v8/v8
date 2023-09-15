@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-async-gen.h"
 
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
