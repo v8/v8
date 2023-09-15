@@ -873,6 +873,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         AppendString(raw_json);
       }
       return SUCCESS;
+    case HOLE_TYPE:
+      UNREACHABLE();
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_STRUCT_TYPE:
     case WASM_ARRAY_TYPE:
@@ -884,7 +886,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         SerializeString<false>(Handle<String>::cast(object));
         return SUCCESS;
       } else {
-        DCHECK(IsJSReceiver(*object));
+        // Make sure that we have a JSReceiver before we cast it to one.
+        // If we ever leak an internal object that is not a JSReceiver it could
+        // end up here and lead to a type confusion.
+        CHECK(IsJSReceiver(*object));
         if (IsCallable(HeapObject::cast(*object), cage_base)) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
