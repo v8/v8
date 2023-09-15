@@ -140,6 +140,9 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
 }
 
 void HeapAllocator::MakeLinearAllocationAreaIterable() {
+  if (new_space_allocator_) {
+    new_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
   old_space_allocator_->MakeLinearAllocationAreaIterable();
   trusted_space_allocator_->MakeLinearAllocationAreaIterable();
   code_space_allocator_->MakeLinearAllocationAreaIterable();

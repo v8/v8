@@ -681,7 +681,7 @@ void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
 
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
   AdvanceAllocationObservers();
-  MakeLinearAllocationAreaIterable();
+  allocator_.MakeLinearAllocationAreaIterable();
   UpdateInlineAllocationLimit();
 }
 
@@ -875,15 +875,6 @@ void SemiSpaceNewSpace::RemovePage(Page* page) {
 
 bool SemiSpaceNewSpace::IsPromotionCandidate(const MemoryChunk* page) const {
   return !page->Contains(age_mark());
-}
-
-void SemiSpaceNewSpace::MakeLinearAllocationAreaIterable() {
-  Address to_top = top();
-  Page* page = Page::FromAddress(to_top - kTaggedSize);
-  if (page->Contains(to_top)) {
-    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    heap_->CreateFillerObjectAt(to_top, remaining_in_page);
-  }
 }
 
 bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
@@ -1186,10 +1177,6 @@ PagedNewSpace::~PagedNewSpace() {
   allocator_.allocation_info().Reset(kNullAddress, kNullAddress);
 
   paged_space_.TearDown();
-}
-
-void PagedNewSpace::MakeLinearAllocationAreaIterable() {
-  allocator_.MakeLinearAllocationAreaIterable();
 }
 
 }  // namespace internal
