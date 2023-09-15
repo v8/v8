@@ -1358,7 +1358,8 @@ Tagged<Object> Object::GetHash(Tagged<Object> obj) {
   Tagged<Object> hash = GetSimpleHash(obj);
   if (IsSmi(hash)) return hash;
 
-  DCHECK(IsJSReceiver(obj));
+  // Make sure that we never cast internal objects to JSReceivers.
+  CHECK(IsJSReceiver(obj));
   Tagged<JSReceiver> receiver = JSReceiver::cast(obj);
   return receiver->GetIdentityHash();
 }
