@@ -12,25 +12,20 @@ function OnProfilerSampleCallback(profile) {
   let js_to_wasm_index = 0;
   let fib_index = 0;
   let imp_index = 0;
-  for (const node of profile.nodes) {
-    if (node.callFrame.functionName.startsWith('js-to-wasm')) {
-      js_to_wasm_index = node.id;
-    } else if (node.callFrame.functionName.startsWith('wasm-to-js')) {
-      wasm_to_js_index = node.id;
-    } else if (node.callFrame.functionName.startsWith('main')) {
-      fib_index = node.id;
-    } else if (node.callFrame.functionName.startsWith('imp')) {
-      imp_index = node.id;
+  let functionNames = profile.nodes.map(n => n.callFrame.functionName);
+  for (let i = 0; i < functionNames.length; ++i) {
+    if (functionNames[i].startsWith('js-to-wasm')) {
+      assertTrue(functionNames[i + 1].startsWith('main'));
+      assertTrue(functionNames[i + 2].startsWith('wasm-to-js'));
+      assertTrue(functionNames[i + 3].startsWith('imp'));
+      // {sampleCollected} is set at the end because the asserts above don't
+      // show up in the test runner, probably because this function is called as
+      // a callback from d8.
+      sampleCollected = true;
+      return;
     }
   }
-  assertTrue(js_to_wasm_index > 0);
-  assertEquals(js_to_wasm_index + 1, fib_index);
-  assertEquals(fib_index + 1, wasm_to_js_index);
-  assertEquals(wasm_to_js_index + 1, imp_index);
-  // {sampleCollected} is set at the end because the asserts above don't show up
-  // in the test runner, probably because this function is called as a callback
-  // from d8.
-  sampleCollected = true;
+  assertUnreachable();
 }
 
 const builder = new WasmModuleBuilder();
