@@ -322,20 +322,23 @@ bool IsStringOrExternRef(wasm::ValueType type) {
   return IsStringRef(type) || IsExternRef(type);
 }
 
-bool IsI16Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  if (writable && !module->array_type(reftype)->mutability()) return false;
-  return module->array_type(reftype)->element_type() == kWasmI16;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI16Index;
+  // Note: if we ever relax the requirements back to *any* i16 array, we can
+  // simply check {module->array_type(reftype)->element_type() == kWasmI16}
+  // here.
 }
 
-bool IsI8Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  if (writable && !module->array_type(reftype)->mutability()) return false;
-  return module->array_type(reftype)->element_type() == kWasmI8;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI8Index;
 }
 
 // This detects imports of the forms:
@@ -411,7 +414,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       case Builtin::kWebAssemblyStringFromWtf16Array:
         // i16array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI16Array(sig->GetParam(0), instance->module(), false) &&
+            IsI16Array(sig->GetParam(0), instance->module()) &&
             sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf16Array;
@@ -420,7 +423,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       case Builtin::kWebAssemblyStringFromWtf8Array:
         // i8array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI8Array(sig->GetParam(0), instance->module(), false) &&
+            IsI8Array(sig->GetParam(0), instance->module()) &&
             sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf8Array;
@@ -445,7 +448,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
         // string, i16array, i32 -> i32
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
-            IsI16Array(sig->GetParam(1), instance->module(), true) &&
+            IsI16Array(sig->GetParam(1), instance->module()) &&
             sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringToWtf16Array;
         }
