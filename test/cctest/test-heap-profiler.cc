@@ -3927,6 +3927,10 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   // Suppress randomness to avoid flakiness in tests.
   i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
+  // Disable loop unrolling to have a more predictable number of allocations
+  // (loop unrolling could cause allocation folding).
+  i::v8_flags.turboshaft_loop_unrolling = false;
+
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   v8::base::ScopedVector<char> source(1024);

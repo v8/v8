@@ -86,6 +86,7 @@
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
+#include "src/compiler/turboshaft/loop-unrolling-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
 #include "src/compiler/turboshaft/phase.h"
@@ -3096,6 +3097,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     }
 
     Run<turboshaft::MachineLoweringPhase>();
+
+    if (v8_flags.turboshaft_loop_unrolling) {
+      Run<turboshaft::LoopUnrollingPhase>();
+    }
 
     if (v8_flags.turbo_store_elimination) {
       Run<turboshaft::StoreStoreEliminationPhase>();

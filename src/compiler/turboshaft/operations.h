@@ -1442,6 +1442,9 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
 
 struct OverflowCheckedBinopOp
     : FixedArityOperationT<2, OverflowCheckedBinopOp> {
+  static constexpr int kValueIndex = 0;
+  static constexpr int kOverflowIndex = 1;
+
   enum class Kind : uint8_t {
     kSignedAdd,
     kSignedMul,
@@ -3354,6 +3357,10 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   }
 };
 
+// If {target} is a HeapObject representing a builtin, return that builtin's ID.
+base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
+                                        JSHeapBroker* broker);
+
 struct CallOp : OperationT<CallOp> {
   const TSCallDescriptor* descriptor;
   OpEffects callee_effects;
@@ -3394,6 +3401,9 @@ struct CallOp : OperationT<CallOp> {
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(1 + HasFrameState(), input_count);
   }
+  // Returns true if this call is a stack check.
+  bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
+                    StackCheckKind kind) const;
 
   CallOp(OpIndex callee, OpIndex frame_state,
          base::Vector<const OpIndex> arguments,
@@ -3675,7 +3685,7 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
              hint == other.hint;
     }
   };
-  base::Vector<const Case> cases;
+  base::Vector<Case> cases;
   Block* default_case;
   BranchHint default_hint;
 
@@ -3689,7 +3699,7 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  SwitchOp(OpIndex input, base::Vector<const Case> cases, Block* default_case,
+  SwitchOp(OpIndex input, base::Vector<Case> cases, Block* default_case,
            BranchHint default_hint)
       : Base(input),
         cases(cases),
@@ -7254,16 +7264,8 @@ inline size_t Operation::StorageSlotCount(Opcode opcode, size_t input_count) {
   return std::max<size_t>(2, (r - 1 + size + input_count) / r);
 }
 
-template <class Op>
-V8_INLINE bool CanBeUsedAsInput(const Op& op) {
-  if (std::is_same<Op, FrameStateOp>::value) {
-    // FrameStateOp is the only Operation that can be used as an input but has
-    // empty `outputs_rep`.
-    return true;
-  }
-  // For all other Operations, they can only be used as an input if they have at
-  // least one output.
-  return op.outputs_rep().size() > 0;
+V8_INLINE bool CanBeUsedAsInput(const Operation& op) {
+  return op.Is<FrameStateOp>() || op.outputs_rep().size() > 0;
 }
 
 inline base::Vector<const RegisterRepresentation> Operation::outputs_rep()

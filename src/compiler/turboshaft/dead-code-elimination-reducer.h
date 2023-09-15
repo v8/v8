@@ -431,7 +431,7 @@ class DeadCodeEliminationReducer
     auto it = branch_rewrite_targets_.find(ig_index.id());
     if (it != branch_rewrite_targets_.end()) {
       BlockIndex goto_target = it->second;
-      Asm().Goto(Asm().input_graph().Get(goto_target).MapToNextGraph());
+      Asm().Goto(Asm().MapToNewGraph(&Asm().input_graph().Get(goto_target)));
       return OpIndex::Invalid();
     }
     return Next::ReduceInputGraphBranch(ig_index, branch);

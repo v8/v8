@@ -566,9 +566,7 @@ class ReducerBaseForwarder : public Next {
  public:
 #define EMIT_OP(Name)                                                    \
   OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
-    return MayThrow(Opcode::k##Name)                                     \
-               ? OpIndex::Invalid()                                      \
-               : this->Asm().AssembleOutputGraph##Name(op);              \
+    return this->Asm().AssembleOutputGraph##Name(op);                    \
   }                                                                      \
   template <class... Args>                                               \
   OpIndex Reduce##Name(Args... args) {                                   \
@@ -692,7 +690,7 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
                      RegisterRepresentation::Tagged());
   }
 
-  OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+  OpIndex ReduceSwitch(OpIndex input, base::Vector<SwitchOp::Case> cases,
                        Block* default_case, BranchHint default_hint) {
 #ifdef DEBUG
     // Making sure that all cases and {default_case} are different. If we ever
@@ -1866,7 +1864,7 @@ class AssemblerOpInterface {
     return Select(cond, vtrue, vfalse, V<std::common_type_t<T, U>>::rep, hint,
                   SelectOp::Implementation::kBranch);
   }
-  void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+  void Switch(OpIndex input, base::Vector<SwitchOp::Case> cases,
               Block* default_case,
               BranchHint default_hint = BranchHint::kNone) {
     ReduceIfReachableSwitch(input, cases, default_case, default_hint);
@@ -3153,8 +3151,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   // Every loop should be finalized once, after it is certain that no backedge
   // can be added anymore.
   void FinalizeLoop(Block* loop_header) {
-    DCHECK(loop_header->IsLoop());
-    if (loop_header->HasExactlyNPredecessors(1)) {
+    if (loop_header->IsLoop() && loop_header->HasExactlyNPredecessors(1)) {
       this->output_graph().TurnLoopIntoMerge(loop_header);
     }
   }
@@ -3330,7 +3327,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
       case Opcode::kSwitch: {
         SwitchOp& switch_op = op.Cast<SwitchOp>();
         bool found = false;
-        for (auto case_block : switch_op.cases) {
+        for (auto& case_block : switch_op.cases) {
           if (case_block.destination == destination) {
             case_block.destination = intermediate_block;
             DCHECK(!found);

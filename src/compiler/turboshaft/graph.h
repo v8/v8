@@ -347,16 +347,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   bool HasPredecessors() const { return last_predecessor_ != nullptr; }
   void ResetLastPredecessor() { last_predecessor_ = nullptr; }
 
-  void SetMappingToNextGraph(Block* next_graph_block) {
-    DCHECK_NULL(next_graph_mapping_);
-    DCHECK_NOT_NULL(next_graph_block);
-    next_graph_mapping_ = next_graph_block;
-    next_graph_block->SetOrigin(this);
-  }
-  Block* MapToNextGraph() const {
-    DCHECK_NOT_NULL(next_graph_mapping_);
-    return next_graph_mapping_;
-  }
   // The block from the previous graph which produced the current block. This
   // has to be updated to be the last block that contributed operations to the
   // current block to ensure that phi nodes are created correctly.git cl
@@ -371,18 +361,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   const Block* OriginForBlockEnd() const {
     DCHECK(IsBound());
     return origin_;
-  }
-  // The block from the input graph that corresponds to the current block as a
-  // branch destination. Such a block might not exist, and this function uses a
-  // trick to compute such a block in almost all cases, but might rarely fail
-  // and return `nullptr` instead.
-  const Block* OriginForBlockStart() const {
-    // Check that `origin_` is still valid as a block start and was not changed
-    // to a semantically different block when inlining blocks.
-    if (origin_ && origin_->MapToNextGraph() == this) {
-      return origin_;
-    }
-    return nullptr;
   }
 
   bool IsComplete() const { return end_.valid(); }
@@ -471,7 +449,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
   const Block* origin_ = nullptr;
-  Block* next_graph_mapping_ = nullptr;
   // The {custom_data_} field can be used by algorithms to temporarily store
   // block-specific data. This field is not preserved when constructing a new
   // output graph and algorithms cannot rely on this field being properly reset
@@ -481,6 +458,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   CustomDataKind custom_data_kind_for_debug_check_ = CustomDataKind::kUnset;
   size_t graph_generation_ = 0;
 #endif
+
+  template <class Assembler>
+  friend class GraphVisitor;
 };
 
 std::ostream& operator<<(std::ostream& os, const Block* b);
@@ -628,15 +608,29 @@ class Graph {
     IncrementInputUses(*new_op);
   }
 
-  V8_INLINE Block* NewLoopHeader() {
-    return NewBlock(Block::Kind::kLoopHeader);
+  V8_INLINE Block* NewLoopHeader(const Block* origin = nullptr) {
+    return NewBlock(Block::Kind::kLoopHeader, origin);
   }
-  V8_INLINE Block* NewBlock() { return NewBlock(Block::Kind::kMerge); }
-  V8_INLINE Block* NewMappedBlock(Block* origin) {
-    Block* new_block = NewBlock(origin->IsLoop() ? Block::Kind::kLoopHeader
-                                                 : Block::Kind::kMerge);
-    origin->SetMappingToNextGraph(new_block);
-    return new_block;
+  V8_INLINE Block* NewBlock(const Block* origin = nullptr) {
+    return NewBlock(Block::Kind::kMerge, origin);
+  }
+
+  V8_INLINE Block* NewBlock(Block::Kind kind, const Block* origin = nullptr) {
+    if (V8_UNLIKELY(next_block_ == all_blocks_.size())) {
+      constexpr size_t new_block_count = 64;
+      base::Vector<Block> blocks =
+          graph_zone_->NewVector<Block>(new_block_count, Block(kind));
+      for (size_t i = 0; i < new_block_count; ++i) {
+        all_blocks_.push_back(&blocks[i]);
+      }
+    }
+    Block* result = all_blocks_[next_block_++];
+    *result = Block(kind);
+#ifdef DEBUG
+    result->graph_generation_ = generation_;
+#endif
+    result->SetOrigin(origin);
+    return result;
   }
 
   V8_INLINE bool Add(Block* block) {
@@ -921,23 +915,6 @@ class Graph {
     for (OpIndex input : op.inputs()) {
       Get(input).saturated_use_count.Decr();
     }
-  }
-
-  V8_INLINE Block* NewBlock(Block::Kind kind) {
-    if (V8_UNLIKELY(next_block_ == all_blocks_.size())) {
-      constexpr size_t new_block_count = 64;
-      base::Vector<Block> blocks =
-          graph_zone_->NewVector<Block>(new_block_count, Block(kind));
-      for (size_t i = 0; i < new_block_count; ++i) {
-        all_blocks_.push_back(&blocks[i]);
-      }
-    }
-    Block* result = all_blocks_[next_block_++];
-    *result = Block(kind);
-#ifdef DEBUG
-    result->graph_generation_ = generation_;
-#endif
-    return result;
   }
 
   OperationBuffer operations_;

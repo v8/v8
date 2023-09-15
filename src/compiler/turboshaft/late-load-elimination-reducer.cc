@@ -179,25 +179,6 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
   }
 }
 
-namespace {
-
-// If {target} is a HeapObject representing a builtin, return that builtin's ID.
-base::Optional<Builtin> TryGetBuiltinId(ConstantOp* target,
-                                        JSHeapBroker* broker) {
-  if (!target) return base::nullopt;
-  if (target->kind != ConstantOp::Kind::kHeapObject) return base::nullopt;
-  HeapObjectRef ref = MakeRef(broker, target->handle());
-  if (ref.IsCode()) {
-    CodeRef code = ref.AsCode();
-    if (code.object()->is_builtin()) {
-      return code.object()->builtin_id();
-    }
-  }
-  return base::nullopt;
-}
-
-}  // namespace
-
 // Since we only loosely keep track of what can or can't alias, we assume that
 // anything that was guaranteed to not alias with anything (because it's in
 // {non_aliasing_objects_}) can alias with anything when coming back from the
@@ -208,7 +189,10 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
   if (!op.Effects().can_write()) return;
-
+  if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
+    // This is a stack check that cannot write heap memory.
+    return;
+  }
   if (auto builtin_id = TryGetBuiltinId(
           graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {
     switch (*builtin_id) {
@@ -220,20 +204,6 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
         memory_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
                            JSObject::kElementsOffset);
         return;
-      case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit: {
-        DCHECK_GE(op.input_count, 3);
-        if (const ConstantOp* real_callee =
-                graph_.Get(op.input(2)).TryCast<ConstantOp>();
-            real_callee != nullptr &&
-            real_callee->kind == ConstantOp::Kind::kExternal &&
-            real_callee->external_reference() ==
-                ExternalReference::Create(
-                    Runtime::kHandleNoHeapWritesInterrupts)) {
-          // This is a stack check that cannot write heap memory.
-          return;
-        }
-        break;
-      }
       default:
         break;
     }

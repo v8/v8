@@ -1189,15 +1189,12 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   // function takes an offset argument which is subtracted from the stack
   // pointer prior to the stack check (i.e. the check is `sp - offset >=
   // limit`).
+  Runtime::FunctionId builtin = GetBuiltinForStackCheckKind(stack_check_kind);
   if (stack_check_kind == StackCheckKind::kJSFunctionEntry) {
     node->InsertInput(zone(), 0,
                       graph()->NewNode(machine()->LoadStackCheckOffset()));
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuardWithGap);
-  } else if (stack_check_kind == StackCheckKind::kJSIterationBody) {
-    ReplaceWithRuntimeCall(node, Runtime::kHandleNoHeapWritesInterrupts);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
   }
+  ReplaceWithRuntimeCall(node, builtin);
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {
