@@ -6,7 +6,7 @@
 
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-iterator-gen.h"
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"

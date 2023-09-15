@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-call-gen.h"
 
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"

@@ -11,7 +11,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/builtins/builtins-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/code-factory.h"

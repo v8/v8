@@ -11,7 +11,6 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/macro-assembler.h"

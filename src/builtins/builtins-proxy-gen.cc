@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-proxy-gen.h"
 
-#include "src/builtins/builtins-utils-gen-inl.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"

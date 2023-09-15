@@ -123,13 +123,37 @@ class Builtins {
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
 
-  static constexpr BytecodeOffset GetContinuationBytecodeOffset(
-      Builtin builtin);
-  static constexpr Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
+  static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
+  static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
   static constexpr Builtin GetRecordWriteStub(
-      SaveFPRegsMode fp_mode, PointerType type = PointerType::kDirect);
-  static constexpr Builtin GetEphemeronKeyBarrierStub(SaveFPRegsMode fp_mode);
+      SaveFPRegsMode fp_mode, PointerType type = PointerType::kDirect) {
+    switch (type) {
+      case PointerType::kDirect:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return Builtin::kRecordWriteIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return Builtin::kRecordWriteSaveFP;
+        }
+      case PointerType::kIndirect:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return Builtin::kIndirectPointerBarrierIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return Builtin::kIndirectPointerBarrierSaveFP;
+        }
+    }
+  }
+
+  static constexpr Builtin GetEphemeronKeyBarrierStub(SaveFPRegsMode fp_mode) {
+    switch (fp_mode) {
+      case SaveFPRegsMode::kIgnore:
+        return Builtin::kEphemeronKeyBarrierIgnoreFP;
+      case SaveFPRegsMode::kSave:
+        return Builtin::kEphemeronKeyBarrierSaveFP;
+    }
+  }
 
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
@@ -151,9 +175,8 @@ class Builtins {
 
   static int GetStackParameterCount(Builtin builtin);
 
-  V8_EXPORT_PRIVATE static constexpr const char* name(Builtin builtin);
-  V8_EXPORT_PRIVATE static constexpr const char* NameForStackTrace(
-      Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* NameForStackTrace(Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();
@@ -163,10 +186,10 @@ class Builtins {
   // Address otherwise.
   static Address CppEntryOf(Builtin builtin);
 
-  static constexpr Kind KindOf(Builtin builtin);
-  static constexpr const char* KindNameOf(Builtin builtin);
+  static Kind KindOf(Builtin builtin);
+  static const char* KindNameOf(Builtin builtin);
 
-  static constexpr bool IsCpp(Builtin builtin);
+  static bool IsCpp(Builtin builtin);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is InstructionStream::BUILTIN.
@@ -221,7 +244,17 @@ class Builtins {
   static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
-  static constexpr bool IsJSEntryVariant(Builtin builtin);
+  static bool IsJSEntryVariant(Builtin builtin) {
+    switch (builtin) {
+      case Builtin::kJSEntry:
+      case Builtin::kJSConstructEntry:
+      case Builtin::kJSRunMicrotasksEntry:
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
 
   int js_entry_handler_offset() const {
     DCHECK_NE(js_entry_handler_offset_, 0);

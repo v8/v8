@@ -6,7 +6,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
