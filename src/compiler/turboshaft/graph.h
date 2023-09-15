@@ -962,34 +962,15 @@ V8_INLINE const Operation& Block::LastOperation(const Graph& graph) const {
 }
 
 V8_INLINE bool Block::HasPhis(const Graph& graph) const {
+  // TODO(dmercadier): consider re-introducing the invariant that Phis are
+  // always at the begining of a block to speed up such functions. Currently,
+  // in practice, Phis do not appear after the first non-FrameState non-Constant
+  // operation, but this is not enforced.
   DCHECK_EQ(graph_generation_, graph.generation());
-#ifdef DEBUG
-  // Verify that only Phis/FrameStates are found, then all other Phis/
-  // FrameStateOps in the block come consecutively.
-  bool starts_with_phi = false;
-  bool finished_phis = false;
   for (const auto& op : graph.operations(*this)) {
-    if (op.Is<PhiOp>()) {
-      DCHECK(!finished_phis);
-      starts_with_phi = true;
-    }
-    if (!op.Is<PhiOp>() && !op.Is<FrameStateOp>()) {
-      finished_phis = true;
-    }
-  }
-  return starts_with_phi;
-#else   // DEBUG
-  for (const auto& op : graph.operations(*this)) {
-    if (op.Is<PhiOp>()) {
-      return true;
-    } else if (op.Is<FrameStateOp>()) {
-      continue;
-    } else {
-      return false;
-    }
+    if (op.Is<PhiOp>()) return true;
   }
   return false;
-#endif  // DEBUG
 }
 
 struct PrintAsBlockHeader {
