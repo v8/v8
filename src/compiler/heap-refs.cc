@@ -1100,20 +1100,26 @@ OptionalMapRef MapRef::AsElementsKind(JSHeapBroker* broker,
   const ElementsKind current_kind = elements_kind();
   if (kind == current_kind) return *this;
 
-  base::Optional<Tagged<Map>> maybe_result = Map::TryAsElementsKind(
-      broker->isolate(), object(), kind, ConcurrencyMode::kConcurrent);
-
 #ifdef DEBUG
   // If starting from an initial JSArray map, TryAsElementsKind must succeed
   // and return the expected transitioned JSArray map.
   NativeContextRef native_context = broker->target_native_context();
   if (equals(native_context.GetInitialJSArrayMap(broker, current_kind))) {
-    CHECK_EQ(Map::TryAsElementsKind(broker->isolate(), object(), kind,
-                                    ConcurrencyMode::kConcurrent)
-                 .value(),
-             *native_context.GetInitialJSArrayMap(broker, kind).object());
+    // Note that GetInitialJSArrayMap can park the current scope, which can
+    // trigger a GC, which means that everything above this point that isn't in
+    // a Handle could be invalidated.
+    Tagged<Map> initial_js_array_map =
+        *native_context.GetInitialJSArrayMap(broker, kind).object();
+    Tagged<Map> as_elements_kind_map =
+        Map::TryAsElementsKind(broker->isolate(), object(), kind,
+                               ConcurrencyMode::kConcurrent)
+            .value();
+    CHECK_EQ(as_elements_kind_map, initial_js_array_map);
   }
 #endif  // DEBUG
+
+  base::Optional<Tagged<Map>> maybe_result = Map::TryAsElementsKind(
+      broker->isolate(), object(), kind, ConcurrencyMode::kConcurrent);
 
   if (!maybe_result.has_value()) {
     TRACE_BROKER_MISSING(broker, "MapRef::AsElementsKind " << *this);
