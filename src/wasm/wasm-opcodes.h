@@ -720,9 +720,6 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \
   V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
-  /* TODO(14034): Drop the deprecated opcodes below. */                        \
-  V(RefTestDeprecated, 0xfb44, _, "ref.test")                                  \
-  V(RefCastDeprecated, 0xfb45, _, "ref.cast")                                  \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
   /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \

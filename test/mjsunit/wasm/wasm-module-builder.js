@@ -524,11 +524,6 @@ let kExprRefI31 = 0x1c;
 let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
 
-// Deprecated opcodes, left over from the prototyping phase, to be deleted
-// along with v8_flags.wasm_disable_deprecated after shipping WasmGC.
-// TODO(14034): Drop these.
-let kExprRefTestDeprecated = 0x44;
-let kExprRefCastDeprecated = 0x45;
 let kExprRefCastNop = 0x4c;
 
 // Stringref proposal.

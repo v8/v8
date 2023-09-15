@@ -2327,8 +2327,6 @@ class WasmDecoder : public Decoder {
             (ios.HeapType(imm), ...);
             return length + imm.length;
           }
-          case kExprRefTestDeprecated:
-          case kExprRefCastDeprecated:
           case kExprRefCastNop: {
             IndexImmediate imm(decoder, pc + length, "type index", validate);
             (ios.TypeIndex(imm), ...);
@@ -4341,12 +4339,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return TypeCheckAlwaysSucceeds(obj, HeapType(ref_index));
   }
 
-#define GC_DEPRECATED                                             \
-  if (v8_flags.wasm_disable_deprecated) {                         \
-    this->DecodeError("opcode %s is a deprecated gc instruction", \
-                      this->SafeOpcodeNameAt(this->pc()));        \
-  }
-
 #define NON_CONST_ONLY                                                    \
   if constexpr (decoding_mode == kConstantExpression) {                   \
     this->DecodeError("opcode %s is not allowed in constant expressions", \
@@ -4905,47 +4897,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         return opcode_length;
       }
-      case kExprRefTestDeprecated: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        IndexImmediate imm(this, this->pc_ + opcode_length, "type index",
-                           validate);
-        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        opcode_length += imm.length;
-        Value obj = Pop();
-        Value* value = Push(kWasmI32);
-        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
-                      obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
-          return 0;
-        }
-        if (current_code_reachable_and_ok_) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, imm.index))) {
-            // Type checking can still fail for null.
-            if (obj.type.is_nullable()) {
-              // We abuse ref.as_non_null, which isn't otherwise used as a unary
-              // operator, as a sentinel for the negation of ref.is_null.
-              CALL_INTERFACE(UnOp, kExprRefAsNonNull, obj, value);
-            } else {
-              CALL_INTERFACE(Drop);
-              CALL_INTERFACE(I32Const, value, 1);
-            }
-          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, imm.index))) {
-            CALL_INTERFACE(Drop);
-            CALL_INTERFACE(I32Const, value, 0);
-          } else {
-            CALL_INTERFACE(RefTest, imm.index, obj, value,
-                           /*null_succeeds*/ false);
-          }
-        }
-        return opcode_length;
-      }
       case kExprRefCastNop: {
         NON_CONST_ONLY
         // Temporary non-standard instruction, for performance experiments.
@@ -4975,49 +4926,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         Value* value = Push(ValueType::Ref(target_type));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, value);
-        return opcode_length;
-      }
-      case kExprRefCastDeprecated: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        IndexImmediate imm(this, this->pc_ + opcode_length, "type index",
-                           validate);
-        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        opcode_length += imm.length;
-        Value obj = Pop();
-        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
-                      obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
-          return 0;
-        }
-        Value* value = Push(ValueType::RefMaybeNull(
-            imm.index,
-            obj.type.is_bottom() ? kNonNullable : obj.type.nullability()));
-        if (current_code_reachable_and_ok_) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, imm.index))) {
-            CALL_INTERFACE(Forward, obj, value);
-          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, imm.index))) {
-            // Unrelated types. The only way this will not trap is if the object
-            // is null.
-            if (obj.type.is_nullable()) {
-              CALL_INTERFACE(AssertNullTypecheck, obj, value);
-            } else {
-              CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
-              // We know that the following code is not reachable, but according
-              // to the spec it technically is. Set it to spec-only reachable.
-              SetSucceedingCodeDynamicallyUnreachable();
-            }
-          } else {
-            bool null_succeeds = true;
-            CALL_INTERFACE(RefCast, imm.index, obj, value, null_succeeds);
-          }
-        }
         return opcode_length;
       }
       case kExprBrOnCastGeneric: {
