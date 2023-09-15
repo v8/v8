@@ -4892,8 +4892,10 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 }
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
-  // br_on_cast: prefix + opcode + flags + br_depth + source_type + target_type
+  // br_on_cast[_fail]: prefix + opcode + flags + br_depth + source_type +
+  //                    target_type
   ExpectLength(6, 0xfb, kExprBrOnCastGeneric & 0xFF);
+  ExpectLength(6, 0xfb, kExprBrOnCastFailGeneric & 0xFF);
 
   // struct.new, with leb immediate operand.
   ExpectLength(3, 0xfb, 0x07, 0x42);

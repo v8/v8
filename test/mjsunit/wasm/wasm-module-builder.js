@@ -529,11 +529,6 @@ let kExprI31GetU = 0x1e;
 // TODO(14034): Drop these.
 let kExprRefTestDeprecated = 0x44;
 let kExprRefCastDeprecated = 0x45;
-let kExprBrOnCast = 0x42;
-let kExprBrOnCastNull = 0x4a;
-let kExprBrOnCastDeprecated = 0x46;
-let kExprBrOnCastFail = 0x43;
-let kExprBrOnCastFailNull = 0x4b;
 let kExprRefCastNop = 0x4c;
 
 // Stringref proposal.

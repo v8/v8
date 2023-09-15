@@ -723,12 +723,6 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   /* TODO(14034): Drop the deprecated opcodes below. */                        \
   V(RefTestDeprecated, 0xfb44, _, "ref.test")                                  \
   V(RefCastDeprecated, 0xfb45, _, "ref.cast")                                  \
-  V(BrOnCast, 0xfb42, _, "br_on_cast")                                         \
-  V(BrOnCastNull, 0xfb4a, _, "br_on_cast null")                                \
-  V(BrOnCastDeprecated, 0xfb46, _, "br_on_cast")                               \
-  V(BrOnCastFail, 0xfb43, _, "br_on_cast_fail")                                \
-  V(BrOnCastFailNull, 0xfb4b, _, "br_on_cast_fail null")                       \
-  V(BrOnCastFailDeprecated, 0xfb47, _, "br_on_cast_fail")                      \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
   /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \

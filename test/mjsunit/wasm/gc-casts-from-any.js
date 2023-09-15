@@ -451,7 +451,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(jsObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(strObj));
 
-    // br_on_cast
+  // br_on_cast
   assertEquals(0, wasm.brOnCastGenericStructSuper(null));
   assertEquals(0, wasm.brOnCastGenericStructSuper(undefined));
   assertEquals(1, wasm.brOnCastGenericStructSuper(structSuperObj));

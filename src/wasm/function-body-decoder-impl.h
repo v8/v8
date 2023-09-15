@@ -2352,26 +2352,6 @@ class WasmDecoder : public Decoder {
             return length + flags_imm.length + branch.length +
                    source_imm.length + target_imm.length;
           }
-          case kExprBrOnCast:
-          case kExprBrOnCastNull:
-          case kExprBrOnCastFail:
-          case kExprBrOnCastFailNull: {
-            BranchDepthImmediate branch(decoder, pc + length, validate);
-            HeapTypeImmediate imm(WasmFeatures::All(), decoder,
-                                  pc + length + branch.length, validate);
-            (ios.BranchDepth(branch), ...);
-            (ios.HeapType(imm), ...);
-            return length + branch.length + imm.length;
-          }
-          case kExprBrOnCastFailDeprecated:
-          case kExprBrOnCastDeprecated: {
-            BranchDepthImmediate branch(decoder, pc + length, validate);
-            IndexImmediate index(decoder, pc + length + branch.length,
-                                 "type index", validate);
-            (ios.BranchDepth(branch), ...);
-            (ios.TypeIndex(index), ...);
-            return length + branch.length + index.length;
-          }
           case kExprRefI31:
           case kExprI31GetS:
           case kExprI31GetU:
@@ -5054,148 +5034,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         pc_offset += flags_imm.length;
         return ParseBrOnCastFail(opcode, pc_offset, flags_imm.flags);
       }
-      case kExprBrOnCast:
-      case kExprBrOnCastNull: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BrOnCastFlags flags;
-        flags.src_is_null = Peek().type.is_nullable();
-        flags.res_is_null = opcode == kExprBrOnCastNull;
-        return ParseBrOnCast(opcode, opcode_length, flags);
-      }
-      case kExprBrOnCastDeprecated: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-        uint32_t pc_offset = opcode_length + branch_depth.length;
-        IndexImmediate imm(this, this->pc_ + pc_offset, "type index", validate);
-        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        pc_offset += imm.length;
-        Value obj = Pop();
-        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
-                      obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
-          return 0;
-        }
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError(
-              "br_on_cast must target a branch of arity at least 1");
-          return 0;
-        }
-        Value* value_on_branch = Push(ValueType::Ref(imm.index));
-        if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, imm.index))) {
-            // The branch will still not be taken on null.
-            if (obj.type.is_nullable()) {
-              CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
-                             branch_depth.depth, false);
-            } else {
-              CALL_INTERFACE(Forward, obj, value_on_branch);
-              CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
-              // We know that the following code is not reachable, but according
-              // to the spec it technically is. Set it to spec-only reachable.
-              SetSucceedingCodeDynamicallyUnreachable();
-            }
-            c->br_merge()->reached = true;
-          } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, imm.index))) {
-            bool null_succeeds = false;
-            CALL_INTERFACE(BrOnCast, imm.index, obj, value_on_branch,
-                           branch_depth.depth, null_succeeds);
-            c->br_merge()->reached = true;
-          }
-        }
-
-        Drop(*value_on_branch);
-        Push(obj);  // Restore stack state on fallthrough.
-        return pc_offset;
-      }
-      case kExprBrOnCastFail:
-      case kExprBrOnCastFailNull: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BrOnCastFlags flags(0);
-        flags.src_is_null = Peek().type.is_nullable();
-        flags.res_is_null = opcode == kExprBrOnCastFailNull;
-        return ParseBrOnCastFail(opcode, opcode_length, flags);
-      }
-      case kExprBrOnCastFailDeprecated: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-        uint32_t pc_offset = opcode_length + branch_depth.length;
-        IndexImmediate imm(this, this->pc_ + pc_offset, "type index", validate);
-        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        pc_offset += imm.length;
-        Value obj = Peek();
-        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
-                      obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
-          return 0;
-        }
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError(
-              "br_on_cast_fail must target a branch of arity at least 1");
-          return 0;
-        }
-
-        if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
-        Value result_on_fallthrough = CreateValue(ValueType::Ref(imm.index));
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          // This logic ensures that code generation can assume that functions
-          // can only be cast to function types, and data objects to data types.
-          if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, imm.index))) {
-            // Otherwise the types are unrelated. Always branch.
-            CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
-            // We know that the following code is not reachable, but according
-            // to the spec it technically is. Set it to spec-only reachable.
-            SetSucceedingCodeDynamicallyUnreachable();
-            c->br_merge()->reached = true;
-          } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, imm.index))) {
-            // The branch can still be taken on null.
-            if (obj.type.is_nullable()) {
-              CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
-                             &result_on_fallthrough);
-              c->br_merge()->reached = true;
-            } else {
-              // Otherwise, the type check always succeeds. Do not branch. Also,
-              // make sure the object remains on the stack.
-              result_on_fallthrough = obj;
-            }
-          } else {
-            bool null_succeeds = false;
-            CALL_INTERFACE(BrOnCastFail, imm.index, obj, &result_on_fallthrough,
-                           branch_depth.depth, null_succeeds);
-            c->br_merge()->reached = true;
-          }
-        }
-        // Make sure the correct value is on the stack state on fallthrough.
-        Drop(obj);
-        Push(result_on_fallthrough);
-        return pc_offset;
-      }
       case kExprExternInternalize: {
         Value extern_val = Pop(kWasmExternRef);
         ValueType intern_type = ValueType::RefMaybeNull(
@@ -5235,15 +5073,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value obj = Pop();
 
     ValueType src_type = kWasmBottom;
-    if (opcode == kExprBrOnCastGeneric) {
-      HeapTypeImmediate src_imm(this->enabled_, this, this->pc_ + pc_offset,
-                                validate);
-      if (!this->Validate(this->pc_ + pc_offset, src_imm)) return 0;
-      pc_offset += src_imm.length;
-      src_type = ValueType::RefMaybeNull(
-          src_imm.type, flags.src_is_null ? kNullable : kNonNullable);
-      ValidateStackValue(0, obj, src_type);
-    }
+    DCHECK_EQ(opcode, kExprBrOnCastGeneric);
+    HeapTypeImmediate src_imm(this->enabled_, this, this->pc_ + pc_offset,
+                              validate);
+    if (!this->Validate(this->pc_ + pc_offset, src_imm)) return 0;
+    pc_offset += src_imm.length;
+    src_type = ValueType::RefMaybeNull(
+        src_imm.type, flags.src_is_null ? kNullable : kNonNullable);
+    ValidateStackValue(0, obj, src_type);
 
     HeapTypeImmediate target_imm(this->enabled_, this, this->pc_ + pc_offset,
                                  validate);
@@ -5315,27 +5152,19 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Drop(*value_on_branch);
     Push(obj);  // Restore stack state on fallthrough.
-    if (opcode == kExprBrOnCastGeneric) {
-      // The fallthrough type is the source type as specified in the br_on_cast
-      // instruction. This can be a super type of the stack value. Furthermore
-      // nullability gets refined to non-nullable if the cast target is
-      // nullable, meaning the branch will be taken on null.
-      DCHECK(!src_type.heap_type().is_bottom());
-      bool fallthrough_nullable = flags.src_is_null && !flags.res_is_null;
-      stack_value(1)->type = ValueType::RefMaybeNull(
-          src_type.heap_type(),
-          fallthrough_nullable ? kNullable : kNonNullable);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
-    } else if (current_code_reachable_and_ok_ && null_succeeds) {
-      // TODO(mliedtke): This is only needed for the deprecated br_on_cast
-      // instructions and can be removed with them.
-      DCHECK(!v8_flags.wasm_disable_deprecated);
-      stack_value(1)->type = obj.type.AsNonNull();
-      CALL_INTERFACE(Forward, obj, stack_value(1));
-    }
+    // The fallthrough type is the source type as specified in the br_on_cast
+    // instruction. This can be a super type of the stack value. Furthermore
+    // nullability gets refined to non-nullable if the cast target is
+    // nullable, meaning the branch will be taken on null.
+    DCHECK(!src_type.heap_type().is_bottom());
+    bool fallthrough_nullable = flags.src_is_null && !flags.res_is_null;
+    stack_value(1)->type = ValueType::RefMaybeNull(
+        src_type.heap_type(), fallthrough_nullable ? kNullable : kNonNullable);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
     return pc_offset;
   }
 
+  // TODO(mliedtke): Can we share more parts between br_on_cast and -_fail?
   int ParseBrOnCastFail(WasmOpcode opcode, uint32_t opcode_length,
                         BrOnCastFlags flags) {
     BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
@@ -5347,14 +5176,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     uint32_t pc_offset = opcode_length + branch_depth.length;
 
     ValueType source_type = kWasmBottom;
-    if (opcode == kExprBrOnCastFailGeneric) {
-      HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
-                            validate);
-      if (!this->Validate(this->pc_ + pc_offset, imm)) return 0;
-      pc_offset += imm.length;
-      source_type = ValueType::RefMaybeNull(
-          imm.type, flags.src_is_null ? kNullable : kNonNullable);
-    }
+    DCHECK_EQ(opcode, kExprBrOnCastFailGeneric);
+    HeapTypeImmediate source_imm(this->enabled_, this, this->pc_ + pc_offset,
+                                 validate);
+    if (!this->Validate(this->pc_ + pc_offset, source_imm)) return 0;
+    pc_offset += source_imm.length;
+    source_type = ValueType::RefMaybeNull(
+        source_imm.type, flags.src_is_null ? kNullable : kNonNullable);
 
     HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
                           validate);
@@ -5367,16 +5195,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Value obj = Peek();
 
-    if (source_type != kWasmBottom) {
-      if (!VALIDATE(IsSubtypeOf(target_type, source_type, this->module_))) {
-        this->DecodeError("invalid types for %s: %s is not a subtype of %s",
-                          WasmOpcodes::OpcodeName(opcode),
-                          target_type.name().c_str(),
-                          source_type.name().c_str());
-        return 0;
-      }
-      ValidateStackValue(0, obj, source_type);
+    DCHECK_NE(source_type, kWasmBottom);
+    if (!VALIDATE(IsSubtypeOf(target_type, source_type, this->module_))) {
+      this->DecodeError("invalid types for %s: %s is not a subtype of %s",
+                        WasmOpcodes::OpcodeName(opcode),
+                        target_type.name().c_str(), source_type.name().c_str());
+      return 0;
     }
+    ValidateStackValue(0, obj, source_type);
 
     if (!VALIDATE(
             (obj.type.is_object_reference() &&
@@ -5399,24 +5225,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
 
-    if (opcode == kExprBrOnCastFailGeneric) {
-      // The branch type is set based on the source type immediate (independent
-      // of the actual stack value). If the target type is nullable, the branch
-      // type is non-nullable.
-      DCHECK(!source_type.is_bottom());
-      Drop(obj);
-      Push(flags.res_is_null ? source_type.AsNonNull() : source_type);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
-    } else if (null_succeeds) {
-      // TODO(mliedtke): This is only needed for the legacy br_on_cast_fail.
-      // Remove it on cleanup.
-      DCHECK(!v8_flags.wasm_disable_deprecated);
-      // If null is treated as a successful cast, then the branch type is
-      // guaranteed to be non-null.
-      Drop(obj);
-      Push(obj.type.AsNonNull());
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
-    }
+    // The branch type is set based on the source type immediate (independent
+    // of the actual stack value). If the target type is nullable, the branch
+    // type is non-nullable.
+    DCHECK(!source_type.is_bottom());
+    Drop(obj);
+    Push(flags.res_is_null ? source_type.AsNonNull() : source_type);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
+
     if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
 
     Value result_on_fallthrough = CreateValue(target_type);
