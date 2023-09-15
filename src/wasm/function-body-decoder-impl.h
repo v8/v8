@@ -1195,18 +1195,6 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
   F(BrOnCastFailAbstract, const Value& obj, HeapType type,                     \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
-  F(BrOnStruct, const Value& object, Value* value_on_branch,                   \
-    uint32_t br_depth, bool null_succeeds)                                     \
-  F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth,   \
-    bool null_succeeds)                                                        \
-  F(BrOnArray, const Value& object, Value* value_on_branch, uint32_t br_depth, \
-    bool null_succeeds)                                                        \
-  F(BrOnNonStruct, const Value& object, Value* value_on_fallthrough,           \
-    uint32_t br_depth, bool null_succeeds)                                     \
-  F(BrOnNonI31, const Value& object, Value* value_on_fallthrough,              \
-    uint32_t br_depth, bool null_succeeds)                                     \
-  F(BrOnNonArray, const Value& object, Value* value_on_fallthrough,            \
-    uint32_t br_depth, bool null_succeeds)                                     \
   F(StringNewWtf8, const MemoryIndexImmediate& memory,                         \
     const unibrow::Utf8Variant variant, const Value& offset,                   \
     const Value& size, Value* result)                                          \
@@ -2329,16 +2317,6 @@ class WasmDecoder : public Decoder {
             (ios.TypeIndex(array_imm), ...);
             (ios.DataSegmentIndex(data_imm), ...);
             return length + array_imm.length + data_imm.length;
-          }
-          case kExprBrOnArray:
-          case kExprBrOnStruct:
-          case kExprBrOnI31:
-          case kExprBrOnNonArray:
-          case kExprBrOnNonStruct:
-          case kExprBrOnNonI31: {
-            BranchDepthImmediate imm(decoder, pc + length, validate);
-            (ios.BranchDepth(imm), ...);
-            return length + imm.length;
           }
           case kExprRefCast:
           case kExprRefCastNull:
@@ -5217,97 +5195,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Drop(obj);
         Push(result_on_fallthrough);
         return pc_offset;
-      }
-
-      case kExprBrOnStruct:
-      case kExprBrOnArray:
-      case kExprBrOnI31: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError("%s must target a branch of arity at least 1",
-                            SafeOpcodeNameAt(this->pc_));
-          return 0;
-        }
-
-        Value obj = Pop(kWasmAnyRef);
-        HeapType::Representation heap_type =
-            opcode == kExprBrOnStruct  ? HeapType::kStruct
-            : opcode == kExprBrOnArray ? HeapType::kArray
-                                       : HeapType::kI31;
-        Value* value_on_branch = Push(ValueType::Ref(heap_type));
-        if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          bool null_succeeds = false;
-          if (opcode == kExprBrOnStruct) {
-            CALL_INTERFACE(BrOnStruct, obj, value_on_branch, branch_depth.depth,
-                           null_succeeds);
-          } else if (opcode == kExprBrOnArray) {
-            CALL_INTERFACE(BrOnArray, obj, value_on_branch, branch_depth.depth,
-                           null_succeeds);
-          } else {
-            CALL_INTERFACE(BrOnI31, obj, value_on_branch, branch_depth.depth,
-                           null_succeeds);
-          }
-          c->br_merge()->reached = true;
-        }
-        // Restore stack state on fallthrough.
-        Drop(*value_on_branch);
-        Push(obj);
-        return opcode_length + branch_depth.length;
-      }
-      case kExprBrOnNonStruct:
-      case kExprBrOnNonArray:
-      case kExprBrOnNonI31: {
-        GC_DEPRECATED
-        NON_CONST_ONLY
-        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                          validate);
-        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                            control_.size())) {
-          return 0;
-        }
-
-        Control* c = control_at(branch_depth.depth);
-        if (c->br_merge()->arity == 0) {
-          this->DecodeError("%s must target a branch of arity at least 1",
-                            SafeOpcodeNameAt(this->pc_));
-          return 0;
-        }
-        if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
-
-        Value obj = Peek(kWasmAnyRef);
-        HeapType::Representation heap_type =
-            opcode == kExprBrOnNonStruct  ? HeapType::kStruct
-            : opcode == kExprBrOnNonArray ? HeapType::kArray
-                                          : HeapType::kI31;
-        Value value_on_fallthrough = CreateValue(ValueType::Ref(heap_type));
-
-        if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          bool null_succeeds = false;
-          if (opcode == kExprBrOnNonStruct) {
-            CALL_INTERFACE(BrOnNonStruct, obj, &value_on_fallthrough,
-                           branch_depth.depth, null_succeeds);
-          } else if (opcode == kExprBrOnNonArray) {
-            CALL_INTERFACE(BrOnNonArray, obj, &value_on_fallthrough,
-                           branch_depth.depth, null_succeeds);
-          } else {
-            CALL_INTERFACE(BrOnNonI31, obj, &value_on_fallthrough,
-                           branch_depth.depth, null_succeeds);
-          }
-          c->br_merge()->reached = true;
-        }
-        Drop(obj);
-        Push(value_on_fallthrough);
-        return opcode_length + branch_depth.length;
       }
       case kExprExternInternalize: {
         Value extern_val = Pop(kWasmExternRef);

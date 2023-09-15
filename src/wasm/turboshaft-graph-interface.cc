@@ -2152,53 +2152,6 @@ class TurboshaftGraphBuildingInterface {
                             br_depth, null_succeeds);
   }
 
-  void BrOnStruct(FullDecoder* decoder, const Value& object,
-                  Value* value_on_branch, uint32_t br_depth,
-                  bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnNonStruct(FullDecoder* decoder, const Value& object,
-                     Value* value_on_fallthrough, uint32_t br_depth,
-                     bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnArray(FullDecoder* decoder, const Value& object,
-                 Value* value_on_branch, uint32_t br_depth,
-                 bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnNonArray(FullDecoder* decoder, const Value& object,
-                    Value* value_on_fallthrough, uint32_t br_depth,
-                    bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnI31(FullDecoder* decoder, const Value& object,
-               Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnNonI31(FullDecoder* decoder, const Value& object,
-                  Value* value_on_fallthrough, uint32_t br_depth,
-                  bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnString(FullDecoder* decoder, const Value& object,
-                  Value* value_on_branch, uint32_t br_depth,
-                  bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
-  void BrOnNonString(FullDecoder* decoder, const Value& object,
-                     Value* value_on_fallthrough, uint32_t br_depth,
-                     bool null_succeeds) {
-    Bailout(decoder);  // Deprecated: Do not implement!
-  }
-
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
                      const unibrow::Utf8Variant variant, const Value& offset,
                      const Value& size, Value* result) {

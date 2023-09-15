@@ -535,12 +535,6 @@ let kExprBrOnCastDeprecated = 0x46;
 let kExprBrOnCastFail = 0x43;
 let kExprBrOnCastFailNull = 0x4b;
 let kExprRefCastNop = 0x4c;
-let kExprBrOnStruct = 0x61;
-let kExprBrOnI31 = 0x62;
-let kExprBrOnArray = 0x66;
-let kExprBrOnNonStruct = 0x64;
-let kExprBrOnNonI31 = 0x65;
-let kExprBrOnNonArray = 0x67;
 
 // Stringref proposal.
 let kExprStringNewUtf8 = 0x80;

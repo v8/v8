@@ -730,12 +730,6 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(BrOnCastFailNull, 0xfb4b, _, "br_on_cast_fail null")                       \
   V(BrOnCastFailDeprecated, 0xfb47, _, "br_on_cast_fail")                      \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
-  V(BrOnStruct, 0xfb61, _, "br_on_struct")                                     \
-  V(BrOnI31, 0xfb62, _, "br_on_i31")                                           \
-  V(BrOnArray, 0xfb66, _, "br_on_array")                                       \
-  V(BrOnNonStruct, 0xfb64, _, "br_on_non_struct")                              \
-  V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
-  V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
   /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \
   V(StringNewWtf16, 0xfb81, _, "string.new_wtf16")                             \
