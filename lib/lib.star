@@ -307,7 +307,7 @@ multibot_caches = [
     ),
 ]
 
-def v8_builder(defaults = None, utility_builder = False, **kwargs):
+def v8_builder(defaults = None, **kwargs):
     bucket_name = kwargs["bucket"]
     in_console = kwargs.pop("in_console", None)
     in_list = kwargs.pop("in_list", None)
@@ -321,8 +321,7 @@ def v8_builder(defaults = None, utility_builder = False, **kwargs):
     parent_builder = kwargs.pop("parent_builder", None)
     if parent_builder:
         resolve_parent_triggering(kwargs, bucket_name, parent_builder)
-    if not utility_builder:
-        kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
+    kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
     v8_basic_builder(defaults, **kwargs)
     if in_console:
         splited = in_console.split("/")

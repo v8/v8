@@ -211,6 +211,22 @@ def hide_wip_builders(ctx):
                 filtered_builders.append(console_builder)
         console.builders = filtered_builders
 
+def scheduled_builder_cleanup(ctx):
+    """
+    Remove repository information from builders that are scheduled. This is
+    necessary for luci-notify to ignore notifications for builders with no
+    revision information and cron scheduled builders will always have no
+    revision information.
+    """
+    schedule = ctx.output["luci-scheduler.cfg"]
+    scheduled_builders = [job.id for job in schedule.job if job.schedule]
+
+    notify = ctx.output["luci-notify.cfg"]
+    for notifier in notify.notifiers:
+        for builder in notifier.builders:
+            if builder.name in scheduled_builders:
+                builder.repository = None
+
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -222,3 +238,5 @@ lucicfg.generator(mirror_dev_consoles)
 lucicfg.generator(ensure_forward_triggering_properties)
 
 lucicfg.generator(hide_wip_builders)
+
+lucicfg.generator(scheduled_builder_cleanup)
