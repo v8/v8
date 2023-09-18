@@ -5381,7 +5381,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
 }
 #else
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(
+    typename Adapter::node_t node) {
   UNREACHABLE();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
