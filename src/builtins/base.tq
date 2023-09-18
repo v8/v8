@@ -470,6 +470,8 @@ extern enum MessageTemplate {
   kArgumentIsNonObject,
   kKeysMethodInvalid,
   kGeneratorRunning,
+  kFirstArgumentAsyncIteratorSymbolNonCallable,
+  kIteratorResultNotAnObject,
   ...
 }
 
@@ -551,6 +553,7 @@ extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;
 extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro KeysStringConstant(): String;
+extern macro AsyncIteratorSymbolConstant(): PublicSymbol;
 extern macro LengthStringConstant(): String;
 extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;

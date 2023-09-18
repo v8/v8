@@ -1464,6 +1464,17 @@ void Heap::CreateInitialMutableObjects() {
                                     0);
     set_source_text_module_execute_async_module_rejected_sfi(*info);
   }
+
+  // Array.fromAsync:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncOnFulfilled, 0);
+    set_array_from_async_on_fulfilled_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate_,
+                                    Builtin::kArrayFromAsyncOnRejected, 0);
+    set_array_from_async_on_rejected_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {

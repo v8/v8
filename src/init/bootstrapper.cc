@@ -5006,6 +5006,12 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
 
 void Genesis::InitializeGlobal_harmony_array_from_async() {
   if (!v8_flags.harmony_array_from_async) return;
+
+  Handle<JSObject> array_function(native_context()->array_function(),
+                                  isolate());
+
+  SimpleInstallFunction(isolate(), array_function, "fromAsync",
+                        Builtin::kArrayFromAsync, 1, false);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {

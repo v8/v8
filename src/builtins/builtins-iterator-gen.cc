@@ -71,6 +71,30 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   GotoIf(TaggedIsSmi(result), &if_notobject);
   TNode<HeapObject> heap_object_result = CAST(result);
   TNode<Map> result_map = LoadMap(heap_object_result);
+  GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
+
+  // IteratorComplete
+  // 2. Return ToBoolean(? Get(iterResult, "done")).
+  IteratorComplete(context, heap_object_result, if_done,
+                   fast_iterator_result_map);
+  Goto(&return_result);
+
+  BIND(&if_notobject);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
+  Unreachable();
+
+  BIND(&return_result);
+  return CAST(heap_object_result);
+}
+
+void IteratorBuiltinsAssembler::IteratorComplete(
+    TNode<Context> context, const TNode<HeapObject> iterator, Label* if_done,
+    base::Optional<TNode<Map>> fast_iterator_result_map) {
+  DCHECK_NOT_NULL(if_done);
+
+  Label return_result(this);
+
+  TNode<Map> result_map = LoadMap(iterator);
 
   if (fast_iterator_result_map) {
     // Fast iterator result case:
@@ -79,10 +103,9 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     // 4. Return result.
     GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
 
-    // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     TNode<Object> done =
-        LoadObjectField(heap_object_result, JSIteratorResult::kDoneOffset);
+        LoadObjectField(iterator, JSIteratorResult::kDoneOffset);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
 
     BIND(&if_generic);
@@ -90,22 +113,14 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
 
   // Generic iterator result case:
   {
-    // 3. If Type(result) is not Object, throw a TypeError exception.
-    GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
-
-    // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     TNode<Object> done =
-        GetProperty(context, heap_object_result, factory()->done_string());
+        GetProperty(context, iterator, factory()->done_string());
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
   }
 
-  BIND(&if_notobject);
-  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
-  Unreachable();
-
   BIND(&return_result);
-  return CAST(heap_object_result);
+  return;
 }
 
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(

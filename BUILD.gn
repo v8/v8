@@ -1838,6 +1838,7 @@ torque_files = [
   "src/builtins/array-findlast.tq",
   "src/builtins/array-findlastindex.tq",
   "src/builtins/array-foreach.tq",
+  "src/builtins/array-from-async.tq",
   "src/builtins/array-from.tq",
   "src/builtins/array-isarray.tq",
   "src/builtins/array-join.tq",
