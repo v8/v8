@@ -281,8 +281,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_set_methods, "harmony Set Methods") \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
-  V(js_promise_withresolvers, "Promise.withResolvers")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -306,7 +305,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")         \
   V(harmony_array_grouping, "harmony array grouping")
 
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
+  V(js_promise_withresolvers, "Promise.withResolvers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
