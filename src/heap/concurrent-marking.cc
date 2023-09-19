@@ -132,7 +132,6 @@ struct ConcurrentMarking::TaskState {
   NativeContextStats native_context_stats;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
       PretenuringHandler::kInitialFeedbackCapacity};
-  bool was_started = false;
 };
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
@@ -386,23 +385,19 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
 
 class ConcurrentMarking::MinorMarkingState {
  public:
-  void MarkerStarted() {
-    markers_started_.fetch_add(1, std::memory_order_relaxed);
+  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
+
+  V8_INLINE void MarkerStarted() {
+    active_markers_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  // Should only be called when the marker runs out of work. Markers that are
-  // preempted are not counted as done.
-  void MarkerDone() { markers_done_.fetch_add(1, std::memory_order_relaxed); }
-
-  bool IsOutOfWork() const {
-    int markers_started = markers_started_.load(std::memory_order_relaxed);
-    return (markers_started > 0) &&
-           (markers_started == markers_done_.load(std::memory_order_relaxed));
+  // Returns true if all markers are done.
+  V8_INLINE bool MarkerDone() {
+    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
   }
 
  private:
-  std::atomic<int> markers_started_{0};
-  std::atomic<int> markers_done_{0};
+  std::atomic<int> active_markers_{0};
 };
 
 namespace {
@@ -435,11 +430,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
       heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   auto& marking_worklists_local = visitor.marking_worklists_local();
   Isolate* isolate = heap_->isolate();
-  if (!task_state->was_started) {
-    // Previously started markers are already accounted as markers with work.
-    task_state->was_started = true;
-    minor_marking_state_->MarkerStarted();
-  }
+  minor_marking_state_->MarkerStarted();
   do {
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
@@ -467,6 +458,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
         marked_bytes += current_marked_bytes;
         if (delegate->ShouldYield()) {
           TRACE_GC_NOTE("ConcurrentMarking::RunMinor Preempted");
+          minor_marking_state_->MarkerDone();
           return marked_bytes;
         }
         objects_processed = 0;
@@ -474,8 +466,11 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
       }
     }
   } while (remembered_sets.ProcessNextItem(&visitor));
-  minor_marking_state_->MarkerDone();
-  task_state->was_started = false;
+  if (minor_marking_state_->MarkerDone()) {
+    // This is the last active marker and it ran out of work. Request GC
+    // finalization.
+    heap_->minor_mark_sweep_collector()->RequestGC();
+  }
   return marked_bytes + current_marked_bytes;
 }
 
@@ -593,7 +588,10 @@ bool ConcurrentMarking::IsWorkLeft() const {
            !weak_objects_->discovered_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
-  return !minor_marking_state_->IsOutOfWork();
+  return !marking_worklists_->shared()->IsEmpty() ||
+         (heap_->minor_mark_sweep_collector()
+              ->remembered_sets_marking_handler()
+              ->RemainingRememberedSetsMarkingIteams() > 0);
 }
 
 void ConcurrentMarking::RescheduleJobIfNeeded(

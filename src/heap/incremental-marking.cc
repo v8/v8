@@ -46,7 +46,6 @@ namespace {
 
 static constexpr size_t kMajorGCYoungGenerationAllocationObserverStep = 64 * KB;
 static constexpr size_t kMajorGCOldGenerationAllocationObserverStep = 256 * KB;
-static constexpr size_t kMinorGCAllocationObserverStep = 4 * KB;
 
 static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
     v8::base::TimeDelta::FromMilliseconds(1);
@@ -88,15 +87,6 @@ void IncrementalMarking::Observer::Step(int, Address, size_t) {
   incremental_marking_->AdvanceOnAllocation();
 }
 
-IncrementalMarking::MinorGCObserver::MinorGCObserver(
-    IncrementalMarking* incremental_marking)
-    : AllocationObserver(kMinorGCAllocationObserverStep),
-      incremental_marking_(incremental_marking) {}
-
-void IncrementalMarking::MinorGCObserver::Step(int, Address, size_t) {
-  incremental_marking_->RequestMinorGCFinalizationIfNeeded();
-}
-
 IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap),
       major_collector_(heap->mark_compact_collector()),
@@ -110,8 +100,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       new_generation_observer_(this,
                                kMajorGCYoungGenerationAllocationObserverStep),
       old_generation_observer_(this,
-                               kMajorGCOldGenerationAllocationObserverStep),
-      minor_gc_observer_(this) {}
+                               kMajorGCOldGenerationAllocationObserverStep) {}
 
 void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
                                              int object_size) {
@@ -212,7 +201,6 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     // Allocation observers are not currently used by MinorMS because we don't
     // do incremental marking.
     StartMarkingMinor();
-    heap_->new_space()->AddAllocationObserver(&minor_gc_observer_);
   }
 }
 
@@ -589,16 +577,9 @@ bool IncrementalMarking::Stop() {
         space->RemoveAllocationObserver(&old_generation_observer_);
       }
     }
-  } else {
-    DCHECK(IsMinorMarking());
-    heap_->new_space()->RemoveAllocationObserver(&minor_gc_observer_);
+    major_collection_requested_via_stack_guard_ = false;
+    isolate()->stack_guard()->ClearGC();
   }
-
-  DCHECK(!major_collection_requested_via_stack_guard_ ||
-         !minor_collection_requested_via_stack_guard_);
-  major_collection_requested_via_stack_guard_ = false;
-  minor_collection_requested_via_stack_guard_ = false;
-  isolate()->stack_guard()->ClearGC();
 
   marking_mode_ = MarkingMode::kNoMarking;
   current_local_marking_worklists_ = nullptr;
@@ -931,28 +912,6 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
         max_duration.InMillisecondsF(),
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
             1000 / MB);
-  }
-}
-
-void IncrementalMarking::RequestMinorGCFinalizationIfNeeded() {
-  DCHECK(v8_flags.concurrent_minor_ms_marking);
-  TRACE_GC_EPOCH_WITH_FLOW(
-      heap_->tracer(), GCTracer::Scope::MINOR_MS_INCREMENTAL_STEP,
-      ThreadKind::kMain, current_trace_id_.value(),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-  // Finalize concurrent marking if markers are out of work. Since the main
-  // thread local worklist has not yet been flushed, write barrier items
-  // curerntly in the local are not accounted for in this check. This creates
-  // "slack" in the condition so that finalization is not constantly delayed due
-  // to write barriers.
-  if (!heap_->concurrent_marking()->IsWorkLeft()) {
-    minor_collection_requested_via_stack_guard_ = true;
-    isolate()->stack_guard()->RequestGC();
-  } else {
-    local_marking_worklists()->MergeOnHold();
-    local_marking_worklists()->PublishWork();
-    heap_->concurrent_marking()->RescheduleJobIfNeeded(
-        GarbageCollector::MINOR_MARK_SWEEPER);
   }
 }
 
