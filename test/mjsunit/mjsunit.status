@@ -650,6 +650,10 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
+
+  # BUG(v8:14215).
+  'tzoffset-seoul-noi18n': [PASS, FAIL],
+  'tzoffset-transition-new-york-noi18n': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ##############################################################################
