@@ -314,6 +314,10 @@ void GCTracer::StopInSafepoint(base::TimeTicks time) {
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
   current_.end_atomic_pause_time = time;
 
+  // Do not include the GC pause for calculating the allocation rate. GC pause
+  // with heap verification can decrease the allocation rate significantly.
+  allocation_time_ = time;
+
   if (v8_flags.memory_balancer) {
     UpdateMemoryBalancerGCSpeed();
   }

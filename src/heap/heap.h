@@ -1721,6 +1721,11 @@ class Heap final {
                                 GarbageCollectionReason gc_reason,
                                 const char* collector_reason);
 
+  void PerformHeapVerification();
+  std::vector<Isolate*> PauseConcurrentThreadsInClients(
+      GarbageCollector collector);
+  void ResumeConcurrentThreadsInClients(std::vector<Isolate*> paused_clients);
+
   // For static-roots builds, pads the object to the required size.
   void StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj, int required);
   bool CreateEarlyReadOnlyMaps();

@@ -2370,31 +2370,14 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   collection_barrier_->StopTimeToCollectionTimer();
 
-  HeapVerifier::VerifyHeapIfEnabled(this);
-
-  std::vector<Isolate*> paused_clients;
-
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [collector, &paused_clients](Isolate* client) {
-          CHECK(client->heap()->deserialization_complete());
-
-          if (v8_flags.concurrent_marking &&
-              client->heap()->concurrent_marking()->Pause()) {
-            paused_clients.push_back(client);
-          }
-
-          if (collector == GarbageCollector::MARK_COMPACTOR) {
-            Sweeper* const client_sweeper = client->heap()->sweeper();
-            client_sweeper->ContributeAndWaitForPromotedPagesIteration();
-          }
-          HeapVerifier::VerifyHeapIfEnabled(client->heap());
-        });
-  }
+  std::vector<Isolate*> paused_clients =
+      PauseConcurrentThreadsInClients(collector);
 
   tracer()->StartInSafepoint(atomic_pause_start_time);
 
   GarbageCollectionPrologueInSafepoint();
+
+  PerformHeapVerification();
 
   if (new_space()) new_space()->Prologue();
 
@@ -2462,24 +2445,14 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     ClearStubCaches(isolate());
   }
 
+  PerformHeapVerification();
+
   GarbageCollectionEpilogueInSafepoint(collector);
 
   const base::TimeTicks atomic_pause_end_time = base::TimeTicks::Now();
   tracer()->StopInSafepoint(atomic_pause_end_time);
 
-  HeapVerifier::VerifyHeapIfEnabled(this);
-
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      HeapVerifier::VerifyHeapIfEnabled(client->heap());
-    });
-
-    for (Isolate* client : paused_clients) {
-      client->heap()->concurrent_marking()->Resume();
-    }
-  } else {
-    DCHECK(paused_clients.empty());
-  }
+  ResumeConcurrentThreadsInClients(std::move(paused_clients));
 
   RecomputeLimits(collector, atomic_pause_end_time);
 
@@ -2487,6 +2460,51 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   // configured.
   DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR,
                  old_generation_allocation_limit_configured_);
+}
+
+void Heap::PerformHeapVerification() {
+  HeapVerifier::VerifyHeapIfEnabled(this);
+
+  if (isolate()->is_shared_space_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      HeapVerifier::VerifyHeapIfEnabled(client->heap());
+    });
+  }
+}
+
+std::vector<Isolate*> Heap::PauseConcurrentThreadsInClients(
+    GarbageCollector collector) {
+  std::vector<Isolate*> paused_clients;
+
+  if (isolate()->is_shared_space_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [collector, &paused_clients](Isolate* client) {
+          CHECK(client->heap()->deserialization_complete());
+
+          if (v8_flags.concurrent_marking &&
+              client->heap()->concurrent_marking()->Pause()) {
+            paused_clients.push_back(client);
+          }
+
+          if (collector == GarbageCollector::MARK_COMPACTOR) {
+            Sweeper* const client_sweeper = client->heap()->sweeper();
+            client_sweeper->ContributeAndWaitForPromotedPagesIteration();
+          }
+        });
+  }
+
+  return paused_clients;
+}
+
+void Heap::ResumeConcurrentThreadsInClients(
+    std::vector<Isolate*> paused_clients) {
+  if (isolate()->is_shared_space_isolate()) {
+    for (Isolate* client : paused_clients) {
+      client->heap()->concurrent_marking()->Resume();
+    }
+  } else {
+    DCHECK(paused_clients.empty());
+  }
 }
 
 bool Heap::CollectGarbageShared(LocalHeap* local_heap,
