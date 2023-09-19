@@ -385,8 +385,6 @@ void MinorMarkSweepCollector::CollectGarbage() {
   isolate->global_handles()->UpdateListOfYoungNodes();
   isolate->traced_handles()->UpdateListOfYoungNodes();
 
-  isolate->stack_guard()->ClearGC();
-  gc_finalization_requested_.store(false, std::memory_order_relaxed);
   is_in_atomic_pause_.store(false, std::memory_order_relaxed);
 }
 
@@ -919,12 +917,5 @@ void MinorMarkSweepCollector::Sweep() {
           : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
 
-void MinorMarkSweepCollector::RequestGC() {
-  if (is_in_atomic_pause()) return;
-  DCHECK(v8_flags.concurrent_minor_ms_marking);
-  if (gc_finalization_requested_.exchange(true, std::memory_order_relaxed))
-    return;
-  heap_->isolate()->stack_guard()->RequestGC();
-}
 }  // namespace internal
 }  // namespace v8
