@@ -1493,7 +1493,7 @@ void Heap::HandleGCRequest() {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
-  } else if (minor_mark_sweep_collector()->gc_finalization_requsted()) {
+  } else if (incremental_marking()->MinorCollectionRequested()) {
     CollectGarbage(NEW_SPACE,
                    GarbageCollectionReason::kFinalizeConcurrentMinorMS);
   }
