@@ -636,18 +636,5 @@ RUNTIME_FUNCTION(Runtime_WasmSwitchToTheCentralStackCount) {
   return Smi::FromInt(count);
 }
 
-RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
-  // This function verifies that itself, and therefore the JS function that
-  // called it, is running on the central stack. This is used to check that wasm
-  // switches to the central stack to run JS imports.
-#if V8_TARGET_ARCH_X64
-  uintptr_t sp = base::Stack::GetCurrentStackPosition();
-  uintptr_t base = base::Stack::GetStackStart();
-  CHECK_LT(sp, base);
-  CHECK_LT(base - sp, static_cast<uintptr_t>(v8_flags.stack_size * KB));
-#endif
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 }  // namespace internal
 }  // namespace v8

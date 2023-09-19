@@ -355,12 +355,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NO_FRAME_TYPE),
       external_callback_scope_(isolate->external_callback_scope()),
-      top_link_register_(lr)
-#if V8_ENABLE_WEBASSEMBLY
-      ,
-      wasm_stacks_(isolate->wasm_stacks())
-#endif
-{
+      top_link_register_(lr) {
   if (!isolate->isolate_data()->stack_is_iterable()) {
     // The stack is not iterable in a short time interval during deoptimization.
     // See also: ExternalReference::stack_is_iterable_address.
@@ -1462,11 +1457,13 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   SafepointTable table(wasm_code);
   SafepointEntry safepoint_entry = table.FindEntry(pc());
 
+#ifdef DEBUG
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type type = StackFrame::MarkerToType(marker);
   DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT);
+#endif
 
   // Determine the fixed header and spill slot area size.
   // The last value in the frame header is the calling PC, which should
@@ -1483,29 +1480,15 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   int spill_slot_space =
       wasm_code->stack_slots() * kSystemPointerSize -
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
+
   // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
-
   // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
-#if V8_TARGET_ARCH_X64
-  Address central_stack_sp = *reinterpret_cast<Address*>(
-      fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
-  FullObjectSlot parameters_limit(
-      v8_flags.experimental_wasm_stack_switching && type == WASM_TO_JS &&
-              central_stack_sp != kNullAddress
-          ? central_stack_sp
-          : frame_header_base.address() - spill_slot_space);
-#else
-  // TODO(thibaudm): Support switching to the central stack on other archs.
   FullObjectSlot parameters_limit(frame_header_base.address() -
                                   spill_slot_space);
-  USE(type);
-#endif
-  FullObjectSlot spill_space_end =
-      FullObjectSlot(frame_header_base.address() - spill_slot_space);
 
   // Visit the rest of the parameters if they are tagged.
   bool has_tagged_outgoing_params =
@@ -1519,7 +1502,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   // Visit pointer spill slots and locals.
   DCHECK_GE((wasm_code->stack_slots() + kBitsPerByte) / kBitsPerByte,
             safepoint_entry.tagged_slots().size());
-  VisitSpillSlots(isolate(), v, spill_space_end,
+  VisitSpillSlots(isolate(), v, parameters_limit,
                   safepoint_entry.tagged_slots());
 
   // Visit tagged parameters that have been passed to the function of this
@@ -3143,7 +3126,6 @@ void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(jmpbuf->fp, kNullAddress);
   DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
-  state->pc_address = &jmpbuf->pc;
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 

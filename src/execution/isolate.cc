@@ -2133,7 +2133,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       }
       case StackFrame::WASM_TO_JS:
         if (v8_flags.experimental_wasm_stack_switching) {
-          // Decrement the Wasm-to-JS counter and reset the central-stack info.
+          // Decrement the Wasm-to-JS counter.
           Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
           if (!IsUndefined(suspender_obj)) {
             Tagged<WasmSuspenderObject> suspender =
@@ -2141,18 +2141,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             int wasm_to_js_counter = suspender->wasm_to_js_counter();
             DCHECK_LT(0, wasm_to_js_counter);
             suspender->set_wasm_to_js_counter(wasm_to_js_counter - 1);
-
-#if V8_TARGET_ARCH_X64
-            // If the wasm-to-js wrapper was on a secondary stack and switched
-            // to the central stack, handle the implicit switch back.
-            Address central_stack_sp = *reinterpret_cast<Address*>(
-                frame->fp() +
-                WasmImportWrapperFrameConstants::kCentralStackSPOffset);
-            bool switched_stacks = central_stack_sp != kNullAddress;
-            if (switched_stacks) {
-              thread_local_top()->is_on_central_stack_flag_ = false;
-            }
-#endif
           }
         }
         break;
@@ -3261,14 +3249,9 @@ void Isolate::RecordStackSwitchForScanning() {
     auto cont = WasmContinuationObject::cast(current);
     auto* wasm_stack =
         Managed<wasm::StackMemory>::cast(cont->stack())->get().get();
-#if !V8_TARGET_ARCH_X64
     stack().AddStackSegment(
         reinterpret_cast<const void*>(wasm_stack->base()),
         reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
-#endif
-    // On x64 we don't need to record the stack segments for conservative stack
-    // scanning. We switch to the central stack for foreign calls, so secondary
-    // stacks only contain wasm frames which use the precise GC.
     current = cont->parent();
     if (!updated_central_stack &&
         IsOnCentralStack(this, wasm_stack->jmpbuf()->sp)) {
