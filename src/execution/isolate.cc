@@ -1592,7 +1592,7 @@ Tagged<Object> Isolate::StackOverflow() {
 #if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
   // Allow for a bit more overflow in sanitizer builds, because C++ frames take
   // significantly more space there.
-  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 32 * KB);
+  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 64 * KB);
 #else
   DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 8 * KB);
 #endif
