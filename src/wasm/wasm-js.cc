@@ -1321,9 +1321,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(info[0]);
 
-  auto memory_flag = i::WasmMemoryFlag::kWasmMemory32;
-  auto max_pages = i::wasm::kSpecMaxMemory32Pages;
-
+  // Parse the 'index' property of the descriptor.
   v8::Local<v8::Value> index_value;
   if (!descriptor->Get(context, v8_str(isolate, "index"))
            .ToLocal(&index_value)) {
@@ -1331,6 +1329,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
+  i::WasmMemoryFlag memory_flag = i::WasmMemoryFlag::kWasmMemory32;
   if (!index_value->IsUndefined()) {
     v8::Local<v8::String> index;
     if (!index_value->ToString(context).ToLocal(&index)) {
@@ -1339,29 +1338,33 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
     if (index->StringEquals(v8_str(isolate, "i64"))) {
       memory_flag = i::WasmMemoryFlag::kWasmMemory64;
-      max_pages = i::wasm::kSpecMaxMemory64Pages;
     } else if (!index->StringEquals(v8_str(isolate, "i32"))) {
       thrower.TypeError("Unknown memory index");
       return;
     }
   }
+  size_t max_supported_pages = memory_flag == i::WasmMemoryFlag::kWasmMemory64
+                                   ? i::wasm::kSpecMaxMemory64Pages
+                                   : i::wasm::kSpecMaxMemory32Pages;
 
+  // Parse the 'initial' or 'minimum' property of the descriptor.
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                   &initial, 0, max_pages)) {
+                                   &initial, 0, max_supported_pages)) {
     DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
-  // The descriptor's 'maximum'.
+
+  // Parse the 'maximum' property of the descriptor.
   int64_t maximum = i::WasmMemoryObject::kNoMaximum;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
-                                  initial, max_pages)) {
+                                  initial, max_supported_pages)) {
     DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
     return;
   }
 
-  // Shared property of descriptor.
+  // Parse the 'shared' property of the descriptor.
   v8::Local<v8::Value> value;
   if (!descriptor->Get(context, v8_str(isolate, "shared")).ToLocal(&value)) {
     DCHECK(i_isolate->has_scheduled_exception());
@@ -1371,7 +1374,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
                                              : i::SharedFlag::kNotShared;
 
-  // Throw TypeError if shared is true, and the descriptor has no "maximum"
+  // Throw TypeError if shared is true, and the descriptor has no "maximum".
   if (shared == i::SharedFlag::kShared && maximum == -1) {
     thrower.TypeError("If shared is true, maximum property should be defined.");
     return;
