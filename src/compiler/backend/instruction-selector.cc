@@ -2630,9 +2630,6 @@ void InstructionSelectorT<Adapter>::VisitTrapUnless(node_t node,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitIdentity(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    DCHECK_EQ(this->value_input_count(node), 1);
-  }
   MarkAsUsed(this->input_at(node, 0));
   MarkAsDefined(node);
   SetRename(node, this->input_at(node, 0));
