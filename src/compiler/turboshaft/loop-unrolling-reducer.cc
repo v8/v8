@@ -98,15 +98,24 @@ bool LoopUnrollingAnalyzer::CanFullyUnrollLoop(const LoopFinder::LoopInfo& info,
   // Checking that the condition for the loop can be computed statically, and
   // that the loop contains no more than kMaxLoopIterationsForFullUnrolling
   // iterations.
-  const Operation& branch = start->LastOperation(*input_graph_);
-  if (!branch.Is<BranchOp>()) {
+  const BranchOp* branch =
+      start->LastOperation(*input_graph_).TryCast<BranchOp>();
+  if (!branch) {
     // This looks like an infinite loop, or like something weird is used to
     // decide whether to loop or not.
     return false;
   }
 
+  // Checking that one of the successor of the loop header is indeed not in the
+  // loop (otherwise, the Branch that ends the loop header is not the Branch
+  // that decides to exit the loop).
+  if (loop_finder_.GetLoopHeader(branch->if_true) ==
+      loop_finder_.GetLoopHeader(branch->if_false)) {
+    return false;
+  }
+
   return canonical_loop_matcher_.MatchStaticCanonicalForLoop(
-      branch.Cast<BranchOp>().condition(), iter_count);
+      branch->condition(), iter_count);
 }
 
 // Tries to match `phi cmp cst` (or `cst cmp phi`).

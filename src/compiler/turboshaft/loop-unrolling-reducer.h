@@ -76,7 +76,9 @@ class LoopFinder {
   const ZoneUnorderedMap<Block*, LoopInfo>& LoopHeaders() const {
     return loop_header_info_;
   }
-  Block* GetLoopHeader(Block* block) { return loop_headers_[block->index()]; }
+  Block* GetLoopHeader(Block* block) const {
+    return loop_headers_[block->index()];
+  }
   LoopInfo GetLoopInfo(Block* block) const {
     DCHECK(block->IsLoop());
     auto it = loop_header_info_.find(block);
