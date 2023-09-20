@@ -287,7 +287,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     Address address = object.ptr();
     if (Internals::HasHeapObjectTag(address)) {
       RootIndex root_index;
-      if (root_index_map_.Lookup(address, &root_index)) {
+      // CollectArrayAndObjectPrototypes calls this function often with T equal
+      // to JSObject. The root index map only contains immortal, immutable
+      // objects; it never contains any instances of type JSObject, since
+      // JSObjects must exist within a NativeContext, and NativeContexts can be
+      // created and destroyed. Thus, we can skip the lookup in the root index
+      // map for those values and save a little time.
+      if constexpr (std::is_convertible_v<T, JSObject>) {
+        DCHECK(!root_index_map_.Lookup(address, &root_index));
+      } else if (root_index_map_.Lookup(address, &root_index)) {
         return Handle<T>(isolate_->root_handle(root_index).location());
       }
     }
