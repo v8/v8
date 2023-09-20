@@ -449,6 +449,12 @@ TestSubArray(Float32Array, 0.5);
 TestSubArray(Float64Array, 0.5);
 TestSubArray(Uint8ClampedArray, 0xFF);
 
+assertThrows(
+    () => { Int8Array.prototype.subarray.call("xyz", 0, 1); },
+    TypeError,
+    "Method %TypedArray%.prototype.subarray called on incompatible " +
+    "receiver xyz");
+
 function TestTypedArrayOutOfRange(constructor, value, result) {
   var a = new constructor(1);
   a[0] = value;
