@@ -1253,6 +1253,8 @@
   'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 
   # Tests using a shared heap are inherently non-deterministic.
   'shared-memory/*': [SKIP],
