@@ -1973,7 +1973,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        PropertyArray::cast(*this)->length(kAcquireLoad));
+        PropertyArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
