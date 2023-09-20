@@ -575,7 +575,8 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.
   {
-    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
+    base::SharedMutexGuard<base::kExclusive> guard(
+        allocator_.linear_area_lock());
     linear_area_original_data_.set_original_limit_relaxed(limit());
     linear_area_original_data_.set_original_top_release(top());
   }

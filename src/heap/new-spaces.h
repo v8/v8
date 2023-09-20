@@ -534,7 +534,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
-    return Size() - size_at_last_gc_ - (original_limit_relaxed() - top());
+    return Size() - size_at_last_gc_ -
+           (allocator_.original_limit_relaxed() - allocator_.top());
   }
 
   // Return the maximum capacity of the space.

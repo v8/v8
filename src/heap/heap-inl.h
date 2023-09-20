@@ -388,9 +388,10 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   switch (base_space->identity()) {
     case NEW_SPACE: {
       base::SharedMutexGuard<base::kShared> guard(
-          new_space_->linear_area_lock());
-      Address top = new_space_->original_top_acquire();
-      Address limit = new_space_->original_limit_relaxed();
+          new_space_->main_allocator()->linear_area_lock());
+      MainAllocator* allocator = new_space_->main_allocator();
+      Address top = allocator->original_top_acquire();
+      Address limit = allocator->original_limit_relaxed();
       DCHECK_LE(top, limit);
       return top && top <= addr && addr < limit;
     }
@@ -400,9 +401,10 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
     case TRUSTED_SPACE: {
       PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
       base::SharedMutexGuard<base::kShared> guard(
-          paged_space->linear_area_lock());
-      Address top = paged_space->original_top_acquire();
-      Address limit = paged_space->original_limit_relaxed();
+          paged_space->main_allocator()->linear_area_lock());
+      MainAllocator* allocator = paged_space->main_allocator();
+      Address top = allocator->original_top_acquire();
+      Address limit = allocator->original_limit_relaxed();
       DCHECK_LE(top, limit);
       return top && top <= addr && addr < limit;
     }

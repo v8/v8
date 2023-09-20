@@ -278,14 +278,15 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   allocator_.allocation_info().Reset(top, limit);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
-  if (!is_compaction_space()) optional_guard.emplace(linear_area_lock());
+  if (!is_compaction_space())
+    optional_guard.emplace(allocator_.linear_area_lock());
   allocator_.linear_area_original_data().set_original_limit_relaxed(end);
   allocator_.linear_area_original_data().set_original_top_release(top);
 }
 
 void PagedSpaceBase::SetLimit(Address limit) {
   DCHECK(SupportsExtendingLAB());
-  DCHECK_LE(limit, original_limit_relaxed());
+  DCHECK_LE(limit, allocator_.original_limit_relaxed());
   allocator_.allocation_info().SetLimit(limit);
 }
 
@@ -398,7 +399,7 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     }
 
     ConcurrentAllocationMutex guard(this);
-    Address old_max_limit = original_limit_relaxed();
+    Address old_max_limit = allocator_.original_limit_relaxed();
     if (!SupportsExtendingLAB()) {
       DCHECK_EQ(old_max_limit, old_limit);
       SetTopAndLimit(top(), new_limit, new_limit);
@@ -431,7 +432,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
     DCHECK_EQ(kNullAddress, current_limit);
     return;
   }
-  Address current_max_limit = original_limit_relaxed();
+  Address current_max_limit = allocator_.original_limit_relaxed();
   DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
 
   AdvanceAllocationObservers();
@@ -776,7 +777,7 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
   Address current_top = top();
   if (current_top == kNullAddress) return false;
   Address current_limit = limit();
-  Address max_limit = original_limit_relaxed();
+  Address max_limit = allocator_.original_limit_relaxed();
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }

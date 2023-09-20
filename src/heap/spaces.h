@@ -349,17 +349,6 @@ class SpaceWithLinearArea : public Space {
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
-  base::SharedMutex* linear_area_lock() {
-    return allocator_.linear_area_lock();
-  }
-
-  Address original_top_acquire() const {
-    return allocator_.original_top_acquire();
-  }
-  Address original_limit_relaxed() const {
-    return allocator_.original_limit_relaxed();
-  }
-
  protected:
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry

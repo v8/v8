@@ -273,6 +273,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                 task_id);
   }
   bool another_ephemeron_iteration = false;
+  MainAllocator* const new_space_allocator =
+      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
 
   {
     TimedScope scope(&time_ms);
@@ -309,10 +311,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         Address new_space_limit = kNullAddress;
         Address new_large_object = kNullAddress;
 
-        if (heap_->new_space()) {
+        if (new_space_allocator) {
           // The order of the two loads is important.
-          new_space_top = heap_->new_space()->original_top_acquire();
-          new_space_limit = heap_->new_space()->original_limit_relaxed();
+          new_space_top = new_space_allocator->original_top_acquire();
+          new_space_limit = new_space_allocator->original_limit_relaxed();
         }
 
         if (heap_->new_lo_space()) {
@@ -402,11 +404,13 @@ class ConcurrentMarking::MinorMarkingState {
 
 namespace {
 
-V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
+V8_INLINE bool IsYoungObjectInLab(MainAllocator* new_space_allocator,
+                                  NewLargeObjectSpace* new_lo_space,
+                                  Tagged<HeapObject> heap_object) {
   // The order of the two loads is important.
-  Address new_space_top = heap->new_space()->original_top_acquire();
-  Address new_space_limit = heap->new_space()->original_limit_relaxed();
-  Address new_large_object = heap->new_lo_space()->pending_object();
+  Address new_space_top = new_space_allocator->original_top_acquire();
+  Address new_space_limit = new_space_allocator->original_limit_relaxed();
+  Address new_large_object = new_lo_space->pending_object();
 
   Address addr = heap_object.address();
 
@@ -431,6 +435,10 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   auto& marking_worklists_local = visitor.marking_worklists_local();
   Isolate* isolate = heap_->isolate();
   minor_marking_state_->MarkerStarted();
+  MainAllocator* const new_space_allocator =
+      heap_->new_space()->main_allocator();
+  NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
+
   do {
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
@@ -440,7 +448,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
                    GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
                    ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
-      if (IsYoungObjectInLab(heap_, heap_object)) {
+      if (IsYoungObjectInLab(new_space_allocator, new_lo_space, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
         Tagged<Map> map = heap_object->map(isolate);
