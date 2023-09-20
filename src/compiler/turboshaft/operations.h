@@ -7241,6 +7241,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<CallOp>().Effects();
     case Opcode::kAtomicRMW:
       return Cast<AtomicRMWOp>().Effects();
+    case Opcode::kAtomicWord32Pair:
+      return Cast<AtomicWord32PairOp>().Effects();
 #if V8_ENABLE_WEBASSEMBLY
     case Opcode::kStructGet:
       return Cast<StructGetOp>().Effects();
