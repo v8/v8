@@ -3036,13 +3036,22 @@ bool Isolate::IsCompileHintsMagicEnabled(Handle<NativeContext> context) {
 }
 
 bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
-  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
 #ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
-  if (callback) {
+  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
+  v8::WasmGCEnabledCallback callback_gc = wasm_gc_enabled_callback();
+  if (callback_gc) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
+    if (callback_gc(api_context)) return true;
   }
+  // If Wasm imported strings are explicitly enabled via a callback, also enable
+  // stringref.
+  v8::WasmImportedStringsEnabledCallback callback_imported_strings =
+      wasm_imported_strings_enabled_callback();
+  if (callback_imported_strings) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback_imported_strings(api_context)) return true;
+  }
+  // Otherwise use the runtime flag.
   return v8_flags.experimental_wasm_stringref;
 #else
   return false;

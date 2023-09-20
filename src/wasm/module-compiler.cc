@@ -862,7 +862,9 @@ void UpdateFeatureUseCounts(Isolate* isolate, WasmFeatures detected) {
       {kFeature_eh, Feature::kWasmExceptionHandling},
       {kFeature_memory64, Feature::kWasmMemory64},
       {kFeature_multi_memory, Feature::kWasmMultiMemory},
-      {kFeature_gc, Feature::kWasmGC}};
+      {kFeature_gc, Feature::kWasmGC},
+      {kFeature_imported_strings, Feature::kWasmImportedStrings},
+  };
 
   for (auto& feature : kUseCounters) {
     if (detected.contains(feature.first)) isolate->CountUsage(feature.second);

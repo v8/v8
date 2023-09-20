@@ -551,6 +551,7 @@ class V8_EXPORT Isolate {
     kWasmMemory64 = 125,
     kWasmMultiMemory = 126,
     kWasmGC = 127,
+    kWasmImportedStrings = 128,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
