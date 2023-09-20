@@ -48,19 +48,9 @@ function BasicMemory64Tests(num_pages, use_atomic_ops) {
   let store = module.exports.store;
 
   assertEquals(num_bytes, memory.buffer.byteLength);
-  // TODO(v8:4153): Enable for all sizes once the TypedArray size limit is
-  // raised.
-  const kMaxTypedArraySize = Math.pow(2, 32);
-  if (num_bytes > kMaxTypedArraySize) {
-    // TODO(v8:4153): Fix the error message below, if we don't decide to bump
-    // the limit soon.
-    assertThrows(
-        () => new Int8Array(memory.buffer), RangeError,
-        'Invalid typed array length: undefined');
-  } else {
-    let array = new Int8Array(memory.buffer);
-    assertEquals(num_bytes, array.length);
-  }
+  // Test that we can create a TypedArray from that large buffer.
+  let array = new Int8Array(memory.buffer);
+  assertEquals(num_bytes, array.length);
 
   const GB = Math.pow(2, 30);
   assertEquals(0, load(num_bytes - 4));

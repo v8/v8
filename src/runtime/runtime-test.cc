@@ -1880,14 +1880,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
   return *isolate->factory()->NewNumber(JSArrayBuffer::kMaxByteLength);
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArrayMaxLength) {
-  HandleScope shs(isolate);
-  if (args.length() != 0) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  return *isolate->factory()->NewNumber(JSTypedArray::kMaxLength);
-}
-
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   HandleScope scope(isolate);
   if (args.length() != 1) {

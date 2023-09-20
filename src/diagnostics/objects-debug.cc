@@ -1817,7 +1817,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
-  CHECK_LE(GetLength(), JSTypedArray::kMaxLength);
+  CHECK_LE(GetLength(), JSTypedArray::kMaxByteLength / element_size());
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {

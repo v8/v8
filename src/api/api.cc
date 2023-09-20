@@ -4238,8 +4238,6 @@ void v8::ArrayBufferView::CheckCast(Value* that) {
                   "Value is not an ArrayBufferView");
 }
 
-constexpr size_t v8::TypedArray::kMaxLength;
-
 void v8::TypedArray::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(i::IsJSTypedArray(*obj), "v8::TypedArray::Cast()",
@@ -8990,9 +8988,9 @@ size_t v8::TypedArray::Length() {
   return obj->WasDetached() ? 0 : obj->GetLength();
 }
 
-static_assert(
-    v8::TypedArray::kMaxLength == i::JSTypedArray::kMaxLength,
-    "v8::TypedArray::kMaxLength must match i::JSTypedArray::kMaxLength");
+static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
+              "v8::TypedArray::kMaxByteLength must match "
+              "i::JSTypedArray::kMaxByteLength");
 
 #define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                            \
   Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,      \

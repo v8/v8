@@ -3241,11 +3241,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
     length = 0;
   }
 
+  CHECK_LE(length, JSTypedArray::kMaxByteLength / element_size);
+  CHECK_EQ(0, byte_offset % element_size);
   size_t byte_length = length * element_size;
-
-  CHECK_LE(length, JSTypedArray::kMaxLength);
-  CHECK_EQ(length, byte_length / element_size);
-  CHECK_EQ(0, byte_offset % ElementsKindToByteSize(elements_kind));
 
   Handle<JSTypedArray> typed_array =
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(

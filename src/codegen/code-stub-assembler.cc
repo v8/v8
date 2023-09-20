@@ -1720,7 +1720,7 @@ void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
                                                  TNode<IntPtrT> offset,
                                                  TNode<UintPtrT> value) {
 #ifdef V8_ENABLE_SANDBOX
-  CSA_DCHECK(this, UintPtrLessThan(
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
                        value, IntPtrConstant(kMaxSafeBufferSizeForSandbox)));
   TNode<Uint64T> raw_value = ReinterpretCast<Uint64T>(value);
   TNode<Uint64T> shift_amount = Uint64Constant(kBoundedSizeShift);

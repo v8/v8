@@ -297,8 +297,7 @@ transitioning macro ConstructByArrayBuffer(
         if (bufferByteLength < offset) goto IfInvalidOffset;
 
         newByteLength = bufferByteLength - offset;
-        newLength = elementsInfo.CalculateLength(newByteLength)
-            otherwise IfInvalidLength;
+        newLength = elementsInfo.CalculateLength(newByteLength);
       } else {
         // b. Else,
         //   i. Let newByteLength be newLength × elementSize.

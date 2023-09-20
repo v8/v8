@@ -197,6 +197,7 @@
   'es6/large-classes-*': [PASS, HEAVY],
   'harmony/sharedarraybuffer-stress': [PASS, HEAVY],
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, HEAVY],
+  'huge-typedarrays': [PASS, HEAVY],
   'ignition/regress-672027': [PASS, HEAVY],
   'json2': [PASS, HEAVY],
   'regress/regress-500980': [PASS, HEAVY],
@@ -210,6 +211,10 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+  'wasm/grow-huge-memory': [PASS, HEAVY],
+  'wasm/huge-memory': [PASS, HEAVY],
+  'wasm/huge-typedarray': [PASS, HEAVY],
+  'wasm/simd-lane-memory64': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
