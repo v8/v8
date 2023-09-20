@@ -135,6 +135,8 @@ class MainAllocator {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  V8_INLINE bool TryFreeLast(Address object_address, int object_size);
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.

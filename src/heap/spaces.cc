@@ -142,21 +142,11 @@ void SpaceWithLinearArea::AdvanceAllocationObservers() {
   allocator_.AdvanceAllocationObservers();
 }
 
-void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocator_.MarkLabStartInitialized();
-}
-
 void SpaceWithLinearArea::InvokeAllocationObservers(
     Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
     size_t allocation_size) {
   allocator_.InvokeAllocationObservers(soon_object, size_in_bytes,
                                        aligned_size_in_bytes, allocation_size);
-}
-
-AllocationResult SpaceWithLinearArea::AllocateRawForceAlignmentForTesting(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  return allocator_.AllocateRawForceAlignmentForTesting(size_in_bytes,
-                                                        alignment, origin);
 }
 
 #if DEBUG

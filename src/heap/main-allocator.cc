@@ -75,7 +75,7 @@ void MainAllocator::AdvanceAllocationObservers() {
 void MainAllocator::MarkLabStartInitialized() {
   allocation_info().ResetStart();
   if (identity() == NEW_SPACE) {
-    heap()->new_space()->MoveOriginalTopForward();
+    MoveOriginalTopForward();
 
 #if DEBUG
     heap()->VerifyNewSpaceTop();

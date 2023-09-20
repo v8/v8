@@ -1285,11 +1285,11 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
 
 void Heap::PublishPendingAllocations() {
   if (v8_flags.enable_third_party_heap) return;
-  if (new_space_) new_space_->MarkLabStartInitialized();
+  if (new_space_) new_space_->main_allocator()->MarkLabStartInitialized();
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
-    space->MoveOriginalTopForward();
+    space->main_allocator()->MoveOriginalTopForward();
   }
   lo_space_->ResetPendingObject();
   if (new_lo_space_) new_lo_space_->ResetPendingObject();

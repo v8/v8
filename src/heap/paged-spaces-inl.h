@@ -84,14 +84,6 @@ bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   return Page::FromAddress(o.ptr())->owner() == this;
 }
 
-bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
-  if (top() != kNullAddress) {
-    return allocator_.allocation_info().DecrementTopIfAdjacent(object_address,
-                                                               object_size);
-  }
-  return false;
-}
-
 }  // namespace internal
 }  // namespace v8
 

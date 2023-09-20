@@ -68,6 +68,14 @@ AllocationResult MainAllocator::AllocateFastAligned(
   return AllocationResult::FromObject(obj);
 }
 
+bool MainAllocator::TryFreeLast(Address object_address, int object_size) {
+  if (top() != kNullAddress) {
+    return allocation_info().DecrementTopIfAdjacent(object_address,
+                                                    object_size);
+  }
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8
 

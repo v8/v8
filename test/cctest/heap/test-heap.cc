@@ -2095,7 +2095,8 @@ static Tagged<HeapObject> NewSpaceAllocateAligned(
     int size, AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
-      heap->new_space()->AllocateRawForceAlignmentForTesting(size, alignment);
+      heap->new_space()->main_allocator()->AllocateRawForceAlignmentForTesting(
+          size, alignment, AllocationOrigin::kRuntime);
   Tagged<HeapObject> obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size);
@@ -2169,7 +2170,8 @@ static Tagged<HeapObject> OldSpaceAllocateAligned(
     int size, AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
-      heap->old_space()->AllocateRawForceAlignmentForTesting(size, alignment);
+      heap->old_space()->main_allocator()->AllocateRawForceAlignmentForTesting(
+          size, alignment, AllocationOrigin::kRuntime);
   Tagged<HeapObject> obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size);

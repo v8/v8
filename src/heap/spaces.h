@@ -333,7 +333,6 @@ class SpaceWithLinearArea : public Space {
                                                    size_t aligned_size_in_bytes,
                                                    size_t allocation_size);
 
-  void MarkLabStartInitialized();
   virtual void FreeLinearAllocationArea() = 0;
 
   // When allocation observers are active we may use a lower limit to allow the
@@ -350,11 +349,6 @@ class SpaceWithLinearArea : public Space {
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
-  V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
-  AllocateRawForceAlignmentForTesting(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin = AllocationOrigin::kRuntime);
-
   base::SharedMutex* linear_area_lock() {
     return allocator_.linear_area_lock();
   }
@@ -365,8 +359,6 @@ class SpaceWithLinearArea : public Space {
   Address original_limit_relaxed() const {
     return allocator_.original_limit_relaxed();
   }
-
-  void MoveOriginalTopForward() { allocator_.MoveOriginalTopForward(); }
 
  protected:
   // Sets up a linear allocation area that fits the given number of bytes.
