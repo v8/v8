@@ -2444,7 +2444,17 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 
 Local<Module> Module::CreateSyntheticModule(
     Isolate* v8_isolate, Local<String> module_name,
-    const std::vector<Local<v8::String>>& export_names,
+    const std::vector<Local<String>>& export_names,
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+  return CreateSyntheticModule(
+      v8_isolate, module_name,
+      MemorySpan<const Local<String>>(export_names.begin(), export_names.end()),
+      evaluation_steps);
+}
+
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* v8_isolate, Local<String> module_name,
+    const MemorySpan<const Local<String>>& export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
