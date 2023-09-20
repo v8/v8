@@ -1008,7 +1008,7 @@ inline void MaglevAssembler::AssertStackSizeCorrect() {
 inline Condition MaglevAssembler::FunctionEntryStackCheck(
     int stack_check_offset) {
   Register stack_cmp_reg = rsp;
-  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+  if (stack_check_offset >= kStackLimitSlackForDeoptimizationInBytes) {
     stack_cmp_reg = kScratchRegister;
     leaq(stack_cmp_reg, Operand(rsp, -stack_check_offset));
   }
