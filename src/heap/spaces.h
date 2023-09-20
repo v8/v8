@@ -292,46 +292,53 @@ class LocalAllocationBuffer {
   LinearAllocationArea allocation_info_;
 };
 
-class SpaceWithLinearArea : public Space {
+class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
  public:
+  // Creates this space with a new MainAllocator instance.
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                      std::unique_ptr<FreeList> free_list);
+
+  // Creates this space with a new MainAllocator instance and passes
+  // `allocation_info` to its constructor.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list,
-                      AllocationCounter& allocation_counter,
-                      LinearAllocationArea& allocation_info,
-                      LinearAreaOriginalData& linear_area_original_data);
+                      LinearAllocationArea& allocation_info);
+
+  // Creates this space and uses the existing `allocator`. It doesn't create a
+  // new MainAllocator instance.
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                      std::unique_ptr<FreeList> free_list,
+                      MainAllocator* allocator);
 
   virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
-  Address start() const { return allocator_.start(); }
-  Address top() const { return allocator_.top(); }
-  Address limit() const { return allocator_.limit(); }
+  Address start() const { return allocator_->start(); }
+  Address top() const { return allocator_->top(); }
+  Address limit() const { return allocator_->limit(); }
 
   // The allocation top address.
   Address* allocation_top_address() const {
-    return allocator_.allocation_top_address();
+    return allocator_->allocation_top_address();
   }
 
   // The allocation limit address.
   Address* allocation_limit_address() const {
-    return allocator_.allocation_limit_address();
+    return allocator_->allocation_limit_address();
   }
 
-  MainAllocator* main_allocator() { return &allocator_; }
+  MainAllocator* main_allocator() { return allocator_; }
 
   // Methods needed for allocation observers.
-  V8_EXPORT_PRIVATE void AddAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void RemoveAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void ResumeAllocationObservers() override;
-  V8_EXPORT_PRIVATE void PauseAllocationObservers() override;
+  void AddAllocationObserver(AllocationObserver* observer) override;
+  void RemoveAllocationObserver(AllocationObserver* observer) override;
+  void ResumeAllocationObservers() override;
+  void PauseAllocationObservers() override;
 
-  V8_EXPORT_PRIVATE void AdvanceAllocationObservers();
-  V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
-                                                   size_t size_in_bytes,
-                                                   size_t aligned_size_in_bytes,
-                                                   size_t allocation_size);
+  void AdvanceAllocationObservers();
+  void InvokeAllocationObservers(Address soon_object, size_t size_in_bytes,
+                                 size_t aligned_size_in_bytes,
+                                 size_t allocation_size);
 
   virtual void FreeLinearAllocationArea() = 0;
 
@@ -341,7 +348,7 @@ class SpaceWithLinearArea : public Space {
   // allow proper observation based on existing observers. min_size specifies
   // the minimum size that the limited area should have.
   Address ComputeLimit(Address start, Address end, size_t min_size) const;
-  V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit() = 0;
+  virtual void UpdateInlineAllocationLimit() = 0;
 
   void PrintAllocationsOrigins() const;
 
@@ -361,11 +368,12 @@ class SpaceWithLinearArea : public Space {
                                 int* out_max_aligned_size) = 0;
 
 #if DEBUG
-  V8_EXPORT_PRIVATE virtual void VerifyTop() const;
+  virtual void VerifyTop() const;
 #endif  // DEBUG
 
   // TODO(chromium:1480975): Move the LAB out of the space.
-  MainAllocator allocator_;
+  MainAllocator* allocator_;
+  base::Optional<MainAllocator> owned_allocator_;
 
   friend class MainAllocator;
 };

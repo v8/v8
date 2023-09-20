@@ -290,9 +290,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex mutex_;
 
-  AllocationCounter allocation_counter_;
-  LinearAreaOriginalData linear_area_original_data_;
-
   virtual void RemovePage(Page* page) = 0;
 
   bool SupportsAllocationObserver() const final { return true; }
@@ -518,11 +515,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
-  explicit PagedSpaceForNewSpace(
-      Heap* heap, size_t initial_capacity, size_t max_capacity,
-      AllocationCounter& allocation_counter,
-      LinearAllocationArea& allocation_info,
-      LinearAreaOriginalData& linear_area_original_data);
+  explicit PagedSpaceForNewSpace(Heap* heap, size_t initial_capacity,
+                                 size_t max_capacity, MainAllocator* allocator);
 
   void TearDown() { PagedSpaceBase::TearDown(); }
 
@@ -535,7 +529,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   size_t AllocatedSinceLastGC() const {
     return Size() - size_at_last_gc_ -
-           (allocator_.original_limit_relaxed() - allocator_.top());
+           (allocator_->original_limit_relaxed() - allocator_->top());
   }
 
   // Return the maximum capacity of the space.

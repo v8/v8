@@ -115,13 +115,20 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
-  // Creates a space with an id.
   PagedSpaceBase(
       Heap* heap, AllocationSpace id, Executability executable,
       std::unique_ptr<FreeList> free_list,
-      AllocationCounter& allocation_counter,
+      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
+
+  PagedSpaceBase(
+      Heap* heap, AllocationSpace id, Executability executable,
+      std::unique_ptr<FreeList> free_list,
       LinearAllocationArea& allocation_info,
-      LinearAreaOriginalData& linear_area_original_data,
+      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
+
+  PagedSpaceBase(
+      Heap* heap, AllocationSpace id, Executability executable,
+      std::unique_ptr<FreeList> free_list, MainAllocator* allocator,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
 
   ~PagedSpaceBase() override { TearDown(); }
@@ -457,12 +464,14 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
       LinearAllocationArea& allocation_info,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       allocation_counter_, allocation_info,
-                       linear_area_original_data_, compaction_space_kind) {}
+                       allocation_info, compaction_space_kind) {}
 
- private:
-  AllocationCounter allocation_counter_;
-  LinearAreaOriginalData linear_area_original_data_;
+  PagedSpace(
+      Heap* heap, AllocationSpace id, Executability executable,
+      std::unique_ptr<FreeList> free_list,
+      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
+      : PagedSpaceBase(heap, id, executable, std::move(free_list),
+                       compaction_space_kind) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -473,7 +482,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
                   CompactionSpaceKind compaction_space_kind)
       : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   allocation_info_, compaction_space_kind) {
+                   compaction_space_kind) {
     DCHECK(is_compaction_space());
   }
 
@@ -491,9 +500,6 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<Page*> new_pages_;
-
- private:
-  LinearAllocationArea allocation_info_;
 };
 
 // A collection of |CompactionSpace|s used by a single compaction task.
@@ -566,11 +572,7 @@ class CodeSpace final : public PagedSpace {
   // Creates a code space object. The constructor does not allocate pages from
   // OS.
   explicit CodeSpace(Heap* heap)
-      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
-                   paged_allocation_info_) {}
-
- private:
-  LinearAllocationArea paged_allocation_info_;
+      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList()) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -582,7 +584,7 @@ class SharedSpace final : public PagedSpace {
   // OS.
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), allocation_info) {}
+                   FreeList::CreateFreeList()) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -594,9 +596,6 @@ class SharedSpace final : public PagedSpace {
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
-
- private:
-  LinearAllocationArea allocation_info;
 };
 
 // -----------------------------------------------------------------------------
@@ -611,7 +610,7 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), allocation_info) {}
+                   FreeList::CreateFreeList()) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -623,9 +622,6 @@ class TrustedSpace final : public PagedSpace {
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
-
- private:
-  LinearAllocationArea allocation_info;
 };
 
 // Iterates over the chunks (pages and large object pages) that can contain

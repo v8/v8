@@ -79,14 +79,35 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
   return page;
 }
 
-PagedSpaceBase::PagedSpaceBase(
-    Heap* heap, AllocationSpace space, Executability executable,
-    std::unique_ptr<FreeList> free_list, AllocationCounter& allocation_counter,
-    LinearAllocationArea& allocation_info,
-    LinearAreaOriginalData& linear_area_original_data,
-    CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_counter,
-                          allocation_info, linear_area_original_data),
+PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
+                               Executability executable,
+                               std::unique_ptr<FreeList> free_list,
+                               LinearAllocationArea& allocation_info,
+                               CompactionSpaceKind compaction_space_kind)
+    : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_info),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
+  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  accounting_stats_.Clear();
+}
+
+PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
+                               Executability executable,
+                               std::unique_ptr<FreeList> free_list,
+                               MainAllocator* allocator,
+                               CompactionSpaceKind compaction_space_kind)
+    : SpaceWithLinearArea(heap, space, std::move(free_list), allocator),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
+  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  accounting_stats_.Clear();
+}
+
+PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
+                               Executability executable,
+                               std::unique_ptr<FreeList> free_list,
+                               CompactionSpaceKind compaction_space_kind)
+    : SpaceWithLinearArea(heap, space, std::move(free_list)),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -156,7 +177,7 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
   CodePageHeaderModificationScope rwx_write_scope(
       "Updating high water mark for Code pages requires write access to "
       "the Code page headers");
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
   return committed_physical_memory();
 }
 
@@ -274,20 +295,20 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   DCHECK_GE(end, limit);
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_.top());
-  allocator_.allocation_info().Reset(top, limit);
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
+  allocator_->allocation_info().Reset(top, limit);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
   if (!is_compaction_space())
-    optional_guard.emplace(allocator_.linear_area_lock());
-  allocator_.linear_area_original_data().set_original_limit_relaxed(end);
-  allocator_.linear_area_original_data().set_original_top_release(top);
+    optional_guard.emplace(allocator_->linear_area_lock());
+  allocator_->linear_area_original_data().set_original_limit_relaxed(end);
+  allocator_->linear_area_original_data().set_original_top_release(top);
 }
 
 void PagedSpaceBase::SetLimit(Address limit) {
   DCHECK(SupportsExtendingLAB());
-  DCHECK_LE(limit, allocator_.original_limit_relaxed());
-  allocator_.allocation_info().SetLimit(limit);
+  DCHECK_LE(limit, allocator_->original_limit_relaxed());
+  allocator_->allocation_info().SetLimit(limit);
 }
 
 size_t PagedSpaceBase::ShrinkPageToHighWaterMark(Page* page) {
@@ -312,7 +333,7 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
         "ShrinkImmortalImmovablePages writes to the page header.");
   }
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_.allocation_info().top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -399,7 +420,7 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     }
 
     ConcurrentAllocationMutex guard(this);
-    Address old_max_limit = allocator_.original_limit_relaxed();
+    Address old_max_limit = allocator_->original_limit_relaxed();
     if (!SupportsExtendingLAB()) {
       DCHECK_EQ(old_max_limit, old_limit);
       SetTopAndLimit(top(), new_limit, new_limit);
@@ -432,7 +453,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
     DCHECK_EQ(kNullAddress, current_limit);
     return;
   }
-  Address current_max_limit = allocator_.original_limit_relaxed();
+  Address current_max_limit = allocator_->original_limit_relaxed();
   DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
 
   AdvanceAllocationObservers();
@@ -475,7 +496,7 @@ void PagedSpaceBase::ReleasePageImpl(Page* page,
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocator_.allocation_info().top()) ==
+  if (Page::FromAllocationAreaAddress(allocator_->allocation_info().top()) ==
       page) {
     SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
   }
@@ -545,8 +566,8 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocator_.allocation_info().start(),
-            allocator_.allocation_info().top());
+  DCHECK_EQ(allocator_->allocation_info().start(),
+            allocator_->allocation_info().top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
   Address limit = ComputeLimit(start, end, size_in_bytes);
@@ -577,8 +598,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
   bool allocation_pointer_found_in_space =
-      (allocator_.allocation_info().top() ==
-       allocator_.allocation_info().limit());
+      (allocator_->allocation_info().top() ==
+       allocator_->allocation_info().limit());
   size_t external_space_bytes[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
@@ -591,7 +612,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     visitor->VerifyPage(page);
 
     if (page ==
-        Page::FromAllocationAreaAddress(allocator_.allocation_info().top())) {
+        Page::FromAllocationAreaAddress(allocator_->allocation_info().top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -712,8 +733,8 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 
 void PagedSpaceBase::UpdateInlineAllocationLimit() {
   // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocator_.allocation_info().start(),
-            allocator_.allocation_info().top());
+  DCHECK_EQ(allocator_->allocation_info().start(),
+            allocator_->allocation_info().top());
 
   Address new_limit = ComputeLimit(top(), limit(), 0);
   DCHECK_LE(top(), new_limit);
@@ -744,8 +765,8 @@ bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
   if (out_max_aligned_size) {
     *out_max_aligned_size = size_in_bytes;
   }
-  if (allocator_.allocation_info().top() + size_in_bytes <=
-      allocator_.allocation_info().limit()) {
+  if (allocator_->allocation_info().top() + size_in_bytes <=
+      allocator_->allocation_info().limit()) {
     return true;
   }
   return RefillLabMain(size_in_bytes, origin);
@@ -777,7 +798,7 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
   Address current_top = top();
   if (current_top == kNullAddress) return false;
   Address current_limit = limit();
-  Address max_limit = allocator_.original_limit_relaxed();
+  Address max_limit = allocator_->original_limit_relaxed();
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }

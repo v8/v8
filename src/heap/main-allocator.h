@@ -49,10 +49,11 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
+  MainAllocator(Heap* heap, SpaceWithLinearArea* space);
+
+  // This constructor allows to pass in the address of a LinearAllocationArea.
   MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                AllocationCounter& allocation_counter,
-                LinearAllocationArea& allocation_info,
-                LinearAreaOriginalData& linear_area_original_data);
+                LinearAllocationArea& allocation_info);
 
   // Returns the allocation pointer in this space.
   Address start() const { return allocation_info_.start(); }
@@ -174,9 +175,11 @@ class MainAllocator {
   Heap* heap_;
   SpaceWithLinearArea* space_;
 
-  AllocationCounter& allocation_counter_;
+  AllocationCounter allocation_counter_;
   LinearAllocationArea& allocation_info_;
-  LinearAreaOriginalData& linear_area_original_data_;
+  // This memory is used if no LinearAllocationArea& is passed in as argument.
+  LinearAllocationArea owned_allocation_info_;
+  LinearAreaOriginalData linear_area_original_data_;
 };
 
 }  // namespace internal

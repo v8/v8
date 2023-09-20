@@ -174,7 +174,7 @@ MemoryChunk* MemoryChunkIterator::Next() {
 AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
-  return allocator_.AllocateRaw(size_in_bytes, alignment, origin);
+  return allocator_->AllocateRaw(size_in_bytes, alignment, origin);
 }
 
 }  // namespace internal

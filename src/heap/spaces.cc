@@ -38,14 +38,25 @@
 namespace v8 {
 namespace internal {
 
-SpaceWithLinearArea::SpaceWithLinearArea(
-    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-    AllocationCounter& allocation_counter,
-    LinearAllocationArea& allocation_info,
-    LinearAreaOriginalData& linear_area_original_data)
-    : Space(heap, id, std::move(free_list)),
-      allocator_(heap, this, allocation_counter, allocation_info,
-                 linear_area_original_data) {}
+SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                                         std::unique_ptr<FreeList> free_list,
+                                         LinearAllocationArea& allocation_info)
+    : Space(heap, id, std::move(free_list)) {
+  owned_allocator_.emplace(heap, this, allocation_info);
+  allocator_ = &owned_allocator_.value();
+}
+
+SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                                         std::unique_ptr<FreeList> free_list)
+    : Space(heap, id, std::move(free_list)) {
+  owned_allocator_.emplace(heap, this);
+  allocator_ = &owned_allocator_.value();
+}
+
+SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                                         std::unique_ptr<FreeList> free_list,
+                                         MainAllocator* allocator)
+    : Space(heap, id, std::move(free_list)), allocator_(allocator) {}
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) const {
@@ -64,10 +75,10 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
 
   if (SupportsAllocationObserver() && heap()->IsAllocationObserverActive()) {
     // Ensure there are no unaccounted allocations.
-    DCHECK_EQ(allocator_.allocation_info().start(),
-              allocator_.allocation_info().top());
+    DCHECK_EQ(allocator_->allocation_info().start(),
+              allocator_->allocation_info().top());
 
-    size_t step = allocator_.allocation_counter().NextBytes();
+    size_t step = allocator_->allocation_counter().NextBytes();
     DCHECK_NE(step, 0);
     // Generated code may allocate inline from the linear allocation area. To
     // make sure we can observe these allocations, we use a lower limit.
@@ -122,40 +133,40 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  allocator_.AddAllocationObserver(observer);
+  allocator_->AddAllocationObserver(observer);
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  allocator_.RemoveAllocationObserver(observer);
+  allocator_->RemoveAllocationObserver(observer);
 }
 
 void SpaceWithLinearArea::PauseAllocationObservers() {
-  allocator_.PauseAllocationObservers();
+  allocator_->PauseAllocationObservers();
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
-  allocator_.ResumeAllocationObservers();
+  allocator_->ResumeAllocationObservers();
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  allocator_.AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
 }
 
 void SpaceWithLinearArea::InvokeAllocationObservers(
     Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
     size_t allocation_size) {
-  allocator_.InvokeAllocationObservers(soon_object, size_in_bytes,
-                                       aligned_size_in_bytes, allocation_size);
+  allocator_->InvokeAllocationObservers(soon_object, size_in_bytes,
+                                        aligned_size_in_bytes, allocation_size);
 }
 
 #if DEBUG
 void SpaceWithLinearArea::VerifyTop() const {
   // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocator_.allocation_info().start(),
-            allocator_.allocation_info().top());
-  DCHECK_LE(allocator_.allocation_info().top(),
-            allocator_.allocation_info().limit());
+  DCHECK_LE(allocator_->allocation_info().start(),
+            allocator_->allocation_info().top());
+  DCHECK_LE(allocator_->allocation_info().top(),
+            allocator_->allocation_info().limit());
 }
 #endif  // DEBUG
 
