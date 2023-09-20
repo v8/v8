@@ -36,6 +36,7 @@
 #include "src/wasm/names-provider.h"
 #include "src/wasm/pgo.h"
 #include "src/wasm/std-object-sizes.h"
+#include "src/wasm/wasm-builtin-list.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
@@ -616,7 +617,7 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
   // Overhead for the far jump table.
   overhead +=
       RoundUp<kCodeAlignment>(JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          WasmCode::kRuntimeStubCount,
+          BuiltinLookup::BuiltinCount(),
           NumWasmFunctionsInFarJumpTable(num_declared_functions)));
 
   return overhead;
@@ -865,7 +866,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
       single_code_space_region.contains(main_jump_table_->instruction_start()));
   main_far_jump_table_ = CreateEmptyJumpTableInRegionLocked(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          WasmCode::kRuntimeStubCount,
+          BuiltinLookup::BuiltinCount(),
           NumWasmFunctionsInFarJumpTable(max_functions)),
       single_code_space_region, JumpTableType::kFarJumpTable);
   CHECK(single_code_space_region.contains(
@@ -962,10 +963,10 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
       if (RelocInfo::IsWasmStubCall(mode)) {
         uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
-        DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
-        Address entry = GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(stub_call_tag),
-            jump_tables_ref);
+        DCHECK_LT(stub_call_tag,
+                  static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
+        Builtin builtin = static_cast<Builtin>(stub_call_tag);
+        Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables_ref);
         it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
@@ -1017,7 +1018,8 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
 
   Address compile_lazy_address =
       code_space_data.far_jump_table->instruction_start() +
-      JumpTableAssembler::FarJumpSlotIndexToOffset(WasmCode::kWasmCompileLazy);
+      JumpTableAssembler::FarJumpSlotIndexToOffset(
+          BuiltinLookup::JumptableIndexForBuiltin(Builtin::kWasmCompileLazy));
 
   JumpTableAssembler::GenerateLazyCompileTable(
       lazy_compile_table_->instruction_start(), num_wasm_functions,
@@ -1123,9 +1125,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         it.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
       } else if (RelocInfo::IsWasmStubCall(mode)) {
         uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
-        DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
-        Address entry = GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(stub_call_tag), jump_tables);
+        DCHECK_LT(stub_call_tag,
+                  static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
+        Builtin builtin = static_cast<Builtin>(stub_call_tag);
+        Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables);
         it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
@@ -1490,7 +1493,7 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
       code_space_data.jump_table->instruction_start() +
       JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
   uint32_t far_jump_table_offset = JumpTableAssembler::FarJumpSlotIndexToOffset(
-      WasmCode::kRuntimeStubCount + slot_index);
+      BuiltinLookup::BuiltinCount() + slot_index);
   // Only pass the far jump table start if the far jump table actually has a
   // slot for this function index (i.e. does not only contain runtime stubs).
   bool has_far_jump_slot =
@@ -1560,30 +1563,24 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     int far_jump_table_size =
         is_first_code_space
             ? JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-                  WasmCode::kRuntimeStubCount, num_function_slots)
+                  BuiltinLookup::BuiltinCount(), num_function_slots)
             : main_far_jump_table_->instructions_size_;
     far_jump_table = CreateEmptyJumpTableInRegionLocked(
         far_jump_table_size, region, JumpTableType::kFarJumpTable);
     CHECK(region.contains(far_jump_table->instruction_start()));
     EmbeddedData embedded_data = EmbeddedData::FromBlob();
-#define RUNTIME_STUB(Name) Builtin::k##Name,
-#define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
-    Builtin stub_names[WasmCode::kRuntimeStubCount] = {
-        WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
-#undef RUNTIME_STUB
-#undef RUNTIME_STUB_TRAP
     static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
-    Address builtin_addresses[WasmCode::kRuntimeStubCount];
-    for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-      Builtin builtin = stub_names[i];
-      builtin_addresses[i] = embedded_data.InstructionStartOf(builtin);
+    Address builtin_addresses[BuiltinLookup::BuiltinCount()];
+    for (int i = 0; i < BuiltinLookup::BuiltinCount(); ++i) {
+      builtin_addresses[i] = embedded_data.InstructionStartOf(
+          BuiltinLookup::BuiltinForJumptableIndex(i));
     }
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         far_jump_table->instruction_start(), far_jump_table->instructions_size_,
         ThreadIsolation::JitAllocationType::kWasmFarJumpTable);
     JumpTableAssembler::GenerateFarJumpTable(
         far_jump_table->instruction_start(), builtin_addresses,
-        WasmCode::kRuntimeStubCount, num_function_slots);
+        BuiltinLookup::BuiltinCount(), num_function_slots);
   }
 
   if (is_first_code_space) {
@@ -1780,9 +1777,11 @@ Address NativeModule::GetNearCallTargetForFunction(
   return jump_tables.jump_table_start + slot_offset;
 }
 
-Address NativeModule::GetNearRuntimeStubEntry(
-    WasmCode::RuntimeStubId index, const JumpTablesRef& jump_tables) const {
+Address NativeModule::GetJumpTableEntryForBuiltin(
+    Builtin builtin, const JumpTablesRef& jump_tables) const {
   DCHECK(jump_tables.is_valid());
+  int index = BuiltinLookup::JumptableIndexForBuiltin(builtin);
+
   auto offset = JumpTableAssembler::FarJumpSlotIndexToOffset(index);
   return jump_tables.far_jump_table_start + offset;
 }
@@ -1803,7 +1802,7 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
   return module_->num_imported_functions + slot_idx;
 }
 
-WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
+Builtin NativeModule::GetBuiltinInJumptableSlot(Address target) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
 
   for (auto& code_space_data : code_space_data_) {
@@ -1812,16 +1811,16 @@ WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
       uint32_t offset = static_cast<uint32_t>(
           target - code_space_data.far_jump_table->instruction_start());
       uint32_t index = JumpTableAssembler::FarJumpSlotOffsetToIndex(offset);
-      if (index >= WasmCode::kRuntimeStubCount) continue;
+      if (index >= BuiltinLookup::BuiltinCount()) continue;
       if (JumpTableAssembler::FarJumpSlotIndexToOffset(index) != offset) {
         continue;
       }
-      return static_cast<WasmCode::RuntimeStubId>(index);
+      return BuiltinLookup::BuiltinForJumptableIndex(index);
     }
   }
 
   // Invalid address.
-  return WasmCode::kRuntimeStubCount;
+  return Builtin::kNoBuiltinId;
 }
 
 NativeModule::~NativeModule() {
@@ -2109,7 +2108,7 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
       JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
   size_t far_jump_table_size =
       RoundUp<kCodeAlignment>(JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          WasmCode::kRuntimeStubCount,
+          BuiltinLookup::BuiltinCount(),
           NumWasmFunctionsInFarJumpTable(num_wasm_functions)));
 
   return wasm_module_estimate + native_module_estimate + jump_table_size +
@@ -2524,41 +2523,6 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   current_scope->code_ptrs_.push_back(code);
   code->IncRef();
 }
-
-Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
-#define RUNTIME_STUB_NAME(Name) Builtin::k##Name,
-#define RUNTIME_STUB_NAME_TRAP(Name) Builtin::kThrowWasm##Name,
-  constexpr Builtin builtin_names[] = {
-      WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP)};
-#undef RUNTIME_STUB_NAME
-#undef RUNTIME_STUB_NAME_TRAP
-  static_assert(arraysize(builtin_names) == WasmCode::kRuntimeStubCount);
-
-#define RUNTIME_STUB_NAME(Name) \
-  static_assert(Builtin::k##Name == builtin_names[wasm::WasmCode::k##Name]);
-#define RUNTIME_STUB_NAME_TRAP(Name) RUNTIME_STUB_NAME(ThrowWasm##Name)
-  WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP);
-#undef RUNTIME_STUB_NAME
-#undef RUNTIME_STUB_NAME_TRAP
-
-  DCHECK_GT(arraysize(builtin_names), stub_id);
-  return builtin_names[stub_id];
-}
-
-const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {
-#define RUNTIME_STUB_NAME(Name) #Name,
-#define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,
-  constexpr const char* runtime_stub_names[] = {WASM_RUNTIME_STUB_LIST(
-      RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
-#undef RUNTIME_STUB_NAME
-#undef RUNTIME_STUB_NAME_TRAP
-  static_assert(arraysize(runtime_stub_names) ==
-                WasmCode::kRuntimeStubCount + 1);
-
-  DCHECK_GT(arraysize(runtime_stub_names), stub_id);
-  return runtime_stub_names[stub_id];
-}
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

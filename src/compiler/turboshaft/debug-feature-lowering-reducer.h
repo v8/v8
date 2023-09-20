@@ -45,12 +45,12 @@ class DebugFeatureLoweringReducer : public Next {
                   WasmInstanceObject::kNativeContextOffset);
       switch (rep.value()) {
         case RegisterRepresentation::Float64():
-          __ CallBuiltin(wasm::WasmCode::kDebugPrintFloat64,
-                         {input, native_context}, Operator::kNoProperties);
+          __ CallBuiltin(Builtin::kDebugPrintFloat64, {input, native_context},
+                         Operator::kNoProperties);
           break;
         case RegisterRepresentation::PointerSized():
-          __ CallBuiltin(wasm::WasmCode::kDebugPrintWordPtr,
-                         {input, native_context}, Operator::kNoProperties);
+          __ CallBuiltin(Builtin::kDebugPrintWordPtr, {input, native_context},
+                         Operator::kNoProperties);
           break;
         default:
           // TODO(mliedtke): Support other representations.

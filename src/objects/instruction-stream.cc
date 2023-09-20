@@ -75,9 +75,9 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
 #if V8_ENABLE_WEBASSEMBLY
       // Map wasm stub id to builtin.
       uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
-      DCHECK_LT(stub_call_tag, wasm::WasmCode::kRuntimeStubCount);
-      Builtin builtin = wasm::RuntimeStubIdToBuiltinName(
-          static_cast<wasm::WasmCode::RuntimeStubId>(stub_call_tag));
+      DCHECK_LT(stub_call_tag,
+                static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
+      Builtin builtin = static_cast<Builtin>(stub_call_tag);
       // Store the builtin address in relocation info.
       Address entry =
           heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];

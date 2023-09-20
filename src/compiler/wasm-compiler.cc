@@ -379,9 +379,9 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   gasm_->Goto(&done, maybe_function);
 
   gasm_->Bind(&create_funcref);
-  Node* function_from_builtin =
-      gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc, Operator::kNoThrow,
-                             gasm_->Uint32Constant(function_index));
+  Node* function_from_builtin = gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmRefFunc, Operator::kNoThrow,
+      gasm_->Uint32Constant(function_index));
   gasm_->Goto(&done, function_from_builtin);
 
   gasm_->Bind(&done);
@@ -446,8 +446,8 @@ void WasmGraphBuilder::StackCheck(
 
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
-    stack_check_code_node_.set(mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmStackGuard, RelocInfo::WASM_STUB_CALL));
+    stack_check_code_node_.set(
+        mcgraph()->RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard));
 
     constexpr Operator::Properties properties =
         Operator::kNoThrow | Operator::kNoWrite;
@@ -1178,13 +1178,14 @@ Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
   return Phi(type, 2, inputs);
 }
 
+// TODO(ahaas): Merge TrapId with TrapReason.
 TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
   switch (reason) {
-#define TRAPREASON_TO_TRAPID(name)                                             \
-  case wasm::k##name:                                                          \
-    static_assert(                                                             \
-        static_cast<int>(TrapId::k##name) == wasm::WasmCode::kThrowWasm##name, \
-        "trap id mismatch");                                                   \
+#define TRAPREASON_TO_TRAPID(name)                                 \
+  case wasm::k##name:                                              \
+    static_assert(static_cast<int>(TrapId::k##name) ==             \
+                      static_cast<int>(Builtin::kThrowWasm##name), \
+                  "trap id mismatch");                             \
     return TrapId::k##name;
     FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
 #undef TRAPREASON_TO_TRAPID
@@ -2164,9 +2165,9 @@ Node* WasmGraphBuilder::MemoryGrow(const wasm::WasmMemory* memory,
   needs_stack_check_ = true;
   if (!memory->is_memory64) {
     // For 32-bit memories, just call the builtin.
-    return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow,
-                                  Operator::kNoThrow,
-                                  gasm_->Int32Constant(memory->index), input);
+    return gasm_->CallBuiltinThroughJumptable(
+        Builtin::kWasmMemoryGrow, Operator::kNoThrow,
+        gasm_->Int32Constant(memory->index), input);
   }
 
   // If the input is not a positive int32, growing will always fail
@@ -2179,9 +2180,11 @@ Node* WasmGraphBuilder::MemoryGrow(const wasm::WasmMemory* memory,
 
   SetControl(is_32_bit.if_true);
 
-  Node* grow_result = gasm_->ChangeInt32ToInt64(gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmMemoryGrow, Operator::kNoThrow,
-      gasm_->Int32Constant(memory->index), gasm_->TruncateInt64ToInt32(input)));
+  Node* grow_result =
+      gasm_->ChangeInt32ToInt64(gasm_->CallBuiltinThroughJumptable(
+          Builtin::kWasmMemoryGrow, Operator::kNoThrow,
+          gasm_->Int32Constant(memory->index),
+          gasm_->TruncateInt64ToInt32(input)));
 
   Node* diamond_result = is_32_bit.Phi(MachineRepresentation::kWord64,
                                        grow_result, gasm_->Int64Constant(-1));
@@ -2195,8 +2198,8 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
   needs_stack_check_ = true;
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(tag);
 
-  Node* values_array = gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmAllocateFixedArray, Operator::kNoThrow,
+  Node* values_array = gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmAllocateFixedArray, Operator::kNoThrow,
       gasm_->IntPtrConstant(encoded_size));
   SetSourcePosition(values_array, position);
 
@@ -2254,9 +2257,9 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
 
   Node* exception_tag = LoadTagFromTable(tag_index);
 
-  Node* throw_call = gasm_->CallRuntimeStub(wasm::WasmCode::kWasmThrow,
-                                            Operator::kNoProperties,
-                                            exception_tag, values_array);
+  Node* throw_call = gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmThrow, Operator::kNoProperties, exception_tag,
+      values_array);
   SetSourcePosition(throw_call, position);
   return throw_call;
 }
@@ -2302,8 +2305,8 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   // TODO(v8:8091): Currently the message of the original exception is not being
   // preserved when rethrown to the console. The pending message will need to be
   // saved when caught and restored here while being rethrown.
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRethrow,
-                                Operator::kNoProperties, except_obj);
+  return gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmRethrow, Operator::kNoProperties, except_obj);
 }
 
 Node* WasmGraphBuilder::IsExceptionTagUndefined(Node* tag) {
@@ -3520,22 +3523,22 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
   const wasm::WasmTable& table = env_->module->tables[table_index];
   bool is_funcref = IsSubtypeOf(table.type, wasm::kWasmFuncRef, env_->module);
-  auto stub = is_funcref ? wasm::WasmCode::kWasmTableGetFuncRef
-                         : wasm::WasmCode::kWasmTableGet;
+  auto stub =
+      is_funcref ? Builtin::kWasmTableGetFuncRef : Builtin::kWasmTableGet;
 
-  return gasm_->CallRuntimeStub(stub, Operator::kNoThrow,
-                                gasm_->IntPtrConstant(table_index), index);
+  return gasm_->CallBuiltinThroughJumptable(
+      stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index);
 }
 
 void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                 wasm::WasmCodePosition position) {
   const wasm::WasmTable& table = env_->module->tables[table_index];
   bool is_funcref = IsSubtypeOf(table.type, wasm::kWasmFuncRef, env_->module);
-  auto stub = is_funcref ? wasm::WasmCode::kWasmTableSetFuncRef
-                         : wasm::WasmCode::kWasmTableSet;
+  auto stub =
+      is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
 
-  gasm_->CallRuntimeStub(stub, Operator::kNoThrow,
-                         gasm_->IntPtrConstant(table_index), index, val);
+  gasm_->CallBuiltinThroughJumptable(
+      stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index, val);
 }
 
 std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::CheckBoundsAndAlignment(
@@ -5145,18 +5148,17 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
 
   switch (opcode) {
     case wasm::kExprAtomicNotify:
-      return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmAtomicNotify,
-                                    Operator::kNoThrow, memory_index,
-                                    effective_offset, inputs[1]);
+      return gasm_->CallBuiltinThroughJumptable(
+          Builtin::kWasmAtomicNotify, Operator::kNoThrow, memory_index,
+          effective_offset, inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
       constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;
       auto* call_descriptor = GetBuiltinCallDescriptor(
           Builtin::kWasmI32AtomicWait, zone_, kStubMode);
 
-      intptr_t target = wasm::WasmCode::kWasmI32AtomicWait;
-      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-          target, RelocInfo::WASM_STUB_CALL);
+      Builtin target = Builtin::kWasmI32AtomicWait;
+      Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(target);
 
       return gasm_->Call(call_descriptor, call_target, memory_index,
                          effective_offset, inputs[1],
@@ -5168,9 +5170,8 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
       auto* call_descriptor = GetBuiltinCallDescriptor(
           Builtin::kWasmI64AtomicWait, zone_, kStubMode);
 
-      intptr_t target = wasm::WasmCode::kWasmI64AtomicWait;
-      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-          target, RelocInfo::WASM_STUB_CALL);
+      Builtin target = Builtin::kWasmI64AtomicWait;
+      Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(target);
 
       return gasm_->Call(call_descriptor, call_target, memory_index,
                          effective_offset,
@@ -5327,9 +5328,10 @@ void WasmGraphBuilder::TableInit(uint32_t table_index,
                                  uint32_t elem_segment_index, Node* dst,
                                  Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableInit, Operator::kNoThrow,
-                         dst, src, size, gasm_->NumberConstant(table_index),
-                         gasm_->NumberConstant(elem_segment_index));
+  gasm_->CallBuiltinThroughJumptable(Builtin::kWasmTableInit,
+                                     Operator::kNoThrow, dst, src, size,
+                                     gasm_->NumberConstant(table_index),
+                                     gasm_->NumberConstant(elem_segment_index));
 }
 
 void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
@@ -5349,16 +5351,17 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                  uint32_t table_src_index, Node* dst, Node* src,
                                  Node* size, wasm::WasmCodePosition position) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableCopy, Operator::kNoThrow,
-                         dst, src, size, gasm_->NumberConstant(table_dst_index),
-                         gasm_->NumberConstant(table_src_index));
+  gasm_->CallBuiltinThroughJumptable(Builtin::kWasmTableCopy,
+                                     Operator::kNoThrow, dst, src, size,
+                                     gasm_->NumberConstant(table_dst_index),
+                                     gasm_->NumberConstant(table_src_index));
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
                                   Node* delta) {
-  return gasm_->BuildChangeSmiToInt32(
-      gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableGrow, Operator::kNoThrow,
-                             gasm_->NumberConstant(table_index), delta, value));
+  return gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmTableGrow, Operator::kNoThrow,
+      gasm_->NumberConstant(table_index), delta, value));
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
@@ -5376,9 +5379,9 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
                                  Node* count) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableFill, Operator::kNoThrow,
-                         gasm_->NumberConstant(table_index), start, count,
-                         value);
+  gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmTableFill, Operator::kNoThrow,
+      gasm_->NumberConstant(table_index), start, count, value);
 }
 
 Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
@@ -6387,8 +6390,8 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   gasm_->Goto(&done, result);
 
   gasm_->Bind(&bailout);
-  gasm_->Goto(&done, gasm_->CallRuntimeStub(
-                         wasm::WasmCode::kWasmStringViewWtf16GetCodeUnit,
+  gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
+                         Builtin::kWasmStringViewWtf16GetCodeUnit,
                          Operator::kPure, string, offset));
 
   gasm_->Bind(&done);
@@ -6461,9 +6464,9 @@ Node* WasmGraphBuilder::StringCodePointAt(Node* string, CheckForNull null_check,
   gasm_->Goto(&done, result);
 
   gasm_->Bind(&bailout);
-  gasm_->Goto(&done,
-              gasm_->CallRuntimeStub(wasm::WasmCode::kWasmStringCodePointAt,
-                                     Operator::kPure, string, offset));
+  gasm_->Goto(&done, gasm_->CallBuiltinThroughJumptable(
+                         Builtin::kWasmStringCodePointAt, Operator::kPure,
+                         string, offset));
 
   gasm_->Bind(&done);
   // Make sure the original string is kept alive as long as we're operating
@@ -6923,11 +6926,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         stub_mode_, needs_frame_state);
   }
 
-  Node* GetTargetForBuiltinCall(wasm::WasmCode::RuntimeStubId wasm_stub,
-                                Builtin builtin) {
+  Node* GetTargetForBuiltinCall(Builtin builtin) {
     return (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-               ? mcgraph()->RelocatableIntPtrConstant(wasm_stub,
-                                                      RelocInfo::WASM_STUB_CALL)
+               ? mcgraph()->RelocatableWasmBuiltinCallTarget(builtin)
                : gasm_->GetBuiltinPointerTarget(builtin);
   }
 
@@ -6955,9 +6956,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Otherwise, call builtin, to convert to a HeapNumber.
     gasm_->Bind(&builtin);
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target =
-        GetTargetForBuiltinCall(wasm::WasmCode::kWasmInt32ToHeapNumber,
-                                Builtin::kWasmInt32ToHeapNumber);
+    Node* target = GetTargetForBuiltinCall(Builtin::kWasmInt32ToHeapNumber);
     if (!int32_to_heapnumber_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmInt32ToHeapNumberDescriptor(), 0,
@@ -6987,9 +6986,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Otherwise, call builtin which changes non-Smi to Int32.
     gasm_->Bind(&builtin);
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target =
-        GetTargetForBuiltinCall(wasm::WasmCode::kWasmTaggedNonSmiToInt32,
-                                Builtin::kWasmTaggedNonSmiToInt32);
+    Node* target = GetTargetForBuiltinCall(Builtin::kWasmTaggedNonSmiToInt32);
     if (!tagged_non_smi_to_int32_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmTaggedNonSmiToInt32Descriptor(), 0,
@@ -7013,8 +7010,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildChangeFloat32ToNumber(Node* value) {
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmFloat32ToNumber,
-                                           Builtin::kWasmFloat32ToNumber);
+    Node* target = GetTargetForBuiltinCall(Builtin::kWasmFloat32ToNumber);
     if (!float32_to_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmFloat32ToNumberDescriptor(), 0,
@@ -7026,8 +7022,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildChangeFloat64ToNumber(Node* value) {
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmFloat64ToNumber,
-                                           Builtin::kWasmFloat64ToNumber);
+    Node* target = GetTargetForBuiltinCall(Builtin::kWasmFloat64ToNumber);
     if (!float64_to_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmFloat64ToTaggedDescriptor(), 0,
@@ -7040,8 +7035,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildChangeTaggedToFloat64(Node* value, Node* context,
                                    Node* frame_state) {
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmTaggedToFloat64,
-                                           Builtin::kWasmTaggedToFloat64);
+    Node* target = GetTargetForBuiltinCall(Builtin::kWasmTaggedToFloat64);
     bool needs_frame_state = frame_state != nullptr;
     if (!tagged_to_float64_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -7195,15 +7189,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                  Node* frame_state) {
     Node* target;
     if (mcgraph()->machine()->Is64()) {
-      target = GetTargetForBuiltinCall(wasm::WasmCode::kBigIntToI64,
-                                       Builtin::kBigIntToI64);
+      target = GetTargetForBuiltinCall(Builtin::kBigIntToI64);
     } else {
       DCHECK(mcgraph()->machine()->Is32());
       // On 32-bit platforms we already set the target to the
       // BigIntToI32Pair builtin here, so that we don't have to replace the
       // target in the int64-lowering.
-      target = GetTargetForBuiltinCall(wasm::WasmCode::kBigIntToI32Pair,
-                                       Builtin::kBigIntToI32Pair);
+      target = GetTargetForBuiltinCall(Builtin::kBigIntToI32Pair);
     }
 
     return frame_state ? gasm_->Call(GetBigIntToI64CallDescriptor(true), target,
@@ -7699,8 +7691,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     auto* call_descriptor =
         GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
-    Node* call_target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmSuspend,
-                                                Builtin::kWasmSuspend);
+    Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
     // Trap if there is any JS frame on the stack. Trap before decrementing the
     // wasm-to-js counter, since it will already be decremented by the stack
     // unwinder.
@@ -8051,8 +8042,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         mcgraph()->zone(), interface_descriptor,
         interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmRethrowExplicitContext, RelocInfo::WASM_STUB_CALL);
+    Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(
+        Builtin::kWasmRethrowExplicitContext);
     Node* context = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));

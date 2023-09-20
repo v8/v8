@@ -487,8 +487,8 @@ class TurboshaftGraphBuildingInterface {
     Label<WasmInternalFunction> done(&asm_);
     IF (UNLIKELY(__ IsSmi(maybe_function))) {
       V<Word32> function_index_constant = __ Word32Constant(function_index);
-      V<WasmInternalFunction> from_builtin = CallBuiltinFromRuntimeStub(
-          decoder, wasm::WasmCode::kWasmRefFunc, {function_index_constant});
+      V<WasmInternalFunction> from_builtin = CallBuiltinThroughJumptable(
+          decoder, Builtin::kWasmRefFunc, {function_index_constant});
       GOTO(done, from_builtin);
     }
     ELSE {
@@ -856,15 +856,15 @@ class TurboshaftGraphBuildingInterface {
                   const Value& value, Value* result) {
     if (!imm.memory->is_memory64) {
       result->op =
-          CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmMemoryGrow,
-                                     {__ Word32Constant(imm.index), value.op});
+          CallBuiltinThroughJumptable(decoder, Builtin::kWasmMemoryGrow,
+                                      {__ Word32Constant(imm.index), value.op});
     } else {
       Label<Word64> done(&asm_);
 
       IF (LIKELY(__ Uint64LessThanOrEqual(
               value.op, __ Word64Constant(static_cast<int64_t>(kMaxInt))))) {
-        GOTO(done, __ ChangeInt32ToInt64(CallBuiltinFromRuntimeStub(
-                       decoder, WasmCode::kWasmMemoryGrow,
+        GOTO(done, __ ChangeInt32ToInt64(CallBuiltinThroughJumptable(
+                       decoder, Builtin::kWasmMemoryGrow,
                        {__ Word32Constant(imm.index),
                         __ TruncateWord64ToWord32(value.op)})));
       }
@@ -1177,8 +1177,8 @@ class TurboshaftGraphBuildingInterface {
     uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
 
     V<FixedArray> values_array =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmAllocateFixedArray,
-                                   {__ IntPtrConstant(encoded_size)});
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmAllocateFixedArray,
+                                    {__ IntPtrConstant(encoded_size)});
 
     uint32_t index = 0;
     const wasm::WasmTagSig* sig = imm.tag->sig;
@@ -1248,16 +1248,16 @@ class TurboshaftGraphBuildingInterface {
     auto tag =
         V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
 
-    CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmThrow,
-                               {tag, values_array}, Operator::kNoProperties,
-                               CheckForException::kYes);
+    CallBuiltinThroughJumptable(decoder, Builtin::kWasmThrow,
+                                {tag, values_array}, Operator::kNoProperties,
+                                CheckForException::kYes);
     __ Unreachable();
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
-    CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmRethrow,
-                               {block->exception}, Operator::kNoProperties,
-                               CheckForException::kYes);
+    CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow,
+                                {block->exception}, Operator::kNoProperties,
+                                CheckForException::kYes);
     __ Unreachable();
   }
 
@@ -1268,8 +1268,8 @@ class TurboshaftGraphBuildingInterface {
                              nullptr, &block->exception);
     V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
         NativeContext, MemoryRepresentation::TaggedPointer());
-    V<WasmTagObject> caught_tag = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmGetOwnProperty,
+    V<WasmTagObject> caught_tag = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmGetOwnProperty,
         {block->exception, LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol),
          native_context});
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
@@ -1341,8 +1341,8 @@ class TurboshaftGraphBuildingInterface {
     if (depth == decoder->control_depth() - 1) {
       // We just throw to the caller, no need to handle the exception in this
       // frame.
-      CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmRethrow,
-                                 {block->exception});
+      CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow,
+                                  {block->exception});
       __ Unreachable();
     } else {
       DCHECK(decoder->control_at(depth)->is_try());
@@ -1361,15 +1361,11 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input) {
-    V<WordPtr> builtin =
-        Is64() ? __ RelocatableConstant(WasmCode::kI64ToBigInt,
-                                        RelocInfo::WASM_STUB_CALL)
-               : __ RelocatableConstant(WasmCode::kI32PairToBigInt,
-                                        RelocInfo::WASM_STUB_CALL);
+    Builtin builtin =
+        Is64() ? Builtin::kI64ToBigInt : Builtin::kI32PairToBigInt;
+    V<WordPtr> target = __ RelocatableWasmBuiltinCallTarget(builtin);
     CallInterfaceDescriptor interface_descriptor =
-        Is64()
-            ? Builtins::CallInterfaceDescriptorFor(Builtin::kI64ToBigInt)
-            : Builtins::CallInterfaceDescriptorFor(Builtin::kI32PairToBigInt);
+        Builtins::CallInterfaceDescriptorFor(builtin);
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetStubCallDescriptor(
             __ graph_zone(),  // zone
@@ -1381,12 +1377,12 @@ class TurboshaftGraphBuildingInterface {
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
     if constexpr (Is64()) {
-      return __ Call(builtin, {input}, ts_call_descriptor);
+      return __ Call(target, {input}, ts_call_descriptor);
     }
     V<Word32> low_word = __ TruncateWord64ToWord32(input);
     V<Word32> high_word = __ TruncateWord64ToWord32(__ ShiftRightLogical(
         input, __ Word32Constant(32), WordRepresentation::Word64()));
-    return __ Call(builtin, {low_word, high_word}, ts_call_descriptor);
+    return __ Call(target, {low_word, high_word}, ts_call_descriptor);
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
@@ -1399,8 +1395,8 @@ class TurboshaftGraphBuildingInterface {
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
 
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmAtomicNotify,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmAtomicNotify,
         {__ Word32Constant(imm.memory->index), effective_offset, value});
   }
 
@@ -1420,16 +1416,16 @@ class TurboshaftGraphBuildingInterface {
     V<BigInt> bigint_timeout = BuildChangeInt64ToBigInt(timeout);
 
     if (opcode == kExprI32AtomicWait) {
-      result->op = CallBuiltinFromRuntimeStub(
-          decoder, WasmCode::kWasmI32AtomicWait,
+      result->op = CallBuiltinThroughJumptable(
+          decoder, Builtin::kWasmI32AtomicWait,
           {__ Word32Constant(imm.memory->index), effective_offset, expected,
            bigint_timeout});
       return;
     }
     DCHECK_EQ(opcode, kExprI64AtomicWait);
     V<BigInt> bigint_expected = BuildChangeInt64ToBigInt(expected);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmI64AtomicWait,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmI64AtomicWait,
         {__ Word32Constant(imm.memory->index), effective_offset,
          bigint_expected, bigint_timeout});
   }
@@ -1686,9 +1682,9 @@ class TurboshaftGraphBuildingInterface {
                 const IndexImmediate& imm) {
     ValueType table_type = decoder->module_->tables[imm.index].type;
     auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
-                    ? WasmCode::kWasmTableGetFuncRef
-                    : WasmCode::kWasmTableGet;
-    result->op = CallBuiltinFromRuntimeStub(
+                    ? Builtin::kWasmTableGetFuncRef
+                    : Builtin::kWasmTableGet;
+    result->op = CallBuiltinThroughJumptable(
         decoder, stub, {__ IntPtrConstant(imm.index), index.op});
   }
 
@@ -1696,9 +1692,9 @@ class TurboshaftGraphBuildingInterface {
                 const IndexImmediate& imm) {
     ValueType table_type = decoder->module_->tables[imm.index].type;
     auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
-                    ? WasmCode::kWasmTableSetFuncRef
-                    : WasmCode::kWasmTableSet;
-    CallBuiltinFromRuntimeStub(
+                    ? Builtin::kWasmTableSetFuncRef
+                    : Builtin::kWasmTableSet;
+    CallBuiltinThroughJumptable(
         decoder, stub, {__ IntPtrConstant(imm.index), index.op, value.op});
   }
 
@@ -1707,8 +1703,8 @@ class TurboshaftGraphBuildingInterface {
     V<Word32> dst = args[0].op;
     V<Word32> src = args[1].op;
     V<Word32> size = args[2].op;
-    CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmTableInit,
+    CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmTableInit,
         {dst, src, size, __ NumberConstant(imm.table.index),
          __ NumberConstant(imm.element_segment.index)});
   }
@@ -1718,24 +1714,24 @@ class TurboshaftGraphBuildingInterface {
     V<Word32> dst = args[0].op;
     V<Word32> src = args[1].op;
     V<Word32> size = args[2].op;
-    CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmTableCopy,
+    CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmTableCopy,
         {dst, src, size, __ NumberConstant(imm.table_dst.index),
          __ NumberConstant(imm.table_src.index)});
   }
 
   void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& value, const Value& delta, Value* result) {
-    V<Smi> result_smi = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmTableGrow,
+    V<Smi> result_smi = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmTableGrow,
         {__ NumberConstant(imm.index), delta.op, value.op});
     result->op = __ UntagSmi(result_smi);
   }
 
   void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
-    CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmTableFill,
+    CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmTableFill,
         {__ NumberConstant(imm.index), start.op, count.op, value.op});
   }
 
@@ -1991,8 +1987,8 @@ class TurboshaftGraphBuildingInterface {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmArrayNewSegment,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmArrayNewSegment,
         {__ Word32Constant(segment_imm.index), offset.op, length.op,
          __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
          __ RttCanon(instance_node_, array_imm.index)});
@@ -2004,8 +2000,8 @@ class TurboshaftGraphBuildingInterface {
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmArrayInitSegment,
+    CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmArrayInitSegment,
         {array_index.op, segment_offset.op, length.op,
          __ SmiConstant(Smi::FromInt(segment_imm.index)),
          __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)), array.op});
@@ -2158,8 +2154,8 @@ class TurboshaftGraphBuildingInterface {
     V<Object> memory_smi = __ SmiConstant(Smi::FromInt(memory.index));
     V<Object> variant_smi =
         __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringNewWtf8,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringNewWtf8,
         {offset.op, size.op, memory_smi, variant_smi},
         Operator::kNoDeopt | Operator::kNoThrow);
   }
@@ -2174,8 +2170,8 @@ class TurboshaftGraphBuildingInterface {
              .MatchWasmStubCallConstant(call->callee(), &stub_id)) {
       return false;
     }
-    DCHECK_LT(stub_id, WasmCode::kRuntimeStubCount);
-    return stub_id == WasmCode::kWasmArrayNewSegment;
+    DCHECK_LT(stub_id, static_cast<int64_t>(Builtin::kFirstBytecodeHandler));
+    return stub_id == static_cast<int64_t>(Builtin::kWasmArrayNewSegment);
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
@@ -2201,16 +2197,16 @@ class TurboshaftGraphBuildingInterface {
           OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
       V<Object> offset_smi = __ TagSmi(segment_offset);
       OpIndex segment_length = array_new.input(3);
-      result->op = CallBuiltinFromRuntimeStub(
-          decoder, WasmCode::kWasmStringFromDataSegment,
+      result->op = CallBuiltinThroughJumptable(
+          decoder, Builtin::kWasmStringFromDataSegment,
           {segment_length, start.op, end.op, index_smi, offset_smi},
           Operator::kNoDeopt | Operator::kNoThrow);
       return;
     }
 
     // Regular path if the shortcut wasn't taken.
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringNewWtf8Array,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringNewWtf8Array,
         {start.op, end.op, NullCheck(array),
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
         Operator::kNoDeopt | Operator::kNoThrow);
@@ -2218,8 +2214,8 @@ class TurboshaftGraphBuildingInterface {
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringNewWtf16,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringNewWtf16,
         {__ Word32Constant(imm.index), offset.op, size.op},
         Operator::kNoDeopt | Operator::kNoThrow);
   }
@@ -2228,35 +2224,35 @@ class TurboshaftGraphBuildingInterface {
                            const Value& start, const Value& end,
                            Value* result) {
     result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringNewWtf16Array,
-                                   {NullCheck(array), start.op, end.op},
-                                   Operator::kNoDeopt | Operator::kNoThrow);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringNewWtf16Array,
+                                    {NullCheck(array), start.op, end.op},
+                                    Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringConst, {__ Word32Constant(imm.index)},
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringConst, {__ Word32Constant(imm.index)},
         Operator::kNoDeopt | Operator::kNoThrow);
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
-    WasmCode::RuntimeStubId builtin;
+    Builtin builtin;
     switch (variant) {
       case unibrow::Utf8Variant::kUtf8:
-        builtin = WasmCode::kWasmStringMeasureUtf8;
+        builtin = Builtin::kWasmStringMeasureUtf8;
         break;
       case unibrow::Utf8Variant::kLossyUtf8:
       case unibrow::Utf8Variant::kWtf8:
-        builtin = WasmCode::kWasmStringMeasureWtf8;
+        builtin = Builtin::kWasmStringMeasureWtf8;
         break;
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
-    result->op = CallBuiltinFromRuntimeStub(decoder, builtin, {NullCheck(str)},
-                                            Operator::kEliminatable);
+    result->op = CallBuiltinThroughJumptable(decoder, builtin, {NullCheck(str)},
+                                             Operator::kEliminatable);
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
@@ -2269,8 +2265,8 @@ class TurboshaftGraphBuildingInterface {
                         const MemoryIndexImmediate& memory,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringEncodeWtf8,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringEncodeWtf8,
         {NullCheck(str), offset.op, __ SmiConstant(Smi::FromInt(memory.index)),
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
         Operator::kNoDeopt | Operator::kNoThrow);
@@ -2280,8 +2276,8 @@ class TurboshaftGraphBuildingInterface {
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringEncodeWtf8Array,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringEncodeWtf8Array,
         {NullCheck(str), NullCheck(array), start.op,
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
         Operator::kNoDeopt | Operator::kNoThrow);
@@ -2289,8 +2285,8 @@ class TurboshaftGraphBuildingInterface {
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringEncodeWtf16,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringEncodeWtf16,
         {NullCheck(str), offset.op,
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(imm.index)))},
         Operator::kNoDeopt | Operator::kNoThrow);
@@ -2299,8 +2295,8 @@ class TurboshaftGraphBuildingInterface {
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringEncodeWtf16Array,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringEncodeWtf16Array,
         {NullCheck(str), NullCheck(array), start.op},
         Operator::kNoDeopt | Operator::kNoThrow);
   }
@@ -2309,8 +2305,8 @@ class TurboshaftGraphBuildingInterface {
                     Value* result) {
     V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
         NativeContext, MemoryRepresentation::TaggedPointer());
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kStringAdd_CheckNone,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kStringAdd_CheckNone,
         {NullCheck(head), NullCheck(tail), native_context},
         Operator::kNoDeopt | Operator::kNoThrow);
   }
@@ -2328,8 +2324,8 @@ class TurboshaftGraphBuildingInterface {
     }
     // TODO(jkummerow): Call Builtin::kStringEqual directly.
     GOTO(done,
-         CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringEqual,
-                                    {a.op, b.op}, Operator::kEliminatable));
+         CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringEqual,
+                                     {a.op, b.op}, Operator::kEliminatable));
     BIND(done, eq_result);
     result->op = eq_result;
   }
@@ -2337,21 +2333,21 @@ class TurboshaftGraphBuildingInterface {
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
     result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringIsUSVSequence,
-                                   {NullCheck(str)}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringIsUSVSequence,
+                                    {NullCheck(str)}, Operator::kEliminatable);
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
     result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringAsWtf8,
-                                   {NullCheck(str)}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringAsWtf8,
+                                    {NullCheck(str)}, Operator::kEliminatable);
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewWtf8Advance,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewWtf8Advance,
         {NullCheck(view), pos.op, bytes.op}, Operator::kEliminatable);
   }
 
@@ -2361,8 +2357,8 @@ class TurboshaftGraphBuildingInterface {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    OpIndex result = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewWtf8Encode,
+    OpIndex result = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewWtf8Encode,
         {addr.op, pos.op, bytes.op, NullCheck(view),
          __ SmiConstant(Smi::FromInt(memory.index)),
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
@@ -2375,8 +2371,8 @@ class TurboshaftGraphBuildingInterface {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewWtf8Slice,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewWtf8Slice,
         {NullCheck(view), start.op, end.op}, Operator::kEliminatable);
   }
 
@@ -2435,8 +2431,8 @@ class TurboshaftGraphBuildingInterface {
     GOTO(done, result_value);
 
     BIND(bailout);
-    GOTO(done, CallBuiltinFromRuntimeStub(
-                   decoder, WasmCode::kWasmStringViewWtf16GetCodeUnit,
+    GOTO(done, CallBuiltinThroughJumptable(
+                   decoder, Builtin::kWasmStringViewWtf16GetCodeUnit,
                    {string, pos.op}, Operator::kPure));
 
     BIND(done, final_result);
@@ -2452,8 +2448,8 @@ class TurboshaftGraphBuildingInterface {
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
     V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewWtf16Encode,
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewWtf16Encode,
         {offset.op, pos.op, codeunits.op, string,
          __ SmiConstant(Smi::FromInt(imm.index))},
         Operator::kNoDeopt | Operator::kNoThrow);
@@ -2463,47 +2459,46 @@ class TurboshaftGraphBuildingInterface {
                             const Value& start, const Value& end,
                             Value* result) {
     V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewWtf16Slice,
-        {string, start.op, end.op}, Operator::kEliminatable);
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewWtf16Slice, {string, start.op, end.op},
+        Operator::kEliminatable);
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
     V<Tagged> string = NullCheck(str);
-    result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringAsIter,
-                                   {string}, Operator::kEliminatable);
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringAsIter, {string}, Operator::kEliminatable);
   }
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
     V<Tagged> string = NullCheck(view);
     result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringViewIterNext,
-                                   {string}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringViewIterNext,
+                                    {string}, Operator::kEliminatable);
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
     V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewIterAdvance, {string, codepoints.op},
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewIterAdvance, {string, codepoints.op},
         Operator::kEliminatable);
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
     V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewIterRewind, {string, codepoints.op},
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewIterRewind, {string, codepoints.op},
         Operator::kEliminatable);
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
     V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmStringViewIterSlice, {string, codepoints.op},
+    result->op = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmStringViewIterSlice, {string, codepoints.op},
         Operator::kEliminatable);
   }
 
@@ -2511,16 +2506,16 @@ class TurboshaftGraphBuildingInterface {
                      Value* result) {
     V<Tagged> lhs_val = NullCheck(lhs);
     V<Tagged> rhs_val = NullCheck(rhs);
-    result->op = __ UntagSmi(CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kStringCompare, {lhs_val, rhs_val},
+    result->op = __ UntagSmi(CallBuiltinThroughJumptable(
+        decoder, Builtin::kStringCompare, {lhs_val, rhs_val},
         Operator::kEliminatable));
   }
 
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
     result->op =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringFromCodePoint,
-                                   {code_point.op}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringFromCodePoint,
+                                    {code_point.op}, Operator::kEliminatable);
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
@@ -2547,8 +2542,8 @@ class TurboshaftGraphBuildingInterface {
 
     BIND(runtime_label);
     V<Word32> hash_runtime =
-        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmStringHash,
-                                   {string_val}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringHash,
+                                    {string_val}, Operator::kEliminatable);
     GOTO(end_label, hash_runtime);
 
     BIND(end_label, hash_val);
@@ -3966,8 +3961,8 @@ class TurboshaftGraphBuildingInterface {
 
     // TODO(14108): Cache descriptor.
     __ Bind(call_builtin);
-    V<WordPtr> builtin = __ RelocatableConstant(WasmCode::kWasmStackGuard,
-                                                RelocInfo::WASM_STUB_CALL);
+    V<WordPtr> builtin =
+        __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetStubCallDescriptor(
             __ graph_zone(),                      // zone
@@ -4260,14 +4255,12 @@ class TurboshaftGraphBuildingInterface {
     __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
   }
 
-  OpIndex CallBuiltinFromRuntimeStub(
-      FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
-      base::Vector<const OpIndex> args,
+  OpIndex CallBuiltinThroughJumptable(
+      FullDecoder* decoder, Builtin builtin, base::Vector<const OpIndex> args,
       Operator::Properties properties = Operator::kNoProperties,
       CheckForException check_for_exception = CheckForException::kNo) {
-    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
     CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin_name);
+        Builtins::CallInterfaceDescriptorFor(builtin);
     // TODO(14108): We should set properties like `Operator::kEliminatable`
     // where applicable.
     const CallDescriptor* call_descriptor =
@@ -4278,8 +4271,7 @@ class TurboshaftGraphBuildingInterface {
             StubCallMode::kCallWasmRuntimeStub);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
-    V<WordPtr> call_target =
-        __ RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
+    V<WordPtr> call_target = __ RelocatableWasmBuiltinCallTarget(builtin);
     return check_for_exception == CheckForException::kYes
                ? CallAndMaybeCatchException(decoder, call_target, args,
                                             ts_call_descriptor)
@@ -4287,13 +4279,13 @@ class TurboshaftGraphBuildingInterface {
                          ts_call_descriptor);
   }
 
-  OpIndex CallBuiltinFromRuntimeStub(
-      FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
+  OpIndex CallBuiltinThroughJumptable(
+      FullDecoder* decoder, Builtin builtin,
       std::initializer_list<OpIndex> args,
       Operator::Properties properties = Operator::kNoProperties,
       CheckForException check_for_exception = CheckForException::kNo) {
-    return CallBuiltinFromRuntimeStub(decoder, stub_id, base::VectorOf(args),
-                                      properties, check_for_exception);
+    return CallBuiltinThroughJumptable(decoder, builtin, base::VectorOf(args),
+                                       properties, check_for_exception);
   }
 
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<WordPtr> callee,
@@ -4526,8 +4518,8 @@ class TurboshaftGraphBuildingInterface {
 
   void UnpackWasmException(FullDecoder* decoder, V<Tagged> exception,
                            base::Vector<Value> values) {
-    V<FixedArray> exception_values_array = CallBuiltinFromRuntimeStub(
-        decoder, WasmCode::kWasmGetOwnProperty,
+    V<FixedArray> exception_values_array = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmGetOwnProperty,
         {exception, LOAD_IMMUTABLE_ROOT(wasm_exception_values_symbol),
          LOAD_IMMUTABLE_INSTANCE_FIELD(NativeContext,
                                        MemoryRepresentation::TaggedPointer())});
@@ -4891,11 +4883,11 @@ class TurboshaftGraphBuildingInterface {
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
     switch (reason) {
-#define TRAPREASON_TO_TRAPID(name)                                             \
-  case wasm::k##name:                                                          \
-    static_assert(                                                             \
-        static_cast<int>(TrapId::k##name) == wasm::WasmCode::kThrowWasm##name, \
-        "trap id mismatch");                                                   \
+#define TRAPREASON_TO_TRAPID(name)                                 \
+  case wasm::k##name:                                              \
+    static_assert(static_cast<int>(TrapId::k##name) ==             \
+                      static_cast<int>(Builtin::kThrowWasm##name), \
+                  "trap id mismatch");                             \
     return TrapId::k##name;
       FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
 #undef TRAPREASON_TO_TRAPID

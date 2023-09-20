@@ -1290,6 +1290,7 @@ OpIndex GraphBuilder::Process(
                          &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
 
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kTrapIf:
       // For wasm the dominating_frame_state is invalid and will not be used.
       // For traps inlined into JS the dominating_frame_state is valid and is
@@ -1303,6 +1304,7 @@ OpIndex GraphBuilder::Process(
       // needed for the trap.
       __ TrapIfNot(Map(node->InputAt(0)), dominating_frame_state, TrapIdOf(op));
       return OpIndex::Invalid();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
       OpIndex frame_state = Map(node->InputAt(0));

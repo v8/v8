@@ -156,7 +156,6 @@ class TypeInferenceAnalysis {
         case Opcode::kReturn:
         case Opcode::kStore:
         case Opcode::kRetain:
-        case Opcode::kTrapIf:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
         case Opcode::kTuple:
@@ -165,6 +164,7 @@ class TypeInferenceAnalysis {
         case Opcode::kDebugPrint:
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
+        case Opcode::kTrapIf:
 #endif
         case Opcode::kCheckException:
           // These operations do not produce any output that needs to be typed.

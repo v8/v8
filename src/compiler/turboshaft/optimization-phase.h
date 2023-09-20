@@ -892,11 +892,15 @@ class GraphVisitor {
                                           MapToNewGraph(op.frame_state()),
                                           op.negated, op.parameters);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
   OpIndex AssembleOutputGraphTrapIf(const TrapIfOp& op) {
     return assembler().ReduceTrapIf(MapToNewGraph(op.condition()),
                                     MapToNewGraphIfValid(op.frame_state()),
                                     op.negated, op.trap_id);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   OpIndex AssembleOutputGraphTuple(const TupleOp& op) {
     return assembler().ReduceTuple(
         base::VectorOf(MapToNewGraph<4>(op.inputs())));

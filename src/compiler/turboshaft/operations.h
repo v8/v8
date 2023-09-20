@@ -48,7 +48,7 @@ class CallDescriptor;
 class DeoptimizeParameters;
 class FrameStateInfo;
 class Node;
-enum class TrapId : uint32_t;
+enum class TrapId : int32_t;
 }  // namespace v8::internal::compiler
 namespace v8::internal::compiler::turboshaft {
 class Block;
@@ -232,7 +232,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StackSlot)                               \
   V(FrameConstant)                           \
   V(DeoptimizeIf)                            \
-  V(TrapIf)                                  \
+  IF_WASM(V, TrapIf)                         \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -3210,6 +3210,7 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
   auto options() const { return std::tuple{negated, parameters}; }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 struct TrapIfOp : OperationT<TrapIfOp> {
   bool negated;
   const TrapId trap_id;
@@ -3254,6 +3255,7 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   }
   auto options() const { return std::tuple{negated, trap_id}; }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
   const char* source;

@@ -208,9 +208,11 @@ class CallWithReduceArgsHelper {
                      op.parameters);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   OpIndex operator()(const TrapIfOp& op) {
     return callback_(op.condition(), op.frame_state(), op.negated, op.trap_id);
   }
+#endif
 
   OpIndex operator()(const ProjectionOp& op) {
     return callback_(op.input(), op.index, op.rep);

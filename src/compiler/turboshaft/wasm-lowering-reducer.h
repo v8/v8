@@ -144,8 +144,8 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Tagged> heap_number = __ CallBuiltin(
-          wasm::WasmCode::kWasmInt32ToHeapNumber, {int_value}, Operator::kPure);
+      V<Tagged> heap_number = __ CallBuiltin(Builtin::kWasmInt32ToHeapNumber,
+                                             {int_value}, Operator::kPure);
       GOTO(end_label, heap_number);
     }
 
@@ -286,7 +286,7 @@ class WasmLoweringReducer : public Next {
     V<Word32> string_representation = __ Word32BitwiseAnd(
         instance_type, __ Word32Constant(kStringRepresentationMask));
     GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
-    GOTO(done, __ CallBuiltin(wasm::WasmCode::kWasmStringAsWtf16, {string},
+    GOTO(done, __ CallBuiltin(Builtin::kWasmStringAsWtf16, {string},
                               Operator::kPure));
     BIND(done, result);
     return result;

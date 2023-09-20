@@ -460,8 +460,8 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       } break;
       case RelocInfo::WASM_STUB_CALL: {
         Address target = orig_iter.rinfo()->wasm_stub_call_address();
-        uint32_t tag = native_module_->GetRuntimeStubId(target);
-        DCHECK_GT(WasmCode::kRuntimeStubCount, tag);
+        uint32_t tag = static_cast<uint32_t>(
+            native_module_->GetBuiltinInJumptableSlot(target));
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
@@ -862,9 +862,8 @@ void NativeModuleDeserializer::CopyAndRelocate(
       }
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
-        Address target = native_module_->GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(tag), unit.jump_tables);
+        Address target = native_module_->GetJumpTableEntryForBuiltin(
+            static_cast<Builtin>(tag), unit.jump_tables);
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }

@@ -375,6 +375,7 @@ class BranchEliminationReducer : public Next {
     }
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
                          const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
@@ -400,6 +401,7 @@ class BranchEliminationReducer : public Next {
     }
     return OpIndex::Invalid();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   // Resets {known_conditions_} and {dominator_path_} up to the 1st dominator of

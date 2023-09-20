@@ -2660,6 +2660,7 @@ filegroup(
             "src/wasm/value-type.cc",
             "src/wasm/value-type.h",
             "src/wasm/wasm-arguments.h",
+            "src/wasm/wasm-builtin-list.h",
             "src/wasm/wasm-code-manager.cc",
             "src/wasm/wasm-code-manager.h",
             "src/wasm/wasm-debug.cc",

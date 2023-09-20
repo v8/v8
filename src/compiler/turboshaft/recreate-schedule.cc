@@ -1213,6 +1213,8 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
                                                 op.parameters->feedback());
   return AddNode(o, {condition, frame_state});
 }
+
+#if V8_ENABLE_WEBASSEMBLY
 Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   Node* condition = GetNode(op.condition());
   bool has_frame_state = op.frame_state().valid();
@@ -1223,6 +1225,8 @@ Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   return has_frame_state ? AddNode(o, {condition, frame_state})
                          : AddNode(o, {condition});
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Node* ScheduleBuilder::ProcessOperation(const DeoptimizeOp& op) {
   Node* frame_state = GetNode(op.frame_state());
   const Operator* o =

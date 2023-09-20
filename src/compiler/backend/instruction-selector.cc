@@ -1554,7 +1554,9 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
     if (const StoreOp* store = operation.TryCast<StoreOp>()) {
       return store->kind.with_trap_handler;
     }
+#if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+#endif
     return false;
   } else {
     switch (node->opcode()) {
@@ -2964,10 +2966,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
       return VisitTrapUnless(node, TrapIdOf(node->op()));
+#endif
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
@@ -4894,6 +4898,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
         return VisitDeoptimizeUnless(node);
       }
       return VisitDeoptimizeIf(node);
+#if V8_ENABLE_WEBASSEMBLY
     case Opcode::kTrapIf: {
       const TrapIfOp& trap_if = op.Cast<TrapIfOp>();
       if (trap_if.negated) {
@@ -4901,6 +4906,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       return VisitTrapIf(node, trap_if.trap_id);
     }
+#endif
     case Opcode::kCatchBlockBegin:
       MarkAsTagged(node);
       return VisitIfException(node);

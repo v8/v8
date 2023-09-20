@@ -1342,6 +1342,12 @@ class AssemblerOpInterface {
             : ConstantOp::Kind::kRelocatableWasmStubCall,
         static_cast<uint64_t>(value));
   }
+
+  V<WordPtr> RelocatableWasmBuiltinCallTarget(Builtin builtin) {
+    return RelocatableConstant(static_cast<int64_t>(builtin),
+                               RelocInfo::WASM_STUB_CALL);
+  }
+
   V<Context> NoContextConstant() {
     return V<Context>::Cast(TagSmi(Context::kNoContext));
   }
@@ -2290,6 +2296,7 @@ class AssemblerOpInterface {
     Deoptimize(frame_state, params);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   void TrapIf(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
@@ -2310,6 +2317,7 @@ class AssemblerOpInterface {
       Asm().SetGeneratingUnreachableOperations();
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void StaticAssert(OpIndex condition, const char* source) {
     CHECK(v8_flags.turboshaft_enable_debug_features);
@@ -2865,12 +2873,10 @@ class AssemblerOpInterface {
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
-  OpIndex CallBuiltin(wasm::WasmCode::RuntimeStubId stub_id,
-                      std::initializer_list<OpIndex> args,
+  OpIndex CallBuiltin(Builtin builtin, std::initializer_list<OpIndex> args,
                       Operator::Properties properties) {
-    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
     CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin_name);
+        Builtins::CallInterfaceDescriptorFor(builtin);
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetStubCallDescriptor(
             Asm().output_graph().graph_zone(), interface_descriptor,
@@ -2880,8 +2886,7 @@ class AssemblerOpInterface {
     const TSCallDescriptor* ts_call_descriptor =
         TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kYes,
                                  Asm().output_graph().graph_zone());
-    V<WordPtr> call_target =
-        RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
+    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(builtin);
     return Call(call_target, OpIndex::Invalid(), base::VectorOf(args),
                 ts_call_descriptor);
   }

@@ -579,7 +579,8 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     DCHECK_EQ(type, PointerType::kDirect);
     // Use {near_call} for direct Wasm call within a module.
-    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
+    intptr_t wasm_target =
+        static_cast<intptr_t>(wasm::WasmCode::GetRecordWriteBuiltin(fp_mode));
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
 #else
   if (false) {
@@ -629,7 +630,8 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   else {
     DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
     // Use {near_call} for direct Wasm call within a module.
-    auto wasm_target = wasm::WasmCode::GetTSANStoreStub(fp_mode, size, order);
+    auto wasm_target = static_cast<intptr_t>(
+        wasm::WasmCode::GetTSANStoreBuiltin(fp_mode, size, order));
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -670,7 +672,8 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
   else {
     DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
     // Use {near_call} for direct Wasm call within a module.
-    auto wasm_target = wasm::WasmCode::GetTSANRelaxedLoadStub(fp_mode, size);
+    auto wasm_target = static_cast<intptr_t>(
+        wasm::WasmCode::GetTSANRelaxedLoadBuiltin(fp_mode, size));
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

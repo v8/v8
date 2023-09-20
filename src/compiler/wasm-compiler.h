@@ -47,7 +47,7 @@ class SourcePositionTable;
 struct WasmCompilationData;
 class WasmDecorator;
 class WasmGraphAssembler;
-enum class TrapId : uint32_t;
+enum class TrapId : int32_t;
 struct Int64LoweringSpecialCase;
 template <size_t VarCount>
 class GraphAssemblerLabel;

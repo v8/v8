@@ -1565,6 +1565,7 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
                          TrapId trap_id) {
     LABEL_BLOCK(no_change) {
@@ -1587,6 +1588,7 @@ class MachineOptimizationReducer : public Next {
       goto no_change;
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                          RegisterRepresentation rep, BranchHint hint,
