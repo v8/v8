@@ -120,6 +120,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/turboshaft/int64-lowering-phase.h"
+#include "src/compiler/turboshaft/wasm-gc-optimize-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
@@ -3789,6 +3790,12 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     Zone printing_zone(&allocator, ZONE_NAME);
     turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                      "Graph generation");
+
+    // TODO(mliedtke): This phase could potentially be skipped for non-wasm-gc
+    // functions.
+    if (v8_flags.wasm_opt) {
+      pipeline.Run<turboshaft::WasmGCOptimizePhase>();
+    }
 
     // This is more than an optimization currently: We need it to sort blocks to
     // work around a bug in RecreateSchedulePhase.
