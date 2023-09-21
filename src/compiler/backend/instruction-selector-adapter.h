@@ -185,6 +185,11 @@ struct TurbofanAdapter {
     explicit LoadView(node_t node) : node_(node) {}
 
     LoadRepresentation loaded_rep() const {
+      if (is_atomic()) {
+        return AtomicLoadParametersOf(node_->op()).representation();
+      } else if (node_->opcode() == IrOpcode::kF64x2PromoteLowF32x4) {
+        return LoadRepresentation::Simd128();
+      }
       return LoadRepresentationOf(node_->op());
     }
     bool is_protected(bool* traps_on_null) const {
