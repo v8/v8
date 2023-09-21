@@ -450,34 +450,8 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // NewSpace implementation
 
 NewSpace::NewSpace(Heap* heap, LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, allocation_info) {}
-
-void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
-  if (allocator_->allocation_info().MergeIfAdjacent(info)) {
-    allocator_->linear_area_original_data().set_original_top_release(
-        allocator_->allocation_info().top());
-  }
-
-#if DEBUG
-  VerifyTop();
-#endif
-}
-
-#if DEBUG
-void NewSpace::VerifyTop() const {
-  SpaceWithLinearArea::VerifyTop();
-
-  // Ensure that original_top_ always >= LAB start. The delta between start_
-  // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(allocator_->linear_area_original_data().get_original_top_acquire(),
-            allocator_->allocation_info().start());
-
-  // Ensure that limit() is <= original_limit_.
-  DCHECK_LE(
-      allocator_->allocation_info().limit(),
-      allocator_->linear_area_original_data().get_original_limit_relaxed());
-}
-#endif  // DEBUG
+    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, CompactionSpaceKind::kNone,
+                          allocation_info) {}
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -571,15 +545,7 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
 
   Address new_top = known_top == 0 ? to_space_.page_low() : known_top;
   BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
-  allocator_->allocation_info().Reset(new_top, to_space_.page_high());
-  // The order of the following two stores is important.
-  // See the corresponding loads in ConcurrentMarking::Run.
-  {
-    base::SharedMutexGuard<base::kExclusive> guard(
-        allocator_->linear_area_lock());
-    allocator_->linear_area_original_data().set_original_limit_relaxed(limit());
-    allocator_->linear_area_original_data().set_original_top_release(top());
-  }
+  allocator_->ResetLab(new_top, to_space_.page_high(), to_space_.page_high());
 
   // The linear allocation area should reach the end of the page, so no filler
   // object is needed there to make the page iterable.
@@ -617,7 +583,7 @@ void SemiSpaceNewSpace::UpdateInlineAllocationLimitForAllocation(
       limit(), static_cast<int>(to_space_.page_high() - limit()));
 
 #if DEBUG
-  VerifyTop();
+  allocator_->Verify();
 #endif
 }
 
@@ -685,17 +651,6 @@ void SemiSpaceNewSpace::FreeLinearAllocationArea() {
   allocator_->MakeLinearAllocationAreaIterable();
   UpdateInlineAllocationLimit();
 }
-
-#if DEBUG
-void SemiSpaceNewSpace::VerifyTop() const {
-  NewSpace::VerifyTop();
-
-  // original_limit_ always needs to be end of curent to space page.
-  DCHECK_EQ(
-      allocator_->linear_area_original_data().get_original_limit_relaxed(),
-      to_space_.page_high());
-}
-#endif  // DEBUG
 
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
@@ -886,7 +841,7 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocator_->allocation_info(), to_space_);
 #if DEBUG
-  VerifyTop();
+  allocator_->Verify();
 #endif  // DEBUG
 
   AdvanceAllocationObservers();

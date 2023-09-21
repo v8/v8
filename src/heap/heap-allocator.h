@@ -82,6 +82,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  MainAllocator* new_space_allocator() { return new_space_allocator_; }
+  MainAllocator* old_space_allocator() { return old_space_allocator_; }
+  MainAllocator* trusted_space_allocator() { return trusted_space_allocator_; }
+  MainAllocator* code_space_allocator() { return code_space_allocator_; }
+
  private:
   V8_INLINE PagedSpace* code_space() const;
   V8_INLINE CodeLargeObjectSpace* code_lo_space() const;

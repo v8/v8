@@ -236,15 +236,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   inline bool Contains(Tagged<HeapObject> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
-#if DEBUG
-  void VerifyTop() const override;
-#endif  // DEBUG
-
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  void MaybeFreeUnusedLab(LinearAllocationArea info);
 
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;
@@ -392,10 +386,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
     DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
     return to_space_.minimum_capacity();
   }
-
-#if DEBUG
-  void VerifyTop() const final;
-#endif  // DEBUG
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -689,10 +679,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   size_t MaximumCapacity() const final {
     return paged_space_.MaximumCapacity();
   }
-
-#if DEBUG
-  void VerifyTop() const final { NewSpace::VerifyTop(); }
-#endif  // DEBUG
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.

@@ -38,24 +38,26 @@
 namespace v8 {
 namespace internal {
 
-SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                                         std::unique_ptr<FreeList> free_list,
-                                         LinearAllocationArea& allocation_info)
+SpaceWithLinearArea::SpaceWithLinearArea(
+    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind,
+    LinearAllocationArea& allocation_info)
     : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this, allocation_info);
+  owned_allocator_.emplace(heap, this, compaction_space_kind, allocation_info);
   allocator_ = &owned_allocator_.value();
 }
 
-SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                                         std::unique_ptr<FreeList> free_list)
+SpaceWithLinearArea::SpaceWithLinearArea(
+    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind)
     : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this);
+  owned_allocator_.emplace(heap, this, compaction_space_kind);
   allocator_ = &owned_allocator_.value();
 }
 
-SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                                         std::unique_ptr<FreeList> free_list,
-                                         MainAllocator* allocator)
+SpaceWithLinearArea::SpaceWithLinearArea(
+    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind, MainAllocator* allocator)
     : Space(heap, id, std::move(free_list)), allocator_(allocator) {}
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
@@ -152,23 +154,6 @@ void SpaceWithLinearArea::ResumeAllocationObservers() {
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
   allocator_->AdvanceAllocationObservers();
 }
-
-void SpaceWithLinearArea::InvokeAllocationObservers(
-    Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
-    size_t allocation_size) {
-  allocator_->InvokeAllocationObservers(soon_object, size_in_bytes,
-                                        aligned_size_in_bytes, allocation_size);
-}
-
-#if DEBUG
-void SpaceWithLinearArea::VerifyTop() const {
-  // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocator_->allocation_info().start(),
-            allocator_->allocation_info().top());
-  DCHECK_LE(allocator_->allocation_info().top(),
-            allocator_->allocation_info().limit());
-}
-#endif  // DEBUG
 
 SpaceIterator::SpaceIterator(Heap* heap)
     : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}

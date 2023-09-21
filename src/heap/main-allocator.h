@@ -49,10 +49,12 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  MainAllocator(Heap* heap, SpaceWithLinearArea* space);
+  MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                CompactionSpaceKind compaction_space_kind);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
   MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                CompactionSpaceKind compaction_space_kind,
                 LinearAllocationArea& allocation_info);
 
   // Returns the allocation pointer in this space.
@@ -70,10 +72,6 @@ class MainAllocator {
     return allocation_info_.limit_address();
   }
 
-  base::SharedMutex* linear_area_lock() {
-    return linear_area_original_data_.linear_area_lock();
-  }
-
   Address original_top_acquire() const {
     return linear_area_original_data_.get_original_top_acquire();
   }
@@ -82,12 +80,10 @@ class MainAllocator {
     return linear_area_original_data_.get_original_limit_relaxed();
   }
 
-  void MoveOriginalTopForward() {
-    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
-    DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
-    DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
-    linear_area_original_data_.set_original_top_release(top());
-  }
+  void MoveOriginalTopForward();
+  void ResetLab(Address start, Address end, Address extended_end);
+  V8_EXPORT_PRIVATE bool IsPendingAllocation(Address object_address);
+  void MaybeFreeUnusedLab(LinearAllocationArea lab);
 
   LinearAllocationArea& allocation_info() { return allocation_info_; }
 
@@ -99,14 +95,6 @@ class MainAllocator {
 
   const AllocationCounter& allocation_counter() const {
     return allocation_counter_;
-  }
-
-  LinearAreaOriginalData& linear_area_original_data() {
-    return linear_area_original_data_;
-  }
-
-  const LinearAreaOriginalData& linear_area_original_data() const {
-    return linear_area_original_data_;
   }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
@@ -138,6 +126,10 @@ class MainAllocator {
 
   V8_INLINE bool TryFreeLast(Address object_address, int object_size);
 
+#if DEBUG
+  void Verify() const;
+#endif  // DEBUG
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
@@ -168,12 +160,25 @@ class MainAllocator {
   AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
                          AllocationOrigin origin = AllocationOrigin::kRuntime);
 
+  LinearAreaOriginalData& linear_area_original_data() {
+    return linear_area_original_data_;
+  }
+
+  const LinearAreaOriginalData& linear_area_original_data() const {
+    return linear_area_original_data_;
+  }
+
   AllocationSpace identity() const;
+
+  bool is_compaction_space() const {
+    return compaction_space_kind_ != CompactionSpaceKind::kNone;
+  }
 
   Heap* heap() const { return heap_; }
 
   Heap* heap_;
   SpaceWithLinearArea* space_;
+  CompactionSpaceKind compaction_space_kind_;
 
   AllocationCounter allocation_counter_;
   LinearAllocationArea& allocation_info_;

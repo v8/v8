@@ -4120,7 +4120,7 @@ double Heap::MonotonicallyIncreasingTimeInMs() const {
 #if DEBUG
 void Heap::VerifyNewSpaceTop() {
   if (!new_space()) return;
-  new_space()->VerifyTop();
+  allocator()->new_space_allocator()->Verify();
 }
 #endif  // DEBUG
 

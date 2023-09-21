@@ -84,7 +84,8 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
                                std::unique_ptr<FreeList> free_list,
                                LinearAllocationArea& allocation_info,
                                CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_info),
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind, allocation_info),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -96,7 +97,8 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
                                std::unique_ptr<FreeList> free_list,
                                MainAllocator* allocator,
                                CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, std::move(free_list), allocator),
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind, allocator),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -107,7 +109,8 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
                                Executability executable,
                                std::unique_ptr<FreeList> free_list,
                                CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, std::move(free_list)),
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -296,13 +299,8 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
   BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
-  allocator_->allocation_info().Reset(top, limit);
 
-  base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
-  if (!is_compaction_space())
-    optional_guard.emplace(allocator_->linear_area_lock());
-  allocator_->linear_area_original_data().set_original_limit_relaxed(end);
-  allocator_->linear_area_original_data().set_original_top_release(top);
+  allocator_->ResetLab(top, limit, end);
 }
 
 void PagedSpaceBase::SetLimit(Address limit) {

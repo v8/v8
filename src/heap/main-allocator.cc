@@ -9,11 +9,19 @@ namespace v8 {
 namespace internal {
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                             CompactionSpaceKind compaction_space_kind,
                              LinearAllocationArea& allocation_info)
-    : heap_(heap), space_(space), allocation_info_(allocation_info) {}
+    : heap_(heap),
+      space_(space),
+      compaction_space_kind_(compaction_space_kind),
+      allocation_info_(allocation_info) {}
 
-MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space)
-    : heap_(heap), space_(space), allocation_info_(owned_allocation_info_) {}
+MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                             CompactionSpaceKind compaction_space_kind)
+    : heap_(heap),
+      space_(space),
+      compaction_space_kind_(compaction_space_kind),
+      allocation_info_(owned_allocation_info_) {}
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
@@ -71,7 +79,7 @@ void MainAllocator::MarkLabStartInitialized() {
     MoveOriginalTopForward();
 
 #if DEBUG
-    heap()->VerifyNewSpaceTop();
+    Verify();
 #endif
   }
 }
@@ -154,8 +162,8 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
   DCHECK(!result.IsFailure());
 
-  space_->InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                                    size_in_bytes, size_in_bytes);
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
+                            size_in_bytes);
 
   return result;
 }
@@ -179,8 +187,8 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
   DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
 
-  space_->InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                                    aligned_size_in_bytes, max_aligned_size);
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
+                            aligned_size_in_bytes, max_aligned_size);
 
   return result;
 }
@@ -213,6 +221,70 @@ void MainAllocator::UnmarkLinearAllocationArea() {
         ->DestroyBlackArea(current_top, current_limit);
   }
 }
+
+void MainAllocator::MoveOriginalTopForward() {
+  DCHECK(!is_compaction_space());
+  base::SharedMutexGuard<base::kExclusive> guard(
+      linear_area_original_data_.linear_area_lock());
+  DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
+  DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
+  linear_area_original_data_.set_original_top_release(top());
+}
+
+void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, extended_end);
+
+  allocation_info().Reset(start, end);
+
+  base::Optional<base::SharedMutexGuard<base::kExclusive>> guard;
+  if (!is_compaction_space())
+    guard.emplace(linear_area_original_data_.linear_area_lock());
+  linear_area_original_data().set_original_limit_relaxed(extended_end);
+  linear_area_original_data().set_original_top_release(start);
+}
+
+bool MainAllocator::IsPendingAllocation(Address object_address) {
+  DCHECK(!is_compaction_space());
+  base::SharedMutexGuard<base::kShared> guard(
+      linear_area_original_data_.linear_area_lock());
+  Address top = original_top_acquire();
+  Address limit = original_limit_relaxed();
+  DCHECK_LE(top, limit);
+  return top && top <= object_address && object_address < limit;
+}
+
+void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
+  DCHECK(!is_compaction_space());
+
+  if (allocation_info().MergeIfAdjacent(lab)) {
+    base::SharedMutexGuard<base::kExclusive> guard(
+        linear_area_original_data_.linear_area_lock());
+    linear_area_original_data().set_original_top_release(
+        allocation_info().top());
+  }
+
+#if DEBUG
+  Verify();
+#endif
+}
+
+#if DEBUG
+void MainAllocator::Verify() const {
+  // Ensure validity of LAB: start <= top <= limit
+  DCHECK_LE(allocation_info().start(), allocation_info().top());
+  DCHECK_LE(allocation_info().top(), allocation_info().limit());
+
+  // Ensure that original_top_ always >= LAB start. The delta between start_
+  // and top_ is still to be processed by allocation observers.
+  DCHECK_GE(linear_area_original_data().get_original_top_acquire(),
+            allocation_info().start());
+
+  // Ensure that limit() is <= original_limit_.
+  DCHECK_LE(allocation_info().limit(),
+            linear_area_original_data().get_original_limit_relaxed());
+}
+#endif  // DEBUG
 
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
 

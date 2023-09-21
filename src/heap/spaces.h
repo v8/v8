@@ -296,24 +296,26 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
  public:
   // Creates this space with a new MainAllocator instance.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                      std::unique_ptr<FreeList> free_list);
+                      std::unique_ptr<FreeList> free_list,
+                      CompactionSpaceKind compaction_space_kind);
 
   // Creates this space with a new MainAllocator instance and passes
   // `allocation_info` to its constructor.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list,
+                      CompactionSpaceKind compaction_space_kind,
                       LinearAllocationArea& allocation_info);
 
   // Creates this space and uses the existing `allocator`. It doesn't create a
   // new MainAllocator instance.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list,
+                      CompactionSpaceKind compaction_space_kind,
                       MainAllocator* allocator);
 
   virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
-  Address start() const { return allocator_->start(); }
   Address top() const { return allocator_->top(); }
   Address limit() const { return allocator_->limit(); }
 
@@ -336,9 +338,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   void PauseAllocationObservers() override;
 
   void AdvanceAllocationObservers();
-  void InvokeAllocationObservers(Address soon_object, size_t size_in_bytes,
-                                 size_t aligned_size_in_bytes,
-                                 size_t allocation_size);
 
   virtual void FreeLinearAllocationArea() = 0;
 
@@ -366,10 +365,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
                                 AllocationAlignment alignment,
                                 AllocationOrigin origin,
                                 int* out_max_aligned_size) = 0;
-
-#if DEBUG
-  virtual void VerifyTop() const;
-#endif  // DEBUG
 
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator* allocator_;
