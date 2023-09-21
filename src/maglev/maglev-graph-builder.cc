@@ -5590,9 +5590,19 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   // next_index = index + 1
   // ```
-  ValueNode* next_index_int32 =
-      AddNewNode<Int32IncrementWithOverflow>({index_int32});
-  EnsureType(next_index_int32, NodeType::kSmi);
+  ValueNode* next_index_int32 = nullptr;
+  {
+    // Eager deopt scope for index increment overflow.
+    // TODO(pthier): In practice this increment can never overflow, as the max
+    // possible array length is less than int32 max value. Add a new
+    // Int32Increment that asserts no overflow instead of deopting.
+    DeoptFrameScope eager_deopt_scope(
+        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
+        base::VectorOf<ValueNode*>(
+            {receiver, callback, this_arg, index_int32, original_length}));
+    next_index_int32 = AddNewNode<Int32IncrementWithOverflow>({index_int32});
+    EnsureType(next_index_int32, NodeType::kSmi);
+  }
   // TODO(leszeks): Assert Smi.
 
   // ```
