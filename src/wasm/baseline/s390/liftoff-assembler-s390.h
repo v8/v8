@@ -2810,7 +2810,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister acc) {
   // Make sure temp register is unique.
   Simd128Register temp =
-      GetUnusedRegister(kFpReg, LiftoffRegList{dst, lhs, rhs}).fp();
+      GetUnusedRegister(kFpReg, LiftoffRegList{dst, lhs, rhs, acc}).fp();
   I32x4DotI8x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(), kScratchDoubleReg,
                     temp);
 }
