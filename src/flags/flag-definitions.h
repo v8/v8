@@ -2396,10 +2396,9 @@ DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
-DEFINE_BOOL(concurrent_minor_ms_marking, false,
+DEFINE_BOOL(concurrent_minor_ms_marking, true,
             "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
-DEFINE_IMPLICATION(concurrent_minor_ms_marking, minor_ms)
 
 #ifndef DEBUG
 #define V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT 8
