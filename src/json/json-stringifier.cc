@@ -1058,6 +1058,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
 
 JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Handle<JSReceiver> object, uint32_t start, uint32_t length) {
+  if (!need_stack_) {
+    need_stack_ = true;
+    return NEED_STACK;
+  }
   // We need to write out at least two characters per array element.
   static const int kMaxSerializableArrayLength = String::kMaxLength / 2;
   if (length > kMaxSerializableArrayLength) {
