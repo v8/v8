@@ -398,6 +398,11 @@ class OptimizedCompilationJob : public CompilationJob {
   // Finalizes the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
 
+  // Registers weak object to optimized code dependencies.
+  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
+                                          Handle<NativeContext> context,
+                                          Handle<Code> code);
+
   const char* compiler_name() const { return compiler_name_; }
 
   double prepare_in_ms() const {
