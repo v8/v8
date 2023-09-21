@@ -278,8 +278,7 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
     predecessor_alias_snapshots_.clear();
     predecessor_maps_snapshots_.clear();
     predecessor_memory_snapshots_.clear();
-    for (const Block* p = block->LastPredecessor(); p != nullptr;
-         p = p->NeighboringPredecessor()) {
+    for (const Block* p : block->PredecessorsIterable()) {
       auto pred_snapshots = block_to_snapshot_mapping_[p->index()];
       // When we visit the loop for the first time, the loop header hasn't
       // been visited yet, so we ignore it.

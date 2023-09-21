@@ -96,8 +96,7 @@ class TypeInferenceAnalysis {
     // Collect the snapshots of all predecessors.
     {
       predecessors_.clear();
-      for (const Block* pred = block.LastPredecessor(); pred != nullptr;
-           pred = pred->NeighboringPredecessor()) {
+      for (const Block* pred : block.PredecessorsIterable()) {
         base::Optional<table_t::Snapshot> pred_snapshot =
             block_to_snapshot_mapping_[pred->index()];
         if (pred_snapshot.has_value()) {

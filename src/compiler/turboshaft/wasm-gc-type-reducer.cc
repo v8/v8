@@ -94,14 +94,12 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
 
 void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
   DCHECK(!block_to_snapshot_[block.index()].has_value());
-  base::SmallVector<Block*, 8> predecessors = block.Predecessors();
-  base::SmallVector<Snapshot, 8> snapshots(predecessors.size());
-  size_t i = 0;
-  // TODO(mliedtke): Add custom iterator for predecessors?
-  for (Block* pred = block.LastPredecessor(); pred != nullptr;
-       pred = pred->NeighboringPredecessor()) {
-    snapshots[i++] = block_to_snapshot_[pred->index()].value();
-  }
+  base::SmallVector<Snapshot, 8> snapshots;
+  NeighboringPredecessorIterable iterable = block.PredecessorsIterable();
+  std::transform(iterable.begin(), iterable.end(),
+                 std::back_insert_iterator(snapshots), [this](Block* pred) {
+                   return block_to_snapshot_[pred->index()].value();
+                 });
   types_table_.StartNewSnapshot(
       base::VectorOf(snapshots),
       [this](TypeSnapshotTable::Key,

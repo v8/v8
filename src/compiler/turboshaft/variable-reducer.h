@@ -100,8 +100,7 @@ class VariableReducer : public Next {
     SealAndSaveVariableSnapshot();
 
     predecessors_.clear();
-    for (const Block* pred = new_block->LastPredecessor(); pred != nullptr;
-         pred = pred->NeighboringPredecessor()) {
+    for (const Block* pred : new_block->PredecessorsIterable()) {
       base::Optional<Snapshot> pred_snapshot =
           block_to_snapshot_mapping_[pred->index()];
       DCHECK(pred_snapshot.has_value());

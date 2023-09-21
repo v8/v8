@@ -27,6 +27,7 @@ class SmallVector {
 
  public:
   static constexpr size_t kInlineSize = kSize;
+  using value_type = T;
 
   SmallVector() = default;
   explicit SmallVector(const Allocator& allocator) : allocator_(allocator) {}

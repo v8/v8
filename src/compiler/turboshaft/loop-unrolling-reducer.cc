@@ -61,8 +61,7 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(Block* header) {
       pred_start = pred_start->NeighboringPredecessor();
       info.has_inner_loops = true;
     }
-    for (Block* pred = pred_start; pred != nullptr;
-         pred = pred->NeighboringPredecessor()) {
+    for (Block* pred : NeighboringPredecessorIterable(pred_start)) {
       queue_.push_back(pred);
     }
   }

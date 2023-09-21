@@ -268,6 +268,38 @@ class RandomAccessStackDominatorNode
   Derived* jmp_ = nullptr;
 };
 
+// A simple iterator to walk over the predecessors of a block. Note that the
+// iteration order is reversed.
+class PredecessorIterator {
+ public:
+  explicit PredecessorIterator(Block* block) : current_(block) {}
+
+  PredecessorIterator& operator++();
+  constexpr bool operator==(const PredecessorIterator& other) const {
+    return current_ == other.current_;
+  }
+  constexpr bool operator!=(const PredecessorIterator& other) const {
+    return !(*this == other);
+  }
+
+  Block* operator*() const { return current_; }
+
+ private:
+  Block* current_;
+};
+
+// An iterable wrapper for the predecessors of a block.
+class NeighboringPredecessorIterable {
+ public:
+  explicit NeighboringPredecessorIterable(Block* begin) : begin_(begin) {}
+
+  PredecessorIterator begin() const { return PredecessorIterator(begin_); }
+  PredecessorIterator end() const { return PredecessorIterator(nullptr); }
+
+ private:
+  Block* begin_;
+};
+
 // A basic block
 class Block : public RandomAccessStackDominatorNode<Block> {
  public:
@@ -297,6 +329,12 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     }
     std::reverse(result.begin(), result.end());
     return result;
+  }
+
+  // Returns an iterable object (defining begin() and end()) to iterate over the
+  // block's predecessors.
+  NeighboringPredecessorIterable PredecessorsIterable() const {
+    return NeighboringPredecessorIterable(last_predecessor_);
   }
 
   // TODO(dmercadier): we should store predecessor count in the Blocks directly
@@ -464,6 +502,12 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 };
 
 std::ostream& operator<<(std::ostream& os, const Block* b);
+
+inline PredecessorIterator& PredecessorIterator::operator++() {
+  DCHECK_NE(current_, nullptr);
+  current_ = current_->NeighboringPredecessor();
+  return *this;
+}
 
 class Graph {
  public:
@@ -1088,5 +1132,13 @@ inline Derived* RandomAccessStackDominatorNode<Derived>::GetCommonDominator(
 }
 
 }  // namespace v8::internal::compiler::turboshaft
+
+// MSVC needs this definition to know how to deal with the PredecessorIterator.
+template <>
+class std::iterator_traits<
+    v8::internal::compiler::turboshaft::PredecessorIterator> {
+ public:
+  using iterator_category = std::forward_iterator_tag;
+};
 
 #endif  // V8_COMPILER_TURBOSHAFT_GRAPH_H_
