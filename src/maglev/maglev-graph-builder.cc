@@ -6693,7 +6693,9 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
 
   CallKnownApiFunction::Mode mode =
       broker()->dependencies()->DependOnNoProfilingProtector()
-          ? CallKnownApiFunction::kNoProfiling
+          ? (v8_flags.maglev_inline_api_calls
+                 ? CallKnownApiFunction::kNoProfilingInlined
+                 : CallKnownApiFunction::kNoProfiling)
           : CallKnownApiFunction::kGeneric;
 
   return AddNewNode<CallKnownApiFunction>(

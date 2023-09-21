@@ -535,6 +535,8 @@ DEFINE_WEAK_IMPLICATION(maglev_build_code_on_background,
                         maglev_deopt_data_on_background)
 DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
+DEFINE_BOOL(maglev_inline_api_calls, false,
+            "Inline CallApiCallback builtin into generated code")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 

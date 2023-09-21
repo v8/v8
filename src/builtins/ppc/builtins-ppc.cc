@@ -3616,9 +3616,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the API function here.
   MemOperand stack_space_operand =
       ExitFrameStackSlotOperand(FCA::kLengthOffset + kSlotsToDropOnStackSize);
-  __ mov(scratch, Operand((FCA::kArgsLength + 1 /* receiver */ +
-                           exit_frame_params_count) *
-                          kSystemPointerSize));
+  __ mov(scratch,
+         Operand((FCA::kArgsLengthWithReceiver + exit_frame_params_count) *
+                 kSystemPointerSize));
   __ ShiftLeftU64(ip, argc, Operand(kSystemPointerSizeLog2));
   __ add(scratch, scratch, ip);
   __ StoreU64(scratch, stack_space_operand);

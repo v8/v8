@@ -3783,7 +3783,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // FunctionCallbackInfo::values_ (points at the first varargs argument
     // passed on the stack).
     __ lea(holder,
-           Operand(holder, (FCA::kArgsLength + 1) * kSystemPointerSize));
+           Operand(holder, FCA::kArgsLengthWithReceiver * kSystemPointerSize));
     __ mov(ExitFrameStackSlotOperand(kApiArgsSize + FCA::kValuesOffset),
            holder);
 
@@ -3797,10 +3797,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   constexpr int kBytesToDropOffset = FCA::kLengthOffset + kSystemPointerSize;
   static_assert(kBytesToDropOffset ==
                 (kApiStackSpace - 1) * kSystemPointerSize);
-  __ lea(scratch, Operand(argc, times_system_pointer_size,
-                          (FCA::kArgsLength + 1 /* receiver */ +
-                           exit_frame_params_count) *
-                              kSystemPointerSize));
+  __ lea(scratch,
+         Operand(argc, times_system_pointer_size,
+                 (FCA::kArgsLengthWithReceiver + exit_frame_params_count) *
+                     kSystemPointerSize));
   __ mov(ExitFrameStackSlotOperand(kApiArgsSize + kBytesToDropOffset), scratch);
 
   __ RecordComment("v8::FunctionCallback's argument.");

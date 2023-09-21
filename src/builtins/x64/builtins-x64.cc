@@ -4337,7 +4337,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // FunctionCallbackInfo::values_ (points at the first varargs argument
     // passed on the stack).
     __ leaq(holder,
-            Operand(holder, (FCA::kArgsLength + 1) * kSystemPointerSize));
+            Operand(holder, FCA::kArgsLengthWithReceiver * kSystemPointerSize));
     __ movq(ExitFrameStackSlotOperand(FCA::kValuesOffset), holder);
 
     // FunctionCallbackInfo::length_.
@@ -4351,9 +4351,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                 (kApiStackSpace - 1) * kSystemPointerSize);
   __ leaq(kScratchRegister,
           Operand(argc, times_system_pointer_size,
-                  (FCA::kArgsLength + exit_frame_params_count) *
-                          kSystemPointerSize +
-                      kReceiverOnStackSize));
+                  (FCA::kArgsLengthWithReceiver + exit_frame_params_count) *
+                      kSystemPointerSize));
   __ movq(ExitFrameStackSlotOperand(kBytesToDropOffset), kScratchRegister);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -4375,9 +4374,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
+  Label* no_done = nullptr;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, thunk_arg, kUseExitFrameStackSlotOperand,
-                           &stack_space_operand, return_value_operand);
+                           &stack_space_operand, return_value_operand, no_done);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -4492,9 +4492,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
-  CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kStackUnwindSpace,
-                           kUseStackSpaceConstant, return_value_operand);
+  Label* no_done = nullptr;
+  CallApiFunctionAndReturn(
+      masm, with_profiling, api_function_address, thunk_ref, thunk_arg,
+      kStackUnwindSpace, kUseStackSpaceConstant, return_value_operand, no_done);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

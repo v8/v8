@@ -334,6 +334,16 @@ class MaglevAssembler : public MacroAssembler {
   void MaterialiseValueNode(Register dst, ValueNode* value);
 
   inline void IncrementInt32(Register reg);
+  inline void IncrementAddress(Register reg, int32_t delta);
+  inline void LoadAddress(Register dst, MemOperand location);
+
+  // Depending on architecture either pushes the address on the target to the
+  // stack or sets link register to the target.
+  // Returns the number of words actually pushed on the stack (0 or 1).
+  inline int PushOrSetReturnAddressTo(Label* target);
+
+  inline void EmitEnterExitFrame(int extra_slots, StackFrame::Type frame_type,
+                                 Register c_function, Register scratch);
 
   inline MemOperand StackSlotOperand(StackSlot slot);
   inline void Move(StackSlot dst, Register src);

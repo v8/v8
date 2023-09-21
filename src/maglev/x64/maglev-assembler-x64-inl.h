@@ -513,6 +513,27 @@ inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot stack_slot) {
 
 inline void MaglevAssembler::IncrementInt32(Register reg) { incl(reg); }
 
+inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
+  leaq(reg, MemOperand(reg, delta));
+}
+
+inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
+  leaq(dst, location);
+}
+
+inline int MaglevAssembler::PushOrSetReturnAddressTo(Label* target) {
+  leaq(kScratchRegister, Operand(target));
+  pushq(kScratchRegister);
+  return 1;
+}
+
+inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
+                                                StackFrame::Type frame_type,
+                                                Register c_function,
+                                                Register scratch) {
+  EnterExitFrame(extra_slots, frame_type, c_function);
+}
+
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   movq(StackSlotOperand(dst), src);
 }

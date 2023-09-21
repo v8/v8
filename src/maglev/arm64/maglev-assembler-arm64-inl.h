@@ -669,6 +669,27 @@ inline void MaglevAssembler::IncrementInt32(Register reg) {
   Add(reg.W(), reg.W(), Immediate(1));
 }
 
+inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
+  Add(reg.X(), reg.X(), Immediate(delta));
+}
+
+inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
+  DCHECK(location.IsImmediateOffset());
+  Add(dst.X(), location.base(), Immediate(location.offset()));
+}
+
+inline int MaglevAssembler::PushOrSetReturnAddressTo(Label* target) {
+  adr(lr, target);
+  return 0;
+}
+
+inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
+                                                StackFrame::Type frame_type,
+                                                Register c_function,
+                                                Register scratch) {
+  EnterExitFrame(scratch, extra_slots, frame_type);
+}
+
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   Str(src, StackSlotOperand(dst));
 }

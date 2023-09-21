@@ -4259,7 +4259,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand) {
+                              MemOperand return_value_operand, Label* done) {
   ASM_CODE_COMMENT(masm);
   ASM_LOCATION("CallApiFunctionAndReturn");
 
@@ -4296,6 +4296,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
   DCHECK(!AreAliased(thunk_arg,  // incoming parameters
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+
+  // Explicitly include x16/x17 to let StoreReturnAddressAndCall() use them.
+  UseScratchRegisterScope fix_temps(masm);
+  fix_temps.Include(x16, x17);
+
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Allocate HandleScope in callee-save registers.");
@@ -4391,8 +4396,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // {stack_space_operand} was loaded into {stack_space_reg} above.
     __ DropArguments(stack_space_reg);
   }
-
-  __ Ret();
+  if (done) {
+    __ B(done);
+  } else {
+    __ Ret();
+  }
 
   if (with_profiling) {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");

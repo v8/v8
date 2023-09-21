@@ -3071,7 +3071,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand) {
+                              MemOperand return_value_operand, Label* done) {
   ASM_CODE_COMMENT(masm);
 
   using ER = ExternalReference;
@@ -3197,7 +3197,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
 
-  __ mov(pc, lr);
+  if (done) {
+    __ b(done);
+  } else {
+    __ mov(pc, lr);
+  }
 
   if (with_profiling) {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");

@@ -7468,6 +7468,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   enum Mode {
     // Use Builtin::kCallApiCallbackOptimizedNoProfiling.
     kNoProfiling,
+    // Inline API call sequence into the generated code.
+    kNoProfilingInlined,
     // Use Builtin::kCallApiCallbackOptimized.
     kGeneric,
   };
@@ -7524,6 +7526,9 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     return call_handler_info_;
   }
   compiler::ObjectRef data() const { return data_; }
+
+  bool inline_builtin() const { return mode() == kNoProfilingInlined; }
+
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -7534,7 +7539,10 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  using ModeField = NextBitField<Mode, 1>;
+  using ModeField = NextBitField<Mode, 2>;
+
+  void GenerateCallApiCallbackOptimizedInline(MaglevAssembler* masm,
+                                              const ProcessingState& state);
 
   const compiler::FunctionTemplateInfoRef function_template_info_;
   const compiler::CallHandlerInfoRef call_handler_info_;

@@ -491,6 +491,7 @@ GENERAL_REGISTER_CODE_LIST(DEFINE_VREGISTERS)
 #undef DEFINE_REGISTER
 
 // Registers aliases.
+ALIAS_REGISTER(Register, kStackPointerRegister, sp);
 ALIAS_REGISTER(VRegister, v8_, v8);  // Avoid conflicts with namespace v8.
 ALIAS_REGISTER(Register, ip0, x16);
 ALIAS_REGISTER(Register, ip1, x17);
