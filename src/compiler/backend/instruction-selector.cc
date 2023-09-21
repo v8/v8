@@ -4225,6 +4225,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       DCHECK(op.IsBlockTerminator());
       break;
     case Opcode::kParameter: {
+      // DeadCodeElimination does not eliminate unused parameter operations, so
+      // we just eliminate them here.
+      if (op.saturated_use_count.IsZero()) return;
       // Parameters should always be scheduled to the first block.
       DCHECK_EQ(this->rpo_number(this->block(schedule(), node)).ToInt(), 0);
       MachineType type = linkage()->GetParameterType(
