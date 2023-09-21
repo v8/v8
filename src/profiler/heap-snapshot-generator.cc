@@ -2088,26 +2088,66 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
                                    ->module_object()
                                    ->native_module()
                                    ->GetNamesProvider();
+  Isolate* isolate = heap_->isolate();
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    if (!type->field(i).is_reference()) continue;
     wasm::StringBuilder sb;
     names->PrintFieldName(sb, info->type_index(), i);
     sb << '\0';
     const char* field_name = names_->GetCopy(sb.start());
-    int field_offset = type->field_offset(i);
-    Tagged<Object> value = obj->RawField(field_offset).load(entry->isolate());
-    HeapEntry* value_entry = GetEntry(value);
-    entry->SetNamedReference(HeapGraphEdge::kProperty, field_name, value_entry,
-                             generator_);
-    MarkVisitedField(WasmStruct::kHeaderSize + field_offset);
+    switch (type->field(i).kind()) {
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kI32:
+      case wasm::kI64:
+      case wasm::kF32:
+      case wasm::kF64:
+      case wasm::kS128: {
+        if (!snapshot_->capture_numeric_value()) continue;
+        std::string value_string = obj->GetFieldValue(i).to_string();
+        const char* value_name = names_->GetCopy(value_string.c_str());
+        SnapshotObjectId id = heap_object_map_->get_next_id();
+        HeapEntry* child_entry =
+            snapshot_->AddEntry(HeapEntry::kString, value_name, id, 0, 0);
+        entry->SetNamedReference(HeapGraphEdge::kInternal, field_name,
+                                 child_entry, generator_);
+        break;
+      }
+      case wasm::kRef:
+      case wasm::kRefNull: {
+        int field_offset = type->field_offset(i);
+        Tagged<Object> value = obj->RawField(field_offset).load(isolate);
+        // We could consider hiding {null} fields by default (like we do for
+        // arrays, see below), but for now we always include them, in the hope
+        // that they might help identify opportunities for struct size
+        // reductions.
+        HeapEntry* value_entry = GetEntry(value);
+        entry->SetNamedReference(HeapGraphEdge::kProperty, field_name,
+                                 value_entry, generator_);
+        MarkVisitedField(WasmStruct::kHeaderSize + field_offset);
+        break;
+      }
+      case wasm::kRtt:
+      case wasm::kVoid:
+      case wasm::kBottom:
+        UNREACHABLE();
+    }
   }
 }
 
 void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
                                                 HeapEntry* entry) {
   if (!obj->type()->element_type().is_reference()) return;
+  Isolate* isolate = heap_->isolate();
+  ReadOnlyRoots roots(isolate);
   for (uint32_t i = 0; i < obj->length(); i++) {
-    SetElementReference(entry, i, obj->ElementSlot(i).load(entry->isolate()));
+    Tagged<Object> value = obj->ElementSlot(i).load(isolate);
+    // By default, don't show {null} entries, to reduce noise: they can make
+    // it difficult to find non-null entries in sparse arrays. We piggyback
+    // on the "capture numeric values" flag as an opt-in to produce more
+    // detailed/verbose snapshots, including {null} entries.
+    if (value != roots.wasm_null() || snapshot_->capture_numeric_value()) {
+      SetElementReference(entry, i, value);
+    }
     MarkVisitedField(obj->element_offset(i));
   }
 }
