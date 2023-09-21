@@ -3326,7 +3326,7 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
     __ CompareInstanceTypeRange(map, instance_type, FIRST_TYPE,
                                 LAST_SPECIAL_RECEIVER_TYPE);
     __ JumpToDeferredIf(
-        kLessThan,
+        kUnsignedLessThanEqual,
         [](MaglevAssembler* masm, RegisterSnapshot snapshot,
            Register object_reg, Register map, Register instance_type,
            Register result_reg, HasInPrototypeChain* node,
@@ -3348,8 +3348,8 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
           {
             snapshot.live_registers.clear(result_reg);
             SaveRegisterStateForCall save_register_state(masm, snapshot);
-            __ Move(kContextRegister, masm->native_context().object());
             __ Push(object_reg, node->prototype().object());
+            __ Move(kContextRegister, masm->native_context().object());
             __ CallRuntime(Runtime::kHasInPrototypeChain, 2);
             masm->DefineExceptionHandlerPoint(node);
             save_register_state.DefineSafepointWithLazyDeopt(
@@ -4371,8 +4371,8 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
   __ JumpToDeferredIf(
       __ IsRootConstant(value(), RootIndex::kTheHoleValue),
       [](MaglevAssembler* masm, ThrowReferenceErrorIfHole* node) {
-        __ Move(kContextRegister, masm->native_context().object());
         __ Push(node->name().object());
+        __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
