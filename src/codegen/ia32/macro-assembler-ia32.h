@@ -176,6 +176,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadMap(Register destination, Register object);
 
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef, Label::Distance distance);
+
   void Trap();
   void DebugBreak();
 

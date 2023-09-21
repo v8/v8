@@ -151,6 +151,8 @@ class Deoptimizer : public Malloced {
  private:
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
                                     const TranslatedFrame::iterator& iterator);
+  void QueueFeedbackVectorForMaterialization(
+      Address output_address, const TranslatedFrame::iterator& iterator);
 
   Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
               DeoptimizeKind kind, Address from, int fp_to_sp_delta);
@@ -241,6 +243,7 @@ class Deoptimizer : public Malloced {
     TranslatedFrame::iterator value_;
   };
   std::vector<ValueToMaterialize> values_to_materialize_;
+  std::vector<ValueToMaterialize> feedback_vector_to_materialize_;
 
 #ifdef DEBUG
   DisallowGarbageCollection* disallow_garbage_collection_;

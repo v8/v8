@@ -171,6 +171,15 @@ class FrameWriter {
                                                iterator);
   }
 
+  void PushFeedbackVectorForMaterialization(
+      const TranslatedFrame::iterator& iterator) {
+    // Push a marker temporarily.
+    PushRawObject(ReadOnlyRoots(deoptimizer_->isolate()).arguments_marker(),
+                  "feedback vector");
+    deoptimizer_->QueueFeedbackVectorForMaterialization(
+        output_address(top_offset_), iterator);
+  }
+
   void PushStackJSArguments(TranslatedFrame::iterator& iterator,
                             int parameters_count) {
     std::vector<TranslatedFrame::iterator> parameters;
@@ -1172,6 +1181,9 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   Tagged<Smi> smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   frame_writer.PushRawObject(smi_bytecode_offset, "bytecode offset\n");
 
+  // We need to materialize the closure before getting the feedback vector.
+  frame_writer.PushFeedbackVectorForMaterialization(function_iterator);
+
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "    -------------------------\n");
   }
@@ -2107,6 +2119,16 @@ void Deoptimizer::MaterializeHeapObjects() {
         (*value).ptr();
   }
 
+  for (auto& fbv_materialization : feedback_vector_to_materialize_) {
+    Handle<Object> closure = fbv_materialization.value_->GetValue();
+    DCHECK(IsJSFunction(*closure));
+    Tagged<Object> feedback_vector =
+        Tagged<JSFunction>::cast(*closure)->raw_feedback_cell()->value();
+    CHECK(IsFeedbackVector(feedback_vector));
+    *(reinterpret_cast<Address*>(fbv_materialization.output_slot_address_)) =
+        feedback_vector.ptr();
+  }
+
   translated_state_.VerifyMaterializedObjects();
 
   bool feedback_updated = translated_state_.DoUpdateFeedback();
@@ -2129,6 +2151,11 @@ void Deoptimizer::QueueValueForMaterialization(
   if (obj == ReadOnlyRoots(isolate_).arguments_marker()) {
     values_to_materialize_.push_back({output_address, iterator});
   }
+}
+
+void Deoptimizer::QueueFeedbackVectorForMaterialization(
+    Address output_address, const TranslatedFrame::iterator& iterator) {
+  feedback_vector_to_materialize_.push_back({output_address, iterator});
 }
 
 unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {

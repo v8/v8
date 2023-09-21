@@ -238,6 +238,28 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
 #endif
 }
 
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Label* fbv_undef,
+                                        Label::Distance distance) {
+  Label done;
+
+  // Load the feedback vector from the closure.
+  TaggedRegister feedback_cell(dst);
+  LoadTaggedField(feedback_cell,
+                  FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadTaggedField(dst, FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+
+  // Check if feedback vector is valid.
+  IsObjectType(dst, FEEDBACK_VECTOR_TYPE, rcx);
+  j(equal, &done, Label::kNear);
+
+  // Not valid, load undefined.
+  LoadRoot(dst, RootIndex::kUndefinedValue);
+  jmp(fbv_undef, distance);
+
+  bind(&done);
+}
+
 void MacroAssembler::LoadTaggedField(Register destination,
                                      Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {

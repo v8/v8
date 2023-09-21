@@ -228,6 +228,12 @@ inline void JavaScriptFrame::set_receiver(Tagged<Object> value) {
   base::Memory<Address>(GetParameterSlot(-1)) = value.ptr();
 }
 
+inline void UnoptimizedFrame::SetFeedbackVector(
+    Tagged<FeedbackVector> feedback_vector) {
+  const int offset = InterpreterFrameConstants::kFeedbackVectorFromFp;
+  base::Memory<Address>(fp() + offset) = feedback_vector.ptr();
+}
+
 inline Tagged<Object> JavaScriptFrame::function_slot_object() const {
   const int offset = StandardFrameConstants::kFunctionOffset;
   return Tagged<Object>(base::Memory<Address>(fp() + offset));

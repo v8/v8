@@ -702,7 +702,7 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
 }
 
 TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
-  return CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure());
+  return CAST(LoadRegister(Register::feedback_vector()));
 }
 
 void InterpreterAssembler::CallPrologue() {

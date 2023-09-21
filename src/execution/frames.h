@@ -984,6 +984,8 @@ class UnoptimizedFrame : public JavaScriptFrame {
   // Access to the interpreter register file for this frame.
   Tagged<Object> ReadInterpreterRegister(int register_index) const;
 
+  inline void SetFeedbackVector(Tagged<FeedbackVector> feedback_vector);
+
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
 

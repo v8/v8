@@ -359,6 +359,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register destination, Register object);
 
+  void LoadFeedbackVector(Register dst, Register closure, Label* fbv_undef,
+                          Label::Distance distance);
+
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
       xorl(dst, dst);
