@@ -1004,6 +1004,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register bytecodeArray = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
     __ Push(argc, bytecodeArray);
+
+    // Baseline code frames store the feedback vector where interpreter would
+    // store the bytecode offset.
     if (v8_flags.debug_code) {
       UseScratchRegisterScope temps(masm);
       Register scratch = temps.Acquire();
@@ -1011,13 +1014,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                            FEEDBACK_VECTOR_TYPE);
       __ Assert(eq, AbortReason::kExpectedFeedbackVector);
     }
-    {
-      // Unused slot.
-      UseScratchRegisterScope temps(masm);
-      Register scratch = temps.Acquire();
-      __ mov(scratch, Operand::Zero());
-      __ Push(scratch);
-    }
+    // TODO(victorgomes): The first push should actually be a free slot.
+    __ Push(feedback_vector);
     __ Push(feedback_vector);
   }
 
