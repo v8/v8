@@ -1166,12 +1166,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
     __ Push(argc, bytecode_array);
-
-    // Baseline code frames store the feedback vector where interpreter would
-    // store the bytecode offset.
     __ AssertFeedbackVector(feedback_vector, x4);
-    // TODO(victorgomes): The first push should actually be a free slot.
-    __ Push(feedback_vector, feedback_vector);
+    __ Push(xzr, feedback_vector);
   }
 
   Label call_stack_guard;

@@ -11423,7 +11423,7 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorFromBaseline() {
   return CAST(
-      LoadFromParentFrame(InterpreterFrameConstants::kBytecodeOffsetFromFp));
+      LoadFromParentFrame(BaselineFrameConstants::kFeedbackVectorFromFp));
 }
 
 TNode<Context> CodeStubAssembler::LoadContextFromBaseline() {

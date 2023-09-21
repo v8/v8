@@ -1797,11 +1797,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register bytecode_array = scratch;
     __ movd(bytecode_array, saved_bytecode_array);
     __ Push(bytecode_array);
-
-    // Baseline code frames store the feedback vector where interpreter would
-    // store the bytecode offset.
-    // TODO(victorgomes): The first push should actually be a free slot.
-    __ Push(saved_feedback_vector, scratch);
+    __ Push(Immediate(0));  // Unused slot.
     __ Push(saved_feedback_vector, scratch);
   }
 
