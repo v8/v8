@@ -1166,13 +1166,7 @@
   'test-api/FastApiSequenceOverloads': [FAIL],
   # Maglev doesn't produce optimized enough code to match heap tests
   # expectations.
-  'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
-  'test-heap/LeakNativeContextViaMapKeyed': [FAIL],
-  'test-heap/NewSpaceObjectsInOptimizedCode': [FAIL],
-  'test-heap/LeakNativeContextViaMapProto': [FAIL],
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [FAIL],
-  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ['conservative_stack_scanning', {

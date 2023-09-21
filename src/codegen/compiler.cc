@@ -491,6 +491,34 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
+void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
+    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
+  // TODO(choongwoo.han): Split this method into collecting maps on the
+  // background thread, and retaining them on the foreground thread.
+  std::vector<Handle<Map>> maps;
+  DCHECK(code->is_optimized_code());
+  {
+    DisallowGarbageCollection no_gc;
+    PtrComprCageBase cage_base(isolate);
+    int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+      Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
+      if (code->IsWeakObjectInOptimizedCode(target_object)) {
+        if (IsMap(target_object, cage_base)) {
+          maps.push_back(handle(Map::cast(target_object), isolate));
+        }
+      }
+    }
+  }
+  for (Handle<Map> map : maps) {
+    // TODO(choongwoo.han): Batch this to avoid calling WeakArrayList::AddToEnd
+    // for each call.
+    isolate->heap()->AddRetainedMap(context, map);
+  }
+  code->set_can_have_weak_objects(true);
+}
+
 CompilationJob::Status TurbofanCompilationJob::RetryOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());

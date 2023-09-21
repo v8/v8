@@ -1176,11 +1176,6 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
                         LocalIsolate* local_isolate) final;
   Status FinalizeJobImpl(Isolate* isolate) final;
 
-  // Registers weak object to optimized code dependencies.
-  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
-                                          Handle<NativeContext> context,
-                                          Handle<Code> code);
-
  private:
   Zone zone_;
   ZoneStats zone_stats_;
@@ -1344,30 +1339,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   compilation_info()->SetCode(code);
   RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
-}
-
-void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
-    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
-  std::vector<Handle<Map>> maps;
-  DCHECK(code->is_optimized_code());
-  {
-    DisallowGarbageCollection no_gc;
-    PtrComprCageBase cage_base(isolate);
-    int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      HeapObject target_object = it.rinfo()->target_object(cage_base);
-      if (code->IsWeakObjectInOptimizedCode(target_object)) {
-        if (IsMap(target_object, cage_base)) {
-          maps.push_back(handle(Map::cast(target_object), isolate));
-        }
-      }
-    }
-  }
-  for (Handle<Map> map : maps) {
-    isolate->heap()->AddRetainedMap(context, map);
-  }
-  code->set_can_have_weak_objects(true);
 }
 
 template <typename Phase, typename... Args>

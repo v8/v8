@@ -145,6 +145,8 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
     return CompilationJob::FAILED;
   }
   info()->set_code(code);
+  RegisterWeakObjectsInOptimizedCode(
+      isolate, info()->broker()->target_native_context().object(), code);
   EndPhaseKind();
   return CompilationJob::SUCCEEDED;
 }
