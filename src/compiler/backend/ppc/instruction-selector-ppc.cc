@@ -2585,6 +2585,10 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
       Emit(kPPC_Sub, index_operand, value_operand,
            g.TempImmediate(sw.min_value()));
       }
+      // Zero extend, because we use it as 64-bit index into the jump table.
+      InstructionOperand index_operand_zero_ext = g.TempRegister();
+      Emit(kPPC_Uint32ToUint64, index_operand_zero_ext, index_operand);
+      index_operand = index_operand_zero_ext;
       // Generate a table lookup.
       return EmitTableSwitch(sw, index_operand);
   }
