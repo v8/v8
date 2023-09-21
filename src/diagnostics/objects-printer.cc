@@ -3504,9 +3504,15 @@ inline i::Tagged<i::Object> GetObjectFromRaw(void* object) {
 #ifdef V8_COMPRESS_POINTERS
   if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
     // Try to decompress pointer.
-    i::Isolate* isolate = i::Isolate::Current();
-    object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
-        isolate, static_cast<i::Tagged_t>(object_ptr));
+    i::Isolate* isolate = i::Isolate::TryGetCurrent();
+    if (isolate != nullptr) {
+      object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
+          isolate, static_cast<i::Tagged_t>(object_ptr));
+    } else {
+      i::PtrComprCageBase cage_base = i::GetPtrComprCageBase();
+      object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
+          cage_base, static_cast<i::Tagged_t>(object_ptr));
+    }
   }
 #endif
   return i::Tagged<i::Object>(object_ptr);

@@ -1304,6 +1304,7 @@ UNINITIALIZED_TEST(Regress10843) {
       &callback_was_invoked);
 
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     HandleScope scope(i_isolate);
     std::vector<Handle<FixedArray>> arrays;
     for (int i = 0; i < 140; i++) {
@@ -6514,6 +6515,7 @@ UNINITIALIZED_TEST(OutOfMemory) {
   oom_isolate = i_isolate;
   isolate->SetOOMErrorHandler(OOMCallback);
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     Factory* factory = i_isolate->factory();
     HandleScope handle_scope(i_isolate);
     while (true) {
@@ -6540,8 +6542,10 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   isolate->SetOOMErrorHandler(OOMCallback);
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  heap::InvokeMajorGC(heap);
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+    heap::InvokeMajorGC(heap);
+
     HandleScope scope(i_isolate);
     while (heap->OldGenerationSizeOfObjects() <
            heap->MaxOldGenerationSize() * 0.9) {
@@ -6695,6 +6699,8 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
   state.oom_triggered = false;
   heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+
     HandleScope handle_scope(isolate);
     while (!state.oom_triggered) {
       factory->NewFixedArray(100);
@@ -6728,26 +6734,29 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
   state.heap = heap;
   state.oom_triggered = false;
   heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
-  const int kFixedArrayLength = 1000000;
   {
-    HandleScope handle_scope(isolate);
-    while (!state.oom_triggered) {
-      factory->NewFixedArray(kFixedArrayLength);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+    const int kFixedArrayLength = 1000000;
+    {
+      HandleScope handle_scope(isolate);
+      while (!state.oom_triggered) {
+        factory->NewFixedArray(kFixedArrayLength);
+      }
     }
+    CHECK_LE(state.old_generation_capacity_at_oom,
+             kOldGenerationLimit + state.new_space_capacity_at_oom +
+                 state.new_lo_space_size_at_oom +
+                 FixedArray::SizeFor(kFixedArrayLength));
+    CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
+                                      state.new_space_capacity_at_oom +
+                                      state.new_lo_space_size_at_oom +
+                                      FixedArray::SizeFor(kFixedArrayLength));
+    CHECK_LE(state.memory_allocator_size_at_oom,
+             MemoryAllocatorSizeFromHeapCapacity(
+                 state.old_generation_capacity_at_oom +
+                 2 * state.new_space_capacity_at_oom +
+                 state.new_lo_space_size_at_oom));
   }
-  CHECK_LE(state.old_generation_capacity_at_oom,
-           kOldGenerationLimit + state.new_space_capacity_at_oom +
-               state.new_lo_space_size_at_oom +
-               FixedArray::SizeFor(kFixedArrayLength));
-  CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
-                                    state.new_space_capacity_at_oom +
-                                    state.new_lo_space_size_at_oom +
-                                    FixedArray::SizeFor(kFixedArrayLength));
-  CHECK_LE(
-      state.memory_allocator_size_at_oom,
-      MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
-                                          2 * state.new_space_capacity_at_oom +
-                                          state.new_lo_space_size_at_oom));
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 
@@ -6767,6 +6776,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
   Factory* factory = isolate->factory();
 
   {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
     OutOfMemoryState state;
@@ -7070,8 +7080,9 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-
-  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
   // Allocate a regular code object.
   {
