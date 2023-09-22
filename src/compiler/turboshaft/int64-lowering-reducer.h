@@ -251,10 +251,10 @@ class Int64LoweringReducer : public Next {
     if (kind.is_atomic) {
       if (loaded_rep == MemoryRepresentation::Int64() ||
           loaded_rep == MemoryRepresentation::Uint64()) {
-        return ProjectionTuple(Next::ReduceAtomicWord32Pair(
+        return Next::ReduceAtomicWord32Pair(
             base_idx, index, OpIndex::Invalid(), OpIndex::Invalid(),
             OpIndex::Invalid(), OpIndex::Invalid(),
-            AtomicWord32PairOp::OpKind::kLoad, offset));
+            AtomicWord32PairOp::OpKind::kLoad, offset);
       }
       if (kind.is_atomic && result_rep == RegisterRepresentation::Word64()) {
         return __ Tuple(Next::ReduceLoad(base_idx, index, kind, loaded_rep,
@@ -318,14 +318,13 @@ class Int64LoweringReducer : public Next {
         input_rep == MemoryRepresentation::Uint64()) {
       if (bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
         auto [expected_low, expected_high] = Unpack(expected);
-        return ProjectionTuple(Next::ReduceAtomicWord32Pair(
+        return Next::ReduceAtomicWord32Pair(
             base, index, value_low, value_high, expected_low, expected_high,
-            AtomicWord32PairOp::OpKind::kCompareExchange, 0));
+            AtomicWord32PairOp::OpKind::kCompareExchange, 0);
       } else {
-        return ProjectionTuple(Next::ReduceAtomicWord32Pair(
+        return Next::ReduceAtomicWord32Pair(
             base, index, value_low, value_high, OpIndex::Invalid(),
-            OpIndex::Invalid(), AtomicWord32PairOp::OpKindFromBinOp(bin_op),
-            0));
+            OpIndex::Invalid(), AtomicWord32PairOp::OpKindFromBinOp(bin_op), 0);
       }
     }
 
@@ -471,17 +470,6 @@ class Int64LoweringReducer : public Next {
             __ Projection(input, 1, RegisterRepresentation::Word32())};
   }
 
-  // Wrap an operation that doesn't return a tuple already in a tuple of
-  // projections. It is required to immediately emit projections, so that phi
-  // inputs can always map to an already materialized projection.
-  OpIndex ProjectionTuple(OpIndex input) {
-    auto word32 = RegisterRepresentation::Word32();
-    DCHECK(!__ Get(input).template Is<TupleOp>());
-    DCHECK_EQ(__ Get(input).outputs_rep(), base::VectorOf({word32, word32}));
-    return __ Tuple(__ Projection(input, 0, word32),
-                    __ Projection(input, 1, word32));
-  }
-
   OpIndex LowerSignExtend(V<Word32> input) {
     // We use SAR to preserve the sign in the high word.
     return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
@@ -526,8 +514,7 @@ class Int64LoweringReducer : public Next {
                          Word32PairBinopOp::Kind kind) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    return ProjectionTuple(
-        __ Word32PairBinop(left_low, left_high, right_low, right_high, kind));
+    return __ Word32PairBinop(left_low, left_high, right_low, right_high, kind);
   }
 
   OpIndex LowerPairShiftOp(V<Word64> left, V<Word32> right,
@@ -535,8 +522,7 @@ class Int64LoweringReducer : public Next {
     auto [left_low, left_high] = Unpack(left);
     // Note: The rhs of a 64 bit shift is a 32 bit value in turboshaft.
     V<Word32> right_high = __ Word32Constant(0);
-    return ProjectionTuple(
-        __ Word32PairBinop(left_low, left_high, right, right_high, kind));
+    return __ Word32PairBinop(left_low, left_high, right, right_high, kind);
   }
 
   OpIndex LowerBitwiseAnd(V<Word64> left, V<Word64> right) {
@@ -702,7 +688,7 @@ class Int64LoweringReducer : public Next {
       // There isn't any projection in the input graph for calls returning
       // exactly one value. Return a tuple of projections for the int64.
       DCHECK_EQ(i64_returns, 1);
-      return ProjectionTuple(call);
+      return call;
     }
 
     // Wrap the call node with a tuple of projections of the lowered call.

@@ -33,6 +33,7 @@
 #include "src/compiler/turboshaft/runtime-call-descriptors.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
+#include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
@@ -475,9 +476,24 @@ class Uninitialized {
 // Forward declarations
 template <class Assembler>
 class GraphVisitor;
+template <class Next>
+class ValueNumberingReducer;
+template <class Next>
+class EmitProjectionReducer;
 
 template <class Assembler, template <class> class... Reducers>
 class ReducerStack {};
+
+// We insert an EmitProjectionReducer right before the ValueNumberingReducer
+// (see comment on the EmitProjectionReducer and reducer_stack_type classes).
+template <class Assembler, template <class> class... Reducers>
+class ReducerStack<Assembler, ValueNumberingReducer, Reducers...>
+    : public EmitProjectionReducer<
+          ValueNumberingReducer<ReducerStack<Assembler, Reducers...>>> {
+ public:
+  using EmitProjectionReducer<ValueNumberingReducer<
+      ReducerStack<Assembler, Reducers...>>>::EmitProjectionReducer;
+};
 
 template <class Assembler, template <class> class FirstReducer,
           template <class> class... Reducers>
@@ -497,11 +513,29 @@ class ReducerStack<Assembler<Reducers>> {
   }
 };
 
-template <class Reducers>
+template <class Reducers, typename Enable = void>
 struct reducer_stack_type {};
+
+// If the Reducer list contains a ValueNumberingReducer, we don't add
+// EmitProjectionReducer to the list, because ReducerStack will automatically
+// add it before the ValueNumberingReducer...
 template <template <class> class... Reducers>
-struct reducer_stack_type<reducer_list<Reducers...>> {
+struct reducer_stack_type<
+    reducer_list<Reducers...>,
+    typename std::enable_if_t<reducer_list_contains<
+        reducer_list<Reducers...>, ValueNumberingReducer>::value>> {
   using type = ReducerStack<Assembler<reducer_list<Reducers...>>, Reducers...,
+                            v8::internal::compiler::turboshaft::ReducerBase>;
+};
+
+// ... Otherwise, we add it at the bottom of the stack, before the ReducerBase.
+template <template <class> class... Reducers>
+struct reducer_stack_type<
+    reducer_list<Reducers...>,
+    typename std::enable_if_t<!reducer_list_contains<
+        reducer_list<Reducers...>, ValueNumberingReducer>::value>> {
+  using type = ReducerStack<Assembler<reducer_list<Reducers...>>, Reducers...,
+                            EmitProjectionReducer,
                             v8::internal::compiler::turboshaft::ReducerBase>;
 };
 
@@ -558,6 +592,57 @@ class ScopedVariable : Variable {
 #define LABEL_BLOCK(label)     \
   for (; false; UNREACHABLE()) \
   label:
+
+// EmitProjectionReducer ensures that projections are always emitted right after
+// their input operation. To do so, when an operation with multiple outputs is
+// emitted, it always emit its projections, and returns a Tuple of the
+// projections.
+// It should "towards" the bottom of the stack (so that calling Next::ReduceXXX
+// just emits XXX without emitting any operation afterwards, and so that
+// Next::ReduceXXX does indeed emit XXX rather than lower/optimize it to some
+// other subgraph), but it should be before GlobalValueNumbering, so that
+// operations with multiple outputs can still be GVNed.
+template <class Next>
+class EmitProjectionReducer
+    : public UniformReducerAdapter<EmitProjectionReducer, Next> {
+ public:
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
+  OpIndex ReduceCatchBlockBegin() {
+    // CatchBlockBegin have a single output, so they never have projections,
+    // but additionally split-edge can transform CatchBlockBeginOp into PhiOp,
+    // which means that there is no guarantee here that Next::CatchBlockBegin is
+    // indeed a CatchBlockBegin (which means that the .Cast<> of the generic
+    // ReduceOperation could fail on CatchBlockBegin).
+    return Next::ReduceCatchBlockBegin();
+  }
+
+  template <Opcode opcode, typename Continuation, typename... Args>
+  OpIndex ReduceOperation(Args... args) {
+    OpIndex new_idx = Continuation{this}.Reduce(args...);
+    const Operation& op = Asm().output_graph().Get(new_idx);
+    if constexpr (MayThrow(opcode)) {
+      // Operations that can throw are lowered to a Op+DidntThrow, and what we
+      // get from Next::Reduce is the DidntThrow.
+      return WrapInTupleIfNeeded(op.Cast<DidntThrowOp>(), new_idx);
+    }
+    return WrapInTupleIfNeeded(op.Cast<typename Continuation::Op>(), new_idx);
+  }
+
+ private:
+  template <class Op>
+  OpIndex WrapInTupleIfNeeded(const Op& op, OpIndex idx) {
+    if (op.outputs_rep().size() > 1) {
+      base::SmallVector<OpIndex, 8> projections;
+      auto reps = op.outputs_rep();
+      for (int i = 0; i < static_cast<int>(reps.size()); i++) {
+        projections.push_back(Asm().Projection(idx, i, reps[i]));
+      }
+      return Asm().Tuple(base::VectorOf(projections));
+    }
+    return idx;
+  }
+};
 
 // This empty base-class is used to provide default-implementations of plain
 // methods emitting operations.

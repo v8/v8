@@ -3547,7 +3547,11 @@ struct TailCallOp : OperationT<TailCallOp> {
 
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return descriptor->out_reps;
+    // While TailCalls do return some values, those values are returned to the
+    // caller rather than to the current function (and a TailCallOp thus never
+    // has any uses), so we set the outputs_rep to empty. If you need to know
+    // what a TailCallOp returns, you can find out in `descriptor->outputs_rep`.
+    return {};
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
