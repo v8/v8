@@ -39,20 +39,20 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 // Instance types which are associated with one unique map.
 
 template <class type>
-inline constexpr base::Optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
+V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
   return {};
 }
 
 #define INSTANCE_TYPE_MAP(V, rootIndexName, rootAccessorName, class_name) \
   template <>                                                             \
-  inline constexpr base::Optional<RootIndex>                              \
+  V8_INLINE constexpr base::Optional<RootIndex>                           \
   UniqueMapOfInstanceTypeCheck<InstanceTypeTraits::class_name>() {        \
     return {RootIndex::k##rootIndexName};                                 \
   }
 UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(INSTANCE_TYPE_MAP, _)
 #undef INSTANCE_TYPE_MAP
 
-inline constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
+V8_INLINE constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
     InstanceType type) {
 #define INSTANCE_TYPE_CHECK(it, forinstancetype)              \
   if (type == forinstancetype) {                              \
@@ -64,6 +64,14 @@ inline constexpr base::Optional<RootIndex> UniqueMapOfInstanceType(
 
   return Map::TryGetMapRootIdxFor(type);
 }
+
+template <InstanceType type>
+constexpr bool kHasUniqueMapOfInstanceType =
+    UniqueMapOfInstanceType(type).has_value();
+
+template <InstanceType type>
+constexpr RootIndex kUniqueMapOfInstanceType =
+    UniqueMapOfInstanceType(type).value_or(RootIndex::kRootListLength);
 
 // Manually curated list of instance type ranges which are associated with a
 // unique range of map addresses on the read only heap. Both ranges are
@@ -119,10 +127,29 @@ UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   return {};
 }
 
+template <InstanceType first, InstanceType last>
+constexpr bool kHasUniqueMapRangeOfInstanceTypeRange =
+    UniqueMapRangeOfInstanceTypeRange(first, last).has_value();
+
+template <InstanceType first, InstanceType last>
+constexpr RootIndexRange kUniqueMapRangeOfInstanceTypeRange =
+    UniqueMapRangeOfInstanceTypeRange(first, last)
+        .value_or(RootIndexRange(RootIndex::kRootListLength,
+                                 RootIndex::kRootListLength));
+
 inline constexpr base::Optional<RootIndexRange> UniqueMapRangeOfInstanceType(
     InstanceType type) {
   return UniqueMapRangeOfInstanceTypeRange(type, type);
 }
+
+template <InstanceType type>
+constexpr bool kHasUniqueMapRangeOfInstanceType =
+    UniqueMapRangeOfInstanceType(type).has_value();
+
+template <InstanceType type>
+constexpr RootIndexRange kUniqueMapRangeOfInstanceType =
+    UniqueMapRangeOfInstanceType(type).value_or(
+        RootIndexRange(RootIndex::kRootListLength, RootIndex::kRootListLength));
 
 inline bool MayHaveMapCheckFastCase(InstanceType type) {
   if (UniqueMapOfInstanceType(type)) return true;
@@ -167,19 +194,19 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
 
 #if V8_STATIC_ROOTS_BOOL
 
-#define INSTANCE_TYPE_CHECKER2(type, forinstancetype_)       \
-  V8_INLINE bool Is##type(Tagged<Map> map_object) {          \
-    InstanceType forinstancetype =                           \
-        static_cast<InstanceType>(forinstancetype_);         \
-    if (base::Optional<RootIndex> expected =                 \
-            UniqueMapOfInstanceType(forinstancetype)) {      \
-      return CheckInstanceMap(*expected, map_object);        \
-    }                                                        \
-    if (base::Optional<RootIndexRange> range =               \
-            UniqueMapRangeOfInstanceType(forinstancetype)) { \
-      return CheckInstanceMapRange(*range, map_object);      \
-    }                                                        \
-    return Is##type(map_object->instance_type());            \
+#define INSTANCE_TYPE_CHECKER2(type, forinstancetype_)                   \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {                      \
+    constexpr InstanceType forinstancetype =                             \
+        static_cast<InstanceType>(forinstancetype_);                     \
+    if constexpr (kHasUniqueMapOfInstanceType<forinstancetype>) {        \
+      return CheckInstanceMap(kUniqueMapOfInstanceType<forinstancetype>, \
+                              map_object);                               \
+    }                                                                    \
+    if constexpr (kHasUniqueMapRangeOfInstanceType<forinstancetype>) {   \
+      return CheckInstanceMapRange(                                      \
+          kUniqueMapRangeOfInstanceType<forinstancetype>, map_object);   \
+    }                                                                    \
+    return Is##type(map_object->instance_type());                        \
   }
 
 #else
@@ -234,16 +261,17 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 
 #if V8_STATIC_ROOTS_BOOL
 
-#define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type,      \
-                                     last_instance_type)             \
-  V8_INLINE bool Is##type(Tagged<Map> map_object) {                  \
-    if (base::Optional<RootIndexRange> range =                       \
-            UniqueMapRangeOfInstanceTypeRange(first_instance_type,   \
-                                              last_instance_type)) { \
-      DCHECK(MayHaveMapCheckFastCase(last_instance_type));           \
-      return CheckInstanceMapRange(*range, map_object);              \
-    }                                                                \
-    return Is##type(map_object->instance_type());                    \
+#define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type,                \
+                                     last_instance_type)                       \
+  V8_INLINE bool Is##type(Tagged<Map> map_object) {                            \
+    if constexpr (kHasUniqueMapRangeOfInstanceTypeRange<first_instance_type,   \
+                                                        last_instance_type>) { \
+      return CheckInstanceMapRange(                                            \
+          kUniqueMapRangeOfInstanceTypeRange<first_instance_type,              \
+                                             last_instance_type>,              \
+          map_object);                                                         \
+    }                                                                          \
+    return Is##type(map_object->instance_type());                              \
   }
 
 #else
