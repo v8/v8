@@ -22,6 +22,7 @@ class Graph;
 }  // namespace compiler
 
 namespace wasm {
+class AssumptionsJournal;
 struct FunctionBody;
 class WasmFeatures;
 struct WasmModule;
@@ -30,7 +31,7 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
     AccountingAllocator* allocator, WasmFeatures enabled,
     const WasmModule* module, WasmFeatures* detected, const FunctionBody& body,
     compiler::turboshaft::Graph& graph, compiler::NodeOriginTable* node_origins,
-    int func_index);
+    AssumptionsJournal* assumptions, int func_index);
 }  // namespace wasm
 }  // namespace v8::internal
 

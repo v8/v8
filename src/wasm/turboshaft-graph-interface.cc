@@ -122,8 +122,11 @@ class TurboshaftGraphBuildingInterface {
 
   TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone,
                                    compiler::NodeOriginTable* node_origins,
+                                   AssumptionsJournal* assumptions,
                                    int func_index)
-      : asm_(graph, graph, zone, node_origins), func_index_(func_index) {}
+      : asm_(graph, graph, zone, node_origins),
+        assumptions_(assumptions),
+        func_index_(func_index) {}
 
   void StartFunction(FullDecoder* decoder) {
     TSBlock* block = __ NewBlock();
@@ -879,9 +882,161 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  V<Tagged> ExternRefToString(const Value value, bool null_succeeds = false) {
+    wasm::ValueType target_type =
+        null_succeeds ? kWasmStringRef : kWasmRefString;
+    compiler::WasmTypeCheckConfig config{value.type, target_type};
+    V<Map> rtt = OpIndex::Invalid();
+    return __ WasmTypeCast(value.op, rtt, config);
+  }
+
+  bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
+                             const Value args[], Value returns[]) {
+    if (!decoder->module_) return false;  // Only needed for tests.
+    WellKnownImportsList& well_known_imports =
+        decoder->module_->type_feedback.well_known_imports;
+    using WKI = WellKnownImport;
+    WKI imported_op = well_known_imports.get(index);
+    OpIndex result;
+    switch (imported_op) {
+      case WKI::kUninstantiated:
+      case WKI::kGeneric:
+        return false;
+
+      // WebAssembly.String.* imports.
+      case WKI::kStringCharCodeAt: {
+        V<Tagged> string = ExternRefToString(args[0]);
+        V<Tagged> view = __ StringAsWtf16(string);
+        // TODO(14108): Annotate `view`'s type.
+        result = GetCodeUnitImpl(decoder, view, args[1].op);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringCodePointAt: {
+        V<Tagged> string = ExternRefToString(args[0]);
+        V<Tagged> view = __ StringAsWtf16(string);
+        // TODO(14108): Annotate `view`'s type.
+        result = StringCodePointAt(decoder, view, args[1].op);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringCompare: {
+        V<Tagged> a_string = ExternRefToString(args[0]);
+        V<Tagged> b_string = ExternRefToString(args[1]);
+        result = __ UntagSmi(CallBuiltinThroughJumptable(
+            decoder, Builtin::kStringCompare, {a_string, b_string},
+            Operator::kEliminatable));
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringConcat: {
+        V<Tagged> head_string = ExternRefToString(args[0]);
+        V<Tagged> tail_string = ExternRefToString(args[1]);
+        V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
+            NativeContext, MemoryRepresentation::TaggedPointer());
+        result = CallBuiltinThroughJumptable(
+            decoder, Builtin::kStringAdd_CheckNone,
+            {head_string, tail_string, native_context},
+            Operator::kNoDeopt | Operator::kNoThrow);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringEquals: {
+        // Using nullable type guards here because this instruction needs to
+        // handle {null} without trapping.
+        static constexpr bool kNullSucceeds = true;
+        V<Tagged> a_string = ExternRefToString(args[0], kNullSucceeds);
+        V<Tagged> b_string = ExternRefToString(args[1], kNullSucceeds);
+        result = StringEqImpl(decoder, a_string, b_string, kWasmExternRef,
+                              kWasmExternRef);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringFromCharCode: {
+        V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
+        result = CallBuiltinThroughJumptable(decoder,
+                                             Builtin::kWasmStringFromCodePoint,
+                                             {capped}, Operator::kEliminatable);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringFromCodePoint:
+        // TODO(14179): Fix trapping when the result is unused.
+        result = CallBuiltinThroughJumptable(
+            decoder, Builtin::kWasmStringFromCodePoint, {args[0].op},
+            Operator::kEliminatable);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringFromWtf16Array:
+        result = CallBuiltinThroughJumptable(
+            decoder, Builtin::kWasmStringNewWtf16Array,
+            {NullCheck(args[0]), args[1].op, args[2].op},
+            Operator::kNoDeopt | Operator::kNoThrow);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringFromWtf8Array:
+        result = StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kWtf8,
+                                        args[0], args[1], args[2]);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringLength: {
+        V<Tagged> string = ExternRefToString(args[0]);
+        result = __ template LoadField<Word32>(
+            string, compiler::AccessBuilder::ForStringLength());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringSubstring: {
+        V<Tagged> string = ExternRefToString(args[0]);
+        V<Tagged> view = __ StringAsWtf16(string);
+        // TODO(14108): Annotate `view`'s type.
+        result = CallBuiltinThroughJumptable(
+            decoder, Builtin::kWasmStringViewWtf16Slice,
+            {view, args[1].op, args[2].op}, Operator::kEliminatable);
+        // TODO(14108): Annotate `result`'s type.
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringToWtf16Array: {
+        V<Tagged> string = ExternRefToString(args[0]);
+        result = CallBuiltinThroughJumptable(
+            decoder, Builtin::kWasmStringEncodeWtf16Array,
+            {string, NullCheck(args[1]), args[2].op},
+            Operator::kNoDeopt | Operator::kNoThrow);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+
+      // Other string-related imports.
+      // TODO(14108): Implement the other string-related imports.
+      case WKI::kDoubleToString:
+      case WKI::kIntToString:
+      case WKI::kParseFloat:
+      case WKI::kStringIndexOf:
+      case WKI::kStringToLocaleLowerCaseStringref:
+      case WKI::kStringToLowerCaseStringref:
+        return false;
+    }
+    if (v8_flags.trace_wasm_inlining) {
+      PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
+             WellKnownImportName(imported_op));
+    }
+    assumptions_->RecordAssumption(index, imported_op);
+    returns[0].op = result;
+    return true;
+  }
+
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     if (imm.index < decoder->module_->num_imported_functions) {
+      if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
+        return;
+      }
       auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
     } else {
@@ -2174,10 +2329,10 @@ class TurboshaftGraphBuildingInterface {
     return stub_id == static_cast<int64_t>(Builtin::kWasmArrayNewSegment);
   }
 
-  void StringNewWtf8Array(FullDecoder* decoder,
-                          const unibrow::Utf8Variant variant,
-                          const Value& array, const Value& start,
-                          const Value& end, Value* result) {
+  V<Tagged> StringNewWtf8ArrayImpl(FullDecoder* decoder,
+                                   const unibrow::Utf8Variant variant,
+                                   const Value& array, const Value& start,
+                                   const Value& end) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
     if (IsArrayNewSegment(array.op)) {
@@ -2197,19 +2352,25 @@ class TurboshaftGraphBuildingInterface {
           OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
       V<Object> offset_smi = __ TagSmi(segment_offset);
       OpIndex segment_length = array_new.input(3);
-      result->op = CallBuiltinThroughJumptable(
+      return CallBuiltinThroughJumptable(
           decoder, Builtin::kWasmStringFromDataSegment,
           {segment_length, start.op, end.op, index_smi, offset_smi},
           Operator::kNoDeopt | Operator::kNoThrow);
-      return;
     }
 
     // Regular path if the shortcut wasn't taken.
-    result->op = CallBuiltinThroughJumptable(
+    return CallBuiltinThroughJumptable(
         decoder, Builtin::kWasmStringNewWtf8Array,
         {start.op, end.op, NullCheck(array),
          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
         Operator::kNoDeopt | Operator::kNoThrow);
+  }
+
+  void StringNewWtf8Array(FullDecoder* decoder,
+                          const unibrow::Utf8Variant variant,
+                          const Value& array, const Value& start,
+                          const Value& end, Value* result) {
+    result->op = StringNewWtf8ArrayImpl(decoder, variant, array, start, end);
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -2311,23 +2472,27 @@ class TurboshaftGraphBuildingInterface {
         Operator::kNoDeopt | Operator::kNoThrow);
   }
 
-  void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
-                Value* result) {
+  V<Word32> StringEqImpl(FullDecoder* decoder, V<Tagged> a, V<Tagged> b,
+                         ValueType a_type, ValueType b_type) {
     Label<Word32> done(&asm_);
     // Covers "identical string pointer" and "both are null" cases.
-    GOTO_IF(__ TaggedEqual(a.op, b.op), done, __ Word32Constant(1));
-    if (a.type.is_nullable()) {
-      GOTO_IF(__ IsNull(a.op, a.type), done, __ Word32Constant(0));
+    GOTO_IF(__ TaggedEqual(a, b), done, __ Word32Constant(1));
+    if (a_type.is_nullable()) {
+      GOTO_IF(__ IsNull(a, a_type), done, __ Word32Constant(0));
     }
-    if (b.type.is_nullable()) {
-      GOTO_IF(__ IsNull(b.op, b.type), done, __ Word32Constant(0));
+    if (b_type.is_nullable()) {
+      GOTO_IF(__ IsNull(b, b_type), done, __ Word32Constant(0));
     }
     // TODO(jkummerow): Call Builtin::kStringEqual directly.
-    GOTO(done,
-         CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringEqual,
-                                     {a.op, b.op}, Operator::kEliminatable));
+    GOTO(done, CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringEqual,
+                                           {a, b}, Operator::kEliminatable));
     BIND(done, eq_result);
-    result->op = eq_result;
+    return eq_result;
+  }
+
+  void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
+                Value* result) {
+    result->op = StringEqImpl(decoder, a.op, b.op, a.type, b.type);
   }
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
@@ -2380,9 +2545,8 @@ class TurboshaftGraphBuildingInterface {
     result->op = __ StringAsWtf16(NullCheck(str));
   }
 
-  void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
-                                  const Value& pos, Value* result) {
-    V<Tagged> string = NullCheck(view);
+  V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<Tagged> string,
+                            V<Word32> offset) {
     OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
     V<Tagged> base =
         __ Projection(prepare, 0, RegisterRepresentation::Tagged());
@@ -2394,7 +2558,7 @@ class TurboshaftGraphBuildingInterface {
     // Bounds check.
     V<Word32> length = __ template LoadField<Word32>(
         string, compiler::AccessBuilder::ForStringLength());
-    __ TrapIfNot(__ Uint32LessThan(pos.op, length), OpIndex::Invalid(),
+    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
     Label<> onebyte(&asm_);
@@ -2408,7 +2572,7 @@ class TurboshaftGraphBuildingInterface {
 
     // Two-byte.
     V<WordPtr> object_offset = __ WordPtrAdd(
-        __ WordPtrMul(__ ChangeInt32ToIntPtr(pos.op), 2), base_offset);
+        __ WordPtrMul(__ ChangeInt32ToIntPtr(offset), 2), base_offset);
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
@@ -2420,7 +2584,7 @@ class TurboshaftGraphBuildingInterface {
 
     // One-byte.
     BIND(onebyte);
-    object_offset = __ WordPtrAdd(__ ChangeInt32ToIntPtr(pos.op), base_offset);
+    object_offset = __ WordPtrAdd(__ ChangeInt32ToIntPtr(offset), base_offset);
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
@@ -2433,14 +2597,95 @@ class TurboshaftGraphBuildingInterface {
     BIND(bailout);
     GOTO(done, CallBuiltinThroughJumptable(
                    decoder, Builtin::kWasmStringViewWtf16GetCodeUnit,
-                   {string, pos.op}, Operator::kPure));
+                   {string, offset}, Operator::kPure));
 
     BIND(done, final_result);
     // Make sure the original string is kept alive as long as we're operating
     // on pointers extracted from it (otherwise e.g. external strings' resources
     // might get freed prematurely).
     __ Retain(string);
-    result->op = final_result;
+    return final_result;
+  }
+
+  void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
+                                  const Value& pos, Value* result) {
+    result->op = GetCodeUnitImpl(decoder, NullCheck(view), pos.op);
+  }
+
+  V<Word32> StringCodePointAt(FullDecoder* decoder, V<Tagged> string,
+                              V<Word32> offset) {
+    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Tagged> base =
+        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
+    V<WordPtr> base_offset =
+        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
+    V<Word32> charwidth_shift =
+        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+
+    // Bounds check.
+    V<Word32> length = __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
+    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
+                 TrapId::kTrapStringOffsetOutOfBounds);
+
+    Label<> onebyte(&asm_);
+    Label<> bailout(&asm_);
+    Label<Word32> done(&asm_);
+    GOTO_IF(
+        __ Word32Equal(charwidth_shift, compiler::kCharWidthBailoutSentinel),
+        bailout);
+    GOTO_IF(__ Word32Equal(charwidth_shift, 0), onebyte);
+
+    // Two-byte.
+    V<WordPtr> object_offset = __ WordPtrAdd(
+        __ WordPtrMul(__ ChangeInt32ToIntPtr(offset), 2), base_offset);
+    // Bitcast the tagged to a wordptr as the offset already contains the
+    // kHeapObjectTag handling. Furthermore, in case of external strings the
+    // tagged value is a smi 0, which doesn't really encode a tagged load.
+    V<WordPtr> base_ptr = __ BitcastTaggedToWord(base);
+    V<Word32> lead =
+        __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::Uint16());
+    V<Word32> is_lead_surrogate =
+        __ Word32Equal(__ Word32BitwiseAnd(lead, 0xFC00), 0xD800);
+    GOTO_IF_NOT(is_lead_surrogate, done, lead);
+    V<Word32> trail_offset = __ Word32Add(offset, 1);
+    GOTO_IF_NOT(__ Uint32LessThan(trail_offset, length), done, lead);
+    V<Word32> trail = __ Load(
+        base_ptr, __ WordPtrAdd(object_offset, __ IntPtrConstant(2)),
+        LoadOp::Kind::RawAligned().Immutable(), MemoryRepresentation::Uint16());
+    V<Word32> is_trail_surrogate =
+        __ Word32Equal(__ Word32BitwiseAnd(trail, 0xFC00), 0xDC00);
+    GOTO_IF_NOT(is_trail_surrogate, done, lead);
+    V<Word32> surrogate_bias =
+        __ Word32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
+    V<Word32> result = __ Word32Add(__ Word32ShiftLeft(lead, 10),
+                                    __ Word32Add(trail, surrogate_bias));
+    GOTO(done, result);
+
+    // One-byte.
+    BIND(onebyte);
+    object_offset = __ WordPtrAdd(__ ChangeInt32ToIntPtr(offset), base_offset);
+    // Bitcast the tagged to a wordptr as the offset already contains the
+    // kHeapObjectTag handling. Furthermore, in case of external strings the
+    // tagged value is a smi 0, which doesn't really encode a tagged load.
+    base_ptr = __ BitcastTaggedToWord(base);
+    result =
+        __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::Uint8());
+    GOTO(done, result);
+
+    BIND(bailout);
+    GOTO(done,
+         CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringCodePointAt,
+                                     {string, offset}, Operator::kPure));
+
+    BIND(done, final_result);
+    // Make sure the original string is kept alive as long as we're operating
+    // on pointers extracted from it (otherwise e.g. external strings' resources
+    // might get freed prematurely).
+    __ Retain(string);
+    return final_result;
   }
 
   void StringViewWtf16Encode(FullDecoder* decoder,
@@ -4928,6 +5173,7 @@ class TurboshaftGraphBuildingInterface {
   V<WasmInstanceObject> instance_node_;
   std::unordered_map<TSBlock*, BlockPhis> block_phis_;
   Assembler asm_;
+  AssumptionsJournal* assumptions_;
   std::vector<OpIndex> ssa_env_;
   bool did_bailout_ = false;
   compiler::NullCheckStrategy null_check_strategy_ =
@@ -4941,11 +5187,12 @@ class TurboshaftGraphBuildingInterface {
 V8_EXPORT_PRIVATE bool BuildTSGraph(
     AccountingAllocator* allocator, WasmFeatures enabled,
     const WasmModule* module, WasmFeatures* detected, const FunctionBody& body,
-    Graph& graph, compiler::NodeOriginTable* node_origins, int func_index) {
+    Graph& graph, compiler::NodeOriginTable* node_origins,
+    AssumptionsJournal* assumptions, int func_index) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
       decoder(&zone, module, enabled, detected, body, graph, &zone,
-              node_origins, func_index);
+              node_origins, assumptions, func_index);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.
