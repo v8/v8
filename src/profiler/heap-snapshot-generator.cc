@@ -3003,6 +3003,21 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   return true;
 }
 
+bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
+  // Same as above, but no allocations, no GC run, and no progress report.
+  IsolateSafepointScope scope(heap_);
+  auto temporary_global_object_tags =
+      v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
+  NullContextForSnapshotScope null_context_scope(heap_->isolate());
+  v8_heap_explorer_.MakeGlobalObjectTagMap(
+      std::move(temporary_global_object_tags));
+  snapshot_->AddSyntheticRootEntries();
+  if (!FillReferences()) return false;
+  snapshot_->FillChildren();
+  snapshot_->RememberLastJSObjectId();
+  return true;
+}
+
 void HeapSnapshotGenerator::ProgressStep() {
   // Only increment the progress_counter_ until
   // equal to progress_total -1 == progress_counter.

@@ -111,6 +111,7 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/visitors.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -1652,6 +1653,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       ReportDuplicates(it->first, &it->second);
     }
   }
+
+  if (gc_reason == GarbageCollectionReason::kLastResort &&
+      v8_flags.heap_snapshot_on_oom) {
+    isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+  }
 }
 
 void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
@@ -1937,6 +1943,9 @@ void Heap::CollectGarbage(AllocationSpace space,
   if (!CanExpandOldGeneration(0)) {
     InvokeNearHeapLimitCallback();
     if (!CanExpandOldGeneration(0)) {
+      if (v8_flags.heap_snapshot_on_oom) {
+        isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+      }
       FatalProcessOutOfMemory("Reached heap limit");
     }
   }

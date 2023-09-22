@@ -626,6 +626,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
   HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
+  bool GenerateSnapshotAfterGC();
 
   HeapEntry* FindEntry(HeapThing ptr) {
     auto it = entries_map_.find(ptr);
