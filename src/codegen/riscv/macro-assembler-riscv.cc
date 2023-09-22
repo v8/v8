@@ -3904,7 +3904,7 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   fsd(double_input, sp, 0);
 #if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
-    Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+    Call(static_cast<Address>(Builtin::kDoubleToI), RelocInfo::WASM_STUB_CALL);
 #else
   // For balance.
   if (false) {

@@ -139,9 +139,9 @@ class MainAllocator {
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
-  // (object size + alignment filler size) to the size_in_bytes.
+  // (object size + alignment filler size) to the result_aligned_size_in_bytes.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
+  AllocateFastAligned(int size_in_bytes, int* result_aligned_size_in_bytes,
                       AllocationAlignment alignment, AllocationOrigin origin);
 
   // Slow path of allocation function

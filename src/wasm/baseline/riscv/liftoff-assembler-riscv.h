@@ -146,7 +146,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
 
-  Call(static_cast<Address>(wasm::kWasmStackOverflow),
+  Call(static_cast<Address>(Builtin::kWasmStackOverflow),
        RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
