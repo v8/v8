@@ -119,14 +119,18 @@ class WasmGCTypeReducer : public Next {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
-            type.is_nullable() && to_nullable
-                ? __ IsNull(cast_op.object(), type)
-                : __ Word32Constant(0);
+            type.is_nullable() && to_nullable ? __ IsNull(__ MapToNewGraph(
+                                                              cast_op.object()),
+                                                          type)
+                                              : __ Word32Constant(0);
         __ TrapIfNot(non_trapping_condition, OpIndex::Invalid(),
                      TrapId::kTrapIllegalCast);
         return cast_op.object();
       }
     }
+    // TODO(mliedtke): Even if the cast can not be replaced, it would still be
+    // beneficial to narrow down the cast_op.config.from type, so that the
+    // lowering could potentially skip null or smi checks.
     return Next::ReduceInputGraphWasmTypeCast(op_idx, cast_op);
   }
 

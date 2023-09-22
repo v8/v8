@@ -70,6 +70,10 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
 void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
   OpIndex object = type_cast.object();
   wasm::ValueType target_type = type_cast.config.to;
+  // TODO(mliedtke): The cast also produces a result that is the same object as
+  // the input but that is not known, so we also need to refine the cast's
+  // result type to elide potential useless casts in chains like
+  // (ref.cast eq (ref.cast $MyStruct (local.get 0))).
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, target_type);
   input_type_map_[graph_.Index(type_cast)] = known_input_type;
 }
