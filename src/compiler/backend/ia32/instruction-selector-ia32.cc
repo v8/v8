@@ -3726,12 +3726,21 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
        arraysize(temps), temps);
 }
 #else
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
   UNREACHABLE();
 }
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Swizzle(node_t node) {
+  UNREACHABLE();
+}
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
   UNREACHABLE();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
