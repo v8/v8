@@ -51,6 +51,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAtomicRMW:
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
+      case Opcode::kStackCheck:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:

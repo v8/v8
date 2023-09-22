@@ -53,6 +53,7 @@ using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::Simd128ConstantOp;
+using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tagged;
@@ -159,7 +160,7 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    StackCheck();  // TODO(14108): Remove for leaf functions.
+    StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
 
     if (v8_flags.trace_wasm) {
       __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
@@ -225,7 +226,7 @@ class TurboshaftGraphBuildingInterface {
       block->start_merge[i].op = phi;
     }
 
-    StackCheck();
+    StackCheck(StackCheckOp::CheckKind::kLoopCheck);
 
     TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
@@ -4191,37 +4192,9 @@ class TurboshaftGraphBuildingInterface {
     CallRuntime(Runtime::kWasmTraceMemory, {info});
   }
 
-  void StackCheck() {
+  void StackCheck(StackCheckOp::CheckKind kind) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    V<WordPtr> limit_address = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        StackLimitAddress, MemoryRepresentation::PointerSized());
-    V<WordPtr> limit = __ Load(limit_address, LoadOp::Kind::RawAligned(),
-                               MemoryRepresentation::PointerSized(), 0);
-    V<Word32> check =
-        __ StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
-    TSBlock* continuation = __ NewBlock();
-    TSBlock* call_builtin = __ NewBlock();
-    __ Branch(ConditionWithHint(check, BranchHint::kTrue), continuation,
-              call_builtin);
-
-    // TODO(14108): Cache descriptor.
-    __ Bind(call_builtin);
-    V<WordPtr> builtin =
-        __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetStubCallDescriptor(
-            __ graph_zone(),                      // zone
-            NoContextDescriptor{},                // descriptor
-            0,                                    // stack parameter count
-            CallDescriptor::kNoFlags,             // flags
-            Operator::kNoProperties,              // properties
-            StubCallMode::kCallWasmRuntimeStub);  // stub call mode
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-    __ Call(builtin, {}, ts_call_descriptor);
-    __ Goto(continuation);
-
-    __ Bind(continuation);
+    __ StackCheck(StackCheckOp::CheckOrigin::kFromWasm, kind);
   }
 
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(

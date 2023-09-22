@@ -1911,6 +1911,11 @@ class AssemblerOpInterface {
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 
+  OpIndex StackCheck(StackCheckOp::CheckOrigin origin,
+                     StackCheckOp::CheckKind kind) {
+    return ReduceIfReachableStackCheck(origin, kind);
+  }
+
   void Retain(OpIndex value) { ReduceIfReachableRetain(value); }
 
   OpIndex StackPointerGreaterThan(OpIndex limit, StackCheckKind kind) {

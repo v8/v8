@@ -120,6 +120,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/turboshaft/int64-lowering-phase.h"
+#include "src/compiler/turboshaft/wasm-dead-code-elimination-phase.h"
 #include "src/compiler/turboshaft/wasm-gc-optimize-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/wasm-compiler.h"
@@ -3776,6 +3777,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     if (mcgraph->machine()->Is32()) {
       pipeline.Run<turboshaft::Int64LoweringPhase>();
     }
+
+    pipeline.Run<turboshaft::WasmDeadCodeEliminationPhase>();
 
     if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
       // This phase has to run very late to allow all previous phases to use

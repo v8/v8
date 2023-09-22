@@ -251,7 +251,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // MachineLoweringPhase.
 #define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
   V(Allocate)                              \
-  V(DecodeExternalPointer)
+  V(DecodeExternalPointer)                 \
+  V(StackCheck)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3008,6 +3009,34 @@ struct DecodeExternalPointerOp
   auto options() const { return std::tuple{tag}; }
 };
 
+struct StackCheckOp : FixedArityOperationT<0, StackCheckOp> {
+  enum class CheckOrigin : bool { kFromJS, kFromWasm };
+
+  enum class CheckKind : bool { kFunctionHeaderCheck, kLoopCheck };
+
+  CheckOrigin check_origin;
+  CheckKind check_kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  explicit StackCheckOp(CheckOrigin origin, CheckKind kind)
+      : Base(), check_origin(origin), check_kind(kind) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{check_origin, check_kind}; }
+};
+
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin);
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckKind kind);
+
 // Retain a HeapObject to prevent it from being garbage collected too early.
 struct RetainOp : FixedArityOperationT<1, RetainOp> {
   OpIndex retained() const { return input(0); }
@@ -3284,7 +3313,11 @@ struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
   RegisterRepresentation rep;
   const char* debug_name;
 
-  static constexpr OpEffects effects = OpEffects();
+  // Parameters are marked as RequiredWhenUnused to make sure that parameters
+  // are at the beginning of the Turboshaft graph. Without RequiredWhenUnused
+  // it can happen that a parameter gets eliminated and later inserted again
+  // in a later location in the graph.
+  static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return {&rep, 1};
   }

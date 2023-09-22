@@ -237,6 +237,7 @@ class TypeInferenceAnalysis {
         case Opcode::kMemoryBarrier:
         case Opcode::kAllocate:
         case Opcode::kDecodeExternalPointer:
+        case Opcode::kStackCheck:
         case Opcode::kParameter:
         case Opcode::kOsrValue:
         case Opcode::kStackPointerGreaterThan:

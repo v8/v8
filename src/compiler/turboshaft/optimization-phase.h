@@ -862,6 +862,11 @@ class GraphVisitor {
     return assembler().DecodeExternalPointer(MapToNewGraph(op.handle()),
                                              op.tag);
   }
+
+  OpIndex AssembleOutputGraphStackCheck(const StackCheckOp& op) {
+    return assembler().ReduceStackCheck(op.check_origin, op.check_kind);
+  }
+
   OpIndex AssembleOutputGraphRetain(const RetainOp& op) {
     return assembler().ReduceRetain(MapToNewGraph(op.retained()));
   }

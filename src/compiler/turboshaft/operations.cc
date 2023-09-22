@@ -1298,6 +1298,24 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin) {
+  switch (origin) {
+    case StackCheckOp::CheckOrigin::kFromJS:
+      return os << "JavaScript";
+    case StackCheckOp::CheckOrigin::kFromWasm:
+      return os << "WebAssembly";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckKind kind) {
+  switch (kind) {
+    case StackCheckOp::CheckKind::kFunctionHeaderCheck:
+      return os << "function-entry";
+    case StackCheckOp::CheckKind::kLoopCheck:
+      return os << "loop";
+  }
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
