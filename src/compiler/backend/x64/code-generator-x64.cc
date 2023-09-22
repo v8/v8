@@ -6605,6 +6605,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SetupSimd256ImmediateInRegister(masm(), imm, dst, kScratchDoubleReg);
       break;
     }
+    case kX64ExtractF128: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      uint8_t lane = i.InputInt8(1);
+      __ vextractf128(i.OutputSimd128Register(), i.InputSimd256Register(0),
+                      lane);
+      break;
+    }
   }
   return kSuccess;
 }  // NOLadability/fn_size)

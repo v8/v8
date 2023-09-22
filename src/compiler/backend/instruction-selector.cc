@@ -4197,6 +4197,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitF64x4Pmax(node);
     case IrOpcode::kI8x32Shuffle:
       return MarkAsSimd256(node), VisitI8x32Shuffle(node);
+    case IrOpcode::kExtractF128:
+      return MarkAsSimd128(node), VisitExtractF128(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
