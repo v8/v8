@@ -731,8 +731,8 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
 inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
   if (v8_flags.debug_code) {
     // Perform an unsigned comparison against Smi::kMaxValue.
-    CompareInt32(src, Smi::kMaxValue);
-    Check(kUnsignedLessThanEqual, AbortReason::kInputDoesNotFitSmi);
+    CompareInt32AndAssert(src, Smi::kMaxValue, kUnsignedLessThanEqual,
+                          AbortReason::kInputDoesNotFitSmi);
   }
   SmiTagInt32AndSetFlags(dst, src);
   Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);

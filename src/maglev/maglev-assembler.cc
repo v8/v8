@@ -480,8 +480,8 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
     AssertNotSmi(array);
     IsObjectType(array, FIXED_ARRAY_TYPE);
     Assert(kEqual, AbortReason::kUnexpectedValue);
-    CompareInt32(index, 0);
-    Assert(kGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+    CompareInt32AndAssert(index, 0, kGreaterThanEqual,
+                          AbortReason::kUnexpectedNegativeValue);
   }
   StoreFixedArrayElementNoWriteBarrier(array, index, value);
   CheckAndEmitDeferredWriteBarrier<kElement>(

@@ -378,8 +378,8 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
     AssertNotSmi(array);
     IsObjectType(array, FIXED_ARRAY_TYPE);
     Assert(kEqual, AbortReason::kUnexpectedValue);
-    CompareInt32(index, 0);
-    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+    CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
+                          AbortReason::kUnexpectedNegativeValue);
   }
   LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
                          FixedArray::kHeaderSize);
@@ -391,8 +391,8 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     AssertNotSmi(array);
     IsObjectType(array, FIXED_ARRAY_TYPE);
     Assert(kEqual, AbortReason::kUnexpectedValue);
-    CompareInt32(index, 0);
-    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+    CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
+                          AbortReason::kUnexpectedNegativeValue);
   }
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
       result,
@@ -406,8 +406,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
     AssertNotSmi(array);
     IsObjectType(array, FIXED_DOUBLE_ARRAY_TYPE);
     Assert(kEqual, AbortReason::kUnexpectedValue);
-    CompareInt32(index, 0);
-    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+    CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
+                          AbortReason::kUnexpectedNegativeValue);
   }
   Movsd(result,
         FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize));
@@ -776,14 +776,6 @@ inline void MaglevAssembler::CompareTagged(Register src1, Register src2) {
   cmp_tagged(src1, src2);
 }
 
-inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
-  Cmp(reg, imm);
-}
-
-inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
-  cmpl(src1, src2);
-}
-
 inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
                                             DoubleRegister src2) {
   Ucomisd(src1, src2);
@@ -909,7 +901,7 @@ void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
 void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                             Condition cond, Label* target,
                                             Label::Distance distance) {
-  CompareInt32(r1, r2);
+  cmpl(r1, r2);
   JumpIf(cond, target, distance);
 }
 
@@ -917,8 +909,39 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
-  CompareInt32(r1, value);
+  Cmp(r1, value);
   JumpIf(cond, target, distance);
+}
+
+inline void MaglevAssembler::CompareInt32AndBranch(Register r1, int32_t value,
+                                                   Condition cond,
+                                                   BasicBlock* if_true,
+                                                   BasicBlock* if_false,
+                                                   BasicBlock* next_block) {
+  Cmp(r1, value);
+  Branch(cond, if_true, if_false, next_block);
+}
+
+inline void MaglevAssembler::CompareInt32AndBranch(Register r1, Register r2,
+                                                   Condition cond,
+                                                   BasicBlock* if_true,
+                                                   BasicBlock* if_false,
+                                                   BasicBlock* next_block) {
+  cmpl(r1, r2);
+  Branch(cond, if_true, if_false, next_block);
+}
+
+inline void MaglevAssembler::CompareInt32AndAssert(Register r1, Register r2,
+                                                   Condition cond,
+                                                   AbortReason reason) {
+  cmpl(r1, r2);
+  Assert(cond, reason);
+}
+inline void MaglevAssembler::CompareInt32AndAssert(Register r1, int32_t value,
+                                                   Condition cond,
+                                                   AbortReason reason) {
+  Cmp(r1, value);
+  Assert(cond, reason);
 }
 
 inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,

@@ -425,9 +425,6 @@ class MaglevAssembler : public MacroAssembler {
                                      Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);
 
-  inline void CompareInt32(Register reg, int32_t imm);
-  inline void CompareInt32(Register src1, Register src2);
-
   inline void CompareFloat64(DoubleRegister src1, DoubleRegister src2);
 
   inline void PrepareCallCFunction(int num_reg_arguments,
@@ -471,6 +468,16 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
+  inline void CompareInt32AndBranch(Register r1, int32_t value, Condition cond,
+                                    BasicBlock* if_true, BasicBlock* if_false,
+                                    BasicBlock* next_block);
+  inline void CompareInt32AndBranch(Register r1, Register r2, Condition cond,
+                                    BasicBlock* if_true, BasicBlock* if_false,
+                                    BasicBlock* next_block);
+  inline void CompareInt32AndAssert(Register r1, Register r2, Condition cond,
+                                    AbortReason reason);
+  inline void CompareInt32AndAssert(Register r1, int32_t value, Condition cond,
+                                    AbortReason reason);
   inline void CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
                                   Condition cond, Label* target,
                                   Label::Distance distance = Label::kFar);
