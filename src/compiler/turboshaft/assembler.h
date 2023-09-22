@@ -1879,7 +1879,22 @@ class AssemblerOpInterface {
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
                     const char* debug_name = nullptr) {
-    return ReduceIfReachableParameter(index, rep, debug_name);
+    // Parameter indices might be negative.
+    int cache_location = index - kMinParameterIndex;
+    DCHECK_GE(cache_location, 0);
+    if (static_cast<size_t>(cache_location) >= cached_parameters_.size()) {
+      cached_parameters_.resize_and_init(cache_location + 1);
+    }
+    OpIndex& cached_param = cached_parameters_[cache_location];
+    if (!cached_param.valid()) {
+      // Note: When in unreachable code, this will return OpIndex::Invalid, so
+      // the cached state is unchanged.
+      cached_param = ReduceIfReachableParameter(index, rep, debug_name);
+    } else {
+      DCHECK_EQ(Asm().output_graph().Get(cached_param).outputs_rep(),
+                base::VectorOf({rep}));
+    }
+    return cached_param;
   }
   OpIndex OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
   void Return(OpIndex pop_count, base::Vector<const OpIndex> return_values) {
@@ -3106,6 +3121,7 @@ class AssemblerOpInterface {
         : else_block(else_block), end_block(end_block) {}
   };
   base::SmallVector<IfScopeInfo, 16> if_scope_stack_;
+  base::SmallVector<OpIndex, 16> cached_parameters_;
   // [0] contains the stub with exit frame.
   MaybeHandle<Code> cached_centry_stub_constants_[4];
   bool in_object_initialization_ = false;

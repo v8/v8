@@ -2342,6 +2342,7 @@ inline constexpr int JSParameterCount(int param_count_without_receiver) {
 // The constant is defined here for accessibility (without having to include TF
 // internals), even though it is mostly relevant to Turbofan.
 constexpr int kJSCallClosureParameterIndex = -1;
+constexpr int kMinParameterIndex = kJSCallClosureParameterIndex;
 
 // Opaque data type for identifying stack frames. Used extensively
 // by the debugger.

@@ -254,7 +254,6 @@ void WasmGraphBuilder::Start(unsigned params) {
 Node* WasmGraphBuilder::Param(int index, const char* debug_name) {
   DCHECK_NOT_NULL(graph()->start());
   // Turbofan allows negative parameter indices.
-  static constexpr int kMinParameterIndex = -1;
   DCHECK_GE(index, kMinParameterIndex);
   int array_index = index - kMinParameterIndex;
   if (parameters_[array_index] == nullptr) {
