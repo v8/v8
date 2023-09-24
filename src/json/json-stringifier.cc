@@ -35,7 +35,7 @@ class JsonStringifier {
                                                       Handle<Object> gap);
 
  private:
-  enum Result { UNCHANGED, SUCCESS, EXCEPTION, NEED_STACK };
+  enum Result { UNCHANGED, SUCCESS, EXCEPTION };
 
   bool InitializeReplacer(Handle<Object> replacer);
   bool InitializeGap(Handle<Object> gap);
@@ -345,9 +345,7 @@ class JsonStringifier {
   int indent_;
   int part_length_;
   int current_index_;
-  int stack_nesting_level_;
   bool overflowed_;
-  bool need_stack_;
 
   using KeyObject = std::pair<Handle<Object>, Handle<Object>>;
   std::vector<KeyObject> stack_;
@@ -416,9 +414,7 @@ JsonStringifier::JsonStringifier(Isolate* isolate)
       indent_(0),
       part_length_(kInitialPartLength),
       current_index_(0),
-      stack_nesting_level_(0),
       overflowed_(false),
-      need_stack_(false),
       stack_(),
       key_cache_(isolate) {
   one_byte_ptr_ = one_byte_array_;
@@ -437,11 +433,6 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
     return MaybeHandle<Object>();
   }
   Result result = SerializeObject(object);
-  if (result == NEED_STACK) {
-    indent_ = 0;
-    current_index_ = 0;
-    result = SerializeObject(object);
-  }
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
     if (overflowed_ || current_index_ > String::kMaxLength) {
@@ -603,14 +594,6 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
 
 JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
                                                    Handle<Object> key) {
-  if (!need_stack_) {
-    ++stack_nesting_level_;
-    if V8_UNLIKELY (stack_nesting_level_ > 10) {
-      need_stack_ = true;
-      return NEED_STACK;
-    }
-    return SUCCESS;
-  }
   StackLimitCheck check(isolate_);
   if (check.HasOverflowed()) {
     isolate_->StackOverflow();
@@ -637,13 +620,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
   return SUCCESS;
 }
 
-void JsonStringifier::StackPop() {
-  if V8_LIKELY (!need_stack_) {
-    --stack_nesting_level_;
-    return;
-  }
-  stack_.pop_back();
-}
+void JsonStringifier::StackPop() { stack_.pop_back(); }
 
 class CircularStructureMessageBuilder {
  public:
@@ -759,9 +736,8 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
 bool MayHaveInterestingProperties(Isolate* isolate, JSReceiver object) {
   for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->map()->may_have_interesting_properties()) {
+    if (iter.GetCurrent()->map()->may_have_interesting_properties())
       return true;
-    }
   }
   return false;
 }
@@ -784,17 +760,11 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
          MayHaveInterestingProperties(isolate_, JSReceiver::cast(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
-      if (!need_stack_ && stack_nesting_level_ > 0) {
-        need_stack_ = true;
-        return NEED_STACK;
-      }
-      need_stack_ = true;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
     }
   }
   if (!replacer_function_.is_null()) {
-    need_stack_ = true;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, object, ApplyReplacerFunction(object, key, initial_value),
         EXCEPTION);
@@ -836,10 +806,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object), key);
     case JS_PRIMITIVE_WRAPPER_TYPE:
-      if (!need_stack_) {
-        need_stack_ = true;
-        return NEED_STACK;
-      }
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(object), key);
@@ -1144,17 +1110,13 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       property = JSObject::FastPropertyAt(
           isolate_, object, details.representation(), field_index);
     } else {
-      if (!need_stack_) {
-        need_stack_ = true;
-        return NEED_STACK;
-      }
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, property,
           Object::GetPropertyOrElement(isolate_, object, key_name), EXCEPTION);
     }
     Result result = SerializeProperty(property, comma, key_name);
     if (!comma && result == SUCCESS) comma = true;
-    if (result == EXCEPTION || result == NEED_STACK) return result;
+    if (result == EXCEPTION) return result;
   }
   Unindent();
   if (comma) NewLine();
@@ -1185,7 +1147,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
         EXCEPTION);
     Result result = SerializeProperty(property, comma, key);
     if (!comma && result == SUCCESS) comma = true;
-    if (result == EXCEPTION || result == NEED_STACK) return result;
+    if (result == EXCEPTION) return result;
   }
   Unindent();
   if (comma) NewLine();
