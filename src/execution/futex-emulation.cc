@@ -1005,10 +1005,10 @@ int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
     for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
       DCHECK(node->IsAsync());
       if (node->waiting_) continue;
+      if (wait_location != node->wait_location_) continue;
       if (node->async_state_->backing_store.expired()) continue;
       DCHECK_EQ(array_buffer->GetBackingStore(),
                 node->async_state_->backing_store.lock());
-      if (wait_location != node->wait_location_) continue;
       num_waiters++;
     }
   }
