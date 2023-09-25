@@ -103,7 +103,6 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
                                            : backing_store->byte_length();
   set_max_byte_length(max_byte_len);
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
-  if (!backing_store->free_on_destruct()) set_is_external(true);
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
   extension->set_accounting_length(bytes);

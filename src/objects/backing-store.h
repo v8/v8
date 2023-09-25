@@ -92,7 +92,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool is_resizable_by_js() const { return is_resizable_by_js_; }
   bool is_wasm_memory() const { return is_wasm_memory_; }
   bool has_guard_regions() const { return has_guard_regions_; }
-  bool free_on_destruct() const { return free_on_destruct_; }
 
   bool IsEmpty() const {
     DCHECK_GE(byte_capacity_, byte_length_);
@@ -106,8 +105,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   bool CanReallocate() const {
     return !is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
-           free_on_destruct_ && !is_resizable_by_js_ &&
-           buffer_start_ != nullptr;
+           !is_resizable_by_js_ && buffer_start_ != nullptr;
   }
 
   // Wrapper around ArrayBuffer::Allocator::Reallocate.
@@ -170,8 +168,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool free_on_destruct,
-               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
+               bool is_wasm_memory, bool has_guard_regions, bool custom_deleter,
+               bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -223,7 +221,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   const bool is_resizable_by_js_ : 1;
   const bool is_wasm_memory_ : 1;
   bool holds_shared_ptr_to_allocator_ : 1;
-  const bool free_on_destruct_ : 1;
   const bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;
   const bool custom_deleter_ : 1;
