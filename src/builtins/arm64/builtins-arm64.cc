@@ -1166,12 +1166,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
     __ Push(argc, bytecode_array);
-
-    // Baseline code frames store the feedback vector where interpreter would
-    // store the bytecode offset.
     __ AssertFeedbackVector(feedback_vector, x4);
-    // TODO(victorgomes): The first push should actually be a free slot.
-    __ Push(feedback_vector, feedback_vector);
+    __ Push(xzr, feedback_vector);
   }
 
   Label call_stack_guard;
@@ -5322,10 +5318,16 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // Save BytecodeOffset from the stack frame.
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  // Replace BytecodeOffset with the feedback vector.
+  // Update feedback vector cache.
+  static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
+                BaselineFrameConstants::kFeedbackVectorFromFp);
   __ Str(feedback_vector,
-         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+         MemOperand(fp, InterpreterFrameConstants::kFeedbackVectorFromFp));
   feedback_vector = no_reg;
+  // Replace BytecodeOffset with zero.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kUnusedSlotFromFp);
+  __ Str(xzr, MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;

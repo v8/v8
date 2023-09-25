@@ -1004,9 +1004,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register bytecodeArray = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
     __ Push(argc, bytecodeArray);
-
-    // Baseline code frames store the feedback vector where interpreter would
-    // store the bytecode offset.
     if (v8_flags.debug_code) {
       UseScratchRegisterScope temps(masm);
       Register scratch = temps.Acquire();
@@ -1014,8 +1011,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                            FEEDBACK_VECTOR_TYPE);
       __ Assert(eq, AbortReason::kExpectedFeedbackVector);
     }
-    // TODO(victorgomes): The first push should actually be a free slot.
-    __ Push(feedback_vector);
+    {
+      // Unused slot.
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand::Zero());
+      __ Push(scratch);
+    }
     __ Push(feedback_vector);
   }
 
@@ -3984,10 +3986,19 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ ldr(kInterpreterBytecodeOffsetRegister,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
-  // Replace BytecodeOffset with the feedback vector.
+  // Update feedback vector cache.
+  static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
+                BaselineFrameConstants::kFeedbackVectorFromFp);
   __ str(feedback_vector,
-         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+         MemOperand(fp, InterpreterFrameConstants::kFeedbackVectorFromFp));
   feedback_vector = no_reg;
+  // Replace BytecodeOffset with zero.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kUnusedSlotFromFp);
+  Register scratch = r2;
+  __ mov(scratch, Operand(0));
+  __ str(scratch,
+         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
