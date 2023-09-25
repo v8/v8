@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4af2818c5bf2b884ea6d5d8a56a7995fb5ce4b9b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c5505889cf38b44fd841b161d4d2e2776b65f943',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'd1e0ff4350f77c7f6b246ff62c232318a73c8176',
     'condition': 'checkout_fuchsia',
