@@ -4,6 +4,7 @@
 
 #include "src/wasm/constant-expression-interface.h"
 
+#include "src/base/overflowing-math.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/fixed-array-inl.h"
@@ -72,28 +73,28 @@ void ConstantExpressionInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
   if (!generate_value()) return;
   switch (opcode) {
     case kExprI32Add:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i32() + rhs.runtime_value.to_i32());
+      result->runtime_value = WasmValue(base::AddWithWraparound(
+          lhs.runtime_value.to_i32(), rhs.runtime_value.to_i32()));
       break;
     case kExprI32Sub:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i32() - rhs.runtime_value.to_i32());
+      result->runtime_value = WasmValue(base::SubWithWraparound(
+          lhs.runtime_value.to_i32(), rhs.runtime_value.to_i32()));
       break;
     case kExprI32Mul:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i32() * rhs.runtime_value.to_i32());
+      result->runtime_value = WasmValue(base::MulWithWraparound(
+          lhs.runtime_value.to_i32(), rhs.runtime_value.to_i32()));
       break;
     case kExprI64Add:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i64() + rhs.runtime_value.to_i64());
+      result->runtime_value = WasmValue(base::AddWithWraparound(
+          lhs.runtime_value.to_i64(), rhs.runtime_value.to_i64()));
       break;
     case kExprI64Sub:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i64() - rhs.runtime_value.to_i64());
+      result->runtime_value = WasmValue(base::SubWithWraparound(
+          lhs.runtime_value.to_i64(), rhs.runtime_value.to_i64()));
       break;
     case kExprI64Mul:
-      result->runtime_value =
-          WasmValue(lhs.runtime_value.to_i64() * rhs.runtime_value.to_i64());
+      result->runtime_value = WasmValue(base::MulWithWraparound(
+          lhs.runtime_value.to_i64(), rhs.runtime_value.to_i64()));
       break;
     default:
       UNREACHABLE();

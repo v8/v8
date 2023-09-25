@@ -2172,7 +2172,7 @@ function wasmSignedLeb64(val, max_len = 10) {
   for (let i = 0; i < max_len; ++i) {
     let v = val & 0x7fn;
     // If {v} sign-extended from 7 to 32 bits is equal to val, we are done.
-    if (((v << 25n) >> 25n) == val) {
+    if (BigInt.asIntN(7, v) == val) {
       res.push(Number(v));
       return res;
     }
