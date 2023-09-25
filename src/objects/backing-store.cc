@@ -720,26 +720,6 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 }
 
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
-    Isolate* isolate, void* allocation_base, size_t allocation_length,
-    SharedFlag shared, bool free_on_destruct) {
-  auto result = new BackingStore(allocation_base,               // start
-                                 allocation_length,             // length
-                                 allocation_length,             // max length
-                                 allocation_length,             // capacity
-                                 shared,                        // shared
-                                 ResizableFlag::kNotResizable,  // resizable
-                                 false,             // is_wasm_memory
-                                 free_on_destruct,  // free_on_destruct
-                                 false,             // has_guard_regions
-                                 false,             // custom_deleter
-                                 false);            // empty_deleter
-  result->SetAllocatorFromIsolate(isolate);
-  TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
-           result->buffer_start(), result->byte_length());
-  return std::unique_ptr<BackingStore>(result);
-}
-
-std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     void* allocation_base, size_t allocation_length,
     v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {

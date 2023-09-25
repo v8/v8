@@ -72,16 +72,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       WasmMemoryFlag wasm_memory, SharedFlag shared);
 
   // Create a backing store that wraps existing allocated memory.
-  // If {free_on_destruct} is {true}, the memory will be freed using the
-  // ArrayBufferAllocator::Free() callback when this backing store is
-  // destructed. Otherwise destructing the backing store will do nothing
-  // to the allocated memory.
-  static std::unique_ptr<BackingStore> WrapAllocation(Isolate* isolate,
-                                                      void* allocation_base,
-                                                      size_t allocation_length,
-                                                      SharedFlag shared,
-                                                      bool free_on_destruct);
-
   static std::unique_ptr<BackingStore> WrapAllocation(
       void* allocation_base, size_t allocation_length,
       v8::BackingStore::DeleterCallback deleter, void* deleter_data,
