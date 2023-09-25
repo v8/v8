@@ -177,6 +177,13 @@ namespace internal {
 // So we speculatively lower the ia32 limit to the ARM limit for the time
 // being. See crbug.com/1346791.
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#elif V8_USE_ADDRESS_SANITIZER
+// ASan makes C++ frames consume more stack, so V8 should leave more stack
+// space available in case a C++ call happens. ClusterFuzz found a case where
+// even just 1 KB less than the default stack size would be enough (see
+// crbug.com/1486275); to be more robust towards future CF reports we'll
+// use an even lower limit.
+#define V8_DEFAULT_STACK_SIZE_KB 960
 #else
 // Slightly less than 1MB, since Windows' default stack size for
 // the main execution thread is 1MB.
