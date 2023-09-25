@@ -170,6 +170,56 @@ void HeapAllocator::UnmarkLinearAllocationArea() {
   }
 }
 
+void HeapAllocator::AddAllocationObserver(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  if (new_space_allocator_) {
+    new_space_allocator_->AddAllocationObserver(new_space_observer);
+  }
+  if (new_lo_space()) {
+    new_lo_space()->AddAllocationObserver(new_space_observer);
+  }
+  old_space_allocator_->AddAllocationObserver(observer);
+  lo_space()->AddAllocationObserver(observer);
+  trusted_space_allocator_->AddAllocationObserver(observer);
+  trusted_lo_space()->AddAllocationObserver(observer);
+  code_space_allocator_->AddAllocationObserver(observer);
+  code_lo_space()->AddAllocationObserver(observer);
+}
+
+void HeapAllocator::RemoveAllocationObserver(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  if (new_space_allocator_) {
+    new_space_allocator_->RemoveAllocationObserver(new_space_observer);
+  }
+  if (new_lo_space()) {
+    new_lo_space()->RemoveAllocationObserver(new_space_observer);
+  }
+  old_space_allocator_->RemoveAllocationObserver(observer);
+  lo_space()->RemoveAllocationObserver(observer);
+  trusted_space_allocator_->RemoveAllocationObserver(observer);
+  trusted_lo_space()->RemoveAllocationObserver(observer);
+  code_space_allocator_->RemoveAllocationObserver(observer);
+  code_lo_space()->RemoveAllocationObserver(observer);
+}
+
+void HeapAllocator::PauseAllocationObservers() {
+  if (new_space_allocator_) {
+    new_space_allocator_->PauseAllocationObservers();
+  }
+  old_space_allocator_->PauseAllocationObservers();
+  trusted_space_allocator_->PauseAllocationObservers();
+  code_space_allocator_->PauseAllocationObservers();
+}
+
+void HeapAllocator::ResumeAllocationObservers() {
+  if (new_space_allocator_) {
+    new_space_allocator_->ResumeAllocationObservers();
+  }
+  old_space_allocator_->ResumeAllocationObservers();
+  trusted_space_allocator_->ResumeAllocationObservers();
+  code_space_allocator_->ResumeAllocationObservers();
+}
+
 #ifdef DEBUG
 
 void HeapAllocator::IncrementObjectCounters() {

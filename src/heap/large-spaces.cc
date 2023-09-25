@@ -98,10 +98,6 @@ void LargeObjectSpace::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void LargeObjectSpace::PauseAllocationObservers() {}
-
-void LargeObjectSpace::ResumeAllocationObservers() {}
-
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocateRaw(object_size, NOT_EXECUTABLE);
 }

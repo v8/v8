@@ -77,11 +77,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   Space(const Space&) = delete;
   Space& operator=(const Space&) = delete;
 
-  virtual void AddAllocationObserver(AllocationObserver* observer) = 0;
-  virtual void RemoveAllocationObserver(AllocationObserver* observer) = 0;
-  virtual void PauseAllocationObservers() = 0;
-  virtual void ResumeAllocationObservers() = 0;
-
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
   virtual size_t SizeOfObjects() const { return Size(); }
@@ -331,12 +326,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
 
   MainAllocator* main_allocator() { return allocator_; }
 
-  // Methods needed for allocation observers.
-  void AddAllocationObserver(AllocationObserver* observer) override;
-  void RemoveAllocationObserver(AllocationObserver* observer) override;
-  void ResumeAllocationObservers() override;
-  void PauseAllocationObservers() override;
-
   void AdvanceAllocationObservers();
 
   virtual void FreeLinearAllocationArea() = 0;
@@ -348,8 +337,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   // the minimum size that the limited area should have.
   Address ComputeLimit(Address start, Address end, size_t min_size) const;
   virtual void UpdateInlineAllocationLimit() = 0;
-
-  void PrintAllocationsOrigins() const;
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,

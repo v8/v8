@@ -134,23 +134,6 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
   return *this;
 }
 
-void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  allocator_->AddAllocationObserver(observer);
-}
-
-void SpaceWithLinearArea::RemoveAllocationObserver(
-    AllocationObserver* observer) {
-  allocator_->RemoveAllocationObserver(observer);
-}
-
-void SpaceWithLinearArea::PauseAllocationObservers() {
-  allocator_->PauseAllocationObservers();
-}
-
-void SpaceWithLinearArea::ResumeAllocationObservers() {
-  allocator_->ResumeAllocationObservers();
-}
-
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
   allocator_->AdvanceAllocationObservers();
 }

@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 
+class AllocationObserver;
 class CodeLargeObjectSpace;
 class ConcurrentAllocator;
 class Heap;
@@ -81,6 +82,14 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
+
+  void PauseAllocationObservers();
+  void ResumeAllocationObservers();
+
+  void AddAllocationObserver(AllocationObserver* observer,
+                             AllocationObserver* new_space_observer);
+  void RemoveAllocationObserver(AllocationObserver* observer,
+                                AllocationObserver* new_space_observer);
 
   MainAllocator* new_space_allocator() { return new_space_allocator_; }
   MainAllocator* old_space_allocator() { return old_space_allocator_; }

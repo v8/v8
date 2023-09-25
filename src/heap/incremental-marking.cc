@@ -183,8 +183,8 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
 
   if (is_major) {
     StartMarkingMajor();
-    heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
-                                             &new_generation_observer_);
+    heap_->allocator()->AddAllocationObserver(&old_generation_observer_,
+                                              &new_generation_observer_);
     if (incremental_marking_job()) {
       incremental_marking_job()->ScheduleTask();
     }
@@ -569,14 +569,8 @@ bool IncrementalMarking::Stop() {
   }
 
   if (IsMajorMarking()) {
-    for (SpaceIterator it(heap_); it.HasNext();) {
-      Space* space = it.Next();
-      if (space == heap_->new_space()) {
-        space->RemoveAllocationObserver(&new_generation_observer_);
-      } else {
-        space->RemoveAllocationObserver(&old_generation_observer_);
-      }
-    }
+    heap()->allocator()->RemoveAllocationObserver(&old_generation_observer_,
+                                                  &new_generation_observer_);
     major_collection_requested_via_stack_guard_ = false;
     isolate()->stack_guard()->ClearGC();
   }

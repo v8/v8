@@ -106,8 +106,8 @@ class MainAllocator {
                                       AllocationAlignment alignment,
                                       AllocationOrigin);
 
-  void AddAllocationObserver(AllocationObserver* observer);
-  void RemoveAllocationObserver(AllocationObserver* observer);
+  V8_EXPORT_PRIVATE void AddAllocationObserver(AllocationObserver* observer);
+  V8_EXPORT_PRIVATE void RemoveAllocationObserver(AllocationObserver* observer);
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
 

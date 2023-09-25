@@ -2425,6 +2425,8 @@ class Heap final {
 
   // Used in cctest.
   friend class heap::HeapTester;
+  FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
+  FRIEND_TEST(SpacesTest, AllocationObserver);
 
   friend class MemoryBalancer;
 };

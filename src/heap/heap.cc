@@ -221,7 +221,7 @@ class ScheduleMinorGCTaskObserver final : public AllocationObserver {
     heap_->ScheduleMinorGCTaskIfNeeded();
     // Remove this observer. It will be re-added after a GC.
     DCHECK(was_added_to_space_);
-    heap_->new_space()->RemoveAllocationObserver(this);
+    heap_->allocator()->new_space_allocator()->RemoveAllocationObserver(this);
     was_added_to_space_ = false;
   }
 
@@ -236,13 +236,13 @@ class ScheduleMinorGCTaskObserver final : public AllocationObserver {
     DCHECK(!was_added_to_space_);
     DCHECK_IMPLIES(v8_flags.minor_ms,
                    heap_->new_space()->top() == kNullAddress);
-    heap_->new_space()->AddAllocationObserver(this);
+    heap_->allocator()->new_space_allocator()->AddAllocationObserver(this);
     was_added_to_space_ = true;
   }
 
   void RemoveFromNewSpace() {
     if (!was_added_to_space_) return;
-    heap_->new_space()->RemoveAllocationObserver(this);
+    heap_->allocator()->new_space_allocator()->RemoveAllocationObserver(this);
     was_added_to_space_ = false;
   }
 
@@ -1258,29 +1258,13 @@ size_t Heap::UsedGlobalHandlesSize() {
 void Heap::AddAllocationObserversToAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
-
-  for (SpaceIterator it(this); it.HasNext();) {
-    Space* space = it.Next();
-    if (space == new_space()) {
-      space->AddAllocationObserver(new_space_observer);
-    } else {
-      space->AddAllocationObserver(observer);
-    }
-  }
+  allocator()->AddAllocationObserver(observer, new_space_observer);
 }
 
 void Heap::RemoveAllocationObserversFromAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
-
-  for (SpaceIterator it(this); it.HasNext();) {
-    Space* space = it.Next();
-    if (space == new_space()) {
-      space->RemoveAllocationObserver(new_space_observer);
-    } else {
-      space->RemoveAllocationObserver(observer);
-    }
-  }
+  allocator()->RemoveAllocationObserver(observer, new_space_observer);
 }
 
 void Heap::PublishPendingAllocations() {
@@ -5644,20 +5628,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
-  if (new_space()) {
-    minor_gc_job_.reset(new MinorGCJob(this));
-    minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
-  }
-
   SetGetExternallyAllocatedMemoryInBytesCallback(ReturnNull);
-
-  if (v8_flags.stress_marking > 0) {
-    stress_marking_percentage_ = NextStressMarkingLimit();
-  }
-  if (IsStressingScavenge()) {
-    stress_scavenge_observer_ = new StressScavengeObserver(this);
-    new_space()->AddAllocationObserver(stress_scavenge_observer_);
-  }
 
   write_protect_code_memory_ = v8_flags.write_protect_code_memory;
 #if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
@@ -5681,6 +5652,20 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   main_thread_local_heap()->SetUpMainThread();
   heap_allocator_.Setup();
+
+  if (new_space()) {
+    minor_gc_job_.reset(new MinorGCJob(this));
+    minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
+  }
+
+  if (v8_flags.stress_marking > 0) {
+    stress_marking_percentage_ = NextStressMarkingLimit();
+  }
+  if (IsStressingScavenge()) {
+    stress_scavenge_observer_ = new StressScavengeObserver(this);
+    allocator()->new_space_allocator()->AddAllocationObserver(
+        stress_scavenge_observer_);
+  }
 
   if (v8_flags.memory_balancer) {
     mb_.reset(new MemoryBalancer(this, startup_time));
@@ -5929,7 +5914,8 @@ void Heap::TearDown() {
   stress_concurrent_allocation_observer_.reset();
 
   if (IsStressingScavenge()) {
-    new_space()->RemoveAllocationObserver(stress_scavenge_observer_);
+    allocator()->new_space_allocator()->RemoveAllocationObserver(
+        stress_scavenge_observer_);
     delete stress_scavenge_observer_;
     stress_scavenge_observer_ = nullptr;
   }
