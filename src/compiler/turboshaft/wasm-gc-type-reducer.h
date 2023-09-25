@@ -109,7 +109,7 @@ class WasmGCTypeReducer : public Next {
           // The inferred heap type is already as specific as the cast target,
           // but the source can be nullable and the target cannot be, so a null
           // check is still required.
-          return __ AssertNotNull(cast_op.object(), type,
+          return __ AssertNotNull(__ MapToNewGraph(cast_op.object()), type,
                                   TrapId::kTrapIllegalCast);
         }
       }
@@ -125,7 +125,7 @@ class WasmGCTypeReducer : public Next {
                                               : __ Word32Constant(0);
         __ TrapIfNot(non_trapping_condition, OpIndex::Invalid(),
                      TrapId::kTrapIllegalCast);
-        return cast_op.object();
+        return __ MapToNewGraph(cast_op.object());
       }
     }
     // TODO(mliedtke): Even if the cast can not be replaced, it would still be
