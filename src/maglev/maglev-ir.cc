@@ -8,6 +8,7 @@
 
 #include "src/base/bounds.h"
 #include "src/builtins/builtins-constructor.h"
+#include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
@@ -672,6 +673,20 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
     if (type.IsTagged() && !type.IsTaggedSigned()) {
       input(i).node()->SetTaggedResultNeedsDecompress();
     }
+  }
+}
+#endif
+
+void CallCPPBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+#ifdef V8_COMPRESS_POINTERS
+void CallCPPBuiltin::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
   }
 }
 #endif
@@ -5232,6 +5247,64 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int CallCPPBuiltin::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
+  return D::GetStackParameterCount() + num_args();
+}
+
+void CallCPPBuiltin::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
+  UseAny(target());
+  UseAny(new_target());
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(this, kReturnRegister0);
+  set_temporaries_needed(1);
+  RequireSpecificTemporary(D::GetRegisterParameter(D::kArity));
+  RequireSpecificTemporary(D::GetRegisterParameter(D::kCFunction));
+}
+
+void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
+  constexpr Register kArityReg = D::GetRegisterParameter(D::kArity);
+  constexpr Register kCFunctionReg = D::GetRegisterParameter(D::kCFunction);
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadRoot(scratch, RootIndex::kTheHoleValue);
+
+  // Push all arguments to the builtin (including the receiver).
+  static_assert(BuiltinArguments::kNumExtraArgsWithReceiver == 5);
+  static_assert(BuiltinArguments::kReceiverOffset == 4);
+  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+
+  static_assert(BuiltinArguments::kNewTargetOffset == 0);
+  static_assert(BuiltinArguments::kTargetOffset == 1);
+  static_assert(BuiltinArguments::kArgcOffset == 2);
+  static_assert(BuiltinArguments::kPaddingOffset == 3);
+  // Push stack arguments for CEntry.
+  Tagged<Smi> tagged_argc = Smi::FromInt(num_args());  // Includes receiver.
+  __ Push(scratch /* padding */, tagged_argc, target(), new_target());
+
+  // Move values to fixed registers after all arguments are pushed. Registers
+  // for arguments and CEntry registers might overlap.
+  __ Move(kArityReg, BuiltinArguments::kNumExtraArgs + num_args());
+  ExternalReference builtin_address =
+      ExternalReference::Create(Builtins::CppEntryOf(builtin()));
+  __ Move(kCFunctionReg, builtin_address);
+
+  DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin()).GetReturnCount(),
+            1);
+  constexpr int kResultSize = 1;
+  constexpr bool kBuiltinExitFrame = true;
+  Handle<Code> code = CodeFactory::CEntry(masm->isolate(), kResultSize,
+                                          ArgvMode::kStack, kBuiltinExitFrame);
+  __ Call(code, RelocInfo::CODE_TARGET);
+}
+
 int CallRuntime::MaxCallStackArgs() const { return num_args(); }
 void CallRuntime::SetValueLocationConstraints() {
   UseFixed(context(), kContextRegister);
@@ -6435,6 +6508,11 @@ void CallKnownApiFunction::PrintParams(
 
 void CallBuiltin::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Builtins::name(builtin()) << ")";
+}
+
+void CallCPPBuiltin::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
   os << "(" << Builtins::name(builtin()) << ")";
 }
 

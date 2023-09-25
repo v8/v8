@@ -140,6 +140,7 @@ class MergePointInterpreterFrameState;
   V(AllocateRaw)                                    \
   V(Call)                                           \
   V(CallBuiltin)                                    \
+  V(CallCPPBuiltin)                                 \
   V(CallRuntime)                                    \
   V(CallWithArrayLike)                              \
   V(CallWithSpread)                                 \
@@ -7191,6 +7192,63 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   Builtin builtin_;
   base::Optional<compiler::FeedbackSource> feedback_;
   FeedbackSlotType slot_type_ = kTaggedIndex;
+};
+
+class CallCPPBuiltin : public ValueNodeT<CallCPPBuiltin> {
+  using Base = ValueNodeT<CallCPPBuiltin>;
+  // Only 1 return value with arguments on the stack is supported.
+  static constexpr Builtin kCEntry_Builtin =
+      Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit;
+
+ public:
+  static constexpr int kTargetIndex = 0;
+  static constexpr int kNewTargetIndex = 1;
+  static constexpr int kContextIndex = 2;
+  static constexpr int kFixedInputCount = 3;
+
+  CallCPPBuiltin(uint64_t bitfield, Builtin builtin, ValueNode* target,
+                 ValueNode* new_target, ValueNode* context)
+      : Base(bitfield), builtin_(builtin) {
+    DCHECK(Builtins::CallInterfaceDescriptorFor(builtin).HasContextParameter());
+    DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin).GetReturnCount(),
+              1);
+    set_input(kTargetIndex, target);
+    set_input(kNewTargetIndex, new_target);
+    set_input(kContextIndex, context);
+  }
+
+  // This is an overestimation, since some builtins might not call JS code.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Builtin builtin() const { return builtin_; }
+
+  Input& target() { return input(kTargetIndex); }
+  const Input& target() const { return input(kTargetIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
+  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing();
+#endif
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Builtin builtin_;
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {

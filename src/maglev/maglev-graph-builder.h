@@ -955,6 +955,22 @@ class MaglevGraphBuilder {
     return call_builtin;
   }
 
+  CallCPPBuiltin* BuildCallCPPBuiltin(
+      Builtin builtin, ValueNode* target, ValueNode* new_target,
+      std::initializer_list<ValueNode*> inputs) {
+    DCHECK(Builtins::IsCpp(builtin));
+    const size_t input_count = inputs.size() + CallCPPBuiltin::kFixedInputCount;
+    return AddNewNode<CallCPPBuiltin>(
+        input_count,
+        [&](CallCPPBuiltin* call_builtin) {
+          int arg_index = 0;
+          for (auto* input : inputs) {
+            call_builtin->set_arg(arg_index++, input);
+          }
+        },
+        builtin, target, new_target, GetContext());
+  }
+
   void BuildLoadGlobal(compiler::NameRef name,
                        compiler::FeedbackSource& feedback_source,
                        TypeofMode typeof_mode);
