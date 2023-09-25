@@ -345,8 +345,8 @@ class Int64LoweringReducer : public Next {
       base::SmallVector<OpIndex, 8> inputs_low;
       base::SmallVector<OpIndex, 8> inputs_high;
       auto word32 = RegisterRepresentation::Word32();
-      inputs_low.reserve_no_init(inputs.size());
-      inputs_high.reserve_no_init(inputs.size());
+      inputs_low.reserve(inputs.size());
+      inputs_high.reserve(inputs.size());
       for (OpIndex input : inputs) {
         inputs_low.push_back(__ Projection(input, 0, word32));
         inputs_high.push_back(__ Projection(input, 1, word32));
@@ -655,7 +655,7 @@ class Int64LoweringReducer : public Next {
     // Map the arguments by unpacking i64 arguments (which have already been
     // lowered to Tuple(i32, i32).)
     base::SmallVector<OpIndex, 16> lowered_args;
-    lowered_args.reserve_no_init(param_count + i64_params);
+    lowered_args.reserve(param_count + i64_params);
 
     DCHECK_EQ(param_count, arguments.size());
     for (size_t i = 0; i < param_count; ++i) {
@@ -703,7 +703,7 @@ class Int64LoweringReducer : public Next {
     // "rewired" to the correct projection of the lowered call.
     auto word32 = RegisterRepresentation::Word32();
     base::SmallVector<OpIndex, 16> tuple_inputs;
-    tuple_inputs.reserve_no_init(return_count);
+    tuple_inputs.reserve(return_count);
     size_t projection_index = 0;  // index of the lowered call results.
 
     for (size_t i = 0; i < return_count; ++i) {

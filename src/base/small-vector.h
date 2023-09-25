@@ -208,9 +208,7 @@ class SmallVector {
     end_ = new_end;
   }
 
-  void reserve_no_init(size_t new_capacity) {
-    // Resizing without initialization is safe if T is trivially copyable.
-    ASSERT_TRIVIALLY_COPYABLE(T);
+  void reserve(size_t new_capacity) {
     if (new_capacity > capacity()) Grow(new_capacity);
   }
 
