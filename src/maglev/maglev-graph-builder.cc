@@ -3353,6 +3353,21 @@ void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
   }
 }
 
+void MaglevGraphBuilder::BuildStoreFixedArrayHole(ElementsKind kind,
+                                                  ValueNode* elements,
+                                                  ValueNode* index) {
+  if (IsDoubleElementsKind(kind)) {
+    AddNewNode<StoreFixedDoubleArrayElement>(
+        {elements, index,
+         GetFloat64Constant(Float64::FromBits(kHoleNanInt64))});
+  } else {
+    DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+    RootConstant* hole = GetRootConstant(RootIndex::kTheHoleValue);
+    DCHECK(CanElideWriteBarrier(elements, hole));
+    AddNewNode<StoreFixedArrayElementNoWriteBarrier>({elements, index, hole});
+  }
+}
+
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
     base::Vector<const compiler::MapRef> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
@@ -6131,12 +6146,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   // doesn't matter for push().
   // Kinds we care about are all paired in the first 6 values of ElementsKind,
   // so we can use integer division to truncate holeyness.
-  auto elements_kind_to_index = [&](ElementsKind kind) {
+  auto elements_kind_to_index = [](ElementsKind kind) {
     static_assert(kFastElementsKindCount <= 6);
     static_assert(kFastElementsKindPackedToHoley == 1);
     return static_cast<uint8_t>(kind) / 2;
   };
-  auto index_to_elements_kind = [&](uint8_t kind_index) {
+  auto index_to_elements_kind = [](uint8_t kind_index) {
     return static_cast<ElementsKind>(kind_index * 2);
   };
   int unique_kind_count;
@@ -6272,13 +6287,13 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   // |   2   |    PACKED_DOUBLE_ELEMENTS                    |
   // |   3   |    HOLEY_DOUBLE_ELEMENTS                     |
   // +-------+----------------------------------------------+
-  auto elements_kind_to_index = [&](ElementsKind kind) {
+  auto elements_kind_to_index = [](ElementsKind kind) {
     uint8_t kind_int = static_cast<uint8_t>(kind);
     uint8_t kind_index = ((kind_int & 0x4) >> 1) | (kind_int & 0x1);
     DCHECK_LT(kind_index, max_kind_count);
     return kind_index;
   };
-  auto index_to_elements_kind = [&](uint8_t kind_index) {
+  auto index_to_elements_kind = [](uint8_t kind_index) {
     uint8_t kind_int;
     kind_int = ((kind_index & 0x2) << 1) | (kind_index & 0x1);
     return static_cast<ElementsKind>(kind_int);
@@ -6338,19 +6353,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     if (IsDoubleElementsKind(kind)) {
       value = AddNewNode<LoadFixedDoubleArrayElement>(
           {writable_elements_array, new_array_length});
-      AddNewNode<StoreFixedDoubleArrayElement>(
-          {writable_elements_array, new_array_length,
-           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))});
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       value = AddNewNode<LoadFixedArrayElement>(
           {writable_elements_array, new_array_length});
-      DCHECK(CanElideWriteBarrier(writable_elements_array,
-                                  GetRootConstant(RootIndex::kTheHoleValue)));
-      AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
-          {writable_elements_array, new_array_length,
-           GetRootConstant(RootIndex::kTheHoleValue)});
     }
+    BuildStoreFixedArrayHole(kind, writable_elements_array, new_array_length);
 
     if (IsHoleyElementsKind(kind)) {
       value = AddNewNode<ConvertHoleToUndefined>({value});
@@ -6361,6 +6369,225 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   BuildJSArrayBuiltinMapSwitchOnElementsKind(
       receiver, map_kinds, sub_graph, do_return, unique_kind_count,
       index_to_elements_kind, build_array_pop);
+
+  sub_graph.Bind(&empty_array);
+  sub_graph.set(var_new_array_length, GetSmiConstant(0));
+  sub_graph.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
+  sub_graph.Goto(&*do_return);
+
+  sub_graph.Bind(&*do_return);
+  RecordKnownProperty(receiver, broker()->length_string(),
+                      sub_graph.get(var_new_array_length), false,
+                      compiler::AccessMode::kStore);
+  return sub_graph.get(var_value);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeShift(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  // We can't reduce Function#call when there is no receiver function.
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.shift - no receiver"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  if (!node_info || !node_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Array.prototype.shift - unknown receiver map"
+          << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  const PossibleMaps& possible_maps = node_info->possible_maps();
+
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_maps.is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.shift - "
+                   "NoElementsProtector invalidated"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  // Check that inlining resizing array builtins is supported and group
+  // maps by elements kind.
+  constexpr int max_kind_count = 6;
+  std::array<SmallZoneVector<compiler::MapRef, 2>, max_kind_count> map_kinds = {
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone()),
+      SmallZoneVector<compiler::MapRef, 2>(zone())};
+  auto elements_kind_to_index = [](ElementsKind kind) {
+    static_assert(kFastElementsKindCount <= max_kind_count);
+    return static_cast<uint8_t>(kind);
+  };
+  auto index_to_elements_kind = [](uint8_t kind_index) {
+    return static_cast<ElementsKind>(kind_index);
+  };
+  int unique_kind_count;
+  if (!CanInlineArrayResizingBuiltin(broker(), possible_maps, map_kinds,
+                                     elements_kind_to_index, &unique_kind_count,
+                                     true)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.shift - Map doesn't "
+                   "support fast resizing"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  MaglevSubGraphBuilder sub_graph(this, 4);
+  MaglevSubGraphBuilder::Variable var_value(0);
+  MaglevSubGraphBuilder::Variable var_new_array_length(1);
+  MaglevSubGraphBuilder::Variable var_index(2);
+  MaglevSubGraphBuilder::Variable var_prev_index(3);
+
+  base::Optional<MaglevSubGraphBuilder::Label> do_return =
+      base::make_optional<MaglevSubGraphBuilder::Label>(
+          &sub_graph, unique_kind_count + 2,
+          std::initializer_list<MaglevSubGraphBuilder::Variable*>{
+              &var_value, &var_new_array_length});
+  MaglevSubGraphBuilder::Label empty_array(&sub_graph, 1);
+  MaglevSubGraphBuilder::Label call_builtin(&sub_graph, 1);
+
+  ValueNode* old_array_length_smi = BuildLoadJSArrayLength(receiver).value();
+
+  // If the array is empty, skip the shift and return undefined.
+  sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
+      &empty_array, {old_array_length_smi, GetSmiConstant(0)});
+
+  ValueNode* old_array_length =
+      AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
+  ValueNode* new_array_length_smi =
+      AddNewNode<CheckedSmiDecrement>({old_array_length_smi});
+  sub_graph.set(var_new_array_length, new_array_length_smi);
+
+  // Check if we should move elements inline or call the builtin.
+  sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+      &call_builtin,
+      {old_array_length, GetInt32Constant(JSArray::kMaxCopyElements)},
+      Operation::kLessThanOrEqual);
+
+  ValueNode* elements_array =
+      AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
+
+  auto build_array_shift = [&](ElementsKind kind) {
+    // Load first element.
+    ValueNode* value;
+    if (IsDoubleElementsKind(kind)) {
+      value = AddNewNode<LoadFixedDoubleArrayElement>(
+          {elements_array, GetInt32Constant(0)});
+    } else {
+      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+      value = AddNewNode<LoadFixedArrayElement>(
+          {elements_array, GetInt32Constant(0)});
+    }
+
+    // Handle COW if needed.
+    ValueNode* writable_elements_array =
+        IsSmiOrObjectElementsKind(kind)
+            ? AddNewNode<EnsureWritableFastElements>({elements_array, receiver})
+            : elements_array;
+
+    // Shift all elements down by 1 towards the beginning.
+    MaglevSubGraphBuilder::Label loop_end(&sub_graph, 1);
+
+    // Initialize index and prev_index.
+    sub_graph.set(var_index, GetSmiConstant(1));
+    sub_graph.set(var_prev_index, GetSmiConstant(0));
+    // Loop start.
+    MaglevSubGraphBuilder::LoopLabel loop_header =
+        sub_graph.BeginLoop({&var_index, &var_prev_index});
+    Phi* index_tagged = sub_graph.get(var_index)->Cast<Phi>();
+    EnsureType(index_tagged, NodeType::kSmi);
+    ValueNode* index_int32 = GetInt32(index_tagged);
+    Phi* prev_index_tagged = sub_graph.get(var_prev_index)->Cast<Phi>();
+    EnsureType(prev_index_tagged, NodeType::kSmi);
+    ValueNode* prev_index_int32 = GetInt32(prev_index_tagged);
+
+    // Load element at |index| and store it into |prev_index|.
+    if (IsDoubleElementsKind(kind)) {
+      ValueNode* shift_value = AddNewNode<LoadFixedDoubleArrayElement>(
+          {writable_elements_array, index_int32});
+      AddNewNode<StoreFixedDoubleArrayElement>(
+          {writable_elements_array, prev_index_int32, shift_value});
+    } else if (IsSmiElementsKind(kind)) {
+      ValueNode* shift_value = AddNewNode<LoadFixedArrayElement>(
+          {writable_elements_array, index_int32});
+      AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
+          {writable_elements_array, prev_index_int32, shift_value});
+    } else {
+      DCHECK(IsObjectElementsKind(kind));
+      ValueNode* shift_value = AddNewNode<LoadFixedArrayElement>(
+          {writable_elements_array, index_int32});
+      AddNewNode<StoreFixedArrayElementWithWriteBarrier>(
+          {writable_elements_array, prev_index_int32, shift_value});
+    }
+
+    // Break out of loop if |index| >= |length|.
+    sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+        &loop_end, {index_int32, old_array_length}, Operation::kLessThan);
+
+    // |prev_index| = |index|; |index|++;
+    sub_graph.set(var_prev_index, index_tagged);
+    ValueNode* next_index_int32 =
+        AddNewNode<Int32IncrementWithOverflow>({index_int32});
+    EnsureType(next_index_int32, NodeType::kSmi);
+    sub_graph.set(var_index, next_index_int32);
+
+    // Jump to loop header.
+    sub_graph.EndLoop(&loop_header);
+
+    // End loop.
+    sub_graph.Bind(&loop_end);
+
+    // Store new length.
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
+                                               JSArray::kLengthOffset);
+
+    // Overwrite the previous last element with the_hole.
+    ValueNode* new_array_length =
+        AddNewNode<UnsafeSmiUntag>({new_array_length_smi});
+    BuildStoreFixedArrayHole(kind, writable_elements_array, new_array_length);
+
+    if (IsHoleyElementsKind(kind)) {
+      value = AddNewNode<ConvertHoleToUndefined>({value});
+    }
+    sub_graph.set(var_value, value);
+  };
+
+  BuildJSArrayBuiltinMapSwitchOnElementsKind(
+      receiver, map_kinds, sub_graph, do_return, unique_kind_count,
+      index_to_elements_kind, build_array_shift);
+
+  sub_graph.Bind(&call_builtin);
+  ValueNode* value =
+      BuildCallCPPBuiltin(Builtin::kArrayShift, GetConstant(target),
+                          GetRootConstant(RootIndex::kUndefinedValue),
+                          {GetTaggedOrUndefined(args.receiver())});
+  sub_graph.set(var_value, value);
+  sub_graph.Goto(&*do_return);
 
   sub_graph.Bind(&empty_array);
   sub_graph.set(var_new_array_length, GetSmiConstant(0));
