@@ -443,11 +443,24 @@ class TypeInferenceReducer
     return Type::Invalid();
   }
 
+  Type GetTupleType(const TupleOp& tuple) {
+    base::SmallVector<Type, 4> tuple_types;
+    for (OpIndex input : tuple.inputs()) {
+      tuple_types.push_back(GetType(input));
+    }
+    return TupleType::Tuple(base::VectorOf(tuple_types), Asm().graph_zone());
+  }
+
   Type GetType(OpIndex index) {
     Type type = GetTypeOrInvalid(index);
     if (type.IsInvalid()) {
       const Operation& op = Asm().output_graph().Get(index);
-      return Typer::TypeForRepresentation(op.outputs_rep(), Asm().graph_zone());
+      if (op.Is<TupleOp>()) {
+        return GetTupleType(op.Cast<TupleOp>());
+      } else {
+        return Typer::TypeForRepresentation(op.outputs_rep(),
+                                            Asm().graph_zone());
+      }
     }
     return type;
   }
