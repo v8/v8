@@ -354,22 +354,35 @@ class GraphVisitor {
       // mappings: phis were emitted before using the old mapping, and all of
       // the other operations will use the new mapping (as they should).
 
+      // Visiting Phis and collecting their new OpIndices.
       base::SmallVector<OpIndex, 16> new_phi_values;
       for (OpIndex index : input_graph().OperationIndices(*input_block)) {
+        DCHECK_NOT_NULL(assembler().current_block());
         if (input_graph().Get(index).template Is<PhiOp>()) {
           OpIndex new_index =
               VisitOpNoMappingUpdate<trace_reduction>(index, input_block);
           new_phi_values.push_back(new_index);
+          if (!assembler().current_block()) {
+            // A reducer has detected, based on the Phis of the block that were
+            // visited so far, that we are in unreachable code (or, less likely,
+            // decided, based on some Phis only, to jump away from this block?).
+            break;
+          }
         }
       }
 
-      int phi_num = 0;
-      for (OpIndex index : input_graph().OperationIndices(*input_block)) {
-        if (input_graph().Get(index).template Is<PhiOp>()) {
-          CreateOldToNewMapping(index, new_phi_values[phi_num++]);
-        } else {
-          if (!VisitOpAndUpdateMapping<trace_reduction>(index, input_block))
-            break;
+      // Visiting everything, updating Phi mappings, and emitting non-phi
+      // operations.
+      if (assembler().current_block()) {
+        int phi_num = 0;
+        for (OpIndex index : input_graph().OperationIndices(*input_block)) {
+          if (input_graph().Get(index).template Is<PhiOp>()) {
+            CreateOldToNewMapping(index, new_phi_values[phi_num++]);
+          } else {
+            if (!VisitOpAndUpdateMapping<trace_reduction>(index, input_block)) {
+              break;
+            }
+          }
         }
       }
       if constexpr (trace_reduction) TraceBlockFinished();
