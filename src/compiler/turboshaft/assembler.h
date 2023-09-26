@@ -1736,25 +1736,20 @@ class AssemblerOpInterface {
                 rep.SizeInBytesLog2());
   }
 
-  void Store(
-      OpIndex base, OpIndex index, OpIndex value, StoreOp::Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      int32_t offset = 0, uint8_t element_size_log2 = 0,
-      bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+  void Store(OpIndex base, OpIndex index, OpIndex value, StoreOp::Kind kind,
+             MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+             int32_t offset = 0, uint8_t element_size_log2 = 0,
+             bool maybe_initializing_or_transitioning = false) {
     ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
                            offset, element_size_log2,
-                           maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
+                           maybe_initializing_or_transitioning);
   }
-  void Store(
-      OpIndex base, OpIndex value, StoreOp::Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      int32_t offset = 0, bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+  void Store(OpIndex base, OpIndex value, StoreOp::Kind kind,
+             MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+             int32_t offset = 0,
+             bool maybe_initializing_or_transitioning = false) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
-          offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          offset, 0, maybe_initializing_or_transitioning);
   }
 
   template <typename T>

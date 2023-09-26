@@ -1738,7 +1738,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:
     case IrOpcode::kStorePair:
-    case IrOpcode::kStoreIndirectPointer:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:

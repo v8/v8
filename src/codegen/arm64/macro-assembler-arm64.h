@@ -914,16 +914,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  IndirectPointerTag tag);
-
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -1584,8 +1582,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                 Register isolate_root = Register::no_reg());
 
   // Loads an indirect pointer from the heap.
-  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
-                                IndirectPointerTag tag);
+  void LoadIndirectPointerField(Register destination, MemOperand field_operand);
 
   // Store an indirect pointer to the given object in the destination field.
   void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
@@ -2174,18 +2171,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // stored.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
-  void RecordWriteField(
-      Register object, int offset, Register value, LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
-      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
+  void RecordWriteField(Register object, int offset, Register value,
+                        LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+                        SmiCheck smi_check = SmiCheck::kInline,
+                        PointerType type = PointerType::kDirect);
 
   // For a given |object| notify the garbage collector that the slot at |offset|
   // has been written. |value| is the object being stored.
-  void RecordWrite(
-      Register object, Operand offset, Register value,
-      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-      SmiCheck smi_check = SmiCheck::kInline,
-      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
+  void RecordWrite(Register object, Operand offset, Register value,
+                   LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+                   SmiCheck smi_check = SmiCheck::kInline,
+                   PointerType type = PointerType::kDirect);
 
   // ---------------------------------------------------------------------------
   // Debugging.

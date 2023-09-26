@@ -693,6 +693,16 @@ enum class TypeofMode { kInside, kNotInside };
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
 
+// Whether a field contains a direct (i.e. tagged) pointer to another HeapObject
+// or an indirect (i.e. an index into a pointer table) one.
+enum class PointerType { kDirect, kIndirect };
+
+// The type of pointers to Code objects. When the sandbox is enabled, these are
+// referenced through indirect pointers, otherwise regular/direct pointers.
+constexpr PointerType kCodePointerType = V8_CODE_POINTER_SANDBOXING_BOOL
+                                             ? PointerType::kIndirect
+                                             : PointerType::kDirect;
+
 // This enum describes the ownership semantics of an indirect pointer.
 enum class IndirectPointerMode {
   // A regular reference from one HeapObject to another one through an indirect

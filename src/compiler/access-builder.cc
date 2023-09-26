@@ -215,7 +215,6 @@ FieldAccess AccessBuilder::ForJSFunctionCode() {
                         MachineType::IndirectPointer(),
                         kIndirectPointerWriteBarrier,
                         "JSFunctionCode"};
-  access.indirect_pointer_tag = kCodeIndirectPointerTag;
   return access;
 }
 #else

@@ -1645,8 +1645,7 @@ class MachineOptimizationReducer : public Next {
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_scale,
-                        bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        bool maybe_initializing_or_transitioning) {
     if (!ShouldSkipOptimizationStep()) {
       if (stored_rep.SizeInBytes() <= 4) {
         value = TryRemoveWord32ToWord64Conversion(value);
@@ -1677,8 +1676,7 @@ class MachineOptimizationReducer : public Next {
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_scale,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+                             maybe_initializing_or_transitioning);
   }
 
   OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,

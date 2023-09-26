@@ -224,7 +224,6 @@ struct TurbofanAdapter {
       DCHECK(node->opcode() == IrOpcode::kStore ||
              node->opcode() == IrOpcode::kProtectedStore ||
              node->opcode() == IrOpcode::kStoreTrapOnNull ||
-             node->opcode() == IrOpcode::kStoreIndirectPointer ||
              node->opcode() == IrOpcode::kWord32AtomicStore ||
              node->opcode() == IrOpcode::kWord64AtomicStore);
     }
@@ -234,7 +233,6 @@ struct TurbofanAdapter {
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
-        case IrOpcode::kStoreIndirectPointer:
           return StoreRepresentationOf(node_->op());
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
@@ -248,7 +246,6 @@ struct TurbofanAdapter {
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
-        case IrOpcode::kStoreIndirectPointer:
           return base::nullopt;
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
@@ -260,7 +257,6 @@ struct TurbofanAdapter {
     MemoryAccessKind access_kind() const {
       switch (node_->opcode()) {
         case IrOpcode::kStore:
-        case IrOpcode::kStoreIndirectPointer:
           return MemoryAccessKind::kNormal;
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
@@ -276,13 +272,6 @@ struct TurbofanAdapter {
     node_t base() const { return node_->InputAt(0); }
     node_t index() const { return node_->InputAt(1); }
     node_t value() const { return node_->InputAt(2); }
-    // TODO(saelo): once we have turboshaft everywhere, we should convert this
-    // to an operation parameter instead of an addition input (which is
-    // currently required for turbofan, since all store opcodes are cached).
-    node_t indirect_pointer_tag() const {
-      DCHECK_EQ(node_->opcode(), IrOpcode::kStoreIndirectPointer);
-      return node_->InputAt(3);
-    }
     int32_t displacement() const { return 0; }
     uint8_t element_size_log2() const { return 0; }
 
@@ -770,7 +759,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     node_t base() const { return op_->base(); }
     node_t index() const { return op_->index(); }
     node_t value() const { return op_->value(); }
-    node_t indirect_pointer_tag() const { UNREACHABLE(); }
     int32_t displacement() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);

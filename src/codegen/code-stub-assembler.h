@@ -1800,23 +1800,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Store to an indirect pointer field. This involves loading the index for
   // the pointer table entry owned by the pointed-to object (which points back
   // to it) and storing that into the specified field.
-  // Stores that may require a write barrier also need to know the indirect
-  // pointer tag for the field. Otherwise, it is not needed
+  // TODO(saelo) Currently, only Code objects can be referenced through
+  // indirect pointers, and so we only support these here, but we should
+  // generalize this.
   void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                 IndirectPointerTag tag,
-                                 TNode<ExposedTrustedObject> value);
-  void StoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      TNode<ExposedTrustedObject> value);
+                                 TNode<Code> value);
+  void StoreIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                               int offset, TNode<Code> value);
 
   // Store to a field that either contains an indirect pointer (when the
   // sandbox is enabled) or a regular (tagged) pointer otherwise.
   void StoreMaybeIndirectPointerField(TNode<HeapObject> object, int offset,
-                                      IndirectPointerTag tag,
-                                      TNode<ExposedTrustedObject> value);
-  void StoreMaybeIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      TNode<ExposedTrustedObject> value);
+                                      TNode<Code> value);
+  void StoreMaybeIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                                    int offset,
+                                                    TNode<Code> value);
 
   template <class T>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,

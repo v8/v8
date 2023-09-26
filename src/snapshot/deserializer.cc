@@ -90,11 +90,7 @@ class SlotAccessorForHeapObject {
     Tagged<Code> code = Code::cast(value);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_);
     dest.store(code);
-
-    InstanceType instance_type = value->map()->instance_type();
-    IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
-    IndirectPointerWriteBarrier(*object_, dest, tag, value,
-                                UPDATE_WRITE_BARRIER);
+    IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
 

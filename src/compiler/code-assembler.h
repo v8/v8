@@ -823,10 +823,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
   void OptimizedStoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                          IndirectPointerTag tag, Node* value);
+                                          Node* value);
   void OptimizedStoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
-      Node* value);
+      TNode<HeapObject> object, int offset, Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
                                                TNode<HeapObject> object,
                                                int offset, Node* value);

@@ -1426,10 +1426,8 @@ OpIndex GraphBuilder::Process(
 
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
-
       __ Store(object, value, kind, rep, access.write_barrier_kind,
-               access.offset, initializing_transitioning,
-               access.indirect_pointer_tag);
+               access.offset, initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:

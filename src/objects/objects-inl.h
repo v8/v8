@@ -805,11 +805,8 @@ void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
   i::ResetLazilyInitializedExternalPointerField(field_address(offset));
 }
 
-template <IndirectPointerTag tag>
-Tagged<Object> HeapObject::ReadIndirectPointerField(
-    size_t offset, Isolate* isolate, InstanceType expected_type) const {
-  return i::ReadIndirectPointerField<tag>(field_address(offset), isolate,
-                                          expected_type);
+Tagged<Object> HeapObject::ReadIndirectPointerField(size_t offset) const {
+  return i::ReadIndirectPointerField(field_address(offset));
 }
 
 void HeapObject::InitCodePointerTableEntryField(size_t offset, Isolate* isolate,

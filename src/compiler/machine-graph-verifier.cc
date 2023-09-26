@@ -161,7 +161,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
           case IrOpcode::kStoreTrapOnNull:
-          case IrOpcode::kStoreIndirectPointer:
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
             break;
@@ -540,7 +539,6 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord32);
             V8_FALLTHROUGH;
           case IrOpcode::kStore:
-          case IrOpcode::kStoreIndirectPointer:
           case IrOpcode::kUnalignedStore:
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord32AtomicExchange:

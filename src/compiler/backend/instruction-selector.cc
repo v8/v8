@@ -38,12 +38,8 @@ namespace compiler {
   }
 
 namespace {
-// Here we really want the raw Bits of the mask, but the `.bits()` method is
-// not constexpr, and so users of this constant need to call it.
-// TODO(turboshaft): EffectDimensions could probably be defined via
-// base::Flags<> instead, which should solve this.
-constexpr turboshaft::EffectDimensions kTurboshaftEffectLevelMask =
-    turboshaft::OpEffects().CanReadMemory().produces;
+const turboshaft::EffectDimensions::Bits kTurboshaftEffectLevelMask =
+    turboshaft::OpEffects().CanReadMemory().produces.bits();
 }
 
 Tagged<Smi> NumberConstantToSmi(Node* node) {
@@ -346,8 +342,7 @@ bool InstructionSelectorT<Adapter>::CanCover(node_t user, node_t node) const {
     }
     // If it does produce something outside the {kTurboshaftEffectLevelMask}, it
     // can never be covered.
-    if ((op.Effects().produces.bits() & ~kTurboshaftEffectLevelMask.bits()) !=
-        0) {
+    if ((op.Effects().produces.bits() & ~kTurboshaftEffectLevelMask) != 0) {
       return false;
     }
   } else {
@@ -1596,8 +1591,7 @@ bool increment_effect_level_for_node(TurboshaftAdapter* adapter,
   // We need to increment the effect level if the operation consumes any of the
   // dimensions of the {kTurboshaftEffectLevelMask}.
   const turboshaft::Operation& op = adapter->Get(node);
-  return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask.bits()) !=
-         0;
+  return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask) != 0;
 }
 }  // namespace
 
@@ -3020,7 +3014,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return VisitLoadLane(node);
     }
     case IrOpcode::kStore:
-    case IrOpcode::kStoreIndirectPointer:
       return VisitStore(node);
     case IrOpcode::kStorePair:
       return VisitStorePair(node);

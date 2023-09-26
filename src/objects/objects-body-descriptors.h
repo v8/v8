@@ -59,8 +59,7 @@ class BodyDescriptorBase {
   template <typename ObjectVisitor>
   static void IterateMaybeIndirectPointer(Tagged<HeapObject> obj, int offset,
                                           ObjectVisitor* visitor,
-                                          IndirectPointerMode mode,
-                                          IndirectPointerTag tag);
+                                          IndirectPointerMode mode);
 
  protected:
   // Returns true for all header and embedder fields.

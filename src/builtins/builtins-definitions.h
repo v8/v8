@@ -55,8 +55,8 @@ namespace internal {
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)                  \
   /* GC write barriers */                                                      \
-  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
-  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
+  TFC(IndirectPointerBarrierSaveFP, WriteBarrier)                              \
+  TFC(IndirectPointerBarrierIgnoreFP, WriteBarrier)                            \
                                                                                \
   /* TSAN support for stores in generated code. */                             \
   IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                           \

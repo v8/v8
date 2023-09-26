@@ -9,7 +9,6 @@
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/tagged-field.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -231,9 +230,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // IndirectPointer field accessors.
   //
-  template <IndirectPointerTag tag>
-  inline Tagged<Object> ReadIndirectPointerField(
-      size_t offset, Isolate* isolate, InstanceType expected_type) const;
+  inline Tagged<Object> ReadIndirectPointerField(size_t offset) const;
 
   //
   // CodePointer field accessors.

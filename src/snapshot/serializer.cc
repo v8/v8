@@ -1119,14 +1119,13 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 }
 
 void Serializer::ObjectSerializer::VisitIndirectPointer(
-    Tagged<HeapObject> host, IndirectPointerSlot slot, IndirectPointerMode mode,
-    IndirectPointerTag tag) {
+    Tagged<HeapObject> host, IndirectPointerSlot slot,
+    IndirectPointerMode mode) {
   DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
 
   // The slot must be properly initialized at this point, so will always contain
   // a reference to a HeapObject.
-  Handle<HeapObject> slot_value(HeapObject::cast(slot.load(isolate(), tag)),
-                                isolate());
+  Handle<HeapObject> slot_value(HeapObject::cast(slot.load()), isolate());
   CHECK(IsHeapObject(*slot_value));
   bytes_processed_so_far_ += kIndirectPointerSlotSize;
 
@@ -1135,7 +1134,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   // we cannot see pending objects here. However, we'll need to handle pending
   // objects here and in the deserializer once we reference other types of
   // objects through indirect pointers.
-  CHECK_EQ(tag, kCodeIndirectPointerTag);
+  static_assert(kAllIndirectPointerObjectsAreCode);
   DCHECK(IsJSFunction(host) && IsCode(*slot_value));
   DCHECK(!serializer_->SerializePendingObject(*slot_value));
   sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
