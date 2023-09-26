@@ -2551,7 +2551,10 @@ void InstructionSelectorT<Adapter>::TryPrepareScheduleFirstProjection(
   // normal to schedule {result} before the Phi that uses it.
   if constexpr (Adapter::IsTurboshaft) {
     for (turboshaft::OpIndex use : turboshaft_uses(result)) {
-      if (!IsDefined(use) && this->block(schedule_, use) == current_block_ &&
+      // We ignore TupleOp uses, since TupleOp don't lead to emitted machine
+      // instructions and are just Turboshaft "meta operations".
+      if (!this->Get(use).template Is<turboshaft::TupleOp>() &&
+          !IsDefined(use) && this->block(schedule_, use) == current_block_ &&
           !this->Get(use).template Is<turboshaft::PhiOp>()) {
         return;
       }
