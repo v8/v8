@@ -52,11 +52,15 @@ class OptimizationPhaseImpl {
     Assembler<reducer_list<Reducers...>> phase(
         input_graph, input_graph.GetOrCreateCompanion(), phase_zone,
         data.node_origins());
+#ifdef DEBUG
     if (data.info()->turboshaft_trace_reduction()) {
       phase.template VisitGraph<true>();
     } else {
       phase.template VisitGraph<false>();
     }
+#else
+    phase.template VisitGraph<false>();
+#endif  // DEBUG
   }
 };
 

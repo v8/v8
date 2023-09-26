@@ -1222,8 +1222,6 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
 DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases for JS")
 DEFINE_WEAK_IMPLICATION(future, turboshaft)
 
-DEFINE_BOOL(turboshaft_trace_reduction, false,
-            "trace individual Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
@@ -1268,6 +1266,11 @@ DEFINE_BOOL(turboshaft_verify_reductions, false,
             "inferred types")
 DEFINE_BOOL(turboshaft_trace_typing, false,
             "print typing steps of turboshaft type inference")
+DEFINE_BOOL(turboshaft_trace_reduction, false,
+            "trace individual Turboshaft reduction steps")
+#else
+DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
+                     "trace individual Turboshaft reduction steps")
 #endif  // DEBUG
 
 // Favor memory over execution speed.
