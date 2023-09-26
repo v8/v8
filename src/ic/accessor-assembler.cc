@@ -1226,6 +1226,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
+  Label if_slow(this);
+
   // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
   BIND(&if_smi_handler);
@@ -1233,8 +1235,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TNode<Object> holder = p->receiver();
     TNode<Int32T> handler_word = SmiToInt32(CAST(handler));
 
-    Label if_fast_smi(this), if_proxy(this), if_interceptor(this),
-        if_slow(this);
+    Label if_fast_smi(this), if_proxy(this), if_interceptor(this);
 
 #define ASSERT_CONSECUTIVE(a, b)                                    \
   static_assert(static_cast<intptr_t>(StoreHandler::Kind::a) + 1 == \
@@ -1389,11 +1390,17 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&store_global);
     {
+      if (p->IsDefineKeyedOwn()) {
+        Label proceed_defining(this);
+        // StoreGlobalIC_PropertyCellCase doesn't support definition
+        // of private fields, so handle them in runtime.
+        GotoIfNot(IsSymbol(CAST(p->name())), &proceed_defining);
+        Branch(IsPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
+        BIND(&proceed_defining);
+      }
+
       TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
       ExitPoint direct_exit(this);
-      // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
-      // but they are not expected here anyway.
-      CSA_DCHECK(this, BoolConstant(!p->IsDefineKeyedOwn()));
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
                                      miss);
     }
