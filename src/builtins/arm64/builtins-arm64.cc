@@ -2499,6 +2499,8 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
   __ Bind(&even);
   __ Cbz(slots_to_claim, &exit);
   __ Claim(slots_to_claim);
+  // An alignment slot may have been allocated above. If the number of stack
+  // parameters is 0, the we have to initialize the alignment slot.
   __ Cbz(slots_to_copy, &init);
 
   // Move the arguments already in the stack including the receiver.
@@ -2519,20 +2521,10 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
   // call.
   {
     __ Bind(&init);
-    // Unconditionally initialize the last parameter slot. If `len` is odd, then
-    // it is an alignment slot that we have to initialize to avoid issues in the
-    // GC. If `len` is even, then the write is unnecessary, but faster than a
-    // check + jump.
+    // This code here is only reached when the number of stack parameters is 0.
+    // In that case we have to initialize the alignment slot if there is one.
+    __ Tbz(len, 0, &exit);
     __ Str(xzr, MemOperand(sp, len, LSL, kSystemPointerSizeLog2));
-  }
-  // Fill a possible alignment slot with a meaningful value.
-  {
-    Register total_num_args = x10;
-    __ Add(total_num_args, argc, len);
-    // If the sum is even, then there are no alignment slots that need
-    // initialization.
-    __ Tbz(total_num_args, 0, &exit);
-    __ Str(xzr, MemOperand(sp, total_num_args, LSL, kSystemPointerSizeLog2));
   }
   __ Bind(&exit);
 }
