@@ -1051,10 +1051,17 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionCode code =
-        representation == MachineRepresentation::kIndirectPointer
-            ? kArchStoreIndirectWithWriteBarrier
-            : kArchStoreWithWriteBarrier;
+    InstructionCode code;
+    if (representation == MachineRepresentation::kIndirectPointer) {
+      DCHECK_EQ(node->opcode(), IrOpcode::kStoreIndirectPointer);
+      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
+      code = kArchStoreIndirectWithWriteBarrier;
+      Node* tag = node->InputAt(3);
+      inputs[input_count++] = g.UseImmediate(tag);
+    } else {
+      code = kArchStoreWithWriteBarrier;
+    }
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     if (node->opcode() == IrOpcode::kStoreTrapOnNull) {

@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -359,11 +360,22 @@ class IndirectPointerSlot
   // Even though only HeapObjects can be stored into an IndirectPointerSlot,
   // these slots can be empty (containing kNullIndirectPointerHandle), in which
   // case load() will return Smi::zero().
-  inline Tagged<Object> load() const;
+  // TODO(saelo): consider storing the tag as field of this slot, both here and
+  // in the ExternalPointerSlot class to keep them consistent.
+  inline Tagged<Object> load(const Isolate* isolate,
+                             IndirectPointerTag tag) const;
   inline void store(Tagged<ExposedTrustedObject> value) const;
 
-  inline Tagged<Object> Relaxed_Load() const;
-  inline Tagged<Object> Acquire_Load() const;
+  // Load the value of this slot.
+  // The isolate parameter is required unless using the kCodeTag tag, as these
+  // object use a different pointer table.
+  inline Tagged<Object> Relaxed_Load(const Isolate* isolate,
+                                     IndirectPointerTag tag) const;
+  inline Tagged<Object> Acquire_Load(const Isolate* isolate,
+                                     IndirectPointerTag tag) const;
+
+  // Store a reference to the given object into this slot. The object must be
+  // indirectly refereceable.
   inline void Relaxed_Store(Tagged<ExposedTrustedObject> value) const;
   inline void Release_Store(Tagged<ExposedTrustedObject> value) const;
 
@@ -371,6 +383,11 @@ class IndirectPointerSlot
   inline IndirectPointerHandle Acquire_LoadHandle() const;
   inline void Relaxed_StoreHandle(IndirectPointerHandle handle) const;
   inline void Release_StoreHandle(IndirectPointerHandle handle) const;
+
+ private:
+  inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
+                                      const Isolate* isolate,
+                                      IndirectPointerTag tag) const;
 };
 
 }  // namespace internal

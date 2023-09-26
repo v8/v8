@@ -280,7 +280,8 @@ class Int64LoweringReducer : public Next {
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_size_log2,
-                        bool maybe_initializing_or_transitioning) {
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag maybe_indirect_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
@@ -290,18 +291,19 @@ class Int64LoweringReducer : public Next {
             AtomicWord32PairOp::OpKind::kStore, offset);
       }
       return __ Tuple(
-          Next::ReduceStore(base, index, low, kind,
-                            MemoryRepresentation::Int32(), write_barrier,
-                            offset, element_size_log2,
-                            maybe_initializing_or_transitioning),
-          Next::ReduceStore(base, index, high, kind,
-                            MemoryRepresentation::Int32(), write_barrier,
-                            offset + sizeof(int32_t), element_size_log2,
-                            maybe_initializing_or_transitioning));
+          Next::ReduceStore(
+              base, index, low, kind, MemoryRepresentation::Int32(),
+              write_barrier, offset, element_size_log2,
+              maybe_initializing_or_transitioning, maybe_indirect_pointer_tag),
+          Next::ReduceStore(
+              base, index, high, kind, MemoryRepresentation::Int32(),
+              write_barrier, offset + sizeof(int32_t), element_size_log2,
+              maybe_initializing_or_transitioning, maybe_indirect_pointer_tag));
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning);
+                             maybe_initializing_or_transitioning,
+                             maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

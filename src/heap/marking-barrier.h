@@ -43,7 +43,8 @@ class MarkingBarrier {
   V8_EXPORT_PRIVATE static void PublishYoung(Heap* heap);
 
   void Write(Tagged<HeapObject> host, HeapObjectSlot, Tagged<HeapObject> value);
-  void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  void Write(Tagged<HeapObject> host, IndirectPointerSlot slot,
+             IndirectPointerTag tag);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
              Tagged<HeapObject> value);
   void Write(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);

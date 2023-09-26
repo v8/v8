@@ -3372,33 +3372,35 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
   }
 }
 
-void CodeStubAssembler::StoreIndirectPointerField(TNode<HeapObject> object,
-                                                  int offset,
-                                                  TNode<Code> value) {
+void CodeStubAssembler::StoreIndirectPointerField(
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
   DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
-  OptimizedStoreIndirectPointerField(object, offset, value);
+  OptimizedStoreIndirectPointerField(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, TNode<Code> value) {
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
   DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
-  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
-void CodeStubAssembler::StoreMaybeIndirectPointerField(TNode<HeapObject> object,
-                                                       int offset,
-                                                       TNode<Code> value) {
+void CodeStubAssembler::StoreMaybeIndirectPointerField(
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  StoreIndirectPointerField(object, offset, value);
+  StoreIndirectPointerField(object, offset, tag, value);
 #else
   StoreObjectField(object, offset, value);
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void CodeStubAssembler::StoreMaybeIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, TNode<Code> value) {
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  StoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+  StoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 #else
   StoreObjectFieldNoWriteBarrier(object, offset, value);
 #endif  // V8_CODE_POINTER_SANDBOXING
@@ -16102,7 +16104,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreMaybeIndirectPointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset,
-                                               code);
+                                               kCodeIndirectPointerTag, code);
   return CAST(fun);
 }
 

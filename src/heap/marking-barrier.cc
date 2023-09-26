@@ -56,7 +56,8 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, HeapObjectSlot slot,
   }
 }
 
-void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot,
+                           IndirectPointerTag tag) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
@@ -66,7 +67,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
-  Tagged<HeapObject> value = HeapObject::cast(slot.load());
+  Tagged<HeapObject> value = HeapObject::cast(slot.load(isolate(), tag));
   MarkValue(host, value);
 
   // We don't emit generational- and shared write barriers for indirect

@@ -1180,6 +1180,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Store(StoreRepresentation rep);
   base::Optional<const Operator*> TryStorePair(StoreRepresentation rep1,
                                                StoreRepresentation rep2);
+  const Operator* StoreIndirectPointer(WriteBarrierKind write_barrier_kind);
   const Operator* ProtectedStore(MachineRepresentation rep);
   const Operator* StoreTrapOnNull(StoreRepresentation rep);
 

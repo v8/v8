@@ -90,13 +90,13 @@ class StatsCounter;
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
 #ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)       \
-  V(external_pointer_table_address,                           \
-    "Isolate::external_pointer_table_address("                \
-    ")")                                                      \
-  V(shared_external_pointer_table_address_address,            \
-    "Isolate::shared_external_pointer_table_address_address(" \
-    ")")
+#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)         \
+  V(external_pointer_table_address,                             \
+    "Isolate::external_pointer_table_address()")                \
+  V(shared_external_pointer_table_address_address,              \
+    "Isolate::shared_external_pointer_table_address_address()") \
+  V(indirect_pointer_table_base_address,                        \
+    "Isolate::indirect_pointer_table_base_address()")
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX

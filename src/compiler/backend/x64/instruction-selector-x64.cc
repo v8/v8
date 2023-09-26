@@ -1320,7 +1320,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
     DCHECK(
         CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[4];
+    InstructionOperand inputs[5];
     size_t input_count = 0;
     addressing_mode = g.GenerateMemoryOperandInputs(
         index, element_size_log2, base, displacement,
@@ -1333,7 +1333,13 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     InstructionCode code;
     if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
+      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
+      node_t tag = store.indirect_pointer_tag();
+      auto tag_constant = selector->constant_view(tag);
+      DCHECK(tag_constant.is_int64());
+      inputs[input_count++] = g.UseImmediate64(tag_constant.int64_value());
     } else {
       code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;

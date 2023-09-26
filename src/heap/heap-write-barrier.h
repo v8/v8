@@ -46,6 +46,7 @@ void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> object,
                                    WriteBarrierMode mode);
 void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
                                  IndirectPointerSlot slot,
+                                 IndirectPointerTag tag,
                                  Tagged<HeapObject> value,
                                  WriteBarrierMode mode);
 
@@ -68,14 +69,16 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
   static inline void Marking(Tagged<DescriptorArray>,
                              int number_of_own_descriptors);
-  static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot,
+                             IndirectPointerTag tag);
 
   static inline void Shared(Tagged<InstructionStream> host, RelocInfo*,
                             Tagged<HeapObject> value);
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
-  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot);
+  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot,
+                                            Address raw_tag);
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 
@@ -110,7 +113,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);
   static void MarkingSlow(Tagged<DescriptorArray>,
                           int number_of_own_descriptors);
-  static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot,
+                          IndirectPointerTag tag);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
   static void MarkingSlowFromInternalFields(Heap* heap, Tagged<JSObject> host);
 

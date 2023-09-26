@@ -519,12 +519,6 @@ static_assert((1 << (32 - kIndirectPointerHandleShift)) == kMaxIndirectPointers,
               "kIndirectPointerTableReservationSize and "
               "kIndirectPointerHandleShift don't match");
 
-// Currently only Code objects can be referenced through indirect pointers and
-// various places rely on that assumption. They will all static_assert against
-// this constant to make them easy to find and fix once we reference other types
-// of objects indirectly.
-constexpr bool kAllIndirectPointerObjectsAreCode = true;
-
 //
 // Code Pointers.
 //
@@ -621,6 +615,7 @@ class Internals {
   static const int kExternalPointerTableBasePointerOffset = 0;
   static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
   static const int kIndirectPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kIndirectPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;

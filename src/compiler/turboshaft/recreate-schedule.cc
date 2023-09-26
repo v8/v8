@@ -1147,6 +1147,11 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
       o = machine.ProtectedStore(
           op.stored_rep.ToMachineType().representation());
     }
+  } else if (op.stored_rep == MemoryRepresentation::IndirectPointer()) {
+    o = machine.StoreIndirectPointer(op.write_barrier);
+    // In this case we need a fourth input: the indirect pointer tag.
+    Node* tag = IntPtrConstant(op.indirect_pointer_tag());
+    return AddNode(o, {base, index, value, tag});
   } else {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));

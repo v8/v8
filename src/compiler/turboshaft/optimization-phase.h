@@ -854,8 +854,8 @@ class GraphVisitor {
     return assembler().ReduceStore(
         MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
-        op.offset, op.element_size_log2,
-        op.maybe_initializing_or_transitioning);
+        op.offset, op.element_size_log2, op.maybe_initializing_or_transitioning,
+        op.indirect_pointer_tag());
   }
   OpIndex AssembleOutputGraphAllocate(const AllocateOp& op) {
     return assembler().FinishInitialization(

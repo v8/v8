@@ -600,14 +600,16 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
+  void CallIndirectPointerBarrier(Register object, Register slot_address,
+                                  SaveFPRegsMode fp_mode,
+                                  IndirectPointerTag tag);
+
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
-      PointerType type = PointerType::kDirect);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
-      PointerType type = PointerType::kDirect);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
@@ -721,7 +723,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Loads an indirect pointer from the heap.
   void LoadIndirectPointerField(Register destination, Operand field_operand,
-                                Register scratch);
+                                IndirectPointerTag tag, Register scratch);
 
   // Store an indirect pointer to the given object in the destination field.
   void StoreIndirectPointerField(Operand dst_field_operand, Register value);
@@ -787,20 +789,20 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
-  void RecordWriteField(Register object, int offset, Register value,
-                        Register slot_address, SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline,
-                        PointerType type = PointerType::kDirect);
+  void RecordWriteField(
+      Register object, int offset, Register value, Register slot_address,
+      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. The address and value registers are clobbered by the
   // operation.  RecordWrite filters out smis so it does not update
   // the write barrier if the value is a smi.
-  void RecordWrite(Register object, Register slot_address, Register value,
-                   SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline,
-                   PointerType type = PointerType::kDirect);
+  void RecordWrite(
+      Register object, Register slot_address, Register value,
+      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
   // of slots in non-GCed area.
