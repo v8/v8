@@ -430,7 +430,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   DCHECK(IsImmAddSub(budget_used));
   AddSub(budget, budget, Operand{budget_used}, SetFlags, SUB);
   str(budget, budget_addr);
-  b(ool_label, mi);
+  B(ool_label, mi);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
