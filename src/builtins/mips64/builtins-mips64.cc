@@ -1513,12 +1513,6 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::FAST_CONSTRUCT);
 
-  if (v8_flags.debug_code) {
-    // Check that FrameScope pushed the context on to the stack already.
-    __ LoadReceiver(a2);
-    __ Check(eq, AbortReason::kUnexpectedValue, a2, Operand(cp));
-  }
-
   // Implicit receiver stored in the construct frame.
   __ LoadRoot(a2, RootIndex::kTheHoleValue);
   __ Push(cp, a2);
