@@ -1063,81 +1063,81 @@ void MacroAssembler::B(Label* label, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK((cond != al) && (cond != nv));
 
-  Label done;
   bool need_extra_instructions =
       NeedExtraInstructionsOrRegisterBranch<CondBranchType>(label);
 
-  if (need_extra_instructions) {
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
     b(&done, NegateCondition(cond));
     B(label);
+    bind(&done);
   } else {
     b(label, cond);
   }
-  bind(&done);
 }
 
 void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
   DCHECK(allow_macro_instructions());
 
-  Label done;
   bool need_extra_instructions =
       NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
-  if (need_extra_instructions) {
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
     tbz(rt, bit_pos, &done);
     B(label);
+    bind(&done);
   } else {
     tbnz(rt, bit_pos, label);
   }
-  bind(&done);
 }
 
 void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
   DCHECK(allow_macro_instructions());
 
-  Label done;
   bool need_extra_instructions =
       NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
-  if (need_extra_instructions) {
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
     tbnz(rt, bit_pos, &done);
     B(label);
+    bind(&done);
   } else {
     tbz(rt, bit_pos, label);
   }
-  bind(&done);
 }
 
 void MacroAssembler::Cbnz(const Register& rt, Label* label) {
   DCHECK(allow_macro_instructions());
 
-  Label done;
   bool need_extra_instructions =
       NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
-  if (need_extra_instructions) {
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
     cbz(rt, &done);
     B(label);
+    bind(&done);
   } else {
     cbnz(rt, label);
   }
-  bind(&done);
 }
 
 void MacroAssembler::Cbz(const Register& rt, Label* label) {
   DCHECK(allow_macro_instructions());
 
-  Label done;
   bool need_extra_instructions =
       NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
-  if (need_extra_instructions) {
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
     cbnz(rt, &done);
     B(label);
+    bind(&done);
   } else {
     cbz(rt, label);
   }
-  bind(&done);
 }
 
 // Pseudo-instructions.
