@@ -541,7 +541,7 @@ bool SemiSpaceNewSpace::EnsureCurrentCapacity() {
 }
 
 void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
 
   Address new_top = known_top == 0 ? to_space_.page_low() : known_top;
   BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
@@ -647,7 +647,7 @@ void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
 }
 
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
   allocator_->MakeLinearAllocationAreaIterable();
   UpdateInlineAllocationLimit();
 }
@@ -844,7 +844,7 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
   allocator_->Verify();
 #endif  // DEBUG
 
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
 
   Address old_top = allocator_->top();
   Address high = to_space_.page_high();

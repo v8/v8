@@ -1130,7 +1130,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
       space_remaining -= padding->Size();
     } else {
       // Not enough room to create another fixed array. Create a filler.
-      heap->CreateFillerObjectAt(*heap->new_space()->allocation_top_address(),
+      heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
                                  space_remaining);
       break;
     }

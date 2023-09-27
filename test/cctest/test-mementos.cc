@@ -93,7 +93,7 @@ TEST(Regress470390) {
 
   // Set the new space limit to be equal to the top.
   Address top = CcTest::heap()->new_space()->top();
-  *(CcTest::heap()->new_space()->allocation_limit_address()) = top;
+  *(CcTest::heap()->NewSpaceAllocationLimitAddress()) = top;
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.

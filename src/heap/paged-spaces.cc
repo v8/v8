@@ -454,7 +454,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
   Address current_max_limit = allocator_->original_limit_relaxed();
   DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
 
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
 
   base::Optional<CodePageHeaderModificationScope> optional_scope;
   if (identity() == CODE_SPACE) {
@@ -801,7 +801,7 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
     return false;
   }
   DCHECK(SupportsExtendingLAB());
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
   Address new_limit = ComputeLimit(current_top, max_limit, size_in_bytes);
   SetLimit(new_limit);
   DCHECK(heap()->IsMainThread());

@@ -134,10 +134,6 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
   return *this;
 }
 
-void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  allocator_->AdvanceAllocationObservers();
-}
-
 SpaceIterator::SpaceIterator(Heap* heap)
     : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}
 

@@ -223,11 +223,11 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       if (length <= 0) {
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
-          heap->CreateFillerObjectAt(
-              *heap->old_space()->allocation_top_address(), free_memory);
+          heap->CreateFillerObjectAt(*heap->OldSpaceAllocationTopAddress(),
+                                     free_memory);
         } else {
-          heap->CreateFillerObjectAt(
-              *heap->new_space()->allocation_top_address(), free_memory);
+          heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
+                                     free_memory);
         }
         break;
       }

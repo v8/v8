@@ -314,19 +314,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   Address top() const { return allocator_->top(); }
   Address limit() const { return allocator_->limit(); }
 
-  // The allocation top address.
-  Address* allocation_top_address() const {
-    return allocator_->allocation_top_address();
-  }
-
-  // The allocation limit address.
-  Address* allocation_limit_address() const {
-    return allocator_->allocation_limit_address();
-  }
-
   MainAllocator* main_allocator() { return allocator_; }
-
-  void AdvanceAllocationObservers();
 
   virtual void FreeLinearAllocationArea() = 0;
 

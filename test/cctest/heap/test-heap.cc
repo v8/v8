@@ -2106,7 +2106,7 @@ static Tagged<HeapObject> NewSpaceAllocateAligned(
 
 // Get new space allocation into the desired alignment.
 static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
-  Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
+  Address* top_addr = CcTest::heap()->NewSpaceAllocationTopAddress();
   int fill = Heap::GetFillToAlign(*top_addr, alignment);
   int allocation = fill + offset;
   if (allocation) {
@@ -2121,7 +2121,7 @@ TEST(TestAlignedAllocation) {
   // Double misalignment is 4 on 32-bit platforms or when pointer compression
   // is enabled, 0 on 64-bit ones when pointer compression is disabled.
   const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
-  Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
+  Address* top_addr = CcTest::heap()->NewSpaceAllocationTopAddress();
   Address start;
   Tagged<HeapObject> obj;
   Tagged<HeapObject> filler;
@@ -2181,7 +2181,7 @@ static Tagged<HeapObject> OldSpaceAllocateAligned(
 
 // Get old space allocation into the desired alignment.
 static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
-  Address* top_addr = CcTest::heap()->old_space()->allocation_top_address();
+  Address* top_addr = CcTest::heap()->OldSpaceAllocationTopAddress();
   int fill = Heap::GetFillToAlign(*top_addr, alignment);
   int allocation = fill + offset;
   if (allocation) {

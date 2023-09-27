@@ -197,19 +197,23 @@ PagedSpace* Heap::paged_space(int idx) const {
 Space* Heap::space(int idx) const { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_ ? new_space_->allocation_top_address() : nullptr;
+  return new_space_
+             ? isolate()->isolate_data()->new_allocation_info_.top_address()
+             : nullptr;
 }
 
 Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_ ? new_space_->allocation_limit_address() : nullptr;
+  return new_space_
+             ? isolate()->isolate_data()->new_allocation_info_.limit_address()
+             : nullptr;
 }
 
 Address* Heap::OldSpaceAllocationTopAddress() {
-  return old_space_->allocation_top_address();
+  return allocator()->old_space_allocator()->allocation_top_address();
 }
 
 Address* Heap::OldSpaceAllocationLimitAddress() {
-  return old_space_->allocation_limit_address();
+  return allocator()->old_space_allocator()->allocation_limit_address();
 }
 
 inline const base::AddressRegion& Heap::code_region() {
