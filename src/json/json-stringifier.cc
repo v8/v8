@@ -5,6 +5,7 @@
 #include "src/json/json-stringifier.h"
 
 #include "src/base/strings.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
@@ -15,6 +16,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
@@ -133,35 +135,32 @@ class JsonStringifier {
     return CurrentPartCanFit(length << 3);
   }
 
-  void AppendStringByCopy(Handle<String> string) {
+  void AppendStringByCopy(Tagged<String> string,
+                          const DisallowGarbageCollection& no_gc) {
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
            (string->IsFlat() &&
-            String::IsOneByteRepresentationUnderneath(*string)));
+            String::IsOneByteRepresentationUnderneath(string)));
     DCHECK(CurrentPartCanFit(string->length()));
-
-    {
-      DisallowGarbageCollection no_gc;
-      if (encoding_ == String::ONE_BYTE_ENCODING) {
-        if (String::IsOneByteRepresentationUnderneath(*string)) {
-          CopyChars<uint8_t, uint8_t>(
-              one_byte_ptr_ + current_index_,
-              string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
-        } else {
-          ChangeEncoding();
-          CopyChars<uint16_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
-        }
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      if (String::IsOneByteRepresentationUnderneath(string)) {
+        CopyChars<uint8_t, uint8_t>(
+            one_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
       } else {
-        if (String::IsOneByteRepresentationUnderneath(*string)) {
-          CopyChars<uint8_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
-        } else {
-          CopyChars<uint16_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
-        }
+        ChangeEncoding();
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
+      }
+    } else {
+      if (String::IsOneByteRepresentationUnderneath(*string)) {
+        CopyChars<uint8_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
+      } else {
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
       }
     }
     current_index_ += string->length();
@@ -169,17 +168,21 @@ class JsonStringifier {
     if (current_index_ == part_length_) Extend();
   }
 
-  V8_NOINLINE void AppendString(Handle<String> string) {
-    const bool representation_ok =
-        encoding_ == String::TWO_BYTE_ENCODING ||
-        (string->IsFlat() &&
-         String::IsOneByteRepresentationUnderneath(*string));
-    if (representation_ok) {
-      while (!CurrentPartCanFit(string->length())) Extend();
-      AppendStringByCopy(string);
-      return;
+  V8_NOINLINE void AppendString(Handle<String> string_handle) {
+    {
+      DisallowGarbageCollection no_gc;
+      Tagged<String> string = *string_handle;
+      const bool representation_ok =
+          encoding_ == String::TWO_BYTE_ENCODING ||
+          (string->IsFlat() &&
+           String::IsOneByteRepresentationUnderneath(*string));
+      if (representation_ok) {
+        while (!CurrentPartCanFit(string->length())) Extend();
+        AppendStringByCopy(string, no_gc);
+        return;
+      }
     }
-    SerializeString<true>(string);
+    SerializeString<true>(string_handle);
   }
 
   bool HasValidCurrentIndex() const { return current_index_ < part_length_; }
