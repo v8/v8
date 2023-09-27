@@ -443,7 +443,7 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
 //       +-----------------+----                        |
 // 5+cp  |  BytecodeArray  |   ^                        |
 //       |- - - - - - - - -|   |                        |
-// 6+cp  | offset / unused | Unoptimized code header    |
+// 6+cp  |  offset / cell  | Unoptimized code header    |
 //       |- - - - - - - - -|   |                        |
 // 7+cp  |      FBV        |   v                        |
 //       +-----------------+----                        |
@@ -461,7 +461,7 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
   // FP-relative.
   static constexpr int kBytecodeArrayFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kBytecodeOffsetOrUnusedSlot =
+  static constexpr int kBytecodeOffsetOrFeedbackCellFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(1);
   static constexpr int kFeedbackVectorFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(2);
@@ -475,7 +475,7 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
 
   // Expression index for {JavaScriptFrame::GetExpressionAddress}.
   static constexpr int kBytecodeArrayExpressionIndex = -3;
-  static constexpr int kBytecodeOffsetOrUnusedSlotExpressionIndex = -2;
+  static constexpr int kBytecodeOffsetOrFeedbackCellExpressionIndex = -2;
   static constexpr int kFeedbackVectorExpressionIndex = -1;
   static constexpr int kRegisterFileExpressionIndex = 0;
 
@@ -486,25 +486,27 @@ class UnoptimizedFrameConstants : public StandardFrameConstants {
 };
 
 // Interpreter frames are unoptimized frames that are being executed by the
-// interpreter. In this case, the "offset or unused" slot contains the bytecode
+// interpreter. In this case, the "offset or cell" slot contains the bytecode
 // offset of the currently executing bytecode.
 class InterpreterFrameConstants : public UnoptimizedFrameConstants {
  public:
   static constexpr int kBytecodeOffsetExpressionIndex =
-      kBytecodeOffsetOrUnusedSlotExpressionIndex;
+      kBytecodeOffsetOrFeedbackCellExpressionIndex;
 
-  static constexpr int kBytecodeOffsetFromFp = kBytecodeOffsetOrUnusedSlot;
+  static constexpr int kBytecodeOffsetFromFp =
+      kBytecodeOffsetOrFeedbackCellFromFp;
 };
 
 // Sparkplug frames are unoptimized frames that are being executed by
-// sparkplug-compiled baseline code. base. In this case, the "offset or unused"
-// slot is free (unused).
+// sparkplug-compiled baseline code. base. In this case, the "offset or cell"
+// slot contains the closure feedback cell.
 class BaselineFrameConstants : public UnoptimizedFrameConstants {
  public:
-  static constexpr int kUnusedSlotExpressionIndex =
-      kBytecodeOffsetOrUnusedSlotExpressionIndex;
+  static constexpr int kFeedbackCellExpressionIndex =
+      kBytecodeOffsetOrFeedbackCellExpressionIndex;
 
-  static constexpr int kUnusedSlotFromFp = kBytecodeOffsetOrUnusedSlot;
+  static constexpr int kFeedbackCellFromFp =
+      kBytecodeOffsetOrFeedbackCellFromFp;
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

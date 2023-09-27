@@ -23,6 +23,7 @@ namespace internal {
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
+  V(kExpectedFeedbackCell, "Expected feedback cell")                           \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedBaselineData, "Expected baseline data")                           \
   V(kFloat64IsNotAInt32,                                                       \

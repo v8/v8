@@ -1734,22 +1734,25 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   XMMRegister saved_arg_count = xmm0;
   XMMRegister saved_bytecode_array = xmm1;
   XMMRegister saved_frame_size = xmm2;
-  XMMRegister saved_feedback_vector = xmm3;
+  XMMRegister saved_feedback_cell = xmm3;
+  XMMRegister saved_feedback_vector = xmm4;
   __ movd(saved_arg_count, arg_count);
   __ movd(saved_frame_size, frame_size);
 
   // Use the arg count (eax) as the scratch register.
   Register scratch = arg_count;
 
-  // Load the feedback vector from the closure.
-  Register feedback_vector = ecx;
+  // Load the feedback cell and vector from the closure.
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
+  Register feedback_cell = ecx;
+  __ mov(feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ movd(saved_feedback_cell, feedback_cell);
+  Register feedback_vector = ecx;
   __ mov(feedback_vector,
-         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector,
-         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector, scratch);
+  feedback_cell = no_reg;
 
   // Load the optimization state from the feedback vector and re-use the
   // register.
@@ -1770,7 +1773,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // Increment the invocation count.
   __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
-  XMMRegister return_address = xmm4;
+  XMMRegister return_address = xmm5;
   // Save the return address, so that we can push it to the end of the newly
   // set-up frame once we're done setting it up.
   __ PopReturnAddressTo(return_address, scratch);
@@ -1794,10 +1797,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
     // We'll use the bytecode for both code age/OSR resetting, and pushing onto
     // the frame, so load it into a register.
-    Register bytecode_array = scratch;
-    __ movd(bytecode_array, saved_bytecode_array);
-    __ Push(bytecode_array);
-    __ Push(Immediate(0));  // Unused slot.
+    __ Push(saved_bytecode_array, scratch);
+    __ Push(saved_feedback_cell, scratch);
     __ Push(saved_feedback_vector, scratch);
   }
 
@@ -4572,12 +4573,13 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     AssertCodeIsBaseline(masm, code_obj, ecx);
   }
 
-  // Load the feedback vector.
+  // Load the feedback cell and vector.
+  Register feedback_cell = eax;
   Register feedback_vector = ecx;
+  __ mov(feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  closure = no_reg;
   __ mov(feedback_vector,
-         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector,
-         FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -4590,17 +4592,18 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ mov(kInterpreterBytecodeOffsetRegister,
          MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+  // Replace bytecode offset with feedback cell.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kFeedbackCellFromFp);
+  __ mov(MemOperand(ebp, BaselineFrameConstants::kFeedbackCellFromFp),
+         feedback_cell);
+  feedback_cell = no_reg;
   // Update feedback vector cache.
   static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
                 BaselineFrameConstants::kFeedbackVectorFromFp);
   __ mov(MemOperand(ebp, InterpreterFrameConstants::kFeedbackVectorFromFp),
          feedback_vector);
   feedback_vector = no_reg;
-  // Replace BytecodeOffset with zero.
-  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
-                BaselineFrameConstants::kUnusedSlotFromFp);
-  __ mov(MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
-         Immediate(0));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
@@ -4649,6 +4652,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
+    DCHECK_EQ(feedback_cell, no_reg);
+    closure = ecx;
     __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
     ResetJSFunctionAge(masm, closure, closure);
     Generate_OSREntry(masm, code_obj);
@@ -4671,21 +4676,19 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   __ bind(&install_baseline_code);
   // Pop/re-push the accumulator so that it's spilled within the below frame
-  // scope, to keep the stack valid. Use ecx for this -- we can't save it in
-  // kInterpreterAccumulatorRegister because that aliases with closure.
-  DCHECK(!AreAliased(ecx, kContextRegister, closure));
-  __ pop(ecx);
+  // scope, to keep the stack valid.
+  __ pop(kInterpreterAccumulatorRegister);
   // Restore the clobbered context register.
   __ mov(kContextRegister,
          Operand(ebp, StandardFrameConstants::kContextOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ecx);
+    __ Push(kInterpreterAccumulatorRegister);
+    // Reload closure.
+    closure = eax;
+    __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
-    // Now that we're restarting, we don't have to worry about closure and
-    // accumulator aliasing, so pop the spilled accumulator directly back into
-    // the right register.
     __ Pop(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.

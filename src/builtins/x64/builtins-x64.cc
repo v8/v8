@@ -1706,7 +1706,8 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
-  Register feedback_vector = r8;
+  Register feedback_cell = r8;
+  Register feedback_vector = r11;
   Register return_address = r15;
 
 #ifdef DEBUG
@@ -1719,8 +1720,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
-  // Load the feedback vector from the closure.
-  TaggedRegister feedback_cell(feedback_vector);
+  // Load the feedback cell and vector from the closure.
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
@@ -1765,7 +1765,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       Register bytecode_array = descriptor.GetRegisterParameter(
           BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
       __ Push(bytecode_array);
-      __ Push(Immediate(0));  // Unused slot.
+      __ Push(feedback_cell);
       __ Push(feedback_vector);
     }
 
@@ -4757,10 +4757,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     AssertCodeIsBaseline(masm, code_obj, r11);
   }
 
-  // Load the feedback vector.
+  // Load the feedback cell and feedback vector.
+  Register feedback_cell = r8;
   Register feedback_vector = r11;
-
-  TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
@@ -4772,21 +4771,22 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ IsObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, kScratchRegister);
   __ j(not_equal, &install_baseline_code);
 
-  // Save BytecodeOffset from the stack frame.
+  // Save bytecode offset from the stack frame.
   __ SmiUntagUnsigned(
       kInterpreterBytecodeOffsetRegister,
       MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  // Replace bytecode offset with feedback cell.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kFeedbackCellFromFp);
+  __ movq(MemOperand(rbp, BaselineFrameConstants::kFeedbackCellFromFp),
+          feedback_cell);
+  feedback_cell = no_reg;
   // Update feedback vector cache.
   static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
                 BaselineFrameConstants::kFeedbackVectorFromFp);
   __ movq(MemOperand(rbp, InterpreterFrameConstants::kFeedbackVectorFromFp),
           feedback_vector);
   feedback_vector = no_reg;
-  // Replace BytecodeOffset with zero.
-  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
-                BaselineFrameConstants::kUnusedSlotFromFp);
-  __ movq(MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
-          Immediate(0));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;

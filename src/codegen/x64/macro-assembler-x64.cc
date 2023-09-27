@@ -993,6 +993,12 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
+  if (v8_flags.debug_code) {
+    IsObjectType(object, FEEDBACK_CELL_TYPE, scratch);
+    Assert(equal, AbortReason::kExpectedFeedbackCell);
+  }
+}
 void MacroAssembler::AssertFeedbackVector(Register object) {
   if (v8_flags.debug_code) {
     IsObjectType(object, FEEDBACK_VECTOR_TYPE, kScratchRegister);

@@ -933,18 +933,19 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   UseScratchRegisterScope temps(masm);
   // Need a few extra registers
-  temps.Include(r8, r9);
+  temps.Include({r4, r8, r9});
 
   auto descriptor =
       Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
-  // Load the feedback vector from the closure.
+  // Load the feedback cell and vector from the closure.
+  Register feedback_cell = temps.Acquire();
   Register feedback_vector = temps.Acquire();
-  __ ldr(feedback_vector,
+  __ ldr(feedback_cell,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector,
-         FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
+         FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
   __ AssertFeedbackVector(feedback_vector);
 
   // Check the tiering state.
@@ -1011,13 +1012,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                            FEEDBACK_VECTOR_TYPE);
       __ Assert(eq, AbortReason::kExpectedFeedbackVector);
     }
-    {
-      // Unused slot.
-      UseScratchRegisterScope temps(masm);
-      Register scratch = temps.Acquire();
-      __ mov(scratch, Operand::Zero());
-      __ Push(scratch);
-    }
+    __ Push(feedback_cell);
     __ Push(feedback_vector);
   }
 
@@ -3969,12 +3964,13 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     AssertCodeIsBaseline(masm, code_obj, r3);
   }
 
-  // Load the feedback vector.
-  Register feedback_vector = r2;
-  __ ldr(feedback_vector,
+  // Load the feedback cell and vector.
+  Register feedback_cell = r2;
+  Register feedback_vector = r9;
+  __ ldr(feedback_cell,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector,
-         FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
+         FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -3986,19 +3982,18 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ ldr(kInterpreterBytecodeOffsetRegister,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+  // Replace bytecode offset with feedback cell.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kFeedbackCellFromFp);
+  __ str(feedback_cell,
+         MemOperand(fp, BaselineFrameConstants::kFeedbackCellFromFp));
+  feedback_cell = no_reg;
   // Update feedback vector cache.
   static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
                 BaselineFrameConstants::kFeedbackVectorFromFp);
   __ str(feedback_vector,
          MemOperand(fp, InterpreterFrameConstants::kFeedbackVectorFromFp));
   feedback_vector = no_reg;
-  // Replace BytecodeOffset with zero.
-  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
-                BaselineFrameConstants::kUnusedSlotFromFp);
-  Register scratch = r2;
-  __ mov(scratch, Operand(0));
-  __ str(scratch,
-         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
