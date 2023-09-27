@@ -7172,6 +7172,9 @@ uint8_t* Heap::IsMinorMarkingFlagAddress() {
   return &isolate()->isolate_data()->is_minor_marking_flag_;
 }
 
+StrongRootAllocatorBase::StrongRootAllocatorBase(v8::Isolate* isolate)
+    : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)->heap()) {}
+
 // StrongRootBlocks are allocated as a block of addresses, prefixed with a
 // StrongRootsEntry pointer:
 //
@@ -7183,7 +7186,7 @@ uint8_t* Heap::IsMinorMarkingFlagAddress() {
 // The allocate method registers the range "Address 1" to "Address N" with the
 // heap as a strong root array, saves that entry in StrongRootsEntry*, and
 // returns a pointer to Address 1.
-Address* StrongRootBlockAllocator::allocate(size_t n) {
+Address* StrongRootAllocatorBase::allocate_impl(size_t n) {
   void* block = base::Malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
 
   StrongRootsEntry** header = reinterpret_cast<StrongRootsEntry**>(block);
@@ -7191,19 +7194,19 @@ Address* StrongRootBlockAllocator::allocate(size_t n) {
                                             sizeof(StrongRootsEntry*));
 
   memset(ret, kNullAddress, n * sizeof(Address));
-  *header = heap_->RegisterStrongRoots(
-      "StrongRootBlockAllocator", FullObjectSlot(ret), FullObjectSlot(ret + n));
+  *header = heap()->RegisterStrongRoots(
+      "StrongRootAllocator", FullObjectSlot(ret), FullObjectSlot(ret + n));
 
   return ret;
 }
 
-void StrongRootBlockAllocator::deallocate(Address* p, size_t n) noexcept {
+void StrongRootAllocatorBase::deallocate_impl(Address* p, size_t n) noexcept {
   // The allocate method returns a pointer to Address 1, so the deallocate
   // method has to offset that pointer back by sizeof(StrongRootsEntry*).
   void* block = reinterpret_cast<char*>(p) - sizeof(StrongRootsEntry*);
   StrongRootsEntry** header = reinterpret_cast<StrongRootsEntry**>(block);
 
-  heap_->UnregisterStrongRoots(*header);
+  heap()->UnregisterStrongRoots(*header);
 
   base::Free(block);
 }
