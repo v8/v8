@@ -584,12 +584,12 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
     return PagedSpaceBase::Available() + limit() - top();
   }
 
- private:
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
     return current_capacity_ - free_list_->wasted_bytes();
   }
 
+ private:
   bool AllocatePage();
 
   const size_t initial_capacity_;
