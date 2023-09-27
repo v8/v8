@@ -2037,6 +2037,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const IndirectPointerTable& indirect_pointer_table() const {
     return isolate_data_.indirect_pointer_table_;
   }
+
+  Address indirect_pointer_table_base_address() const {
+    return isolate_data_.indirect_pointer_table_.base_address();
+  }
 #endif  // V8_COMPRESS_POINTERS
 
   struct PromiseHookFields {

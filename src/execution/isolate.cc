@@ -3577,6 +3577,8 @@ void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)),
            Internals::kExternalPointerTableBasePointerOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(IndirectPointerTable, base_)),
+           Internals::kIndirectPointerTableBasePointerOffset);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            Internals::kExternalPointerTableSize);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),

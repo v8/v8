@@ -617,14 +617,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)
 #else
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)           \
-  do {                                                                  \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
-    IndirectPointerWriteBarrier(                                        \
-        object, Tagged(object)->RawIndirectPointerField(offset), value, \
-        UPDATE_WRITE_BARRIER);                                          \
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    IndirectPointerWriteBarrier(                                             \
+        object, Tagged(object)->RawIndirectPointerField(offset), tag, value, \
+        UPDATE_WRITE_BARRIER);                                               \
   } while (false)
 #endif
 
@@ -667,14 +667,15 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, mode)
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                   mode)
 #else
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, \
-                                                   mode)                  \
-  do {                                                                    \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
-    IndirectPointerWriteBarrier(                                          \
-        object, (object).RawIndirectPointerField(offset), value, mode);   \
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                   mode)                       \
+  do {                                                                         \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    IndirectPointerWriteBarrier(                                               \
+        object, (object).RawIndirectPointerField(offset), tag, value, mode);   \
   } while (false)
 #endif
 

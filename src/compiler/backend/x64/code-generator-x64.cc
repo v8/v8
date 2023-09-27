@@ -286,9 +286,11 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+  OutOfLineRecordWrite(
+      CodeGenerator* gen, Register object, Operand operand, Register value,
+      Register scratch0, Register scratch1, RecordWriteMode mode,
+      StubCallMode stub_mode,
+      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
@@ -299,7 +301,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        indirect_pointer_tag_(indirect_pointer_tag) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
@@ -325,9 +328,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
-                                          StubCallMode::kCallBuiltinPointer,
-                                          PointerType::kIndirect);
+      DCHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
+                                    indirect_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -352,6 +355,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
+  IndirectPointerTag indirect_pointer_tag_;
 };
 
 template <std::memory_order order>
@@ -1653,13 +1657,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
-      Register value = i.InputRegister(index);
+      Register value = i.InputRegister(index++);
+      IndirectPointerTag tag =
+          static_cast<IndirectPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidIndirectPointerTag(tag));
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
-                                                   scratch0, scratch1, mode,
-                                                   DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch0, scratch1, mode,
+          DetermineStubCallMode(), tag);
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);

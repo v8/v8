@@ -1155,7 +1155,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   }
 
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            IndirectPointerMode mode) override {
+                            IndirectPointerMode mode,
+                            IndirectPointerTag tag) override {
     // The JSFunction::Code field is handled separately in
     // ExtractJSObjectReferences but here we have to mark it as visited.
     if (IsJSFunction(host)) {

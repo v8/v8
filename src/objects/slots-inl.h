@@ -295,36 +295,25 @@ ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
 }
 #endif  // V8_ENABLE_SANDBOX
 
-Tagged<Object> IndirectPointerSlot::load() const { return Relaxed_Load(); }
+Tagged<Object> IndirectPointerSlot::load(const Isolate* isolate,
+                                         IndirectPointerTag tag) const {
+  return Relaxed_Load(isolate, tag);
+}
 
 void IndirectPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
   return Relaxed_Store(value);
 }
 
-Tagged<Object> IndirectPointerSlot::Relaxed_Load() const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+Tagged<Object> IndirectPointerSlot::Relaxed_Load(const Isolate* isolate,
+                                                 IndirectPointerTag tag) const {
   IndirectPointerHandle handle = Relaxed_LoadHandle();
-  // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
-  // Smi::zero for kNullCodePointerHandle?
-  if (!handle) return Smi::zero();
-  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
-  return Tagged<Object>(addr);
-#else
-  UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+  return ResolveHandle(handle, isolate, tag);
 }
 
-Tagged<Object> IndirectPointerSlot::Acquire_Load() const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+Tagged<Object> IndirectPointerSlot::Acquire_Load(const Isolate* isolate,
+                                                 IndirectPointerTag tag) const {
   IndirectPointerHandle handle = Acquire_LoadHandle();
-  // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
-  // Smi::zero for kNullCodePointerHandle?
-  if (!handle) return Smi::zero();
-  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
-  return Tagged<Object>(addr);
-#else
-  UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+  return ResolveHandle(handle, isolate, tag);
 }
 
 void IndirectPointerSlot::Relaxed_Store(
@@ -365,6 +354,27 @@ void IndirectPointerSlot::Relaxed_StoreHandle(
 void IndirectPointerSlot::Release_StoreHandle(
     IndirectPointerHandle handle) const {
   return base::AsAtomic32::Release_Store(location(), handle);
+}
+
+Tagged<Object> IndirectPointerSlot::ResolveHandle(
+    IndirectPointerHandle handle, const Isolate* isolate,
+    IndirectPointerTag tag) const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // TODO(saelo) Maybe come up with a different entry encoding scheme that
+  // returns Smi::zero for kNullCodePointerHandle?
+  if (!handle) return Smi::zero();
+
+  if (tag == kCodeIndirectPointerTag) {
+    // These are special as they use the code pointer table.
+    Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+    return Tagged<Object>(addr);
+  }
+
+  const IndirectPointerTable& table = isolate->indirect_pointer_table();
+  return Tagged<Object>(table.Get(handle));
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 //

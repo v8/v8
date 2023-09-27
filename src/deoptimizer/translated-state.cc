@@ -2222,7 +2222,6 @@ void TranslatedState::InitializeJSObjectAt(
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
 #ifdef V8_CODE_POINTER_SANDBOXING
-    static_assert(kAllIndirectPointerObjectsAreCode);
     if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
         offset == JSFunction::kCodeOffset) {
       // We're materializing a JSFunction's reference to a Code object. This is
@@ -2233,7 +2232,8 @@ void TranslatedState::InitializeJSObjectAt(
       CHECK(IsCode(*field_value));
       Tagged<Code> value = Code::cast(*field_value);
       object_storage->RawIndirectPointerField(offset).Relaxed_Store(value);
-      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset, value);
+      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
+                                     kCodeIndirectPointerTag, value);
     } else if (marker == kStoreHeapObject) {
 #else
     if (marker == kStoreHeapObject) {

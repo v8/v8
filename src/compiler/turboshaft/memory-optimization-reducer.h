@@ -117,7 +117,8 @@ class MemoryOptimizationReducer : public Next {
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_scale,
-                        bool maybe_initializing_or_transitioning) {
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag indirect_pointer_tag) {
     if (!ShouldSkipOptimizationStep() &&
         analyzer_->skipped_write_barriers.count(
             __ current_operation_origin())) {
@@ -125,7 +126,8 @@ class MemoryOptimizationReducer : public Next {
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_scale,
-                             maybe_initializing_or_transitioning);
+                             maybe_initializing_or_transitioning,
+                             indirect_pointer_tag);
   }
 
   OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type) {

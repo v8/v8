@@ -383,15 +383,18 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode) final {}
+                              IndirectPointerMode mode,
+                              IndirectPointerTag tag) final {}
     void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                        IndirectPointerSlot slot) final {
+                                        IndirectPointerSlot slot,
+                                        IndirectPointerTag tag) final {
 #ifdef V8_CODE_POINTER_SANDBOXING
       // When an object owning an indirect pointer table entry is relocated, it
       // needs to update the entry to point to its new location. Currently, only
       // Code objects are referenced through indirect pointers, and they use the
       // code pointer table.
       CHECK(IsCode(host));
+      CHECK_EQ(tag, kCodeIndirectPointerTag);
 
       // Due to the way we handle baseline code during serialization (we
       // manually skip over them), we may encounter such live Code objects in

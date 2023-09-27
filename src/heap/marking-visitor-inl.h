@@ -170,15 +170,15 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
-    Tagged<HeapObject> host, IndirectPointerSlot slot,
-    IndirectPointerMode mode) {
+    Tagged<HeapObject> host, IndirectPointerSlot slot, IndirectPointerMode mode,
+    IndirectPointerTag tag) {
 #ifdef V8_CODE_POINTER_SANDBOXING
   if (mode == IndirectPointerMode::kStrong) {
     // Load the referenced object (if the slot is initialized) and mark it as
     // alive if necessary. Indirect pointers never have to be added to a
     // remembered set because the referenced object will update the pointer
     // table entry when it is relocated.
-    Tagged<Object> value = slot.Relaxed_Load();
+    Tagged<Object> value = slot.Relaxed_Load(heap_->isolate(), tag);
     if (IsHeapObject(value)) {
       Tagged<HeapObject> obj = HeapObject::cast(value);
       SynchronizePageAccess(obj);
@@ -194,12 +194,19 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
-    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    Tagged<HeapObject> host, IndirectPointerSlot slot, IndirectPointerTag tag) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  static_assert(kAllIndirectPointerObjectsAreCode);
-  CodePointerTable* table = GetProcessWideCodePointerTable();
-  CodePointerTable::Space* space = heap_->code_pointer_space();
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+
+  if (tag == kCodeIndirectPointerTag) {
+    CodePointerTable* table = GetProcessWideCodePointerTable();
+    CodePointerTable::Space* space = heap_->code_pointer_space();
+    table->Mark(space, handle);
+    return;
+  }
+
+  IndirectPointerTable* table = indirect_pointer_table_;
+  IndirectPointerTable::Space* space = heap_->indirect_pointer_space();
   table->Mark(space, handle);
 #else
   UNREACHABLE();
@@ -231,7 +238,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     VisitIndirectPointer(
         js_function,
         js_function->RawIndirectPointerField(JSFunction::kCodeOffset),
-        IndirectPointerMode::kStrong);
+        IndirectPointerMode::kStrong, kCodeIndirectPointerTag);
 #else
     VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
 #endif  // V8_CODE_POINTER_SANDBOXING

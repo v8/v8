@@ -614,6 +614,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(LoadImmutable)
       CASE(Store)
       CASE(StorePair)
+      CASE(StoreIndirectPointer)
       CASE(StackSlot)
       CASE(Word32Popcnt)
       CASE(Word64Popcnt)

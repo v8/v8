@@ -250,7 +250,15 @@ ExternalReference::shared_external_pointer_table_address_address(
       isolate->shared_external_pointer_table_address_address());
 }
 
+ExternalReference ExternalReference::indirect_pointer_table_base_address(
+    Isolate* isolate) {
+  // TODO(saelo): maybe the external pointer table external references should
+  // also directly return the table base address?
+  return ExternalReference(isolate->indirect_pointer_table_base_address());
+}
+
 ExternalReference ExternalReference::code_pointer_table_address() {
+  // TODO(saelo): maybe rename to code_pointer_table_base_address?
   // TODO(saelo) remove this ifdef when merging V8_CODE_POINTER_SANDBOXING into
   // V8_ENABLE_SANDBOX
 #ifdef V8_CODE_POINTER_SANDBOXING

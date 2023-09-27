@@ -156,9 +156,10 @@ template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateMaybeIndirectPointer(Tagged<HeapObject> obj,
                                                      int offset,
                                                      ObjectVisitor* v,
-                                                     IndirectPointerMode mode) {
+                                                     IndirectPointerMode mode,
+                                                     IndirectPointerTag tag) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset), mode);
+  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset), mode, tag);
 #else
   if (mode == IndirectPointerMode::kStrong) {
     IteratePointer(obj, offset, v);
@@ -323,7 +324,8 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     // of the cases this field is treated as strong pointer.
     // See MarkingVisitorBase::VisitJSFunction.
     IterateMaybeIndirectPointer(obj, kCodeOffset, v,
-                                IndirectPointerMode::kCustom);
+                                IndirectPointerMode::kCustom,
+                                kCodeIndirectPointerTag);
     DCHECK_GE(header_size, kCodeOffset);
     // Iterate rest of the header fields
     IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);
@@ -941,7 +943,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
         obj->RawInstructionStreamField(kInstructionStreamOffset));
 #ifdef V8_CODE_POINTER_SANDBOXING
     v->VisitIndirectPointerTableEntry(
-        obj, obj->RawIndirectPointerField(kSelfIndirectPointerOffset));
+        obj, obj->RawIndirectPointerField(kSelfIndirectPointerOffset),
+        kCodeIndirectPointerTag);
 #endif
   }
 
