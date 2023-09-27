@@ -956,6 +956,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
+
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef);
   void LoadCompressedMap(Register dst, Register object);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
