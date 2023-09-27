@@ -2108,17 +2108,6 @@
   'language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
   'language/statements/class/elements/syntax/valid/grammar-field-accessor': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13856
-  'language/module-code/import-assertions/import-assertion-empty': [FAIL],
-  'language/module-code/import-assertions/import-assertion-key-identifiername': [FAIL],
-  'language/module-code/import-assertions/import-assertion-key-string-double': [FAIL],
-  'language/module-code/import-assertions/import-assertion-key-string-single': [FAIL],
-  'language/module-code/import-assertions/import-assertion-many': [FAIL],
-  'language/module-code/import-assertions/import-assertion-newlines': [FAIL],
-  'language/module-code/import-assertions/import-assertion-trlng-comma': [FAIL],
-  'language/module-code/import-assertions/import-assertion-value-string-double': [FAIL],
-  'language/module-code/import-assertions/import-assertion-value-string-single': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/throws-if-exportname-not-string': [FAIL],
@@ -2177,6 +2166,17 @@
   # We replace U+202F (narrow-width space) with U+0020 (regular space).
   # https://crbug.com/1414292
   'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14342
+  'intl402/DateTimeFormat/prototype/format/offset-timezone-gmt-same': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/offset-timezone-correct': [FAIL],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-basic': [FAIL],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-change': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14308
+  'intl402/NumberFormat/constructor-option-read-order': [FAIL],
+  'intl402/NumberFormat/prototype/resolvedOptions/return-keys-order-default': [FAIL],
+  'intl402/PluralRules/constructor-option-read-order': [FAIL],
 
   ############################ INVALID TESTS #############################
 
