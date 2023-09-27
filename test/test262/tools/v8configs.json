@@ -4,7 +4,8 @@
     "org": "tc39",
     "repo": "test262",
     "main_branch": "main",
-    "relative_tests": "test/test262/data"
+    "source_relative_tests": "test/test262/local-tests/test/staging",
+    "destination_relative_tests": "test/staging"
   },
   "gerrit": {
     "revision_footer": "Test262-Export-Revision: ",
