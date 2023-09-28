@@ -157,7 +157,7 @@ void BodyDescriptorBase::IterateMaybeIndirectPointer(Tagged<HeapObject> obj,
                                                      ObjectVisitor* v,
                                                      IndirectPointerMode mode,
                                                      IndirectPointerTag tag) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag), mode);
 #else
   if (mode == IndirectPointerMode::kStrong) {
@@ -943,7 +943,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitInstructionStreamPointer(
         Code::cast(obj),
         obj->RawInstructionStreamField(kInstructionStreamOffset));
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     v->VisitIndirectPointerTableEntry(
         obj, obj->RawIndirectPointerField(kSelfIndirectPointerOffset,
                                           kCodeIndirectPointerTag));

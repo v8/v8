@@ -204,7 +204,7 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
   return access;
 }
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
 // static
 FieldAccess AccessBuilder::ForJSFunctionCode() {
   FieldAccess access = {kTaggedBase,

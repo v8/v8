@@ -593,7 +593,7 @@ Tagged<Object> Code::raw_instruction_stream(PtrComprCageBase cage_base,
 }
 
 DEF_GETTER(Code, instruction_start, Address) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   return ReadCodeEntrypointViaIndirectPointerField(kSelfIndirectPointerOffset);
 #else
   return ReadField<Address>(kInstructionStartOffset);
@@ -601,7 +601,7 @@ DEF_GETTER(Code, instruction_start, Address) {
 }
 
 void Code::init_instruction_start(Isolate* isolate, Address value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // In this case, the instruction_start is stored in this Code's code pointer
   // table entry, so initialize that instead.
   InitCodePointerTableEntryField(kSelfIndirectPointerOffset, isolate, *this,
@@ -612,7 +612,7 @@ void Code::init_instruction_start(Isolate* isolate, Address value) {
 }
 
 void Code::set_instruction_start(Isolate* isolate, Address value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   WriteCodeEntrypointViaIndirectPointerField(kSelfIndirectPointerOffset, value);
 #else
   WriteField<Address>(kInstructionStartOffset, value);
@@ -633,13 +633,13 @@ void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
 }
 
 void Code::ClearInstructionStartForSerialization(Isolate* isolate) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The instruction start is stored in this object's code pointer table.
   WriteField<CodePointerHandle>(kSelfIndirectPointerOffset,
                                 kNullCodePointerHandle);
 #else
   set_instruction_start(isolate, kNullAddress);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void Code::UpdateInstructionStart(Isolate* isolate_for_sandbox,

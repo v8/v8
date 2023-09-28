@@ -1121,7 +1121,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 void Serializer::ObjectSerializer::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
 
   // The slot must be properly initialized at this point, so will always contain
   // a reference to a HeapObject.
@@ -1210,7 +1210,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
     } else if (IsCode(*object_, cage_base)) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
       // When the sandbox is enabled, this field contains the handle to this
       // Code object's code pointer table entry. This will be recomputed after
       // deserialization.
@@ -1226,7 +1226,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

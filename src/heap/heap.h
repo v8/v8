@@ -791,9 +791,9 @@ class Heap final {
   }
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -2140,10 +2140,10 @@ class Heap final {
   IndirectPointerTable::Space indirect_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The space in the process-wide code pointer table managed by this heap.
   CodePointerTable::Space code_pointer_space_;
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 

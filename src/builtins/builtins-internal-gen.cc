@@ -566,7 +566,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       return;
     }
 
-    if (!V8_CODE_POINTER_SANDBOXING_BOOL) {
+    if (!V8_ENABLE_SANDBOX_BOOL) {
       Unreachable();
       return;
     }

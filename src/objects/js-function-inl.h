@@ -82,7 +82,7 @@ Tagged<Code> JSFunction::code(PtrComprCageBase cage_base) const {
 }
 
 void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(
@@ -90,7 +90,7 @@ void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
 #else
   TaggedField<Code, kCodeOffset>::Relaxed_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Tagged<Code> JSFunction::code(AcquireLoadTag tag) const {
@@ -99,7 +99,7 @@ Tagged<Code> JSFunction::code(AcquireLoadTag tag) const {
 
 void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
                           WriteBarrierMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Release_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(
@@ -107,28 +107,28 @@ void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
 #else
   TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);
   }
 }
 
 Tagged<Object> JSFunction::raw_code() const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Load(nullptr);
 #else
   return RELAXED_READ_FIELD(*this, JSFunction::kCodeOffset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Tagged<Object> JSFunction::raw_code(AcquireLoadTag tag) const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Acquire_Load(nullptr);
 #else
   return ACQUIRE_READ_FIELD(*this, JSFunction::kCodeOffset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Tagged<Context>, kContextOffset)

@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
@@ -39,7 +39,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
   return Tagged<Object>(table.Get(handle));
 }
 
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
         //
 }  // namespace internal
 }  // namespace v8

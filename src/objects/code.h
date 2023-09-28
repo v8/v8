@@ -326,8 +326,7 @@ class Code : public ExposedTrustedObject {
   /* If the sandbox is on, this field does not exist. Instead, the */         \
   /* instruction_start is stored in this Code's code pointer table entry */   \
   /* referenced via the kSelfIndirectPointerOffset field */                   \
-  V(kInstructionStartOffset,                                                  \
-    V8_CODE_POINTER_SANDBOXING_BOOL ? 0 : kSystemPointerSize)                 \
+  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize) \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \

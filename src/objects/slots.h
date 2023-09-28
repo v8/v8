@@ -379,7 +379,7 @@ class IndirectPointerSlot
  public:
   IndirectPointerSlot()
       : SlotBase(kNullAddress)
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
         ,
         tag_(kIndirectPointerNullTag)
 #endif
@@ -388,7 +388,7 @@ class IndirectPointerSlot
 
   explicit IndirectPointerSlot(Address ptr, IndirectPointerTag tag)
       : SlotBase(ptr)
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
         ,
         tag_(tag)
 #endif
@@ -417,17 +417,17 @@ class IndirectPointerSlot
   inline void Relaxed_StoreHandle(IndirectPointerHandle handle) const;
   inline void Release_StoreHandle(IndirectPointerHandle handle) const;
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   IndirectPointerTag tag() const { return tag_; }
 #else
   IndirectPointerTag tag() const { return kIndirectPointerNullTag; }
 #endif
 
  private:
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The tag associated with this slot.
   IndirectPointerTag tag_;
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
                                       const Isolate* isolate) const;

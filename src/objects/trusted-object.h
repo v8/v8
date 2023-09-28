@@ -78,7 +78,7 @@ class ExposedTrustedObject : public TrustedObject {
   DECL_CAST(ExposedTrustedObject)
   DECL_VERIFIER(ExposedTrustedObject)
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
 #define FIELD_LIST(V)                                                   \
@@ -89,9 +89,9 @@ class ExposedTrustedObject : public TrustedObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
-#else   // V8_CODE_POINTER_SANDBOXING
+#else   // V8_ENABLE_SANDBOX
   static constexpr int kHeaderSize = TrustedObject::kHeaderSize;
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   OBJECT_CONSTRUCTORS(ExposedTrustedObject, TrustedObject);
 };

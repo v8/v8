@@ -293,7 +293,7 @@ class SlotDescriptor {
   }
 
   static SlotDescriptor ForMaybeIndirectPointerSlot(IndirectPointerTag tag) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     return ForIndirectPointerSlot(tag);
 #else
     return ForDirectPointerSlot();

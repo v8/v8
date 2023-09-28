@@ -1197,7 +1197,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
       TNode<HeapObject> object, TNode<IntPtrT> offset);
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // Helper function to load a CodePointerHandle from an object and compute the
   // offset into the code pointer table from it.
   TNode<UintPtrT> ComputeCodePointerTableEntryOffset(

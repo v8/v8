@@ -1806,7 +1806,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
   TNode<IndirectPointerHandleT> handle =
@@ -1823,11 +1823,11 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
       Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
   return offset;
 }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset =
@@ -1835,12 +1835,12 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
   return Load<RawPtrT>(table, offset);
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset =
@@ -1855,16 +1855,16 @@ TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
   return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadMaybeIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   return LoadIndirectPointerFromObject(object, field_offset);
 #else
   return LoadObjectField<HeapObject>(object, field_offset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -3375,35 +3375,35 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
 void CodeStubAssembler::StoreIndirectPointerField(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
   OptimizedStoreIndirectPointerField(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
   OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreMaybeIndirectPointerField(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerField(object, offset, tag, value);
 #else
   StoreObjectField(object, offset, value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::StoreMaybeIndirectPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 #else
   StoreObjectFieldNoWriteBarrier(object, offset, value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
@@ -16065,7 +16065,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // In this case, the entrypoint is stored in the code pointer table entry
   // referenced via the Code object's 'self' indirect pointer.
   return LoadCodeEntrypointViaIndirectPointerField(

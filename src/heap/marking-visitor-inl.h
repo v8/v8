@@ -172,7 +172,7 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   if (mode == IndirectPointerMode::kStrong) {
     // Load the referenced object (if the slot is initialized) and mark it as
     // alive if necessary. Indirect pointers never have to be added to a
@@ -195,7 +195,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 
   if (slot.tag() == kCodeIndirectPointerTag) {
@@ -234,14 +234,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     VisitIndirectPointer(js_function,
                          js_function->RawIndirectPointerField(
                              JSFunction::kCodeOffset, kCodeIndirectPointerTag),
                          IndirectPointerMode::kStrong);
 #else
     VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.

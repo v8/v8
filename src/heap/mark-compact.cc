@@ -1303,7 +1303,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   inline void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
                                              IndirectPointerSlot slot) final {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     // When an object owning an indirect pointer table entry is relocated, it
     // needs to update the entry to point to its new location.
     // TODO(saelo): This is probably not quite the right place for this code,
@@ -2825,13 +2825,13 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE);
     GetProcessWideCodePointerTable()->Sweep(heap_->code_pointer_space(),
                                             isolate->counters());
   }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
@@ -3116,7 +3116,7 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
     };
     flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
 
-#ifndef V8_CODE_POINTER_SANDBOXING
+#ifndef V8_ENABLE_SANDBOX
     // Record the code slot that has been updated either to CompileLazy,
     // InterpreterEntryTrampoline or baseline code.
     // This is only necessary when the sandbox is not enabled. If it is, the

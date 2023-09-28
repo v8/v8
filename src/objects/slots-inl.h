@@ -309,24 +309,24 @@ Tagged<Object> IndirectPointerSlot::Acquire_Load(const Isolate* isolate) const {
 
 void IndirectPointerSlot::Relaxed_Store(
     Tagged<ExposedTrustedObject> value) const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
       ExposedTrustedObject::kSelfIndirectPointerOffset);
   Relaxed_StoreHandle(handle);
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void IndirectPointerSlot::Release_Store(
     Tagged<ExposedTrustedObject> value) const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
       ExposedTrustedObject::kSelfIndirectPointerOffset);
   Release_StoreHandle(handle);
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 IndirectPointerHandle IndirectPointerSlot::Relaxed_LoadHandle() const {
@@ -349,7 +349,7 @@ void IndirectPointerSlot::Release_StoreHandle(
 
 Tagged<Object> IndirectPointerSlot::ResolveHandle(
     IndirectPointerHandle handle, const Isolate* isolate) const {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // TODO(saelo) Maybe come up with a different entry encoding scheme that
   // returns Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
@@ -364,7 +364,7 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
   return Tagged<Object>(table.Get(handle));
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 //

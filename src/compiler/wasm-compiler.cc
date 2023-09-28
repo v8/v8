@@ -3040,7 +3040,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 }
 
 Node* WasmGraphBuilder::BuildLoadCodeEntrypoint(Node* code_object) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // In this case, the entrypoint is stored in the code pointer table entry
   // referenced via the Code object's 'self' indirect pointer.
   Node* handle = gasm_->LoadFromObject(
@@ -3058,7 +3058,7 @@ Node* WasmGraphBuilder::BuildLoadCodeEntrypoint(Node* code_object) {
   return gasm_->LoadFromObject(
       MachineType::Pointer(), code_object,
       wasm::ObjectAccess::ToTagged(Code::kInstructionStartOffset));
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(

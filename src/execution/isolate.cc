@@ -451,7 +451,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     // instruction_start, but other data fields must remain the same.
     static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
-#ifndef V8_CODE_POINTER_SANDBOXING
+#ifndef V8_ENABLE_SANDBOX
     static_assert(Code::kInstructionStartOffsetEnd + 1 == Code::kFlagsOffset);
 #endif
     static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
@@ -3851,7 +3851,7 @@ void Isolate::Deinit() {
   indirect_pointer_table().TearDown();
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
 #endif
 
@@ -4633,7 +4633,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(
       heap()->code_pointer_space());
 #endif

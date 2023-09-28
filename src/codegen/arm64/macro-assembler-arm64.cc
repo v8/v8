@@ -2450,7 +2450,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   LoadCodeEntrypointViaIndirectPointer(
       destination,
       FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset));
@@ -2480,7 +2480,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -2497,7 +2497,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -3549,7 +3549,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 void MacroAssembler::LoadIndirectPointerField(Register destination,
                                               MemOperand field_operand,
                                               IndirectPointerTag tag) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register table = temps.AcquireX();
@@ -3573,12 +3573,12 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
   Orr(destination, destination, Immediate(kHeapObjectTag));
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MacroAssembler::StoreIndirectPointerField(Register value,
                                                MemOperand dst_field_operand) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   Ldr(scratch.W(),
@@ -3591,7 +3591,7 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
 
 void MacroAssembler::StoreMaybeIndirectPointerField(
     Register value, MemOperand dst_field_operand) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerField(value, dst_field_operand);
 #else
   StoreTaggedField(value, dst_field_operand);
@@ -3601,7 +3601,7 @@ void MacroAssembler::StoreMaybeIndirectPointerField(
 void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
     Register destination, MemOperand field_operand) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register table = temps.AcquireX();
   Mov(table, ExternalReference::code_pointer_table_address());
@@ -3612,7 +3612,7 @@ void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
   Ldr(destination, MemOperand(table, destination));
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {

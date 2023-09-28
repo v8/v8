@@ -6453,7 +6453,7 @@ void MacroAssembler::JumpCodeObject(Register code, JumpMode jump_mode) {
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -6470,7 +6470,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.

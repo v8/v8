@@ -4409,7 +4409,7 @@ class TurboshaftGraphBuildingInterface {
       V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
                                      WasmInternalFunction::kCodeOffset);
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
       V<Word32> call_target_handle = __ Load(
           wrapper_code, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::Uint32(), Code::kSelfIndirectPointerOffset);
@@ -4687,7 +4687,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<WordPtr> BuildDecodeExternalCodePointer(V<Word32> handle) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     V<Word32> index =
         __ Word32ShiftRightLogical(handle, kCodePointerHandleShift);
     V<WordPtr> offset = __ ChangeUint32ToUintPtr(

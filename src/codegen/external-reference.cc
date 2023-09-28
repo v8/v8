@@ -259,13 +259,7 @@ ExternalReference ExternalReference::indirect_pointer_table_base_address(
 
 ExternalReference ExternalReference::code_pointer_table_address() {
   // TODO(saelo): maybe rename to code_pointer_table_base_address?
-  // TODO(saelo) remove this ifdef when merging V8_CODE_POINTER_SANDBOXING into
-  // V8_ENABLE_SANDBOX
-#ifdef V8_CODE_POINTER_SANDBOXING
   return ExternalReference(GetProcessWideCodePointerTable()->base_address());
-#else
-  return ExternalReference(kNullAddress);
-#endif
 }
 
 #endif  // V8_ENABLE_SANDBOX

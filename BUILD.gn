@@ -337,10 +337,6 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
-  # Enable experimental code pointer sandboxing for the V8 sandbox.
-  # Sets -DV8_CODE_POINTER_SANDBOXING
-  v8_code_pointer_sandboxing = ""
-
   # Expose the memory corruption API to JavaScript. Useful for testing the sandbox.
   # WARNING This will expose builtins that (by design) cause memory corruption.
   # Sets -DV8_EXPOSE_MEMORY_CORRUPTION_API
@@ -568,11 +564,6 @@ if (v8_enable_sandbox == "") {
                       v8_enable_external_code_space && target_os != "fuchsia"
 }
 
-if (v8_code_pointer_sandboxing == "") {
-  # By default, enable code pointer sandboxing if the sandbox is enabled.
-  v8_code_pointer_sandboxing = v8_enable_sandbox
-}
-
 if (v8_enable_static_roots == "") {
   # Static roots are only valid for builds with pointer compression and a
   # shared read-only heap.
@@ -676,9 +667,6 @@ assert(!v8_enable_sandbox || v8_enable_external_code_space,
 
 assert(!v8_enable_sandbox || !v8_enable_third_party_heap,
        "The sandbox is incompatible with the third-party heap")
-
-assert(!v8_code_pointer_sandboxing || v8_enable_sandbox,
-       "Code pointer sandboxing requires the sandbox")
 
 assert(!v8_expose_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
@@ -1212,9 +1200,6 @@ config("features") {
   }
   if (v8_enable_wasm_simd256_revec) {
     defines += [ "V8_ENABLE_WASM_SIMD256_REVEC" ]
-  }
-  if (v8_code_pointer_sandboxing) {
-    defines += [ "V8_CODE_POINTER_SANDBOXING" ]
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]
