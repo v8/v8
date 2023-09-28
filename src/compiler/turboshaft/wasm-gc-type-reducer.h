@@ -61,6 +61,7 @@ class WasmGCTypeAnalyzer {
   void ProcessBranchOnTarget(const BranchOp& branch, const Block& target);
 
   void ProcessTypeCast(const WasmTypeCastOp& type_cast);
+  void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
 
   void CreateMergeSnapshot(const Block& block);
 
@@ -132,6 +133,15 @@ class WasmGCTypeReducer : public Next {
     // beneficial to narrow down the cast_op.config.from type, so that the
     // lowering could potentially skip null or smi checks.
     return Next::ReduceInputGraphWasmTypeCast(op_idx, cast_op);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(AssertNotNull)(
+      OpIndex op_idx, const AssertNotNullOp& assert_not_null) {
+    wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    if (type.is_non_nullable()) {
+      return __ MapToNewGraph(assert_not_null.object());
+    }
+    return Next::ReduceInputGraphAssertNotNull(op_idx, assert_not_null);
   }
 
  private:

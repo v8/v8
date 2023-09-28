@@ -56,6 +56,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kWasmTypeCast:
         ProcessTypeCast(op.Cast<WasmTypeCastOp>());
         break;
+      case Opcode::kAssertNotNull:
+        ProcessAssertNotNull(op.Cast<AssertNotNullOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -76,6 +79,16 @@ void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
   // (ref.cast eq (ref.cast $MyStruct (local.get 0))).
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, target_type);
   input_type_map_[graph_.Index(type_cast)] = known_input_type;
+}
+
+void WasmGCTypeAnalyzer::ProcessAssertNotNull(
+    const AssertNotNullOp& assert_not_null) {
+  OpIndex object = assert_not_null.object();
+  wasm::ValueType new_type = assert_not_null.type.AsNonNull();
+  wasm::ValueType known_input_type = RefineTypeKnowledge(object, new_type);
+  input_type_map_[graph_.Index(assert_not_null)] = known_input_type;
+  // AssertNotNull also returns the input.
+  RefineTypeKnowledge(graph_.Index(assert_not_null), new_type);
 }
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
