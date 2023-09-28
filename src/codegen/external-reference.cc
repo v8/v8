@@ -464,75 +464,65 @@ FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
-IF_WASM(FUNCTION_REFERENCE, wasm_sync_stack_limit, wasm::sync_stack_limit)
-IF_WASM(FUNCTION_REFERENCE, wasm_switch_to_the_central_stack,
-        wasm::switch_to_the_central_stack)
-IF_WASM(FUNCTION_REFERENCE, wasm_switch_from_the_central_stack,
-        wasm::switch_from_the_central_stack)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32_trunc, wasm::f32_trunc_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32_floor, wasm::f32_floor_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32_ceil, wasm::f32_ceil_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32_nearest_int, wasm::f32_nearest_int_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64_trunc, wasm::f64_trunc_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64_floor, wasm::f64_floor_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64_ceil, wasm::f64_ceil_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64_nearest_int, wasm::f64_nearest_int_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_int64_to_float32,
-        wasm::int64_to_float32_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_uint64_to_float32,
-        wasm::uint64_to_float32_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_int64_to_float64,
-        wasm::int64_to_float64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_uint64_to_float64,
-        wasm::uint64_to_float64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_int64,
-        wasm::float32_to_int64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_uint64,
-        wasm::float32_to_uint64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_int64,
-        wasm::float64_to_int64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_uint64,
-        wasm::float64_to_uint64_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_int64_sat,
-        wasm::float32_to_int64_sat_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float32_to_uint64_sat,
-        wasm::float32_to_uint64_sat_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_int64_sat,
-        wasm::float64_to_int64_sat_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float64_to_uint64_sat,
-        wasm::float64_to_uint64_sat_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_int64_div, wasm::int64_div_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_int64_mod, wasm::int64_mod_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_uint64_div, wasm::uint64_div_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_uint64_mod, wasm::uint64_mod_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word32_ctz, wasm::word32_ctz_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word64_ctz, wasm::word64_ctz_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word32_rol, wasm::word32_rol_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word32_ror, wasm::word32_ror_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word64_rol, wasm::word64_rol_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_word64_ror, wasm::word64_ror_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f64x2_nearest_int,
-        wasm::f64x2_nearest_int_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_f32x4_nearest_int,
-        wasm::f32x4_nearest_int_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_memory_init, wasm::memory_init_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_memory_copy, wasm::memory_copy_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_memory_fill, wasm::memory_fill_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_array_fill, wasm::array_fill_wrapper)
-IF_WASM(FUNCTION_REFERENCE_WITH_TYPE, wasm_string_to_f64,
-        wasm::flat_string_to_f64, BUILTIN_FP_POINTER_CALL)
-
 #ifdef V8_ENABLE_WEBASSEMBLY
+FUNCTION_REFERENCE(wasm_sync_stack_limit, wasm::sync_stack_limit)
+FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
+                   wasm::switch_to_the_central_stack)
+FUNCTION_REFERENCE(wasm_switch_from_the_central_stack,
+                   wasm::switch_from_the_central_stack)
+FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32_nearest_int, wasm::f32_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f64_trunc, wasm::f64_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f64_floor, wasm::f64_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f64_ceil, wasm::f64_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f64_nearest_int, wasm::f64_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_int64_to_float32, wasm::int64_to_float32_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_to_float32, wasm::uint64_to_float32_wrapper)
+FUNCTION_REFERENCE(wasm_int64_to_float64, wasm::int64_to_float64_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_to_float64, wasm::uint64_to_float64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64_sat,
+                   wasm::float32_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64_sat,
+                   wasm::float32_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
+                   wasm::float64_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
+                   wasm::float64_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
+FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
+FUNCTION_REFERENCE(wasm_uint64_mod, wasm::uint64_mod_wrapper)
+FUNCTION_REFERENCE(wasm_word32_ctz, wasm::word32_ctz_wrapper)
+FUNCTION_REFERENCE(wasm_word64_ctz, wasm::word64_ctz_wrapper)
+FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
+FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
+FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
+FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
+FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
+FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_nearest_int, wasm::f64x2_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_nearest_int, wasm::f32x4_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
+FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
+FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
+FUNCTION_REFERENCE(wasm_float64_pow, wasm::float64_pow_wrapper)
+FUNCTION_REFERENCE(wasm_array_copy, wasm::array_copy_wrapper)
+FUNCTION_REFERENCE(wasm_array_fill, wasm::array_fill_wrapper)
+FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
+                             BUILTIN_FP_POINTER_CALL)
+
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V
