@@ -137,8 +137,10 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   const context = ref.native_context;
   // Reset the signature on the stack, so that incoming parameters don't get
-  // scanned anymore.
-  *GetRefAt<intptr>(sigSlot, 0) = 0;
+  // scanned anymore. Instead we store the number of parameters, so that
+  // outgoing parameters can be scanned.
+  *GetRefAt<intptr>(sigSlot, 0) =
+      BitcastTaggedToWord(Convert<Smi>(numStackParams));
 
   const result = CallVarargs(
       context, target, 0, Convert<int32>(numStackParams), outParams);

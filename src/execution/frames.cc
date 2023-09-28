@@ -1530,7 +1530,16 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
   if (IsSmi(maybe_signature)) {
     // The signature slot contains a Smi and not a signature. This means all
     // incoming parameters have been processed, and we don't have to keep them
-    // alive anymore.
+    // alive anymore. Instead we have to scan outgoing parameters. The number of
+    // outgoing parameters is stored now instead of the signature.
+    int num_outgoing_params = Smi::ToInt(maybe_signature);
+    if (num_outgoing_params <= 0) return;
+
+    FullObjectSlot param_base(sp());
+    FullObjectSlot param_limit = param_base + num_outgoing_params;
+    v->VisitRootPointers(Root::kStackRoots,
+                         "outgoing params wasm-to-js wrapper", param_base,
+                         param_limit);
     return;
   }
 
