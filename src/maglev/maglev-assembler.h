@@ -52,7 +52,8 @@ class MapCompare {
   inline explicit MapCompare(MaglevAssembler* masm, Register object,
                              size_t map_count);
 
-  inline void Generate(Handle<Map> map);
+  inline void Generate(Handle<Map> map, Condition cond, Label* if_true,
+                       Label::Distance distance = Label::kFar);
   inline Register GetObject() const { return object_; }
   inline Register GetMap();
 
@@ -394,12 +395,19 @@ class MaglevAssembler : public MacroAssembler {
   inline Condition IsNotCallableNorUndetactable(Register map, Register scratch);
 
   inline void LoadInstanceType(Register instance_type, Register heap_object);
-  inline void IsObjectType(Register heap_object, InstanceType type);
-  inline void CompareObjectType(Register heap_object, InstanceType type);
+  inline void CompareObjectTypeAndAssert(Register heap_object,
+                                         InstanceType type, Condition cond,
+                                         AbortReason reason);
+  inline void CompareObjectTypeAndJumpIf(
+      Register heap_object, InstanceType type, Condition cond, Label* target,
+      Label::Distance distance = Label::kFar);
+  inline void CompareObjectTypeAndBranch(
+      Register heap_object, InstanceType type, Condition condition,
+      Label* if_true, Label::Distance true_distance, bool fallthrough_when_true,
+      Label* if_false, Label::Distance false_distance,
+      bool fallthrough_when_false);
   inline void JumpIfJSAnyIsNotPrimitive(Register heap_object, Label* target,
                                         Label::Distance distance = Label::kFar);
-  inline void CompareObjectType(Register heap_object, InstanceType type,
-                                Register scratch);
   inline void CompareObjectTypeRange(Register heap_object,
                                      InstanceType lower_limit,
                                      InstanceType higher_limit);
@@ -417,16 +425,29 @@ class MaglevAssembler : public MacroAssembler {
                                        InstanceType lower_limit,
                                        InstanceType higher_limit);
 
-  inline void CompareTagged(Register reg, Tagged<Smi> smi);
-  inline void CompareTagged(Register reg, Handle<HeapObject> obj);
-  inline void CompareTagged(Register src1, Register src2);
-
   inline void CompareTaggedAndJumpIf(Register reg, Tagged<Smi> smi,
                                      Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);
+  inline void CompareTaggedAndJumpIf(Register reg, Handle<HeapObject> obj,
+                                     Condition cond, Label* target,
+                                     Label::Distance distance = Label::kFar);
+  inline void CompareTaggedAndJumpIf(Register src1, Register src2,
+                                     Condition cond, Label* target,
+                                     Label::Distance distance = Label::kFar);
 
-  inline void CompareFloat64(DoubleRegister src1, DoubleRegister src2);
+  inline void CompareRootAndJumpIf(Register with, RootIndex index,
+                                   Condition cond, Label* target,
+                                   Label::Distance distance = Label::kFar);
 
+  inline void CompareFloat64AndJumpIf(DoubleRegister src1, DoubleRegister src2,
+                                      Condition cond, Label* target,
+                                      Label* nan_failed,
+                                      Label::Distance distance = Label::kFar);
+  inline void CompareFloat64AndBranch(DoubleRegister src1, DoubleRegister src2,
+                                      Condition cond, BasicBlock* if_true,
+                                      BasicBlock* if_false,
+                                      BasicBlock* next_block,
+                                      BasicBlock* nan_failed);
   inline void PrepareCallCFunction(int num_reg_arguments,
                                    int num_double_registers = 0);
 
