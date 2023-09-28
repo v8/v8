@@ -10566,20 +10566,25 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
 
 String::Value::~Value() { i::DeleteArray(str_); }
 
-#define DEFINE_ERROR(NAME, name)                                           \
-  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message) {        \
-    i::Isolate* i_isolate = i::Isolate::Current();                         \
-    API_RCS_SCOPE(i_isolate, NAME, New);                                   \
-    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);                            \
-    i::Tagged<i::Object> error;                                            \
-    {                                                                      \
-      i::HandleScope scope(i_isolate);                                     \
-      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);      \
-      i::Handle<i::JSFunction> constructor = i_isolate->name##_function(); \
-      error = *i_isolate->factory()->NewError(constructor, message);       \
-    }                                                                      \
-    i::Handle<i::Object> result(error, i_isolate);                         \
-    return Utils::ToLocal(result);                                         \
+#define DEFINE_ERROR(NAME, name)                                              \
+  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message,             \
+                               v8::Local<v8::Value> raw_options) {            \
+    i::Isolate* i_isolate = i::Isolate::Current();                            \
+    API_RCS_SCOPE(i_isolate, NAME, New);                                      \
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);                               \
+    i::Tagged<i::Object> error;                                               \
+    {                                                                         \
+      i::HandleScope scope(i_isolate);                                        \
+      i::Handle<i::Object> options;                                           \
+      if (!raw_options.IsEmpty()) {                                           \
+        options = Utils::OpenHandle(*raw_options);                            \
+      }                                                                       \
+      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);         \
+      i::Handle<i::JSFunction> constructor = i_isolate->name##_function();    \
+      error = *i_isolate->factory()->NewError(constructor, message, options); \
+    }                                                                         \
+    i::Handle<i::Object> result(error, i_isolate);                            \
+    return Utils::ToLocal(result);                                            \
   }
 
 DEFINE_ERROR(RangeError, range_error)

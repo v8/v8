@@ -2452,13 +2452,15 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
-                                   Handle<String> message) {
+                                   Handle<String> message,
+                                   Handle<Object> options) {
   // Construct a new error object. If an exception is thrown, use the exception
   // as the result.
 
   Handle<Object> no_caller;
+  if (options.is_null()) options = undefined_value();
   return ErrorUtils::Construct(isolate(), constructor, constructor, message,
-                               undefined_value(), SKIP_NONE, no_caller,
+                               options, SKIP_NONE, no_caller,
                                ErrorUtils::StackTraceCollection::kEnabled)
       .ToHandleChecked();
 }
