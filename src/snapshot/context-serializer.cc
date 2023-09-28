@@ -39,14 +39,16 @@ class V8_NODISCARD SanitizeNativeContextScope final {
 #endif
     microtask_queue_external_pointer_ =
         native_context
-            ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+            ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
+                                      kNativeContextMicrotaskQueueTag)
             .GetAndClearContentForSerialization(no_gc);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
     native_context_
-        ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+        ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
+                                  kNativeContextMicrotaskQueueTag)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
                                           no_gc_);
   }

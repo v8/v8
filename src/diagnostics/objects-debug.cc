@@ -1223,7 +1223,7 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
   Tagged<Object> self =
-      RawIndirectPointerField(kSelfIndirectPointerOffset).load(isolate, tag);
+      RawIndirectPointerField(kSelfIndirectPointerOffset, tag).load(isolate);
   CHECK_EQ(self, *this);
 #endif
 }

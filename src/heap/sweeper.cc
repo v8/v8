@@ -517,8 +517,8 @@ class PromotedPageRecordMigratedSlotVisitor final
                               RelocInfo* rinfo) final {}
   void VisitInternalReference(Tagged<InstructionStream> host,
                               RelocInfo* rinfo) final {}
-  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                            ExternalPointerTag tag) final {}
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) final {}
 
   // Maps can be shared, so we need to visit them to record old to shared slots.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }

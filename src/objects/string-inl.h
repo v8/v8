@@ -1141,12 +1141,13 @@ void ExternalString::InitExternalPointerFields(Isolate* isolate) {
 }
 
 void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) const {
-  visitor->VisitExternalPointer(*this, RawExternalPointerField(kResourceOffset),
-                                kExternalStringResourceTag);
+  visitor->VisitExternalPointer(
+      *this,
+      RawExternalPointerField(kResourceOffset, kExternalStringResourceTag));
   if (is_uncached()) return;
-  visitor->VisitExternalPointer(*this,
-                                RawExternalPointerField(kResourceDataOffset),
-                                kExternalStringResourceDataTag);
+  visitor->VisitExternalPointer(
+      *this, RawExternalPointerField(kResourceDataOffset,
+                                     kExternalStringResourceDataTag));
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {

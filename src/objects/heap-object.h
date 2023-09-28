@@ -252,8 +252,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline ObjectSlot RawField(int byte_offset) const;
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   inline InstructionStreamSlot RawInstructionStreamField(int byte_offset) const;
-  inline ExternalPointerSlot RawExternalPointerField(int byte_offset) const;
-  inline IndirectPointerSlot RawIndirectPointerField(int byte_offset) const;
+  inline ExternalPointerSlot RawExternalPointerField(
+      int byte_offset, ExternalPointerTag tag) const;
+  inline IndirectPointerSlot RawIndirectPointerField(
+      int byte_offset, IndirectPointerTag tag) const;
 
   DECL_CAST(HeapObject)
 

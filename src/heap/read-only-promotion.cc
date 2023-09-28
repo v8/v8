@@ -363,8 +363,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitMapPointer(Tagged<HeapObject> host) final {
       ProcessSlot(host, host->RawMaybeWeakField(HeapObject::kMapOffset));
     }
-    void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                              ExternalPointerTag tag) final {
+    void VisitExternalPointer(Tagged<HeapObject> host,
+                              ExternalPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
       auto it = moves_reverse_lookup_.find(host);
       if (it == moves_reverse_lookup_.end()) return;
@@ -374,8 +374,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // table entries, allocate a new entry (in
       // read_only_external_pointer_space) now.
       RecordProcessedSlotIfDebug(slot.address());
-      Address slot_value = slot.load(isolate_, tag);
-      slot.init(isolate_, slot_value, tag);
+      Address slot_value = slot.load(isolate_);
+      slot.init(isolate_, slot_value);
 
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedExternalPointerTableEntry(host, slot, slot_value);
@@ -383,18 +383,16 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode,
-                              IndirectPointerTag tag) final {}
+                              IndirectPointerMode mode) final {}
     void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                        IndirectPointerSlot slot,
-                                        IndirectPointerTag tag) final {
+                                        IndirectPointerSlot slot) final {
 #ifdef V8_CODE_POINTER_SANDBOXING
       // When an object owning an indirect pointer table entry is relocated, it
       // needs to update the entry to point to its new location. Currently, only
       // Code objects are referenced through indirect pointers, and they use the
       // code pointer table.
       CHECK(IsCode(host));
-      CHECK_EQ(tag, kCodeIndirectPointerTag);
+      CHECK_EQ(slot.tag(), kCodeIndirectPointerTag);
 
       // Due to the way we handle baseline code during serialization (we
       // manually skip over them), we may encounter such live Code objects in

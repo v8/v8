@@ -179,17 +179,14 @@ class ObjectVisitor {
                                   RelocInfo* rinfo) {}
 
   virtual void VisitExternalPointer(Tagged<HeapObject> host,
-                                    ExternalPointerSlot slot,
-                                    ExternalPointerTag tag) {}
+                                    ExternalPointerSlot slot) {}
 
   virtual void VisitIndirectPointer(Tagged<HeapObject> host,
                                     IndirectPointerSlot slot,
-                                    IndirectPointerMode mode,
-                                    IndirectPointerTag tag) {}
+                                    IndirectPointerMode mode) {}
 
   virtual void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                              IndirectPointerSlot slot,
-                                              IndirectPointerTag tag) {}
+                                              IndirectPointerSlot slot) {}
 
   virtual void VisitMapPointer(Tagged<HeapObject> host) { UNREACHABLE(); }
 };

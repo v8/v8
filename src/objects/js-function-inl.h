@@ -83,7 +83,8 @@ Tagged<Code> JSFunction::code(PtrComprCageBase cage_base) const {
 
 void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  RawIndirectPointerField(kCodeOffset).Relaxed_Store(value);
+  RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Relaxed_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(
       *this, kCodeOffset, kCodeIndirectPointerTag, value, mode);
 #else
@@ -99,7 +100,8 @@ Tagged<Code> JSFunction::code(AcquireLoadTag tag) const {
 void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
                           WriteBarrierMode mode) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  RawIndirectPointerField(kCodeOffset).Release_Store(value);
+  RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Release_Store(value);
   CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(
       *this, kCodeOffset, kCodeIndirectPointerTag, value, mode);
 #else
@@ -113,8 +115,8 @@ void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
 
 Tagged<Object> JSFunction::raw_code() const {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  return RawIndirectPointerField(kCodeOffset)
-      .Relaxed_Load(nullptr, kCodeIndirectPointerTag);
+  return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Relaxed_Load(nullptr);
 #else
   return RELAXED_READ_FIELD(*this, JSFunction::kCodeOffset);
 #endif  // V8_CODE_POINTER_SANDBOXING
@@ -122,8 +124,8 @@ Tagged<Object> JSFunction::raw_code() const {
 
 Tagged<Object> JSFunction::raw_code(AcquireLoadTag tag) const {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  return RawIndirectPointerField(kCodeOffset)
-      .Acquire_Load(nullptr, kCodeIndirectPointerTag);
+  return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+      .Acquire_Load(nullptr);
 #else
   return ACQUIRE_READ_FIELD(*this, JSFunction::kCodeOffset);
 #endif  // V8_CODE_POINTER_SANDBOXING

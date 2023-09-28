@@ -196,9 +196,9 @@ class ObjectPostProcessor final {
     DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
-    for (auto& [slot, tag] : external_pointer_slots_) {
-      registry.emplace_back(slot.Relaxed_LoadHandle(), slot.load(isolate_, tag),
-                            tag);
+    for (auto& slot : external_pointer_slots_) {
+      registry.emplace_back(slot.Relaxed_LoadHandle(), slot.load(isolate_),
+                            slot.tag());
     }
 
     isolate_->read_only_artifacts()->set_external_pointer_registry(
@@ -240,8 +240,7 @@ class ObjectPostProcessor final {
     return isolate_->external_reference_table_unsafe()->address(index);
   }
 
-  void DecodeExternalPointerSlot(ExternalPointerSlot slot,
-                                 ExternalPointerTag tag) {
+  void DecodeExternalPointerSlot(ExternalPointerSlot slot) {
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being
@@ -251,30 +250,27 @@ class ObjectPostProcessor final {
         slot.GetContentAsIndexAfterDeserialization(no_gc));
     Address slot_value =
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
-    slot.init(isolate_, slot_value, tag);
+    slot.init(isolate_, slot_value);
 #ifdef V8_ENABLE_SANDBOX
     // Register these slots during deserialization s.t. later isolates (which
     // share the RO space we are currently deserializing) can properly
     // initialize their external pointer table RO space. Note that slot values
     // are only fully finalized at the end of deserialization, thus we only
     // register the slot itself now and read the handle/value in Finalize.
-    external_pointer_slots_.emplace_back(slot, tag);
+    external_pointer_slots_.emplace_back(slot);
 #endif  // V8_ENABLE_SANDBOX
   }
   void PostProcessAccessorInfo(Tagged<AccessorInfo> o) {
-    DecodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kSetterOffset),
-        kAccessorInfoSetterTag);
-    DecodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
-        kAccessorInfoGetterTag);
+    DecodeExternalPointerSlot(o->RawExternalPointerField(
+        AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
+    DecodeExternalPointerSlot(o->RawExternalPointerField(
+        AccessorInfo::kMaybeRedirectedGetterOffset, kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
   }
   void PostProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
-    DecodeExternalPointerSlot(
-        o->RawExternalPointerField(
-            CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        kCallHandlerInfoCallbackTag);
+    DecodeExternalPointerSlot(o->RawExternalPointerField(
+        CallHandlerInfo::kMaybeRedirectedCallbackOffset,
+        kCallHandlerInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {
@@ -294,13 +290,7 @@ class ObjectPostProcessor final {
   const EmbeddedData embedded_data_;
 
 #ifdef V8_ENABLE_SANDBOX
-  struct SlotAndTag {
-    SlotAndTag(ExternalPointerSlot slot, ExternalPointerTag tag)
-        : slot(slot), tag(tag) {}
-    ExternalPointerSlot slot;
-    ExternalPointerTag tag;
-  };
-  std::vector<SlotAndTag> external_pointer_slots_;
+  std::vector<ExternalPointerSlot> external_pointer_slots_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

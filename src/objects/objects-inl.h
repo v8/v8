@@ -842,12 +842,14 @@ InstructionStreamSlot HeapObject::RawInstructionStreamField(
   return InstructionStreamSlot(field_address(byte_offset));
 }
 
-ExternalPointerSlot HeapObject::RawExternalPointerField(int byte_offset) const {
-  return ExternalPointerSlot(field_address(byte_offset));
+ExternalPointerSlot HeapObject::RawExternalPointerField(
+    int byte_offset, ExternalPointerTag tag) const {
+  return ExternalPointerSlot(field_address(byte_offset), tag);
 }
 
-IndirectPointerSlot HeapObject::RawIndirectPointerField(int byte_offset) const {
-  return IndirectPointerSlot(field_address(byte_offset));
+IndirectPointerSlot HeapObject::RawIndirectPointerField(
+    int byte_offset, IndirectPointerTag tag) const {
+  return IndirectPointerSlot(field_address(byte_offset), tag);
 }
 
 MapWord MapWord::FromMap(const Tagged<Map> map) {

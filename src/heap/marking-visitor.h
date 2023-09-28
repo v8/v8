@@ -136,16 +136,13 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   }
 
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
-                                      ExternalPointerSlot slot,
-                                      ExternalPointerTag tag) final;
+                                      ExternalPointerSlot slot) final;
   V8_INLINE void VisitIndirectPointer(Tagged<HeapObject> host,
                                       IndirectPointerSlot slot,
-                                      IndirectPointerMode mode,
-                                      IndirectPointerTag tag) final;
+                                      IndirectPointerMode mode) final;
 
   void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                      IndirectPointerSlot slot,
-                                      IndirectPointerTag tag) final;
+                                      IndirectPointerSlot slot) final;
 
   void SynchronizePageAccess(Tagged<HeapObject> heap_object) {
 #ifdef THREAD_SANITIZER
