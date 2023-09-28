@@ -2351,25 +2351,11 @@ class AssemblerOpInterface {
   }
   void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
                     const DeoptimizeParameters* parameters) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return;
-    }
     ReduceIfReachableDeoptimizeIf(condition, frame_state, false, parameters);
-    if (Asm().current_block() == nullptr) {
-      // The DeoptimizeIf was transformed into an inconditional deopt
-      Asm().SetGeneratingUnreachableOperations();
-    }
   }
   void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
                        const DeoptimizeParameters* parameters) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return;
-    }
     ReduceIfReachableDeoptimizeIf(condition, frame_state, true, parameters);
-    if (Asm().current_block() == nullptr) {
-      // The DeoptimizeIfNot was transformed into an inconditional deopt
-      Asm().SetGeneratingUnreachableOperations();
-    }
   }
   void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
@@ -2408,24 +2394,10 @@ class AssemblerOpInterface {
 
 #if V8_ENABLE_WEBASSEMBLY
   void TrapIf(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return;
-    }
     ReduceIfReachableTrapIf(condition, frame_state, false, trap_id);
-    if (Asm().current_block() == nullptr) {
-      // The TrapIf was transformed into an inconditional trap
-      Asm().SetGeneratingUnreachableOperations();
-    }
   }
   void TrapIfNot(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return;
-    }
     ReduceIfReachableTrapIf(condition, frame_state, true, trap_id);
-    if (Asm().current_block() == nullptr) {
-      // The TrapIfNot was transformed into an inconditional trap
-      Asm().SetGeneratingUnreachableOperations();
-    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3135,6 +3107,25 @@ class AssemblerOpInterface {
   }
 
  private:
+#ifdef DEBUG
+#define REDUCE_OP(Op)                                                    \
+  template <class... Args>                                               \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {        \
+      DCHECK(Asm().conceptually_in_a_block());                           \
+      return OpIndex::Invalid();                                         \
+    }                                                                    \
+    OpIndex result = Asm().Reduce##Op(args...);                          \
+    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                   \
+      if (Asm().current_block() == nullptr) {                            \
+        /* The input operation was not a block terminator, but a reducer \
+         * lowered it into a block terminator. */                        \
+        Asm().set_conceptually_in_a_block(true);                         \
+      }                                                                  \
+    }                                                                    \
+    return result;                                                       \
+  }
+#else
 #define REDUCE_OP(Op)                                             \
   template <class... Args>                                        \
   V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {         \
@@ -3143,6 +3134,7 @@ class AssemblerOpInterface {
     }                                                             \
     return Asm().Reduce##Op(args...);                             \
   }
+#endif
   TURBOSHAFT_OPERATION_LIST(REDUCE_OP)
 #undef REDUCE_OP
 
@@ -3245,13 +3237,14 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   Block* NewBlock() { return this->output_graph().NewBlock(); }
 
   V8_INLINE bool Bind(Block* block) {
+#ifdef DEBUG
+    set_conceptually_in_a_block(true);
+#endif
     if (!this->output_graph().Add(block)) {
-      generating_unreachable_operations_ = true;
       return false;
     }
     DCHECK_NULL(current_block_);
     current_block_ = block;
-    generating_unreachable_operations_ = false;
     block->SetOrigin(this->current_input_block());
     Stack::Bind(block);
     return true;
@@ -3276,17 +3269,17 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     current_operation_origin_ = operation_origin;
   }
 
-  void SetGeneratingUnreachableOperations() {
-    DCHECK_NULL(current_block_);
-    generating_unreachable_operations_ = true;
+#ifdef DEBUG
+  void set_conceptually_in_a_block(bool value) {
+    conceptually_in_a_block_ = value;
   }
+  bool conceptually_in_a_block() { return conceptually_in_a_block_; }
+#endif
 
   Block* current_block() const { return current_block_; }
   Block* current_catch_block() const { return current_catch_block_; }
   bool generating_unreachable_operations() const {
-    DCHECK_IMPLIES(generating_unreachable_operations_,
-                   current_block_ == nullptr);
-    return generating_unreachable_operations_;
+    return current_block() == nullptr;
   }
   OpIndex current_operation_origin() const { return current_operation_origin_; }
   const OperationMatcher& matcher() const { return matcher_; }
@@ -3385,6 +3378,9 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   void FinalizeBlock() {
     this->output_graph().Finalize(current_block_);
     current_block_ = nullptr;
+#ifdef DEBUG
+    set_conceptually_in_a_block(false);
+#endif
   }
 
   // Insert a new Block between {source} and {destination}, in order to maintain
@@ -3477,7 +3473,60 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
 
   Block* current_block_ = nullptr;
   Block* current_catch_block_ = nullptr;
-  bool generating_unreachable_operations_ = false;
+
+  // `current_block_` is nullptr after emitting a block terminator and before
+  // Binding the next block. During this time, emitting an operation doesn't do
+  // anything (because in which block would it be emitted?). However, we also
+  // want to prevent silently skipping operations because of a missing Bind.
+  // Consider for instance a lowering that would do:
+  //
+  //     __ Add(x, y)
+  //     __ Goto(B)
+  //     __ Add(i, j)
+  //
+  // The 2nd Add is unreachable, but this has to be a mistake, since we exitted
+  // the current block before emitting it, and forgot to Bind a new block.
+  // On the other hand, consider this:
+  //
+  //     __ Add(x, y)
+  //     __ Goto(B1)
+  //     __ Bind(B2)
+  //     __ Add(i, j)
+  //
+  // It's possible that B2 is not reachable, in which case `Bind(B2)` will set
+  // the current_block to nullptr.
+  // Similarly, consider:
+  //
+  //    __ Add(x, y)
+  //    __ DeoptimizeIf(cond)
+  //    __ Add(i, j)
+  //
+  // It's possible that a reducer lowers the `DeoptimizeIf` to an unconditional
+  // `Deoptimize`.
+  //
+  // The 1st case should produce an error (because a Bind was forgotten), but
+  // the 2nd and 3rd case should not.
+  //
+  // The way we achieve this is with the following `conceptually_in_a_block_`
+  // boolean:
+  //   - when Binding a block (successfully or not), we set
+  //   `conceptually_in_a_block_` to true.
+  //   - when exiting a block (= emitting a block terminator), we set
+  //   `conceptually_in_a_block_` to false.
+  //   - after the AssemblerOpInterface lowers a non-block-terminator which
+  //   makes the current_block_ become nullptr (= the last operation of its
+  //   lowering became a block terminator), we set `conceptually_in_a_block_` to
+  //   true (overriding the "false" that was set when emitting the block
+  //   terminator).
+  //
+  // Note that there is one category of errors that this doesn't prevent: if a
+  // lowering of a non-block terminator creates new control flow and forgets a
+  // final Bind, we'll set `conceptually_in_a_block_` to true and assume that
+  // this lowering unconditionally exits the control flow. However, it's hard to
+  // distinguish between lowerings that voluntarily end with block terminators,
+  // and those who forgot a Bind.
+  bool conceptually_in_a_block_ = false;
+
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();
