@@ -241,7 +241,7 @@ class GlobalHandleVector {
   class Iterator {
    public:
     explicit Iterator(
-        std::vector<Address, StrongRootAllocator<Address>>::iterator it)
+        std::vector<Address, StrongRootBlockAllocator>::iterator it)
         : it_(it) {}
     Iterator& operator++() {
       ++it_;
@@ -254,7 +254,7 @@ class GlobalHandleVector {
     Tagged<T> raw() { return T::cast(Tagged<Object>(*it_)); }
 
    private:
-    std::vector<Address, StrongRootAllocator<Address>>::iterator it_;
+    std::vector<Address, StrongRootBlockAllocator>::iterator it_;
   };
 
   explicit inline GlobalHandleVector(Heap* heap);
@@ -275,7 +275,7 @@ class GlobalHandleVector {
   Iterator end() { return Iterator(locations_.end()); }
 
  private:
-  std::vector<Address, StrongRootAllocator<Address>> locations_;
+  std::vector<Address, StrongRootBlockAllocator> locations_;
 };
 
 }  // namespace internal
