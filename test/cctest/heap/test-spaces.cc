@@ -125,7 +125,7 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
       isolate, code_page_allocator);
 
   v8::PageAllocator* page_allocator =
-      memory_allocator->page_allocator(executable);
+      memory_allocator->page_allocator(space->identity());
 
   size_t allocatable_memory_area_offset =
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());

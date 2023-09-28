@@ -26,7 +26,7 @@ void MemoryChunk::DiscardUnusedMemory(Address addr, size_t size) {
   if (memory_area.size() != 0) {
     MemoryAllocator* memory_allocator = heap_->memory_allocator();
     v8::PageAllocator* page_allocator =
-        memory_allocator->page_allocator(executable());
+        memory_allocator->page_allocator(owner_identity());
     CHECK(page_allocator->DiscardSystemPages(
         reinterpret_cast<void*>(memory_area.begin()), memory_area.size()));
   }
