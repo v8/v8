@@ -130,6 +130,9 @@ class MainAllocator {
   void Verify() const;
 #endif  // DEBUG
 
+  // Checks whether the LAB is currently in use.
+  V8_INLINE bool IsLabValid() { return allocation_info_.top() != kNullAddress; }
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.

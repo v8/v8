@@ -527,8 +527,9 @@ HEAP_TEST(Regress777177) {
         old_space->AllocateRaw(max_object_size, kTaggedAligned);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     // Simulate allocation folding moving the top pointer back.
-    old_space->SetTopAndLimit(obj.address(), old_space->limit(),
-                              old_space->limit());
+    old_space->SetTopAndLimit(
+        obj.address(), heap->allocator()->old_space_allocator()->limit(),
+        heap->allocator()->old_space_allocator()->limit());
   }
 
   {
@@ -551,7 +552,8 @@ HEAP_TEST(Regress791582) {
   MainAllocator* new_space_allocator = heap->allocator()->new_space_allocator();
   GrowNewSpace(heap);
 
-  int until_page_end = static_cast<int>(new_space->limit() - new_space->top());
+  int until_page_end =
+      static_cast<int>(heap->NewSpaceLimit() - heap->NewSpaceTop());
 
   if (!IsAligned(until_page_end, kTaggedSize)) {
     // The test works if the size of allocation area size is a multiple of

@@ -275,7 +275,11 @@ void Heap::FinalizeExternalString(Tagged<String> string) {
 }
 
 Address Heap::NewSpaceTop() {
-  return new_space_ ? new_space_->top() : kNullAddress;
+  return new_space_ ? allocator()->new_space_allocator()->top() : kNullAddress;
+}
+
+Address Heap::NewSpaceLimit() {
+  return new_space_ ? allocator()->new_space_allocator()->top() : kNullAddress;
 }
 
 bool Heap::InYoungGeneration(Tagged<Object> object) {

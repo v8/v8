@@ -101,7 +101,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
       top = heap_->NewSpaceTop();
-      DCHECK(memento_address >= heap_->new_space()->limit() ||
+      DCHECK(memento_address >= heap_->NewSpaceLimit() ||
              memento_address +
                      ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize) <=
                  top);

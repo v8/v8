@@ -56,6 +56,9 @@ class ConcurrentAllocator {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  // Checks whether the LAB is currently in use.
+  V8_INLINE bool IsLabValid() { return lab_.top() != kNullAddress; }
+
  private:
   static_assert(
       kMinLabSize > kMaxLabObjectSize,
@@ -88,9 +91,6 @@ class ConcurrentAllocator {
                      AllocationOrigin origin);
 
   bool IsBlackAllocationEnabled() const;
-
-  // Checks whether the LAB is currently in use.
-  V8_INLINE bool IsLabValid() { return lab_.top() != kNullAddress; }
 
   // Resets the LAB.
   void ResetLab() { lab_ = LinearAllocationArea(kNullAddress, kNullAddress); }

@@ -95,6 +95,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   MainAllocator* old_space_allocator() { return old_space_allocator_; }
   MainAllocator* trusted_space_allocator() { return trusted_space_allocator_; }
   MainAllocator* code_space_allocator() { return code_space_allocator_; }
+  ConcurrentAllocator* shared_space_allocator() {
+    return shared_old_allocator_;
+  }
 
  private:
   V8_INLINE PagedSpace* code_space() const;

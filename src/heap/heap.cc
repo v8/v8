@@ -236,7 +236,7 @@ class ScheduleMinorGCTaskObserver final : public AllocationObserver {
   void AddToNewSpace() {
     DCHECK(!was_added_to_space_);
     DCHECK_IMPLIES(v8_flags.minor_ms,
-                   heap_->new_space()->top() == kNullAddress);
+                   !heap_->allocator()->new_space_allocator()->IsLabValid());
     heap_->allocator()->new_space_allocator()->AddAllocationObserver(this);
     was_added_to_space_ = true;
   }

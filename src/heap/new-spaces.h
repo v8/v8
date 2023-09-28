@@ -313,10 +313,10 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Return the allocated bytes in the active semispace.
   size_t Size() const final {
-    DCHECK_GE(top(), to_space_.page_low());
+    DCHECK_GE(allocator_->top(), to_space_.page_low());
     return (to_space_.current_capacity() - Page::kPageSize) / Page::kPageSize *
                MemoryChunkLayout::AllocatableMemoryInDataPage() +
-           static_cast<size_t>(top() - to_space_.page_low());
+           static_cast<size_t>(allocator_->top() - to_space_.page_low());
   }
 
   size_t SizeOfObjects() const final { return Size(); }
@@ -581,7 +581,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   // Return the available bytes without growing.
   size_t Available() const final {
-    return PagedSpaceBase::Available() + limit() - top();
+    return PagedSpaceBase::Available() + allocator_->limit() -
+           allocator_->top();
   }
 
   size_t UsableCapacity() const {

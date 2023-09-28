@@ -751,7 +751,8 @@ class Heap final {
   // Getters for spaces. =======================================================
   // ===========================================================================
 
-  inline Address NewSpaceTop();
+  V8_INLINE Address NewSpaceTop();
+  V8_INLINE Address NewSpaceLimit();
 
   NewSpace* new_space() const { return new_space_; }
   inline PagedNewSpace* paged_new_space() const;

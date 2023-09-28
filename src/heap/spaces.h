@@ -310,10 +310,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
 
   virtual bool SupportsAllocationObserver() const = 0;
 
-  // Returns the allocation pointer in this space.
-  Address top() const { return allocator_->top(); }
-  Address limit() const { return allocator_->limit(); }
-
   MainAllocator* main_allocator() { return allocator_; }
 
   virtual void FreeLinearAllocationArea() = 0;

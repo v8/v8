@@ -1107,13 +1107,13 @@ int FixedArrayLenFromSize(int size) {
 }
 
 int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
-  Address top = space->top();
+  const Address top = space->heap()->NewSpaceTop();
   if ((top & kPageAlignmentMask) == 0) {
     // `top` points to the start of a page signifies that there is not room in
     // the current page.
     return 0;
   }
-  return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
+  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {

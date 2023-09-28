@@ -139,8 +139,8 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   other->FreeLinearAllocationArea();
 
   // The linear allocation area of {other} should be destroyed now.
-  DCHECK_EQ(kNullAddress, other->top());
-  DCHECK_EQ(kNullAddress, other->limit());
+  DCHECK_EQ(kNullAddress, other->allocator_->top());
+  DCHECK_EQ(kNullAddress, other->allocator_->limit());
 
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
@@ -408,8 +408,8 @@ void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit,
 }
 
 void PagedSpaceBase::DecreaseLimit(Address new_limit) {
-  Address old_limit = limit();
-  DCHECK_LE(top(), new_limit);
+  Address old_limit = allocator_->limit();
+  DCHECK_LE(allocator_->top(), new_limit);
   DCHECK_GE(old_limit, new_limit);
   if (new_limit != old_limit) {
     base::Optional<CodePageHeaderModificationScope> optional_scope;
@@ -421,7 +421,7 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     Address old_max_limit = allocator_->original_limit_relaxed();
     if (!SupportsExtendingLAB()) {
       DCHECK_EQ(old_max_limit, old_limit);
-      SetTopAndLimit(top(), new_limit, new_limit);
+      SetTopAndLimit(allocator_->top(), new_limit, new_limit);
       Free(new_limit, old_max_limit - new_limit,
            SpaceAccountingMode::kSpaceAccounted);
     } else {
@@ -445,8 +445,8 @@ size_t PagedSpaceBase::Available() const {
 void PagedSpaceBase::FreeLinearAllocationArea() {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.
-  Address current_top = top();
-  Address current_limit = limit();
+  Address current_top = allocator_->top();
+  Address current_limit = allocator_->limit();
   if (current_top == kNullAddress) {
     DCHECK_EQ(kNullAddress, current_limit);
     return;
@@ -534,14 +534,16 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
                                                    AllocationOrigin origin) {
   ConcurrentAllocationMutex guard(this);
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));
-  DCHECK_LE(top(), limit());
+  DCHECK_LE(allocator_->top(), allocator_->limit());
 #ifdef DEBUG
-  if (top() != limit()) {
-    DCHECK_EQ(Page::FromAddress(top()), Page::FromAddress(limit() - 1));
+  if (allocator_->top() != allocator_->limit()) {
+    DCHECK_EQ(Page::FromAddress(allocator_->top()),
+              Page::FromAddress(allocator_->limit() - 1));
   }
 #endif
   // Don't free list allocate if there is linear space available.
-  DCHECK_LT(static_cast<size_t>(limit() - top()), size_in_bytes);
+  DCHECK_LT(static_cast<size_t>(allocator_->limit() - allocator_->top()),
+            size_in_bytes);
 
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
@@ -734,9 +736,9 @@ void PagedSpaceBase::UpdateInlineAllocationLimit() {
   DCHECK_EQ(allocator_->allocation_info().start(),
             allocator_->allocation_info().top());
 
-  Address new_limit = ComputeLimit(top(), limit(), 0);
-  DCHECK_LE(top(), new_limit);
-  DCHECK_LE(new_limit, limit());
+  Address new_limit = ComputeLimit(allocator_->top(), allocator_->limit(), 0);
+  DCHECK_LE(allocator_->top(), new_limit);
+  DCHECK_LE(new_limit, allocator_->limit());
   DecreaseLimit(new_limit);
 }
 
@@ -793,9 +795,9 @@ bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
 }
 
 bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
-  Address current_top = top();
+  Address current_top = allocator_->top();
   if (current_top == kNullAddress) return false;
-  Address current_limit = limit();
+  Address current_limit = allocator_->limit();
   Address max_limit = allocator_->original_limit_relaxed();
   if (current_top + size_in_bytes > max_limit) {
     return false;
