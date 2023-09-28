@@ -452,6 +452,8 @@ class GraphVisitor {
       }
     }
 #ifdef DEBUG
+    DCHECK_IMPLIES(new_index.valid(),
+                   assembler().output_graph().BelongsToThisGraph(new_index));
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
         const Operation& new_op = output_graph().Get(new_index);
@@ -1300,6 +1302,10 @@ class GraphVisitor {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
+    DCHECK(old_index.valid());
+    DCHECK(assembler().input_graph().BelongsToThisGraph(old_index));
+    DCHECK_IMPLIES(new_index.valid(),
+                   assembler().output_graph().BelongsToThisGraph(new_index));
     if constexpr (reducer_list_contains<typename Assembler::ReducerList,
                                         VariableReducer>::value) {
       if (current_block_needs_variables_) {

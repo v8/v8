@@ -545,6 +545,7 @@ class Graph {
   }
 
   V8_INLINE const Operation& Get(OpIndex i) const {
+    DCHECK(BelongsToThisGraph(i));
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
     const Operation* ptr =
@@ -554,6 +555,7 @@ class Graph {
     return *ptr;
   }
   V8_INLINE Operation& Get(OpIndex i) {
+    DCHECK(BelongsToThisGraph(i));
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
     Operation* ptr =
@@ -577,7 +579,13 @@ class Graph {
     return *bound_blocks_[i.id()];
   }
 
-  OpIndex Index(const Operation& op) const { return operations_.Index(op); }
+  OpIndex Index(const Operation& op) const {
+    OpIndex result = operations_.Index(op);
+#ifdef DEBUG
+    result.set_generation_mod2(generation_mod2());
+#endif
+    return result;
+  }
   BlockIndex BlockOf(OpIndex index) const {
     ZoneVector<Block*>::const_iterator it;
     if (block_permutation_.empty()) {
@@ -595,9 +603,19 @@ class Graph {
     return (*it)->index();
   }
 
-  OpIndex NextIndex(const OpIndex idx) const { return operations_.Next(idx); }
+  OpIndex NextIndex(const OpIndex idx) const {
+    OpIndex next = operations_.Next(idx);
+#ifdef DEBUG
+    next.set_generation_mod2(generation_mod2());
+#endif
+    return next;
+  }
   OpIndex PreviousIndex(const OpIndex idx) const {
-    return operations_.Previous(idx);
+    OpIndex prev = operations_.Previous(idx);
+#ifdef DEBUG
+    prev.set_generation_mod2(generation_mod2());
+#endif
+    return prev;
   }
 
   OperationStorageSlot* Allocate(size_t slot_count) {
@@ -630,8 +648,10 @@ class Graph {
 #ifdef DEBUG
     for (OpIndex input : op.inputs()) {
       DCHECK_LT(input, result);
+      DCHECK(BelongsToThisGraph(input));
     }
 #endif  // DEBUG
+
     return op;
   }
 
@@ -710,7 +730,7 @@ class Graph {
     }
   }
 
-  OpIndex next_operation_index() const { return operations_.EndIndex(); }
+  OpIndex next_operation_index() const { return EndIndex(); }
   BlockIndex next_block_index() const {
     return BlockIndex(static_cast<uint32_t>(bound_blocks_.size()));
   }
@@ -733,6 +753,21 @@ class Graph {
     return operations_.capacity() / kSlotsPerId;
   }
 
+  OpIndex BeginIndex() const {
+    OpIndex begin = operations_.BeginIndex();
+#ifdef DEBUG
+    begin.set_generation_mod2(generation_mod2());
+#endif
+    return begin;
+  }
+  OpIndex EndIndex() const {
+    OpIndex end = operations_.EndIndex();
+#ifdef DEBUG
+    end.set_generation_mod2(generation_mod2());
+#endif
+    return end;
+  }
+
   class OpIndexIterator
       : public base::iterator<std::bidirectional_iterator_tag, OpIndex,
                               std::ptrdiff_t, OpIndex*, OpIndex> {
@@ -743,11 +778,11 @@ class Graph {
         : index_(index), graph_(graph) {}
     value_type operator*() const { return index_; }
     OpIndexIterator& operator++() {
-      index_ = graph_->operations_.Next(index_);
+      index_ = graph_->NextIndex(index_);
       return *this;
     }
     OpIndexIterator& operator--() {
-      index_ = graph_->operations_.Previous(index_);
+      index_ = graph_->PreviousIndex(index_);
       return *this;
     }
     bool operator!=(OpIndexIterator other) const {
@@ -773,11 +808,11 @@ class Graph {
         : index_(index), graph_(graph) {}
     value_type& operator*() { return graph_->Get(index_); }
     OperationIterator& operator++() {
-      index_ = graph_->operations_.Next(index_);
+      index_ = graph_->NextIndex(index_);
       return *this;
     }
     OperationIterator& operator--() {
-      index_ = graph_->operations_.Previous(index_);
+      index_ = graph_->PreviousIndex(index_);
       return *this;
     }
     bool operator!=(OperationIterator other) const {
@@ -796,14 +831,14 @@ class Graph {
       OperationIterator<const Operation, const Graph>;
 
   base::iterator_range<MutableOperationIterator> AllOperations() {
-    return operations(operations_.BeginIndex(), operations_.EndIndex());
+    return operations(BeginIndex(), EndIndex());
   }
   base::iterator_range<ConstOperationIterator> AllOperations() const {
-    return operations(operations_.BeginIndex(), operations_.EndIndex());
+    return operations(BeginIndex(), EndIndex());
   }
 
   base::iterator_range<OpIndexIterator> AllOperationIndices() const {
-    return OperationIndices(operations_.BeginIndex(), operations_.EndIndex());
+    return OperationIndices(BeginIndex(), EndIndex());
   }
 
   base::iterator_range<MutableOperationIterator> operations(
@@ -937,6 +972,11 @@ class Graph {
 
 #ifdef DEBUG
   size_t generation() const { return generation_; }
+  int generation_mod2() const { return generation_ % 2; }
+
+  bool BelongsToThisGraph(OpIndex idx) const {
+    return idx.generation_mod2() == generation_mod2();
+  }
 #endif  // DEBUG
 
  private:
