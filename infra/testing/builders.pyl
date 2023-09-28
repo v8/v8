@@ -555,11 +555,6 @@
       {'name': 'mozilla', 'variant': 'minor_ms'},
       {'name': 'test262', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'mjsunit', 'variant': 'minor_ms'},
-      {'name': 'v8testing', 'variant': 'concurrent_minor_ms'},
-      {'name': 'benchmarks', 'variant': 'concurrent_minor_ms'},
-      {'name': 'mozilla', 'variant': 'concurrent_minor_ms'},
-      {'name': 'test262', 'variant': 'concurrent_minor_ms', 'shards': 2},
-      {'name': 'mjsunit', 'variant': 'concurrent_minor_ms'},
     ],
   },
   'v8_linux64_msan_rel': {
@@ -1535,11 +1530,6 @@
       {'name': 'mozilla', 'variant': 'minor_ms'},
       {'name': 'test262', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'mjsunit', 'variant': 'minor_ms'},
-      {'name': 'v8testing', 'variant': 'concurrent_minor_ms'},
-      {'name': 'benchmarks', 'variant': 'concurrent_minor_ms'},
-      {'name': 'mozilla', 'variant': 'concurrent_minor_ms'},
-      {'name': 'test262', 'variant': 'concurrent_minor_ms', 'shards': 2},
-      {'name': 'mjsunit', 'variant': 'concurrent_minor_ms'},
     ],
   },
   'V8 Linux64 - disable runtime call stats': {
