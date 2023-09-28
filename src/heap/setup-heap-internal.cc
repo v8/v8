@@ -1468,12 +1468,20 @@ void Heap::CreateInitialMutableObjects() {
   // Array.fromAsync:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kArrayFromAsyncOnFulfilled, 0);
-    set_array_from_async_on_fulfilled_shared_fun(*info);
+        isolate_, Builtin::kArrayFromAsyncIterableOnFulfilled, 0);
+    set_array_from_async_iterable_on_fulfilled_shared_fun(*info);
 
-    info = CreateSharedFunctionInfo(isolate_,
-                                    Builtin::kArrayFromAsyncOnRejected, 0);
-    set_array_from_async_on_rejected_shared_fun(*info);
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncIterableOnRejected, 0);
+    set_array_from_async_iterable_on_rejected_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncArrayLikeOnFulfilled, 0);
+    set_array_from_async_array_like_on_fulfilled_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncArrayLikeOnRejected, 0);
+    set_array_from_async_array_like_on_rejected_shared_fun(*info);
   }
 }
 

@@ -130,12 +130,18 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ShadowRealmImportValueFulfilledSFI,                                        \
     shadow_realm_import_value_fulfilled_sfi,                                   \
     ShadowRealmImportValueFulfilledSFI)                                        \
-  V(ArrayFromAsyncOnFulfilledSharedFun,                                        \
-    array_from_async_on_fulfilled_shared_fun,                                  \
-    ArrayFromAsyncOnFulfilledSharedFun)                                        \
-  V(ArrayFromAsyncOnRejectedSharedFun,                                         \
-    array_from_async_on_rejected_shared_fun,                                   \
-    ArrayFromAsyncOnRejectedSharedFun)
+  V(ArrayFromAsyncIterableOnFulfilledSharedFun,                                \
+    array_from_async_iterable_on_fulfilled_shared_fun,                         \
+    ArrayFromAsyncIterableOnFulfilledSharedFun)                                \
+  V(ArrayFromAsyncIterableOnRejectedSharedFun,                                 \
+    array_from_async_iterable_on_rejected_shared_fun,                          \
+    ArrayFromAsyncIterableOnRejectedSharedFun)                                 \
+  V(ArrayFromAsyncArrayLikeOnFulfilledSharedFun,                               \
+    array_from_async_array_like_on_fulfilled_shared_fun,                       \
+    ArrayFromAsyncArrayLikeOnFulfilledSharedFun)                               \
+  V(ArrayFromAsyncArrayLikeOnRejectedSharedFun,                                \
+    array_from_async_array_like_on_rejected_shared_fun,                        \
+    ArrayFromAsyncArrayLikeOnRejectedSharedFun)
 
 #define UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER( \
     V, rootIndexName, rootAccessorName, class_name)           \
