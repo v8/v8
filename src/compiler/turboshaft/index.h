@@ -73,7 +73,7 @@ class OpIndex {
 #endif
   }
 
-  bool valid() const { return *this != Invalid(); }
+  constexpr bool valid() const { return *this != Invalid(); }
 
   static constexpr OpIndex Invalid() { return OpIndex(); }
 
@@ -92,12 +92,24 @@ class OpIndex {
     return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
   }
 
-  bool operator==(OpIndex other) const { return offset_ == other.offset_; }
-  bool operator!=(OpIndex other) const { return offset_ != other.offset_; }
-  bool operator<(OpIndex other) const { return offset_ < other.offset_; }
-  bool operator>(OpIndex other) const { return offset_ > other.offset_; }
-  bool operator<=(OpIndex other) const { return offset_ <= other.offset_; }
-  bool operator>=(OpIndex other) const { return offset_ >= other.offset_; }
+  constexpr bool operator==(OpIndex other) const {
+    return offset_ == other.offset_;
+  }
+  constexpr bool operator!=(OpIndex other) const {
+    return offset_ != other.offset_;
+  }
+  constexpr bool operator<(OpIndex other) const {
+    return offset_ < other.offset_;
+  }
+  constexpr bool operator>(OpIndex other) const {
+    return offset_ > other.offset_;
+  }
+  constexpr bool operator<=(OpIndex other) const {
+    return offset_ <= other.offset_;
+  }
+  constexpr bool operator>=(OpIndex other) const {
+    return offset_ >= other.offset_;
+  }
 
 #ifdef DEBUG
   int generation_mod2() const {
@@ -108,7 +120,7 @@ class OpIndex {
     offset_ |= generation_mod2 << kGenerationMaskShift;
   }
 
-  bool CheckInvariants() const {
+  constexpr bool CheckInvariants() const {
     DCHECK(valid());
     // The second lowest significant bit of the offset is used to store the
     // graph generation modulo 2. The lowest and 3rd lowest bits should always
