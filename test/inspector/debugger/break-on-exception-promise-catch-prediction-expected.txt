@@ -1,0 +1,1296 @@
+Checks when promise rejections are predicted to be caught.
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with dontHandleAsync, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with dontHandleAsync, breaking on uncaught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwInPromiseConstructor, handling with dontHandleAsync, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwInPromiseConstructor, handling with dontHandleAsync, breaking on uncaught exceptions:
+Paused
+(anonymous) (catch-prediction.js:18:28)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectInPromiseConstructor, handling with dontHandleAsync, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: after reject
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectInPromiseConstructor, handling with dontHandleAsync, breaking on uncaught exceptions:
+Paused
+(anonymous) (catch-prediction.js:23:4)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: after reject
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInTryInPromiseConstructor, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:31:13)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInTryInPromiseConstructor, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:31:6)
+-- setTimeout --
+(anonymous) (catch-prediction.js:29:39)
+rejectAfterDelayInTryInPromiseConstructor (catch-prediction.js:29:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:31:13)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectBindAfterDelay, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:40:68)
+rejectBindAfterDelay (catch-prediction.js:40:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectBindAfterDelay, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:40:68)
+rejectBindAfterDelay (catch-prediction.js:40:9)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwFromAsync, handling with dontHandleAsync, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwFromAsync, handling with dontHandleAsync, breaking on uncaught exceptions:
+Paused
+throwFromAsync (catch-prediction.js:44:2)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwFromAsyncAfterDelay, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsyncAfterDelay (catch-prediction.js:49:8)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from throwFromAsyncAfterDelay, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Paused
+throwFromAsyncAfterDelay (catch-prediction.js:49:2)
+-- await --
+dontHandleAsync (catch-prediction.js:73:8)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsyncAfterDelay (catch-prediction.js:49:8)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from customRejectingThenable, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+then (catch-prediction.js:56:17)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from customRejectingThenable, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+then (catch-prediction.js:56:17)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from customRejectingThenableAfterDelay, handling with dontHandleAsync, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:65:34)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from customRejectingThenableAfterDelay, handling with dontHandleAsync, breaking on uncaught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:65:34)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitAndCreateInTry, breaking on caught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwInPromiseConstructor, handling with awaitAndCreateInTry, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwInPromiseConstructor, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+Paused
+(anonymous) (catch-prediction.js:18:28)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:18:34)
+throwInPromiseConstructor (catch-prediction.js:18:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectInPromiseConstructor, handling with awaitAndCreateInTry, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: after reject
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectInPromiseConstructor, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+Paused
+(anonymous) (catch-prediction.js:23:4)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:23:11)
+rejectInPromiseConstructor (catch-prediction.js:22:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: after reject
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInTryInPromiseConstructor, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:31:6)
+-- setTimeout --
+(anonymous) (catch-prediction.js:29:39)
+rejectAfterDelayInTryInPromiseConstructor (catch-prediction.js:29:9)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInTryInPromiseConstructor, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectBindAfterDelay, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectBindAfterDelay, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwFromAsync, handling with awaitAndCreateInTry, breaking on caught exceptions:
+Paused
+throwFromAsync (catch-prediction.js:44:2)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwFromAsync, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+throwFromAsync (catch-prediction.js:44:8)
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwFromAsyncAfterDelay, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+Paused
+throwFromAsyncAfterDelay (catch-prediction.js:49:2)
+-- await --
+awaitAndCreateInTry (catch-prediction.js:79:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from throwFromAsyncAfterDelay, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from customRejectingThenable, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from customRejectingThenable, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from customRejectingThenableAfterDelay, handling with awaitAndCreateInTry, breaking on caught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from customRejectingThenableAfterDelay, handling with awaitAndCreateInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with catchMethod, breaking on caught exceptions:
+console: awaiting promise
+console: finished without error
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+catchMethod (catch-prediction.js:87:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with catchMethod, breaking on uncaught exceptions:
+console: awaiting promise
+console: finished without error
+console: caught
+
+Running test: testCase
+> Throwing from promiseReject, handling with catchMethod, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+catchMethod (catch-prediction.js:87:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with catchMethod, breaking on uncaught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+catchMethod (catch-prediction.js:87:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+catchMethod (catch-prediction.js:87:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with finallyMethod, breaking on caught exceptions:
+console: awaiting promise
+console: finished without error
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with finallyMethod, breaking on uncaught exceptions:
+console: awaiting promise
+console: finished without error
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with finallyMethod, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: finally handler
+console: finished without error
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with finallyMethod, breaking on uncaught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: finally handler
+console: finished without error
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+finallyMethod (catch-prediction.js:92:2)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with catchMethodInTry, breaking on caught exceptions:
+console: awaiting promise
+console: finished without error
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+catchMethodInTry (catch-prediction.js:97:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with catchMethodInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: finished without error
+console: caught
+
+Running test: testCase
+> Throwing from promiseReject, handling with catchMethodInTry, breaking on caught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+catchMethodInTry (catch-prediction.js:97:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+catchMethodInTry (catch-prediction.js:97:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with catchMethodInTry, breaking on uncaught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+catchMethodInTry (catch-prediction.js:97:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitInTry, breaking on caught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+awaitInTry (catch-prediction.js:105:18)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitInTry, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitInTry (catch-prediction.js:105:18)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitInTry, breaking on uncaught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+awaitInTry (catch-prediction.js:105:18)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitInTry (catch-prediction.js:105:18)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: caught
+console: finished without error
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitAndCreateInTryFinally, breaking on caught exceptions:
+console: awaiting promise
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with awaitAndCreateInTryFinally, breaking on uncaught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitAndCreateInTryFinally, breaking on caught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with awaitAndCreateInTryFinally, breaking on uncaught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+console: finally handler
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+awaitAndCreateInTryFinally (catch-prediction.js:115:10)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with createInTry, breaking on caught exceptions:
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with createInTry, breaking on uncaught exceptions:
+console: awaiting promise
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with createInTry, breaking on caught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with createInTry, breaking on uncaught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+Exception revoked for reason: Handler added to rejected promise
+console: awaiting promise
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+createInTry (catch-prediction.js:127:14)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with fireAndForgetInTry, breaking on caught exceptions:
+console: awaiting promise
+console: finished without error
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from rejectAfterDelayInPromiseConstructor, handling with fireAndForgetInTry, breaking on uncaught exceptions:
+console: awaiting promise
+console: finished without error
+Paused
+(anonymous) (catch-prediction.js:10:56)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+(anonymous) (catch-prediction.js:10:63)
+-- setTimeout --
+(anonymous) (catch-prediction.js:10:39)
+rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Throwing from promiseReject, handling with fireAndForgetInTry, breaking on caught exceptions:
+Paused
+promiseReject (catch-prediction.js:14:17)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: awaiting promise
+console: finished without error
+
+Running test: testCase
+> Throwing from promiseReject, handling with fireAndForgetInTry, breaking on uncaught exceptions:
+Uncaught exception: Uncaught Error: fail
+-- <empty> --
+promiseReject (catch-prediction.js:14:24)
+fireAndForgetInTry (catch-prediction.js:140:4)
+runWithResolution (catch-prediction.js:156:22)
+-- setTimeout --
+(anonymous) (catch-prediction.js:167:31)
+testWrapper (catch-prediction.js:167:8)
+(anonymous) (test_framework.js:0:0)
+console: awaiting promise
+console: finished without error
