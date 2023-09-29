@@ -61,9 +61,6 @@ namespace v8::internal::wasm {
   V(RecordWriteSaveFP)                   \
   V(RecordWriteIgnoreFP)                 \
   V(ToNumber)                            \
-  V(ThrowDataViewGetInt32DetachedError)  \
-  V(ThrowDataViewGetInt32OutOfBounds)    \
-  V(ThrowDataViewGetInt32TypeError)      \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)  \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)    \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP) \

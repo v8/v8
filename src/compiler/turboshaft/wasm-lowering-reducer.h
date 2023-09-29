@@ -121,7 +121,7 @@ class WasmLoweringReducer : public Next {
 
     GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
     GOTO_IF(__ IsSmi(object), smi_label);
-    GOTO_IF(__ HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
+    GOTO_IF(HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
     // For anything else, just pass through the value.
     GOTO(end_label, object);
 
@@ -508,11 +508,11 @@ class WasmLoweringReducer : public Next {
         GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(0));
       }
       if (to_rep == wasm::HeapType::kArray) {
-        result = __ HasInstanceType(object, WASM_ARRAY_TYPE);
+        result = HasInstanceType(object, WASM_ARRAY_TYPE);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct) {
-        result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
+        result = HasInstanceType(object, WASM_STRUCT_TYPE);
         break;
       }
       if (to_rep == wasm::HeapType::kString) {
@@ -582,7 +582,7 @@ class WasmLoweringReducer : public Next {
                   TrapId::kTrapIllegalCast);
       }
       if (to_rep == wasm::HeapType::kArray) {
-        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
+        __ TrapIfNot(HasInstanceType(object, WASM_ARRAY_TYPE),
                      OpIndex::Invalid(), TrapId::kTrapIllegalCast);
         break;
       }
@@ -749,6 +749,12 @@ class WasmLoweringReducer : public Next {
 
     BIND(end_label, result);
     return result;
+  }
+
+  V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
+    // TODO(mliedtke): These loads should be immutable.
+    return __ Word32Equal(__ LoadInstanceTypeField(__ LoadMapField(object)),
+                          __ Word32Constant(instance_type));
   }
 
   OpIndex LowerGlobalSetOrGet(OpIndex instance, OpIndex value,

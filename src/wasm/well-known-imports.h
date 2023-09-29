@@ -24,8 +24,6 @@ enum class WellKnownImport : uint8_t {
   kGeneric,
 
   // Functions:
-  kDataViewGetInt32,
-  kDataViewSetInt32,
   kDoubleToString,
   kIntToString,
   kParseFloat,

@@ -262,11 +262,6 @@ const char* Builtins::NameForStackTrace(Builtin builtin) {
     case Builtin::kStringPrototypeIndexOf:
     case Builtin::kThrowIndexOfCalledOnNull:
       return "String.indexOf";
-    case Builtin::kDataViewPrototypeGetInt32:
-    case Builtin::kThrowDataViewGetInt32DetachedError:
-    case Builtin::kThrowDataViewGetInt32OutOfBounds:
-    case Builtin::kThrowDataViewGetInt32TypeError:
-      return "DataView.getInt32";
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif

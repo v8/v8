@@ -900,10 +900,6 @@ class WasmGraphBuildingInterface {
             args[0].node, NullCheckFor(args[0].type));
         decoder->detected_->Add(kFeature_stringref);
         break;
-        // Not implementing for Turbofan.
-      case WKI::kDataViewGetInt32:
-      case WKI::kDataViewSetInt32:
-        return false;
     }
     if (v8_flags.trace_wasm_inlining) {
       PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
