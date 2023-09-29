@@ -492,11 +492,6 @@ void PagedSpaceBase::ReleasePageImpl(Page* page,
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocator_->allocation_info().top()) ==
-      page) {
-    SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
-  }
-
   if (identity() == CODE_SPACE) {
     heap()->isolate()->RemoveCodeMemoryChunk(page);
   }
