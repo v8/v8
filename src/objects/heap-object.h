@@ -319,8 +319,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  protected:
   struct SkipTypeCheckTag {};
   friend class Tagged<HeapObject>;
-  explicit V8_INLINE constexpr HeapObject(Address ptr,
-                                          HeapObject::SkipTypeCheckTag)
+  explicit constexpr inline HeapObject(Address ptr,
+                                       HeapObject::SkipTypeCheckTag)
       : TaggedImpl(ptr) {}
   explicit inline HeapObject(Address ptr);
 
