@@ -624,7 +624,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   }
 
   template <class U>
-  constexpr T value_or(U&& default_value) && {
+  T value_or(U&& default_value) && {
     // TODO(mlamouri): add the following assert when possible:
     // static_assert(std::is_move_constructible<T>::value,
     //               "T must be move constructible");

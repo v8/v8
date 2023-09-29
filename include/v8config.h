@@ -297,8 +297,6 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
-//  V8_HAS_ATTRIBUTE_USED               - __attribute__((used)) supported
-//  V8_HAS_ATTRIBUTE_RETAIN             - __attribute__((retain)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
@@ -351,8 +349,6 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
-# define V8_HAS_ATTRIBUTE_USED (__has_attribute(used))
-# define V8_HAS_ATTRIBUTE_RETAIN (__has_attribute(retain))
 // Support for the "preserve_most" attribute is limited:
 // - 32-bit platforms do not implement it,
 // - component builds fail because _dl_runtime_resolve clobbers registers,
@@ -455,17 +451,12 @@ path. Add it with -I<path> to the command line
 // -----------------------------------------------------------------------------
 // Helper macros
 
-// A macro used to make better inlining.
+// A macro used to make better inlining. Don't bother for debug builds.
 // Use like:
 //   V8_INLINE int GetZero() { return 0; }
-#if V8_HAS_ATTRIBUTE_ALWAYS_INLINE
-# if defined(DEBUG) && V8_HAS_ATTRIBUTE_RETAIN
-// Make sure the inline function still exists in debug builds.
-#  define V8_INLINE inline __attribute__((always_inline, retain))
-# else
-#  define V8_INLINE inline __attribute__((always_inline))
-# endif
-#elif V8_HAS___FORCEINLINE
+#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
+# define V8_INLINE inline __attribute__((always_inline))
+#elif !defined(DEBUG) && V8_HAS___FORCEINLINE
 # define V8_INLINE __forceinline
 #else
 # define V8_INLINE inline
