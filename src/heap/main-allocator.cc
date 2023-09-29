@@ -105,8 +105,7 @@ void MainAllocator::InvokeAllocationObservers(Address soon_object,
   DCHECK(size_in_bytes == aligned_size_in_bytes ||
          aligned_size_in_bytes == allocation_size);
 
-  if (!space_->SupportsAllocationObserver() ||
-      !heap()->IsAllocationObserverActive())
+  if (!SupportsAllocationObserver() || !heap()->IsAllocationObserverActive())
     return;
 
   if (allocation_size >= allocation_counter().NextBytes()) {
@@ -294,6 +293,42 @@ void MainAllocator::ExtendLAB(Address limit) {
   allocation_info().SetLimit(limit);
 }
 
+Address MainAllocator::ComputeLimit(Address start, Address end,
+                                    size_t min_size) const {
+  DCHECK_GE(end - start, min_size);
+
+  // During GCs we always use the full LAB.
+  if (heap()->IsInGC()) return end;
+
+  if (!heap()->IsInlineAllocationEnabled()) {
+    // LABs are disabled, so we fit the requested area exactly.
+    return start + min_size;
+  }
+
+  // When LABs are enabled, pick the largest possible LAB size by default.
+  size_t step_size = end - start;
+
+  if (SupportsAllocationObserver() && heap()->IsAllocationObserverActive()) {
+    // Ensure there are no unaccounted allocations.
+    DCHECK_EQ(allocation_info().start(), allocation_info().top());
+
+    size_t step = allocation_counter().NextBytes();
+    DCHECK_NE(step, 0);
+    // Generated code may allocate inline from the linear allocation area. To
+    // make sure we can observe these allocations, we use a lower limit.
+    size_t rounded_step = static_cast<size_t>(
+        RoundDown(static_cast<int>(step - 1), ObjectAlignment()));
+    step_size = std::min(step_size, rounded_step);
+  }
+
+  if (v8_flags.stress_marking) {
+    step_size = std::min(step_size, static_cast<size_t>(64));
+  }
+
+  DCHECK_LE(start + step_size, end);
+  return start + std::max(step_size, min_size);
+}
+
 #if DEBUG
 void MainAllocator::Verify() const {
   // Ensure validity of LAB: start <= top <= limit
@@ -310,6 +345,16 @@ void MainAllocator::Verify() const {
             linear_area_original_data().get_original_limit_relaxed());
 }
 #endif  // DEBUG
+
+int MainAllocator::ObjectAlignment() const {
+  if (identity() == CODE_SPACE) {
+    return kCodeAlignment;
+  } else if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+    return kObjectAlignment8GbHeap;
+  } else {
+    return kTaggedSize;
+  }
+}
 
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
 

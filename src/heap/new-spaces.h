@@ -278,8 +278,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   base::Mutex mutex_;
 
   virtual void RemovePage(Page* page) = 0;
-
-  bool SupportsAllocationObserver() const final { return true; }
 };
 
 // -----------------------------------------------------------------------------

@@ -64,43 +64,6 @@ SpaceWithLinearArea::SpaceWithLinearArea(
     CompactionSpaceKind compaction_space_kind, MainAllocator* allocator)
     : Space(heap, id, std::move(free_list)), allocator_(allocator) {}
 
-Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
-                                          size_t min_size) const {
-  DCHECK_GE(end - start, min_size);
-
-  // During GCs we always use the full LAB.
-  if (heap()->IsInGC()) return end;
-
-  if (!heap()->IsInlineAllocationEnabled()) {
-    // LABs are disabled, so we fit the requested area exactly.
-    return start + min_size;
-  }
-
-  // When LABs are enabled, pick the largest possible LAB size by default.
-  size_t step_size = end - start;
-
-  if (SupportsAllocationObserver() && heap()->IsAllocationObserverActive()) {
-    // Ensure there are no unaccounted allocations.
-    DCHECK_EQ(allocator_->allocation_info().start(),
-              allocator_->allocation_info().top());
-
-    size_t step = allocator_->allocation_counter().NextBytes();
-    DCHECK_NE(step, 0);
-    // Generated code may allocate inline from the linear allocation area. To
-    // make sure we can observe these allocations, we use a lower limit.
-    size_t rounded_step = static_cast<size_t>(
-        RoundSizeDownToObjectAlignment(static_cast<int>(step - 1)));
-    step_size = std::min(step_size, rounded_step);
-  }
-
-  if (v8_flags.stress_marking) {
-    step_size = std::min(step_size, static_cast<size_t>(64));
-  }
-
-  DCHECK_LE(start + step_size, end);
-  return start + std::max(step_size, min_size);
-}
-
 LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
   if (IsValid()) {
     MakeIterable();

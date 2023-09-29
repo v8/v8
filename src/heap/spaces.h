@@ -84,16 +84,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   // Return the available bytes without growing.
   virtual size_t Available() const = 0;
 
-  virtual int RoundSizeDownToObjectAlignment(int size) const {
-    if (id_ == CODE_SPACE) {
-      return RoundDown(size, kCodeAlignment);
-    } else if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-      return RoundDown(size, kObjectAlignment8GbHeap);
-    } else {
-      return RoundDown(size, kTaggedSize);
-    }
-  }
-
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
@@ -310,16 +300,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
                       CompactionSpaceKind compaction_space_kind,
                       MainAllocator* allocator);
 
-  virtual bool SupportsAllocationObserver() const = 0;
-
   MainAllocator* main_allocator() { return allocator_; }
-
-  // When allocation observers are active we may use a lower limit to allow the
-  // observers to 'interrupt' earlier than the natural limit. Given a linear
-  // area bounded by [start, end), this function computes the limit to use to
-  // allow proper observation based on existing observers. min_size specifies
-  // the minimum size that the limited area should have.
-  Address ComputeLimit(Address start, Address end, size_t min_size) const;
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,

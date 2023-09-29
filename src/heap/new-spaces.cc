@@ -572,8 +572,9 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
 
 void SemiSpaceNewSpace::UpdateInlineAllocationLimitForAllocation(
     size_t min_size) {
-  Address new_limit = ComputeLimit(allocator_->top(), to_space_.page_high(),
-                                   ALIGN_TO_ALLOCATION_ALIGNMENT(min_size));
+  Address new_limit =
+      allocator_->ComputeLimit(allocator_->top(), to_space_.page_high(),
+                               ALIGN_TO_ALLOCATION_ALIGNMENT(min_size));
   DCHECK_LE(allocator_->top(), new_limit);
   DCHECK_LE(new_limit, to_space_.page_high());
   allocator_->allocation_info().SetLimit(new_limit);

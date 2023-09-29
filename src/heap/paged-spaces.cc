@@ -568,7 +568,7 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
             allocator_->allocation_info().top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
-  Address limit = ComputeLimit(start, end, size_in_bytes);
+  Address limit = allocator_->ComputeLimit(start, end, size_in_bytes);
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
@@ -734,7 +734,8 @@ void PagedSpaceBase::UpdateInlineAllocationLimit() {
   DCHECK_EQ(allocator_->allocation_info().start(),
             allocator_->allocation_info().top());
 
-  Address new_limit = ComputeLimit(allocator_->top(), allocator_->limit(), 0);
+  Address new_limit =
+      allocator_->ComputeLimit(allocator_->top(), allocator_->limit(), 0);
   DCHECK_LE(allocator_->top(), new_limit);
   DCHECK_LE(new_limit, allocator_->limit());
   DecreaseLimit(new_limit);
@@ -802,7 +803,8 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
   }
   DCHECK(allocator_->supports_extending_lab());
   allocator_->AdvanceAllocationObservers();
-  Address new_limit = ComputeLimit(current_top, max_limit, size_in_bytes);
+  Address new_limit =
+      allocator_->ComputeLimit(current_top, max_limit, size_in_bytes);
   allocator_->ExtendLAB(new_limit);
   DCHECK(heap()->IsMainThread());
   heap()->CreateFillerObjectAt(new_limit,

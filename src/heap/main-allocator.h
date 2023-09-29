@@ -130,6 +130,13 @@ class MainAllocator {
 
   V8_INLINE bool TryFreeLast(Address object_address, int object_size);
 
+  // When allocation observers are active we may use a lower limit to allow the
+  // observers to 'interrupt' earlier than the natural limit. Given a linear
+  // area bounded by [start, end), this function computes the limit to use to
+  // allow proper observation based on existing observers. min_size specifies
+  // the minimum size that the limited area should have.
+  Address ComputeLimit(Address start, Address end, size_t min_size) const;
+
 #if DEBUG
   void Verify() const;
 #endif  // DEBUG
@@ -188,7 +195,11 @@ class MainAllocator {
     return linear_area_original_data_;
   }
 
+  int ObjectAlignment() const;
+
   AllocationSpace identity() const;
+
+  bool SupportsAllocationObserver() const { return !is_compaction_space(); }
 
   bool is_compaction_space() const {
     return compaction_space_kind_ != CompactionSpaceKind::kNone;
