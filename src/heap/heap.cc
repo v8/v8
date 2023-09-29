@@ -5615,6 +5615,20 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   trusted_lo_space_ =
       static_cast<TrustedLargeObjectSpace*>(space_[TRUSTED_LO_SPACE].get());
 
+  if (isolate()->has_shared_space()) {
+    Heap* heap = isolate()->shared_space_isolate()->heap();
+
+    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+        main_thread_local_heap(), heap->shared_space_,
+        ConcurrentAllocator::Context::kNotGC);
+
+    shared_allocation_space_ = heap->shared_space_;
+    shared_lo_allocation_space_ = heap->shared_lo_space_;
+  }
+
+  heap_allocator_.Setup();
+  main_thread_local_heap()->SetUpMainThread();
+
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
     deferred_counters_[i] = 0;
@@ -5649,20 +5663,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     write_protect_code_memory_ = false;
   }
 #endif  // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-
-  if (isolate()->has_shared_space()) {
-    Heap* heap = isolate()->shared_space_isolate()->heap();
-
-    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        main_thread_local_heap(), heap->shared_space_,
-        ConcurrentAllocator::Context::kNotGC);
-
-    shared_allocation_space_ = heap->shared_space_;
-    shared_lo_allocation_space_ = heap->shared_lo_space_;
-  }
-
-  main_thread_local_heap()->SetUpMainThread();
-  heap_allocator_.Setup();
 
   if (new_space()) {
     minor_gc_job_.reset(new MinorGCJob(this));
