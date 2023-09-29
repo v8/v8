@@ -141,6 +141,7 @@ class RootVisitor;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
+class StackFrame;
 class StringForwardingTable;
 class StringTable;
 class StubCache;
@@ -1042,6 +1043,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_ASYNC_AWAIT
   };
   CatchType PredictExceptionCatcher();
+  CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
 
   void ScheduleThrow(Tagged<Object> exception);
   // Re-set pending message, script and positions reported to the TryCatch

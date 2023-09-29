@@ -2372,7 +2372,6 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
 }  // anonymous namespace
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
-  Address external_handler = thread_local_top()->try_catch_handler_address();
   if (TopExceptionHandlerType(Tagged<Object>()) ==
       ExceptionHandlerType::kExternalTryCatch) {
     return CAUGHT_BY_EXTERNAL;
@@ -2381,60 +2380,60 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
   // Search for an exception handler by performing a full walk over the stack.
   for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
     StackFrame* frame = iter.frame();
-
-    switch (frame->type()) {
-      case StackFrame::ENTRY:
-      case StackFrame::CONSTRUCT_ENTRY: {
-        Address entry_handler = frame->top_handler()->next_address();
-        // The exception has been externally caught if and only if there is an
-        // external handler which is on top of the top-most JS_ENTRY handler.
-        if (external_handler != kNullAddress &&
-            !try_catch_handler()->is_verbose_) {
-          if (entry_handler == kNullAddress ||
-              entry_handler > external_handler) {
-            return CAUGHT_BY_EXTERNAL;
-          }
-        }
-      } break;
-
-      // For JavaScript frames we perform a lookup in the handler table.
-      case StackFrame::INTERPRETED:
-      case StackFrame::BASELINE:
-      case StackFrame::TURBOFAN:
-      case StackFrame::MAGLEV:
-      case StackFrame::BUILTIN: {
-        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-        Isolate::CatchType prediction = ToCatchType(PredictException(js_frame));
-        if (prediction == NOT_CAUGHT) break;
-        return prediction;
-      }
-
-      case StackFrame::STUB: {
-        Tagged<Code> code = *frame->LookupCode();
-        if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
-            !code->is_turbofanned()) {
-          break;
-        }
-
-        auto prediction = ToCatchType(CatchPredictionFor(code->builtin_id()));
-        if (prediction != NOT_CAUGHT) return prediction;
-        break;
-      }
-
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        Tagged<Code> code = *frame->LookupCode();
-        auto prediction = ToCatchType(CatchPredictionFor(code->builtin_id()));
-        if (prediction != NOT_CAUGHT) return prediction;
-        break;
-      }
-
-      default:
-        // All other types can not handle exception.
-        break;
-    }
+    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(frame);
+    if (prediction != NOT_CAUGHT) return prediction;
   }
 
   // Handler not found.
+  return NOT_CAUGHT;
+}
+
+Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
+  switch (frame->type()) {
+    case StackFrame::ENTRY:
+    case StackFrame::CONSTRUCT_ENTRY: {
+      Address external_handler =
+          thread_local_top()->try_catch_handler_address();
+      Address entry_handler = frame->top_handler()->next_address();
+      // The exception has been externally caught if and only if there is an
+      // external handler which is on top of the top-most JS_ENTRY handler.
+      if (external_handler != kNullAddress &&
+          !try_catch_handler()->is_verbose_) {
+        if (entry_handler == kNullAddress || entry_handler > external_handler) {
+          return CAUGHT_BY_EXTERNAL;
+        }
+      }
+    } break;
+
+    // For JavaScript frames we perform a lookup in the handler table.
+    case StackFrame::INTERPRETED:
+    case StackFrame::BASELINE:
+    case StackFrame::TURBOFAN:
+    case StackFrame::MAGLEV:
+    case StackFrame::BUILTIN: {
+      JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+      return ToCatchType(PredictException(js_frame));
+    }
+
+    case StackFrame::STUB: {
+      Tagged<Code> code = *frame->LookupCode();
+      if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
+          !code->is_turbofanned()) {
+        break;
+      }
+
+      return ToCatchType(CatchPredictionFor(code->builtin_id()));
+    }
+
+    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
+      Tagged<Code> code = *frame->LookupCode();
+      return ToCatchType(CatchPredictionFor(code->builtin_id()));
+    }
+
+    default:
+      // All other types can not handle exception.
+      break;
+  }
   return NOT_CAUGHT;
 }
 
@@ -2888,24 +2887,13 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> promise_stack(debug()->thread_local_.promise_stack_, this);
   for (StackFrameIterator it(this); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
-    HandlerTable::CatchPrediction catch_prediction;
-    if (frame->is_java_script()) {
-      catch_prediction = PredictException(JavaScriptFrame::cast(frame));
-    } else if (frame->type() == StackFrame::STUB) {
-      Tagged<Code> code = *frame->LookupCode();
-      if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
-          !code->is_turbofanned()) {
-        continue;
-      }
-      catch_prediction = CatchPredictionFor(code->builtin_id());
-    } else {
-      continue;
-    }
+    prediction = PredictExceptionCatchAtFrame(frame);
 
-    switch (catch_prediction) {
-      case HandlerTable::UNCAUGHT:
+    switch (prediction) {
+      case NOT_CAUGHT:
+      case CAUGHT_BY_EXTERNAL:
         continue;
-      case HandlerTable::CAUGHT:
+      case CAUGHT_BY_JAVASCRIPT:
         if (IsJSPromise(*retval)) {
           // Caught the result of an inner async/await invocation.
           // Mark the inner promise as caught in the "synchronous case" so
@@ -2917,7 +2905,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
           Handle<JSPromise>::cast(retval)->set_handled_hint(true);
         }
         return retval;
-      case HandlerTable::PROMISE: {
+      case CAUGHT_BY_PROMISE: {
         Handle<JSObject> promise;
         if (IsPromiseOnStack(*promise_stack) &&
             PromiseOnStack::GetPromise(
@@ -2927,8 +2915,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         }
         return undefined;
       }
-      case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
-      case HandlerTable::ASYNC_AWAIT: {
+      case CAUGHT_BY_ASYNC_AWAIT: {
         // If in the initial portion of async/await, continue the loop to pop up
         // successive async/await stack frames until an asynchronous one with
         // dependents is found, or a non-async stack frame is encountered, in
