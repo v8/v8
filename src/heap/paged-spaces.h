@@ -115,21 +115,21 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
-  PagedSpaceBase(
-      Heap* heap, AllocationSpace id, Executability executable,
-      std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
+  PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
+                 std::unique_ptr<FreeList> free_list,
+                 CompactionSpaceKind compaction_space_kind,
+                 MainAllocator::SupportsExtendingLAB supports_extending_lab);
 
-  PagedSpaceBase(
-      Heap* heap, AllocationSpace id, Executability executable,
-      std::unique_ptr<FreeList> free_list,
-      LinearAllocationArea& allocation_info,
-      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
+  PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
+                 std::unique_ptr<FreeList> free_list,
+                 CompactionSpaceKind compaction_space_kind,
+                 MainAllocator::SupportsExtendingLAB supports_extending_lab,
+                 LinearAllocationArea& allocation_info);
 
-  PagedSpaceBase(
-      Heap* heap, AllocationSpace id, Executability executable,
-      std::unique_ptr<FreeList> free_list, MainAllocator* allocator,
-      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
+  PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
+                 std::unique_ptr<FreeList> free_list,
+                 CompactionSpaceKind compaction_space_kind,
+                 MainAllocator* allocator);
 
   ~PagedSpaceBase() override { TearDown(); }
 
@@ -348,12 +348,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
  protected:
-  // Updates the current lab limit without updating top, original_top or
-  // original_limit.
-  void SetLimit(Address limit);
-
-  bool SupportsExtendingLAB() const { return identity() == NEW_SPACE; }
-
   void UpdateInlineAllocationLimit() override;
 
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -458,20 +452,21 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
  public:
   // Creates a space with an id.
-  PagedSpace(
-      Heap* heap, AllocationSpace id, Executability executable,
-      std::unique_ptr<FreeList> free_list,
-      LinearAllocationArea& allocation_info,
-      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
+  PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
+             std::unique_ptr<FreeList> free_list,
+             CompactionSpaceKind compaction_space_kind,
+             MainAllocator::SupportsExtendingLAB supports_extending_lab,
+             LinearAllocationArea& allocation_info)
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       allocation_info, compaction_space_kind) {}
+                       compaction_space_kind, supports_extending_lab,
+                       allocation_info) {}
 
-  PagedSpace(
-      Heap* heap, AllocationSpace id, Executability executable,
-      std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
+  PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
+             std::unique_ptr<FreeList> free_list,
+             CompactionSpaceKind compaction_space_kind,
+             MainAllocator::SupportsExtendingLAB supports_extending_lab)
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       compaction_space_kind) {}
+                       compaction_space_kind, supports_extending_lab) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -482,7 +477,8 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
                   CompactionSpaceKind compaction_space_kind)
       : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   compaction_space_kind) {
+                   compaction_space_kind,
+                   MainAllocator::SupportsExtendingLAB::kNo) {
     DCHECK(is_compaction_space());
   }
 
@@ -548,7 +544,8 @@ class OldSpace final : public PagedSpace {
   // from OS.
   explicit OldSpace(Heap* heap, LinearAllocationArea& allocation_info)
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   allocation_info) {}
+                   CompactionSpaceKind::kNone,
+                   MainAllocator::SupportsExtendingLAB::kNo, allocation_info) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -572,7 +569,9 @@ class CodeSpace final : public PagedSpace {
   // Creates a code space object. The constructor does not allocate pages from
   // OS.
   explicit CodeSpace(Heap* heap)
-      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList()) {}
+      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
+                   CompactionSpaceKind::kNone,
+                   MainAllocator::SupportsExtendingLAB::kNo) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -584,7 +583,8 @@ class SharedSpace final : public PagedSpace {
   // OS.
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList()) {}
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone,
+                   MainAllocator::SupportsExtendingLAB::kNo) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -610,7 +610,8 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList()) {}
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone,
+                   MainAllocator::SupportsExtendingLAB::kNo) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==

@@ -79,13 +79,15 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
   return page;
 }
 
-PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
-                               Executability executable,
-                               std::unique_ptr<FreeList> free_list,
-                               LinearAllocationArea& allocation_info,
-                               CompactionSpaceKind compaction_space_kind)
+PagedSpaceBase::PagedSpaceBase(
+    Heap* heap, AllocationSpace space, Executability executable,
+    std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab,
+    LinearAllocationArea& allocation_info)
     : SpaceWithLinearArea(heap, space, std::move(free_list),
-                          compaction_space_kind, allocation_info),
+                          compaction_space_kind, supports_extending_lab,
+                          allocation_info),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -95,8 +97,8 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
 PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
                                Executability executable,
                                std::unique_ptr<FreeList> free_list,
-                               MainAllocator* allocator,
-                               CompactionSpaceKind compaction_space_kind)
+                               CompactionSpaceKind compaction_space_kind,
+                               MainAllocator* allocator)
     : SpaceWithLinearArea(heap, space, std::move(free_list),
                           compaction_space_kind, allocator),
       executable_(executable),
@@ -105,12 +107,13 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
   accounting_stats_.Clear();
 }
 
-PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
-                               Executability executable,
-                               std::unique_ptr<FreeList> free_list,
-                               CompactionSpaceKind compaction_space_kind)
+PagedSpaceBase::PagedSpaceBase(
+    Heap* heap, AllocationSpace space, Executability executable,
+    std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab)
     : SpaceWithLinearArea(heap, space, std::move(free_list),
-                          compaction_space_kind),
+                          compaction_space_kind, supports_extending_lab),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -303,12 +306,6 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   allocator_->ResetLab(top, limit, end);
 }
 
-void PagedSpaceBase::SetLimit(Address limit) {
-  DCHECK(SupportsExtendingLAB());
-  DCHECK_LE(limit, allocator_->original_limit_relaxed());
-  allocator_->allocation_info().SetLimit(limit);
-}
-
 size_t PagedSpaceBase::ShrinkPageToHighWaterMark(Page* page) {
   size_t unused = page->ShrinkToHighWaterMark();
   accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
@@ -419,13 +416,13 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
 
     ConcurrentAllocationMutex guard(this);
     Address old_max_limit = allocator_->original_limit_relaxed();
-    if (!SupportsExtendingLAB()) {
+    if (!allocator_->supports_extending_lab()) {
       DCHECK_EQ(old_max_limit, old_limit);
       SetTopAndLimit(allocator_->top(), new_limit, new_limit);
       Free(new_limit, old_max_limit - new_limit,
            SpaceAccountingMode::kSpaceAccounted);
     } else {
-      SetLimit(new_limit);
+      allocator_->ExtendLAB(new_limit);
       heap()->CreateFillerObjectAt(new_limit,
                                    static_cast<int>(old_max_limit - new_limit));
     }
@@ -452,7 +449,8 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
     return;
   }
   Address current_max_limit = allocator_->original_limit_relaxed();
-  DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
+  DCHECK_IMPLIES(!allocator_->supports_extending_lab(),
+                 current_max_limit == current_limit);
 
   allocator_->AdvanceAllocationObservers();
 
@@ -574,7 +572,7 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
-    if (!SupportsExtendingLAB()) {
+    if (!allocator_->supports_extending_lab()) {
       Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
       end = limit;
     } else {
@@ -802,10 +800,10 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }
-  DCHECK(SupportsExtendingLAB());
+  DCHECK(allocator_->supports_extending_lab());
   allocator_->AdvanceAllocationObservers();
   Address new_limit = ComputeLimit(current_top, max_limit, size_in_bytes);
-  SetLimit(new_limit);
+  allocator_->ExtendLAB(new_limit);
   DCHECK(heap()->IsMainThread());
   heap()->CreateFillerObjectAt(new_limit,
                                static_cast<int>(max_limit - new_limit));

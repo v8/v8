@@ -2389,6 +2389,7 @@ class Heap final {
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
+  friend class MemoryBalancer;
   friend class MinorGCJob;
   friend class MinorGCTaskObserver;
   friend class MinorMarkSweepCollector;
@@ -2428,8 +2429,7 @@ class Heap final {
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
-
-  friend class MemoryBalancer;
+  friend class HeapInternalsBase;
 };
 
 class HeapStats {

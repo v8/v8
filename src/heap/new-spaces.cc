@@ -449,9 +449,11 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-NewSpace::NewSpace(Heap* heap, LinearAllocationArea& allocation_info)
+NewSpace::NewSpace(Heap* heap,
+                   MainAllocator::SupportsExtendingLAB supports_extending_lab,
+                   LinearAllocationArea& allocation_info)
     : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, CompactionSpaceKind::kNone,
-                          allocation_info) {}
+                          supports_extending_lab, allocation_info) {}
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -469,7 +471,7 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
                                      size_t initial_semispace_capacity,
                                      size_t max_semispace_capacity,
                                      LinearAllocationArea& allocation_info)
-    : NewSpace(heap, allocation_info),
+    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kNo, allocation_info),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
@@ -889,8 +891,8 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
                                              size_t max_capacity,
                                              MainAllocator* allocator)
     : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
-                     FreeList::CreateFreeListForNewSpace(), allocator,
-                     CompactionSpaceKind::kNone),
+                     FreeList::CreateFreeListForNewSpace(),
+                     CompactionSpaceKind::kNone, allocator),
       initial_capacity_(RoundDown(initial_capacity, Page::kPageSize)),
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {
@@ -1085,7 +1087,7 @@ bool PagedSpaceForNewSpace::EnsureAllocation(int size_in_bytes,
   if (last_lab_page_) {
     last_lab_page_->DecreaseAllocatedLabSize(allocator_->limit() -
                                              allocator_->top());
-    SetLimit(allocator_->top());
+    allocator_->ExtendLAB(allocator_->top());
     // No need to write a filler to the remaining lab because it will either be
     // reallocated if the lab can be extended or freed otherwise.
   }
@@ -1128,7 +1130,8 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
 PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
                              size_t max_capacity,
                              LinearAllocationArea& allocation_info)
-    : NewSpace(heap, allocation_info),
+    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kYes,
+               allocation_info),
       paged_space_(heap, initial_capacity, max_capacity, main_allocator()) {}
 
 PagedNewSpace::~PagedNewSpace() {

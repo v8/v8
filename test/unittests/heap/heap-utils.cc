@@ -268,7 +268,6 @@ void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
   Page* page = Page::FromAllocationAreaAddress(top);
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
-  space->FreeLinearAllocationArea();
   FillPageInPagedSpace(page, out_handles);
 }
 
@@ -278,6 +277,7 @@ void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
+  space->heap()->allocator()->new_space_allocator()->FreeLinearAllocationArea();
   if (v8_flags.minor_ms)
     FillCurrentPagedSpacePage(space, out_handles);
   else

@@ -221,7 +221,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   using iterator = PageIterator;
   using const_iterator = ConstPageIterator;
 
-  NewSpace(Heap* heap, LinearAllocationArea& allocation_info);
+  NewSpace(Heap* heap,
+           MainAllocator::SupportsExtendingLAB supports_extending_lab,
+           LinearAllocationArea& allocation_info);
 
   inline bool Contains(Tagged<Object> o) const;
   inline bool Contains(Tagged<HeapObject> o) const;

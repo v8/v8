@@ -10,17 +10,21 @@ namespace internal {
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                              CompactionSpaceKind compaction_space_kind,
+                             SupportsExtendingLAB supports_extending_lab,
                              LinearAllocationArea& allocation_info)
     : heap_(heap),
       space_(space),
       compaction_space_kind_(compaction_space_kind),
+      supports_extending_lab_(supports_extending_lab),
       allocation_info_(allocation_info) {}
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             CompactionSpaceKind compaction_space_kind)
+                             CompactionSpaceKind compaction_space_kind,
+                             SupportsExtendingLAB supports_extending_lab)
     : heap_(heap),
       space_(space),
       compaction_space_kind_(compaction_space_kind),
+      supports_extending_lab_(supports_extending_lab),
       allocation_info_(owned_allocation_info_) {}
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
@@ -39,7 +43,7 @@ void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {
   if (!allocation_counter().IsStepInProgress()) {
     AdvanceAllocationObservers();
     allocation_counter().AddAllocationObserver(observer);
-    space_->UpdateInlineAllocationLimit();
+    UpdateInlineAllocationLimit();
   } else {
     allocation_counter().AddAllocationObserver(observer);
   }
@@ -49,7 +53,7 @@ void MainAllocator::RemoveAllocationObserver(AllocationObserver* observer) {
   if (!allocation_counter().IsStepInProgress()) {
     AdvanceAllocationObservers();
     allocation_counter().RemoveAllocationObserver(observer);
-    space_->UpdateInlineAllocationLimit();
+    UpdateInlineAllocationLimit();
   } else {
     allocation_counter().RemoveAllocationObserver(observer);
   }
@@ -59,7 +63,7 @@ void MainAllocator::PauseAllocationObservers() { AdvanceAllocationObservers(); }
 
 void MainAllocator::ResumeAllocationObservers() {
   MarkLabStartInitialized();
-  space_->UpdateInlineAllocationLimit();
+  UpdateInlineAllocationLimit();
 }
 
 void MainAllocator::AdvanceAllocationObservers() {
@@ -151,8 +155,8 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
   int max_aligned_size;
-  if (!space_->EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
-                                &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
+                        &max_aligned_size)) {
     return AllocationResult::Failure();
   }
 
@@ -172,8 +176,7 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
   int max_aligned_size;
-  if (!space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
     return AllocationResult::Failure();
   }
 
@@ -267,6 +270,28 @@ void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
 #if DEBUG
   Verify();
 #endif
+}
+
+bool MainAllocator::EnsureAllocation(int size_in_bytes,
+                                     AllocationAlignment alignment,
+                                     AllocationOrigin origin,
+                                     int* out_max_aligned_size) {
+  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
+                                  out_max_aligned_size);
+}
+
+void MainAllocator::UpdateInlineAllocationLimit() {
+  return space_->UpdateInlineAllocationLimit();
+}
+
+void MainAllocator::FreeLinearAllocationArea() {
+  space_->FreeLinearAllocationArea();
+}
+
+void MainAllocator::ExtendLAB(Address limit) {
+  DCHECK(supports_extending_lab());
+  DCHECK_LE(limit, original_limit_relaxed());
+  allocation_info().SetLimit(limit);
 }
 
 #if DEBUG

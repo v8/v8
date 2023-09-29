@@ -41,17 +41,21 @@ namespace internal {
 SpaceWithLinearArea::SpaceWithLinearArea(
     Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
     CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab,
     LinearAllocationArea& allocation_info)
     : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this, compaction_space_kind, allocation_info);
+  owned_allocator_.emplace(heap, this, compaction_space_kind,
+                           supports_extending_lab, allocation_info);
   allocator_ = &owned_allocator_.value();
 }
 
 SpaceWithLinearArea::SpaceWithLinearArea(
     Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-    CompactionSpaceKind compaction_space_kind)
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab)
     : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this, compaction_space_kind);
+  owned_allocator_.emplace(heap, this, compaction_space_kind,
+                           supports_extending_lab);
   allocator_ = &owned_allocator_.value();
 }
 

@@ -49,12 +49,16 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
+  enum SupportsExtendingLAB { kYes, kNo };
+
   MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                CompactionSpaceKind compaction_space_kind);
+                CompactionSpaceKind compaction_space_kind,
+                SupportsExtendingLAB supports_extending_lab);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
   MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                 CompactionSpaceKind compaction_space_kind,
+                SupportsExtendingLAB supports_extending_lab,
                 LinearAllocationArea& allocation_info);
 
   // Returns the allocation pointer in this space.
@@ -133,6 +137,16 @@ class MainAllocator {
   // Checks whether the LAB is currently in use.
   V8_INLINE bool IsLabValid() { return allocation_info_.top() != kNullAddress; }
 
+  void UpdateInlineAllocationLimit();
+
+  V8_EXPORT_PRIVATE void FreeLinearAllocationArea();
+
+  void ExtendLAB(Address limit);
+
+  bool supports_extending_lab() const {
+    return supports_extending_lab_ == SupportsExtendingLAB::kYes;
+  }
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
@@ -163,6 +177,9 @@ class MainAllocator {
   AllocateRawSlowAligned(int size_in_bytes, AllocationAlignment alignment,
                          AllocationOrigin origin = AllocationOrigin::kRuntime);
 
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin, int* out_max_aligned_size);
+
   LinearAreaOriginalData& linear_area_original_data() {
     return linear_area_original_data_;
   }
@@ -182,6 +199,7 @@ class MainAllocator {
   Heap* heap_;
   SpaceWithLinearArea* space_;
   CompactionSpaceKind compaction_space_kind_;
+  const SupportsExtendingLAB supports_extending_lab_;
 
   AllocationCounter allocation_counter_;
   LinearAllocationArea& allocation_info_;

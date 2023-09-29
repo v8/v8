@@ -237,7 +237,6 @@ void FillCurrentPage(v8::internal::NewSpace* space,
     Page* page = Page::FromAllocationAreaAddress(top);
     space->heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
-    space->FreeLinearAllocationArea();
     FillPageInPagedSpace(page, out_handles);
   } else {
     FillCurrentPageButNBytes(space, 0, out_handles);

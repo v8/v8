@@ -3694,7 +3694,9 @@ void Heap::FreeMainThreadLinearAllocationAreas() {
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
   }
-  if (new_space()) new_space()->FreeLinearAllocationArea();
+  if (new_space()) {
+    allocator()->new_space_allocator()->FreeLinearAllocationArea();
+  }
 }
 
 void Heap::FreeSharedLinearAllocationAreas() {
