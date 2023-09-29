@@ -2316,8 +2316,8 @@ class NodeTMixin : public Base {
   template <typename... Args>
   explicit NodeTMixin(uint64_t bitfield, Args&&... args)
       : Base(bitfield, std::forward<Args>(args)...) {
-    DCHECK_EQ(NodeBase::opcode(), NodeBase::opcode_of<Derived>);
-    DCHECK_EQ(NodeBase::properties(), Derived::kProperties);
+    DCHECK_EQ(this->NodeBase::opcode(), NodeBase::opcode_of<Derived>);
+    DCHECK_EQ(this->NodeBase::properties(), Derived::kProperties);
   }
 };
 
@@ -2384,7 +2384,7 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
       : NodeTMixin<Base, Derived>(bitfield, std::forward<Args>(args)...) {
-    DCHECK_EQ(NodeBase::input_count(), kInputCount);
+    DCHECK_EQ(this->NodeBase::input_count(), kInputCount);
   }
 };
 
