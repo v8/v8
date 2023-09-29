@@ -36,6 +36,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -495,7 +496,7 @@ void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
     Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
   // TODO(choongwoo.han): Split this method into collecting maps on the
   // background thread, and retaining them on the foreground thread.
-  std::vector<Handle<Map>> maps;
+  GlobalHandleVector<Map> maps(isolate->heap());
   DCHECK(code->is_optimized_code());
   {
     DisallowGarbageCollection no_gc;
@@ -506,16 +507,12 @@ void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
       Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
       if (code->IsWeakObjectInOptimizedCode(target_object)) {
         if (IsMap(target_object, cage_base)) {
-          maps.push_back(handle(Map::cast(target_object), isolate));
+          maps.Push(Map::cast(target_object));
         }
       }
     }
   }
-  for (Handle<Map> map : maps) {
-    // TODO(choongwoo.han): Batch this to avoid calling WeakArrayList::AddToEnd
-    // for each call.
-    isolate->heap()->AddRetainedMap(context, map);
-  }
+  isolate->heap()->AddRetainedMaps(context, std::move(maps));
   code->set_can_have_weak_objects(true);
 }
 

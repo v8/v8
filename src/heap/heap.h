@@ -656,8 +656,8 @@ class Heap final {
 
   void CompactWeakArrayLists();
 
-  V8_EXPORT_PRIVATE void AddRetainedMap(Handle<NativeContext> context,
-                                        Handle<Map> map);
+  V8_EXPORT_PRIVATE void AddRetainedMaps(Handle<NativeContext> context,
+                                         GlobalHandleVector<Map> maps);
 
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
@@ -2681,8 +2681,8 @@ class StrongRootBlockAllocator {
 
   explicit StrongRootBlockAllocator(Heap* heap) : heap_(heap) {}
 
-  Address* allocate(size_t n);
-  void deallocate(Address* p, size_t n) noexcept;
+  V8_EXPORT_PRIVATE Address* allocate(size_t n);
+  V8_EXPORT_PRIVATE void deallocate(Address* p, size_t n) noexcept;
 
  private:
   Heap* heap_;

@@ -6086,25 +6086,39 @@ void Heap::CompactWeakArrayLists() {
   set_script_list(*scripts);
 }
 
-void Heap::AddRetainedMap(Handle<NativeContext> context, Handle<Map> map) {
-  DCHECK(!map->InAnySharedSpace());
-
-  if (map->is_in_retained_map_list()) {
-    return;
-  }
-
+void Heap::AddRetainedMaps(Handle<NativeContext> context,
+                           GlobalHandleVector<Map> maps) {
   Handle<WeakArrayList> array(WeakArrayList::cast(context->retained_maps()),
                               isolate());
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
   }
-  array =
-      WeakArrayList::AddToEnd(isolate(), array, MaybeObjectHandle::Weak(map),
-                              Smi::FromInt(v8_flags.retain_maps_for_n_gc));
+  int cur_length = array->length();
+  array = WeakArrayList::EnsureSpace(
+      isolate(), array, cur_length + static_cast<int>(maps.size()) * 2);
   if (*array != context->retained_maps()) {
     context->set_retained_maps(*array);
   }
-  map->set_is_in_retained_map_list(true);
+
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<WeakArrayList> raw_array = *array;
+    for (Handle<Map> map : maps) {
+      DCHECK(!map->InAnySharedSpace());
+
+      if (map->is_in_retained_map_list()) {
+        continue;
+      }
+
+      raw_array->Set(cur_length, HeapObjectReference::Weak(*map));
+      raw_array->Set(cur_length + 1,
+                     Smi::FromInt(v8_flags.retain_maps_for_n_gc));
+      cur_length += 2;
+      raw_array->set_length(cur_length);
+
+      map->set_is_in_retained_map_list(true);
+    }
+  }
 }
 
 void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {

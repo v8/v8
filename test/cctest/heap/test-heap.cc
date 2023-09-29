@@ -5226,7 +5226,9 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   Handle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
-  isolate->heap()->AddRetainedMap(context, map);
+  GlobalHandleVector<Map> maps(isolate->heap());
+  maps.Push(*map);
+  isolate->heap()->AddRetainedMaps(context, std::move(maps));
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->Set(0, HeapObjectReference::Weak(*map));
   return inner_scope.CloseAndEscape(array);
