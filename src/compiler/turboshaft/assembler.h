@@ -1827,6 +1827,12 @@ class AssemblerOpInterface {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
+  V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
+    // TODO(mliedtke): For Wasm, these loads should be immutable.
+    return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
+                       Word32Constant(instance_type));
+  }
+
   template <typename Base>
   void StoreField(V<Base> object, const FieldAccess& access, V<Any> value) {
     StoreFieldImpl(object, access, value,
@@ -2681,7 +2687,7 @@ class AssemblerOpInterface {
                                              array_type);
   }
 
-  OpIndex LoadDataViewElement(V<Object> object, V<Object> storage,
+  OpIndex LoadDataViewElement(V<Object> object, V<WordPtr> storage,
                               V<WordPtr> index, V<Word32> is_little_endian,
                               ExternalArrayType element_type) {
     return ReduceIfReachableLoadDataViewElement(object, storage, index,

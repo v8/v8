@@ -633,6 +633,8 @@ namespace internal {
   F(WasmReThrow, 1, 1)                        \
   F(WasmThrowJSTypeError, 0, 1)               \
   F(WasmThrowTypeError, 2, 1)                 \
+  F(WasmThrowTypeErrorTwoArgs, 3, 1)          \
+  F(WasmThrowRangeError, 1, 1)                \
   F(WasmRefFunc, 1, 1)                        \
   F(WasmInternalFunctionCreateExternal, 1, 1) \
   F(WasmFunctionTableGet, 3, 1)               \
