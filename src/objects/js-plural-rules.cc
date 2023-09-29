@@ -291,15 +291,15 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   int32_t count = categories->count(status);
   DCHECK(U_SUCCESS(status));
 
-  Handle<FixedArray> plural_categories =
-      isolate->factory()->NewFixedArray(count);
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> plural_categories = factory->NewFixedArray(count);
   for (int32_t i = 0; i < count; i++) {
     const icu::UnicodeString* category = categories->snext(status);
     DCHECK(U_SUCCESS(status));
     if (category == nullptr) break;
 
     std::string keyword;
-    Handle<String> value = isolate->factory()->NewStringFromAsciiChecked(
+    Handle<String> value = factory->NewStringFromAsciiChecked(
         category->toUTF8String(keyword).data());
     plural_categories->set(i, *value);
   }
@@ -307,9 +307,30 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   // 7. Perform ! CreateDataProperty(options, "pluralCategories",
   // CreateArrayFromList(pluralCategories)).
   Handle<JSArray> plural_categories_value =
-      isolate->factory()->NewJSArrayWithElements(plural_categories);
+      factory->NewJSArrayWithElements(plural_categories);
   CreateDataPropertyForOptions(isolate, options, plural_categories_value,
                                "pluralCategories");
+
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingIncrement_string(),
+            JSNumberFormat::RoundingIncrement(isolate, skeleton),
+            Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingMode_string(),
+            JSNumberFormat::RoundingModeString(isolate, skeleton),
+            Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingPriority_string(),
+            JSNumberFormat::RoundingPriorityString(isolate, skeleton),
+            Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->trailingZeroDisplay_string(),
+            JSNumberFormat::TrailingZeroDisplayString(isolate, skeleton),
+            Just(kDontThrow))
+            .FromJust());
 
   return options;
 }

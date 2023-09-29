@@ -1597,27 +1597,14 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 6. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  // 7. Let roundingPriority be ? GetOption(options, "roundingPriority",
-  // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
-
-  Maybe<RoundingPriority> maybe_rounding_priority =
-      GetStringOption<RoundingPriority>(
-          isolate, options, "roundingPriority", service,
-          {"auto", "morePrecision", "lessPrecision"},
-          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
-           RoundingPriority::kLessPrecision},
-          RoundingPriority::kAuto);
-  MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
-  digit_options.rounding_priority = maybe_rounding_priority.FromJust();
-
-  // 8. Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement",
+  // 7. Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement",
   // 1, 5000, 1).
   Maybe<int> maybe_rounding_increment = GetNumberOption(
       isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
   if (!maybe_rounding_increment.To(&digit_options.rounding_increment)) {
     return Nothing<NumberFormatDigitOptions>();
   }
-  // 9. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
+  // 8. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
   // 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
   if (!IsValidRoundingIncrement(digit_options.rounding_increment)) {
     THROW_NEW_ERROR_RETURN_VALUE(
@@ -1627,7 +1614,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
         Nothing<NumberFormatDigitOptions>());
   }
 
-  // 10. Let roundingMode be ? GetOption(options, "roundingMode", string, «
+  // 9. Let roundingMode be ? GetOption(options, "roundingMode", string, «
   // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
   // "halfTrunc", "halfEven" », "halfExpand").
   Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
@@ -1641,6 +1628,19 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
       RoundingMode::kHalfExpand);
   MAYBE_RETURN(maybe_rounding_mode, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_mode = maybe_rounding_mode.FromJust();
+
+  // 10. Let roundingPriority be ? GetOption(options, "roundingPriority",
+  // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
+
+  Maybe<RoundingPriority> maybe_rounding_priority =
+      GetStringOption<RoundingPriority>(
+          isolate, options, "roundingPriority", service,
+          {"auto", "morePrecision", "lessPrecision"},
+          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+           RoundingPriority::kLessPrecision},
+          RoundingPriority::kAuto);
+  MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
+  digit_options.rounding_priority = maybe_rounding_priority.FromJust();
 
   // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay",
   // string, « "auto", "stripIfInteger" », "auto").

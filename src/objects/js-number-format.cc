@@ -556,9 +556,11 @@ Handle<String> SignDisplayString(Isolate* isolate,
   return ReadOnlyRoots(isolate).auto_string_handle();
 }
 
+}  // anonymous namespace
+
 // Return RoundingMode as string based on skeleton.
-Handle<String> RoundingModeString(Isolate* isolate,
-                                  const icu::UnicodeString& skeleton) {
+Handle<String> JSNumberFormat::RoundingModeString(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   static const char* rounding_mode = "rounding-mode-";
   int32_t start = skeleton.indexOf(rounding_mode);
   if (start >= 0) {
@@ -611,8 +613,8 @@ Handle<String> RoundingModeString(Isolate* isolate,
   return ReadOnlyRoots(isolate).halfEven_string_handle();
 }
 
-Handle<Object> RoundingIncrement(Isolate* isolate,
-                                 const icu::UnicodeString& skeleton) {
+Handle<Object> JSNumberFormat::RoundingIncrement(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t cur = skeleton.indexOf(u"precision-increment/");
   if (cur < 0) return isolate->factory()->NewNumberFromInt(1);
   cur += 20;  // length of "precision-increment/"
@@ -627,8 +629,8 @@ Handle<Object> RoundingIncrement(Isolate* isolate,
 }
 
 // Return RoundingPriority as string based on skeleton.
-Handle<String> RoundingPriorityString(Isolate* isolate,
-                                      const icu::UnicodeString& skeleton) {
+Handle<String> JSNumberFormat::RoundingPriorityString(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t found;
   // If #r or @r is followed by a SPACE or in the end of line.
   if ((found = skeleton.indexOf("#r")) >= 0 ||
@@ -648,8 +650,8 @@ Handle<String> RoundingPriorityString(Isolate* isolate,
 }
 
 // Return trailingZeroDisplay as string based on skeleton.
-Handle<String> TrailingZeroDisplayString(Isolate* isolate,
-                                         const icu::UnicodeString& skeleton) {
+Handle<String> JSNumberFormat::TrailingZeroDisplayString(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t found;
   if ((found = skeleton.indexOf("/w")) >= 0) {
     if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
@@ -658,8 +660,6 @@ Handle<String> TrailingZeroDisplayString(Isolate* isolate,
   }
   return ReadOnlyRoots(isolate).auto_string_handle();
 }
-
-}  // anonymous namespace
 
 // Return the minimum integer digits by counting the number of '0' after
 // "integer-width/*" in the skeleton.
@@ -910,8 +910,9 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   //    [[Notation]]                    "notation"
   //    [[CompactDisplay]]              "compactDisplay"
   //    [[SignDisplay]]                 "signDisplay"
-  //    [[RoundingMode]]                "roundingMode"
   //    [[RoundingIncrement]]           "roundingIncrement"
+  //    [[RoundingMode]]                "roundingMode"
+  //    [[ComputedRoundingPriority]]    "roundingPriority"
   //    [[TrailingZeroDisplay]]         "trailingZeroDisplay"
 
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
@@ -1017,12 +1018,12 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             SignDisplayString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
   CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->roundingMode_string(),
-            RoundingModeString(isolate, skeleton), Just(kDontThrow))
-            .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->roundingIncrement_string(),
             RoundingIncrement(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingMode_string(),
+            RoundingModeString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->roundingPriority_string(),

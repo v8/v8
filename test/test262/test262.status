@@ -2139,10 +2139,8 @@
   'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-basic': [FAIL],
   'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-change': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14308
-  'intl402/NumberFormat/constructor-option-read-order': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14315
   'intl402/NumberFormat/prototype/resolvedOptions/return-keys-order-default': [FAIL],
-  'intl402/PluralRules/constructor-option-read-order': [FAIL],
 
   ############################ INVALID TESTS #############################
 
