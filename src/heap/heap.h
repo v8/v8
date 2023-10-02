@@ -2665,44 +2665,24 @@ class HeapObjectAllocationTracker {
 template <typename T>
 inline T ForwardingAddress(T heap_obj);
 
-// Address block allocator compatible with standard containers which registers
-// its allocated range as strong roots.
-class StrongRootBlockAllocator {
- public:
-  using pointer = Address*;
-  using const_pointer = const Address*;
-  using reference = Address&;
-  using const_reference = const Address&;
-  using value_type = Address;
-  using size_type = size_t;
-  using difference_type = ptrdiff_t;
-  template <class U>
-  struct rebind;
-
-  explicit StrongRootBlockAllocator(Heap* heap) : heap_(heap) {}
-
-  V8_EXPORT_PRIVATE Address* allocate(size_t n);
-  V8_EXPORT_PRIVATE void deallocate(Address* p, size_t n) noexcept;
-
- private:
-  Heap* heap_;
-};
-
-// Rebinding to Address gives another StrongRootBlockAllocator.
+// Specialized strong root allocator for blocks of Addresses, retained
+// as strong references.
 template <>
-struct StrongRootBlockAllocator::rebind<Address> {
-  using other = StrongRootBlockAllocator;
-};
+class StrongRootAllocator<Address> : public StrongRootAllocatorBase {
+ public:
+  using value_type = Address;
 
-// Rebinding to something other than Address gives a std::allocator that
-// is copy-constructable from StrongRootBlockAllocator.
-template <class U>
-struct StrongRootBlockAllocator::rebind {
-  class other : public std::allocator<U> {
-   public:
-    // NOLINTNEXTLINE
-    other(const StrongRootBlockAllocator&) {}
-  };
+  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
+  explicit StrongRootAllocator(v8::Isolate* isolate)
+      : StrongRootAllocatorBase(isolate) {}
+  template <typename U>
+  StrongRootAllocator(const StrongRootAllocator<U>& other) V8_NOEXCEPT
+      : StrongRootAllocatorBase(other) {}
+
+  Address* allocate(size_t n) { return allocate_impl(n); }
+  void deallocate(Address* p, size_t n) noexcept {
+    return deallocate_impl(p, n);
+  }
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
@@ -2749,9 +2729,9 @@ class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
 // Opt out from libc++ backing sanitization, since root iteration walks up to
 // the capacity.
 #ifdef _LIBCPP_HAS_ASAN_CONTAINER_ANNOTATIONS_FOR_ALL_ALLOCATORS
-template <>
+template <typename T>
 struct ::std::__asan_annotate_container_with_allocator<
-    v8::internal::StrongRootBlockAllocator> : ::std::false_type {};
+    v8::internal::StrongRootAllocator<T>> : ::std::false_type {};
 #endif  // _LIBCPP_HAS_ASAN_CONTAINER_ANNOTATIONS_FOR_ALL_ALLOCATORS
 
 #endif  // V8_HEAP_HEAP_H_

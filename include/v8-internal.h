@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <atomic>
+#include <memory>
 #include <type_traits>
 
 #include "v8config.h"    // NOLINT(build/include_directory)
@@ -23,6 +24,7 @@ class Isolate;
 
 namespace internal {
 
+class Heap;
 class Isolate;
 
 typedef uintptr_t Address;
@@ -1005,6 +1007,48 @@ class BackingStoreBase {};
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
 constexpr int kGarbageCollectionReasonMaxValue = 27;
+
+// Base class for the address block allocator compatible with standard
+// containers, which registers its allocated range as strong roots.
+class V8_EXPORT StrongRootAllocatorBase {
+ public:
+  Heap* heap() const { return heap_; }
+
+  bool operator==(const StrongRootAllocatorBase& other) const {
+    return heap_ == other.heap_;
+  }
+  bool operator!=(const StrongRootAllocatorBase& other) const {
+    return heap_ != other.heap_;
+  }
+
+ protected:
+  explicit StrongRootAllocatorBase(Heap* heap) : heap_(heap) {}
+  explicit StrongRootAllocatorBase(v8::Isolate* isolate);
+
+  // Allocate/deallocate a range of n elements of type internal::Address.
+  Address* allocate_impl(size_t n);
+  void deallocate_impl(Address* p, size_t n) noexcept;
+
+ private:
+  Heap* heap_;
+};
+
+// The general version of this template behaves just as std::allocator, with
+// the exception that the constructor takes the isolate as parameter. Only
+// specialized versions, e.g., internal::StrongRootAllocator<internal::Address>
+// and internal::StrongRootAllocator<v8::Local<T>> register the allocated range
+// as strong roots.
+template <typename T>
+class StrongRootAllocator : public StrongRootAllocatorBase,
+                            public std::allocator<T> {
+ public:
+  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
+  explicit StrongRootAllocator(v8::Isolate* isolate)
+      : StrongRootAllocatorBase(isolate) {}
+  template <typename U>
+  StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
+      : StrongRootAllocatorBase(other) {}
+};
 
 }  // namespace internal
 }  // namespace v8
