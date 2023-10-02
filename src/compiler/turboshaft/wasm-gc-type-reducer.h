@@ -62,6 +62,8 @@ class WasmGCTypeAnalyzer {
 
   void ProcessTypeCast(const WasmTypeCastOp& type_cast);
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
+  void ProcessNull(const NullOp& null);
+  void ProcessIsNull(const IsNullOp& is_null);
 
   void CreateMergeSnapshot(const Block& block);
 
@@ -142,6 +144,18 @@ class WasmGCTypeReducer : public Next {
       return __ MapToNewGraph(assert_not_null.object());
     }
     return Next::ReduceInputGraphAssertNotNull(op_idx, assert_not_null);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(IsNull)(OpIndex op_idx, const IsNullOp& is_null) {
+    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    if (type.is_non_nullable()) {
+      return __ Word32Constant(0);
+    }
+    if (type != wasm::ValueType() && type != wasm::kWasmBottom &&
+        wasm::ToNullSentinel({type, module_}) == type) {
+      return __ Word32Constant(1);
+    }
+    return Next::ReduceInputGraphIsNull(op_idx, is_null);
   }
 
  private:

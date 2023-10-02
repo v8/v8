@@ -672,3 +672,26 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wasmArray = wasm.createArray(10);
   assertEquals(10, wasm.get(wasmArray, 0));
 })();
+
+(function RedundantIsNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+
+  builder.addFunction('checkIsNullAfterNonNullCast',
+      makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCast, kExternRefCode,
+      kExprDrop,
+      kExprLocalGet, 0,
+      kExprRefIsNull,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  assertTraps(kTrapIllegalCast, () => wasm.checkIsNullAfterNonNullCast(null));
+  assertEquals(0, wasm.checkIsNullAfterNonNullCast("not null"));
+})();

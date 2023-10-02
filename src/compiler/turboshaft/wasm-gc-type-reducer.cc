@@ -59,6 +59,12 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kAssertNotNull:
         ProcessAssertNotNull(op.Cast<AssertNotNullOp>());
         break;
+      case Opcode::kNull:
+        ProcessNull(op.Cast<NullOp>());
+        break;
+      case Opcode::kIsNull:
+        ProcessIsNull(op.Cast<IsNullOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -91,6 +97,10 @@ void WasmGCTypeAnalyzer::ProcessAssertNotNull(
   RefineTypeKnowledge(graph_.Index(assert_not_null), new_type);
 }
 
+void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
+  input_type_map_[graph_.Index(is_null)] = types_table_.Get(is_null.object());
+}
+
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
                                                const Block& target) {
   const Operation& condition = graph_.Get(branch.condition());
@@ -104,9 +114,24 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
         input_type_map_[branch.condition()] = known_input_type;
       }
     } break;
+    case Opcode::kIsNull: {
+      const IsNullOp& is_null = condition.Cast<IsNullOp>();
+      if (branch.if_true == &target) {
+        RefineTypeKnowledge(is_null.object(),
+                            wasm::ToNullSentinel({is_null.type, module_}));
+      } else {
+        DCHECK_EQ(branch.if_false, &target);
+        RefineTypeKnowledge(is_null.object(), is_null.type.AsNonNull());
+      }
+    } break;
     default:
       break;
   }
+}
+
+void WasmGCTypeAnalyzer::ProcessNull(const NullOp& null) {
+  wasm::ValueType null_type = wasm::ToNullSentinel({null.type, module_});
+  RefineTypeKnowledge(graph_.Index(null), null_type);
 }
 
 void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
