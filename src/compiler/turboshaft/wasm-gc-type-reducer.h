@@ -64,16 +64,23 @@ class WasmGCTypeAnalyzer {
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
   void ProcessNull(const NullOp& null);
   void ProcessIsNull(const IsNullOp& is_null);
+  void ProcessParameter(const ParameterOp& parameter);
+  void ProcessStructGet(const StructGetOp& struct_get);
+  void ProcessStructSet(const StructSetOp& struct_set);
 
   void CreateMergeSnapshot(const Block& block);
 
   // Updates the knowledge in the side table about the type of {object},
   // returning the previous known type.
   wasm::ValueType RefineTypeKnowledge(OpIndex object, wasm::ValueType new_type);
+  // Updates the knowledge in the side table to be a non-nullable type for
+  // {object}, returning the previous known type.
+  wasm::ValueType RefineTypeKnowledgeNotNull(OpIndex object);
 
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
+  const wasm::FunctionSig* signature_ = PipelineData::Get().wasm_sig();
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge
@@ -118,7 +125,8 @@ class WasmGCTypeReducer : public Next {
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
                                    cast_op.config.to.heap_type(), module_,
-                                   module_)) {
+                                   module_) &&
+          !wasm::IsImplicitInternalization(type, cast_op.config.to, module_)) {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
@@ -156,6 +164,31 @@ class WasmGCTypeReducer : public Next {
       return __ Word32Constant(1);
     }
     return Next::ReduceInputGraphIsNull(op_idx, is_null);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(StructGet)(OpIndex op_idx,
+                                        const StructGetOp& struct_get) {
+    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    // Remove the null check if it is known to be not null.
+    if (struct_get.null_check == kWithNullCheck && type.is_non_nullable()) {
+      return __ StructGet(__ MapToNewGraph(struct_get.object()),
+                          struct_get.type, struct_get.field_index,
+                          struct_get.is_signed, kWithoutNullCheck);
+    }
+    return Next::ReduceInputGraphStructGet(op_idx, struct_get);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(StructSet)(OpIndex op_idx,
+                                        const StructSetOp& struct_set) {
+    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    // Remove the null check if it is known to be not null.
+    if (struct_set.null_check == kWithNullCheck && type.is_non_nullable()) {
+      __ StructSet(__ MapToNewGraph(struct_set.object()),
+                   __ MapToNewGraph(struct_set.value()), struct_set.type,
+                   struct_set.field_index, kWithoutNullCheck);
+      return OpIndex::Invalid();
+    }
+    return Next::ReduceInputGraphStructSet(op_idx, struct_set);
   }
 
  private:

@@ -65,6 +65,15 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kIsNull:
         ProcessIsNull(op.Cast<IsNullOp>());
         break;
+      case Opcode::kParameter:
+        ProcessParameter(op.Cast<ParameterOp>());
+        break;
+      case Opcode::kStructGet:
+        ProcessStructGet(op.Cast<StructGetOp>());
+        break;
+      case Opcode::kStructSet:
+        ProcessStructSet(op.Cast<StructSetOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -99,6 +108,25 @@ void WasmGCTypeAnalyzer::ProcessAssertNotNull(
 
 void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
   input_type_map_[graph_.Index(is_null)] = types_table_.Get(is_null.object());
+}
+
+void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {
+  if (parameter.parameter_index != wasm::kWasmInstanceParameterIndex) {
+    RefineTypeKnowledge(graph_.Index(parameter),
+                        signature_->GetParam(parameter.parameter_index - 1));
+  }
+}
+
+void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
+  // struct.get performs a null check.
+  wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_get.object());
+  input_type_map_[graph_.Index(struct_get)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
+  // struct.set performs a null check.
+  wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_set.object());
+  input_type_map_[graph_.Index(struct_set)] = type;
 }
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
@@ -166,6 +194,12 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
           ? new_type
           : wasm::Intersection(previous_value, new_type, module_, module_).type;
   types_table_.Set(object, intersection_type);
+  return previous_value;
+}
+
+wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledgeNotNull(OpIndex object) {
+  wasm::ValueType previous_value = types_table_.Get(object);
+  types_table_.Set(object, previous_value.AsNonNull());
   return previous_value;
 }
 

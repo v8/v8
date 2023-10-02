@@ -638,6 +638,28 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.instantiate({});
 })();
 
+(function StructSetMultipleNullChecks() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true),
+                                  makeField(kWasmI32, true)]);
+
+  builder.addFunction("structSetMultiple",
+                      makeSig([wasmRefNullType(struct)], []))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32Const, 42,
+      kGCPrefix, kExprStructSet, struct, 0,
+      kExprLocalGet, 0,
+      kExprI32Const, 43,
+      kGCPrefix, kExprStructSet, struct, 1,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate({}).exports;
+  assertTraps(kTrapNullDereference, () => wasm.structSetMultiple(null));
+})();
+
 (function RedundantExternalizeInternalize() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

@@ -88,15 +88,6 @@ Node* GetAlias(Node* node) {
   }
 }
 
-bool IsImplicitInternalization(wasm::ValueType from, wasm::ValueType to,
-                               const wasm::WasmModule* to_module) {
-  return from.is_object_reference() &&
-         from.heap_representation() == wasm::HeapType::kExtern &&
-         to.is_object_reference() &&
-         wasm::IsHeapSubtypeOf(to.heap_type(),
-                               wasm::HeapType(wasm::HeapType::kAny), to_module);
-}
-
 }  // namespace
 
 Node* WasmGCOperatorReducer::SetType(Node* node, wasm::ValueType type) {
