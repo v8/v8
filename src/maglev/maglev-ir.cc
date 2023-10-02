@@ -2791,8 +2791,7 @@ void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
   DoubleRegister target = ToDoubleRegister(target_input());
   __ Move(scratch, value());
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
-  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, fail,
-                             Label::Distance::kNear);
+  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, fail);
 }
 
 void CheckValueEqualsString::SetValueLocationConstraints() {

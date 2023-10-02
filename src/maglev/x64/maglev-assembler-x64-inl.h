@@ -859,6 +859,7 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
       EmitEagerDeoptStress(target);
     }
   }
+  DCHECK_IMPLIES(IsDeoptLabel(target), distance == Label::kFar);
   j(cond, target, distance);
 }
 
