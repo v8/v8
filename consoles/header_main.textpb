@@ -47,7 +47,7 @@ links {
   }
   links {
     text: "roll status"
-    url: "https://v8-roll.appspot.com/"
+    url: "https://autoroll.skia.org/r/v8-chromium-autoroll"
   }
 }
 
