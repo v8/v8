@@ -314,22 +314,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                            FeedbackSlot slot, const char* reason) {
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
-    int slot_count = vector->metadata()->slot_count();
-    StdoutStream os;
-    if (slot.IsInvalid()) {
-      os << "[Feedback slots in ";
-    } else {
-      os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " in ";
-    }
-    ShortPrint(vector->shared_function_info(), os);
-    if (slot.IsInvalid()) {
-      os << " updated - ";
-    } else {
-      os << " updated to ";
-      vector->FeedbackSlotPrint(os, slot);
-      os << " - ";
-    }
-    os << reason << "]" << std::endl;
+    FeedbackVector::TraceFeedbackChange(isolate, vector, slot, reason);
   }
 #endif
 

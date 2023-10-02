@@ -11506,8 +11506,7 @@ void CodeStubAssembler::ReportFeedbackUpdate(
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.
   CallRuntime(Runtime::kTraceUpdateFeedback, NoContextConstant(),
-              LoadFromParentFrame(StandardFrameConstants::kFunctionOffset),
-              SmiTag(Signed(slot_id)), StringConstant(reason));
+              feedback_vector, SmiTag(Signed(slot_id)), StringConstant(reason));
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 

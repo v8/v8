@@ -356,6 +356,12 @@ class FeedbackVector
 
   void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);
 
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+  static void TraceFeedbackChange(Isolate* isolate,
+                                  Tagged<FeedbackVector> vector,
+                                  FeedbackSlot slot, const char* reason);
+#endif
+
   // Clears the vector slots. Return true if feedback has changed.
   bool ClearSlots(Isolate* isolate) {
     return ClearSlots(isolate, ClearBehavior::kDefault);
