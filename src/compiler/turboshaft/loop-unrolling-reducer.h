@@ -89,6 +89,12 @@ class LoopFinder {
  private:
   LoopInfo VisitLoop(Block* header);
 
+  // Returns an upper bound on the number of Operations in {block}, which is
+  // used to compute the `op_count` field of `LoopInfo`.
+  int OpCountUpperBound(const Block* block) const {
+    return block->end().id() - block->begin().id();
+  }
+
   Zone* phase_zone_;
   Graph* input_graph_;
 
