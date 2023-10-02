@@ -175,12 +175,7 @@ class BaseTestRunner(object):
         tests = self._load_testsuite_generators(ctx, names)
         print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                                self.mode_options.label))
-        exit_code = self._do_execute(tests, args, ctx)
-        if exit_code == utils.EXIT_CODE_FAILURES and self.options.json_test_results:
-          print("Force exit code 0 after failures. Json test results file "
-                "generated with failure information.")
-          exit_code = utils.EXIT_CODE_PASS
-      return exit_code
+        return self._do_execute(tests, args, ctx)
     except TestRunnerError:
       traceback.print_exc()
       return utils.EXIT_CODE_INTERNAL_ERROR

@@ -168,7 +168,7 @@ class StandardRunnerTest(TestRunnerTest):
     # With test processors we don't count reruns as separated failures.
     # TODO(majeski): fix it?
     result.stdout_includes('1 tests failed')
-    result.has_returncode(0)
+    result.has_returncode(1)
 
     # TODO(majeski): Previously we only reported the variant flags in the
     # flags field of the test result.
