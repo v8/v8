@@ -18,35 +18,6 @@ namespace internal {
 class Heap;
 class SpaceWithLinearArea;
 
-class LinearAreaOriginalData {
- public:
-  Address get_original_top_acquire() const {
-    return original_top_.load(std::memory_order_acquire);
-  }
-  Address get_original_limit_relaxed() const {
-    return original_limit_.load(std::memory_order_relaxed);
-  }
-
-  void set_original_top_release(Address top) {
-    original_top_.store(top, std::memory_order_release);
-  }
-  void set_original_limit_relaxed(Address limit) {
-    original_limit_.store(limit, std::memory_order_relaxed);
-  }
-
-  base::SharedMutex* linear_area_lock() { return &linear_area_lock_; }
-
- private:
-  // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks. Protected by
-  // pending_allocation_mutex_.
-  std::atomic<Address> original_top_ = 0;
-  std::atomic<Address> original_limit_ = 0;
-
-  // Protects original_top_ and original_limit_.
-  base::SharedMutex linear_area_lock_;
-};
-
 class MainAllocator {
  public:
   enum SupportsExtendingLAB { kYes, kNo };
@@ -76,12 +47,12 @@ class MainAllocator {
     return allocation_info_.limit_address();
   }
 
-  Address original_top_acquire() const {
-    return linear_area_original_data_.get_original_top_acquire();
+  Address original_top() const {
+    return lab_origins_handle_.top_and_limit().first;
   }
 
-  Address original_limit_relaxed() const {
-    return linear_area_original_data_.get_original_limit_relaxed();
+  Address original_limit() const {
+    return lab_origins_handle_.top_and_limit().second;
   }
 
   void MoveOriginalTopForward();
@@ -126,9 +97,6 @@ class MainAllocator {
 
   void MakeLinearAllocationAreaIterable();
 
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
-
   V8_INLINE bool TryFreeLast(Address object_address, int object_size);
 
   // When allocation observers are active we may use a lower limit to allow the
@@ -137,6 +105,10 @@ class MainAllocator {
   // allow proper observation based on existing observers. min_size specifies
   // the minimum size that the limited area should have.
   Address ComputeLimit(Address start, Address end, size_t min_size) const;
+
+  LabOriginalLimits::LabHandle& lab_origins_handle() {
+    return lab_origins_handle_;
+  }
 
 #if DEBUG
   void Verify() const;
@@ -188,14 +160,6 @@ class MainAllocator {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin, int* out_max_aligned_size);
 
-  LinearAreaOriginalData& linear_area_original_data() {
-    return linear_area_original_data_;
-  }
-
-  const LinearAreaOriginalData& linear_area_original_data() const {
-    return linear_area_original_data_;
-  }
-
   int ObjectAlignment() const;
 
   AllocationSpace identity() const;
@@ -217,7 +181,7 @@ class MainAllocator {
   LinearAllocationArea& allocation_info_;
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
-  LinearAreaOriginalData linear_area_original_data_;
+  LabOriginalLimits::LabHandle lab_origins_handle_;
 };
 
 }  // namespace internal

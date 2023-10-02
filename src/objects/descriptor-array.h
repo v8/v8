@@ -272,11 +272,6 @@ class DescriptorArrayMarkingState final {
 
   static constexpr RawGCStateType kInitialGCState = 0;
 
-  static constexpr RawGCStateType GetFullyMarkedState(
-      unsigned epoch, DescriptorIndex number_of_descriptors) {
-    return NewState(epoch & Epoch::kMask, number_of_descriptors, 0);
-  }
-
   // Potentially updates the delta of to be marked descriptors. Returns true if
   // the update was successful and the object should be processed via a marking
   // visitor.

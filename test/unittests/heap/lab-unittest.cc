@@ -274,6 +274,99 @@ TEST_F(LabTest, AllocateAligned) {
   VerifyIterable(base, limit, expected_sizes);
 }
 
+TEST_F(LabTest, LABHandleAllocationDoesntRequireSnapshotUpdate) {
+  auto& lab_origins = isolate()->heap()->lab_original_limits();
+  auto snapshot = lab_origins.CreateEmptySnapshot();
+
+  bool actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  auto lab_handle = lab_origins.AllocateLabHandle();
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_FALSE(actualized);
+
+  auto object_handle = lab_origins.AllocateObjectHandle();
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_FALSE(actualized);
+}
+
+TEST_F(LabTest, LABHandleDestructionRequiresSnapshotUpdate) {
+  auto& lab_origins = isolate()->heap()->lab_original_limits();
+  auto snapshot = lab_origins.CreateEmptySnapshot();
+
+  bool actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+  { auto lab_handle = lab_origins.AllocateLabHandle(); }
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+}
+
+TEST_F(LabTest, SnapshotForLabHandle) {
+  auto& lab_origins = isolate()->heap()->lab_original_limits();
+  auto snapshot = lab_origins.CreateEmptySnapshot();
+
+  auto lab_handle = lab_origins.AllocateLabHandle();
+  char buffer[256];
+  lab_handle.UpdateLimits(reinterpret_cast<Address>(std::begin(buffer)),
+                          reinterpret_cast<Address>(std::end(buffer)));
+
+  bool actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  EXPECT_TRUE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer))));
+  EXPECT_TRUE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::end(buffer) - 1)));
+  EXPECT_FALSE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer) - 1)));
+  EXPECT_FALSE(
+      snapshot.IsAddressInAnyLab(reinterpret_cast<Address>(std::end(buffer))));
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_FALSE(actualized);
+
+  lab_handle.UpdateLimits(kNullAddress, kNullAddress);
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  EXPECT_FALSE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer))));
+  EXPECT_FALSE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::end(buffer) - 1)));
+}
+
+TEST_F(LabTest, SnapshotForObjectHandle) {
+  auto& lab_origins = isolate()->heap()->lab_original_limits();
+  auto snapshot = lab_origins.CreateEmptySnapshot();
+
+  auto object_handle = lab_origins.AllocateObjectHandle();
+  char buffer[256];
+
+  bool actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  object_handle.UpdateAddress(reinterpret_cast<Address>(buffer));
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  EXPECT_TRUE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer))));
+  EXPECT_FALSE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer) + 1)));
+
+  object_handle.Reset();
+
+  actualized = lab_origins.UpdateSnapshotIfNeeded(snapshot);
+  EXPECT_TRUE(actualized);
+
+  EXPECT_FALSE(snapshot.IsAddressInAnyLab(
+      reinterpret_cast<Address>(std::begin(buffer))));
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

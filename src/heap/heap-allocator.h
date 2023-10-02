@@ -80,9 +80,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   void MakeLinearAllocationAreaIterable();
 
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
-
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
 

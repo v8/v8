@@ -1615,6 +1615,8 @@ class Heap final {
 
   bool ShouldUseBackgroundThreads() const;
 
+  LabOriginalLimits& lab_original_limits() { return lab_original_limits_; }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1712,10 +1714,6 @@ class Heap final {
 
   // Free all shared LABs of main thread.
   void FreeMainThreadSharedLinearAllocationAreas();
-
-  // Enables/Disables black allocation in shared LABs.
-  void MarkSharedLinearAllocationAreasBlack();
-  void UnmarkSharedLinearAllocationAreas();
 
   // Performs garbage collection in a safepoint.
   void PerformGarbageCollection(GarbageCollector collector,
@@ -2362,6 +2360,8 @@ class Heap final {
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
   std::unique_ptr<MemoryBalancer> mb_;
+
+  LabOriginalLimits lab_original_limits_;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

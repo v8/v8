@@ -283,8 +283,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                 task_id);
   }
   bool another_ephemeron_iteration = false;
-  MainAllocator* const new_space_allocator =
-      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
+  LabOriginalLimits& lab_limits = heap_->lab_original_limits();
 
   {
     TimedScope scope(&time_ms);
@@ -303,6 +302,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking a InstructionStream object requires write access to the "
         "Code page header");
+    LabOriginalLimits::Snapshot snapshot = lab_limits.CreateEmptySnapshot();
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;
@@ -317,46 +317,32 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
         objects_processed++;
 
-        Address new_space_top = kNullAddress;
-        Address new_space_limit = kNullAddress;
-        Address new_large_object = kNullAddress;
-
-        if (new_space_allocator) {
-          // The order of the two loads is important.
-          new_space_top = new_space_allocator->original_top_acquire();
-          new_space_limit = new_space_allocator->original_limit_relaxed();
-        }
-
-        if (heap_->new_lo_space()) {
-          new_large_object = heap_->new_lo_space()->pending_object();
-        }
-
         Address addr = object.address();
 
-        if ((new_space_top <= addr && addr < new_space_limit) ||
-            addr == new_large_object) {
+        lab_limits.UpdateSnapshotIfNeeded(snapshot);
+        if (snapshot.IsAddressInAnyLab(addr)) {
           local_marking_worklists.PushOnHold(object);
-        } else {
-          Tagged<Map> map = object->map(cage_base, kAcquireLoad);
-          // The marking worklist should never contain filler objects.
-          CHECK(!IsFreeSpaceOrFillerMap(map));
-          if (is_per_context_mode) {
-            Address context;
-            if (native_context_inferrer.Infer(cage_base, map, object,
-                                              &context)) {
-              local_marking_worklists.SwitchToContext(context);
-            }
-          }
-          const auto visited_size = visitor.Visit(map, object);
-          visitor.IncrementLiveBytesCached(
-              MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
-              ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-          if (is_per_context_mode) {
-            native_context_stats.IncrementSize(
-                local_marking_worklists.Context(), map, object, visited_size);
-          }
-          current_marked_bytes += visited_size;
+          continue;
         }
+
+        Tagged<Map> map = object->map(cage_base, kAcquireLoad);
+        // The marking worklist should never contain filler objects.
+        CHECK(!IsFreeSpaceOrFillerMap(map));
+        if (is_per_context_mode) {
+          Address context;
+          if (native_context_inferrer.Infer(cage_base, map, object, &context)) {
+            local_marking_worklists.SwitchToContext(context);
+          }
+        }
+        const auto visited_size = visitor.Visit(map, object);
+        visitor.IncrementLiveBytesCached(
+            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+            ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+        if (is_per_context_mode) {
+          native_context_stats.IncrementSize(local_marking_worklists.Context(),
+                                             map, object, visited_size);
+        }
+        current_marked_bytes += visited_size;
       }
       if (objects_processed > 0) another_ephemeron_iteration = true;
       marked_bytes += current_marked_bytes;
@@ -412,24 +398,6 @@ class ConcurrentMarking::MinorMarkingState {
   std::atomic<int> active_markers_{0};
 };
 
-namespace {
-
-V8_INLINE bool IsYoungObjectInLab(MainAllocator* new_space_allocator,
-                                  NewLargeObjectSpace* new_lo_space,
-                                  Tagged<HeapObject> heap_object) {
-  // The order of the two loads is important.
-  Address new_space_top = new_space_allocator->original_top_acquire();
-  Address new_space_limit = new_space_allocator->original_limit_relaxed();
-  Address new_large_object = new_lo_space->pending_object();
-
-  Address addr = heap_object.address();
-
-  return (new_space_top <= addr && addr < new_space_limit) ||
-         addr == new_large_object;
-}
-
-}  // namespace
-
 template <YoungGenerationMarkingVisitationMode marking_mode>
 V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
                                                  TaskState* task_state) {
@@ -449,6 +417,9 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
       heap_->new_space()->main_allocator();
   NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
 
+  auto& lab_limits = heap_->lab_original_limits();
+  auto young_lab_snapshot = lab_limits.CreateEmptySnapshot();
+
   do {
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
@@ -458,7 +429,11 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
                    GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
                    ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
-      if (IsYoungObjectInLab(new_space_allocator, new_lo_space, heap_object)) {
+      lab_limits.UpdatePartialSnapshotIfNeeded(
+          {&new_space_allocator->lab_origins_handle(),
+           &new_lo_space->pending_object_handle()},
+          young_lab_snapshot);
+      if (young_lab_snapshot.IsAddressInAnyLab(heap_object.address())) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
         Tagged<Map> map = heap_object->map(isolate);

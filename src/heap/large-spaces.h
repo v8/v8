@@ -94,16 +94,11 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   // The last allocated object that is not guaranteed to be initialized when the
   // concurrent marker visits it.
-  Address pending_object() const {
-    return pending_object_.load(std::memory_order_acquire);
-  }
+  Address pending_object() const { return pending_object_handle_.address(); }
+  void ResetPendingObject() { pending_object_handle_.Reset(); }
 
-  void ResetPendingObject() {
-    pending_object_.store(0, std::memory_order_release);
-  }
-
-  base::SharedMutex* pending_allocation_mutex() {
-    return &pending_allocation_mutex_;
+  LabOriginalLimits::PendingObjectHandle& pending_object_handle() {
+    return pending_object_handle_;
   }
 
   void set_objects_size(size_t objects_size) { objects_size_ = objects_size; }
@@ -126,12 +121,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   // trying to lock the mutex for a second time.
   base::RecursiveMutex allocation_mutex_;
 
-  // Current potentially uninitialized object. Protected by
-  // pending_allocation_mutex_.
-  std::atomic<Address> pending_object_;
-
-  // Used to protect pending_object_.
-  base::SharedMutex pending_allocation_mutex_;
+  LabOriginalLimits::PendingObjectHandle pending_object_handle_;
 
   AllocationCounter allocation_counter_;
 

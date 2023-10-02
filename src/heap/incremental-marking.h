@@ -52,20 +52,6 @@ constexpr const char* ToString(StepOrigin step_origin) {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  class V8_NODISCARD PauseBlackAllocationScope final {
-   public:
-    explicit PauseBlackAllocationScope(IncrementalMarking* marking);
-    ~PauseBlackAllocationScope();
-
-    PauseBlackAllocationScope(const PauseBlackAllocationScope&) = delete;
-    PauseBlackAllocationScope& operator=(const PauseBlackAllocationScope&) =
-        delete;
-
-   private:
-    IncrementalMarking* const marking_;
-    bool paused_ = false;
-  };
-
   V8_INLINE void TransferColor(Tagged<HeapObject> from, Tagged<HeapObject> to);
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
@@ -124,11 +110,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return incremental_marking_job_.get();
   }
 
-  bool black_allocation() { return black_allocation_; }
-
   bool IsBelowActivationThresholds() const;
-
-  void MarkBlackBackground(Tagged<HeapObject> obj, int object_size);
 
   void MarkRootsForTesting();
 
@@ -153,10 +135,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void StartMarkingMajor();
   void StartMarkingMinor();
-
-  void StartBlackAllocation();
-  void PauseBlackAllocation();
-  void FinishBlackAllocation();
 
   void MarkRoots();
   // Returns true if the function succeeds in transitioning the object
@@ -199,7 +177,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   MarkingMode marking_mode_ = MarkingMode::kNoMarking;
 
   bool is_compacting_ = false;
-  bool black_allocation_ = false;
   bool completion_task_scheduled_ = false;
   v8::base::TimeTicks completion_task_timeout_;
   bool major_collection_requested_via_stack_guard_ = false;

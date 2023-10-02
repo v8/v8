@@ -1316,8 +1316,9 @@ TEST(TryHasOwnProperty) {
     // Global object.
     Handle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    JSFunction::EnsureHasInitialMap(function);
-    function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
+    function->set_prototype_or_initial_map(
+        *factory->NewMap(JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kHeaderSize),
+        kReleaseStore);
     function->initial_map()->set_is_prototype_map(true);
     function->initial_map()->set_is_dictionary_map(true);
     function->initial_map()->set_may_have_interesting_properties(true);

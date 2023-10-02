@@ -103,7 +103,7 @@ void ClearRange2Test(uint8_t* raw_bitmap, MarkingBitmap* bm) {
 template <AccessMode access_mode>
 void SetAndClearRangeTest(uint8_t* raw_bitmap, MarkingBitmap* bm) {
   for (int i = 0; i < 3; i++) {
-    bm->SetRange<access_mode>(i, MarkingBitmap::kBitsPerCell + i);
+    bm->SetRangeForTesting<access_mode>(i, MarkingBitmap::kBitsPerCell + i);
     CHECK_EQ(bm->cells()[0], std::numeric_limits<uintptr_t>::max() << i);
     CHECK_EQ(bm->cells()[1], (1u << i) - 1);
     bm->ClearRange<access_mode>(i, MarkingBitmap::kBitsPerCell + i);
@@ -152,7 +152,8 @@ TEST_F(NonAtomicBitmapTest, SetAndClearRange) {
 TEST_F(NonAtomicBitmapTest, ClearMultipleRanges) {
   auto bm = this->bitmap();
 
-  bm->SetRange<AccessMode::NON_ATOMIC>(0, MarkingBitmap::kBitsPerCell * 3);
+  bm->SetRangeForTesting<AccessMode::NON_ATOMIC>(
+      0, MarkingBitmap::kBitsPerCell * 3);
   CHECK(bm->AllBitsSetInRange(0, MarkingBitmap::kBitsPerCell));
 
   bm->ClearRange<AccessMode::NON_ATOMIC>(MarkingBitmap::kBitsPerCell / 2,

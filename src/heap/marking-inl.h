@@ -87,8 +87,8 @@ void MarkingBitmap::Clear() {
 }
 
 template <AccessMode mode>
-inline void MarkingBitmap::SetRange(MarkBitIndex start_index,
-                                    MarkBitIndex end_index) {
+inline void MarkingBitmap::SetRangeForTesting(MarkBitIndex start_index,
+                                              MarkBitIndex end_index) {
   if (start_index >= end_index) return;
   end_index--;
 

@@ -54,7 +54,8 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       size_(0),
       page_count_(0),
       objects_size_(0),
-      pending_object_(0) {}
+      pending_object_handle_(
+          heap->lab_original_limits().AllocateObjectHandle()) {}
 
 size_t LargeObjectSpace::Available() const {
   // We return zero here since we cannot take advantage of already allocated
@@ -124,11 +125,6 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->marking_mode());
   Tagged<HeapObject> object = page->GetObject();
   UpdatePendingObject(object);
-  if (heap()->incremental_marking()->black_allocation()) {
-    heap()->marking_state()->TryMarkAndAccountLiveBytes(object, object_size);
-  }
-  DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
-                 heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion(identity(), page);
   AdvanceAndInvokeAllocationObservers(object.address(),
@@ -150,23 +146,23 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   if (!heap()->CanExpandOldGeneration(object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(
           local_heap, AllocationOrigin::kRuntime)) {
+    local_heap->pending_object_handle().Reset();
     return AllocationResult::Failure();
   }
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   LargePage* page = AllocateLargePage(object_size, executable);
-  if (page == nullptr) return AllocationResult::Failure();
+  if (page == nullptr) {
+    local_heap->pending_object_handle().Reset();
+    return AllocationResult::Failure();
+  }
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
   Tagged<HeapObject> object = page->GetObject();
-  if (heap()->incremental_marking()->black_allocation()) {
-    heap()->marking_state()->TryMarkAndAccountLiveBytes(object, object_size);
-  }
-  DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
-                 heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansionBackground(identity(), page);
+  local_heap->pending_object_handle().UpdateAddress(object.address());
   return AllocationResult::FromObject(object);
 }
 
@@ -384,8 +380,7 @@ void LargeObjectSpace::Print() {
 #endif  // DEBUG
 
 void LargeObjectSpace::UpdatePendingObject(Tagged<HeapObject> object) {
-  base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
-  pending_object_.store(object.address(), std::memory_order_release);
+  pending_object_handle_.UpdateAddress(object.address());
 }
 
 OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)

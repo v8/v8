@@ -148,28 +148,6 @@ void HeapAllocator::MakeLinearAllocationAreaIterable() {
   code_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
-void HeapAllocator::MarkLinearAllocationAreaBlack() {
-  old_space_allocator_->MarkLinearAllocationAreaBlack();
-  trusted_space_allocator_->MarkLinearAllocationAreaBlack();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->MarkLinearAllocationAreaBlack();
-  }
-}
-
-void HeapAllocator::UnmarkLinearAllocationArea() {
-  old_space_allocator_->UnmarkLinearAllocationArea();
-  trusted_space_allocator_->UnmarkLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->UnmarkLinearAllocationArea();
-  }
-}
-
 void HeapAllocator::AddAllocationObserver(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   if (new_space_allocator_) {

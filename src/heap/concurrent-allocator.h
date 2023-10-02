@@ -44,8 +44,12 @@ class ConcurrentAllocator {
   static constexpr int kMaxLabSize = 32 * KB;
   static constexpr int kMaxLabObjectSize = 2 * KB;
 
-  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space,
-                      Context context);
+  ConcurrentAllocator(
+      LocalHeap* local_heap, PagedSpace* space, Context context,
+      LabOriginalLimits::PendingObjectHandle* pending_object_handle = nullptr);
+
+  ConcurrentAllocator(const ConcurrentAllocator&) = delete;
+  ConcurrentAllocator& operator=(const ConcurrentAllocator&) = delete;
 
   inline AllocationResult AllocateRaw(int object_size,
                                       AllocationAlignment alignment,
@@ -53,8 +57,6 @@ class ConcurrentAllocator {
 
   void FreeLinearAllocationArea();
   void MakeLinearAllocationAreaIterable();
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
 
   // Checks whether the LAB is currently in use.
   V8_INLINE bool IsLabValid() { return lab_.top() != kNullAddress; }
@@ -90,10 +92,8 @@ class ConcurrentAllocator {
   AllocateOutsideLab(int size_in_bytes, AllocationAlignment alignment,
                      AllocationOrigin origin);
 
-  bool IsBlackAllocationEnabled() const;
-
   // Resets the LAB.
-  void ResetLab() { lab_ = LinearAllocationArea(kNullAddress, kNullAddress); }
+  void ResetLab();
 
   // Installs a filler object between the LABs top and limit pointers.
   void MakeLabIterable();
@@ -108,6 +108,10 @@ class ConcurrentAllocator {
   PagedSpace* const space_;
   Heap* const owning_heap_;
   LinearAllocationArea lab_;
+  LabOriginalLimits::LabHandle lab_origins_;
+  // Pending object is shared across all the concurrent allocators of a
+  // LocalHeap.
+  LabOriginalLimits::PendingObjectHandle* pending_object_handle_ = nullptr;
   const Context context_;
 };
 

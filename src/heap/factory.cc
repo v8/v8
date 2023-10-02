@@ -2037,11 +2037,11 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
   Handle<TransitionArray> array = Handle<TransitionArray>::cast(
       NewWeakFixedArrayWithMap(read_only_roots().transition_array_map(),
                                capacity, AllocationType::kOld));
-  // Transition arrays are AllocationType::kOld. When black allocation is on we
-  // have to add the transition array to the list of
+  // Transition arrays are AllocationType::kOld. When incremental marking is on
+  // we have to add the transition array to the list of
   // encountered_transition_arrays.
   Heap* heap = isolate()->heap();
-  if (heap->incremental_marking()->black_allocation()) {
+  if (heap->incremental_marking()->IsMajorMarking()) {
     heap->mark_compact_collector()->AddTransitionArray(*array);
   }
   array->WeakFixedArray::Set(TransitionArray::kPrototypeTransitionsIndex,
