@@ -4128,9 +4128,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         case RegisterRepresentation::Float32():
           cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
           return VisitFloat32Compare(this, value, cont);
-        case RegisterRepresentation::Float64():
-          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+        case RegisterRepresentation::Float64(): {
+          bool is_self_compare =
+              this->input_at(value, 0) == this->input_at(value, 1);
+          cont->OverwriteAndNegateIfEqual(is_self_compare ? kIsNotNaN
+                                                          : kUnorderedEqual);
           return VisitFloat64Compare(this, value, cont);
+        }
         default:
           break;
       }
@@ -4327,9 +4331,13 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
       case IrOpcode::kFloat32LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
         return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat64Equal:
-        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+      case IrOpcode::kFloat64Equal: {
+        bool is_self_compare =
+            this->input_at(value, 0) == this->input_at(value, 1);
+        cont->OverwriteAndNegateIfEqual(is_self_compare ? kIsNotNaN
+                                                        : kUnorderedEqual);
         return VisitFloat64Compare(this, value, cont);
+      }
       case IrOpcode::kFloat64LessThan: {
         Float64BinopMatcher m(value);
         if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
@@ -4611,7 +4619,9 @@ void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Equal(node_t node) {
-  FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
+  bool is_self_compare = this->input_at(node, 0) == this->input_at(node, 1);
+  FlagsContinuation cont = FlagsContinuation::ForSet(
+      is_self_compare ? kIsNotNaN : kUnorderedEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

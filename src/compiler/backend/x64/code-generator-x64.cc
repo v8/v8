@@ -6647,7 +6647,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
 namespace {
 
-Condition FlagsConditionToCondition(FlagsCondition condition) {
+constexpr Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
     case kUnorderedEqual:
     case kEqual:
@@ -6675,6 +6675,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
       return overflow;
     case kNotOverflow:
       return no_overflow;
+    case kIsNaN:
+      return parity_even;
+    case kIsNotNaN:
+      return parity_odd;
     default:
       break;
   }
@@ -6690,9 +6694,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
   if (branch->condition == kUnorderedEqual) {
-    __ j(parity_even, flabel, flabel_distance);
+    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
   } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(parity_even, tlabel);
+    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
   }
   __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
@@ -6707,9 +6711,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   Label* flabel = branch->false_label;
   Label nodeopt;
   if (branch->condition == kUnorderedEqual) {
-    __ j(parity_even, flabel, flabel_distance);
+    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
   } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(parity_even, tlabel);
+    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
   }
   __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
@@ -6752,9 +6756,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
-    __ j(parity_even, &end, Label::kNear);
+    __ j(FlagsConditionToCondition(kIsNaN), &end, Label::kNear);
   } else if (condition == kUnorderedNotEqual) {
-    __ j(parity_even, tlabel);
+    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
   }
   __ j(FlagsConditionToCondition(condition), tlabel);
   __ bind(&end);

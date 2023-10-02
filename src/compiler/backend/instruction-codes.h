@@ -252,7 +252,9 @@ enum FlagsCondition {
   kOverflow,
   kNotOverflow,
   kPositiveOrZero,
-  kNegative
+  kNegative,
+  kIsNaN,
+  kIsNotNaN,
 };
 
 static constexpr FlagsCondition kStackPointerGreaterThanCondition =

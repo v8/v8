@@ -403,6 +403,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
       return vc;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
+    case kIsNaN:
+    case kIsNotNaN:
       break;
     case kPositiveOrZero:
       return pl;

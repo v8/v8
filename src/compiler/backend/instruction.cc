@@ -13,6 +13,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph.h"
@@ -79,6 +80,8 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
     case kNotOverflow:
     case kUnorderedEqual:
     case kUnorderedNotEqual:
+    case kIsNaN:
+    case kIsNotNaN:
       return condition;
   }
   UNREACHABLE();
@@ -531,6 +534,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "positive or zero";
     case kNegative:
       return os << "negative";
+    case kIsNaN:
+      return os << "is nan";
+    case kIsNotNaN:
+      return os << "is not nan";
   }
   UNREACHABLE();
 }
