@@ -304,6 +304,13 @@ class GraphVisitor {
     return start;
   }
 
+  template <bool can_be_invalid = false>
+  OpIndex MapToNewGraphIfValid(OpIndex old_index, int predecessor_index = -1) {
+    return old_index.valid()
+               ? MapToNewGraph<can_be_invalid>(old_index, predecessor_index)
+               : OpIndex::Invalid();
+  }
+
  private:
   template <bool trace_reduction>
   void VisitAllBlocks() {
@@ -1156,6 +1163,10 @@ class GraphVisitor {
         MapToNewGraph(op.right_low()), MapToNewGraph(op.right_high()), op.kind);
   }
 
+  OpIndex AssembleOutputGraphComment(const CommentOp& op) {
+    return assembler().ReduceComment(op.message);
+  }
+
 #ifdef V8_ENABLE_WEBASSEMBLY
   OpIndex AssembleOutputGraphGlobalGet(const GlobalGetOp& op) {
     return assembler().ReduceGlobalGet(MapToNewGraph(op.instance()), op.global);
@@ -1327,13 +1338,6 @@ class GraphVisitor {
     }
     DCHECK(!op_mapping_[old_index].valid());
     op_mapping_[old_index] = new_index;
-  }
-
-  template <bool can_be_invalid = false>
-  OpIndex MapToNewGraphIfValid(OpIndex old_index, int predecessor_index = -1) {
-    return old_index.valid()
-               ? MapToNewGraph<can_be_invalid>(old_index, predecessor_index)
-               : OpIndex::Invalid();
   }
 
   MaybeVariable GetVariableFor(OpIndex old_index) const {

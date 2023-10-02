@@ -13,7 +13,13 @@ template <class Callback>
 class CallWithReduceArgsHelper {
  public:
   explicit CallWithReduceArgsHelper(Callback callback)
-      : callback_(std::move(callback)) {}
+      : callback_(std::move(callback)) {
+#define TEST(op) \
+  static_assert( \
+      std::is_same_v<decltype((*this)(std::declval<op##Op>())), OpIndex>);
+    TURBOSHAFT_OPERATION_LIST(TEST)
+#undef TEST
+  }
 
   OpIndex operator()(const GotoOp& op) { return callback_(op.destination); }
 
@@ -258,6 +264,8 @@ class CallWithReduceArgsHelper {
     return callback_(op.input(), op.rep);
   }
 
+  OpIndex operator()(const CommentOp& op) { return callback_(op.message); }
+
   OpIndex operator()(const BigIntBinopOp& op) {
     return callback_(op.left(), op.right(), op.frame_state(), op.kind);
   }
@@ -419,6 +427,26 @@ class CallWithReduceArgsHelper {
     return callback_(const_cast<TupleOp&>(tuple).inputs());
   }
 
+  OpIndex operator()(const AtomicRMWOp& op) {
+    return callback_(op.base(), op.index(), op.value(), op.expected(),
+                     op.bin_op, op.result_rep, op.input_rep,
+                     op.memory_access_kind);
+  }
+
+  OpIndex operator()(const AtomicWord32PairOp& op) {
+    return callback_(op.base(), op.index(), op.value_low(), op.value_high(),
+                     op.expected_low(), op.expected_high(), op.op_kind,
+                     op.offset);
+  }
+
+  OpIndex operator()(const MemoryBarrierOp& op) {
+    return callback_(op.memory_order);
+  }
+
+  OpIndex operator()(const StackCheckOp& op) {
+    return callback_(op.check_origin, op.check_kind);
+  }
+
 #ifdef V8_ENABLE_WEBASSEMBLY
   OpIndex operator()(const GlobalGetOp& op) {
     return callback_(op.instance(), op.global);
@@ -528,6 +556,14 @@ class CallWithReduceArgsHelper {
 
   OpIndex operator()(const StringPrepareForGetCodeUnitOp& op) {
     return callback_(op.string());
+  }
+
+  OpIndex operator()(const ExternExternalizeOp& op) {
+    return callback_(op.object());
+  }
+
+  OpIndex operator()(const ExternInternalizeOp& op) {
+    return callback_(op.object());
   }
 #endif
 

@@ -1676,6 +1676,7 @@ class AssemblerOpInterface {
                     RegisterRepresentation result_rep,
                     MemoryRepresentation input_rep,
                     MemoryAccessKind memory_access_kind) {
+    DCHECK_NE(bin_op, AtomicRMWOp::BinOp::kCompareExchange);
     return ReduceIfReachableAtomicRMW(base, index, value, OpIndex::Invalid(),
                                       bin_op, result_rep, input_rep,
                                       memory_access_kind);
@@ -2551,6 +2552,8 @@ class AssemblerOpInterface {
   void DebugPrint(V<Float64> input) {
     return DebugPrint(input, RegisterRepresentation::Float64());
   }
+
+  void Comment(const char* message) { ReduceIfReachableComment(message); }
 
   V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,
                         BigIntBinopOp::Kind kind) {
