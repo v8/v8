@@ -435,7 +435,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   }
 
   // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit, Address end);
   void DecreaseLimit(Address new_limit);
 
   friend class ConcurrentAllocator;

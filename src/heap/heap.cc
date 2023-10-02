@@ -5752,6 +5752,11 @@ void Heap::WeakenDescriptorArrays(
 }
 
 void Heap::NotifyDeserializationComplete() {
+  // There are no concurrent/background threads yet.
+  safepoint()->AssertMainThreadIsOnlyThread();
+
+  FreeMainThreadLinearAllocationAreas();
+
   PagedSpaceIterator spaces(this);
   for (PagedSpace* s = spaces.Next(); s != nullptr; s = spaces.Next()) {
     // Shared space is used concurrently and cannot be shrunk.

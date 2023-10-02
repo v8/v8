@@ -85,7 +85,8 @@ class MainAllocator {
   }
 
   void MoveOriginalTopForward();
-  void ResetLab(Address start, Address end, Address extended_end);
+  V8_EXPORT_PRIVATE void ResetLab(Address start, Address end,
+                                  Address extended_end);
   V8_EXPORT_PRIVATE bool IsPendingAllocation(Address object_address);
   void MaybeFreeUnusedLab(LinearAllocationArea lab);
 

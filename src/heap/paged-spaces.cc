@@ -296,15 +296,6 @@ void PagedSpaceBase::RemovePage(Page* page) {
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
-void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
-  DCHECK_GE(end, limit);
-  DCHECK(top == limit ||
-         Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
-
-  allocator_->ResetLab(top, limit, end);
-}
-
 size_t PagedSpaceBase::ShrinkPageToHighWaterMark(Page* page) {
   size_t unused = page->ShrinkToHighWaterMark();
   accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
@@ -327,8 +318,6 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
         "ShrinkImmortalImmovablePages writes to the page header.");
   }
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
-  FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
@@ -393,7 +382,7 @@ int PagedSpaceBase::CountTotalPages() const {
 
 void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit,
                                              Address end) {
-  SetTopAndLimit(top, limit, end);
+  allocator_->ResetLab(top, limit, end);
   if (top != kNullAddress && top != limit) {
     Page* page = Page::FromAllocationAreaAddress(top);
     if ((identity() != NEW_SPACE) &&
@@ -417,7 +406,7 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     Address old_max_limit = allocator_->original_limit_relaxed();
     if (!allocator_->supports_extending_lab()) {
       DCHECK_EQ(old_max_limit, old_limit);
-      SetTopAndLimit(allocator_->top(), new_limit, new_limit);
+      allocator_->ResetLab(allocator_->top(), new_limit, new_limit);
       Free(new_limit, old_max_limit - new_limit,
            SpaceAccountingMode::kSpaceAccounted);
     } else {
@@ -465,7 +454,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
         ->DestroyBlackArea(current_top, current_limit);
   }
 
-  SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
+  allocator_->ResetLab(kNullAddress, kNullAddress, kNullAddress);
   DCHECK_GE(current_limit, current_top);
 
   DCHECK_IMPLIES(current_limit - current_top >= 2 * kTaggedSize,

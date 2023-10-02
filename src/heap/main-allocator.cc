@@ -237,6 +237,10 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
   DCHECK_LE(start, end);
   DCHECK_LE(end, extended_end);
 
+  if (IsLabValid()) {
+    BasicMemoryChunk::UpdateHighWaterMark(top());
+  }
+
   allocation_info().Reset(start, end);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> guard;
@@ -284,6 +288,7 @@ void MainAllocator::UpdateInlineAllocationLimit() {
 }
 
 void MainAllocator::FreeLinearAllocationArea() {
+  BasicMemoryChunk::UpdateHighWaterMark(top());
   space_->FreeLinearAllocationArea();
 }
 

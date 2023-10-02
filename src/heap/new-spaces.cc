@@ -545,7 +545,6 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
   allocator_->AdvanceAllocationObservers();
 
   Address new_top = known_top == 0 ? to_space_.page_low() : known_top;
-  BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
   allocator_->ResetLab(new_top, to_space_.page_high(), to_space_.page_high());
 
   // The linear allocation area should reach the end of the page, so no filler
