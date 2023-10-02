@@ -626,6 +626,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     friend class EntryStackItem;
   };
 
+  // Used for walking the promise tree for catch prediction.
+  struct PromiseHandler {
+    Handle<JSReceiver> receiver;
+    bool catches;
+  };
+
   static void InitializeOncePerProcess();
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
@@ -918,6 +924,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Heuristically guess whether a Promise is handled by user catch handler
   bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
+
+  // Walks the promise tree and calls a callback on every handler an exception
+  // is likely to hit. Used in catch prediction. Will end the walk and return
+  // true if a callback returns true, otherwise returns false.
+  bool WalkPromiseTree(Handle<JSPromise> promise,
+                       std::function<bool(PromiseHandler)> callback);
 
   class V8_NODISCARD ExceptionScope {
    public:

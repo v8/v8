@@ -709,6 +709,50 @@ bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
 namespace {
 
+bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
+                       Builtin builtin) {
+  if (!IsJSFunction(object)) return false;
+  Tagged<JSFunction> const function = JSFunction::cast(object);
+  return function->code() == isolate->builtins()->code(builtin);
+}
+
+// Check if the function is one of the known async function or
+// async generator fulfill handlers.
+bool IsBuiltinAsyncFulfillHandler(Isolate* isolate, Tagged<HeapObject> object) {
+  return IsBuiltinFunction(isolate, object,
+                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
+         IsBuiltinFunction(isolate, object,
+                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
+         IsBuiltinFunction(
+             isolate, object,
+             Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure);
+}
+
+// Check if the function is one of the known async function or
+// async generator fulfill handlers.
+bool IsBuiltinAsyncRejectHandler(Isolate* isolate, Tagged<HeapObject> object) {
+  return IsBuiltinFunction(isolate, object,
+                           Builtin::kAsyncFunctionAwaitRejectClosure) ||
+         IsBuiltinFunction(isolate, object,
+                           Builtin::kAsyncGeneratorAwaitRejectClosure);
+}
+
+Handle<JSGeneratorObject> ToAsyncGenerator(Isolate* isolate,
+                                           Handle<PromiseReaction> reaction) {
+  // Check if the {reaction} has one of the known async function or
+  // async generator continuations as its fulfill handler.
+  if (IsBuiltinAsyncFulfillHandler(isolate, reaction->fulfill_handler())) {
+    // Now peek into the handlers' AwaitContext to get to
+    // the JSGeneratorObject for the async function.
+    Handle<Context> context(
+        JSFunction::cast(reaction->fulfill_handler())->context(), isolate);
+    Handle<JSGeneratorObject> generator_object(
+        JSGeneratorObject::cast(context->extension()), isolate);
+    return generator_object;
+  }
+  return Handle<JSGeneratorObject>();
+}
+
 class CallSiteBuilder {
  public:
   CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
@@ -954,13 +998,6 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   return true;
 }
 
-bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
-                       Builtin builtin) {
-  if (!IsJSFunction(object)) return false;
-  Tagged<JSFunction> const function = JSFunction::cast(object);
-  return function->code() == isolate->builtins()->code(builtin);
-}
-
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                             CallSiteBuilder* builder) {
   while (!builder->Full()) {
@@ -973,21 +1010,10 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
         PromiseReaction::cast(promise->reactions()), isolate);
     if (!IsSmi(reaction->next())) return;
 
-    // Check if the {reaction} has one of the known async function or
-    // async generator continuations as its fulfill handler.
-    if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtin::kAsyncFunctionAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(
-            isolate, reaction->fulfill_handler(),
-            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure)) {
-      // Now peek into the handlers' AwaitContext to get to
-      // the JSGeneratorObject for the async function.
-      Handle<Context> context(
-          JSFunction::cast(reaction->fulfill_handler())->context(), isolate);
-      Handle<JSGeneratorObject> generator_object(
-          JSGeneratorObject::cast(context->extension()), isolate);
+    Handle<JSGeneratorObject> generator_object =
+        ToAsyncGenerator(isolate, reaction);
+
+    if (!generator_object.is_null()) {
       CHECK(generator_object->is_suspended());
 
       // Append async frame corresponding to the {generator_object}.
@@ -1099,17 +1125,10 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
         Handle<PromiseReactionJobTask>::cast(current_microtask);
     // Check if the {reaction} has one of the known async function or
     // async generator continuations as its fulfill handler.
-    if (IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncFunctionAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(
-            isolate, promise_reaction_job_task->handler(),
-            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncFunctionAwaitRejectClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncGeneratorAwaitRejectClosure)) {
+    if (IsBuiltinAsyncFulfillHandler(isolate,
+                                     promise_reaction_job_task->handler()) ||
+        IsBuiltinAsyncRejectHandler(isolate,
+                                    promise_reaction_job_task->handler())) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -2805,7 +2824,7 @@ bool Isolate::IsPromiseStackEmpty() const {
 }
 
 namespace {
-bool PromiseIsRejectHandler(Isolate* isolate, Handle<JSReceiver> handler) {
+bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   // Recurse to the forwarding Promise (e.g. return false) due to
   //  - await reaction forwarding to the throwaway Promise, which has
   //    a dependency edge to the outer Promise.
@@ -2816,11 +2835,12 @@ bool PromiseIsRejectHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
   Handle<Object> forwarding_handler =
       JSReceiver::GetDataProperty(isolate, handler, key);
-  return IsUndefined(*forwarding_handler, isolate);
+  return !IsUndefined(*forwarding_handler, isolate);
 }
 
-bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
-                                                Handle<JSPromise> promise) {
+bool WalkPromiseTreeInternal(
+    Isolate* isolate, Handle<JSPromise> promise,
+    std::function<bool(Isolate::PromiseHandler)> callback) {
   Handle<Object> current(promise->reactions(), isolate);
   while (!IsSmi(*current)) {
     Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
@@ -2834,12 +2854,49 @@ bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
       }
       if (IsJSPromise(*promise_or_capability)) {
         promise = Handle<JSPromise>::cast(promise_or_capability);
+        bool caught = false;
+        Handle<JSReceiver> reject_handler;
         if (!IsUndefined(reaction->reject_handler(), isolate)) {
-          Handle<JSReceiver> reject_handler(
-              JSReceiver::cast(reaction->reject_handler()), isolate);
-          if (PromiseIsRejectHandler(isolate, reject_handler)) return true;
+          reject_handler =
+              handle(JSReceiver::cast(reaction->reject_handler()), isolate);
+          if (!ReceiverIsForwardingHandler(isolate, reject_handler)) {
+            caught = true;
+            // If there is no callback, just return true if anything catches
+            if (!callback) return true;
+          }
         }
-        if (isolate->PromiseHasUserDefinedRejectHandler(promise)) return true;
+        if (callback) {
+          // Pass each handler to the callback
+          Handle<JSGeneratorObject> async_function =
+              ToAsyncGenerator(isolate, reaction);
+          if (!async_function.is_null()) {
+            // Look at the async function, not the individual handlers
+            if (callback(
+                    {handle(async_function->function(), isolate), caught})) {
+              return true;
+            }
+          } else {
+            // Not an async function, look at individual handlers
+            if (callback &&
+                !IsUndefined(reaction->fulfill_handler(), isolate)) {
+              Handle<JSReceiver> fulfill_handler(
+                  JSReceiver::cast(reaction->fulfill_handler()), isolate);
+              if (!ReceiverIsForwardingHandler(isolate, fulfill_handler)) {
+                if (callback({fulfill_handler, false})) {
+                  return true;
+                }
+              }
+            }
+            if (caught) {
+              // We've already checked that this isn't undefined or
+              // a forwarding handler
+              if (callback({reject_handler, true})) {
+                return true;
+              }
+            }
+          }
+        }
+        if (!caught && isolate->WalkPromiseTree(promise, callback)) return true;
       }
     }
     current = handle(reaction->next(), isolate);
@@ -2849,7 +2906,8 @@ bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
 
 }  // namespace
 
-bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
+bool Isolate::WalkPromiseTree(Handle<JSPromise> promise,
+                              std::function<bool(PromiseHandler)> callback) {
   Handle<Symbol> key = factory()->promise_handled_by_symbol();
   std::stack<Handle<JSPromise>> promises;
   // First descend into the outermost promise and collect the stack of
@@ -2857,7 +2915,11 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
   while (true) {
     // If this promise was marked as being handled by a catch block
     // in an async function, then it has a user-defined reject handler.
-    if (promise->handled_hint()) return true;
+    // Because it will catch there is no reason to continue to outer promises.
+    // However the handled_hint may have been set by GetPromiseOnStackOnThrow,
+    // and if we have a callback we don't want that to stop us from walking
+    // the promise tree.
+    if (!callback && promise->handled_hint()) return true;
     if (promise->status() == Promise::kPending) {
       promises.push(promise);
     }
@@ -2869,10 +2931,14 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
 
   while (!promises.empty()) {
     promise = promises.top();
-    if (PromiseHasUserDefinedRejectHandlerInternal(this, promise)) return true;
+    if (WalkPromiseTreeInternal(this, promise, callback)) return true;
     promises.pop();
   }
   return false;
+}
+
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
+  return WalkPromiseTree(promise, nullptr);
 }
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
