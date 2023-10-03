@@ -95,7 +95,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
 constexpr Register kGpParamRegisters[] = {r6, r2, r4, r5};
 constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2, d4, d6};
-constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2, d4, d6};
+constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 
 #elif V8_TARGET_ARCH_S390
 // ===========================================================================
