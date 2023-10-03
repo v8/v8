@@ -220,7 +220,7 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('=== sweet/bananaflakes (flaky) ===')
     result.stdout_includes('1 tests failed')
     result.stdout_includes('1 tests were flaky')
-    result.has_returncode(0)
+    result.has_returncode(1)
     result.json_content_equals('expected_test_results2.json')
 
   def testAutoDetect(self):
