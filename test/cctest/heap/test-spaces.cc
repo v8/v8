@@ -67,6 +67,7 @@ class V8_NODISCARD TestMemoryAllocatorScope {
     isolate->heap()->memory_allocator_.reset(new MemoryAllocator(
         isolate,
         page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
+        page_allocator != nullptr ? page_allocator : isolate->page_allocator(),
         max_capacity));
     if (page_allocator != nullptr) {
       isolate->heap()->memory_allocator_->data_page_allocator_ = page_allocator;

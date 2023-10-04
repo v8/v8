@@ -100,6 +100,11 @@ class BasicMemoryChunk {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 19,
+
+    // The memory chunk belongs to the trusted space. When the sandbox is
+    // enabled, the trusted space is located outside of the sandbox and so its
+    // content cannot be corrupted by an attacker.
+    IS_TRUSTED = 1u << 20,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -267,6 +272,8 @@ class BasicMemoryChunk {
   }
 
   bool IsPinned() const { return IsFlagSet(PINNED); }
+
+  bool IsTrusted() const;
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();

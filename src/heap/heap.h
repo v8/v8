@@ -129,6 +129,7 @@ class Space;
 class StressScavengeObserver;
 class TimedHistogram;
 class TrustedLargeObjectSpace;
+class TrustedRange;
 class TrustedSpace;
 class WeakObjectRetainer;
 
@@ -2255,6 +2256,12 @@ class Heap final {
   CodeRange* code_range_ = nullptr;
 #else
   std::unique_ptr<CodeRange> code_range_;
+#endif
+
+  // The process-wide virtual space reserved for trusted objects in the V8 heap.
+  // Only used when the sandbox is enabled.
+#if V8_ENABLE_SANDBOX
+  TrustedRange* trusted_range_ = nullptr;
 #endif
 
   v8::CppHeap* cpp_heap_ = nullptr;  // Owned by the embedder.

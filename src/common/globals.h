@@ -445,6 +445,10 @@ constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
+// These constants define the total trusted space memory per process.
+constexpr size_t kMaximalTrustedRangeSize = 256 * MB;
+constexpr size_t kMinimumTrustedRangeSize = 3 * MB;
+
 #else  // V8_HOST_ARCH_64_BIT
 
 constexpr int kSystemPointerSizeLog2 = 2;

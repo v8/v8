@@ -1488,6 +1488,8 @@ filegroup(
         "src/heap/basic-memory-chunk.h",
         "src/heap/code-range.cc",
         "src/heap/code-range.h",
+        "src/heap/trusted-range.cc",
+        "src/heap/trusted-range.h",
         "src/heap/code-stats.cc",
         "src/heap/code-stats.h",
         "src/heap/collection-barrier.cc",

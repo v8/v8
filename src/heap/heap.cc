@@ -92,6 +92,7 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/trusted-range.h"
 #include "src/heap/zapping.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/v8.h"
@@ -5475,14 +5476,23 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     code_page_allocator = isolate_->page_allocator();
   }
 
+  v8::PageAllocator* trusted_page_allocator;
+#ifdef V8_ENABLE_SANDBOX
+  trusted_range_ =
+      TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
+  trusted_page_allocator = trusted_range_->page_allocator();
+#else
+  trusted_page_allocator = isolate_->page_allocator();
+#endif
+
   task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
       reinterpret_cast<v8::Isolate*>(isolate()));
 
   collection_barrier_.reset(new CollectionBarrier(this, this->task_runner_));
 
   // Set up memory allocator.
-  memory_allocator_.reset(
-      new MemoryAllocator(isolate_, code_page_allocator, MaxReserved()));
+  memory_allocator_.reset(new MemoryAllocator(
+      isolate_, code_page_allocator, trusted_page_allocator, MaxReserved()));
 
   sweeper_.reset(new Sweeper(this));
 
