@@ -474,6 +474,26 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
 }
 #endif  // V8_ENABLE_MAGLEV
 
+RUNTIME_FUNCTION(Runtime_BenchTurbofan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  int count = args.smi_value_at(1);
+
+  base::ElapsedTimer timer;
+  timer.Start();
+  Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kSynchronous,
+                             CodeKind::TURBOFAN);
+  for (int i = 1; i < count; ++i) {
+    Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kSynchronous,
+                               CodeKind::TURBOFAN);
+  }
+
+  double compile_time = timer.Elapsed().InMillisecondsF() / count;
+
+  return *isolate->factory()->NewNumber(compile_time);
+}
+
 RUNTIME_FUNCTION(Runtime_ActiveTierIsIgnition) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
