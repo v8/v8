@@ -111,6 +111,14 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
   wasm::TypeInModule node_type = value_type.AsWasm();
 
   // TODO(12166): Adapt this if cross-module inlining is allowed.
+  if (wasm::TypesUnrelated(node_type.type, field_type, node_type.module,
+                           node_type.module)) {
+    // Unrelated types can occur as a result of unreachable code.
+    // Example: Storing a value x of type A in a struct, then casting the struct
+    // to a different struct type to then load type B from the same offset
+    // results in trying to replace the load with value x.
+    return {dead(), effect};
+  }
   if (!wasm::IsSubtypeOf(node_type.type, field_type, node_type.module)) {
     Type type = Type::Wasm({field_type, node_type.module}, graph()->zone());
     Node* ret =
