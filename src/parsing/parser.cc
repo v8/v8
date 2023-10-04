@@ -3458,6 +3458,9 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   if (scanner_.SawMagicCommentCompileHintsAll()) {
     isolate->CountUsage(v8::Isolate::kCompileHintsMagicAll);
   }
+  if (scanner_.SawSourceMappingUrlMagicCommentAtSign()) {
+    isolate->CountUsage(v8::Isolate::kSourceMappingUrlMagicCommentAtSign);
+  }
 }
 
 void Parser::UpdateStatistics(
@@ -3479,6 +3482,9 @@ void Parser::UpdateStatistics(
   }
   if (scanner_.SawMagicCommentCompileHintsAll()) {
     use_counts->emplace_back(v8::Isolate::kCompileHintsMagicAll);
+  }
+  if (scanner_.SawMagicCommentCompileHintsAll()) {
+    use_counts->emplace_back(v8::Isolate::kSourceMappingUrlMagicCommentAtSign);
   }
 
   *preparse_skipped = total_preparse_skipped_;
