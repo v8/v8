@@ -419,13 +419,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   do {
     NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-    node->wait_location_ = wait_location;
-    node->waiting_ = true;
-
-    // Reset node->waiting_ = false when leaving this scope (but while
-    // still holding the lock).
-    FutexWaitListNode::ResetWaitingOnScopeExit reset_waiting(node);
-
     std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
     T loaded_value = p->load();
 #if defined(V8_TARGET_BIG_ENDIAN)
@@ -441,6 +434,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       break;
     }
 
+    node->wait_location_ = wait_location;
+    node->waiting_ = true;
     wait_list->AddNode(node);
 
     while (true) {
@@ -488,6 +483,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       }
 
       if (!node->waiting_) {
+        // We were woken either via the stop_handle or via Wake.
         result = handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
@@ -513,8 +509,10 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
       // Spurious wakeup, interrupt or timeout.
     }
 
+    node->waiting_ = false;
     wait_list->RemoveNode(node);
   } while (false);
+  DCHECK(!node->waiting_);
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);

@@ -72,17 +72,6 @@ class FutexWaitListNode {
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
 
-  class V8_NODISCARD ResetWaitingOnScopeExit {
-   public:
-    explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
-    ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
-    ResetWaitingOnScopeExit(const ResetWaitingOnScopeExit&) = delete;
-    ResetWaitingOnScopeExit& operator=(const ResetWaitingOnScopeExit&) = delete;
-
-   private:
-    FutexWaitListNode* node_;
-  };
-
  private:
   friend class FutexEmulation;
   friend class FutexWaitList;
