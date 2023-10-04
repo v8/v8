@@ -660,6 +660,25 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapNullDereference, () => wasm.structSetMultiple(null));
 })();
 
+(function ArrayLenMultipleNullChecks() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+
+  builder.addFunction("arrayLenMultiple",
+                      makeSig([wasmRefNullType(array)], [kWasmI32, kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayLen,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayLen,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate({}).exports;
+  assertTraps(kTrapNullDereference, () => wasm.arrayLenMultiple(null));
+})();
+
 (function RedundantExternalizeInternalize() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -716,4 +735,43 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertTraps(kTrapIllegalCast, () => wasm.checkIsNullAfterNonNullCast(null));
   assertEquals(0, wasm.checkIsNullAfterNonNullCast("not null"));
+})();
+
+(function RefTestUnrelated() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let other = builder.addStruct([makeField(kWasmI64, true)]);
+
+  builder.addFunction('refTestUnrelatedNull',
+      makeSig([kWasmAnyRef], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCastNull, other,
+      kExprDrop,
+      kExprLocalGet, 0,
+      // This ref.test will only succeed if the input is null.
+      kGCPrefix, kExprRefTestNull, struct,
+    ])
+    .exportFunc();
+
+    builder.addFunction('refTestUnrelated',
+    makeSig([kWasmAnyRef], [kWasmI32]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprRefCastNull, other,
+    kExprDrop,
+    kExprLocalGet, 0,
+    // This ref.test always returns 0.
+    kGCPrefix, kExprRefTest, struct,
+  ])
+  .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  assertEquals(1, wasm.refTestUnrelatedNull(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refTestUnrelatedNull("not null"));
+  assertEquals(0, wasm.refTestUnrelated(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refTestUnrelated("not null"));
 })();

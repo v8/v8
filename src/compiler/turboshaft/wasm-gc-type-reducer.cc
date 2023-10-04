@@ -56,6 +56,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kWasmTypeCast:
         ProcessTypeCast(op.Cast<WasmTypeCastOp>());
         break;
+      case Opcode::kWasmTypeCheck:
+        ProcessTypeCheck(op.Cast<WasmTypeCheckOp>());
+        break;
       case Opcode::kAssertNotNull:
         ProcessAssertNotNull(op.Cast<AssertNotNullOp>());
         break;
@@ -74,6 +77,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kStructSet:
         ProcessStructSet(op.Cast<StructSetOp>());
         break;
+      case Opcode::kArrayLength:
+        ProcessArrayLength(op.Cast<ArrayLengthOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -88,12 +94,16 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
 void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
   OpIndex object = type_cast.object();
   wasm::ValueType target_type = type_cast.config.to;
-  // TODO(mliedtke): The cast also produces a result that is the same object as
-  // the input but that is not known, so we also need to refine the cast's
-  // result type to elide potential useless casts in chains like
-  // (ref.cast eq (ref.cast $MyStruct (local.get 0))).
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, target_type);
+  // The cast also returns the input itself, so we also need to update its
+  // result type.
+  RefineTypeKnowledge(graph_.Index(type_cast), target_type);
   input_type_map_[graph_.Index(type_cast)] = known_input_type;
+}
+
+void WasmGCTypeAnalyzer::ProcessTypeCheck(const WasmTypeCheckOp& type_check) {
+  input_type_map_[graph_.Index(type_check)] =
+      types_table_.Get(type_check.object());
 }
 
 void WasmGCTypeAnalyzer::ProcessAssertNotNull(
@@ -127,6 +137,12 @@ void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
   // struct.set performs a null check.
   wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_set.object());
   input_type_map_[graph_.Index(struct_set)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessArrayLength(const ArrayLengthOp& array_length) {
+  // array.len performs a null check.
+  wasm::ValueType type = RefineTypeKnowledgeNotNull(array_length.array());
+  input_type_map_[graph_.Index(array_length)] = type;
 }
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,

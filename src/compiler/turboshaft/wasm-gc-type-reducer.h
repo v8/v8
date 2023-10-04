@@ -61,12 +61,14 @@ class WasmGCTypeAnalyzer {
   void ProcessBranchOnTarget(const BranchOp& branch, const Block& target);
 
   void ProcessTypeCast(const WasmTypeCastOp& type_cast);
+  void ProcessTypeCheck(const WasmTypeCheckOp& type_check);
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
   void ProcessNull(const NullOp& null);
   void ProcessIsNull(const IsNullOp& is_null);
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
+  void ProcessArrayLength(const ArrayLengthOp& array_length);
 
   void CreateMergeSnapshot(const Block& block);
 
@@ -138,11 +140,58 @@ class WasmGCTypeReducer : public Next {
                      TrapId::kTrapIllegalCast);
         return __ MapToNewGraph(cast_op.object());
       }
+      // The cast cannot be replaced. Still, we can refine the source type, so
+      // that the lowering could potentially skip null or smi checks.
+      wasm::ValueType from_type =
+          wasm::Intersection(type, cast_op.config.from, module_, module_).type;
+      DCHECK_NE(wasm::kWasmBottom, from_type);
+      WasmTypeCheckConfig config{from_type, cast_op.config.to};
+      return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
+                             __ MapToNewGraphIfValid(cast_op.rtt()), config);
     }
-    // TODO(mliedtke): Even if the cast can not be replaced, it would still be
-    // beneficial to narrow down the cast_op.config.from type, so that the
-    // lowering could potentially skip null or smi checks.
     return Next::ReduceInputGraphWasmTypeCast(op_idx, cast_op);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(WasmTypeCheck)(OpIndex op_idx,
+                                            const WasmTypeCheckOp& type_check) {
+    wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    if (type != wasm::ValueType() && type != wasm::kWasmBottom) {
+      bool to_nullable = type_check.config.to.is_nullable();
+      if (wasm::IsHeapSubtypeOf(type.heap_type(),
+                                type_check.config.to.heap_type(), module_,
+                                module_)) {
+        if (to_nullable || type.is_non_nullable()) {
+          // The inferred type is guaranteed to be a subtype of the checked
+          // type.
+          return __ Word32Constant(1);
+        } else {
+          // The inferred type is guaranteed to be a subtype of the checked
+          // type if it is not null.
+          return __ Word32Equal(
+              __ IsNull(__ MapToNewGraph(type_check.object()), type), 0);
+        }
+      }
+      if (wasm::HeapTypesUnrelated(type.heap_type(),
+                                   type_check.config.to.heap_type(), module_,
+                                   module_)) {
+        if (to_nullable && type.is_nullable()) {
+          return __ IsNull(__ MapToNewGraph(type_check.object()), type);
+        } else {
+          return __ Word32Constant(0);
+        }
+      }
+      // The check cannot be replaced. Still, we can refine the source type, so
+      // that the lowering could potentially skip null or smi checks.
+      wasm::ValueType from_type =
+          wasm::Intersection(type, type_check.config.from, module_, module_)
+              .type;
+      DCHECK_NE(wasm::kWasmBottom, from_type);
+      WasmTypeCheckConfig config{from_type, type_check.config.to};
+      return __ WasmTypeCheck(__ MapToNewGraph(type_check.object()),
+                              __ MapToNewGraphIfValid(type_check.rtt()),
+                              config);
+    }
+    return Next::ReduceInputGraphWasmTypeCheck(op_idx, type_check);
   }
 
   OpIndex REDUCE_INPUT_GRAPH(AssertNotNull)(
@@ -191,10 +240,36 @@ class WasmGCTypeReducer : public Next {
     return Next::ReduceInputGraphStructSet(op_idx, struct_set);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(ArrayLength)(OpIndex op_idx,
+                                          const ArrayLengthOp& array_length) {
+    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    // Remove the null check if it is known to be not null.
+    if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
+      return __ ArrayLength(__ MapToNewGraph(array_length.array()),
+                            kWithoutNullCheck);
+    }
+    return Next::ReduceInputGraphArrayLength(op_idx, array_length);
+  }
+
+  // TODO(14108): This isn't a type optimization and doesn't fit well into this
+  // reducer.
+  OpIndex REDUCE(ExternInternalize)(V<Tagged> object) {
+    if (object.valid()) {
+      const ExternExternalizeOp* externalize =
+          __ output_graph().Get(object).template TryCast<ExternExternalizeOp>();
+      if (externalize != nullptr) {
+        // Directly return the object as
+        // extern.internalize(extern.externalize(x)) == x.
+        return __ MapToNewGraph(externalize->object());
+      }
+    }
+    return Next::ReduceExternInternalize(object);
+  }
+
  private:
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
-  WasmGCTypeAnalyzer analyzer_{__ modifiable_input_graph(), __ phase_zone()};
+  WasmGCTypeAnalyzer analyzer_{graph_, __ phase_zone()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
