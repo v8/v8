@@ -59,28 +59,30 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 
   if (type == AllocationType::kOld) {
-    if (large_object) {
+    if (large_object)
       return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
-    }
-    return old_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
+    else
+      return old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                origin);
   }
 
   if (type == AllocationType::kTrusted) {
-    if (large_object) {
+    if (large_object)
       return heap()->trusted_lo_space()->AllocateRawBackground(this,
                                                                size_in_bytes);
-    }
-    return trusted_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                  origin);
+    else
+      return trusted_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                    origin);
   }
 
   DCHECK_EQ(type, AllocationType::kSharedOld);
   if (large_object) {
     return heap()->shared_lo_allocation_space()->AllocateRawBackground(
         this, size_in_bytes);
+  } else {
+    return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                     origin);
   }
-  return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                   origin);
 }
 
 template <typename LocalHeap::AllocationRetryMode mode>

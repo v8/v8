@@ -336,6 +336,90 @@ UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
   isolate->Dispose();
 }
 
+const int kWhiteIterations = 1000;
+
+class ConcurrentBlackAllocationThread final : public v8::base::Thread {
+ public:
+  explicit ConcurrentBlackAllocationThread(
+      Heap* heap, std::vector<Address>* objects, base::Semaphore* sema_white,
+      base::Semaphore* sema_marking_started)
+      : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
+        heap_(heap),
+        objects_(objects),
+        sema_white_(sema_white),
+        sema_marking_started_(sema_marking_started) {}
+
+  void Run() override {
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
+
+    for (int i = 0; i < kNumIterations; i++) {
+      if (i == kWhiteIterations) {
+        ParkedScope scope(&local_heap);
+        sema_white_->Signal();
+        sema_marking_started_->Wait();
+      }
+      Address address = local_heap.AllocateRawOrFail(
+          kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kTaggedAligned);
+      objects_->push_back(address);
+      CreateFixedArray(heap_, address, kSmallObjectSize);
+      address = local_heap.AllocateRawOrFail(
+          kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kTaggedAligned);
+      objects_->push_back(address);
+      CreateFixedArray(heap_, address, kMediumObjectSize);
+    }
+  }
+
+  Heap* heap_;
+  std::vector<Address>* objects_;
+  base::Semaphore* sema_white_;
+  base::Semaphore* sema_marking_started_;
+};
+
+UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
+  if (!v8_flags.incremental_marking) return;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+  {
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+
+    std::vector<Address> objects;
+
+    base::Semaphore sema_white(0);
+    base::Semaphore sema_marking_started(0);
+
+    auto thread = std::make_unique<ConcurrentBlackAllocationThread>(
+        heap, &objects, &sema_white, &sema_marking_started);
+    CHECK(thread->Start());
+
+    sema_white.Wait();
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+    sema_marking_started.Signal();
+
+    thread->Join();
+
+    const int kObjectsAllocatedPerIteration = 2;
+
+    for (int i = 0; i < kNumIterations * kObjectsAllocatedPerIteration; i++) {
+      Address address = objects[i];
+      Tagged<HeapObject> object = HeapObject::FromAddress(address);
+
+      if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
+        CHECK(heap->marking_state()->IsUnmarked(object));
+      } else {
+        CHECK(heap->marking_state()->IsMarked(object));
+      }
+    }
+  }
+  isolate->Dispose();
+}
+
 class ConcurrentWriteBarrierThread final : public v8::base::Thread {
  public:
   ConcurrentWriteBarrierThread(Heap* heap, Tagged<FixedArray> fixed_array,

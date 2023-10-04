@@ -380,6 +380,18 @@ int PagedSpaceBase::CountTotalPages() const {
   return count;
 }
 
+void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit,
+                                             Address end) {
+  allocator_->ResetLab(top, limit, end);
+  if (top != kNullAddress && top != limit) {
+    Page* page = Page::FromAllocationAreaAddress(top);
+    if ((identity() != NEW_SPACE) &&
+        heap()->incremental_marking()->black_allocation()) {
+      page->CreateBlackArea(top, limit);
+    }
+  }
+}
+
 void PagedSpaceBase::DecreaseLimit(Address new_limit) {
   Address old_limit = allocator_->limit();
   DCHECK_LE(allocator_->top(), new_limit);
@@ -391,7 +403,7 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     }
 
     ConcurrentAllocationMutex guard(this);
-    Address old_max_limit = allocator_->original_limit();
+    Address old_max_limit = allocator_->original_limit_relaxed();
     if (!allocator_->supports_extending_lab()) {
       DCHECK_EQ(old_max_limit, old_limit);
       allocator_->ResetLab(allocator_->top(), new_limit, new_limit);
@@ -401,6 +413,11 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
       allocator_->ExtendLAB(new_limit);
       heap()->CreateFillerObjectAt(new_limit,
                                    static_cast<int>(old_max_limit - new_limit));
+    }
+    if (heap()->incremental_marking()->black_allocation() &&
+        identity() != NEW_SPACE) {
+      Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
+                                                                   old_limit);
     }
   }
 }
@@ -415,12 +432,11 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
   // skipped when scanning the heap.
   Address current_top = allocator_->top();
   Address current_limit = allocator_->limit();
-  USE(current_limit);
   if (current_top == kNullAddress) {
     DCHECK_EQ(kNullAddress, current_limit);
     return;
   }
-  Address current_max_limit = allocator_->original_limit();
+  Address current_max_limit = allocator_->original_limit_relaxed();
   DCHECK_IMPLIES(!allocator_->supports_extending_lab(),
                  current_max_limit == current_limit);
 
@@ -430,6 +446,12 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
   if (identity() == CODE_SPACE) {
     optional_scope.emplace(
         "FreeLinearAllocationArea writes to the page header.");
+  }
+
+  if (identity() != NEW_SPACE && current_top != current_limit &&
+      heap()->incremental_marking()->black_allocation()) {
+    Page::FromAddress(current_top)
+        ->DestroyBlackArea(current_top, current_limit);
   }
 
   allocator_->ResetLab(kNullAddress, kNullAddress, kNullAddress);
@@ -541,7 +563,7 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
       heap()->CreateFillerObjectAt(limit, static_cast<int>(end - limit));
     }
   }
-  allocator_->ResetLab(start, limit, end);
+  SetLinearAllocationArea(start, limit, end);
   AddRangeToActiveSystemPages(page, start, limit);
 
   return true;
@@ -758,7 +780,7 @@ bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
   Address current_top = allocator_->top();
   if (current_top == kNullAddress) return false;
   Address current_limit = allocator_->limit();
-  Address max_limit = allocator_->original_limit();
+  Address max_limit = allocator_->original_limit_relaxed();
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }

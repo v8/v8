@@ -56,9 +56,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       prev_(nullptr),
       next_(nullptr),
       handles_(new LocalHandles),
-      persistent_handles_(std::move(persistent_handles)),
-      pending_object_handle_(
-          heap_->lab_original_limits().AllocateObjectHandle()) {
+      persistent_handles_(std::move(persistent_handles)) {
   DCHECK_IMPLIES(!is_main_thread(), heap_->deserialization_complete());
   if (!is_main_thread()) SetUp();
 
@@ -123,26 +121,22 @@ void LocalHeap::SetUpMainThread() {
 
 void LocalHeap::SetUp() {
   DCHECK_NULL(old_space_allocator_);
-
   old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->old_space(), ConcurrentAllocator::Context::kNotGC,
-      &pending_object_handle_);
+      this, heap_->old_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(code_space_allocator_);
   code_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->code_space(), ConcurrentAllocator::Context::kNotGC,
-      &pending_object_handle_);
+      this, heap_->code_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(shared_old_space_allocator_);
   if (heap_->isolate()->has_shared_space()) {
     shared_old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
         this, heap_->shared_allocation_space(),
-        ConcurrentAllocator::Context::kNotGC, &pending_object_handle_);
+        ConcurrentAllocator::Context::kNotGC);
   }
 
   trusted_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->trusted_space(), ConcurrentAllocator::Context::kNotGC,
-      &pending_object_handle_);
+      this, heap_->trusted_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(marking_barrier_);
   marking_barrier_ = std::make_unique<MarkingBarrier>(this);
@@ -411,6 +405,30 @@ void LocalHeap::MakeLinearAllocationAreaIterable() {
 void LocalHeap::MakeSharedLinearAllocationAreaIterable() {
   if (shared_old_space_allocator_) {
     shared_old_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
+}
+
+void LocalHeap::MarkLinearAllocationAreaBlack() {
+  old_space_allocator_->MarkLinearAllocationAreaBlack();
+  code_space_allocator_->MarkLinearAllocationAreaBlack();
+  trusted_space_allocator_->MarkLinearAllocationAreaBlack();
+}
+
+void LocalHeap::UnmarkLinearAllocationArea() {
+  old_space_allocator_->UnmarkLinearAllocationArea();
+  code_space_allocator_->UnmarkLinearAllocationArea();
+  trusted_space_allocator_->UnmarkLinearAllocationArea();
+}
+
+void LocalHeap::MarkSharedLinearAllocationAreaBlack() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+}
+
+void LocalHeap::UnmarkSharedLinearAllocationArea() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->UnmarkLinearAllocationArea();
   }
 }
 

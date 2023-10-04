@@ -1111,6 +1111,17 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   Tagged<DescriptorArray> array = DescriptorArray::cast(obj);
 
   auto raw_gc_state = DescriptorArrayMarkingState::kInitialGCState;
+  if (allocation != AllocationType::kYoung &&
+      allocation != AllocationType::kReadOnly) {
+    auto* heap = allocation == AllocationType::kSharedOld
+                     ? isolate()->AsIsolate()->shared_space_isolate()->heap()
+                     : isolate()->heap()->AsHeap();
+    if (heap->incremental_marking()->IsMajorMarking()) {
+      // Black allocation: We must create a full marked state.
+      raw_gc_state = DescriptorArrayMarkingState::GetFullyMarkedState(
+          heap->mark_compact_collector()->epoch(), number_of_descriptors);
+    }
+  }
   array->Initialize(read_only_roots().empty_enum_cache(),
                     read_only_roots().undefined_value(), number_of_descriptors,
                     slack, raw_gc_state);

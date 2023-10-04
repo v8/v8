@@ -5886,6 +5886,7 @@ TEST(Regress615489) {
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
     v8::HandleScope inner(CcTest::isolate());
@@ -5963,6 +5964,67 @@ TEST(Regress631969) {
     i::Handle<i::ExternalOneByteString>::cast(s3)->SetResource(isolate,
                                                                nullptr);
   }
+}
+
+TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  heap::InvokeMajorGC(heap);
+
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
+
+  // Ensure that we allocate a new page, set up a bump pointer area, and
+  // perform the allocation in a black area.
+  heap::SimulateFullSpace(heap->old_space());
+  isolate->factory()->NewFixedArray(10, AllocationType::kOld);
+
+  // Allocate the fixed array that will be trimmed later.
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(100, AllocationType::kOld);
+  Address start_address = array->address();
+  Address end_address = start_address + array->Size();
+  Page* page = Page::FromAddress(start_address);
+  NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
+  CHECK(marking_state->IsMarked(*array));
+  CHECK(page->marking_bitmap()->AllBitsSetInRange(
+      MarkingBitmap::AddressToIndex(start_address),
+      MarkingBitmap::LimitAddressToIndex(end_address)));
+  CHECK(heap->old_space()->Contains(*array));
+
+  // Trim it once by one word to make checking for white marking color uniform.
+  Address previous = end_address - kTaggedSize;
+  isolate->heap()->RightTrimFixedArray(*array, 1);
+
+  Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
+  CHECK(IsFreeSpaceOrFiller(filler));
+
+  // Trim 10 times by one, two, and three word.
+  for (int i = 1; i <= 3; i++) {
+    for (int j = 0; j < 10; j++) {
+      previous -= kTaggedSize * i;
+      isolate->heap()->RightTrimFixedArray(*array, i);
+      filler = HeapObject::FromAddress(previous);
+      CHECK(IsFreeSpaceOrFiller(filler));
+      CHECK(marking_state->IsUnmarked(filler));
+    }
+  }
+
+  heap::InvokeAtomicMajorGC(heap);
 }
 
 TEST(Regress618958) {
@@ -6372,18 +6434,14 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Handle<Map> map;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    map = isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    map = isolate->factory()->NewMap(BIGINT_TYPE, HeapNumber::kSize);
   }
-  CHECK(!heap->marking_state()->IsMarked(*map));
+  CHECK(heap->incremental_marking()->black_allocation());
   Handle<HeapObject> object;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
     object = handle(isolate->factory()->NewForTest(map, AllocationType::kOld),
                     isolate);
-    CHECK(!heap->marking_state()->IsMarked(*object));
-    // Initialize the object so that heap verification succeeds.
-    Handle<JSObject>::cast(object)->initialize_properties(isolate);
-    Handle<JSObject>::cast(object)->initialize_elements();
   }
   // The object is black. If Factory::New sets the map without write-barrier,
   // then the map is white and will be freed prematurely.

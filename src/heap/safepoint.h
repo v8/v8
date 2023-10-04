@@ -22,7 +22,7 @@ class RootVisitor;
 
 // Used to bring all threads with heap access in an isolate to a safepoint such
 // that e.g. a garbage collection can be performed.
-class V8_EXPORT_PRIVATE IsolateSafepoint final {
+class IsolateSafepoint final {
  public:
   explicit IsolateSafepoint(Heap* heap);
 
@@ -40,7 +40,8 @@ class V8_EXPORT_PRIVATE IsolateSafepoint final {
   }
 
   void AssertActive() { local_heaps_mutex_.AssertHeld(); }
-  void AssertMainThreadIsOnlyThread();
+
+  V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
  private:
   class Barrier {

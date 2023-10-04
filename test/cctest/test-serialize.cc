@@ -2163,6 +2163,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   heap::ForceEvacuationCandidate(ec_page);
   heap::SimulateIncrementalMarking(heap, false);
   IncrementalMarking* marking = heap->incremental_marking();
+  CHECK(marking->black_allocation());
   CHECK(marking->IsCompacting());
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*moving_object));
 

@@ -167,6 +167,12 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   template <AccessMode mode>
   inline void Clear();
 
+  // Sets all bits in the range [start_index, end_index). If the access is
+  // atomic, the cells at the boundary of the range are updated with atomic
+  // compare and swap operation. The inner cells are updated with relaxed write.
+  template <AccessMode mode>
+  inline void SetRange(MarkBitIndex start_index, MarkBitIndex end_index);
+
   // Clears all bits in the range [start_index, end_index). If the access is
   // atomic, the cells at the boundary of the range are updated with atomic
   // compare and swap operation. The inner cells are updated with relaxed write.
@@ -194,13 +200,6 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // of a valid object in the page.
   static inline Address FindPreviousValidObject(const Page* page,
                                                 Address maybe_inner_ptr);
-
-  // Sets all bits in the range [start_index, end_index). If the access is
-  // atomic, the cells at the boundary of the range are updated with atomic
-  // compare and swap operation. The inner cells are updated with relaxed write.
-  template <AccessMode mode>
-  inline void SetRangeForTesting(MarkBitIndex start_index,
-                                 MarkBitIndex end_index);
 
  private:
   V8_INLINE static MarkingBitmap* FromAddress(Address address);

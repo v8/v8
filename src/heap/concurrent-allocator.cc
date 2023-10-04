@@ -79,16 +79,12 @@ void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
                                                       kDelayInSeconds);
 }
 
-ConcurrentAllocator::ConcurrentAllocator(
-    LocalHeap* local_heap, PagedSpace* space, Context context,
-    LabOriginalLimits::PendingObjectHandle* pending_object_handle)
+ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
+                                         PagedSpace* space, Context context)
     : local_heap_(local_heap),
       space_(space),
       owning_heap_(space_->heap()),
-      lab_origins_(owning_heap_->lab_original_limits().AllocateLabHandle()),
-      pending_object_handle_(pending_object_handle),
       context_(context) {
-  USE(context_);
   DCHECK_IMPLIES(!local_heap_, context_ == Context::kGC);
 }
 
@@ -100,6 +96,10 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
     }
 
     Page* page = Page::FromAddress(lab_.top());
+
+    if (IsBlackAllocationEnabled()) {
+      page->DestroyBlackArea(lab_.top(), lab_.limit());
+    }
 
     // When starting incremental marking free lists are dropped for evacuation
     // candidates. So for evacuation candidates we just make the free memory
@@ -117,11 +117,41 @@ void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
   MakeLabIterable();
 }
 
+void ConcurrentAllocator::MarkLinearAllocationAreaBlack() {
+  Address top = lab_.top();
+  Address limit = lab_.limit();
+
+  if (top != kNullAddress && top != limit) {
+    base::Optional<CodePageHeaderModificationScope> optional_rwx_write_scope;
+    if (space_->identity() == CODE_SPACE) {
+      optional_rwx_write_scope.emplace(
+          "Marking InstructionStream objects requires write access to the "
+          "Code page header");
+    }
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
+  }
+}
+
+void ConcurrentAllocator::UnmarkLinearAllocationArea() {
+  Address top = lab_.top();
+  Address limit = lab_.limit();
+
+  if (top != kNullAddress && top != limit) {
+    base::Optional<CodePageHeaderModificationScope> optional_rwx_write_scope;
+    if (space_->identity() == CODE_SPACE) {
+      optional_rwx_write_scope.emplace(
+          "Marking InstructionStream objects requires write access to the "
+          "Code page header");
+    }
+    Page::FromAllocationAreaAddress(top)->DestroyBlackArea(top, limit);
+  }
+}
+
 AllocationResult ConcurrentAllocator::AllocateInLabSlow(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  // New allocation from LAB is happening, so reset the the pending object.
-  if (pending_object_handle_) pending_object_handle_->Reset();
-  if (!AllocateLab(origin)) return AllocationResult::Failure();
+  if (!AllocateLab(origin)) {
+    return AllocationResult::Failure();
+  }
   AllocationResult allocation =
       AllocateInLabFastAligned(size_in_bytes, alignment);
   DCHECK(!allocation.IsFailure());
@@ -141,7 +171,11 @@ bool ConcurrentAllocator::AllocateLab(AllocationOrigin origin) {
   lab_ = LinearAllocationArea(lab_start, lab_end);
   DCHECK(IsLabValid());
 
-  lab_origins_.UpdateLimits(lab_start, lab_end);
+  if (IsBlackAllocationEnabled()) {
+    Address top = lab_.top();
+    Address limit = lab_.limit();
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
+  }
 
   return true;
 }
@@ -289,15 +323,16 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
         object, size_in_bytes, static_cast<int>(result->second), alignment);
   }
 
-  if (pending_object_handle_)
-    pending_object_handle_->UpdateAddress(result->first);
-
+  if (IsBlackAllocationEnabled()) {
+    owning_heap()->incremental_marking()->MarkBlackBackground(object,
+                                                              size_in_bytes);
+  }
   return AllocationResult::FromObject(object);
 }
 
-void ConcurrentAllocator::ResetLab() {
-  lab_ = LinearAllocationArea(kNullAddress, kNullAddress);
-  lab_origins_.UpdateLimits(kNullAddress, kNullAddress);
+bool ConcurrentAllocator::IsBlackAllocationEnabled() const {
+  return context_ == Context::kNotGC &&
+         owning_heap()->incremental_marking()->black_allocation();
 }
 
 void ConcurrentAllocator::MakeLabIterable() {

@@ -16,8 +16,7 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       space_(space),
       compaction_space_kind_(compaction_space_kind),
       supports_extending_lab_(supports_extending_lab),
-      allocation_info_(allocation_info),
-      lab_origins_handle_(heap->lab_original_limits().AllocateLabHandle()) {}
+      allocation_info_(allocation_info) {}
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                              CompactionSpaceKind compaction_space_kind,
@@ -26,8 +25,7 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       space_(space),
       compaction_space_kind_(compaction_space_kind),
       supports_extending_lab_(supports_extending_lab),
-      allocation_info_(owned_allocation_info_),
-      lab_origins_handle_(heap->lab_original_limits().AllocateLabHandle()) {}
+      allocation_info_(owned_allocation_info_) {}
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
@@ -199,7 +197,7 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
 
 void MainAllocator::MakeLinearAllocationAreaIterable() {
   Address current_top = top();
-  Address current_limit = lab_origins_handle_.top_and_limit().second;
+  Address current_limit = original_limit_relaxed();
   DCHECK_GE(current_limit, limit());
   if (current_top != kNullAddress && current_top != current_limit) {
     heap_->CreateFillerObjectAt(current_top,
@@ -207,9 +205,32 @@ void MainAllocator::MakeLinearAllocationAreaIterable() {
   }
 }
 
+void MainAllocator::MarkLinearAllocationAreaBlack() {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != kNullAddress && current_top != current_limit) {
+    Page::FromAllocationAreaAddress(current_top)
+        ->CreateBlackArea(current_top, current_limit);
+  }
+}
+
+void MainAllocator::UnmarkLinearAllocationArea() {
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != kNullAddress && current_top != current_limit) {
+    Page::FromAllocationAreaAddress(current_top)
+        ->DestroyBlackArea(current_top, current_limit);
+  }
+}
+
 void MainAllocator::MoveOriginalTopForward() {
   DCHECK(!is_compaction_space());
-  lab_origins_handle_.AdvanceTop(top());
+  base::SharedMutexGuard<base::kExclusive> guard(
+      linear_area_original_data_.linear_area_lock());
+  DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
+  DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
+  linear_area_original_data_.set_original_top_release(top());
 }
 
 void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
@@ -222,12 +243,19 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
 
   allocation_info().Reset(start, end);
 
-  lab_origins_handle_.UpdateLimits(start, extended_end);
+  base::Optional<base::SharedMutexGuard<base::kExclusive>> guard;
+  if (!is_compaction_space())
+    guard.emplace(linear_area_original_data_.linear_area_lock());
+  linear_area_original_data().set_original_limit_relaxed(extended_end);
+  linear_area_original_data().set_original_top_release(start);
 }
 
 bool MainAllocator::IsPendingAllocation(Address object_address) {
   DCHECK(!is_compaction_space());
-  auto [top, limit] = lab_origins_handle_.top_and_limit();
+  base::SharedMutexGuard<base::kShared> guard(
+      linear_area_original_data_.linear_area_lock());
+  Address top = original_top_acquire();
+  Address limit = original_limit_relaxed();
   DCHECK_LE(top, limit);
   return top && top <= object_address && object_address < limit;
 }
@@ -236,7 +264,10 @@ void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
   DCHECK(!is_compaction_space());
 
   if (allocation_info().MergeIfAdjacent(lab)) {
-    lab_origins_handle_.SetTop(allocation_info().top());
+    base::SharedMutexGuard<base::kExclusive> guard(
+        linear_area_original_data_.linear_area_lock());
+    linear_area_original_data().set_original_top_release(
+        allocation_info().top());
   }
 
 #if DEBUG
@@ -263,7 +294,7 @@ void MainAllocator::FreeLinearAllocationArea() {
 
 void MainAllocator::ExtendLAB(Address limit) {
   DCHECK(supports_extending_lab());
-  DCHECK_LE(limit, original_limit());
+  DCHECK_LE(limit, original_limit_relaxed());
   allocation_info().SetLimit(limit);
 }
 
@@ -309,13 +340,14 @@ void MainAllocator::Verify() const {
   DCHECK_LE(allocation_info().start(), allocation_info().top());
   DCHECK_LE(allocation_info().top(), allocation_info().limit());
 
-  auto [top, limit] = lab_origins_handle_.top_and_limit();
   // Ensure that original_top_ always >= LAB start. The delta between start_
   // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(top, allocation_info().start());
+  DCHECK_GE(linear_area_original_data().get_original_top_acquire(),
+            allocation_info().start());
 
-  // Ensure that limit() is <= original limit.
-  DCHECK_LE(allocation_info().limit(), limit);
+  // Ensure that limit() is <= original_limit_.
+  DCHECK_LE(allocation_info().limit(),
+            linear_area_original_data().get_original_limit_relaxed());
 }
 #endif  // DEBUG
 

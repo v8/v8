@@ -118,6 +118,15 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return trusted_space_allocator_.get();
   }
 
+  // Mark/Unmark linear allocation areas black. Used for black allocation.
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
+
+  // Mark/Unmark linear allocation areas in shared heap black. Used for black
+  // allocation.
+  void MarkSharedLinearAllocationAreaBlack();
+  void UnmarkSharedLinearAllocationArea();
+
   // Give up linear allocation areas. Used for mark-compact GC.
   void FreeLinearAllocationArea();
 
@@ -202,10 +211,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_INLINE void BlockWhileParked(Callback callback);
   template <typename Callback>
   V8_INLINE void BlockMainThreadWhileParked(Callback callback);
-
-  LabOriginalLimits::PendingObjectHandle& pending_object_handle() {
-    return pending_object_handle_;
-  }
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -368,11 +373,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> trusted_space_allocator_;
-
-  // The handle to a pending object, i.e. a large object currently being
-  // allocated/initialized. We keep a single handle for it which is shared
-  // across all the concurrent allocators.
-  LabOriginalLimits::PendingObjectHandle pending_object_handle_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
 

@@ -333,6 +333,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
+  void SetLinearAllocationArea(Address top, Address limit, Address end);
+
   void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
   void ReduceActiveSystemPages(Page* page,
                                ActiveSystemPages active_system_pages);

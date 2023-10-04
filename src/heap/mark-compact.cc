@@ -693,8 +693,9 @@ void MarkCompactCollector::Prepare() {
   }
 
   if (heap_->new_space()) {
-    DCHECK_EQ(heap_->allocator()->new_space_allocator()->top(),
-              heap_->allocator()->new_space_allocator()->original_top());
+    DCHECK_EQ(
+        heap_->allocator()->new_space_allocator()->top(),
+        heap_->allocator()->new_space_allocator()->original_top_acquire());
   }
 }
 

@@ -349,6 +349,7 @@ TEST(Regress5829) {
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(10, AllocationType::kOld);
   Address old_end = array->address() + array->Size();

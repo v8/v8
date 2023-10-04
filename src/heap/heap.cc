@@ -2771,6 +2771,11 @@ void Heap::Scavenge() {
   // trigger one during scavenge: scavenges allocation should always succeed.
   AlwaysAllocateScope scope(this);
 
+  // Bump-pointer allocations done during scavenge are not real allocations.
+  // Pause the inline allocation steps.
+  IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
+      incremental_marking());
+
   SetGCState(SCAVENGE);
 
   SemiSpaceNewSpace::From(new_space())->EvacuatePrologue();
@@ -3614,6 +3619,16 @@ void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+    Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
+    // Clear the mark bits of the black area that belongs now to the filler.
+    // This is an optimization. The sweeper will release black fillers anyway.
+    if (incremental_marking()->black_allocation() &&
+        marking_state()->IsMarked(filler)) {
+      Page* page = Page::FromAddress(new_end);
+      page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
+          MarkingBitmap::AddressToIndex(new_end),
+          MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
+    }
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the
     // recorded slot.
@@ -3710,6 +3725,26 @@ void Heap::MakeSharedLinearAllocationAreasIterable() {
   }
 
   main_thread_local_heap()->MakeSharedLinearAllocationAreaIterable();
+}
+
+void Heap::MarkSharedLinearAllocationAreasBlack() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MarkSharedLinearAllocationAreaBlack();
+  });
+  main_thread_local_heap()->MarkSharedLinearAllocationAreaBlack();
+}
+
+void Heap::UnmarkSharedLinearAllocationAreas() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->UnmarkSharedLinearAllocationArea();
+  });
+  main_thread_local_heap()->UnmarkSharedLinearAllocationArea();
 }
 
 namespace {

@@ -102,6 +102,14 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       old_generation_observer_(this,
                                kMajorGCOldGenerationAllocationObserverStep) {}
 
+void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
+                                             int object_size) {
+  CHECK(marking_state()->TryMark(obj));
+  base::MutexGuard guard(&background_live_bytes_mutex_);
+  background_live_bytes_[MemoryChunk::FromHeapObject(obj)] +=
+      static_cast<intptr_t>(object_size);
+}
+
 bool IncrementalMarking::CanBeStarted() const {
   // Only start incremental marking in a safe state:
   //   1) when incremental marking is turned on
@@ -326,6 +334,8 @@ void IncrementalMarking::StartMarkingMajor() {
   MarkingBarrier::ActivateAll(heap(), is_compacting_);
   isolate()->traced_handles()->SetIsMarking(true);
 
+  StartBlackAllocation();
+
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
     MarkRoots();
@@ -393,6 +403,56 @@ void IncrementalMarking::StartMarkingMinor() {
   }
 
   DCHECK(!is_compacting_);
+}
+
+void IncrementalMarking::StartBlackAllocation() {
+  DCHECK(!black_allocation_);
+  DCHECK(IsMajorMarking());
+  black_allocation_ = true;
+  heap()->allocator()->MarkLinearAllocationAreaBlack();
+  if (isolate()->is_shared_space_isolate()) {
+    DCHECK(!heap()->shared_space()->main_allocator()->IsLabValid());
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->MarkSharedLinearAllocationAreasBlack();
+        });
+  }
+  heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MarkLinearAllocationAreaBlack();
+  });
+  if (v8_flags.trace_incremental_marking) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation started\n");
+  }
+}
+
+void IncrementalMarking::PauseBlackAllocation() {
+  DCHECK(IsMajorMarking());
+  heap()->allocator()->UnmarkLinearAllocationArea();
+  if (isolate()->is_shared_space_isolate()) {
+    DCHECK(!heap()->shared_space()->main_allocator()->IsLabValid());
+    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+        [](Isolate* client) {
+          client->heap()->UnmarkSharedLinearAllocationAreas();
+        });
+  }
+  heap()->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });
+  if (v8_flags.trace_incremental_marking) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation paused\n");
+  }
+  black_allocation_ = false;
+}
+
+void IncrementalMarking::FinishBlackAllocation() {
+  if (black_allocation_) {
+    black_allocation_ = false;
+    if (v8_flags.trace_incremental_marking) {
+      isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Black allocation finished\n");
+    }
+  }
 }
 
 void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
@@ -535,6 +595,7 @@ bool IncrementalMarking::Stop() {
 
   heap_->SetIsMinorMarkingFlag(false);
   is_compacting_ = false;
+  FinishBlackAllocation();
 
   // Merge live bytes counters of background threads
   for (const auto& pair : background_live_bytes_) {
@@ -849,6 +910,21 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
 }
 
 Isolate* IncrementalMarking::isolate() const { return heap_->isolate(); }
+
+IncrementalMarking::PauseBlackAllocationScope::PauseBlackAllocationScope(
+    IncrementalMarking* marking)
+    : marking_(marking) {
+  if (marking_->black_allocation()) {
+    paused_ = true;
+    marking_->PauseBlackAllocation();
+  }
+}
+
+IncrementalMarking::PauseBlackAllocationScope::~PauseBlackAllocationScope() {
+  if (paused_) {
+    marking_->StartBlackAllocation();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

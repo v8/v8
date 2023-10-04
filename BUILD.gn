@@ -5121,7 +5121,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/index-generator.cc",
     "src/heap/large-page.cc",
     "src/heap/large-spaces.cc",
-    "src/heap/linear-allocation-area.cc",
     "src/heap/local-factory.cc",
     "src/heap/local-heap.cc",
     "src/heap/main-allocator.cc",

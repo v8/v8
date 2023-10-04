@@ -7,7 +7,6 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -180,79 +179,6 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   lh->RemoveGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
   for (auto& e : epilogue) {
     CHECK(e.WasInvoked());
-  }
-}
-
-namespace {
-
-Tagged<FixedArray> ConstructFromLocalHeap(LocalHeap& lheap,
-                                          AllocationType space, int size) {
-  auto alloc = lheap.AllocateRaw(size, space);
-  CHECK(!alloc.IsFailure());
-
-  Tagged<HeapObject> object = HeapObject::FromAddress(alloc.ToAddress());
-  object->set_map_after_allocation(
-      ReadOnlyRoots(lheap.heap()).fixed_array_map(), SKIP_WRITE_BARRIER);
-  Tagged<FixedArray> array = FixedArray::cast(object);
-  int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
-  array->set_length(length);
-  MemsetTagged(array->data_start(),
-               ReadOnlyRoots(lheap.heap()).undefined_value(), length);
-  return array;
-}
-
-class AllocatingBackgroundThread final : public v8::base::Thread {
- public:
-  explicit AllocatingBackgroundThread(Heap* heap)
-      : v8::base::Thread(base::Thread::Options("BackgroundThread")),
-        heap_(heap),
-        lab_limits_(heap_->lab_original_limits()) {}
-
-  void Run() override {
-    auto lab_snapshot = lab_limits_.CreateEmptySnapshot();
-    EXPECT_TRUE(lab_limits_.UpdateSnapshotIfNeeded(lab_snapshot));
-    {
-      constexpr auto space = AllocationType::kOld;
-      LocalHeap lh(heap_, ThreadKind::kBackground);
-      UnparkedScope unparked_scope(&lh);
-
-      // Check that object is saved in a lab handle.
-      Tagged<FixedArray> array =
-          ConstructFromLocalHeap(lh, space, 8 * kTaggedSize);
-
-      EXPECT_FALSE(lab_snapshot.IsAddressInAnyLab(array.address()));
-      EXPECT_TRUE(lab_limits_.UpdateSnapshotIfNeeded(lab_snapshot));
-      EXPECT_TRUE(lab_snapshot.IsAddressInAnyLab(array.address()));
-
-      // Check that object allocated outside the lab is registered as well.
-      array = ConstructFromLocalHeap(
-          lh, space, ConcurrentAllocator::kMaxLabObjectSize + kTaggedSize);
-
-      EXPECT_FALSE(lab_snapshot.IsAddressInAnyLab(array.address()));
-      EXPECT_TRUE(lab_limits_.UpdateSnapshotIfNeeded(lab_snapshot));
-      EXPECT_TRUE(lab_snapshot.IsAddressInAnyLab(array.address()));
-
-      // Check that large object is saved in an object handle.
-      array = ConstructFromLocalHeap(
-          lh, space, heap_->MaxRegularHeapObjectSize(space) + kTaggedSize);
-
-      EXPECT_FALSE(lab_snapshot.IsAddressInAnyLab(array.address()));
-      EXPECT_TRUE(lab_limits_.UpdateSnapshotIfNeeded(lab_snapshot));
-      EXPECT_TRUE(lab_snapshot.IsAddressInAnyLab(array.address()));
-    }
-  }
-
-  Heap* heap_;
-  LabOriginalLimits& lab_limits_;
-};
-}  // anonymous namespace
-
-TEST_F(LocalHeapTest, ConcurrentAllocationLabInSnapshot) {
-  Heap* heap = i_isolate()->heap();
-  {
-    auto thread = std::make_unique<AllocatingBackgroundThread>(heap);
-    CHECK(thread->Start());
-    thread->Join();
   }
 }
 
