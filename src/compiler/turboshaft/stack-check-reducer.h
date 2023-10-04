@@ -24,7 +24,8 @@ class StackCheckReducer : public Next {
                             const char* debug_name = "") {
     OpIndex result = Next::ReduceParameter(parameter_index, rep, debug_name);
     if (parameter_index == 0) {
-      param0_ = result;
+      // Parameter 0 is the instance.
+      instance_ = result;
     }
     return result;
   }
@@ -33,13 +34,21 @@ class StackCheckReducer : public Next {
                              StackCheckOp::CheckKind kind) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     if (origin == StackCheckOp::CheckOrigin::kFromWasm) {
-      V<Tagged> instance_node = param0_;
-      DCHECK(instance_node.valid());
-      V<WordPtr> limit_address =
-          __ Load(instance_node, LoadOp ::Kind ::TaggedBase().Immutable(),
-                  MemoryRepresentation ::PointerSized(),
-                  WasmInstanceObject ::kStackLimitAddressOffset);
-      V<WordPtr> limit = __ Load(limit_address, LoadOp::Kind::RawAligned(),
+      if (kind == StackCheckOp::CheckKind::kFunctionHeaderCheck) {
+        // We now load once and for all the address of the "limit" field, so
+        // that we don't have to reload it for every stack check.
+        DCHECK(!limit_address_.valid());
+        limit_address_ =
+            __ Load(instance_, LoadOp::Kind::TaggedBase().Immutable(),
+                    MemoryRepresentation::PointerSized(),
+                    WasmInstanceObject::kStackLimitAddressOffset);
+        if (__ IsLeafFunction()) {
+          // We skip the initial stack check of leaf functions.
+          return OpIndex::Invalid();
+        }
+      }
+      DCHECK(limit_address_.valid());
+      V<WordPtr> limit = __ Load(limit_address_, LoadOp::Kind::RawAligned(),
                                  MemoryRepresentation::PointerSized(), 0);
       V<Word32> check =
           __ StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
@@ -68,9 +77,12 @@ class StackCheckReducer : public Next {
   }
 
  private:
-  // For WebAssembly, param0 is the instance, we store it to use it for the
-  // stack check.
-  OpIndex param0_ = OpIndex::Invalid();
+  // We cache the instance because we need it to load the limit_address used to
+  // lower stack checks.
+  OpIndex instance_ = OpIndex::Invalid();
+  // We cache the limit_address_ operation, which loads the address of the
+  // "limit" field on the instance.
+  V<WordPtr> limit_address_ = OpIndex::Invalid();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

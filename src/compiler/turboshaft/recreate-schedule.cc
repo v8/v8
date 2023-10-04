@@ -160,6 +160,9 @@ RecreateScheduleResult ScheduleBuilder::Run() {
 }
 
 void ScheduleBuilder::ProcessOperation(const Operation& op) {
+  if (!turboshaft::ShouldSkipOptimizationStep() && ShouldSkipOperation(op)) {
+    return;
+  }
   Node* node;
   switch (op.opcode) {
 #define SWITCH_CASE(Name)                         \

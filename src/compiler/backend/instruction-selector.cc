@@ -490,6 +490,12 @@ bool InstructionSelectorT<Adapter>::IsUsed(node_t node) const {
     // TODO(bmeurer): This is a terrible monster hack, but we have to make sure
     // that the Retain is actually emitted, otherwise the GC will mess up.
     if (this->IsRetain(node)) return true;
+  } else {
+    static_assert(Adapter::IsTurboshaft);
+    if (!turboshaft::ShouldSkipOptimizationStep() &&
+        turboshaft::ShouldSkipOperation(this->Get(node))) {
+      return false;
+    }
   }
   if (this->IsRequiredWhenUnused(node)) return true;
   return used_.Contains(this->id(node));
