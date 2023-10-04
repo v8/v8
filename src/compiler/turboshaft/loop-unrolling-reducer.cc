@@ -397,16 +397,34 @@ bool StaticCanonicalForLoopMatcher::HasFewIterations(
     case CmpOp::kSignedGreaterThan:
     case CmpOp::kSignedGreaterThanOrEqual:
     case CmpOp::kEqual:
-      return HasFewerIterationsThan(static_cast<int64_t>(initial_input),
-                                    static_cast<int64_t>(cmp_cst), cmp_op,
-                                    static_cast<int64_t>(binop_cst), binop_op,
-                                    binop_rep, max_iter_, iter_count);
+      if (binop_rep == WordRepresentation::Word32()) {
+        return HasFewerIterationsThan<int32_t>(
+            static_cast<int32_t>(initial_input), static_cast<int32_t>(cmp_cst),
+            cmp_op, static_cast<int32_t>(binop_cst), binop_op, binop_rep,
+            max_iter_, iter_count);
+      } else {
+        DCHECK_EQ(binop_rep, WordRepresentation::Word64());
+        return HasFewerIterationsThan<int64_t>(
+            static_cast<int64_t>(initial_input), static_cast<int64_t>(cmp_cst),
+            cmp_op, static_cast<int64_t>(binop_cst), binop_op, binop_rep,
+            max_iter_, iter_count);
+      }
     case CmpOp::kUnsignedLessThan:
     case CmpOp::kUnsignedLessThanOrEqual:
     case CmpOp::kUnsignedGreaterThan:
     case CmpOp::kUnsignedGreaterThanOrEqual:
-      return HasFewerIterationsThan(initial_input, cmp_cst, cmp_op, binop_cst,
-                                    binop_op, binop_rep, max_iter_, iter_count);
+      if (binop_rep == WordRepresentation::Word32()) {
+        return HasFewerIterationsThan<uint32_t>(
+            static_cast<uint32_t>(initial_input),
+            static_cast<uint32_t>(cmp_cst), cmp_op,
+            static_cast<uint32_t>(binop_cst), binop_op, binop_rep, max_iter_,
+            iter_count);
+      } else {
+        DCHECK_EQ(binop_rep, WordRepresentation::Word64());
+        return HasFewerIterationsThan<uint64_t>(initial_input, cmp_cst, cmp_op,
+                                                binop_cst, binop_op, binop_rep,
+                                                max_iter_, iter_count);
+      }
   }
 }
 
@@ -452,21 +470,21 @@ StaticCanonicalForLoopMatcher::InvertComparisonOp(CmpOp op) {
     case CmpOp::kEqual:
       return CmpOp::kEqual;
     case CmpOp::kSignedLessThan:
-      return CmpOp::kSignedGreaterThanOrEqual;
-    case CmpOp::kSignedLessThanOrEqual:
       return CmpOp::kSignedGreaterThan;
+    case CmpOp::kSignedLessThanOrEqual:
+      return CmpOp::kSignedGreaterThanOrEqual;
     case CmpOp::kUnsignedLessThan:
-      return CmpOp::kUnsignedGreaterThanOrEqual;
-    case CmpOp::kUnsignedLessThanOrEqual:
       return CmpOp::kUnsignedGreaterThan;
+    case CmpOp::kUnsignedLessThanOrEqual:
+      return CmpOp::kUnsignedGreaterThanOrEqual;
     case CmpOp::kSignedGreaterThan:
-      return CmpOp::kSignedLessThanOrEqual;
-    case CmpOp::kSignedGreaterThanOrEqual:
       return CmpOp::kSignedLessThan;
+    case CmpOp::kSignedGreaterThanOrEqual:
+      return CmpOp::kSignedLessThanOrEqual;
     case CmpOp::kUnsignedGreaterThan:
-      return CmpOp::kUnsignedLessThanOrEqual;
-    case CmpOp::kUnsignedGreaterThanOrEqual:
       return CmpOp::kUnsignedLessThan;
+    case CmpOp::kUnsignedGreaterThanOrEqual:
+      return CmpOp::kUnsignedLessThanOrEqual;
   }
 }
 
