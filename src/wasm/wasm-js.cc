@@ -2219,7 +2219,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-// WebAssembly.Function.type(WebAssembly.Function) -> FunctionType
+// WebAssembly.Function.prototype.type() -> FunctionType
 void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -2229,10 +2229,11 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   const i::wasm::FunctionSig* sig;
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-  i::Handle<i::Object> arg0 = Utils::OpenHandle(*info[0]);
-  if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
+
+  i::Handle<i::Object> fun = Utils::OpenHandle(*info.This());
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
     auto wasm_exported_function =
-        i::Handle<i::WasmExportedFunction>::cast(arg0);
+        i::Handle<i::WasmExportedFunction>::cast(fun);
     auto sfi = handle(wasm_exported_function->shared(), i_isolate);
     i::Handle<i::WasmExportedFunctionData> data =
         handle(sfi->wasm_exported_function_data(), i_isolate);
@@ -2252,10 +2253,10 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
       builder.AddReturn(i::wasm::kWasmExternRef);
       sig = builder.Build();
     }
-  } else if (i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
-    sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
+  } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
+    sig = i::Handle<i::WasmJSFunction>::cast(fun)->GetSignature(&zone);
   } else {
-    thrower.TypeError("Argument 0 must be a WebAssembly.Function");
+    thrower.TypeError("Receiver must be a WebAssembly.Function");
     return;
   }
 
@@ -3278,8 +3279,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
               .FromJust());
     JSFunction::SetInitialMap(isolate, function_constructor, function_map,
                               function_proto);
-    InstallFunc(isolate, function_constructor, "type", WebAssemblyFunctionType,
-                1);
+    InstallFunc(isolate, function_proto, "type", WebAssemblyFunctionType, 0);
     // Make all exported functions an instance of {WebAssembly.Function}.
     native_context->set_wasm_exported_function_map(*function_map);
   }

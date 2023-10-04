@@ -12,7 +12,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function ToPromising(wasm_export) {
-  let sig = WebAssembly.Function.type(wasm_export);
+  let sig = wasm_export.type();
   assertTrue(sig.parameters.length > 0);
   assertEquals('externref', sig.parameters[0]);
   assertEquals(1, sig.results.length);

@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 function ToPromising(wasm_export) {
-  let sig = WebAssembly.Function.type(wasm_export);
+  let sig = wasm_export.type();
   assertTrue(sig.parameters.length > 0);
   assertEquals('externref', sig.parameters[0]);
   let wrapper_sig = {
@@ -93,12 +93,12 @@ function ToPromising(wasm_export) {
       /Incompatible signature for promising function/);
 
   // Check the wrapped export's signature.
-  let export_sig = WebAssembly.Function.type(export_wrapper);
+  let export_sig = export_wrapper.type();
   assertEquals(['i32'], export_sig.parameters);
   assertEquals(['externref'], export_sig.results);
 
   // Check the wrapped import's signature.
-  let import_sig = WebAssembly.Function.type(import_wrapper);
+  let import_sig = import_wrapper.type();
   assertEquals(['externref', 'i32'], import_sig.parameters);
   assertEquals([], import_sig.results);
 })();
@@ -470,7 +470,7 @@ function TestNestedSuspenders(suspend) {
   builder.addFunction("export", sig_v_r).addBody([]).exportFunc();
   let instance = builder.instantiate();
   let export_wrapper = ToPromising(instance.exports.export);
-  let export_sig = WebAssembly.Function.type(export_wrapper);
+  let export_sig = export_wrapper.type();
   assertEquals([], export_sig.parameters);
   assertEquals(['externref'], export_sig.results);
 })();
