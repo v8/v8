@@ -5272,6 +5272,17 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
     return false;
   }
+  // TODO(olivf): This is a temporary stopgap to prevent infinite recursion when
+  // inlining, because we currently excempt small functions from some of the
+  // negative heuristics. We should refactor these heuristics and make sure they
+  // make sense in the presence of (mutually) recursive inlining. Please do
+  // *not* return true before this check.
+  if (inlining_depth() > v8_flags.max_maglev_hard_inline_depth) {
+    TRACE_CANNOT_INLINE("inlining depth ("
+                        << inlining_depth() << ") >= hard-max-depth ("
+                        << v8_flags.max_maglev_hard_inline_depth << ")");
+    return false;
+  }
   if (compilation_unit_->shared_function_info().equals(shared)) {
     TRACE_CANNOT_INLINE("direct recursion");
     return false;
@@ -5313,7 +5324,9 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     return false;
   }
   if (bytecode.length() < v8_flags.max_maglev_inlined_bytecode_size_small) {
-    TRACE_INLINING("  inlining " << shared << ": small function");
+    TRACE_INLINING("  inlining "
+                   << shared
+                   << ": small function, skipping max-size and max-depth");
     return true;
   }
   if (bytecode.length() > v8_flags.max_maglev_inlined_bytecode_size) {
