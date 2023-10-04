@@ -127,6 +127,10 @@ static_assert(sizeof(LinearAllocationArea) == LinearAllocationArea::kSize,
 // LabOriginalLimits keeps track of all allocated labs for local-heaps and
 // allows to take a snapshot of them.
 class V8_EXPORT_PRIVATE LabOriginalLimits final {
+ public:
+  class BaseHandle;
+
+ private:
   struct Lab {
     Address top = 0;
     Address limit = 0;
@@ -134,11 +138,8 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
 
   struct Node {
     Lab lab;
-    // Freelist's next pointer.
-    Node* next_free = nullptr;
-    // Doubly linked list for fast iteration on snapshotting.
-    Node* prev_allocated = nullptr;
-    Node* next_allocated = nullptr;
+    // Back reference to the handle, needed for compaction.
+    BaseHandle* handle = nullptr;
   };
 
  public:
@@ -146,16 +147,20 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
    public:
     ~BaseHandle();
 
+    // The current design with compaction and back references requires the
+    // handles to be non-movable. If ever movability is needed, this can be
+    // solved by introducing an indirection into the handles.
     BaseHandle(const BaseHandle&) = delete;
     BaseHandle& operator=(const BaseHandle&) = delete;
 
    protected:
     friend LabOriginalLimits;
-    BaseHandle(LabOriginalLimits& limits, Node& node)
-        : limits_(limits), node_(node) {}
+    explicit BaseHandle(LabOriginalLimits& limits) : limits_(limits) {
+      limits_.SetUpHandle(*this);
+    }
 
     LabOriginalLimits& limits_;
-    Node& node_;
+    size_t node_index_ = 0;
   };
 
   // RAII based handle for lab limits. Automatically destroys the corresponding
@@ -170,8 +175,7 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
 
    private:
     friend LabOriginalLimits;
-    LabHandle(LabOriginalLimits& limits, Node& node)
-        : BaseHandle(limits, node) {}
+    explicit LabHandle(LabOriginalLimits& limits) : BaseHandle(limits) {}
   };
 
   // RAII based handle for pending objects. Automatically destroys the
@@ -186,8 +190,8 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
    private:
     friend LabOriginalLimits;
 
-    PendingObjectHandle(LabOriginalLimits& limits, Node& node)
-        : BaseHandle(limits, node) {}
+    explicit PendingObjectHandle(LabOriginalLimits& limits)
+        : BaseHandle(limits) {}
     // For fast checks to avoid mutex locking.
     bool reset_ = true;
   };
@@ -215,7 +219,7 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
     size_t version_ = std::numeric_limits<size_t>::max();
   };
 
-  LabOriginalLimits();
+  LabOriginalLimits() = default;
 
   LabOriginalLimits(const LabOriginalLimits&) = delete;
   LabOriginalLimits& operator=(const LabOriginalLimits&) = delete;
@@ -237,16 +241,16 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
   PendingObjectHandle AllocateObjectHandle();
 
  private:
-  static constexpr size_t kMaxEntries = 256;
+  size_t AllocateNode();
+  void FreeNode(BaseHandle& handle);
 
-  Node& AllocateNode();
-  void FreeNode(Node& lab);
+  void UpdateLabLimits(BaseHandle&, Address top, Address limit);
+  void AdvanceTop(BaseHandle&, Address top);
+  void SetTop(BaseHandle&, Address top);
 
-  void UpdateLabLimits(Node& limits, Address top, Address limit);
-  void AdvanceTop(Node& limits, Address top);
-  void SetTop(Node& limits, Address top);
+  Lab ExtractLab(const BaseHandle&) const;
 
-  Lab ExtractLab(Node&) const;
+  void SetUpHandle(BaseHandle& handle);
 
   void BumpVersion() {
     // Use sequential consistency to have the guarantee that the most current
@@ -254,9 +258,7 @@ class V8_EXPORT_PRIVATE LabOriginalLimits final {
     version_.fetch_add(1, std::memory_order_seq_cst);
   }
 
-  std::array<Node, kMaxEntries> labs_;
-  Node* freelist_head_ = nullptr;
-  Node* allocated_list_head_ = nullptr;
+  std::vector<Node> nodes_;
   mutable base::SharedMutex mutex_;
 
   // Version to fast check if the snapshot is up-to-date.

@@ -10,70 +10,34 @@
 namespace v8 {
 namespace internal {
 
-LabOriginalLimits::LabOriginalLimits() {
-  Node* prev = nullptr;
-  for (auto& heap_data : base::Reversed(labs_)) {
-    heap_data.next_free = prev;
-    prev = &heap_data;
-  }
-  freelist_head_ = prev;
-}
-
 LabOriginalLimits::LabHandle LabOriginalLimits::AllocateLabHandle() {
-  return LabHandle{*this, AllocateNode()};
+  return LabHandle{*this};
 }
 
 LabOriginalLimits::PendingObjectHandle
 LabOriginalLimits::AllocateObjectHandle() {
-  return PendingObjectHandle{*this, AllocateNode()};
+  return PendingObjectHandle{*this};
 }
 
-LabOriginalLimits::Node& LabOriginalLimits::AllocateNode() {
+size_t LabOriginalLimits::AllocateNode() {
   base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
 
-  CHECK_WITH_MSG(freelist_head_,
-                 "Ran out of LAB entries. Too many local heaps?");
-
-  // Allocate from the free-list.
-  auto* new_limits = freelist_head_;
-  freelist_head_ = freelist_head_->next_free;
-
-  DCHECK(!new_limits->prev_allocated);
-  DCHECK(!new_limits->next_allocated);
-
-  // Link into the allocated-list head.
-  if (allocated_list_head_) {
-    allocated_list_head_->prev_allocated = new_limits;
-  }
-  new_limits->next_allocated = allocated_list_head_;
-  allocated_list_head_ = new_limits;
-
-  return *new_limits;
+  nodes_.emplace_back();
+  return nodes_.size() - 1;
 }
 
-void LabOriginalLimits::FreeNode(LabOriginalLimits::Node& node) {
+void LabOriginalLimits::FreeNode(BaseHandle& handle) {
   base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
 
-  // Move into the free-list.
-  node.next_free = freelist_head_;
-  freelist_head_ = &node;
+  DCHECK_LT(handle.node_index_, nodes_.size());
 
-  // Unlink from the allocated-list.
-  if (node.prev_allocated) {
-    node.prev_allocated->next_allocated = node.next_allocated;
-  } else {
-    DCHECK_EQ(allocated_list_head_, &node);
-    allocated_list_head_ = node.next_allocated;
-  }
-  if (node.next_allocated) {
-    node.next_allocated->prev_allocated = node.prev_allocated;
-  }
+  const auto index = handle.node_index_;
+  auto node_it = std::next(nodes_.begin(), index);
 
-  node.prev_allocated = nullptr;
-  node.next_allocated = nullptr;
+  std::swap(nodes_.back(), *node_it);
+  node_it->handle->node_index_ = index;
 
-  node.lab.top = kNullAddress;
-  node.lab.limit = kNullAddress;
+  nodes_.pop_back();
 
   BumpVersion();
 }
@@ -90,9 +54,8 @@ bool LabOriginalLimits::UpdateSnapshotIfNeeded(Snapshot& snapshot) {
   snapshot.objects_.clear();
 
   base::SharedMutexGuard<base::MutexSharedType::kShared> lock(&mutex_);
-  for (auto* allocated_lab = allocated_list_head_; allocated_lab;
-       allocated_lab = allocated_lab->next_allocated) {
-    snapshot.AddIfNeeded(*allocated_lab);
+  for (auto& node : nodes_) {
+    snapshot.AddIfNeeded(node);
   }
 
   snapshot.version_ = current_version;
@@ -110,74 +73,92 @@ bool LabOriginalLimits::UpdatePartialSnapshotIfNeeded(
   base::SharedMutexGuard<base::MutexSharedType::kShared> lock(&mutex_);
   for (auto* handle : handles) {
     DCHECK_NOT_NULL(handle);
-    snapshot.AddIfNeeded(handle->node_);
+    snapshot.AddIfNeeded(nodes_[handle->node_index_]);
   }
 
   snapshot.version_ = current_version;
   return true;
 }
 
-void LabOriginalLimits::UpdateLabLimits(Node& node, Address top,
+void LabOriginalLimits::UpdateLabLimits(BaseHandle& handle, Address top,
                                         Address limit) {
   base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
+  DCHECK_LT(handle.node_index_, nodes_.size());
+  auto& node = nodes_[handle.node_index_];
   node.lab.top = top;
   node.lab.limit = limit;
   BumpVersion();
 }
 
-void LabOriginalLimits::AdvanceTop(Node& node, Address top) {
+void LabOriginalLimits::AdvanceTop(BaseHandle& handle, Address top) {
   base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
+  DCHECK_LT(handle.node_index_, nodes_.size());
+  auto& node = nodes_[handle.node_index_];
   DCHECK_LE(node.lab.top, top);
   DCHECK_GE(node.lab.limit, top);
   node.lab.top = top;
   BumpVersion();
 }
 
-void LabOriginalLimits::SetTop(Node& node, Address top) {
+void LabOriginalLimits::SetTop(BaseHandle& handle, Address top) {
   base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
+  DCHECK_LT(handle.node_index_, nodes_.size());
+  auto& node = nodes_[handle.node_index_];
   node.lab.top = top;
   BumpVersion();
 }
 
-LabOriginalLimits::Lab LabOriginalLimits::ExtractLab(Node& node) const {
+LabOriginalLimits::Lab LabOriginalLimits::ExtractLab(
+    const BaseHandle& handle) const {
   base::SharedMutexGuard<base::MutexSharedType::kShared> lock(&mutex_);
+  DCHECK_LT(handle.node_index_, nodes_.size());
+  auto& node = nodes_[handle.node_index_];
   return node.lab;
 }
 
-LabOriginalLimits::BaseHandle::~BaseHandle() { limits_.FreeNode(node_); }
+void LabOriginalLimits::SetUpHandle(BaseHandle& handle) {
+  base::SharedMutexGuard<base::MutexSharedType::kExclusive> lock(&mutex_);
+
+  nodes_.emplace_back();
+  handle.node_index_ = nodes_.size() - 1;
+
+  nodes_.back().handle = &handle;
+}
+
+LabOriginalLimits::BaseHandle::~BaseHandle() { limits_.FreeNode(*this); }
 
 void LabOriginalLimits::LabHandle::UpdateLimits(Address top, Address limit) {
-  limits_.UpdateLabLimits(node_, top, limit);
+  limits_.UpdateLabLimits(*this, top, limit);
 }
 
 void LabOriginalLimits::LabHandle::AdvanceTop(Address top) {
-  limits_.AdvanceTop(node_, top);
+  limits_.AdvanceTop(*this, top);
 }
 
 void LabOriginalLimits::LabHandle::SetTop(Address top) {
-  limits_.SetTop(node_, top);
+  limits_.SetTop(*this, top);
 }
 
 std::pair<Address, Address> LabOriginalLimits::LabHandle::top_and_limit()
     const {
-  auto lab = limits_.ExtractLab(node_);
+  auto lab = limits_.ExtractLab(*this);
   return {lab.top, lab.limit};
 }
 
 void LabOriginalLimits::PendingObjectHandle::UpdateAddress(Address base) {
   reset_ = false;
-  limits_.UpdateLabLimits(node_, base, base);
+  limits_.UpdateLabLimits(*this, base, base);
 }
 
 void LabOriginalLimits::PendingObjectHandle::Reset() {
   if (reset_) return;
-  limits_.UpdateLabLimits(node_, kNullAddress, kNullAddress);
+  limits_.UpdateLabLimits(*this, kNullAddress, kNullAddress);
   reset_ = true;
 }
 
 Address LabOriginalLimits::PendingObjectHandle::address() const {
   if (reset_) return kNullAddress;
-  auto [top, limit] = limits_.ExtractLab(node_);
+  auto [top, limit] = limits_.ExtractLab(*this);
   DCHECK_EQ(top, limit);
   return top;
 }
