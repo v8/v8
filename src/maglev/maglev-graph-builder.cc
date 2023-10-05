@@ -6171,7 +6171,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     do_return.emplace(&sub_graph, unique_kind_count);
   }
 
-  ValueNode* old_array_length_smi = BuildLoadJSArrayLength(receiver).value();
+  ValueNode* old_array_length_smi =
+      GetSmiValue(BuildLoadJSArrayLength(receiver).value());
   ValueNode* old_array_length =
       AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
   ValueNode* new_array_length_smi =
@@ -6320,7 +6321,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
               &var_value, &var_new_array_length});
   MaglevSubGraphBuilder::Label empty_array(&sub_graph, 1);
 
-  ValueNode* old_array_length_smi = BuildLoadJSArrayLength(receiver).value();
+  ValueNode* old_array_length_smi =
+      GetSmiValue(BuildLoadJSArrayLength(receiver).value());
 
   // If the array is empty, skip the pop and return undefined.
   sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
