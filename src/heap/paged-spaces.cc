@@ -82,10 +82,11 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
     std::unique_ptr<FreeList> free_list,
+    MainAllocator::AllocatorPolicyKind allocator_policy,
     CompactionSpaceKind compaction_space_kind,
     MainAllocator::SupportsExtendingLAB supports_extending_lab,
     LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, space, std::move(free_list),
+    : SpaceWithLinearArea(heap, space, std::move(free_list), allocator_policy,
                           compaction_space_kind, supports_extending_lab,
                           allocation_info),
       executable_(executable),
@@ -110,9 +111,10 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
     std::unique_ptr<FreeList> free_list,
+    MainAllocator::AllocatorPolicyKind allocator_policy,
     CompactionSpaceKind compaction_space_kind,
     MainAllocator::SupportsExtendingLAB supports_extending_lab)
-    : SpaceWithLinearArea(heap, space, std::move(free_list),
+    : SpaceWithLinearArea(heap, space, std::move(free_list), allocator_policy,
                           compaction_space_kind, supports_extending_lab),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {

@@ -282,6 +282,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   // Creates this space with a new MainAllocator instance.
   SpaceWithLinearArea(
       Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+      MainAllocator::AllocatorPolicyKind allocator_policy,
       CompactionSpaceKind compaction_space_kind,
       MainAllocator::SupportsExtendingLAB supports_extending_lab);
 
@@ -289,6 +290,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   // `allocation_info` to its constructor.
   SpaceWithLinearArea(
       Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+      MainAllocator::AllocatorPolicyKind allocator_policy,
       CompactionSpaceKind compaction_space_kind,
       MainAllocator::SupportsExtendingLAB supports_extending_lab,
       LinearAllocationArea& allocation_info);
@@ -307,20 +309,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
  protected:
-  // Sets up a linear allocation area that fits the given number of bytes.
-  // Returns false if there is not enough space and the caller has to retry
-  // after collecting garbage.
-  // Writes to `max_aligned_size` the actual number of bytes used for checking
-  // that there is enough space.
-  virtual bool EnsureAllocation(int size_in_bytes,
-                                AllocationAlignment alignment,
-                                AllocationOrigin origin,
-                                int* out_max_aligned_size) = 0;
-
-  virtual void FreeLinearAllocationArea() = 0;
-
-  virtual void UpdateInlineAllocationLimit() = 0;
-
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator* allocator_;
   base::Optional<MainAllocator> owned_allocator_;

@@ -3685,18 +3685,10 @@ void Heap::FreeLinearAllocationAreas() {
 }
 
 void Heap::FreeMainThreadLinearAllocationAreas() {
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    base::MutexGuard guard(space->mutex());
-    space->FreeLinearAllocationArea();
-  }
+  allocator()->FreeLinearAllocationArea();
 
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
-  }
-  if (new_space()) {
-    allocator()->new_space_allocator()->FreeLinearAllocationArea();
   }
 }
 

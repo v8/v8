@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  // Give up linear allocation areas. Used for mark-compact GC.
+  void FreeLinearAllocationArea();
+
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
 
