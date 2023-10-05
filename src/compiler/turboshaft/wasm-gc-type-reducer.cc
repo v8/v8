@@ -80,6 +80,12 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kArrayLength:
         ProcessArrayLength(op.Cast<ArrayLengthOp>());
         break;
+      case Opcode::kGlobalGet:
+        ProcessGlobalGet(op.Cast<GlobalGetOp>());
+        break;
+      case Opcode::kWasmRefFunc:
+        ProcessRefFunc(op.Cast<WasmRefFuncOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -143,6 +149,15 @@ void WasmGCTypeAnalyzer::ProcessArrayLength(const ArrayLengthOp& array_length) {
   // array.len performs a null check.
   wasm::ValueType type = RefineTypeKnowledgeNotNull(array_length.array());
   input_type_map_[graph_.Index(array_length)] = type;
+}
+
+void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
+  RefineTypeKnowledge(graph_.Index(global_get), global_get.global->type);
+}
+
+void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
+  uint32_t sig_index = module_->functions[ref_func.function_index].sig_index;
+  RefineTypeKnowledge(graph_.Index(ref_func), wasm::ValueType::Ref(sig_index));
 }
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,

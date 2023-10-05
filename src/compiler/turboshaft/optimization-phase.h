@@ -1233,6 +1233,11 @@ class GraphVisitor {
                                          op.null_check);
   }
 
+  OpIndex AssembleOutputGraphWasmRefFunc(const WasmRefFuncOp& op) {
+    return assembler().ReduceWasmRefFunc(MapToNewGraph(op.instance()),
+                                         op.function_index);
+  }
+
   OpIndex AssembleOutputGraphStringAsWtf16(const StringAsWtf16Op& op) {
     return assembler().ReduceStringAsWtf16(MapToNewGraph(op.string()));
   }

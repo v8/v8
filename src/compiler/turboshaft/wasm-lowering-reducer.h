@@ -26,6 +26,10 @@ namespace v8::internal::compiler::turboshaft {
   __ Load(instance_node, LoadOp::Kind::TaggedBase(), representation, \
           WasmInstanceObject::k##name##Offset);
 
+#define LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node, name, representation) \
+  __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),           \
+          representation, WasmInstanceObject::k##name##Offset)
+
 template <class Next>
 class WasmLoweringReducer : public Next {
  public:
@@ -278,6 +282,29 @@ class WasmLoweringReducer : public Next {
 
     return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
                    WasmArray::kLengthOffset);
+  }
+
+  OpIndex REDUCE(WasmRefFunc)(V<Tagged> wasm_instance,
+                              uint32_t function_index) {
+    V<FixedArray> functions =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(wasm_instance, WasmInternalFunctions,
+                                      MemoryRepresentation::TaggedPointer());
+    V<Tagged> maybe_function =
+        __ LoadFixedArrayElement(functions, function_index);
+
+    Label<WasmInternalFunction> done(&Asm());
+    IF (UNLIKELY(__ IsSmi(maybe_function))) {
+      V<Word32> function_index_constant = __ Word32Constant(function_index);
+      V<WasmInternalFunction> from_builtin = __ CallBuiltin(
+          Builtin::kWasmRefFunc, {function_index_constant}, Operator::kNoThrow);
+      GOTO(done, from_builtin);
+    }
+    ELSE {
+      GOTO(done, V<WasmInternalFunction>::Cast(maybe_function));
+    }
+    END_IF
+    BIND(done, result_value);
+    return result_value;
   }
 
   OpIndex REDUCE(StringAsWtf16)(OpIndex string) {

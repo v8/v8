@@ -486,24 +486,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    V<FixedArray> functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        WasmInternalFunctions, MemoryRepresentation::TaggedPointer());
-    V<Tagged> maybe_function = LoadFixedArrayElement(functions, function_index);
-
-    Label<WasmInternalFunction> done(&asm_);
-    IF (UNLIKELY(__ IsSmi(maybe_function))) {
-      V<Word32> function_index_constant = __ Word32Constant(function_index);
-      V<WasmInternalFunction> from_builtin = CallBuiltinThroughJumptable(
-          decoder, Builtin::kWasmRefFunc, {function_index_constant});
-      GOTO(done, from_builtin);
-    }
-    ELSE {
-      GOTO(done, V<WasmInternalFunction>::Cast(maybe_function));
-    }
-    END_IF
-    BIND(done, result_value);
-
-    result->op = result_value;
+    result->op = __ WasmRefFunc(instance_node_, function_index);
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -1438,8 +1421,8 @@ class TurboshaftGraphBuildingInterface {
         case wasm::kRef:
         case wasm::kRefNull:
         case wasm::kRtt:
-          StoreFixedArrayElement(values_array, index, value,
-                                 compiler::kFullWriteBarrier);
+          __ StoreFixedArrayElement(values_array, index, value,
+                                    compiler::kFullWriteBarrier);
           index++;
           break;
         case kS128: {
@@ -1472,8 +1455,8 @@ class TurboshaftGraphBuildingInterface {
 
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
         TagsTable, MemoryRepresentation::TaggedPointer());
-    auto tag =
-        V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
+    auto tag = V<WasmTagObject>::Cast(
+        __ LoadFixedArrayElement(instance_tags, imm.index));
 
     CallBuiltinThroughJumptable(decoder, Builtin::kWasmThrow,
                                 {tag, values_array}, Operator::kNoProperties,
@@ -1501,8 +1484,8 @@ class TurboshaftGraphBuildingInterface {
          native_context});
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
         TagsTable, MemoryRepresentation::TaggedPointer());
-    auto expected_tag =
-        V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
+    auto expected_tag = V<WasmTagObject>::Cast(
+        __ LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_catch = __ NewBlock();
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
@@ -1967,7 +1950,7 @@ class TurboshaftGraphBuildingInterface {
     V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
         Tables, MemoryRepresentation::TaggedPointer());
     auto table =
-        V<WasmTableObject>::Cast(LoadFixedArrayElement(tables, imm.index));
+        V<WasmTableObject>::Cast(__ LoadFixedArrayElement(tables, imm.index));
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
@@ -1977,8 +1960,9 @@ class TurboshaftGraphBuildingInterface {
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ElementSegments, MemoryRepresentation::TaggedPointer());
-    StoreFixedArrayElement(elem_segments, imm.index, LOAD_ROOT(EmptyFixedArray),
-                           compiler::kFullWriteBarrier);
+    __ StoreFixedArrayElement(elem_segments, imm.index,
+                              LOAD_ROOT(EmptyFixedArray),
+                              compiler::kFullWriteBarrier);
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
@@ -4275,7 +4259,7 @@ class TurboshaftGraphBuildingInterface {
     V<FixedArray> imported_function_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ImportedFunctionRefs, MemoryRepresentation::TaggedPointer());
     auto ref = V<HeapObject>::Cast(
-        LoadFixedArrayElement(imported_function_refs, func_index));
+        __ LoadFixedArrayElement(imported_function_refs, func_index));
     V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
         ImportedFunctionTargets, MemoryRepresentation::TaggedPointer());
     V<WordPtr> target =
@@ -4313,7 +4297,7 @@ class TurboshaftGraphBuildingInterface {
     } else {
       V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
           IndirectFunctionTables, MemoryRepresentation::TaggedPointer());
-      OpIndex ift_table = LoadFixedArrayElement(ift_tables, table_index);
+      OpIndex ift_table = __ LoadFixedArrayElement(ift_tables, table_index);
       ift_size = needs_dynamic_size
                      ? __ Load(ift_table, LoadOp::Kind::TaggedBase(),
                                MemoryRepresentation::Uint32(),
@@ -4435,7 +4419,7 @@ class TurboshaftGraphBuildingInterface {
                 ExternalPointerArray::kHeaderSize, kSystemPointerSizeLog2);
 #endif
     auto ref =
-        V<HeapObject>::Cast(LoadFixedArrayElement(ift_refs, index_intptr));
+        V<HeapObject>::Cast(__ LoadFixedArrayElement(ift_refs, index_intptr));
     return {target, ref};
   }
 
@@ -4776,21 +4760,21 @@ class TurboshaftGraphBuildingInterface {
                                       uint32_t index, V<Word32> value) {
     V<Smi> upper_half =
         ChangeUint31ToSmi(__ Word32ShiftRightLogical(value, 16));
-    StoreFixedArrayElement(values_array, index, upper_half,
-                           compiler::kNoWriteBarrier);
+    __ StoreFixedArrayElement(values_array, index, upper_half,
+                              compiler::kNoWriteBarrier);
     V<Smi> lower_half = ChangeUint31ToSmi(__ Word32BitwiseAnd(value, 0xffffu));
-    StoreFixedArrayElement(values_array, index + 1, lower_half,
-                           compiler::kNoWriteBarrier);
+    __ StoreFixedArrayElement(values_array, index + 1, lower_half,
+                              compiler::kNoWriteBarrier);
   }
 
   V<Word32> BuildDecodeException32BitValue(V<FixedArray> exception_values_array,
                                            int index) {
     V<Word32> upper_half = __ Word32ShiftLeft(
-        ChangeSmiToUint32(
-            V<Smi>::Cast(LoadFixedArrayElement(exception_values_array, index))),
+        ChangeSmiToUint32(V<Smi>::Cast(
+            __ LoadFixedArrayElement(exception_values_array, index))),
         16);
-    V<Word32> lower_half = ChangeSmiToUint32(
-        V<Smi>::Cast(LoadFixedArrayElement(exception_values_array, index + 1)));
+    V<Word32> lower_half = ChangeSmiToUint32(V<Smi>::Cast(
+        __ LoadFixedArrayElement(exception_values_array, index + 1)));
     return __ Word32BitwiseOr(upper_half, lower_half);
   }
 
@@ -4862,7 +4846,7 @@ class TurboshaftGraphBuildingInterface {
         case kRtt:
         case kRef:
         case kRefNull:
-          value.op = LoadFixedArrayElement(exception_values_array, index);
+          value.op = __ LoadFixedArrayElement(exception_values_array, index);
           index++;
           break;
         case kI8:
@@ -4953,33 +4937,6 @@ class TurboshaftGraphBuildingInterface {
         __ Uint32LessThanOrEqual(index, range_end));
     __ TrapIfNot(range_valid, OpIndex::Invalid(),
                  TrapId::kTrapArrayOutOfBounds);
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
-    return __ Load(array, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::AnyTagged(),
-                   FixedArray::kHeaderSize + index * kTaggedSize);
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
-    return __ Load(array, index, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
-                   kTaggedSizeLog2);
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    __ Store(array, value, LoadOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(), write_barrier,
-             FixedArray::kHeaderSize + index * kTaggedSize);
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
-                              V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    __ Store(array, index, value, LoadOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(), write_barrier,
-             FixedArray::kHeaderSize, kTaggedSizeLog2);
   }
 
   void BrOnCastImpl(FullDecoder* decoder, V<Map> rtt,

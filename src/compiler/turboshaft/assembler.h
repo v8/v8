@@ -2893,6 +2893,10 @@ class AssemblerOpInterface {
     return ReduceIfReachableArrayLength(array, null_check);
   }
 
+  V<Tagged> WasmRefFunc(V<Tagged> wasm_instance, uint32_t function_index) {
+    return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
+  }
+
   V<Tagged> StringAsWtf16(V<Tagged> string) {
     return ReduceIfReachableStringAsWtf16(string);
   }
@@ -2985,6 +2989,33 @@ class AssemblerOpInterface {
   V<WasmInstanceObject> WasmInstanceParameter() {
     return Parameter(wasm::kWasmInstanceParameterIndex,
                      RegisterRepresentation::Tagged());
+  }
+
+  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
+    return Load(array, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::kHeaderSize + index * kTaggedSize);
+  }
+
+  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
+    return Load(array, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
+                kTaggedSizeLog2);
+  }
+
+  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
+                              compiler::WriteBarrierKind write_barrier) {
+    Store(array, value, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::AnyTagged(), write_barrier,
+          FixedArray::kHeaderSize + index * kTaggedSize);
+  }
+
+  void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
+                              V<Tagged> value,
+                              compiler::WriteBarrierKind write_barrier) {
+    Store(array, index, value, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::AnyTagged(), write_barrier,
+          FixedArray::kHeaderSize, kTaggedSizeLog2);
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -113,6 +113,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ArrayGet)                             \
   V(ArraySet)                             \
   V(ArrayLength)                          \
+  V(WasmRefFunc)                          \
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)
 
@@ -6421,6 +6422,28 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{null_check}; }
+};
+
+struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
+  static constexpr OpEffects effects = OpEffects().CanAllocate();
+  uint32_t function_index;
+
+  explicit WasmRefFuncOp(V<Tagged> wasm_instance, uint32_t function_index)
+      : Base(wasm_instance), function_index(function_index) {}
+
+  OpIndex instance() const { return Base::input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{function_index}; }
 };
 
 // Casts a JavaScript string to a flattened wtf16 string.

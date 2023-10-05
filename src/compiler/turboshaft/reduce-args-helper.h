@@ -500,6 +500,10 @@ class CallWithReduceArgsHelper {
     return callback_(op.array(), op.null_check);
   }
 
+  OpIndex operator()(const WasmRefFuncOp& op) {
+    return callback_(op.instance(), op.function_index);
+  }
+
   OpIndex operator()(const Simd128ConstantOp& op) {
     return callback_(op.value);
   }

@@ -775,3 +775,27 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, wasm.refTestUnrelated(null));
   assertTraps(kTrapIllegalCast, () => wasm.refTestUnrelated("not null"));
 })();
+
+(function RefFuncIsNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let fct = builder.addFunction('dummy', makeSig([], []))
+      .addBody([]).exportFunc();
+
+  builder.addFunction('refFuncIsNull',
+      makeSig([], [kWasmI32]))
+    .addLocals(kWasmFuncRef, 1)
+    .addBody([
+      kExprRefFunc, fct.index,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kExprRefIsNull,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  assertEquals(0, wasm.refFuncIsNull());
+})();
