@@ -1277,6 +1277,7 @@
   'wasm/atomics64-stress': [SKIP],
   'wasm/atomics-memory64': [SKIP],
   'wasm/futex': [SKIP],
+  'wasm/grow-shared-memory': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
@@ -1295,9 +1296,6 @@
   # The test triggers profiling, which can trigger non-deterministic
   # allocations.
   'regress/regress-1394663': [SKIP],
-
-  # BUG(v8:12605): flaky test.
-  'wasm/grow-shared-memory': [SKIP],
 
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
