@@ -56,6 +56,15 @@ console: finished without error
 
 Running test: testCase
 > Running scenario catchErrorInUserCode, breaking on caught exceptions:
+Paused
+throwUncaughtError (framework.js:10:2)
+catchErrorInUserCode (user.js:64:4)
+runWithResolution (framework.js:48:12)
+-- setTimeout --
+(anonymous) (framework.js:57:31)
+testWrapper (framework.js:57:8)
+(anonymous) (test_framework.js:0:0)
+
 console: Caught at Error
     at throwUncaughtError (framework.js:11:9)
     at catchErrorInUserCode (user.js:65:5)
@@ -136,6 +145,17 @@ testWrapper (framework.js:57:8)
 
 Running test: testCase
 > Running scenario uncaughtWithAsyncUserCode, breaking on uncaught exceptions:
+Paused
+throwUncaughtError (framework.js:10:2)
+uncaughtAsync (framework.js:27:2)
+-- await --
+uncaughtWithAsyncUserCode (user.js:79:8)
+runWithResolution (framework.js:48:12)
+-- setTimeout --
+(anonymous) (framework.js:57:31)
+testWrapper (framework.js:57:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error
 -- <empty> --
 throwUncaughtError (framework.js:10:8)
@@ -179,6 +199,17 @@ testWrapper (framework.js:57:8)
 
 Running test: testCase
 > Running scenario uncaughtWithAsyncUserCodeMissingAwait, breaking on caught exceptions:
+Paused
+throwUncaughtError (framework.js:10:2)
+uncaughtWithAsyncUserCodeAndDelay (user.js:84:2)
+-- await --
+uncaughtWithAsyncUserCodeMissingAwait (user.js:88:9)
+runWithResolution (framework.js:48:12)
+-- setTimeout --
+(anonymous) (framework.js:57:31)
+testWrapper (framework.js:57:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error
 -- <empty> --
 throwUncaughtError (framework.js:10:8)
@@ -201,6 +232,17 @@ testWrapper (framework.js:57:8)
 
 Running test: testCase
 > Running scenario catchPassingThroughUserCode, breaking on caught exceptions:
+Paused
+throwUncaughtError (framework.js:10:2)
+passErrorThroughUserCode (user.js:71:2)
+wrapErrorHandler (framework.js:36:4)
+catchPassingThroughUserCode (user.js:92:2)
+runWithResolution (framework.js:48:12)
+-- setTimeout --
+(anonymous) (framework.js:57:31)
+testWrapper (framework.js:57:8)
+(anonymous) (test_framework.js:0:0)
+
 console: Caught at Error
     at throwUncaughtError (framework.js:11:9)
     at passErrorThroughUserCode (user.js:72:3)

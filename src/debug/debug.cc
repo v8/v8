@@ -2320,20 +2320,6 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   }
 }
 
-bool Debug::IsExceptionBlackboxed(bool uncaught) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  // Uncaught exception is blackboxed if all current frames are blackboxed,
-  // caught exception if top frame is blackboxed.
-  DebuggableStackFrameIterator it(isolate_);
-#if V8_ENABLE_WEBASSEMBLY
-  while (!it.done() && it.is_wasm()) it.Advance();
-#endif  // V8_ENABLE_WEBASSEMBLY
-  bool is_top_frame_blackboxed =
-      !it.done() ? IsFrameBlackboxed(it.javascript_frame()) : true;
-  if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;
-  return AllFramesOnStackAreBlackboxed();
-}
-
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
@@ -2394,9 +2380,12 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
 
   {
     JavaScriptStackFrameIterator it(isolate_);
-    // Check whether the top frame is blackboxed or the break location is muted.
-    if (!it.done() && (IsMutedAtCurrentLocation(it.frame()) ||
-                       IsExceptionBlackboxed(uncaught))) {
+    // Check whether the affected frames are blackboxed or the break location is
+    // muted.
+    if (!it.done() &&
+        (IsMutedAtCurrentLocation(it.frame()) ||
+         AllFramesOnStackAreBlackboxed(
+             exception_type == debug::kPromiseRejection, !uncaught))) {
       return;
     }
     if (it.done()) return;  // Do not trigger an event with an empty stack.
@@ -2523,12 +2512,62 @@ bool Debug::ShouldBeSkipped() {
   }
 }
 
-bool Debug::AllFramesOnStackAreBlackboxed() {
+namespace {
+bool ReceiverIsBlackboxed(Isolate* isolate, Handle<JSReceiver> receiver) {
+  if (!IsJSFunction(*receiver)) return true;
+
+  Handle<SharedFunctionInfo> function_info(
+      Handle<JSFunction>::cast(receiver)->shared(), isolate);
+  return isolate->debug()->IsBlackboxed(function_info);
+}
+}  // namespace
+
+bool Debug::AllFramesOnStackAreBlackboxed(bool include_async,
+                                          bool stop_at_caught) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
-  for (DebuggableStackFrameIterator it(isolate_); !it.done(); it.Advance()) {
-    if (!it.is_javascript()) continue;
-    if (!IsFrameBlackboxed(it.javascript_frame())) return false;
+  Handle<Object> promise_stack(thread_local_.promise_stack_, isolate_);
+
+  for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    StackFrame* frame = it.frame();
+    if (frame->is_java_script() &&
+        !IsFrameBlackboxed(JavaScriptFrame::cast(frame))) {
+      return false;
+    }
+    if (!stop_at_caught && !include_async) continue;
+
+    Isolate::CatchType prediction =
+        isolate_->PredictExceptionCatchAtFrame(frame);
+    if (include_async && prediction == Isolate::CAUGHT_BY_ASYNC_AWAIT) {
+      // This logic is duplicated from Isolate::GetPromiseOnStackOnThrow.
+      // In the future a more advanced version of Isolate::WalkPromiseTree
+      // could further reduce duplicated logic by walking both frames and
+      // promises.
+      if (!IsPromiseOnStack(*promise_stack)) continue;
+      Handle<PromiseOnStack> promise_on_stack =
+          Handle<PromiseOnStack>::cast(promise_stack);
+      MaybeHandle<JSObject> maybe_promise =
+          PromiseOnStack::GetPromise(promise_on_stack);
+      Handle<JSObject> object_handle;
+      if (maybe_promise.ToHandle(&object_handle) &&
+          IsJSPromise(*object_handle)) {
+        bool is_caught = false;
+        bool is_blackboxed = true;
+        isolate_->WalkPromiseTree(
+            Handle<JSPromise>::cast(object_handle),
+            [this, &is_caught,
+             &is_blackboxed](Isolate::PromiseHandler handler) {
+              is_caught = handler.catches;
+              is_blackboxed = ReceiverIsBlackboxed(isolate_, handler.receiver);
+              return is_caught || !is_blackboxed;
+            });
+        if ((stop_at_caught && is_caught) || !is_blackboxed) {
+          return is_blackboxed;
+        }
+      }
+    } else if (stop_at_caught && prediction != Isolate::NOT_CAUGHT) {
+      break;
+    }
   }
   return true;
 }
