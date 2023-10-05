@@ -826,6 +826,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* TruncateFloat32ToUint32(Node* a, TruncateKind kind) {
     return AddNode(machine()->TruncateFloat32ToUint32(kind), a);
   }
+  Node* TruncateFloat64ToInt64(Node* a, TruncateKind kind) {
+    return AddNode(machine()->TruncateFloat64ToInt64(kind), a);
+  }
   Node* TryTruncateFloat32ToInt64(Node* a) {
     return AddNode(machine()->TryTruncateFloat32ToInt64(), a);
   }

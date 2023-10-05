@@ -11583,7 +11583,13 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
   BIND(&key_is_heapnumber);
   {
     TNode<Float64T> value = LoadHeapNumberValue(CAST(key));
-    TNode<IntPtrT> int_value = ChangeFloat64ToIntPtr(value);
+#if V8_TARGET_ARCH_64_BIT
+    TNode<IntPtrT> int_value =
+        TNode<IntPtrT>::UncheckedCast(TruncateFloat64ToInt64(value));
+#else
+    TNode<IntPtrT> int_value =
+        TNode<IntPtrT>::UncheckedCast(RoundFloat64ToInt32(value));
+#endif
     GotoIfNot(Float64Equal(value, RoundIntPtrToFloat64(int_value)),
               if_not_intptr);
 #if V8_TARGET_ARCH_64_BIT

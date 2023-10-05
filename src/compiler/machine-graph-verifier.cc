@@ -254,6 +254,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kBitcastFloat64ToInt64:
           case IrOpcode::kChangeFloat64ToInt64:
           case IrOpcode::kChangeFloat64ToUint64:
+          case IrOpcode::kTruncateFloat64ToInt64:
           case IrOpcode::kWord64Popcnt:
           case IrOpcode::kWord64Ctz:
           case IrOpcode::kWord64Clz:
@@ -503,6 +504,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kFloat64SilenceNaN:
           case IrOpcode::kChangeFloat64ToInt64:
           case IrOpcode::kChangeFloat64ToUint64:
+          case IrOpcode::kTruncateFloat64ToInt64:
             MACHINE_FLOAT64_UNOP_LIST(LABEL) {
               CheckValueInputForFloat64Op(node, 0);
             }

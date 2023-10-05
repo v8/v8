@@ -1164,6 +1164,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // int_min instead of int_max on arm platforms by using parameter
   // kSetOverflowToMin.
   TNode<Int32T> TruncateFloat32ToInt32(TNode<Float32T> value);
+  TNode<Int64T> TruncateFloat64ToInt64(TNode<Float64T> value);
 
   // Projections
   template <int index, class T1, class T2>

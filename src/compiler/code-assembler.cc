@@ -668,6 +668,10 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
   return UncheckedCast<Int32T>(raw_assembler()->TruncateFloat32ToInt32(
       value, TruncateKind::kSetOverflowToMin));
 }
+TNode<Int64T> CodeAssembler::TruncateFloat64ToInt64(TNode<Float64T> value) {
+  return UncheckedCast<Int64T>(raw_assembler()->TruncateFloat64ToInt64(
+      value, TruncateKind::kSetOverflowToMin));
+}
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
   TNode<ResType> CodeAssembler::name(TNode<ArgType> a) {       \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \
