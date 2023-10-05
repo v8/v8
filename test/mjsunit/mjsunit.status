@@ -1271,6 +1271,7 @@
   'd8/enable-tracing': [SKIP],
 
   # Intentionally non-deterministic using shared arraybuffers between workers.
+  'huge-typedarrays': [SKIP],
   'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
