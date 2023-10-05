@@ -2031,6 +2031,21 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
                                     Handle<String>::cast(obj)->IsShared());
 }
 
+RUNTIME_FUNCTION(Runtime_ShareObject) {
+  HandleScope scope(isolate);
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  ShouldThrow should_throw = v8_flags.fuzzing ? kDontThrow : kThrowOnError;
+  MaybeHandle<Object> maybe_shared = Object::Share(isolate, obj, should_throw);
+  Handle<Object> shared;
+  if (!maybe_shared.ToHandle(&shared)) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  return *shared;
+}
+
 RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {
   HandleScope scope(isolate);
   if (args.length() != 1) {
