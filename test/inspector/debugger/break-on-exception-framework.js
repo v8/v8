@@ -22,6 +22,11 @@ function catchErrorInFramework() {
   wrapErrorHandler(throwUncaughtError);
 }
 
+function frameworkFinallyMethod() {
+  return uncaughtAsync().finally(
+      () => console.log('finally in framework code'));
+}
+
 async function uncaughtAsync() {
   await delay();
   throwUncaughtError();
@@ -54,7 +59,8 @@ async function testWrapper(testFunc) {
       setTimeout(resolve, 0);
     }
   }
-  await new Promise(resolve => setTimeout(runWithResolution.bind(null, resolve), 0));
+  await new Promise(resolve => setTimeout(runWithResolution.bind(null, resolve),
+                                          0));
 }
 
 // user.js
@@ -104,6 +110,10 @@ function nowhereToStop() {
   setTimeout(JSON.parse.bind(null, 'ping'), 0);
 }
 
+function userFinallyMethod() {
+  return uncaughtAsync().finally(() => console.log('finally in user code'));
+}
+
 // -------------------------------------
 
 // Order of functions should match above so that line numbers match
@@ -111,14 +121,31 @@ function nowhereToStop() {
 const files = [
   {
     name: 'framework.js',
-    scenarios: [throwUncaughtError, throwCaughtError, catchErrorInFramework],
+    scenarios: [
+        throwUncaughtError,
+        throwCaughtError,
+        catchErrorInFramework,
+        frameworkFinallyMethod
+    ],
     helpers: [uncaughtAsync, delay, wrapErrorHandler, testWrapper],
     startLine: 9,
   }, {
     name: 'user.js',
-    scenarios: [catchErrorInUserCode, passErrorThroughUserCode, notAffectingUserCode, uncaughtWithAsyncUserCode, uncaughtWithAsyncUserCodeAndDelay, uncaughtWithAsyncUserCodeMissingAwait, catchPassingThroughUserCode, userException, catchUserException, nowhereToStop],
+    scenarios: [
+        catchErrorInUserCode,
+        passErrorThroughUserCode,
+        notAffectingUserCode,
+        uncaughtWithAsyncUserCode,
+        uncaughtWithAsyncUserCodeAndDelay,
+        uncaughtWithAsyncUserCodeMissingAwait,
+        catchPassingThroughUserCode,
+        userException,
+        catchUserException,
+        nowhereToStop,
+        userFinallyMethod
+    ],
     helpers: [],
-    startLine: 62,
+    startLine: 68,
   }
 ];
 
@@ -139,14 +166,17 @@ Protocol.Debugger.onPaused(message => {
   Protocol.Debugger.resume();
 });
 
-Protocol.Console.onMessageAdded(event => InspectorTest.log('console: ' + event.params.message.text));
+Protocol.Console.onMessageAdded(
+    event => InspectorTest.log('console: ' + event.params.message.text));
 Protocol.Debugger.enable();
 Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 6});
 Protocol.Console.enable();
 Protocol.Debugger.setBlackboxPatterns({patterns: ['framework\.js']});
-Protocol.Runtime.onExceptionRevoked(event => InspectorTest.log('Exception revoked for reason: ' + event.params.reason));
+Protocol.Runtime.onExceptionRevoked(event => InspectorTest.log(
+    'Exception revoked for reason: ' + event.params.reason));
 Protocol.Runtime.onExceptionThrown(event => {
-  InspectorTest.log(`Uncaught exception: ${event.params.exceptionDetails.text}`);
+  InspectorTest.log(
+      `Uncaught exception: ${event.params.exceptionDetails.text}`);
   session.logAsyncStackTrace(event.params.exceptionDetails.stackTrace);
 });
 Protocol.Runtime.enable();
@@ -158,7 +188,10 @@ for (const scenario of allScenarios) {
     testFunctions.push(async function testCase() {
       InspectorTest.log(`> Running scenario ${scenario.name}, breaking on ${state} exceptions:`);
       await Protocol.Debugger.setPauseOnExceptions({state});
-      await Protocol.Runtime.evaluate({expression: `testWrapper(${scenario.name})//# sourceURL=test_framework.js`, awaitPromise: true});
+      await Protocol.Runtime.evaluate({
+          expression: `testWrapper(${scenario.name})//# sourceURL=test_framework.js`,
+          awaitPromise: true
+      });
     });
   }
 }

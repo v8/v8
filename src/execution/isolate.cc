@@ -2859,7 +2859,9 @@ bool WalkPromiseTreeInternal(
         if (!IsUndefined(reaction->reject_handler(), isolate)) {
           reject_handler =
               handle(JSReceiver::cast(reaction->reject_handler()), isolate);
-          if (!ReceiverIsForwardingHandler(isolate, reject_handler)) {
+          if (!ReceiverIsForwardingHandler(isolate, reject_handler) &&
+              !IsBuiltinFunction(isolate, reaction->reject_handler(),
+                                 Builtin::kPromiseCatchFinally)) {
             caught = true;
             // If there is no callback, just return true if anything catches
             if (!callback) return true;
@@ -2882,6 +2884,18 @@ bool WalkPromiseTreeInternal(
               Handle<JSReceiver> fulfill_handler(
                   JSReceiver::cast(reaction->fulfill_handler()), isolate);
               if (!ReceiverIsForwardingHandler(isolate, fulfill_handler)) {
+                if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
+                                      Builtin::kPromiseThenFinally)) {
+                  // If this is the finally handler, get the wrapped callback
+                  // from the context to use instead
+                  Handle<Context> context(
+                      JSFunction::cast(reaction->fulfill_handler())->context(),
+                      isolate);
+                  int const index = PromiseBuiltins::PromiseFinallyContextSlot::
+                      kOnFinallySlot;
+                  fulfill_handler =
+                      handle(JSReceiver::cast(context->get(index)), isolate);
+                }
                 if (callback({fulfill_handler, false})) {
                   return true;
                 }

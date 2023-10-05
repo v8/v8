@@ -143,6 +143,20 @@ function fireAndForgetInTry(fn) {
   }
 }
 
+function finallyAndCatchMethod(fn) {
+  // Will we account for the catch method after the finally?
+  fn().finally(() => console.log('finally handler'))
+      .catch(() => console.log('caught'));
+}
+
+function thenMethod(fn) {
+  fn().then(() => console.log('not hit'));
+}
+
+function thenMethodWithTwoArgs(fn) {
+  fn().then(() => console.log('not hit'), () => console.log('caught'));
+}
+
 function delay() {
   return new Promise(resolve => setTimeout(resolve, 0));
 }
@@ -173,7 +187,7 @@ async function testWrapper(throwFunc, handleFunc) {
 const basicThrowFunctions = [rejectAfterDelayInPromiseConstructor, promiseReject];
 const advancedThrowFunctions = [throwInPromiseConstructor, rejectInPromiseConstructor, rejectAfterDelayInTryInPromiseConstructor, rejectBindAfterDelay, throwFromAsync, throwFromAsyncAfterDelay, customRejectingThenable, customRejectingThenableAfterDelay];
 const basicCatchFunctions = [dontHandleAsync, awaitAndCreateInTry];
-const advancedCatchFunctions = [catchMethod, finallyMethod, catchMethodInTry, awaitInTry, awaitAndCreateInTryFinally, createInTry, fireAndForgetInTry];
+const advancedCatchFunctions = [catchMethod, finallyMethod, catchMethodInTry, awaitInTry, awaitAndCreateInTryFinally, createInTry, fireAndForgetInTry, finallyAndCatchMethod, thenMethod, thenMethodWithTwoArgs];
 const helpers = [delay, testWrapper];
 
 const file = [...basicThrowFunctions, ...advancedThrowFunctions, ...basicCatchFunctions, ...advancedCatchFunctions, ...helpers].join('\n\n');
