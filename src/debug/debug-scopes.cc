@@ -189,8 +189,13 @@ class ScopeChainRetriever {
     // context on the stack with a range that starts at Token::CLASS, and the
     // source position will also point to Token::CLASS.  To identify the
     // matching scope we include start in the accepted range for class scopes.
+    //
+    // Similarly "with" scopes can already have bytecodes where the source
+    // position points to the closing parenthesis with the "with" context
+    // already pushed.
     const bool position_fits_start =
-        scope->is_class_scope() ? start <= position_ : start < position_;
+        scope->is_class_scope() || scope->is_with_scope() ? start <= position_
+                                                          : start < position_;
     return position_fits_start && position_fits_end;
   }
 };
