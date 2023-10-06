@@ -526,8 +526,8 @@ HEAP_TEST(Regress777177) {
     // Ensure a new linear allocation area on a fresh page.
     AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(old_space);
-    AllocationResult result =
-        old_space->AllocateRaw(filler_size, kTaggedAligned);
+    AllocationResult result = old_space_allocator->AllocateRaw(
+        filler_size, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
@@ -535,8 +535,8 @@ HEAP_TEST(Regress777177) {
   {
     // Allocate all bytes of the linear allocation area. This moves top_ and
     // top_on_previous_step_ to the next page.
-    AllocationResult result =
-        old_space->AllocateRaw(max_object_size, kTaggedAligned);
+    AllocationResult result = old_space_allocator->AllocateRaw(
+        max_object_size, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     // Simulate allocation folding moving the top pointer back.
     old_space->main_allocator()->ResetLab(
@@ -546,8 +546,8 @@ HEAP_TEST(Regress777177) {
 
   {
     // This triggers assert in crbug.com/777177.
-    AllocationResult result =
-        old_space->AllocateRaw(filler_size, kTaggedAligned);
+    AllocationResult result = old_space_allocator->AllocateRaw(
+        filler_size, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
@@ -560,7 +560,6 @@ HEAP_TEST(Regress791582) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  NewSpace* new_space = heap->new_space();
   MainAllocator* new_space_allocator = heap->allocator()->new_space_allocator();
   GrowNewSpace(heap);
 
@@ -578,8 +577,8 @@ HEAP_TEST(Regress791582) {
   new_space_allocator->AddAllocationObserver(&observer);
 
   {
-    AllocationResult result =
-        new_space->AllocateRaw(until_page_end, kTaggedAligned);
+    AllocationResult result = new_space_allocator->AllocateRaw(
+        until_page_end, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), until_page_end);
     // Simulate allocation folding moving the top pointer back.
@@ -588,7 +587,8 @@ HEAP_TEST(Regress791582) {
 
   {
     // This triggers assert in crbug.com/791582
-    AllocationResult result = new_space->AllocateRaw(256, kTaggedAligned);
+    AllocationResult result = new_space_allocator->AllocateRaw(
+        256, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     heap->CreateFillerObjectAt(obj.address(), 256);
   }

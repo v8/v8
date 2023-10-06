@@ -223,13 +223,11 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   explicit NewSpace(Heap* heap);
 
+  base::Mutex* mutex() { return &mutex_; }
+
   inline bool Contains(Tagged<Object> o) const;
   inline bool Contains(Tagged<HeapObject> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
-
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;

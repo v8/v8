@@ -16,8 +16,10 @@ namespace heap {
 namespace {
 
 Address AllocateLabBackingStore(Heap* heap, size_t size_in_bytes) {
-  AllocationResult result = heap->old_space()->AllocateRaw(
-      static_cast<int>(size_in_bytes), kDoubleAligned);
+  AllocationResult result =
+      heap->allocator()->old_space_allocator()->AllocateRaw(
+          static_cast<int>(size_in_bytes), kDoubleAligned,
+          AllocationOrigin::kRuntime);
   Address adr = result.ToObjectChecked().address();
   return adr;
 }

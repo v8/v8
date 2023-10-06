@@ -2129,8 +2129,8 @@ TEST(TestAlignedAllocation) {
     if (v8_flags.minor_ms) {
       // Make one allocation to force allocating an allocation area. Using
       // kDoubleSize to not change space alignment
-      USE(CcTest::heap()->new_space()->AllocateRaw(kDoubleSize,
-                                                   kDoubleAligned));
+      USE(CcTest::heap()->allocator()->new_space_allocator()->AllocateRaw(
+          kDoubleSize, kDoubleAligned, AllocationOrigin::kRuntime));
     }
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
@@ -2205,7 +2205,8 @@ TEST(TestAlignedOverAllocation) {
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   // Allocate a dummy object to properly set up the linear allocation info.
   AllocationResult dummy =
-      heap->old_space()->AllocateRaw(kTaggedSize, kTaggedAligned);
+      heap->allocator()->old_space_allocator()->AllocateRaw(
+          kTaggedSize, kTaggedAligned, AllocationOrigin::kRuntime);
   CHECK(!dummy.IsFailure());
   heap->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize);
 
@@ -3910,8 +3911,10 @@ TEST(Regress169928) {
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
   Tagged<HeapObject> obj;
-  AllocationResult allocation = CcTest::heap()->new_space()->AllocateRaw(
-      AllocationMemento::kSize + kTaggedSize, kTaggedAligned);
+  AllocationResult allocation =
+      CcTest::heap()->allocator()->new_space_allocator()->AllocateRaw(
+          AllocationMemento::kSize + kTaggedSize, kTaggedAligned,
+          AllocationOrigin::kRuntime);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj.address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,

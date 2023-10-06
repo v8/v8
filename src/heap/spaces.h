@@ -290,10 +290,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
 
   virtual AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) = 0;
 
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin = AllocationOrigin::kRuntime);
-
  protected:
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator* allocator_ = nullptr;

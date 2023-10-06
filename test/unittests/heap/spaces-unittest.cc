@@ -19,27 +19,22 @@
 namespace v8 {
 namespace internal {
 
-static Tagged<HeapObject> AllocateUnaligned(NewSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsFailure());
-  Tagged<HeapObject> filler;
-  CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size);
-  return filler;
-}
-
-static Tagged<HeapObject> AllocateUnaligned(PagedSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsFailure());
-  Tagged<HeapObject> filler;
-  CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size);
-  return filler;
-}
-
-static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* space,
+static Tagged<HeapObject> AllocateUnaligned(MainAllocator* allocator,
+                                            SpaceWithLinearArea* space,
                                             int size) {
-  AllocationResult allocation = space->AllocateRaw(size);
+  AllocationResult allocation =
+      allocator->AllocateRaw(size, kTaggedAligned, AllocationOrigin::kRuntime);
+  CHECK(!allocation.IsFailure());
+  Tagged<HeapObject> filler;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
+  return filler;
+}
+
+static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* allocator,
+                                            OldLargeObjectSpace* space,
+                                            int size) {
+  AllocationResult allocation = allocator->AllocateRaw(size);
   CHECK(!allocation.IsFailure());
   Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
@@ -78,7 +73,9 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
     Tagged<HeapObject> object =
-        compaction_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
+        allocator
+            .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                         AllocationOrigin::kRuntime)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }
@@ -352,25 +349,25 @@ void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
 
   // The observer should not get notified if we have only allocated less than
   // 128 bytes.
-  AllocateUnaligned(space, 64);
+  AllocateUnaligned(allocator, space, 64);
   CHECK_EQ(observer1.count(), 0);
 
   // The observer should get called when we have allocated exactly 128 bytes.
-  AllocateUnaligned(space, 64);
+  AllocateUnaligned(allocator, space, 64);
   CHECK_EQ(observer1.count(), 1);
 
   // Another >128 bytes should get another notification.
-  AllocateUnaligned(space, 136);
+  AllocateUnaligned(allocator, space, 136);
   CHECK_EQ(observer1.count(), 2);
 
   // Allocating a large object should get only one notification.
-  AllocateUnaligned(space, 1024);
+  AllocateUnaligned(allocator, space, 1024);
   CHECK_EQ(observer1.count(), 3);
 
   // Allocating another 2048 bytes in small objects should get 16
   // notifications.
   for (int i = 0; i < 64; ++i) {
-    AllocateUnaligned(space, 32);
+    AllocateUnaligned(allocator, space, 32);
   }
   CHECK_EQ(observer1.count(), 19);
 
@@ -378,38 +375,38 @@ void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
   Observer observer2(96);
   allocator->AddAllocationObserver(&observer2);
 
-  AllocateUnaligned(space, 2048);
+  AllocateUnaligned(allocator, space, 2048);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 1);
 
-  AllocateUnaligned(space, 104);
+  AllocateUnaligned(allocator, space, 104);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 2);
 
   // Callback should stop getting called after an observer is removed.
   allocator->RemoveAllocationObserver(&observer1);
 
-  AllocateUnaligned(space, 384);
+  AllocateUnaligned(allocator, space, 384);
   CHECK_EQ(observer1.count(), 20);  // no more notifications.
   CHECK_EQ(observer2.count(), 3);   // this one is still active.
 
   // Ensure that PauseInlineAllocationObserversScope work correctly.
-  AllocateUnaligned(space, 48);
+  AllocateUnaligned(allocator, space, 48);
   CHECK_EQ(observer2.count(), 3);
   {
     PauseAllocationObserversScope pause_observers(i_isolate->heap());
     CHECK_EQ(observer2.count(), 3);
-    AllocateUnaligned(space, 384);
+    AllocateUnaligned(allocator, space, 384);
     CHECK_EQ(observer2.count(), 3);
   }
   CHECK_EQ(observer2.count(), 3);
   // Coupled with the 48 bytes allocated before the pause, another 48 bytes
   // allocated here should trigger a notification.
-  AllocateUnaligned(space, 48);
+  AllocateUnaligned(allocator, space, 48);
   CHECK_EQ(observer2.count(), 4);
 
   allocator->RemoveAllocationObserver(&observer2);
-  AllocateUnaligned(space, 384);
+  AllocateUnaligned(allocator, space, 384);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 4);
 }
@@ -452,7 +449,8 @@ TEST_F(SpacesTest, InlineAllocationObserverCadence) {
   new_space_allocator->AddAllocationObserver(&observer2);
 
   for (int i = 0; i < 512; ++i) {
-    AllocateUnaligned(i_isolate()->heap()->new_space(), 32);
+    AllocateUnaligned(new_space_allocator, i_isolate()->heap()->new_space(),
+                      32);
   }
 
   new_space_allocator->RemoveAllocationObserver(&observer1);

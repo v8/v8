@@ -16,6 +16,10 @@ EvacuationAllocator::EvacuationAllocator(
       compaction_spaces_(heap, compaction_space_kind),
       new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
       lab_allocation_will_fail_(false) {
+  if (new_space_) {
+    new_space_allocator_ = heap_->allocator()->new_space_allocator();
+  }
+
   old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE),
                                compaction_space_kind,
                                MainAllocator::SupportsExtendingLAB::kNo);
@@ -38,6 +42,67 @@ EvacuationAllocator::EvacuationAllocator(
                                    MainAllocator::SupportsExtendingLAB::kNo);
   compaction_spaces_.Get(TRUSTED_SPACE)
       ->set_main_allocator(trusted_space_allocator());
+}
+
+AllocationResult EvacuationAllocator::AllocateInNewSpaceSynchronized(
+    int size_in_bytes, AllocationAlignment alignment) {
+  base::MutexGuard guard(new_space_->mutex());
+  return new_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                            AllocationOrigin::kGC);
+}
+
+bool EvacuationAllocator::NewLocalAllocationBuffer() {
+  if (lab_allocation_will_fail_) return false;
+  AllocationResult result =
+      AllocateInNewSpaceSynchronized(kLabSize, kTaggedAligned);
+  if (result.IsFailure()) {
+    lab_allocation_will_fail_ = true;
+    return false;
+  }
+  LocalAllocationBuffer saved_lab = std::move(new_space_lab_);
+  new_space_lab_ = LocalAllocationBuffer::FromResult(heap_, result, kLabSize);
+  DCHECK(new_space_lab_.IsValid());
+  if (!new_space_lab_.TryMerge(&saved_lab)) {
+    saved_lab.CloseAndMakeIterable();
+  }
+  return true;
+}
+
+void EvacuationAllocator::FreeLast(AllocationSpace space,
+                                   Tagged<HeapObject> object, int object_size) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  switch (space) {
+    case NEW_SPACE:
+      FreeLastInNewSpace(object, object_size);
+      return;
+    case OLD_SPACE:
+      FreeLastInCompactionSpace(OLD_SPACE, object, object_size);
+      return;
+    case SHARED_SPACE:
+      FreeLastInCompactionSpace(SHARED_SPACE, object, object_size);
+      return;
+    default:
+      // Only new and old space supported.
+      UNREACHABLE();
+  }
+}
+
+void EvacuationAllocator::FreeLastInNewSpace(Tagged<HeapObject> object,
+                                             int object_size) {
+  if (!new_space_lab_.TryFreeLast(object, object_size)) {
+    // We couldn't free the last object so we have to write a proper filler.
+    heap_->CreateFillerObjectAt(object.address(), object_size);
+  }
+}
+
+void EvacuationAllocator::FreeLastInCompactionSpace(AllocationSpace space,
+                                                    Tagged<HeapObject> object,
+                                                    int object_size) {
+  if (!compaction_spaces_.Get(space)->main_allocator()->TryFreeLast(
+          object.address(), object_size)) {
+    // We couldn't free the last object so we have to write a proper filler.
+    heap_->CreateFillerObjectAt(object.address(), object_size);
+  }
 }
 
 void EvacuationAllocator::Finalize() {

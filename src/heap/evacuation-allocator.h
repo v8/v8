@@ -28,23 +28,25 @@ class EvacuationAllocator {
   void Finalize();
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
-                                   AllocationOrigin origin,
                                    AllocationAlignment alignment);
-  inline void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
-                       int object_size);
+  void FreeLast(AllocationSpace space, Tagged<HeapObject> object,
+                int object_size);
 
  private:
   inline AllocationResult AllocateInNewSpace(int object_size,
-                                             AllocationOrigin origin,
                                              AllocationAlignment alignment);
-  inline bool NewLocalAllocationBuffer();
+
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateInNewSpaceSynchronized(
+      int size_in_bytes, AllocationAlignment alignment);
+
+  bool NewLocalAllocationBuffer();
   inline AllocationResult AllocateInLAB(int object_size,
                                         AllocationAlignment alignment);
-  inline void FreeLastInNewSpace(Tagged<HeapObject> object, int object_size);
-  inline void FreeLastInCompactionSpace(AllocationSpace space,
-                                        Tagged<HeapObject> object,
-                                        int object_size);
+  void FreeLastInNewSpace(Tagged<HeapObject> object, int object_size);
+  void FreeLastInCompactionSpace(AllocationSpace space,
+                                 Tagged<HeapObject> object, int object_size);
 
+  MainAllocator* new_space_allocator() { return new_space_allocator_; }
   MainAllocator* old_space_allocator() { return &old_space_allocator_.value(); }
   MainAllocator* code_space_allocator() {
     return &code_space_allocator_.value();
@@ -60,6 +62,7 @@ class EvacuationAllocator {
   NewSpace* const new_space_;
   CompactionSpaceCollection compaction_spaces_;
   LocalAllocationBuffer new_space_lab_;
+  MainAllocator* new_space_allocator_;
   base::Optional<MainAllocator> old_space_allocator_;
   base::Optional<MainAllocator> code_space_allocator_;
   base::Optional<MainAllocator> shared_space_allocator_;

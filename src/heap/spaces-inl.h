@@ -171,12 +171,6 @@ MemoryChunk* MemoryChunkIterator::Next() {
   return chunk;
 }
 
-AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
-                                                  AllocationAlignment alignment,
-                                                  AllocationOrigin origin) {
-  return allocator_->AllocateRaw(size_in_bytes, alignment, origin);
-}
-
 }  // namespace internal
 }  // namespace v8
 

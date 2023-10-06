@@ -1621,6 +1621,8 @@ class Heap final {
 
   bool ShouldUseBackgroundThreads() const;
 
+  HeapAllocator* allocator() { return &heap_allocator_; }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1960,8 +1962,6 @@ class Heap final {
   // ===========================================================================
   // Allocation methods. =======================================================
   // ===========================================================================
-
-  HeapAllocator* allocator() { return &heap_allocator_; }
 
   // Allocates a JS Map in the heap.
   V8_WARN_UNUSED_RESULT AllocationResult

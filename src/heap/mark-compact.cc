@@ -1542,15 +1542,13 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
       if (heap_->isolate()->is_shared_space_isolate()) {
         DCHECK_NULL(shared_old_allocator_);
-        allocation = local_allocator_->Allocate(
-            SHARED_SPACE, size, AllocationOrigin::kGC, alignment);
+        allocation = local_allocator_->Allocate(SHARED_SPACE, size, alignment);
       } else {
         allocation = shared_old_allocator_->AllocateRaw(size, alignment,
                                                         AllocationOrigin::kGC);
       }
     } else {
-      allocation = local_allocator_->Allocate(target_space, size,
-                                              AllocationOrigin::kGC, alignment);
+      allocation = local_allocator_->Allocate(target_space, size, alignment);
     }
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
@@ -1659,8 +1657,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
-    AllocationResult allocation = local_allocator_->Allocate(
-        NEW_SPACE, size, AllocationOrigin::kGC, alignment);
+    AllocationResult allocation =
+        local_allocator_->Allocate(NEW_SPACE, size, alignment);
     if (allocation.IsFailure()) {
       allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
@@ -1673,8 +1671,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   inline AllocationResult AllocateInOldSpace(int size_in_bytes,
                                              AllocationAlignment alignment) {
-    AllocationResult allocation = local_allocator_->Allocate(
-        OLD_SPACE, size_in_bytes, AllocationOrigin::kGC, alignment);
+    AllocationResult allocation =
+        local_allocator_->Allocate(OLD_SPACE, size_in_bytes, alignment);
     if (allocation.IsFailure()) {
       heap_->FatalProcessOutOfMemory(
           "MarkCompactCollector: semi-space copy, fallback in old gen");
