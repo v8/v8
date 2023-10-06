@@ -480,10 +480,6 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
 }
 
 SemiSpaceNewSpace::~SemiSpaceNewSpace() {
-  // Tears down the space.  Heap memory was not allocated by the space, so it
-  // is not deallocated here.
-  allocator_->allocation_info().Reset(kNullAddress, kNullAddress);
-
   to_space_.TearDown();
   from_space_.TearDown();
 }
@@ -1129,10 +1125,6 @@ PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
     : NewSpace(heap), paged_space_(heap, initial_capacity, max_capacity) {}
 
 PagedNewSpace::~PagedNewSpace() {
-  // Tears down the space.  Heap memory was not allocated by the space, so it
-  // is not deallocated here.
-  allocator_->allocation_info().Reset(kNullAddress, kNullAddress);
-
   paged_space_.TearDown();
 }
 
