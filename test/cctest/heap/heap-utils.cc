@@ -35,7 +35,7 @@ void SealCurrentObjects(Heap* heap) {
   heap::InvokeMajorGC(heap);
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
-  heap->FreeMainThreadLinearAllocationAreas();
+  heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
     page->MarkNeverAllocateForTesting();
   }
@@ -92,8 +92,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   int allocate_memory;
   int length;
   int free_memory = padding_size;
-  heap->FreeMainThreadLinearAllocationAreas();
   if (allocation == i::AllocationType::kOld) {
+    heap->old_space()->FreeLinearAllocationArea();
     int overall_free_memory = static_cast<int>(heap->old_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   } else {
@@ -184,7 +184,7 @@ void FillPageInPagedSpace(Page* page,
     }
   }
 
-  heap->FreeLinearAllocationAreas();
+  paged_space->FreeLinearAllocationArea();
 
   // Allocate FixedArrays in remaining free list blocks, from largest
   // category to smallest.
@@ -323,6 +323,7 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
     space->heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
+  space->FreeLinearAllocationArea();
   space->ResetFreeList();
 }
 
@@ -331,6 +332,7 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   IsolateSafepointScope safepoint_scope(heap);
   heap->FreeLinearAllocationAreas();
 
+  space->FreeLinearAllocationArea();
   for (Page* page : *space) {
     page->MarkNeverAllocateForTesting();
   }

@@ -170,21 +170,6 @@ void HeapAllocator::UnmarkLinearAllocationArea() {
   }
 }
 
-void HeapAllocator::FreeLinearAllocationArea() {
-  if (new_space_allocator_) {
-    new_space_allocator_->FreeLinearAllocationArea();
-  }
-  old_space_allocator_->FreeLinearAllocationArea();
-  trusted_space_allocator_->FreeLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Setting the high water mark requires write access to the Code page "
-        "header");
-    code_space_allocator_->FreeLinearAllocationArea();
-  }
-}
-
 void HeapAllocator::AddAllocationObserver(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   if (new_space_allocator_) {

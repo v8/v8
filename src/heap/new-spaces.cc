@@ -450,12 +450,10 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // NewSpace implementation
 
 NewSpace::NewSpace(Heap* heap,
-                   MainAllocator::AllocatorPolicyKind allocator_policy,
                    MainAllocator::SupportsExtendingLAB supports_extending_lab,
                    LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, allocator_policy,
-                          CompactionSpaceKind::kNone, supports_extending_lab,
-                          allocation_info) {}
+    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, CompactionSpaceKind::kNone,
+                          supports_extending_lab, allocation_info) {}
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -473,8 +471,7 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
                                      size_t initial_semispace_capacity,
                                      size_t max_semispace_capacity,
                                      LinearAllocationArea& allocation_info)
-    : NewSpace(heap, MainAllocator::AllocatorPolicyKind::kSemiSpaceNewSpace,
-               MainAllocator::SupportsExtendingLAB::kNo, allocation_info),
+    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kNo, allocation_info),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
@@ -1132,8 +1129,8 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
 PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
                              size_t max_capacity,
                              LinearAllocationArea& allocation_info)
-    : NewSpace(heap, MainAllocator::AllocatorPolicyKind::kPagedNewSpace,
-               MainAllocator::SupportsExtendingLAB::kYes, allocation_info),
+    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kYes,
+               allocation_info),
       paged_space_(heap, initial_capacity, max_capacity, main_allocator()) {}
 
 PagedNewSpace::~PagedNewSpace() {

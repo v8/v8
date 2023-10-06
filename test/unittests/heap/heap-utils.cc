@@ -103,7 +103,7 @@ void FillPageInPagedSpace(Page* page,
     }
   }
 
-  heap->FreeLinearAllocationAreas();
+  paged_space->FreeLinearAllocationArea();
 
   // Allocate FixedArrays in remaining free list blocks, from largest
   // category to smallest.
@@ -206,8 +206,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   int allocate_memory;
   int length;
   int free_memory = padding_size;
-  heap->FreeMainThreadLinearAllocationAreas();
   if (allocation == i::AllocationType::kOld) {
+    heap->old_space()->FreeLinearAllocationArea();
     int overall_free_memory = static_cast<int>(heap->old_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   } else {

@@ -2,20 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/main-allocator.h"
-
-#include "src/heap/heap.h"
-#include "src/heap/incremental-marking.h"
 #include "src/heap/main-allocator-inl.h"
-#include "src/heap/new-spaces.h"
-#include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             AllocatorPolicyKind allocator_policy,
                              CompactionSpaceKind compaction_space_kind,
                              SupportsExtendingLAB supports_extending_lab,
                              LinearAllocationArea& allocation_info)
@@ -23,19 +16,16 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       space_(space),
       compaction_space_kind_(compaction_space_kind),
       supports_extending_lab_(supports_extending_lab),
-      allocation_info_(allocation_info),
-      allocator_policy_(CreateAllocatorPolicy(allocator_policy, space, this)) {}
+      allocation_info_(allocation_info) {}
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             AllocatorPolicyKind allocator_policy,
                              CompactionSpaceKind compaction_space_kind,
                              SupportsExtendingLAB supports_extending_lab)
     : heap_(heap),
       space_(space),
       compaction_space_kind_(compaction_space_kind),
       supports_extending_lab_(supports_extending_lab),
-      allocation_info_(owned_allocation_info_),
-      allocator_policy_(CreateAllocatorPolicy(allocator_policy, space, this)) {}
+      allocation_info_(owned_allocation_info_) {}
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
@@ -289,17 +279,17 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin,
                                      int* out_max_aligned_size) {
-  return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                             out_max_aligned_size);
+  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
+                                  out_max_aligned_size);
 }
 
 void MainAllocator::UpdateInlineAllocationLimit() {
-  return allocator_policy_->UpdateInlineAllocationLimit();
+  return space_->UpdateInlineAllocationLimit();
 }
 
 void MainAllocator::FreeLinearAllocationArea() {
   BasicMemoryChunk::UpdateHighWaterMark(top());
-  allocator_policy_->FreeLinearAllocationArea();
+  space_->FreeLinearAllocationArea();
 }
 
 void MainAllocator::ExtendLAB(Address limit) {
@@ -372,75 +362,6 @@ int MainAllocator::ObjectAlignment() const {
 }
 
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
-
-// static
-AllocatorPolicy* MainAllocator::CreateAllocatorPolicy(
-    MainAllocator::AllocatorPolicyKind policy, SpaceWithLinearArea* space,
-    MainAllocator* allocator) {
-  switch (policy) {
-    case MainAllocator::AllocatorPolicyKind::kSemiSpaceNewSpace:
-      return new SemiSpaceNewSpaceAllocatorPolicy(
-          static_cast<SemiSpaceNewSpace*>(space), allocator);
-    case MainAllocator::AllocatorPolicyKind::kPagedNewSpace:
-      return new PagedNewSpaceAllocatorPolicy(
-          static_cast<PagedNewSpace*>(space), allocator);
-    case MainAllocator::AllocatorPolicyKind::kPagedSpace:
-      return new PagedSpaceAllocatorPolicy(static_cast<PagedSpace*>(space),
-                                           allocator);
-  }
-}
-
-AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
-    : allocator_(allocator) {
-  USE(allocator_);
-}
-
-bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
-    int* out_max_aligned_size) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                  out_max_aligned_size);
-}
-
-void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  space_->FreeLinearAllocationArea();
-}
-
-void SemiSpaceNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  space_->UpdateInlineAllocationLimit();
-}
-
-bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
-    int* out_max_aligned_size) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                  out_max_aligned_size);
-}
-
-void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  space_->FreeLinearAllocationArea();
-}
-
-void PagedNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  space_->UpdateInlineAllocationLimit();
-}
-
-bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
-                                                 AllocationAlignment alignment,
-                                                 AllocationOrigin origin,
-                                                 int* out_max_aligned_size) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                  out_max_aligned_size);
-}
-
-void PagedSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  base::MutexGuard guard(space_->mutex());
-  space_->FreeLinearAllocationArea();
-}
-
-void PagedSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  space_->UpdateInlineAllocationLimit();
-}
 
 }  // namespace internal
 }  // namespace v8
