@@ -143,7 +143,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   void StartTracing();
   bool AdvanceTracing(v8::base::TimeDelta max_duration);
   bool IsTracingDone() const;
-  void TraceEpilogue();
+  void FinishMarkingAndStartSweeping();
+  void FinishAtomicSweepingIfNeeded();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
   void WriteBarrier(Tagged<JSObject>);

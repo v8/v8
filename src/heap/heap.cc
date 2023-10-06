@@ -1883,6 +1883,11 @@ void Heap::CollectGarbage(AllocationSpace space,
           collector == GarbageCollector::SCAVENGER) {
         tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode());
       }
+      if ((collector == GarbageCollector::MARK_COMPACTOR ||
+           collector == GarbageCollector::MINOR_MARK_SWEEPER) &&
+          cpp_heap()) {
+        CppHeap::From(cpp_heap())->FinishAtomicSweepingIfNeeded();
+      }
     }
 
     GarbageCollectionEpilogue(collector);
@@ -2434,7 +2439,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     // collection pause and thus needs to be called *before* any operation
     // that can potentially trigger recursive garbage collections.
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
-    CppHeap::From(cpp_heap())->TraceEpilogue();
+    CppHeap::From(cpp_heap())->FinishMarkingAndStartSweeping();
   }
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
