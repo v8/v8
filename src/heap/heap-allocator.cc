@@ -26,35 +26,28 @@ void HeapAllocator::Setup(LinearAllocationArea& new_allocation_info,
 
   if (heap_->new_space()) {
     if (v8_flags.minor_ms) {
-      new_space_allocator_.emplace(
-          heap_, heap_->new_space(), CompactionSpaceKind::kNone,
-          MainAllocator::SupportsExtendingLAB::kYes, new_allocation_info);
-      heap_->paged_new_space()->set_main_allocator(new_space_allocator());
+      new_space_allocator_ = heap_->new_space()->CreateMainAllocator(
+          CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kYes,
+          new_allocation_info);
       heap_->paged_new_space()->paged_space()->set_main_allocator(
-          new_space_allocator());
+          new_space_allocator_);
     } else {
-      new_space_allocator_.emplace(
-          heap_, heap_->new_space(), CompactionSpaceKind::kNone,
-          MainAllocator::SupportsExtendingLAB::kNo, new_allocation_info);
-      heap_->semi_space_new_space()->set_main_allocator(new_space_allocator());
+      new_space_allocator_ = heap_->new_space()->CreateMainAllocator(
+          CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo,
+          new_allocation_info);
       heap_->semi_space_new_space()->UpdateLinearAllocationArea();
     }
   }
 
-  old_space_allocator_.emplace(
-      heap_, heap_->old_space(), CompactionSpaceKind::kNone,
-      MainAllocator::SupportsExtendingLAB::kNo, old_allocation_info);
-  heap_->old_space()->set_main_allocator(old_space_allocator());
-
-  trusted_space_allocator_.emplace(heap_, heap_->trusted_space(),
-                                   CompactionSpaceKind::kNone,
-                                   MainAllocator::SupportsExtendingLAB::kNo);
-  heap_->trusted_space()->set_main_allocator(trusted_space_allocator());
-
-  code_space_allocator_.emplace(heap_, heap_->code_space(),
-                                CompactionSpaceKind::kNone,
-                                MainAllocator::SupportsExtendingLAB::kNo);
-  heap_->code_space()->set_main_allocator(code_space_allocator());
+  new_space_allocator_ =
+      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
+  old_space_allocator_ = heap_->old_space()->CreateMainAllocator(
+      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo,
+      old_allocation_info);
+  trusted_space_allocator_ = heap_->trusted_space()->CreateMainAllocator(
+      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo);
+  code_space_allocator_ = heap_->code_space()->CreateMainAllocator(
+      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo);
 
   shared_old_allocator_ = heap_->shared_space_allocator_.get();
   shared_lo_space_ = heap_->shared_lo_allocation_space();

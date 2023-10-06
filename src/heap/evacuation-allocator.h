@@ -45,25 +45,10 @@ class EvacuationAllocator {
                                         Tagged<HeapObject> object,
                                         int object_size);
 
-  MainAllocator* old_space_allocator() { return &old_space_allocator_.value(); }
-  MainAllocator* code_space_allocator() {
-    return &code_space_allocator_.value();
-  }
-  MainAllocator* shared_space_allocator() {
-    return &shared_space_allocator_.value();
-  }
-  MainAllocator* trusted_space_allocator() {
-    return &trusted_space_allocator_.value();
-  }
-
   Heap* const heap_;
   NewSpace* const new_space_;
   CompactionSpaceCollection compaction_spaces_;
   LocalAllocationBuffer new_space_lab_;
-  base::Optional<MainAllocator> old_space_allocator_;
-  base::Optional<MainAllocator> code_space_allocator_;
-  base::Optional<MainAllocator> shared_space_allocator_;
-  base::Optional<MainAllocator> trusted_space_allocator_;
   bool lab_allocation_will_fail_;
 };
 
