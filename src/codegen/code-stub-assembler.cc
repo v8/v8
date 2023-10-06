@@ -8651,109 +8651,69 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
 
     BIND(&if_string);
     {
-      TVARIABLE(Uint32T, var_raw_hash);
-      Label check_string_hash(this, {&var_raw_hash});
+      Label if_thinstring(this), if_has_cached_index(this),
+          if_forwarding_index(this);
 
       // TODO(v8:12007): LoadNameRawHashField() should be an acquire load.
-      var_raw_hash = LoadNameRawHashField(CAST(key));
-      Goto(&check_string_hash);
-      BIND(&check_string_hash);
+      TNode<Uint32T> raw_hash_field = LoadNameRawHashField(CAST(key));
+      GotoIf(IsClearWord32(raw_hash_field,
+                           Name::kDoesNotContainCachedArrayIndexMask),
+             &if_has_cached_index);
+      // No cached array index. If the string knows that it contains an index,
+      // then it must be an uncacheable index. Handle this case in the runtime.
+      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
+                 raw_hash_field, Name::HashFieldType::kIntegerIndex),
+             if_bailout);
+
+      static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+      GotoIf(IsSetWord32(var_instance_type.value(), kThinStringTagBit),
+             &if_thinstring);
+
+      // Check if the hash field encodes an internalized string forwarding
+      // index.
+      GotoIf(IsBothEqualInWord32<Name::HashFieldTypeBits,
+                                 Name::IsInternalizedForwardingIndexBit>(
+                 raw_hash_field, Name::HashFieldType::kForwardingIndex, true),
+             &if_forwarding_index);
+
+      // Finally, check if |key| is internalized.
+      static_assert(kNotInternalizedTag != 0);
+      GotoIf(IsSetWord32(var_instance_type.value(), kIsNotInternalizedMask),
+             if_notinternalized != nullptr ? if_notinternalized : if_bailout);
+
+      *var_unique = CAST(key);
+      Goto(if_keyisunique);
+
+      BIND(&if_thinstring);
       {
-        Label if_thinstring(this), if_has_cached_index(this),
-            if_forwarding_index(this);
-
-        TNode<Uint32T> raw_hash_field = var_raw_hash.value();
-        GotoIf(IsClearWord32(raw_hash_field,
-                             Name::kDoesNotContainCachedArrayIndexMask),
-               &if_has_cached_index);
-        // No cached array index. If the string knows that it contains an index,
-        // then it must be an uncacheable index. Handle this case in the
-        // runtime.
-        GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
-                   raw_hash_field, Name::HashFieldType::kIntegerIndex),
-               if_bailout);
-
-        static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
-        GotoIf(IsSetWord32(var_instance_type.value(), kThinStringTagBit),
-               &if_thinstring);
-
-        // Check if the hash field encodes a forwarding index.
-        GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
-                   raw_hash_field, Name::HashFieldType::kForwardingIndex),
-               &if_forwarding_index);
-
-        // Finally, check if |key| is internalized.
-        static_assert(kNotInternalizedTag != 0);
-        GotoIf(IsSetWord32(var_instance_type.value(), kIsNotInternalizedMask),
-               if_notinternalized != nullptr ? if_notinternalized : if_bailout);
-
-        *var_unique = CAST(key);
+        *var_unique =
+            LoadObjectField<String>(CAST(key), ThinString::kActualOffset);
         Goto(if_keyisunique);
+      }
+      BIND(&if_forwarding_index);
+      {
+        TNode<ExternalReference> function =
+            ExternalConstant(ExternalReference::string_from_forward_table());
+        const TNode<ExternalReference> isolate_ptr =
+            ExternalConstant(ExternalReference::isolate_address(isolate()));
+        TNode<Object> result = CAST(CallCFunction(
+            function, MachineType::AnyTagged(),
+            std::make_pair(MachineType::Pointer(), isolate_ptr),
+            std::make_pair(
+                MachineType::Int32(),
+                DecodeWord32<Name::ForwardingIndexValueBits>(raw_hash_field))));
 
-        BIND(&if_thinstring);
-        {
-          *var_unique =
-              LoadObjectField<String>(CAST(key), ThinString::kActualOffset);
-          Goto(if_keyisunique);
-        }
+        *var_unique = CAST(result);
+        Goto(if_keyisunique);
+      }
 
-        BIND(&if_forwarding_index);
-        {
-          Label if_external(this), if_internalized(this);
-          Branch(IsEqualInWord32<Name::IsExternalForwardingIndexBit>(
-                     raw_hash_field, true),
-                 &if_external, &if_internalized);
-          BIND(&if_external);
-          {
-            // We know nothing about external forwarding indices, so load the
-            // forwarded hash and check all possiblities again.
-            TNode<ExternalReference> function = ExternalConstant(
-                ExternalReference::raw_hash_from_forward_table());
-            const TNode<ExternalReference> isolate_ptr =
-                ExternalConstant(ExternalReference::isolate_address(isolate()));
-            TNode<Uint32T> result = UncheckedCast<Uint32T>(CallCFunction(
-                function, MachineType::Uint32(),
-                std::make_pair(MachineType::Pointer(), isolate_ptr),
-                std::make_pair(MachineType::Int32(),
-                               DecodeWord32<Name::ForwardingIndexValueBits>(
-                                   raw_hash_field))));
-
-            var_raw_hash = result;
-            Goto(&check_string_hash);
-          }
-
-          BIND(&if_internalized);
-          {
-            // Integer indices are not overwritten with internalized forwarding
-            // indices, so we are guaranteed forwarding to a unique name.
-            CSA_DCHECK(this,
-                       IsEqualInWord32<Name::IsExternalForwardingIndexBit>(
-                           raw_hash_field, false));
-            TNode<ExternalReference> function = ExternalConstant(
-                ExternalReference::string_from_forward_table());
-            const TNode<ExternalReference> isolate_ptr =
-                ExternalConstant(ExternalReference::isolate_address(isolate()));
-            TNode<Object> result = CAST(CallCFunction(
-                function, MachineType::AnyTagged(),
-                std::make_pair(MachineType::Pointer(), isolate_ptr),
-                std::make_pair(MachineType::Int32(),
-                               DecodeWord32<Name::ForwardingIndexValueBits>(
-                                   raw_hash_field))));
-
-            *var_unique = CAST(result);
-            Goto(if_keyisunique);
-          }
-        }
-
-        BIND(&if_has_cached_index);
-        {
-          TNode<IntPtrT> index =
-              Signed(DecodeWordFromWord32<String::ArrayIndexValueBits>(
-                  raw_hash_field));
-          CSA_DCHECK(this, IntPtrLessThan(index, IntPtrConstant(INT_MAX)));
-          *var_index = index;
-          Goto(if_keyisindex);
-        }
+      BIND(&if_has_cached_index);
+      {
+        TNode<IntPtrT> index = Signed(
+            DecodeWordFromWord32<String::ArrayIndexValueBits>(raw_hash_field));
+        CSA_DCHECK(this, IntPtrLessThan(index, IntPtrConstant(INT_MAX)));
+        *var_index = index;
+        Goto(if_keyisindex);
       }
     }
 

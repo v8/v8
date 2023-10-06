@@ -600,7 +600,6 @@ namespace internal {
   F(SetForceSlowPath, 1, 1)                   \
   F(SetIteratorProtector, 0, 1)               \
   F(SharedGC, 0, 1)                           \
-  F(ShareObject, 1, 1)                        \
   F(SimulateNewspaceFull, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
