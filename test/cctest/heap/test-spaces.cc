@@ -303,15 +303,16 @@ TEST(SemiSpaceNewSpace) {
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator* allocator = new_space->CreateMainAllocator(
-      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo,
-      allocation_info);
+  MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
+                          MainAllocator::SupportsExtendingLAB::kNo,
+                          allocation_info);
+  new_space->set_main_allocator(&allocator);
   new_space->UpdateLinearAllocationArea();
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
   while (new_space->Available() >= kMaxRegularHeapObjectSize) {
-    AllocationResult allocation = allocator->AllocateRaw(
+    AllocationResult allocation = allocator.AllocateRaw(
         kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
     if (allocation.IsFailure()) break;
     successful_allocations++;
@@ -336,17 +337,18 @@ TEST(PagedNewSpace) {
 
   auto new_space = std::make_unique<PagedNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator* allocator = new_space->CreateMainAllocator(
-      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kYes,
-      allocation_info);
-  new_space->paged_space()->set_main_allocator(allocator);
+  MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
+                          MainAllocator::SupportsExtendingLAB::kYes,
+                          allocation_info);
+  new_space->set_main_allocator(&allocator);
+  new_space->paged_space()->set_main_allocator(&allocator);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
   CHECK_LT(0, new_space->TotalCapacity());
 
   size_t successful_allocations = 0;
   while (true) {
-    AllocationResult allocation = allocator->AllocateRaw(
+    AllocationResult allocation = allocator.AllocateRaw(
         kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
     if (allocation.IsFailure()) break;
     successful_allocations++;
@@ -374,16 +376,17 @@ TEST(OldSpace) {
   LinearAllocationArea allocation_info;
 
   auto old_space = std::make_unique<OldSpace>(heap);
-  old_space->CreateMainAllocator(CompactionSpaceKind::kNone,
-                                 MainAllocator::SupportsExtendingLAB::kNo,
-                                 allocation_info);
+  MainAllocator allocator(heap, old_space.get(), CompactionSpaceKind::kNone,
+                          MainAllocator::SupportsExtendingLAB::kNo,
+                          allocation_info);
+  old_space->set_main_allocator(&allocator);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;
 
   while (true) {
-    AllocationResult allocation =
-        old_space->AllocateRaw(obj_size, kTaggedAligned);
+    AllocationResult allocation = allocator.AllocateRaw(
+        obj_size, kTaggedAligned, AllocationOrigin::kRuntime);
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();

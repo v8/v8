@@ -51,15 +51,15 @@ class MainAllocator {
  public:
   enum SupportsExtendingLAB { kYes, kNo };
 
-  MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                CompactionSpaceKind compaction_space_kind,
-                SupportsExtendingLAB supports_extending_lab);
+  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                                  CompactionSpaceKind compaction_space_kind,
+                                  SupportsExtendingLAB supports_extending_lab);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
-  MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                CompactionSpaceKind compaction_space_kind,
-                SupportsExtendingLAB supports_extending_lab,
-                LinearAllocationArea& allocation_info);
+  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                                  CompactionSpaceKind compaction_space_kind,
+                                  SupportsExtendingLAB supports_extending_lab,
+                                  LinearAllocationArea& allocation_info);
 
   // Returns the allocation pointer in this space.
   Address start() const { return allocation_info_.start(); }

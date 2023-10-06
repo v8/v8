@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/main-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -93,10 +94,14 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void RemoveAllocationObserver(AllocationObserver* observer,
                                 AllocationObserver* new_space_observer);
 
-  MainAllocator* new_space_allocator() { return new_space_allocator_; }
-  MainAllocator* old_space_allocator() { return old_space_allocator_; }
-  MainAllocator* trusted_space_allocator() { return trusted_space_allocator_; }
-  MainAllocator* code_space_allocator() { return code_space_allocator_; }
+  MainAllocator* new_space_allocator() { return &new_space_allocator_.value(); }
+  MainAllocator* old_space_allocator() { return &old_space_allocator_.value(); }
+  MainAllocator* trusted_space_allocator() {
+    return &trusted_space_allocator_.value();
+  }
+  MainAllocator* code_space_allocator() {
+    return &code_space_allocator_.value();
+  }
   ConcurrentAllocator* shared_space_allocator() {
     return shared_old_allocator_;
   }
@@ -133,10 +138,10 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   Space* spaces_[LAST_SPACE + 1];
   ReadOnlySpace* read_only_space_;
 
-  MainAllocator* new_space_allocator_;
-  MainAllocator* old_space_allocator_;
-  MainAllocator* trusted_space_allocator_;
-  MainAllocator* code_space_allocator_;
+  base::Optional<MainAllocator> new_space_allocator_;
+  base::Optional<MainAllocator> old_space_allocator_;
+  base::Optional<MainAllocator> trusted_space_allocator_;
+  base::Optional<MainAllocator> code_space_allocator_;
 
   ConcurrentAllocator* shared_old_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
