@@ -19,8 +19,8 @@ namespace v8::internal::compiler::turboshaft {
 
 // OVERVIEW:
 // LoopUnrollingReducer fully unrolls small inner loops with a small
-// statically-computable number of iterations, and partially unrolls other small
-// inner loops.
+// statically-computable number of iterations, partially unrolls other small
+// inner loops, and remove loops that we detect as always having 0 iterations.
 
 class StaticCanonicalForLoopMatcher {
   // In the context of this class, a "static canonical for-loop" is one of the
@@ -120,7 +120,8 @@ class LoopUnrollingAnalyzer {
     DCHECK(loop_header->IsLoop());
     DCHECK_IMPLIES(GetIterationCount(loop_header) > 0,
                    !loop_finder_.GetLoopInfo(loop_header).has_inner_loops);
-    return GetIterationCount(loop_header) > 0;
+    auto iter_count = GetIterationCount(loop_header);
+    return iter_count.has_value() && *iter_count > 0;
   }
 
   bool ShouldPartiallyUnrollLoop(Block* loop_header) const {
@@ -130,10 +131,15 @@ class LoopUnrollingAnalyzer {
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 
-  int GetIterationCount(Block* loop_header) const {
+  bool ShouldRemoveLoop(Block* loop_header) const {
+    auto iter_count = GetIterationCount(loop_header);
+    return iter_count.has_value() && *iter_count == 0;
+  }
+
+  base::Optional<int> GetIterationCount(Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     auto it = loop_iteration_count_.find(loop_header);
-    if (it == loop_iteration_count_.end()) return 0;
+    if (it == loop_iteration_count_.end()) return base::nullopt;
     return it->second;
   }
 
@@ -165,6 +171,9 @@ class LoopUnrollingAnalyzer {
   Graph* input_graph_;
   OperationMatcher matcher_;
   LoopFinder loop_finder_;
+  // {loop_iteration_count_} maps loop headers to number of iterations. It
+  // doesn't contain entries for loops for which we don't know the number of
+  // iterations.
   ZoneUnorderedMap<Block*, int> loop_iteration_count_;
   const StaticCanonicalForLoopMatcher canonical_loop_matcher_;
 };
@@ -188,7 +197,10 @@ class LoopUnrollingReducer : public Next {
       // header (note that loop headers only have 2 predecessor, including the
       // backedge), and that isn't the backedge.
       if (ShouldSkipOptimizationStep()) goto no_change;
-      if (analyzer_.ShouldFullyUnrollLoop(dst)) {
+      if (analyzer_.ShouldRemoveLoop(dst)) {
+        RemoveLoop(dst);
+        return OpIndex::Invalid();
+      } else if (analyzer_.ShouldFullyUnrollLoop(dst)) {
         FullyUnrollLoop(dst);
         return OpIndex::Invalid();
       } else if (analyzer_.ShouldPartiallyUnrollLoop(dst)) {
@@ -207,7 +219,7 @@ class LoopUnrollingReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_idx, const BranchOp& branch) {
-    if (unrolling_ == UnrollingStatus::kFinalizingUnrolling) {
+    if (unrolling_ == UnrollingStatus::kRemoveLoop) {
       // We know that the branch of the final inlined header of a fully unrolled
       // loop never actually goes to the loop, so we can replace it by a Goto
       // (so that the non-unrolled loop doesn't get emitted). We still need to
@@ -255,14 +267,21 @@ class LoopUnrollingReducer : public Next {
 
  private:
   enum class UnrollingStatus {
-    kNotUnrolling,             // Not currently unrolling a loop.
-    kUnrollingFirstIteration,  // Currently on the 1st iteration of a partially
-                               // unrolled loop.
-    kUnrolling,                // Currently unrolling a loop.
-    kFinalizingUnrolling  // Unrolling is finished and we are currently emitting
-                          // the header a last time, and should change its final
-                          // Branch into a Goto.
+    // Not currently unrolling a loop.
+    kNotUnrolling,
+    // Currently on the 1st iteration of a partially unrolled loop.
+    kUnrollingFirstIteration,
+    // Currently unrolling a loop.
+    kUnrolling,
+    // We use kRemoveLoop in 2 cases:
+    //   - When unrolling is finished and we are currently emitting the header
+    //     one last time, and should change its final branch into a Goto.
+    //   - We decided to remove a loop and will just emit its header.
+    // Both cases are fairly similar: we are currently emitting a loop header,
+    // and would like to not emit the loop body that follows.
+    kRemoveLoop,
   };
+  void RemoveLoop(Block* header);
   void FullyUnrollLoop(Block* header);
   void PartiallyUnrollLoop(Block* header);
   void FixLoopPhis(Block* input_graph_loop, Block* output_graph_loop,
@@ -318,7 +337,6 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(Block* header) {
   // ReduceInputGraphGoto ignores backedge Gotos while kUnrolling is true, which
   // means that we are still missing the loop's backedge, which we thus emit
   // now.
-  unrolling_ = UnrollingStatus::kFinalizingUnrolling;
   DCHECK(output_graph_header->IsLoop());
   Block* backedge_block = __ current_block();
   __ Goto(output_graph_header);
@@ -383,10 +401,22 @@ void LoopUnrollingReducer<Next>::FixLoopPhis(Block* input_graph_loop,
 }
 
 template <class Next>
+void LoopUnrollingReducer<Next>::RemoveLoop(Block* header) {
+  DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
+  // When removing a loop, we still need to emit the header (since it has to
+  // always be executed before the 1st iteration anyways), but by setting
+  // {unrolling_} to `kRemoveLoop`, the final Branch of the loop will become a
+  // Goto to outside the loop.
+  unrolling_ = UnrollingStatus::kRemoveLoop;
+  __ CloneAndInlineBlock(header);
+  unrolling_ = UnrollingStatus::kNotUnrolling;
+}
+
+template <class Next>
 void LoopUnrollingReducer<Next>::FullyUnrollLoop(Block* header) {
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
 
-  int iter_count = analyzer_.GetIterationCount(header);
+  int iter_count = *analyzer_.GetIterationCount(header);
   DCHECK_GT(iter_count, 0);
 
   auto loop_body = analyzer_.GetLoopBody(header);
@@ -409,7 +439,7 @@ void LoopUnrollingReducer<Next>::FullyUnrollLoop(Block* header) {
   // The loop actually finishes on the header rather than its last block. We
   // thus inline the header, and we'll replace its final BranchOp by a GotoOp to
   // outside of the loop.
-  unrolling_ = UnrollingStatus::kFinalizingUnrolling;
+  unrolling_ = UnrollingStatus::kRemoveLoop;
   __ CloneAndInlineBlock(header);
 
   unrolling_ = UnrollingStatus::kNotUnrolling;
