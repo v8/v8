@@ -113,6 +113,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ArrayGet)                             \
   V(ArraySet)                             \
   V(ArrayLength)                          \
+  V(WasmAllocateArray)                    \
   V(WasmRefFunc)                          \
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)
@@ -6425,6 +6426,34 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{null_check}; }
+};
+
+struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
+  static constexpr OpEffects effects =
+      OpEffects().CanAllocate().CanLeaveCurrentFunction();
+
+  const wasm::ArrayType* array_type;
+
+  explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
+                               const wasm::ArrayType* array_type)
+      : Base(rtt, length), array_type(array_type) {}
+
+  V<Map> rtt() const { return Base::input(0); }
+  V<Word32> length() const { return Base::input(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{array_type}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {

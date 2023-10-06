@@ -317,6 +317,7 @@ class TypeInferenceAnalysis {
         case Opcode::kArrayGet:
         case Opcode::kArraySet:
         case Opcode::kArrayLength:
+        case Opcode::kWasmAllocateArray:
         case Opcode::kWasmRefFunc:
         case Opcode::kSimd128Constant:
         case Opcode::kSimd128Binop:

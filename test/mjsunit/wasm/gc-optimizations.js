@@ -799,3 +799,34 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(0, wasm.refFuncIsNull());
 })();
+
+
+(function ArrayNewRefTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array_base = builder.addArray(kWasmI32, true);
+  let array_sub = builder.addArray(kWasmI32, true, array_base);
+  let array_other = builder.addArray(kWasmI64, true);
+
+  let fct = builder.addFunction('dummy', makeSig([], []))
+      .addBody([]).exportFunc();
+
+  builder.addFunction('arrayNewRefTest',
+      makeSig([], [kWasmI32, kWasmI32, kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprI32Const, 42,
+      kGCPrefix, kExprArrayNewFixed, array_sub, 1,
+      kExprLocalSet, 0,
+      // All these checks can be statically inferred.
+      kExprLocalGet, 0, kGCPrefix, kExprRefTest, array_base,
+      kExprLocalGet, 0, kGCPrefix, kExprRefTest, array_sub,
+      kExprLocalGet, 0, kGCPrefix, kExprRefTest, array_other,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  assertEquals([1, 1, 0], wasm.arrayNewRefTest());
+})();

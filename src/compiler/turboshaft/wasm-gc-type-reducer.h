@@ -71,6 +71,7 @@ class WasmGCTypeAnalyzer {
   void ProcessArrayLength(const ArrayLengthOp& array_length);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
+  void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
 
   void CreateMergeSnapshot(const Block& block);
 

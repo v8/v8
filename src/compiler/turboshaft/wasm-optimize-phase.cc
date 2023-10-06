@@ -25,6 +25,9 @@ void WasmOptimizePhase::Run(Zone* temp_zone) {
   // might introduce new allocations. Therefore, if at any point in time the
   // WasmLoweringReducer started to lower to allocations, it should be moved to
   // a separate (prior) phase.
+  // TODO(mliedtke): This has just happened with WasmAllocateArray calling
+  // __ Allocate. After moving the WasmLoweringReducer, we should probably also
+  // add LateEscapeAnalysisReducer to this phase.
   OptimizationPhase<
       WasmLoweringReducer, MachineOptimizationReducerSignallingNanPossible,
       MemoryOptimizationReducer, VariableReducer, RequiredOptimizationReducer,

@@ -500,6 +500,10 @@ class CallWithReduceArgsHelper {
     return callback_(op.array(), op.null_check);
   }
 
+  OpIndex operator()(const WasmAllocateArrayOp& op) {
+    return callback_(op.rtt(), op.length(), op.array_type);
+  }
+
   OpIndex operator()(const WasmRefFuncOp& op) {
     return callback_(op.instance(), op.function_index);
   }

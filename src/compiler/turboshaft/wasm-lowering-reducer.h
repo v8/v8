@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -21,14 +22,6 @@
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
-
-#define LOAD_INSTANCE_FIELD(instance_node, name, representation)     \
-  __ Load(instance_node, LoadOp::Kind::TaggedBase(), representation, \
-          WasmInstanceObject::k##name##Offset);
-
-#define LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node, name, representation) \
-  __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),           \
-          representation, WasmInstanceObject::k##name##Offset)
 
 template <class Next>
 class WasmLoweringReducer : public Next {
@@ -282,6 +275,41 @@ class WasmLoweringReducer : public Next {
 
     return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
                    WasmArray::kLengthOffset);
+  }
+
+  OpIndex REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
+                                    const wasm::ArrayType* array_type) {
+    __ TrapIfNot(
+        __ Uint32LessThanOrEqual(
+            length, __ Word32Constant(WasmArray::MaxLength(array_type))),
+        OpIndex::Invalid(), TrapId::kTrapArrayTooLarge);
+    wasm::ValueType element_type = array_type->element_type();
+
+    // RoundUp(length * value_size, kObjectAlignment) =
+    //   RoundDown(length * value_size + kObjectAlignment - 1,
+    //             kObjectAlignment);
+    V<Word32> padded_length = __ Word32BitwiseAnd(
+        __ Word32Add(__ Word32Mul(length, __ Word32Constant(
+                                              element_type.value_kind_size())),
+                     __ Word32Constant(int32_t{kObjectAlignment - 1})),
+        __ Word32Constant(int32_t{-kObjectAlignment}));
+    Uninitialized<HeapObject> a = __ Allocate(
+        __ ChangeUint32ToUintPtr(__ Word32Add(
+            padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
+        AllocationType::kYoung);
+
+    // TODO(14108): The map and empty fixed array initialization should be an
+    // immutable store.
+    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                       rtt);
+    __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                       LOAD_ROOT(EmptyFixedArray));
+    __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
+
+    // Note: Only the array header initialization is finished here, the elements
+    // still need to be initialized by other code.
+    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    return array;
   }
 
   OpIndex REDUCE(WasmRefFunc)(V<Tagged> wasm_instance,

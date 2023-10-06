@@ -11,6 +11,7 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
@@ -68,32 +69,6 @@ using compiler::turboshaft::V;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
-
-struct RootTypes {
-#define DEFINE_TYPE(type, name, CamelName) using k##CamelName##Type = type;
-  ROOT_LIST(DEFINE_TYPE)
-#undef DEFINE_TYPE
-};
-
-#define LOAD_INSTANCE_FIELD(name, representation)                     \
-  __ Load(instance_node_, LoadOp::Kind::TaggedBase(), representation, \
-          WasmInstanceObject::k##name##Offset)
-
-#define LOAD_IMMUTABLE_INSTANCE_FIELD(name, representation)       \
-  __ Load(instance_node_, LoadOp::Kind::TaggedBase().Immutable(), \
-          representation, WasmInstanceObject::k##name##Offset)
-
-#define LOAD_ROOT(name)                                          \
-  V<RootTypes::k##name##Type>::Cast(                             \
-      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
-              MemoryRepresentation::PointerSized(),              \
-              IsolateData::root_slot_offset(RootIndex::k##name)))
-
-#define LOAD_IMMUTABLE_ROOT(name)                                            \
-  V<RootTypes::k##name##Type>::Cast(                                         \
-      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
-              MemoryRepresentation::PointerSized(),                          \
-              IsolateData::root_slot_offset(RootIndex::k##name)))
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -968,7 +943,8 @@ class TurboshaftGraphBuildingInterface {
         V<Tagged> head_string = ExternRefToString(args[0]);
         V<Tagged> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-            NativeContext, MemoryRepresentation::TaggedPointer());
+            instance_node_, NativeContext,
+            MemoryRepresentation::TaggedPointer());
         result = CallBuiltinThroughJumptable(
             decoder, Builtin::kStringAdd_CheckNone,
             {head_string, tail_string, native_context},
@@ -1506,7 +1482,7 @@ class TurboshaftGraphBuildingInterface {
     }
 
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        TagsTable, MemoryRepresentation::TaggedPointer());
+        instance_node_, TagsTable, MemoryRepresentation::TaggedPointer());
     auto tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
 
@@ -1529,13 +1505,13 @@ class TurboshaftGraphBuildingInterface {
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        NativeContext, MemoryRepresentation::TaggedPointer());
+        instance_node_, NativeContext, MemoryRepresentation::TaggedPointer());
     V<WasmTagObject> caught_tag = CallBuiltinThroughJumptable(
         decoder, Builtin::kWasmGetOwnProperty,
         {block->exception, LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol),
          native_context});
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        TagsTable, MemoryRepresentation::TaggedPointer());
+        instance_node_, TagsTable, MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_catch = __ NewBlock();
@@ -1932,8 +1908,9 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        DataSegmentSizes, MemoryRepresentation::TaggedPointer());
+    V<FixedUInt32Array> data_segment_sizes =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, DataSegmentSizes,
+                                      MemoryRepresentation::TaggedPointer());
     __ Store(data_segment_sizes, __ Word32Constant(0),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
              compiler::kNoWriteBarrier,
@@ -2000,7 +1977,7 @@ class TurboshaftGraphBuildingInterface {
   void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
                  Value* result) {
     V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        Tables, MemoryRepresentation::TaggedPointer());
+        instance_node_, Tables, MemoryRepresentation::TaggedPointer());
     auto table =
         V<WasmTableObject>::Cast(__ LoadFixedArrayElement(tables, imm.index));
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
@@ -2011,7 +1988,7 @@ class TurboshaftGraphBuildingInterface {
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ElementSegments, MemoryRepresentation::TaggedPointer());
+        instance_node_, ElementSegments, MemoryRepresentation::TaggedPointer());
     __ StoreFixedArrayElement(elem_segments, imm.index,
                               LOAD_ROOT(EmptyFixedArray),
                               compiler::kFullWriteBarrier);
@@ -2219,26 +2196,10 @@ class TurboshaftGraphBuildingInterface {
     const wasm::ArrayType* type = array_imm.array_type;
     wasm::ValueType element_type = type->element_type();
     int element_count = length_imm.index;
-    Uninitialized<HeapObject> a =
-        __ Allocate(RoundUp(element_type.value_kind_size() * element_count,
-                            kObjectAlignment) +
-                        WasmArray::kHeaderSize,
-                    AllocationType::kYoung);
-
     // Initialize the array header.
     V<Map> rtt = __ RttCanon(instance_node_, array_imm.index);
-    // TODO(14108): The map and empty fixed array initialization should be an
-    // immutable store.
-    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    __ InitializeField(a, AccessBuilder::ForWasmArrayLength(),
-                       __ Word32Constant(element_count));
-
-    // TODO(14108): Array initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    V<HeapObject> array = __ WasmAllocateArray(rtt, element_count, type);
+    // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
     }
@@ -2573,7 +2534,7 @@ class TurboshaftGraphBuildingInterface {
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
     V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        NativeContext, MemoryRepresentation::TaggedPointer());
+        instance_node_, NativeContext, MemoryRepresentation::TaggedPointer());
     result->op = CallBuiltinThroughJumptable(
         decoder, Builtin::kStringAdd_CheckNone,
         {NullCheck(head), NullCheck(tail), native_context},
@@ -4231,10 +4192,12 @@ class TurboshaftGraphBuildingInterface {
 
   V<WordPtr> MemStart(uint32_t index) {
     if (index == 0) {
-      return LOAD_INSTANCE_FIELD(Memory0Start, kMaybeSandboxedPointer);
+      return LOAD_INSTANCE_FIELD(instance_node_, Memory0Start,
+                                 kMaybeSandboxedPointer);
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
+      V<ByteArray> instance_memories =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, MemoryBasesAndSizes,
+                                        MemoryRepresentation::TaggedPointer());
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
                      kMaybeSandboxedPointer,
                      ByteArray::kHeaderSize +
@@ -4250,11 +4213,12 @@ class TurboshaftGraphBuildingInterface {
 
   V<WordPtr> MemSize(uint32_t index) {
     if (index == 0) {
-      return LOAD_INSTANCE_FIELD(Memory0Size,
+      return LOAD_INSTANCE_FIELD(instance_node_, Memory0Size,
                                  MemoryRepresentation::PointerSized());
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
+      V<ByteArray> instance_memories =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, MemoryBasesAndSizes,
+                                        MemoryRepresentation::TaggedPointer());
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::PointerSized(),
@@ -4309,12 +4273,14 @@ class TurboshaftGraphBuildingInterface {
       uint32_t function_index) {
     // Imported function.
     V<WordPtr> func_index = __ IntPtrConstant(function_index);
-    V<FixedArray> imported_function_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ImportedFunctionRefs, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> imported_function_refs =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, ImportedFunctionRefs,
+                                      MemoryRepresentation::TaggedPointer());
     auto ref = V<HeapObject>::Cast(
         __ LoadFixedArrayElement(imported_function_refs, func_index));
-    V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ImportedFunctionTargets, MemoryRepresentation::TaggedPointer());
+    V<FixedAddressArray> imported_targets =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, ImportedFunctionTargets,
+                                      MemoryRepresentation::TaggedPointer());
     V<WordPtr> target =
         __ Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::PointerSized(),
@@ -4337,19 +4303,23 @@ class TurboshaftGraphBuildingInterface {
     V<ExternalPointerArray> ift_targets;
     V<FixedArray> ift_refs;
     if (table_index == 0) {
-      ift_size = needs_dynamic_size
-                     ? LOAD_INSTANCE_FIELD(IndirectFunctionTableSize,
-                                           MemoryRepresentation::Uint32())
-                     : __ Word32Constant(table.initial_size);
-      ift_sig_ids = LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_targets = LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_refs = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
+      ift_size =
+          needs_dynamic_size
+              ? LOAD_INSTANCE_FIELD(instance_node_, IndirectFunctionTableSize,
+                                    MemoryRepresentation::Uint32())
+              : __ Word32Constant(table.initial_size);
+      ift_sig_ids =
+          LOAD_INSTANCE_FIELD(instance_node_, IndirectFunctionTableSigIds,
+                              MemoryRepresentation::TaggedPointer());
+      ift_targets =
+          LOAD_INSTANCE_FIELD(instance_node_, IndirectFunctionTableTargets,
+                              MemoryRepresentation::TaggedPointer());
+      ift_refs = LOAD_INSTANCE_FIELD(instance_node_, IndirectFunctionTableRefs,
                                      MemoryRepresentation::TaggedPointer());
     } else {
-      V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          IndirectFunctionTables, MemoryRepresentation::TaggedPointer());
+      V<FixedArray> ift_tables =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, IndirectFunctionTables,
+                                        MemoryRepresentation::TaggedPointer());
       OpIndex ift_table = __ LoadFixedArrayElement(ift_tables, table_index);
       ift_size = needs_dynamic_size
                      ? __ Load(ift_table, LoadOp::Kind::TaggedBase(),
@@ -4380,7 +4350,8 @@ class TurboshaftGraphBuildingInterface {
 
     if (needs_type_check) {
       V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          IsorecursiveCanonicalTypes, MemoryRepresentation::PointerSized());
+          instance_node_, IsorecursiveCanonicalTypes,
+          MemoryRepresentation::PointerSized());
       V<Word32> expected_sig_id =
           __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
                   MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
@@ -4901,7 +4872,7 @@ class TurboshaftGraphBuildingInterface {
     V<FixedArray> exception_values_array = CallBuiltinThroughJumptable(
         decoder, Builtin::kWasmGetOwnProperty,
         {exception, LOAD_IMMUTABLE_ROOT(wasm_exception_values_symbol),
-         LOAD_IMMUTABLE_INSTANCE_FIELD(NativeContext,
+         LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, NativeContext,
                                        MemoryRepresentation::TaggedPointer())});
 
     int index = 0;
@@ -5084,38 +5055,10 @@ class TurboshaftGraphBuildingInterface {
   V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,
                              const ArrayType* array_type, OpIndex length,
                              OpIndex initial_value) {
-    __ TrapIfNot(
-        __ Uint32LessThanOrEqual(
-            length, __ Word32Constant(WasmArray::MaxLength(array_type))),
-        OpIndex::Invalid(), wasm::TrapId::kTrapArrayTooLarge);
-    wasm::ValueType element_type = array_type->element_type();
-
-    // RoundUp(length * value_size, kObjectAlignment) =
-    //   RoundDown(length * value_size + kObjectAlignment - 1,
-    //             kObjectAlignment);
-    V<Word32> padded_length = __ Word32BitwiseAnd(
-        __ Word32Add(__ Word32Mul(length, __ Word32Constant(
-                                              element_type.value_kind_size())),
-                     __ Word32Constant(int32_t{kObjectAlignment - 1})),
-        __ Word32Constant(int32_t{-kObjectAlignment}));
-    Uninitialized<HeapObject> a = __ Allocate(
-        __ ChangeUint32ToUintPtr(__ Word32Add(
-            padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
-        AllocationType::kYoung);
-
     // Initialize the array header.
     V<Map> rtt = __ RttCanon(instance_node_, index);
-    // TODO(14108): The map and empty fixed array initialization should be an
-    // immutable store.
-    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
-
-    // TODO(14108): Array initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    V<HeapObject> array = __ WasmAllocateArray(rtt, length, array_type);
+    // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, false);
     return array;

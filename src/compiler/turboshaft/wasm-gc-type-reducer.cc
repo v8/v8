@@ -86,6 +86,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kWasmRefFunc:
         ProcessRefFunc(op.Cast<WasmRefFuncOp>());
         break;
+      case Opcode::kWasmAllocateArray:
+        ProcessAllocateArray(op.Cast<WasmAllocateArrayOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -158,6 +161,14 @@ void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
 void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
   uint32_t sig_index = module_->functions[ref_func.function_index].sig_index;
   RefineTypeKnowledge(graph_.Index(ref_func), wasm::ValueType::Ref(sig_index));
+}
+
+void WasmGCTypeAnalyzer::ProcessAllocateArray(
+    const WasmAllocateArrayOp& allocate_array) {
+  uint32_t type_index =
+      graph_.Get(allocate_array.rtt()).Cast<RttCanonOp>().type_index;
+  RefineTypeKnowledge(graph_.Index(allocate_array),
+                      wasm::ValueType::Ref(type_index));
 }
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,

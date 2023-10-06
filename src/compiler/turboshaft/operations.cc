@@ -1533,6 +1533,10 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   PrintSimd128Value(os, shuffle);
 }
 
+void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
+  os << '[' << array_type->element_type() << "]";
+}
+
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

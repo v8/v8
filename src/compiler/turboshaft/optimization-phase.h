@@ -1240,6 +1240,11 @@ class GraphVisitor {
                                          op.null_check);
   }
 
+  OpIndex AssembleOutputGraphWasmAllocateArray(const WasmAllocateArrayOp& op) {
+    return assembler().ReduceWasmAllocateArray(
+        MapToNewGraph(op.rtt()), MapToNewGraph(op.length()), op.array_type);
+  }
+
   OpIndex AssembleOutputGraphWasmRefFunc(const WasmRefFuncOp& op) {
     return assembler().ReduceWasmRefFunc(MapToNewGraph(op.instance()),
                                          op.function_index);
