@@ -97,6 +97,7 @@ struct RootTypes {
 
 class TurboshaftGraphBuildingInterface {
  public:
+  enum Mode { kRegular, kInlinedUnhandled, kInlinedWithCatch };
   using ValidationTag = Decoder::FullValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
@@ -123,27 +124,62 @@ class TurboshaftGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone,
-                                   compiler::NodeOriginTable* node_origins,
-                                   AssumptionsJournal* assumptions,
-                                   int func_index)
-      : asm_(graph, graph, zone, node_origins),
+  TurboshaftGraphBuildingInterface(
+      Assembler& assembler, AssumptionsJournal* assumptions,
+      ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+      const WireBytesStorage* wire_bytes)
+      : mode_(kRegular),
+        asm_(assembler),
         assumptions_(assumptions),
-        func_index_(func_index) {}
+        inlining_positions_(inlining_positions),
+        func_index_(func_index),
+        wire_bytes_(wire_bytes) {}
+
+  TurboshaftGraphBuildingInterface(
+      Assembler& assembler, AssumptionsJournal* assumptions,
+      ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+      const WireBytesStorage* wire_bytes, std::vector<OpIndex>* real_parameters,
+      TSBlock* return_block, TSBlock* catch_block)
+      : mode_(catch_block == nullptr ? kInlinedUnhandled : kInlinedWithCatch),
+        asm_(assembler),
+        assumptions_(assumptions),
+        inlining_positions_(inlining_positions),
+        func_index_(func_index),
+        wire_bytes_(wire_bytes),
+        real_parameters_(real_parameters),
+        return_block_(return_block),
+        return_catch_block_(catch_block) {
+    DCHECK_NOT_NULL(real_parameters);
+    DCHECK_NOT_NULL(return_block);
+  }
 
   void StartFunction(FullDecoder* decoder) {
-    TSBlock* block = __ NewBlock();
-    __ Bind(block);
+    if (mode_ == kRegular) __ Bind(__ NewBlock());
     // Set 0 as the current source position (before locals declarations).
     __ SetCurrentOrigin(WasmPositionToOpIndex(0));
-    static_assert(kWasmInstanceParameterIndex == 0);
-    instance_node_ = __ WasmInstanceParameter();
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
-    for (; index < decoder->sig_->parameter_count(); index++) {
-      // Parameter indices are shifted by 1 because parameter 0 is the instance.
-      ssa_env_[index] = __ Parameter(
-          index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
+    if (mode_ == kRegular) {
+      static_assert(kWasmInstanceParameterIndex == 0);
+      instance_node_ = __ WasmInstanceParameter();
+      for (; index < decoder->sig_->parameter_count(); index++) {
+        // Parameter indices are shifted by 1 because parameter 0 is the
+        // instance.
+        ssa_env_[index] = __ Parameter(
+            index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
+      }
+    } else {
+      instance_node_ = (*real_parameters_)[0];
+      for (; index < decoder->sig_->parameter_count(); index++) {
+        // Parameter indices are shifted by 1 because parameter 0 is the
+        // instance.
+        ssa_env_[index] = (*real_parameters_)[index + 1];
+      }
+      return_phis_.phi_inputs.resize(decoder->sig_->return_count());
+      return_phis_.phi_types.resize(decoder->sig_->return_count());
+      for (size_t i = 0; i < decoder->sig_->return_count(); i++) {
+        return_phis_.phi_types[i] = decoder->sig_->GetReturn(i);
+      }
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
@@ -162,7 +198,9 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
+    if (mode_ == kRegular) {
+      StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
+    }
 
     if (v8_flags.trace_wasm) {
       __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
@@ -178,10 +216,12 @@ class TurboshaftGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
-    for (OpIndex index : __ output_graph().AllOperationIndices()) {
-      WasmCodePosition position =
-          OpIndexToWasmPosition(__ output_graph().operation_origins()[index]);
-      __ output_graph().source_positions()[index] = SourcePosition(position);
+    if (mode_ == kRegular) {
+      for (OpIndex index : __ output_graph().AllOperationIndices()) {
+        SourcePosition position = OpIndexToSourcePosition(
+            __ output_graph().operation_origins()[index]);
+        __ output_graph().source_positions()[index] = position;
+      }
     }
   }
 
@@ -196,10 +236,10 @@ class TurboshaftGraphBuildingInterface {
   // from blocks to phi inputs corresponding to the SSA values plus the stack
   // merge values at the beginning of the block.
   // - When we create a new block (to be bound in the future), we register it to
-  //   {block_phis_} with {NewBlock}.
+  //   {block_phis_} with {NewBlockWithPhis}.
   // - When we encounter an jump to a block, we invoke {SetupControlFlowEdge}.
   // - Finally, when we bind a block, we setup its phis, the SSA environment,
-  //   and its merge values, with {EnterBlock}.
+  //   and its merge values, with {BindBlockAndGeneratePhis}.
   // - When we create a loop, we generate PendingLoopPhis for the SSA state and
   //   the incoming stack values. We also create a block which will act as a
   //   merge block for all loop backedges (since a loop in Turboshaft can only
@@ -443,7 +483,14 @@ class TurboshaftGraphBuildingInterface {
       }
       CallRuntime(Runtime::kWasmTraceExit, {info});
     }
-    __ Return(__ Word32Constant(0), base::VectorOf(return_values));
+    if (mode_ == kRegular) {
+      __ Return(__ Word32Constant(0), base::VectorOf(return_values));
+    } else {
+      for (size_t i = 0; i < return_values.size(); i++) {
+        return_phis_.phi_inputs[i].push_back(return_values[i]);
+      }
+      __ Goto(return_block_);
+    }
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -1096,23 +1143,26 @@ class TurboshaftGraphBuildingInterface {
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
     } else {
       // Locally defined function.
-      V<WordPtr> callee =
-          __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-      BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+      if ((decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc) &&
+          should_inline()) {
+        inlining_budget_--;
+        InlineWasmCall(decoder, imm, args, returns);
+      } else {
+        V<WordPtr> callee =
+            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
+        BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+      }
     }
   }
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
-    if (imm.index < decoder->module_->num_imported_functions) {
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
-      BuildWasmReturnCall(imm.sig, target, ref, args);
-    } else {
-      // Locally defined function.
-      V<WordPtr> callee =
-          __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-      BuildWasmReturnCall(imm.sig, callee, instance_node_, args);
-    }
+    auto [target, ref] =
+        imm.index < decoder->module_->num_imported_functions
+            ? BuildImportedFunctionTargetAndRef(imm.index)
+            : std::pair{__ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
+                        instance_node_};
+    BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
@@ -1126,7 +1176,7 @@ class TurboshaftGraphBuildingInterface {
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
-    BuildWasmReturnCall(imm.sig, target, ref, args);
+    BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -1142,7 +1192,7 @@ class TurboshaftGraphBuildingInterface {
                      const Value args[]) {
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-    BuildWasmReturnCall(sig, target, ref, args);
+    BuildWasmMaybeReturnCall(decoder, sig, target, ref, args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -1460,14 +1510,14 @@ class TurboshaftGraphBuildingInterface {
 
     CallBuiltinThroughJumptable(decoder, Builtin::kWasmThrow,
                                 {tag, values_array}, Operator::kNoProperties,
-                                CheckForException::kYes);
+                                CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow,
                                 {block->exception}, Operator::kNoProperties,
-                                CheckForException::kYes);
+                                CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
@@ -2868,9 +2918,10 @@ class TurboshaftGraphBuildingInterface {
 
     explicit BlockPhis(int total_arity)
         : phi_inputs(total_arity), phi_types(total_arity) {}
+    BlockPhis() : BlockPhis(0) {}
   };
 
-  enum class CheckForException { kNo, kYes };
+  enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
 
   void Bailout(FullDecoder* decoder) {
     decoder->errorf("Unsupported Turboshaft operation: %s",
@@ -4489,7 +4540,9 @@ class TurboshaftGraphBuildingInterface {
 
   void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
                      V<WordPtr> callee, V<HeapObject> ref, const Value args[],
-                     Value returns[]) {
+                     Value returns[],
+                     CheckForException check_for_exception =
+                         CheckForException::kCatchInThisFrame) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
         compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
         compiler::CanThrow::kYes, __ graph_zone());
@@ -4500,8 +4553,13 @@ class TurboshaftGraphBuildingInterface {
       arg_indices[i + 1] = args[i].op;
     }
 
-    OpIndex call = CallAndMaybeCatchException(
-        decoder, callee, base::VectorOf(arg_indices), descriptor);
+    // TODO(14108): Push this inside `CallAndMaybeCatchException`.
+    OpIndex call = check_for_exception != CheckForException::kNo
+                       ? CallAndMaybeCatchException(
+                             decoder, callee, base::VectorOf(arg_indices),
+                             descriptor, check_for_exception)
+                       : __ Call(callee, OpIndex::Invalid(),
+                                 base::VectorOf(arg_indices), descriptor);
 
     if (sig->return_count() == 1) {
       returns[0].op = call;
@@ -4513,25 +4571,43 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  void BuildWasmReturnCall(const FunctionSig* sig, V<WordPtr> callee,
-                           V<HeapObject> ref, const Value args[]) {
-    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
-        compiler::CanThrow::kYes, __ graph_zone());
+  void BuildWasmMaybeReturnCall(FullDecoder* decoder, const FunctionSig* sig,
+                                V<WordPtr> callee, V<HeapObject> ref,
+                                const Value args[]) {
+    if (mode_ == kRegular) {
+      const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+          compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
+          compiler::CanThrow::kYes, __ graph_zone());
 
-    base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
-    arg_indices[0] = ref;
-    for (uint32_t i = 0; i < sig->parameter_count(); i++) {
-      arg_indices[i + 1] = args[i].op;
+      base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
+      arg_indices[0] = ref;
+      for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+        arg_indices[i + 1] = args[i].op;
+      }
+      __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
+    } else {
+      // This is a tail call in the inlinee. Transform it into a regular call,
+      // and return the return values to the caller.
+      // TODO(14108): This can remain a tail call if the inlined call is also a
+      // tail call.
+      base::SmallVector<Value, 8> returns(sig->return_count());
+      // Since an exception in a tail call cannot be caught in this frame, we
+      // should only catch exceptions in the generated call if this is a
+      // recursively inlined function, and the parent frame provides a handler.
+      BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
+                    CheckForException::kCatchInParentFrame);
+      for (size_t i = 0; i < sig->return_count(); i++) {
+        return_phis_.phi_inputs[i].emplace_back(returns[i].op);
+      }
+      __ Goto(return_block_);
     }
-
-    __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
   }
 
   OpIndex CallBuiltinThroughJumptable(
       FullDecoder* decoder, Builtin builtin, base::Vector<const OpIndex> args,
       Operator::Properties properties = Operator::kNoProperties,
       CheckForException check_for_exception = CheckForException::kNo) {
+    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
     CallInterfaceDescriptor interface_descriptor =
         Builtins::CallInterfaceDescriptorFor(builtin);
     // TODO(14108): We should set properties like `Operator::kEliminatable`
@@ -4545,9 +4621,11 @@ class TurboshaftGraphBuildingInterface {
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
     V<WordPtr> call_target = __ RelocatableWasmBuiltinCallTarget(builtin);
-    return check_for_exception == CheckForException::kYes
-               ? CallAndMaybeCatchException(decoder, call_target, args,
-                                            ts_call_descriptor)
+    // TODO(14108): Push this into `CallAndMaybeCatchException`.
+    return check_for_exception == CheckForException::kCatchInThisFrame
+               ? CallAndMaybeCatchException(
+                     decoder, call_target, args, ts_call_descriptor,
+                     CheckForException::kCatchInThisFrame)
                : __ Call(call_target, OpIndex::Invalid(), args,
                          ts_call_descriptor);
   }
@@ -4563,14 +4641,25 @@ class TurboshaftGraphBuildingInterface {
 
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<WordPtr> callee,
                                      base::Vector<const OpIndex> args,
-                                     const TSCallDescriptor* descriptor) {
-    if (decoder->current_catch() == -1) {
+                                     const TSCallDescriptor* descriptor,
+                                     CheckForException check_for_exception) {
+    DCHECK_NE(check_for_exception, CheckForException::kNo);
+    bool handled_in_this_frame =
+        decoder->current_catch() != -1 &&
+        check_for_exception == CheckForException::kCatchInThisFrame;
+    if (!handled_in_this_frame && mode_ != kInlinedWithCatch) {
       return __ Call(callee, OpIndex::Invalid(), args, descriptor);
     }
 
-    Control* current_catch =
-        decoder->control_at(decoder->control_depth_of_current_catch());
-    TSBlock* catch_block = current_catch->false_or_loop_or_catch_block;
+    TSBlock* catch_block;
+    if (handled_in_this_frame) {
+      Control* current_catch =
+          decoder->control_at(decoder->control_depth_of_current_catch());
+      catch_block = current_catch->false_or_loop_or_catch_block;
+    } else {
+      DCHECK_EQ(mode_, kInlinedWithCatch);
+      catch_block = return_catch_block_;
+    }
     TSBlock* success_block = __ NewBlock();
     TSBlock* exception_block = __ NewBlock();
     OpIndex call;
@@ -4583,7 +4672,12 @@ class TurboshaftGraphBuildingInterface {
 
     __ Bind(exception_block);
     OpIndex exception = __ CatchBlockBegin();
-    SetupControlFlowEdge(decoder, catch_block, 0, exception);
+    if (handled_in_this_frame) {
+      SetupControlFlowEdge(decoder, catch_block, 0, exception);
+    } else {
+      DCHECK_EQ(mode_, kInlinedWithCatch);
+      return_exception_phis_.push_back(exception);
+    }
     __ Goto(catch_block);
 
     __ Bind(success_block);
@@ -5127,6 +5221,110 @@ class TurboshaftGraphBuildingInterface {
     return stack_slot;
   }
 
+  void InlineWasmCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
+                      const Value args[], Value returns[]) {
+    const WasmFunction& inlinee = decoder->module_->functions[imm.index];
+
+    std::vector<OpIndex> inlinee_args(inlinee.sig->parameter_count() + 1);
+    inlinee_args[0] = instance_node_;
+    for (size_t i = 0; i < inlinee.sig->parameter_count(); i++) {
+      inlinee_args[i + 1] = args[i].op;
+    }
+
+    base::Vector<const uint8_t> function_bytes =
+        wire_bytes_->GetCode(inlinee.code);
+
+    const wasm::FunctionBody inlinee_body{inlinee.sig, inlinee.code.offset(),
+                                          function_bytes.begin(),
+                                          function_bytes.end()};
+
+    // If the inlinee was not validated before, do that now.
+    if (V8_UNLIKELY(!decoder->module_->function_was_validated(imm.index))) {
+      if (ValidateFunctionBody(decoder->enabled_, decoder->module_,
+                               decoder->detected_, inlinee_body)
+              .failed()) {
+        // At this point we cannot easily raise a compilation error any more.
+        // Since this situation is highly unlikely though, we just ignore this
+        // inlinee, emit a regular call, and move on. The same validation error
+        // will be triggered again when actually compiling the invalid function.
+        V<WordPtr> callee =
+            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
+        BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+        return;
+      }
+      decoder->module_->set_function_validated(imm.index);
+    }
+
+    Mode inlinee_mode =
+        mode_ != kInlinedWithCatch && decoder->current_catch() == -1
+            ? kInlinedUnhandled
+            : kInlinedWithCatch;
+    // TODO(14108): If this is nested inlined, can we forward the callers's
+    // catch block instead?
+    TSBlock* callee_catch_block =
+        inlinee_mode == kInlinedUnhandled ? nullptr : __ NewBlock();
+    TSBlock* callee_return_block = __ NewBlock();
+
+    WasmFullDecoder<Decoder::FullValidationTag,
+                    TurboshaftGraphBuildingInterface>
+        inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
+                        decoder->detected_, inlinee_body, asm_, assumptions_,
+                        inlining_positions_, imm.index, wire_bytes_,
+                        &inlinee_args, callee_return_block, callee_catch_block);
+    inlinee_decoder.interface().set_inlining_budget(inlining_budget_);
+    size_t inlining_id = inlining_positions_->size();
+    inlining_positions_->push_back(
+        {static_cast<int>(imm.index),
+         SourcePosition(decoder->position(),
+                        inlining_id_ == kNoInliningId ? -1 : inlining_id_)});
+    inlinee_decoder.interface().set_inlining_id(
+        static_cast<uint8_t>(inlining_id));
+    inlinee_decoder.Decode();
+    // Turboshaft runs with validation, but the function should already be
+    // validated, so graph building must always succeed, unless we bailed out.
+    DCHECK_IMPLIES(!inlinee_decoder.ok(),
+                   inlinee_decoder.interface().did_bailout());
+
+    // Set the inlining budget to the remaining budget of the inlinee decoder.
+    // TODO(14108): Implement proper ahead-of-time analysis of feedback and
+    // inlining heuristics.
+    inlining_budget_ = inlinee_decoder.interface().inlining_budget();
+
+    DCHECK_IMPLIES(inlinee_mode == kInlinedUnhandled,
+                   inlinee_decoder.interface().return_exception_phis().empty());
+
+    if (inlinee_mode == kInlinedWithCatch &&
+        !inlinee_decoder.interface().return_exception_phis().empty()) {
+      // We need to handle exceptions in the inlined call.
+      __ Bind(callee_catch_block);
+      OpIndex exception = MaybePhi(
+          inlinee_decoder.interface().return_exception_phis(), kWasmExternRef);
+      bool handled_in_this_frame = decoder->current_catch() != -1;
+      TSBlock* catch_block;
+      if (handled_in_this_frame) {
+        Control* current_catch =
+            decoder->control_at(decoder->control_depth_of_current_catch());
+        catch_block = current_catch->false_or_loop_or_catch_block;
+      } else {
+        DCHECK_EQ(mode_, kInlinedWithCatch);
+        catch_block = return_catch_block_;
+      }
+      if (handled_in_this_frame) {
+        SetupControlFlowEdge(decoder, catch_block, 0, exception);
+      } else {
+        return_exception_phis_.emplace_back(exception);
+      }
+      __ Goto(catch_block);
+    }
+
+    __ Bind(callee_return_block);
+    BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
+    for (size_t i = 0; i < inlinee.sig->return_count(); i++) {
+      returns[i].op =
+          MaybePhi(return_phis.phi_inputs[i], return_phis.phi_types[i]);
+    }
+  }
+
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
     switch (reason) {
 #define TRAPREASON_TO_TRAPID(name)                                 \
@@ -5142,17 +5340,33 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  // We need this shift so that resulting OpIndex offsets are multiples of
+  // `sizeof(OperationStorageSlot)`.
+  static constexpr int kPositionFieldShift = 3;
+  static_assert(sizeof(compiler::turboshaft::OperationStorageSlot) ==
+                1 << kPositionFieldShift);
+  static constexpr int kPositionFieldSize = 23;
+  static_assert(kV8MaxWasmFunctionSize < (1 << kPositionFieldSize));
+  static constexpr int kInliningIdFieldSize = 6;
+  static constexpr uint8_t kNoInliningId = 63;
+  static_assert((1 << kInliningIdFieldSize) - 1 == kNoInliningId);
+
+  // We encode the wasm code position and the inlining index in an OpIndex
+  // stored in the output graph's node origins.
+  using PositionField =
+      base::BitField<WasmCodePosition, kPositionFieldShift, kPositionFieldSize>;
+  using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
+
   OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
-    return OpIndex(sizeof(compiler::turboshaft::OperationStorageSlot) *
-                   static_cast<int>(position));
+    return OpIndex(PositionField::encode(position) |
+                   InliningIdField::encode(inlining_id_));
   }
 
-  WasmCodePosition OpIndexToWasmPosition(OpIndex index) {
-    return index.valid()
-               ? static_cast<WasmCodePosition>(
-                     index.offset() /
-                     sizeof(compiler::turboshaft::OperationStorageSlot))
-               : kNoCodePosition;
+  SourcePosition OpIndexToSourcePosition(OpIndex index) {
+    DCHECK(index.valid());
+    uint8_t inlining_id = InliningIdField::decode(index.offset());
+    return SourcePosition(PositionField::decode(index.offset()),
+                          inlining_id == kNoInliningId ? -1 : inlining_id);
   }
 
   BranchHint GetBranchHint(FullDecoder* decoder) {
@@ -5171,10 +5385,25 @@ class TurboshaftGraphBuildingInterface {
 
   Assembler& Asm() { return asm_; }
 
+  bool should_inline() { return inlining_budget_ > 0; }
+  int inlining_budget() { return inlining_budget_; }
+  void set_inlining_budget(int new_budget) { inlining_budget_ = new_budget; }
+  BlockPhis& return_phis() { return return_phis_; }
+  std::vector<OpIndex>& return_exception_phis() {
+    return return_exception_phis_;
+  }
+  void set_inlining_id(uint8_t inlining_id) {
+    DCHECK_NE(inlining_id, kNoInliningId);
+    inlining_id_ = inlining_id;
+  }
+
+  Mode mode_;
   V<WasmInstanceObject> instance_node_;
   std::unordered_map<TSBlock*, BlockPhis> block_phis_;
-  Assembler asm_;
+  Assembler& asm_;
   AssumptionsJournal* assumptions_;
+  ZoneVector<WasmInliningPosition>* inlining_positions_;
+  uint8_t inlining_id_ = kNoInliningId;
   std::vector<OpIndex> ssa_env_;
   bool did_bailout_ = false;
   compiler::NullCheckStrategy null_check_strategy_ =
@@ -5182,18 +5411,38 @@ class TurboshaftGraphBuildingInterface {
           ? compiler::NullCheckStrategy::kTrapHandler
           : compiler::NullCheckStrategy::kExplicit;
   int func_index_;
+  const WireBytesStorage* wire_bytes_;
   const BranchHintMap* branch_hints_ = nullptr;
+  int inlining_budget_ = 2;
+
+  /* Used for inlining modes */
+  // Contains real parameters for this inlined function, including the instance.
+  // Used only in StartFunction();
+  std::vector<OpIndex>* real_parameters_;
+  // The block where this function returns its values (passed by the caller).
+  TSBlock* return_block_ = nullptr;
+  // The return values for this function. The caller will reconstruct each one
+  // with a Phi.
+  BlockPhis return_phis_;
+  // The block where exceptions from this function are caught (passed by the
+  // caller).
+  TSBlock* return_catch_block_ = nullptr;
+  // The exception values for this function (will be reconstructed in the caller
+  // with a Phi).
+  std::vector<OpIndex> return_exception_phis_;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
     AccountingAllocator* allocator, WasmFeatures enabled,
-    const WasmModule* module, WasmFeatures* detected, const FunctionBody& body,
-    Graph& graph, compiler::NodeOriginTable* node_origins,
-    AssumptionsJournal* assumptions, int func_index) {
+    const WasmModule* module, WasmFeatures* detected, Graph& graph,
+    const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
+    compiler::NodeOriginTable* node_origins, AssumptionsJournal* assumptions,
+    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
   Zone zone(allocator, ZONE_NAME);
+  Assembler assembler(graph, graph, &zone, node_origins);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
-      decoder(&zone, module, enabled, detected, body, graph, &zone,
-              node_origins, assumptions, func_index);
+      decoder(&zone, module, enabled, detected, func_body, assembler,
+              assumptions, inlining_positions, func_index, wire_bytes);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.

@@ -76,8 +76,7 @@ class Pipeline : public AllStatic {
   static bool GenerateWasmCodeFromTurboshaftGraph(
       OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-      const wasm::FunctionBody& body, wasm::WasmFeatures* detected,
-      CallDescriptor* call_descriptor);
+      wasm::WasmFeatures* detected, CallDescriptor* call_descriptor);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(

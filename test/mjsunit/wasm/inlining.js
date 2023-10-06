@@ -36,7 +36,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_ii_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
               kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add]);
-  // g(x) = { let (a, b) = f(x); a * b}
+  // g(x) = { let (a, b) = f(x); a * b }
   builder.addFunction("main", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprCallFunction, callee.index, kExprI32Mul])
     .exportAs("main");
@@ -45,7 +45,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(9 * 11, instance.exports.main(10));
 })();
 
-(function NoReturnTest() {
+(function VoidReturnTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
@@ -61,6 +61,29 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(10, instance.exports.main(10));
+})();
+
+(function NoReturnTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprI32Const, 42, kExprThrow, tag]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprTry, kWasmI32,
+        kExprI32Const, 10, kExprCallFunction, callee.index,
+        kExprI32Const, 10, kExprI32Add,
+      kExprCatch, tag,
+        kExprI32Const, 1, kExprI32Add,
+      kExprEnd])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(43, instance.exports.main(10));
 })();
 
 (function LoopInLoopTest() {
@@ -356,6 +379,57 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(25, instance.exports.main(10));
+})();
+
+(function TailCallInCatchBlock() {
+  // A tail call frame replaces the caller frame, so an exception should not be
+  // catchable in the caller frame.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprI32Const, 42, kExprThrow, tag])
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprTry, kWasmI32,
+        kExprLocalGet, 0, kExprReturnCall, callee.index,
+      kExprCatch, tag,
+      kExprEnd])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertThrows(() => instance.exports.main(10), WebAssembly.Exception);
+})();
+
+(function TailCallInNestedCallInCatchBlock() {
+  // In contrast to the previous test, if there is an intermediate frame, the
+  // parent frame should be able to catch the exception.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprI32Const, 42, kExprThrow, tag])
+
+  let intermediate = builder.addFunction("intermediate", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprReturnCall, callee.index]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprTry, kWasmI32,
+        kExprLocalGet, 0, kExprCallFunction, intermediate.index,
+      kExprCatch, tag,
+      kExprEnd])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertEquals(42, instance.exports.main(10));
 })();
 
 (function LoopUnrollingTest() {
