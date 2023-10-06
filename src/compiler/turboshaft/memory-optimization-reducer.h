@@ -158,8 +158,7 @@ class MemoryOptimizationReducer : public Next {
       }
     }
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
-      __ Store(__ MapToNewGraph(store.base()),
-               __ MapToNewGraphIfValid(store.index()),
+      __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
                WriteBarrierKind::kNoWriteBarrier, store.offset,
                store.element_size_log2,

@@ -167,7 +167,7 @@ inline bool CouldHaveSameMap(MapMaskAndOr a, MapMaskAndOr b) {
 
 struct MemoryAddress {
   OpIndex base;
-  OpIndex index;
+  OptionalOpIndex index;
   int32_t offset;
   uint8_t element_size_log2;
   uint8_t size;
@@ -255,7 +255,7 @@ class MemoryContentTable
     Invalidate(store.base(), store.index(), store.offset);
   }
 
-  void Invalidate(OpIndex base, OpIndex index, int32_t offset) {
+  void Invalidate(OpIndex base, OptionalOpIndex index, int32_t offset) {
     base = ResolveBase(base);
 
     if (non_aliasing_objects_.Get(base)) {
@@ -340,7 +340,7 @@ class MemoryContentTable
 
   OpIndex Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
-    OpIndex index = load.index();
+    OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
     uint8_t size = load.loaded_rep.SizeInBytes();
@@ -353,7 +353,7 @@ class MemoryContentTable
 
   void Insert(const StoreOp& store) {
     OpIndex base = ResolveBase(store.base());
-    OpIndex index = store.index();
+    OptionalOpIndex index = store.index();
     int32_t offset = store.offset;
     uint8_t element_size_log2 = index.valid() ? store.element_size_log2 : 0;
     OpIndex value = store.value();
@@ -368,7 +368,7 @@ class MemoryContentTable
 
   void Insert(const LoadOp& load, OpIndex load_idx) {
     OpIndex base = ResolveBase(load.base());
-    OpIndex index = load.index();
+    OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
     uint8_t size = load.loaded_rep.SizeInBytes();
@@ -401,7 +401,7 @@ class MemoryContentTable
 #endif
 
  private:
-  void Insert(OpIndex base, OpIndex index, int32_t offset,
+  void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
               uint8_t element_size_log2, uint8_t size, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
@@ -418,7 +418,7 @@ class MemoryContentTable
     Set(key, value);
   }
 
-  void InsertImmutable(OpIndex base, OpIndex index, int32_t offset,
+  void InsertImmutable(OpIndex base, OptionalOpIndex index, int32_t offset,
                        uint8_t element_size_log2, uint8_t size, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 

@@ -79,7 +79,9 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     case Opcode::kStore: {
       auto& store = op.Cast<StoreOp>();
       MarkAsNeedsDecompression(store.base());
-      if (store.index().valid()) MarkAsNeedsDecompression(store.index());
+      if (store.index().valid()) {
+        MarkAsNeedsDecompression(store.index().value());
+      }
       if (!store.stored_rep.IsTagged()) {
         MarkAsNeedsDecompression(store.value());
       }

@@ -722,7 +722,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     bool is_atomic() const { return op_->kind.is_atomic; }
 
     node_t base() const { return op_->base(); }
-    node_t index() const { return op_->index(); }
+    node_t index() const { return op_->index().value_or_invalid(); }
     int32_t displacement() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
@@ -768,7 +768,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
 
     node_t base() const { return op_->base(); }
-    node_t index() const { return op_->index(); }
+    node_t index() const { return op_->index().value_or_invalid(); }
     node_t value() const { return op_->value(); }
     node_t indirect_pointer_tag() const { UNREACHABLE(); }
     int32_t displacement() const {

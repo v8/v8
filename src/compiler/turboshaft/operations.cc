@@ -514,7 +514,7 @@ void LoadOp::PrintInputs(std::ostream& os,
     os << " + " << offset;
   }
   if (index().valid()) {
-    os << " + " << op_index_prefix << index().id();
+    os << " + " << op_index_prefix << index().value().id();
     if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
   }
   os << ") ";
@@ -554,7 +554,7 @@ void AtomicWord32PairOp::PrintInputs(std::ostream& os,
                                      const std::string& op_index_prefix) const {
   os << " *(" << op_index_prefix << base().id();
   if (index().valid()) {
-    os << " + " << op_index_prefix << index().id();
+    os << " + " << op_index_prefix << index().value().id();
   }
   if (offset) {
     os << " + offset=" << offset;
@@ -589,7 +589,7 @@ void StoreOp::PrintInputs(std::ostream& os,
     os << " + " << offset;
   }
   if (index().valid()) {
-    os << " + " << op_index_prefix << index().id();
+    os << " + " << op_index_prefix << index().value().id();
     if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
   }
   os << ") = " << op_index_prefix << value().id() << " ";

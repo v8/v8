@@ -1646,7 +1646,7 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_scale,
@@ -1656,7 +1656,8 @@ class MachineOptimizationReducer : public Next {
       if (stored_rep.SizeInBytes() <= 4) {
         value = TryRemoveWord32ToWord64Conversion(value);
       }
-      index = ReduceMemoryIndex(index, &offset, &element_scale);
+      index =
+          ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
       switch (stored_rep) {
         case MemoryRepresentation::Uint8():
         case MemoryRepresentation::Int8():
@@ -1686,13 +1687,14 @@ class MachineOptimizationReducer : public Next {
                              maybe_indirect_pointer_tag);
   }
 
-  OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
-                       MemoryRepresentation loaded_rep,
+  OpIndex REDUCE(Load)(OpIndex base_idx, OptionalOpIndex index,
+                       LoadOp::Kind kind, MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_scale) {
     while (true) {
       if (ShouldSkipOptimizationStep()) break;
-      index = ReduceMemoryIndex(index, &offset, &element_scale);
+      index =
+          ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
       if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
             matcher.MatchWordAdd(base_idx, &left, &right,

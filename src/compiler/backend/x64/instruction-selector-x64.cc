@@ -272,7 +272,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
   const Operation& op = selector->Get(node);
   if (const LoadOp* load = op.TryCast<LoadOp>()) {
     result.base = load->base();
-    result.index = load->index();
+    result.index = load->index().value_or_invalid();
     result.scale = load->element_size_log2;
     result.displacement = load->offset;
     if (load->kind.tagged_base) result.displacement -= kHeapObjectTag;
@@ -280,7 +280,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
   } else if (const StoreOp* store = op.TryCast<StoreOp>()) {
     BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.base = store->base();
-    result.index = store->index();
+    result.index = store->index().value_or_invalid();
     result.scale = store->element_size_log2;
     result.displacement = store->offset;
     if (store->kind.tagged_base) result.displacement -= kHeapObjectTag;

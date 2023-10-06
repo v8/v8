@@ -244,8 +244,8 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
-  OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
-                       MemoryRepresentation loaded_rep,
+  OpIndex REDUCE(Load)(OpIndex base_idx, OptionalOpIndex index,
+                       LoadOp::Kind kind, MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_scale) {
     if (kind.is_atomic) {
@@ -276,7 +276,7 @@ class Int64LoweringReducer : public Next {
                             offset, element_scale);
   }
 
-  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_size_log2,

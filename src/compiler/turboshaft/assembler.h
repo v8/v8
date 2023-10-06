@@ -1705,7 +1705,7 @@ class AssemblerOpInterface {
     return ReduceIfReachableMemoryBarrier(memory_order);
   }
 
-  OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
+  OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
                RegisterRepresentation result_rep, int32_t offset = 0,
                uint8_t element_size_log2 = 0) {
@@ -1713,7 +1713,7 @@ class AssemblerOpInterface {
                                  offset, element_size_log2);
   }
 
-  OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
+  OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep, int32_t offset = 0,
                uint8_t element_size_log2 = 0) {
     return Load(base, index, kind, loaded_rep,
@@ -1731,14 +1731,14 @@ class AssemblerOpInterface {
                       MemoryRepresentation rep) {
     return Load(address, LoadOp::Kind::RawAligned(), rep, offset);
   }
-  OpIndex LoadOffHeap(OpIndex address, OpIndex index, int32_t offset,
+  OpIndex LoadOffHeap(OpIndex address, OptionalOpIndex index, int32_t offset,
                       MemoryRepresentation rep) {
     return Load(address, index, LoadOp::Kind::RawAligned(), rep, offset,
                 rep.SizeInBytesLog2());
   }
 
   void Store(
-      OpIndex base, OpIndex index, OpIndex value, StoreOp::Kind kind,
+      OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
@@ -1772,7 +1772,7 @@ class AssemblerOpInterface {
     Store(address, value, StoreOp::Kind::RawAligned(), rep,
           WriteBarrierKind::kNoWriteBarrier, offset);
   }
-  void StoreOffHeap(OpIndex address, OpIndex index, OpIndex value,
+  void StoreOffHeap(OpIndex address, OptionalOpIndex index, OpIndex value,
                     MemoryRepresentation rep, int32_t offset) {
     Store(address, index, value, StoreOp::Kind::RawAligned(), rep,
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());

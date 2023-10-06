@@ -920,19 +920,19 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicWord32PairOp& op) {
   Node* index;
   if (op.index().valid() && op.offset) {
     index = AddNode(machine.Int32Add(),
-                    {GetNode(op.index()), IntPtrConstant(op.offset)});
+                    {GetNode(op.index().value()), IntPtrConstant(op.offset)});
   } else if (op.index().valid()) {
-    index = GetNode(op.index());
+    index = GetNode(op.index().value());
   } else {
     index = IntPtrConstant(op.offset);
   }
-#define BINOP_CASE(OP)                                                 \
-  if (op.op_kind == AtomicWord32PairOp::OpKind::k##OP) {               \
-    return AddNode(                                                    \
-        machine.Word32AtomicPair##OP(),                                \
-        {GetNode(op.base()),                                           \
-         op.index().valid() ? GetNode(op.index()) : IntPtrConstant(0), \
-         GetNode(op.value_low()), GetNode(op.value_high())});          \
+#define BINOP_CASE(OP)                                                         \
+  if (op.op_kind == AtomicWord32PairOp::OpKind::k##OP) {                       \
+    return AddNode(                                                            \
+        machine.Word32AtomicPair##OP(),                                        \
+        {GetNode(op.base()),                                                   \
+         op.index().valid() ? GetNode(op.index().value()) : IntPtrConstant(0), \
+         GetNode(op.value_low()), GetNode(op.value_high())});                  \
   }
 #define ATOMIC_BINOPS(V) \
   V(Add)                 \
@@ -1053,7 +1053,7 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   Node* base = GetNode(op.base());
   Node* index;
   if (op.index().valid()) {
-    index = GetNode(op.index());
+    index = GetNode(op.index().value());
     if (op.element_size_log2 != 0) {
       index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
     }
@@ -1115,7 +1115,7 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   Node* base = GetNode(op.base());
   Node* index;
   if (op.index().valid()) {
-    index = GetNode(op.index());
+    index = GetNode(op.index().value());
     if (op.element_size_log2 != 0) {
       index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
     }

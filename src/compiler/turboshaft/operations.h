@@ -2558,11 +2558,11 @@ struct LoadOp : OperationT<LoadOp> {
   }
 
   OpIndex base() const { return input(0); }
-  OpIndex index() const {
+  OptionalOpIndex index() const {
     return input_count == 2 ? input(1) : OpIndex::Invalid();
   }
 
-  LoadOp(OpIndex base, OpIndex index, Kind kind,
+  LoadOp(OpIndex base, OptionalOpIndex index, Kind kind,
          MemoryRepresentation loaded_rep, RegisterRepresentation result_rep,
          int32_t offset, uint8_t element_size_log2)
       : Base(1 + index.valid()),
@@ -2573,7 +2573,7 @@ struct LoadOp : OperationT<LoadOp> {
         offset(offset) {
     input(0) = base;
     if (index.valid()) {
-      input(1) = index;
+      input(1) = index.value();
     }
   }
 
@@ -2584,8 +2584,8 @@ struct LoadOp : OperationT<LoadOp> {
            kind.is_atomic);
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
   }
-  static LoadOp& New(Graph* graph, OpIndex base, OpIndex index, Kind kind,
-                     MemoryRepresentation loaded_rep,
+  static LoadOp& New(Graph* graph, OpIndex base, OptionalOpIndex index,
+                     Kind kind, MemoryRepresentation loaded_rep,
                      RegisterRepresentation result_rep, int32_t offset,
                      uint8_t element_size_log2) {
     return Base::New(graph, 1 + index.valid(), base, index, kind, loaded_rep,
@@ -2765,7 +2765,9 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
   }
 
   V<WordPtr> base() const { return input(0); }
-  V<WordPtr> index() const { return has_index ? input(1) : OpIndex::Invalid(); }
+  OptionalV<WordPtr> index() const {
+    return has_index ? input(1) : OpIndex::Invalid();
+  }
   V<Word32> value_low() const {
     return (input_count > 1 + has_index) ? input(1 + has_index)
                                          : OpIndex::Invalid();
@@ -2794,9 +2796,10 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
               input_count == 3 + has_index);
   }
 
-  AtomicWord32PairOp(V<WordPtr> base, V<WordPtr> index, V<Word32> value_low,
-                     V<Word32> value_high, V<Word32> expected_low,
-                     V<Word32> expected_high, OpKind op_kind, int32_t offset)
+  AtomicWord32PairOp(V<WordPtr> base, OptionalV<WordPtr> index,
+                     V<Word32> value_low, V<Word32> value_high,
+                     V<Word32> expected_low, V<Word32> expected_high,
+                     OpKind op_kind, int32_t offset)
       : Base(1 + index.valid() + value_low.valid() + value_high.valid() +
              expected_low.valid() + expected_high.valid()),
         op_kind(op_kind),
@@ -2806,7 +2809,7 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
     has_index = index.valid();
     input(0) = base;
     if (index.valid()) {
-      input(1) = index;
+      input(1) = index.value();
     }
     if (value_low.valid()) {
       input(1 + has_index) = value_low;
@@ -2823,7 +2826,7 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
   }
 
   static AtomicWord32PairOp& New(Graph* graph, V<WordPtr> base,
-                                 V<WordPtr> index, V<Word32> value_low,
+                                 OptionalV<WordPtr> index, V<Word32> value_low,
                                  V<Word32> value_high, V<Word32> expected_low,
                                  V<Word32> expected_high, OpKind op_kind,
                                  int32_t offset) {
@@ -2923,7 +2926,7 @@ struct StoreOp : OperationT<StoreOp> {
 
   OpIndex base() const { return input(0); }
   OpIndex value() const { return input(1); }
-  OpIndex index() const {
+  OptionalOpIndex index() const {
     return input_count == 3 ? input(2) : OpIndex::Invalid();
   }
 
@@ -2933,7 +2936,7 @@ struct StoreOp : OperationT<StoreOp> {
   }
 
   StoreOp(
-      OpIndex base, OpIndex index, OpIndex value, Kind kind,
+      OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset, uint8_t element_size_log2,
       bool maybe_initializing_or_transitioning,
@@ -2952,16 +2955,16 @@ struct StoreOp : OperationT<StoreOp> {
     input(0) = base;
     input(1) = value;
     if (index.valid()) {
-      input(2) = index;
+      input(2) = index.value();
     }
   }
 
   void Validate(const Graph& graph) const {
   }
   static StoreOp& New(
-      Graph* graph, OpIndex base, OpIndex index, OpIndex value, Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      int32_t offset, uint8_t element_size_log2,
+      Graph* graph, OpIndex base, OptionalOpIndex index, OpIndex value,
+      Kind kind, MemoryRepresentation stored_rep,
+      WriteBarrierKind write_barrier, int32_t offset, uint8_t element_size_log2,
       bool maybe_initializing_or_transitioning,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,

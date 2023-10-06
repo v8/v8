@@ -302,6 +302,13 @@ class GraphVisitor {
                : OpIndex::Invalid();
   }
 
+  template <bool can_be_invalid = false>
+  OptionalOpIndex MapToNewGraph(OptionalOpIndex old_index,
+                                int predecessor_index = -1) {
+    if (!old_index.has_value()) return OptionalOpIndex::Invalid();
+    return MapToNewGraph<can_be_invalid>(old_index.value(), predecessor_index);
+  }
+
  private:
   template <bool trace_reduction>
   void VisitAllBlocks() {
@@ -847,7 +854,7 @@ class GraphVisitor {
 
   OpIndex AssembleOutputGraphAtomicWord32Pair(const AtomicWord32PairOp& op) {
     return assembler().ReduceAtomicWord32Pair(
-        MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
         MapToNewGraphIfValid(op.value_low()),
         MapToNewGraphIfValid(op.value_high()),
         MapToNewGraphIfValid(op.expected_low()),
@@ -860,12 +867,12 @@ class GraphVisitor {
 
   OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
     return assembler().ReduceLoad(
-        MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()), op.kind,
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.kind,
         op.loaded_rep, op.result_rep, op.offset, op.element_size_log2);
   }
   OpIndex AssembleOutputGraphStore(const StoreOp& op) {
     return assembler().ReduceStore(
-        MapToNewGraph(op.base()), MapToNewGraphIfValid(op.index()),
+        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
         op.offset, op.element_size_log2, op.maybe_initializing_or_transitioning,
         op.indirect_pointer_tag());
