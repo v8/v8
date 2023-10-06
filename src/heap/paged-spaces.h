@@ -117,19 +117,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
                  std::unique_ptr<FreeList> free_list,
-                 CompactionSpaceKind compaction_space_kind,
-                 MainAllocator::SupportsExtendingLAB supports_extending_lab);
-
-  PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
-                 std::unique_ptr<FreeList> free_list,
-                 CompactionSpaceKind compaction_space_kind,
-                 MainAllocator::SupportsExtendingLAB supports_extending_lab,
-                 LinearAllocationArea& allocation_info);
-
-  PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
-                 std::unique_ptr<FreeList> free_list,
-                 CompactionSpaceKind compaction_space_kind,
-                 MainAllocator* allocator);
+                 CompactionSpaceKind compaction_space_kind);
 
   ~PagedSpaceBase() override { TearDown(); }
 
@@ -447,22 +435,11 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
 class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
  public:
-  // Creates a space with an id.
   PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
              std::unique_ptr<FreeList> free_list,
-             CompactionSpaceKind compaction_space_kind,
-             MainAllocator::SupportsExtendingLAB supports_extending_lab,
-             LinearAllocationArea& allocation_info)
+             CompactionSpaceKind compaction_space_kind)
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       compaction_space_kind, supports_extending_lab,
-                       allocation_info) {}
-
-  PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
-             std::unique_ptr<FreeList> free_list,
-             CompactionSpaceKind compaction_space_kind,
-             MainAllocator::SupportsExtendingLAB supports_extending_lab)
-      : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       compaction_space_kind, supports_extending_lab) {}
+                       compaction_space_kind) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -473,8 +450,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
                   CompactionSpaceKind compaction_space_kind)
       : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   compaction_space_kind,
-                   MainAllocator::SupportsExtendingLAB::kNo) {
+                   compaction_space_kind) {
     DCHECK(is_compaction_space());
   }
 
@@ -498,15 +474,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
 class CompactionSpaceCollection : public Malloced {
  public:
   explicit CompactionSpaceCollection(Heap* heap,
-                                     CompactionSpaceKind compaction_space_kind)
-      : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE,
-                   compaction_space_kind),
-        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
-                    compaction_space_kind),
-        shared_space_(heap, SHARED_SPACE, Executability::NOT_EXECUTABLE,
-                      compaction_space_kind),
-        trusted_space_(heap, TRUSTED_SPACE, Executability::NOT_EXECUTABLE,
-                       compaction_space_kind) {}
+                                     CompactionSpaceKind compaction_space_kind);
 
   CompactionSpace* Get(AllocationSpace space) {
     switch (space) {
@@ -538,10 +506,9 @@ class OldSpace final : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
-  explicit OldSpace(Heap* heap, LinearAllocationArea& allocation_info)
+  explicit OldSpace(Heap* heap)
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   CompactionSpaceKind::kNone,
-                   MainAllocator::SupportsExtendingLAB::kNo, allocation_info) {}
+                   CompactionSpaceKind::kNone) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -566,8 +533,7 @@ class CodeSpace final : public PagedSpace {
   // OS.
   explicit CodeSpace(Heap* heap)
       : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
-                   CompactionSpaceKind::kNone,
-                   MainAllocator::SupportsExtendingLAB::kNo) {}
+                   CompactionSpaceKind::kNone) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -579,8 +545,7 @@ class SharedSpace final : public PagedSpace {
   // OS.
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone,
-                   MainAllocator::SupportsExtendingLAB::kNo) {}
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -606,8 +571,7 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone,
-                   MainAllocator::SupportsExtendingLAB::kNo) {}
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==

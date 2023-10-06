@@ -449,11 +449,8 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-NewSpace::NewSpace(Heap* heap,
-                   MainAllocator::SupportsExtendingLAB supports_extending_lab,
-                   LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr, CompactionSpaceKind::kNone,
-                          supports_extending_lab, allocation_info) {}
+NewSpace::NewSpace(Heap* heap)
+    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr) {}
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -469,11 +466,8 @@ void NewSpace::PromotePageToOldSpace(Page* page) {
 
 SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
                                      size_t initial_semispace_capacity,
-                                     size_t max_semispace_capacity,
-                                     LinearAllocationArea& allocation_info)
-    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kNo, allocation_info),
-      to_space_(heap, kToSpace),
-      from_space_(heap, kFromSpace) {
+                                     size_t max_semispace_capacity)
+    : NewSpace(heap), to_space_(heap, kToSpace), from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
 
   to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
@@ -559,7 +553,6 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
 
 void SemiSpaceNewSpace::ResetLinearAllocationArea() {
   to_space_.Reset();
-  UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
   for (Page* p : to_space_) {
     p->ClearLiveness();
@@ -813,6 +806,7 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
   // live objects.
   SemiSpace::Swap(&from_space_, &to_space_);
   ResetLinearAllocationArea();
+  UpdateLinearAllocationArea();
   DCHECK_EQ(0u, Size());
 }
 
@@ -887,11 +881,10 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
 
 PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
                                              size_t initial_capacity,
-                                             size_t max_capacity,
-                                             MainAllocator* allocator)
+                                             size_t max_capacity)
     : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
                      FreeList::CreateFreeListForNewSpace(),
-                     CompactionSpaceKind::kNone, allocator),
+                     CompactionSpaceKind::kNone),
       initial_capacity_(RoundDown(initial_capacity, Page::kPageSize)),
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {
@@ -1127,11 +1120,8 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
 // PagedNewSpace implementation
 
 PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
-                             size_t max_capacity,
-                             LinearAllocationArea& allocation_info)
-    : NewSpace(heap, MainAllocator::SupportsExtendingLAB::kYes,
-               allocation_info),
-      paged_space_(heap, initial_capacity, max_capacity, main_allocator()) {}
+                             size_t max_capacity)
+    : NewSpace(heap), paged_space_(heap, initial_capacity, max_capacity) {}
 
 PagedNewSpace::~PagedNewSpace() {
   // Tears down the space.  Heap memory was not allocated by the space, so it

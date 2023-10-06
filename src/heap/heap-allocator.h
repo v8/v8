@@ -17,6 +17,7 @@ class AllocationObserver;
 class CodeLargeObjectSpace;
 class ConcurrentAllocator;
 class Heap;
+class LinearAllocationArea;
 class MainAllocator;
 class NewSpace;
 class NewLargeObjectSpace;
@@ -31,7 +32,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
  public:
   explicit HeapAllocator(Heap*);
 
-  void Setup();
+  void Setup(LinearAllocationArea& new_allocation_info,
+             LinearAllocationArea& old_allocation_info);
   void SetReadOnlySpace(ReadOnlySpace*);
 
   // Supports all `AllocationType` types.

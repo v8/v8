@@ -9,6 +9,26 @@
 namespace v8 {
 namespace internal {
 
+EvacuationAllocator::EvacuationAllocator(
+    Heap* heap, CompactionSpaceKind compaction_space_kind)
+    : heap_(heap),
+      new_space_(heap->new_space()),
+      compaction_spaces_(heap, compaction_space_kind),
+      new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
+      lab_allocation_will_fail_(false) {
+  compaction_spaces_.Get(OLD_SPACE)->CreateMainAllocator(
+      compaction_space_kind, MainAllocator::SupportsExtendingLAB::kNo);
+  compaction_spaces_.Get(CODE_SPACE)
+      ->CreateMainAllocator(compaction_space_kind,
+                            MainAllocator::SupportsExtendingLAB::kNo);
+  compaction_spaces_.Get(SHARED_SPACE)
+      ->CreateMainAllocator(compaction_space_kind,
+                            MainAllocator::SupportsExtendingLAB::kNo);
+  compaction_spaces_.Get(TRUSTED_SPACE)
+      ->CreateMainAllocator(compaction_space_kind,
+                            MainAllocator::SupportsExtendingLAB::kNo);
+}
+
 void EvacuationAllocator::Finalize() {
   heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
   heap_->code_space()->MergeCompactionSpace(compaction_spaces_.Get(CODE_SPACE));

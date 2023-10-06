@@ -38,31 +38,37 @@
 namespace v8 {
 namespace internal {
 
-SpaceWithLinearArea::SpaceWithLinearArea(
-    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-    CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab,
-    LinearAllocationArea& allocation_info)
-    : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this, compaction_space_kind,
-                           supports_extending_lab, allocation_info);
-  allocator_ = &owned_allocator_.value();
+SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                                         std::unique_ptr<FreeList> free_list)
+    : Space(heap, id, std::move(free_list)) {}
+
+void SpaceWithLinearArea::set_main_allocator(MainAllocator* allocator) {
+  DCHECK(!owned_allocator_.has_value());
+  allocator_ = allocator;
 }
 
-SpaceWithLinearArea::SpaceWithLinearArea(
-    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+MainAllocator* SpaceWithLinearArea::CreateMainAllocator(
     CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab)
-    : Space(heap, id, std::move(free_list)) {
-  owned_allocator_.emplace(heap, this, compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab) {
+  DCHECK_NULL(allocator_);
+  DCHECK(!owned_allocator_.has_value());
+  owned_allocator_.emplace(heap(), this, compaction_space_kind,
                            supports_extending_lab);
   allocator_ = &owned_allocator_.value();
+  return allocator_;
 }
 
-SpaceWithLinearArea::SpaceWithLinearArea(
-    Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-    CompactionSpaceKind compaction_space_kind, MainAllocator* allocator)
-    : Space(heap, id, std::move(free_list)), allocator_(allocator) {}
+MainAllocator* SpaceWithLinearArea::CreateMainAllocator(
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab,
+    LinearAllocationArea& allocation_info) {
+  DCHECK_NULL(allocator_);
+  DCHECK(!owned_allocator_.has_value());
+  owned_allocator_.emplace(heap(), this, compaction_space_kind,
+                           supports_extending_lab, allocation_info);
+  allocator_ = &owned_allocator_.value();
+  return allocator_;
+}
 
 LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
   if (IsValid()) {

@@ -553,6 +553,10 @@ PagedNewSpace* Heap::paged_new_space() const {
   return PagedNewSpace::From(new_space());
 }
 
+SemiSpaceNewSpace* Heap::semi_space_new_space() const {
+  return SemiSpaceNewSpace::From(new_space());
+}
+
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     InstructionStream code)

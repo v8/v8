@@ -63,6 +63,17 @@ bool PagedSpaceObjectIterator::AdvanceToNextPage() {
 // ----------------------------------------------------------------------------
 // PagedSpaceBase implementation
 
+PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
+                               Executability executable,
+                               std::unique_ptr<FreeList> free_list,
+                               CompactionSpaceKind compaction_space_kind)
+    : SpaceWithLinearArea(heap, space, std::move(free_list)),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
+  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  accounting_stats_.Clear();
+}
+
 Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
   DCHECK_EQ(
@@ -77,47 +88,6 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
   page->list_node().Initialize();
   page->InitializationMemoryFence();
   return page;
-}
-
-PagedSpaceBase::PagedSpaceBase(
-    Heap* heap, AllocationSpace space, Executability executable,
-    std::unique_ptr<FreeList> free_list,
-    CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab,
-    LinearAllocationArea& allocation_info)
-    : SpaceWithLinearArea(heap, space, std::move(free_list),
-                          compaction_space_kind, supports_extending_lab,
-                          allocation_info),
-      executable_(executable),
-      compaction_space_kind_(compaction_space_kind) {
-  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
-  accounting_stats_.Clear();
-}
-
-PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
-                               Executability executable,
-                               std::unique_ptr<FreeList> free_list,
-                               CompactionSpaceKind compaction_space_kind,
-                               MainAllocator* allocator)
-    : SpaceWithLinearArea(heap, space, std::move(free_list),
-                          compaction_space_kind, allocator),
-      executable_(executable),
-      compaction_space_kind_(compaction_space_kind) {
-  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
-  accounting_stats_.Clear();
-}
-
-PagedSpaceBase::PagedSpaceBase(
-    Heap* heap, AllocationSpace space, Executability executable,
-    std::unique_ptr<FreeList> free_list,
-    CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab)
-    : SpaceWithLinearArea(heap, space, std::move(free_list),
-                          compaction_space_kind, supports_extending_lab),
-      executable_(executable),
-      compaction_space_kind_(compaction_space_kind) {
-  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
-  accounting_stats_.Clear();
 }
 
 void PagedSpaceBase::TearDown() {
@@ -579,8 +549,9 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
   bool allocation_pointer_found_in_space =
-      (allocator_->allocation_info().top() ==
-       allocator_->allocation_info().limit());
+      allocator_ ? (allocator_->allocation_info().top() ==
+                    allocator_->allocation_info().limit())
+                 : true;
   size_t external_space_bytes[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
@@ -592,8 +563,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
 
-    if (page ==
-        Page::FromAllocationAreaAddress(allocator_->allocation_info().top())) {
+    if (allocator_ && page == Page::FromAllocationAreaAddress(
+                                  allocator_->allocation_info().top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -1031,6 +1002,17 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
                                     AllocationOrigin origin) {
   return RawRefillLabMain(size_in_bytes, origin);
 }
+
+CompactionSpaceCollection::CompactionSpaceCollection(
+    Heap* heap, CompactionSpaceKind compaction_space_kind)
+    : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE,
+                 compaction_space_kind),
+      code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
+                  compaction_space_kind),
+      shared_space_(heap, SHARED_SPACE, Executability::NOT_EXECUTABLE,
+                    compaction_space_kind),
+      trusted_space_(heap, TRUSTED_SPACE, Executability::NOT_EXECUTABLE,
+                     compaction_space_kind) {}
 
 // -----------------------------------------------------------------------------
 // OldSpace implementation

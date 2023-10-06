@@ -221,9 +221,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   using iterator = PageIterator;
   using const_iterator = ConstPageIterator;
 
-  NewSpace(Heap* heap,
-           MainAllocator::SupportsExtendingLAB supports_extending_lab,
-           LinearAllocationArea& allocation_info);
+  explicit NewSpace(Heap* heap);
 
   inline bool Contains(Tagged<Object> o) const;
   inline bool Contains(Tagged<HeapObject> o) const;
@@ -297,8 +295,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   }
 
   SemiSpaceNewSpace(Heap* heap, size_t initial_semispace_capacity,
-                    size_t max_semispace_capacity,
-                    LinearAllocationArea& allocation_info);
+                    size_t max_semispace_capacity);
 
   ~SemiSpaceNewSpace() final;
 
@@ -460,6 +457,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final;
 
+  // Update linear allocation area to match the current to-space page.
+  void UpdateLinearAllocationArea(Address known_top = 0);
+
  private:
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
 
@@ -467,9 +467,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();
-
-  // Update linear allocation area to match the current to-space page.
-  void UpdateLinearAllocationArea(Address known_top = 0);
 
   // Removes a page from the space. Assumes the page is in the `from_space` semi
   // space.
@@ -497,7 +494,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
   explicit PagedSpaceForNewSpace(Heap* heap, size_t initial_capacity,
-                                 size_t max_capacity, MainAllocator* allocator);
+                                 size_t max_capacity);
 
   void TearDown() { PagedSpaceBase::TearDown(); }
 
@@ -614,8 +611,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return static_cast<PagedNewSpace*>(space);
   }
 
-  PagedNewSpace(Heap* heap, size_t initial_capacity, size_t max_capacity,
-                LinearAllocationArea& allocation_info);
+  PagedNewSpace(Heap* heap, size_t initial_capacity, size_t max_capacity);
 
   ~PagedNewSpace() final;
 

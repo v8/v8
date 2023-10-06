@@ -1275,7 +1275,9 @@ void Heap::PublishPendingAllocations() {
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
-    space->main_allocator()->MoveOriginalTopForward();
+    if (space->main_allocator()) {
+      space->main_allocator()->MoveOriginalTopForward();
+    }
   }
   lo_space_->ResetPendingObject();
   if (new_lo_space_) new_lo_space_->ResetPendingObject();
@@ -3685,11 +3687,19 @@ void Heap::FreeLinearAllocationAreas() {
 }
 
 void Heap::FreeMainThreadLinearAllocationAreas() {
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    base::MutexGuard guard(space->mutex());
-    space->FreeLinearAllocationArea();
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Setting the high water mark in CODE_SPACE requires access to code "
+        "page headers.");
+
+    PagedSpaceIterator spaces(this);
+    for (PagedSpace* space = spaces.Next(); space != nullptr;
+         space = spaces.Next()) {
+      base::MutexGuard guard(space->mutex());
+      if (space->main_allocator()) {
+        space->main_allocator()->FreeLinearAllocationArea();
+      }
+    }
   }
 
   if (shared_space_allocator_) {
@@ -5579,12 +5589,10 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   if (!v8_flags.single_generation) {
     if (v8_flags.minor_ms) {
       space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
-          this, initial_semispace_size_, max_semi_space_size_,
-          new_allocation_info);
+          this, initial_semispace_size_, max_semi_space_size_);
     } else {
       space_[NEW_SPACE] = std::make_unique<SemiSpaceNewSpace>(
-          this, initial_semispace_size_, max_semi_space_size_,
-          new_allocation_info);
+          this, initial_semispace_size_, max_semi_space_size_);
     }
     new_space_ = static_cast<NewSpace*>(space_[NEW_SPACE].get());
 
@@ -5594,7 +5602,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
         static_cast<NewLargeObjectSpace*>(space_[NEW_LO_SPACE].get());
   }
 
-  space_[OLD_SPACE] = std::make_unique<OldSpace>(this, old_allocation_info);
+  space_[OLD_SPACE] = std::make_unique<OldSpace>(this);
   old_space_ = static_cast<OldSpace*>(space_[OLD_SPACE].get());
 
   space_[CODE_SPACE] = std::make_unique<CodeSpace>(this);
@@ -5636,7 +5644,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     shared_lo_allocation_space_ = heap->shared_lo_space_;
   }
 
-  heap_allocator_.Setup();
+  heap_allocator_.Setup(new_allocation_info, old_allocation_info);
   main_thread_local_heap()->SetUpMainThread();
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);

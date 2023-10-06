@@ -411,7 +411,7 @@ void IncrementalMarking::StartBlackAllocation() {
   black_allocation_ = true;
   heap()->allocator()->MarkLinearAllocationAreaBlack();
   if (isolate()->is_shared_space_isolate()) {
-    DCHECK(!heap()->shared_space()->main_allocator()->IsLabValid());
+    DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
         [](Isolate* client) {
           client->heap()->MarkSharedLinearAllocationAreasBlack();
@@ -430,7 +430,7 @@ void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMajorMarking());
   heap()->allocator()->UnmarkLinearAllocationArea();
   if (isolate()->is_shared_space_isolate()) {
-    DCHECK(!heap()->shared_space()->main_allocator()->IsLabValid());
+    DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
         [](Isolate* client) {
           client->heap()->UnmarkSharedLinearAllocationAreas();

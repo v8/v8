@@ -279,26 +279,21 @@ class LocalAllocationBuffer {
 
 class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
  public:
-  // Creates this space with a new MainAllocator instance.
-  SpaceWithLinearArea(
-      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab);
-
-  // Creates this space with a new MainAllocator instance and passes
-  // `allocation_info` to its constructor.
-  SpaceWithLinearArea(
-      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab,
-      LinearAllocationArea& allocation_info);
-
   // Creates this space and uses the existing `allocator`. It doesn't create a
   // new MainAllocator instance.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                      std::unique_ptr<FreeList> free_list,
-                      CompactionSpaceKind compaction_space_kind,
-                      MainAllocator* allocator);
+                      std::unique_ptr<FreeList> free_list);
+
+  void set_main_allocator(MainAllocator* allocator);
+
+  MainAllocator* CreateMainAllocator(
+      CompactionSpaceKind compaction_space_kind,
+      MainAllocator::SupportsExtendingLAB supports_extending_lab);
+
+  MainAllocator* CreateMainAllocator(
+      CompactionSpaceKind compaction_space_kind,
+      MainAllocator::SupportsExtendingLAB supports_extending_lab,
+      LinearAllocationArea& allocation_info);
 
   MainAllocator* main_allocator() { return allocator_; }
 
@@ -322,7 +317,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   virtual void UpdateInlineAllocationLimit() = 0;
 
   // TODO(chromium:1480975): Move the LAB out of the space.
-  MainAllocator* allocator_;
+  MainAllocator* allocator_ = nullptr;
   base::Optional<MainAllocator> owned_allocator_;
 
   friend class MainAllocator;

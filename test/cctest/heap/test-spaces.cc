@@ -218,10 +218,9 @@ TEST(MemoryAllocator) {
 
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
-  LinearAllocationArea allocation_info;
 
   int total_pages = 0;
-  OldSpace faked_space(heap, allocation_info);
+  OldSpace faked_space(heap);
   CHECK(!faked_space.first_page());
   CHECK(!faked_space.last_page());
   Page* first_page = memory_allocator->AllocatePage(
@@ -303,14 +302,17 @@ TEST(SemiSpaceNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+  MainAllocator* allocator = new_space->CreateMainAllocator(
+      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kNo,
       allocation_info);
+  new_space->UpdateLinearAllocationArea();
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
   while (new_space->Available() >= kMaxRegularHeapObjectSize) {
-    AllocationResult allocation =
-        new_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned);
+    AllocationResult allocation = allocator->AllocateRaw(
+        kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -333,16 +335,19 @@ TEST(PagedNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<PagedNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+  MainAllocator* allocator = new_space->CreateMainAllocator(
+      CompactionSpaceKind::kNone, MainAllocator::SupportsExtendingLAB::kYes,
       allocation_info);
+  new_space->paged_space()->set_main_allocator(allocator);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
   CHECK_LT(0, new_space->TotalCapacity());
 
   size_t successful_allocations = 0;
   while (true) {
-    AllocationResult allocation =
-        new_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned);
+    AllocationResult allocation = allocator->AllocateRaw(
+        kMaxRegularHeapObjectSize, kTaggedAligned, AllocationOrigin::kRuntime);
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -368,7 +373,10 @@ TEST(OldSpace) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   LinearAllocationArea allocation_info;
 
-  auto old_space = std::make_unique<OldSpace>(heap, allocation_info);
+  auto old_space = std::make_unique<OldSpace>(heap);
+  old_space->CreateMainAllocator(CompactionSpaceKind::kNone,
+                                 MainAllocator::SupportsExtendingLAB::kNo,
+                                 allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;
@@ -732,8 +740,7 @@ TEST(NoMemoryForNewPage) {
   FailingPageAllocator failing_allocator;
   TestMemoryAllocatorScope test_allocator_scope(isolate, 0, &failing_allocator);
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
-  LinearAllocationArea allocation_info;
-  OldSpace faked_space(heap, allocation_info);
+  OldSpace faked_space(heap);
   Page* page = memory_allocator->AllocatePage(
       MemoryAllocator::AllocationMode::kRegular,
       static_cast<PagedSpace*>(&faked_space), NOT_EXECUTABLE);

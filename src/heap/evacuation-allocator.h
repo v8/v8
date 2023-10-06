@@ -21,13 +21,7 @@ class EvacuationAllocator {
   static const int kLabSize = 32 * KB;
   static const int kMaxLabObjectSize = 8 * KB;
 
-  explicit EvacuationAllocator(Heap* heap,
-                               CompactionSpaceKind compaction_space_kind)
-      : heap_(heap),
-        new_space_(heap->new_space()),
-        compaction_spaces_(heap, compaction_space_kind),
-        new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
-        lab_allocation_will_fail_(false) {}
+  EvacuationAllocator(Heap* heap, CompactionSpaceKind compaction_space_kind);
 
   // Needs to be called from the main thread to finalize this
   // EvacuationAllocator.

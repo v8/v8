@@ -122,6 +122,7 @@ class RwxMemoryWriteScope;
 class SafepointScope;
 class Scavenger;
 class ScavengerCollector;
+class SemiSpaceNewSpace;
 class SharedLargeObjectSpace;
 class SharedReadOnlySpace;
 class SharedSpace;
@@ -757,6 +758,7 @@ class Heap final {
 
   NewSpace* new_space() const { return new_space_; }
   inline PagedNewSpace* paged_new_space() const;
+  inline SemiSpaceNewSpace* semi_space_new_space() const;
   OldSpace* old_space() const { return old_space_; }
   CodeSpace* code_space() const { return code_space_; }
   SharedSpace* shared_space() const { return shared_space_; }
