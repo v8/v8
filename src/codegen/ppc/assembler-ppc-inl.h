@@ -148,10 +148,17 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(
-        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-            cage_base,
-            Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    Tagged_t compressed =
+        Assembler::target_compressed_address_at(pc_, constant_pool_);
+    DCHECK(!HAS_SMI_TAG(compressed));
+    Tagged<Object> obj(
+        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
+    // Embedding of compressed InstructionStream objects must not happen when
+    // external code space is enabled, because Codes must be used
+    // instead.
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !IsCodeSpaceObject(HeapObject::cast(obj)));
+    return HeapObject::cast(obj);
   } else {
     return HeapObject::cast(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
