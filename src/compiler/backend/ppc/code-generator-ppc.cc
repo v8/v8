@@ -76,7 +76,18 @@ class PPCOperandConverter final : public InstructionOperandConverter {
 #endif
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
-      case Constant::kCompressedHeapObject:
+      case Constant::kCompressedHeapObject: {
+        RootIndex root_index;
+        if (gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
+                                                        &root_index)) {
+          CHECK(COMPRESS_POINTERS_BOOL);
+          CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
+          Tagged_t ptr =
+              MacroAssemblerBase::ReadOnlyRootPtr(root_index, gen_->isolate());
+          return Operand(ptr);
+        }
+        return Operand(constant.ToHeapObject());
+      }
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;

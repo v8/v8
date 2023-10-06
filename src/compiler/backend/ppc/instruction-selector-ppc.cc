@@ -7,6 +7,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/execution/ppc/frame-constants-ppc.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -41,6 +42,25 @@ class PPCOperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
+    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector()->isolate()->roots_table();
+      RootIndex root_index;
+      CompressedHeapObjectMatcher m(node);
+      if (m.HasResolvedValue() &&
+          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+        if (!RootsTable::IsReadOnly(root_index)) return false;
+        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                  root_index, selector()->isolate()),
+                              mode);
+      }
+      return false;
+    }
+
     int64_t value;
     if (node->opcode() == IrOpcode::kInt32Constant)
       value = OpParameter<int32_t>(node->op());
@@ -2613,6 +2633,40 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t const node) {
   UNIMPLEMENTED();
   } else {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+  PPCOperandGeneratorT<Adapter> g(this);
+  const RootsTable& roots_table = isolate()->roots_table();
+  RootIndex root_index;
+  Node* left = nullptr;
+  Handle<HeapObject> right;
+  // HeapConstants and CompressedHeapConstants can be treated the same when
+  // using them as an input to a 32-bit comparison. Check whether either is
+  // present.
+  {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+      left = m.left().node();
+      right = m.right().ResolvedValue();
+      } else {
+      HeapObjectBinopMatcher m2(node);
+      if (m2.right().HasResolvedValue()) {
+          left = m2.left().node();
+          right = m2.right().ResolvedValue();
+      }
+      }
+  }
+  if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
+      if (RootsTable::IsReadOnly(root_index)) {
+      Tagged_t ptr = MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+      if (g.CanBeImmediate(ptr, kInt16Imm)) {
+          return VisitCompare(this, kPPC_Cmp32, g.UseRegister(left),
+                              g.TempImmediate(ptr), &cont);
+      }
+      }
+  }
+  }
   VisitWord32Compare(this, node, &cont);
   }
 }
