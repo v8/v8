@@ -284,18 +284,9 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list);
 
-  void set_main_allocator(MainAllocator* allocator);
-
-  MainAllocator* CreateMainAllocator(
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab);
-
-  MainAllocator* CreateMainAllocator(
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab,
-      LinearAllocationArea& allocation_info);
-
   MainAllocator* main_allocator() { return allocator_; }
+
+  void set_main_allocator(MainAllocator* allocator);
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
@@ -318,7 +309,6 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
 
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator* allocator_ = nullptr;
-  base::Optional<MainAllocator> owned_allocator_;
 
   friend class MainAllocator;
 };

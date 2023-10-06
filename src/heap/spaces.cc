@@ -43,31 +43,7 @@ SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
     : Space(heap, id, std::move(free_list)) {}
 
 void SpaceWithLinearArea::set_main_allocator(MainAllocator* allocator) {
-  DCHECK(!owned_allocator_.has_value());
   allocator_ = allocator;
-}
-
-MainAllocator* SpaceWithLinearArea::CreateMainAllocator(
-    CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab) {
-  DCHECK_NULL(allocator_);
-  DCHECK(!owned_allocator_.has_value());
-  owned_allocator_.emplace(heap(), this, compaction_space_kind,
-                           supports_extending_lab);
-  allocator_ = &owned_allocator_.value();
-  return allocator_;
-}
-
-MainAllocator* SpaceWithLinearArea::CreateMainAllocator(
-    CompactionSpaceKind compaction_space_kind,
-    MainAllocator::SupportsExtendingLAB supports_extending_lab,
-    LinearAllocationArea& allocation_info) {
-  DCHECK_NULL(allocator_);
-  DCHECK(!owned_allocator_.has_value());
-  owned_allocator_.emplace(heap(), this, compaction_space_kind,
-                           supports_extending_lab, allocation_info);
-  allocator_ = &owned_allocator_.value();
-  return allocator_;
 }
 
 LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {

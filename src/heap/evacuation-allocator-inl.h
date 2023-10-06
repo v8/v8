@@ -21,17 +21,16 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     case NEW_SPACE:
       return AllocateInNewSpace(object_size, origin, alignment);
     case OLD_SPACE:
-      return compaction_spaces_.Get(OLD_SPACE)->AllocateRaw(object_size,
-                                                            alignment, origin);
+      return old_space_allocator()->AllocateRaw(object_size, alignment, origin);
     case CODE_SPACE:
-      return compaction_spaces_.Get(CODE_SPACE)
-          ->AllocateRaw(object_size, alignment, origin);
+      return code_space_allocator()->AllocateRaw(object_size, alignment,
+                                                 origin);
     case SHARED_SPACE:
-      return compaction_spaces_.Get(SHARED_SPACE)
-          ->AllocateRaw(object_size, alignment, origin);
+      return shared_space_allocator()->AllocateRaw(object_size, alignment,
+                                                   origin);
     case TRUSTED_SPACE:
-      return compaction_spaces_.Get(TRUSTED_SPACE)
-          ->AllocateRaw(object_size, alignment, origin);
+      return trusted_space_allocator()->AllocateRaw(object_size, alignment,
+                                                    origin);
     default:
       UNREACHABLE();
   }
