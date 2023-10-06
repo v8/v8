@@ -243,25 +243,28 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kIndirectPointer:  // Fall through.
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
-      opcode = kPPC_LoadWordS32;
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      break;
+        opcode = kPPC_LoadWordS32;
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
 #else
-      UNREACHABLE();
+        UNREACHABLE();
 #endif
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        UNREACHABLE();
+      case MachineRepresentation::kSandboxedPointer:
+        opcode = kPPC_LoadDecodeSandboxedPointer;
+        break;
 #ifdef V8_COMPRESS_POINTERS
-    case MachineRepresentation::kTaggedSigned:
-      opcode = kPPC_LoadDecompressTaggedSigned;
-      break;
-    case MachineRepresentation::kTaggedPointer:
-      opcode = kPPC_LoadDecompressTagged;
-      break;
-    case MachineRepresentation::kTagged:
-      opcode = kPPC_LoadDecompressTagged;
-      break;
+      case MachineRepresentation::kTaggedSigned:
+        opcode = kPPC_LoadDecompressTaggedSigned;
+        break;
+      case MachineRepresentation::kTaggedPointer:
+        opcode = kPPC_LoadDecompressTagged;
+        break;
+      case MachineRepresentation::kTagged:
+        opcode = kPPC_LoadDecompressTagged;
+        break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -343,15 +346,15 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 
   if (v8_flags.enable_unconditional_write_barriers &&
-      CanBeTaggedOrCompressedPointer(rep)) {
+      CanBeTaggedOrCompressedOrIndirectPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[3];
+    InstructionOperand inputs[4];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     // OutOfLineRecordWrite uses the offset in an 'add' instruction as well as
@@ -372,7 +375,17 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code;
+    if (rep == MachineRepresentation::kIndirectPointer) {
+      DCHECK_EQ(node->opcode(), IrOpcode::kStoreIndirectPointer);
+      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
+      code = kArchStoreIndirectWithWriteBarrier;
+      Node* tag = node->InputAt(3);
+      inputs[input_count++] = g.UseImmediate(tag);
+    } else {
+      code = kArchStoreWithWriteBarrier;
+    }
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     CHECK_EQ(is_atomic, false);
@@ -410,14 +423,21 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kIndirectPointer:  // Fall through.
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
+        if (mode != kInt34Imm) mode = kInt16Imm;
         opcode = kPPC_StoreCompressTagged;
-        break;
 #else
         UNREACHABLE();
 #endif
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+        opcode = kPPC_StoreIndirectPointer;
+        break;
+      case MachineRepresentation::kSandboxedPointer:
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+        opcode = kPPC_StoreEncodeSandboxedPointer;
+        break;
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:

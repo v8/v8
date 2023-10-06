@@ -50,6 +50,39 @@ constexpr int32_t kInstanceOffset =
 constexpr int kFeedbackVectorOffset =
     (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 4 : 3) * kSystemPointerSize;
 
+// TODO(tpearson): Much of this logic is already implemented in
+// the MacroAssembler GenerateMemoryOperationWithAlignPrefixed()
+// macro. Deduplicate this code using that macro where possible.
+inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
+                           Register offset, uintptr_t offset_imm,
+                           Register scratch, bool i64_offset = false,
+                           unsigned shift_amount = 0) {
+  Register kScratchReg2 = scratch;
+  DCHECK_NE(addr, kScratchReg2);
+  DCHECK_NE(offset, kScratchReg2);
+  if (offset != no_reg) {
+    if (!i64_offset) {
+      // extract least significant 32 bits without sign extend
+      assm->ExtractBitRange(kScratchReg2, offset, 31, 0, LeaveRC, false);
+      offset = kScratchReg2;
+    }
+    if (shift_amount != 0) {
+      assm->ShiftLeftU64(kScratchReg2, offset, Operand(shift_amount));
+    }
+    assm->AddS64(kScratchReg2, offset, addr);
+    addr = kScratchReg2;
+  }
+  if (is_int31(offset_imm)) {
+    int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
+    return MemOperand(addr, offset_imm32);
+  } else {
+    // Offset immediate does not fit in 31 bits.
+    assm->mov(kScratchReg2, Operand(offset_imm));
+    assm->AddS64(kScratchReg2, addr, kScratchReg2);
+    return MemOperand(kScratchReg2, 0);
+  }
+}
+
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
@@ -338,16 +371,28 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
 
 void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
                                            int offset, ExternalPointerTag tag,
-                                           Register /* scratch */) {
+                                           Register scratch) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadExternalPointerField(dst, MemOperand{src_addr, offset}, tag,
+                           kRootRegister, scratch);
+#else
   LoadFullPointer(dst, src_addr, offset);
+#endif
 }
 
 void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
                                            int offset, Register index,
                                            ExternalPointerTag tag,
                                            Register scratch) {
+#ifdef V8_ENABLE_SANDBOX
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, index, offset, scratch,
+                                        false, V8_ENABLE_SANDBOX_BOOL ? 2 : 3);
+  LoadExternalPointerField(dst, src_op, tag, kRootRegister, scratch);
+#else
   ShiftLeftU64(scratch, index, Operand(kSystemPointerSizeLog2));
   LoadU64(dst, MemOperand(src_addr, scratch, offset), r0);
+#endif
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -372,6 +417,18 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   LoadU64(dst, MemOperand(src_addr, offset_imm), r0);
 }
 
+#ifdef V8_ENABLE_SANDBOX
+void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
+                                                        Register src_addr,
+                                                        int32_t offset_imm) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MemOperand src_op =
+      liftoff::GetMemOp(this, src_addr, no_reg, offset_imm, scratch);
+  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op, scratch);
+}
+#endif
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm, Register src,
@@ -383,6 +440,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
+  // NOTE: to_condition(kZero) is the equality condition (eq)
+  // This line verifies the masked address is equal to dst_addr,
+  // not that it is zero!
   CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
   JumpIfSmi(src, &exit);

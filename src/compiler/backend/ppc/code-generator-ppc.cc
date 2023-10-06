@@ -140,10 +140,11 @@ namespace {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
-                       UnwindingInfoWriter* unwinding_info_writer)
+  OutOfLineRecordWrite(
+      CodeGenerator* gen, Register object, Register offset, Register value,
+      Register scratch0, Register scratch1, RecordWriteMode mode,
+      StubCallMode stub_mode, UnwindingInfoWriter* unwinding_info_writer,
+      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
@@ -157,15 +158,17 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        indirect_pointer_tag_(indirect_pointer_tag) {
     DCHECK(!AreAliased(object, offset, scratch0, scratch1));
     DCHECK(!AreAliased(value, offset, scratch0, scratch1));
   }
 
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
-                       UnwindingInfoWriter* unwinding_info_writer)
+  OutOfLineRecordWrite(
+      CodeGenerator* gen, Register object, int32_t offset, Register value,
+      Register scratch0, Register scratch1, RecordWriteMode mode,
+      StubCallMode stub_mode, UnwindingInfoWriter* unwinding_info_writer,
+      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         offset_(no_reg),
@@ -179,12 +182,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        indirect_pointer_tag_(indirect_pointer_tag) {
   }
 
   void Generate() final {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm());
-    if (COMPRESS_POINTERS_BOOL) {
+    // When storing an indirect pointer, the value will always be a
+    // full/decompressed pointer.
+    if (COMPRESS_POINTERS_BOOL &&
+        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
       __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(value_, scratch0_,
@@ -207,6 +214,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
+      DCHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
+                                    indirect_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
@@ -237,6 +248,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
+  IndirectPointerTag indirect_pointer_tag_;
 };
 
 Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
@@ -792,28 +804,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() {
-  if (v8_flags.debug_code) {
-    // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    __ ComputeCodeStartAddress(ip);
-    __ CmpS64(ip, kJavaScriptCallCodeStartRegister);
-    __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
-  }
-
-  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
-                     r0);
-  __ LoadU32(r11, FieldMemOperand(r11, Code::kFlagsOffset), r0);
-  __ TestBit(r11, Code::kMarkedForDeoptimizationBit);
-  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, cr0);
-}
+void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -1148,6 +1139,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      // Indirect pointer writes must use a different opcode.
+      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
@@ -1177,7 +1170,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreTaggedField(value, MemOperand(object, offset), r0);
       }
-      if (mode > RecordWriteMode::kValueIsPointer) {
+      // Skip the write barrier if the value is a Smi. However, this is only
+      // valid if the value isn't an indirect pointer. Otherwise the value will
+      // be a pointer table index, which will always look like a Smi (but
+      // actually reference a pointer in the pointer table).
+      if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
@@ -1186,8 +1183,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
-    case kArchStoreIndirectWithWriteBarrier:
-      UNREACHABLE();
+    case kArchStoreIndirectWithWriteBarrier: {
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      OutOfLineRecordWrite* ool;
+      DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      Register object = i.InputRegister(0);
+      Register value = i.InputRegister(2);
+      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidIndirectPointerTag(tag));
+      if (addressing_mode == kMode_MRI) {
+        uint64_t offset = i.InputInt64(1);
+        ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, offset, value, scratch0, scratch1, mode,
+            DetermineStubCallMode(), &unwinding_info_writer_, tag);
+        __ StoreIndirectPointerField(value, MemOperand(object, offset), r0);
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        Register offset(i.InputRegister(1));
+        ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, offset, value, scratch0, scratch1, mode,
+            DetermineStubCallMode(), &unwinding_info_writer_, tag);
+        __ StoreIndirectPointerField(value, MemOperand(object, offset), r0);
+      }
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
@@ -2896,9 +2923,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode, &index);
       Register value = i.InputRegister(index);
-      bool is_atomic = i.InputInt32(3);
+      bool is_atomic = i.InputInt32(index + 1);
       if (is_atomic) __ lwsync();
       __ StoreTaggedField(value, operand, r0);
+      if (is_atomic) __ sync();
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    }
+    case kPPC_StoreIndirectPointer: {
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand mem = i.MemoryOperand(&mode, &index);
+      Register value = i.InputRegister(index);
+      bool is_atomic = i.InputInt32(index + 1);
+      if (is_atomic) __ lwsync();
+      __ StoreIndirectPointerField(value, mem, kScratchReg);
+      if (is_atomic) __ sync();
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    }
+    case kPPC_LoadDecodeSandboxedPointer: {
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand mem = i.MemoryOperand(&mode, &index);
+      bool is_atomic = i.InputInt32(index);
+      __ LoadSandboxedPointerField(i.OutputRegister(), mem, kScratchReg);
+      if (is_atomic) __ lwsync();
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    }
+    case kPPC_StoreEncodeSandboxedPointer: {
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand mem = i.MemoryOperand(&mode, &index);
+      Register value = i.InputRegister(index);
+      bool is_atomic = i.InputInt32(index + 1);
+      if (is_atomic) __ lwsync();
+      __ StoreSandboxedPointerField(value, mem, kScratchReg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
