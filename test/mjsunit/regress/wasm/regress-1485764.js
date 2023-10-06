@@ -16,7 +16,7 @@ let instance = (() => {
     .addLocals(kWasmAnyRef, 1)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kExprLocalTee, 1,
       // After this cast the local[1] can only be a subtype of
       // (ref null structI32).

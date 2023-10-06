@@ -47,13 +47,13 @@ void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
                                        const Value& input, Value* result) {
   if (!generate_value()) return;
   switch (opcode) {
-    case kExprExternExternalize: {
+    case kExprExternConvertAny: {
       result->runtime_value = WasmValue(
           WasmToJSObject(isolate_, input.runtime_value.to_ref()),
           ValueType::RefMaybeNull(HeapType::kExtern, input.type.nullability()));
       break;
     }
-    case kExprExternInternalize: {
+    case kExprAnyConvertExtern: {
       const char* error_message = nullptr;
       result->runtime_value = WasmValue(
           JSToWasmObject(isolate_, input.runtime_value.to_ref(), kWasmAnyRef,

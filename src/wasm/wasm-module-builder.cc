@@ -506,10 +506,10 @@ WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
       return kExprRefI31;
     case WasmInitExpr::kStringConst:
       return kExprStringConst;
-    case WasmInitExpr::kExternInternalize:
-      return kExprExternInternalize;
-    case WasmInitExpr::kExternExternalize:
-      return kExprExternExternalize;
+    case WasmInitExpr::kAnyConvertExtern:
+      return kExprAnyConvertExtern;
+    case WasmInitExpr::kExternConvertAny:
+      return kExprExternConvertAny;
   }
 }
 
@@ -589,8 +589,8 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
       break;
     }
     case WasmInitExpr::kRefI31:
-    case WasmInitExpr::kExternInternalize:
-    case WasmInitExpr::kExternExternalize: {
+    case WasmInitExpr::kAnyConvertExtern:
+    case WasmInitExpr::kExternConvertAny: {
       WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0]);
       WasmOpcode opcode = FromInitExprOperator(init.kind());
       DCHECK_EQ(opcode >> 8, kGCPrefix);

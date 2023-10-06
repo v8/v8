@@ -1102,11 +1102,11 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildAsmjsLoadMem(MachineType::Float32(), input);
     case wasm::kExprF64AsmjsLoadMem:
       return BuildAsmjsLoadMem(MachineType::Float64(), input);
-    case wasm::kExprExternInternalize: {
-      return gasm_->WasmExternInternalize(input);
+    case wasm::kExprAnyConvertExtern: {
+      return gasm_->WasmAnyConvertExtern(input);
     }
-    case wasm::kExprExternExternalize:
-      return gasm_->WasmExternExternalize(input);
+    case wasm::kExprExternConvertAny:
+      return gasm_->WasmExternConvertAny(input);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
@@ -6711,7 +6711,7 @@ Node* WasmGraphBuilder::WellKnown_StringToLocaleLowerCaseStringref(
     // JS null, so we must externalize any Wasm null here.
     // Externalizing the {locale} is not required, because
     // {Object::ConvertToString} has been taught how to deal with WasmNull.
-    string = gasm_->WasmExternExternalize(string);
+    string = gasm_->WasmExternConvertAny(string);
   }
   int param_count = 2;  // String, locale.
   CallDescriptor* call_descriptor = Linkage::GetJSCallDescriptor(

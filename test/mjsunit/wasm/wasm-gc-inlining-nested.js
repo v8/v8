@@ -27,14 +27,14 @@ let wasm = (function createWasmModule() {
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprArrayNewDefault, array,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
   builder.addFunction('arrayLen', makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, array,
       kGCPrefix, kExprArrayLen,
     ])

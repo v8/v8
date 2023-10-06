@@ -123,7 +123,7 @@ namespace v8::internal::wasm {
   V(StringCompare)                       \
   V(WasmStringFromCodePoint)             \
   V(WasmStringHash)                      \
-  V(WasmExternInternalize)               \
+  V(WasmAnyConvertExtern)                \
   V(WasmStringFromDataSegment)           \
   V(StringAdd_CheckNone)                 \
   V(DebugPrintFloat64)                   \

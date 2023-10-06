@@ -407,11 +407,11 @@ class InitExprInterface {
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
     switch (opcode) {
-      case kExprExternInternalize:
-        os_ << "kGCPrefix, kExprExternInternalize, ";
+      case kExprAnyConvertExtern:
+        os_ << "kGCPrefix, kExprAnyConvertExtern, ";
         break;
-      case kExprExternExternalize:
-        os_ << "kGCPrefix, kExprExternExternalize, ";
+      case kExprExternConvertAny:
+        os_ << "kGCPrefix, kExprExternConvertAny, ";
         break;
       default:
         UNREACHABLE();

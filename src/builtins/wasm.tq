@@ -1445,7 +1445,7 @@ builtin WasmStringHash(string: String): int32 {
   return SmiToInt32(result);
 }
 
-builtin WasmExternInternalize(externObject: JSAny): JSAny {
+builtin WasmAnyConvertExtern(externObject: JSAny): JSAny {
   const instance = LoadInstanceFromFrame();
   const context = LoadContextFromInstance(instance);
 

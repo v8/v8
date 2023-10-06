@@ -2040,24 +2040,25 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(WasmExternInternalize) {
+WASM_COMPILED_EXEC_TEST(WasmAnyConvertExtern) {
   WasmGCTester tester(execution_tier);
 
   const uint8_t kNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_GC_INTERNALIZE(WASM_REF_NULL(kNoExternCode))),
+      {WASM_REF_IS_NULL(
+           WASM_GC_ANY_CONVERT_EXTERN(WASM_REF_NULL(kNoExternCode))),
        kExprEnd});
 
   tester.CompileModule();
   tester.CheckResult(kNull, 1);
 }
 
-WASM_COMPILED_EXEC_TEST(WasmExternExternalize) {
+WASM_COMPILED_EXEC_TEST(WasmExternConvertAny) {
   WasmGCTester tester(execution_tier);
 
   const uint8_t kNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_GC_EXTERNALIZE(WASM_REF_NULL(kNoneCode))),
+      {WASM_REF_IS_NULL(WASM_GC_EXTERN_CONVERT_ANY(WASM_REF_NULL(kNoneCode))),
        kExprEnd});
 
   tester.CompileModule();

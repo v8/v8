@@ -1599,13 +1599,13 @@ class WasmGenerator {
     return true;
   }
 
-  bool extern_internalize(HeapType type, DataRange* data,
+  bool any_convert_extern(HeapType type, DataRange* data,
                           Nullability nullable) {
     if (type.representation() != HeapType::kAny) {
       return false;
     }
     GenerateRef(HeapType(HeapType::kExtern), data);
-    builder_->EmitWithPrefix(kExprExternInternalize);
+    builder_->EmitWithPrefix(kExprAnyConvertExtern);
     if (nullable == kNonNullable) {
       builder_->Emit(kExprRefAsNonNull);
     }
@@ -2646,7 +2646,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   constexpr GenerateFnWithHeap alternatives_func_any[] = {
       &WasmGenerator::table_get,       &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref,   &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast,        &WasmGenerator::extern_internalize,
+      &WasmGenerator::ref_cast,        &WasmGenerator::any_convert_extern,
       &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
 
   constexpr GenerateFnWithHeap alternatives_other[] = {
@@ -2766,7 +2766,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
     case HeapType::kExtern:
       if (data->get<bool>()) {
         GenerateRef(HeapType(HeapType::kAny), data);
-        builder_->EmitWithPrefix(kExprExternExternalize);
+        builder_->EmitWithPrefix(kExprExternConvertAny);
         if (nullability == kNonNullable) {
           builder_->Emit(kExprRefAsNonNull);
         }
@@ -3067,7 +3067,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           // case.
           if (recursion_depth < kMaxRecursionDepth && range.size() > 0 &&
               range.get<uint8_t>() % 4 == 3) {
-            return WasmInitExpr::ExternInternalize(
+            return WasmInitExpr::AnyConvertExtern(
                 zone,
                 GenerateInitExpr(zone, range, builder,
                                  ValueType::RefMaybeNull(HeapType::kExtern,
@@ -3092,7 +3092,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           return WasmInitExpr::RefFuncConst(index);
         }
         case HeapType::kExtern:
-          return WasmInitExpr::ExternExternalize(
+          return WasmInitExpr::ExternConvertAny(
               zone,
               GenerateInitExpr(
                   zone, range, builder,

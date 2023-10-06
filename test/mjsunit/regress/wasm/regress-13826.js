@@ -36,7 +36,7 @@ builder.addFunction('cast', kSig_r_v)
       kExprEnd,
       kExprLocalTee, 0,
       kGCPrefix, kExprRefCastNull, kStructRefCode,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]);
 
 let instance = builder.instantiate();

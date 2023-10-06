@@ -1932,16 +1932,16 @@ class LiftoffCompiler {
       // a sentinel for the negation of ref.is_null.
       case kExprRefAsNonNull:
         return EmitIsNull(opcode, value.type);
-      case kExprExternInternalize: {
+      case kExprAnyConvertExtern: {
         VarState input_state = __ cache_state()->stack_state.back();
-        CallBuiltin(Builtin::kWasmExternInternalize,
+        CallBuiltin(Builtin::kWasmAnyConvertExtern,
                     MakeSig::Returns(kRefNull).Params(kRefNull), {input_state},
                     decoder->position());
         __ DropValues(1);
         __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
         return;
       }
-      case kExprExternExternalize: {
+      case kExprExternConvertAny: {
         LiftoffRegList pinned;
         LiftoffRegister ref = pinned.set(__ PopToModifiableRegister(pinned));
         LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);

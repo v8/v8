@@ -19,14 +19,14 @@ function CreateWasmObjects() {
       .addBody([
         kExprI32Const, 42,                       // --
         kGCPrefix, kExprStructNew, struct_type,  // --
-        kGCPrefix, kExprExternExternalize        // --
+        kGCPrefix, kExprExternConvertAny        // --
       ]);
   builder.addFunction('MakeArray', makeSig([], [kWasmExternRef]))
       .exportFunc()
       .addBody([
         kExprI32Const, 2,                             // length
         kGCPrefix, kExprArrayNewDefault, array_type,  // --
-        kGCPrefix, kExprExternExternalize             // --
+        kGCPrefix, kExprExternConvertAny             // --
       ]);
 
   let instance = builder.instantiate();

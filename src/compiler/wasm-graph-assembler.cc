@@ -440,13 +440,13 @@ Node* WasmGraphAssembler::AssertNotNull(Node* object, wasm::ValueType type,
                                   object, effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternInternalize(), object,
+Node* WasmGraphAssembler::WasmAnyConvertExtern(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmAnyConvertExtern(), object,
                                   effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternExternalize(), object,
+Node* WasmGraphAssembler::WasmExternConvertAny(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmExternConvertAny(), object,
                                   effect(), control()));
 }
 

@@ -265,7 +265,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -469,14 +469,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI64Const, 44,
       kGCPrefix, kExprStructNew, struct_type_invalid,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   builder.addFunction("valid_struct", makeSig([], [kWasmExternRef]))
     .addBody([
       kExprI32Const, 44,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
     builder.addFunction("valid_struct_sub", makeSig([], [kWasmExternRef]))
@@ -484,7 +484,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kExprI32Const, 55,
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_sub,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
@@ -522,7 +522,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_base,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
@@ -544,7 +544,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 

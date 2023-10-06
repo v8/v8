@@ -113,7 +113,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(ExternInternalize)(V<Tagged> object) {
+  OpIndex REDUCE(AnyConvertExtern)(V<Tagged> object) {
     Label<Tagged> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
@@ -195,7 +195,7 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(ExternExternalize)(V<Tagged> object) {
+  OpIndex REDUCE(ExternConvertAny)(V<Tagged> object) {
     Label<Tagged> end(&Asm());
     GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
     GOTO(end, Null(wasm::kWasmExternRef));

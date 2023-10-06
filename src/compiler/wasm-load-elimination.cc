@@ -59,7 +59,7 @@ Node* ResolveAliases(Node* node) {
 constexpr int kArrayLengthFieldIndex = -1;
 constexpr int kStringPrepareForGetCodeunitIndex = -2;
 constexpr int kStringAsWtf16Index = -3;
-constexpr int kExternInternalizeIndex = -4;
+constexpr int kAnyConvertExternIndex = -4;
 }  // namespace
 
 Reduction WasmLoadElimination::UpdateState(Node* node,
@@ -149,8 +149,8 @@ Reduction WasmLoadElimination::Reduce(Node* node) {
       return ReduceStringPrepareForGetCodeunit(node);
     case IrOpcode::kStringAsWtf16:
       return ReduceStringAsWtf16(node);
-    case IrOpcode::kWasmExternInternalize:
-      return ReduceExternInternalize(node);
+    case IrOpcode::kWasmAnyConvertExtern:
+      return ReduceAnyConvertExtern(node);
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
@@ -385,12 +385,12 @@ Reduction WasmLoadElimination::ReduceStringAsWtf16(Node* node) {
   return ReduceLoadLikeFromImmutable(node, kStringAsWtf16Index);
 }
 
-Reduction WasmLoadElimination::ReduceExternInternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
+Reduction WasmLoadElimination::ReduceAnyConvertExtern(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
   // An externref is not immutable meaning it could change. However, the values
-  // relevant for extern.internalize (null, HeapNumber, Smi) are immutable, so
+  // relevant for any.convert_extern (null, HeapNumber, Smi) are immutable, so
   // we can treat the externref as immutable.
-  return ReduceLoadLikeFromImmutable(node, kExternInternalizeIndex);
+  return ReduceLoadLikeFromImmutable(node, kAnyConvertExternIndex);
 }
 
 Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {

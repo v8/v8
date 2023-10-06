@@ -262,9 +262,9 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* AssertNotNull(Node* object, wasm::ValueType type, TrapId trap_id);
 
-  Node* WasmExternInternalize(Node* object);
+  Node* WasmAnyConvertExtern(Node* object);
 
-  Node* WasmExternExternalize(Node* object);
+  Node* WasmExternConvertAny(Node* object);
 
   Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
                   bool is_signed, CheckForNull null_check);

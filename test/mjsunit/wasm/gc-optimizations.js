@@ -588,7 +588,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("mkStruct", makeSig([], [kWasmExternRef]))
     .addBody([kGCPrefix, kExprStructNewDefault, struct_a,
-              kGCPrefix, kExprExternExternalize])
+              kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let callee = builder.addFunction("callee", callee_sig)
@@ -598,7 +598,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
        kGCPrefix, kExprStructGet, struct_b, 0]);
 
   builder.addFunction("main", makeSig([kWasmExternRef], [kWasmI32]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
               kGCPrefix, kExprRefCast, struct_a,
               kExprCallFunction, callee.index])
     .exportFunc();
@@ -689,17 +689,17 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprArrayNewFixed, array, 1,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
   builder.addFunction('get', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       // The following two operations are optimized away.
-      kGCPrefix, kExprExternExternalize,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprExternConvertAny,
+      kGCPrefix, kExprAnyConvertExtern,
       //
       kGCPrefix, kExprRefCastNull, array,
       kExprLocalGet, 1,

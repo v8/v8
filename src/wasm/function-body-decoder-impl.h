@@ -2353,8 +2353,8 @@ class WasmDecoder : public Decoder {
           case kExprRefI31:
           case kExprI31GetS:
           case kExprI31GetU:
-          case kExprExternInternalize:
-          case kExprExternExternalize:
+          case kExprAnyConvertExtern:
+          case kExprExternConvertAny:
           case kExprArrayLen:
             return length;
           case kExprStringNewUtf8:
@@ -4942,21 +4942,21 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         pc_offset += flags_imm.length;
         return ParseBrOnCastFail(opcode, pc_offset, flags_imm.flags);
       }
-      case kExprExternInternalize: {
+      case kExprAnyConvertExtern: {
         Value extern_val = Pop(kWasmExternRef);
         ValueType intern_type = ValueType::RefMaybeNull(
             HeapType::kAny, Nullability(extern_val.type.is_nullable()));
         Value* intern_val = Push(intern_type);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternInternalize,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprAnyConvertExtern,
                                            extern_val, intern_val);
         return opcode_length;
       }
-      case kExprExternExternalize: {
+      case kExprExternConvertAny: {
         Value val = Pop(kWasmAnyRef);
         ValueType extern_type = ValueType::RefMaybeNull(
             HeapType::kExtern, Nullability(val.type.is_nullable()));
         Value* extern_val = Push(extern_type);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternExternalize, val,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternConvertAny, val,
                                            extern_val);
         return opcode_length;
       }

@@ -28,7 +28,7 @@ builder.addFunction('main', kSig_r_v).exportFunc().addBody([
   kExprRefNull, kAnyRefCode,
   kExprRefNull, kAnyRefCode,
   kExprCallFunction, callee.index,
-  kGCPrefix, kExprExternExternalize
+  kGCPrefix, kExprExternConvertAny
 ]);
 
 let instance = builder.instantiate();

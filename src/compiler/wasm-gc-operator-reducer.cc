@@ -47,8 +47,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceWasmTypeCastAbstract(node);
     case IrOpcode::kTypeGuard:
       return ReduceTypeGuard(node);
-    case IrOpcode::kWasmExternInternalize:
-      return ReduceWasmExternInternalize(node);
+    case IrOpcode::kWasmAnyConvertExtern:
+      return ReduceWasmAnyConvertExtern(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kIfTrue:
@@ -332,9 +332,9 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
   return NoChange();
 }
 
-Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
-  // Remove redundant extern.internalize(extern.externalize(...)) pattern.
+Reduction WasmGCOperatorReducer::ReduceWasmAnyConvertExtern(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
+  // Remove redundant any.convert_extern(extern.convert_any(...)) pattern.
   Node* input = NodeProperties::GetValueInput(node, 0);
   while (input->opcode() == IrOpcode::kTypeGuard) {
     input = NodeProperties::GetValueInput(input, 0);
@@ -343,8 +343,8 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
       input->opcode() == IrOpcode::kDeadValue) {
     return NoChange();
   }
-  if (input->opcode() == IrOpcode::kWasmExternExternalize) {
-    // "Skip" the extern.externalize which doesn't have an effect on the value.
+  if (input->opcode() == IrOpcode::kWasmExternConvertAny) {
+    // "Skip" the extern.convert_any which doesn't have an effect on the value.
     input = NodeProperties::GetValueInput(input, 0);
     ReplaceWithValue(node, input);
     node->Kill();

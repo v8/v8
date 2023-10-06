@@ -3785,10 +3785,10 @@ class TurboshaftGraphBuildingInterface {
         // We abuse ref.as_non_null, which isn't otherwise used in this switch,
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
-      case kExprExternInternalize:
-        return __ ExternInternalize(arg);
-      case kExprExternExternalize:
-        return __ ExternExternalize(arg);
+      case kExprAnyConvertExtern:
+        return __ AnyConvertExtern(arg);
+      case kExprExternConvertAny:
+        return __ ExternConvertAny(arg);
       default:
         UNREACHABLE();
     }

@@ -12,7 +12,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_v_r)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, kStringViewWtf16Code,
       kExprDrop,
     ]).exportFunc();
@@ -28,7 +28,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_v_r)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefTestNull, kStringViewWtf16Code,
       kExprDrop,
     ]).exportFunc();
@@ -47,7 +47,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprBlock, kWasmVoid,
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprBrOnCastGeneric, 0b11, 0, kAnyRefCode, view,
       kExprDrop,
       kExprEnd,
@@ -67,7 +67,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprBlock, kWasmVoid,
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprBrOnCastFailGeneric, 0b11, 0, kAnyRefCode, view,
       kExprDrop,
       kExprEnd,

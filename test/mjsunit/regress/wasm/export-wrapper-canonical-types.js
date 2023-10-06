@@ -18,7 +18,7 @@ let exportedAny = builder.addFunction("exportedAny", funcSig)
   .addBody([
     kExprLocalGet, 0,
     kExprCallRef, creatorAnySig,
-    kGCPrefix, kExprExternExternalize,
+    kGCPrefix, kExprExternConvertAny,
   ])
 
 builder.addFunction("createStruct", creatorAnySig)
@@ -45,7 +45,7 @@ let wasm2 = (function () {
     .addBody([
       kExprLocalGet, 0,
       kExprCallRef, creatorAnySig,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 

@@ -61,10 +61,10 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceRttCanon(node);
     case IrOpcode::kTypeGuard:
       return ReduceTypeGuard(node);
-    case IrOpcode::kWasmExternInternalize:
-      return ReduceWasmExternInternalize(node);
-    case IrOpcode::kWasmExternExternalize:
-      return ReduceWasmExternExternalize(node);
+    case IrOpcode::kWasmAnyConvertExtern:
+      return ReduceWasmAnyConvertExtern(node);
+    case IrOpcode::kWasmExternConvertAny:
+      return ReduceWasmExternConvertAny(node);
     case IrOpcode::kWasmStructGet:
       return ReduceWasmStructGet(node);
     case IrOpcode::kWasmStructSet:
@@ -540,8 +540,8 @@ constexpr int32_t kInt31MaxValue = 0x3fffffff;
 constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
 }  // namespace
 
-Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
+Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
   Node* input = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -636,8 +636,8 @@ Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
   return Replace(end_label.PhiAt(0));
 }
 
-Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternExternalize);
+Reduction WasmGCLowering::ReduceWasmExternConvertAny(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternConvertAny);
   Node* object = node->InputAt(0);
   gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
                                 NodeProperties::GetControlInput(node));

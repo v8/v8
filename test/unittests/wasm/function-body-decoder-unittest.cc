@@ -4550,49 +4550,49 @@ TEST_F(FunctionBodyDecoderTest, DropOnEmptyStack) {
   ExpectValidates(sigs.v_v(), {kExprUnreachable, kExprDrop}, kAppendEnd);
 }
 
-TEST_F(FunctionBodyDecoderTest, ExternInternalize) {
+TEST_F(FunctionBodyDecoderTest, AnyConvertExtern) {
   WASM_FEATURE_SCOPE(gc);
   ExpectValidates(FunctionSig::Build(zone(), {kWasmAnyRef}, {}),
-                  {WASM_GC_INTERNALIZE(WASM_REF_NULL(kNoExternCode))});
+                  {WASM_GC_ANY_CONVERT_EXTERN(WASM_REF_NULL(kNoExternCode))});
   ExpectValidates(FunctionSig::Build(zone(), {kWasmAnyRef}, {kWasmExternRef}),
-                  {WASM_GC_INTERNALIZE(WASM_LOCAL_GET(0))});
+                  {WASM_GC_ANY_CONVERT_EXTERN(WASM_LOCAL_GET(0))});
   ExpectValidates(
       FunctionSig::Build(zone(), {kWasmAnyRef}, {kWasmExternRef.AsNonNull()}),
-      {WASM_GC_INTERNALIZE(WASM_LOCAL_GET(0))});
+      {WASM_GC_ANY_CONVERT_EXTERN(WASM_LOCAL_GET(0))});
   ExpectFailure(FunctionSig::Build(zone(), {kWasmAnyRef}, {}),
-                {WASM_GC_INTERNALIZE(kExprNop)}, kAppendEnd,
-                "not enough arguments on the stack for extern.internalize "
+                {WASM_GC_ANY_CONVERT_EXTERN(kExprNop)}, kAppendEnd,
+                "not enough arguments on the stack for any.convert_extern "
                 "(need 1, got 0)");
   ExpectFailure(
       FunctionSig::Build(zone(), {kWasmAnyRef.AsNonNull()}, {kWasmExternRef}),
-      {WASM_GC_INTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
+      {WASM_GC_ANY_CONVERT_EXTERN(WASM_LOCAL_GET(0))}, kAppendEnd,
       "type error in fallthru[0] (expected (ref any), got anyref)");
   ExpectFailure(FunctionSig::Build(zone(), {kWasmAnyRef}, {kWasmAnyRef}),
-                {WASM_GC_INTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
-                "extern.internalize[0] expected type externref, found "
+                {WASM_GC_ANY_CONVERT_EXTERN(WASM_LOCAL_GET(0))}, kAppendEnd,
+                "any.convert_extern[0] expected type externref, found "
                 "local.get of type anyref");
 }
 
-TEST_F(FunctionBodyDecoderTest, ExternExternalize) {
+TEST_F(FunctionBodyDecoderTest, ExternConvertAny) {
   WASM_FEATURE_SCOPE(gc);
   ExpectValidates(FunctionSig::Build(zone(), {kWasmExternRef}, {}),
-                  {WASM_GC_EXTERNALIZE(WASM_REF_NULL(kNoneCode))});
+                  {WASM_GC_EXTERN_CONVERT_ANY(WASM_REF_NULL(kNoneCode))});
   ExpectValidates(FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmAnyRef}),
-                  {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))});
+                  {WASM_GC_EXTERN_CONVERT_ANY(WASM_LOCAL_GET(0))});
   ExpectValidates(
       FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmAnyRef.AsNonNull()}),
-      {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))});
+      {WASM_GC_EXTERN_CONVERT_ANY(WASM_LOCAL_GET(0))});
   ExpectFailure(FunctionSig::Build(zone(), {kWasmExternRef}, {}),
-                {WASM_GC_EXTERNALIZE(kExprNop)}, kAppendEnd,
-                "not enough arguments on the stack for extern.externalize "
+                {WASM_GC_EXTERN_CONVERT_ANY(kExprNop)}, kAppendEnd,
+                "not enough arguments on the stack for extern.convert_any "
                 "(need 1, got 0)");
   ExpectFailure(
       FunctionSig::Build(zone(), {kWasmExternRef.AsNonNull()}, {kWasmAnyRef}),
-      {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
+      {WASM_GC_EXTERN_CONVERT_ANY(WASM_LOCAL_GET(0))}, kAppendEnd,
       "type error in fallthru[0] (expected (ref extern), got externref)");
   ExpectFailure(FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmExternRef}),
-                {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
-                "extern.externalize[0] expected type anyref, found "
+                {WASM_GC_EXTERN_CONVERT_ANY(WASM_LOCAL_GET(0))}, kAppendEnd,
+                "extern.convert_any[0] expected type anyref, found "
                 "local.get of type externref");
 }
 

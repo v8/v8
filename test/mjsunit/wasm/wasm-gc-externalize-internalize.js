@@ -31,7 +31,7 @@ let instance = (() => {
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -61,7 +61,7 @@ let instance = (() => {
       kExprRefIsNull,
       kExprBlock, kWasmVoid,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefCast, struct,
         kGCPrefix, kExprStructGet, struct, 0, // value
@@ -85,7 +85,7 @@ let instance = (() => {
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprRefI31,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -115,7 +115,7 @@ let instance = (() => {
       kExprRefIsNull,
       kExprBlock, kWasmVoid,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefCast, kI31RefCode,
         kGCPrefix, kExprI31GetS, // value
@@ -141,7 +141,7 @@ let instance = (() => {
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprArrayNewFixed, array, 1,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -172,7 +172,7 @@ let instance = (() => {
       kExprRefIsNull,
       kExprBlock, kWasmVoid,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefCast, array,
         kExprI32Const, 0,

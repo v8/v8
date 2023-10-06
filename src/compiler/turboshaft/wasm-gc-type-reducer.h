@@ -255,17 +255,17 @@ class WasmGCTypeReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  OpIndex REDUCE(ExternInternalize)(V<Tagged> object) {
+  OpIndex REDUCE(AnyConvertExtern)(V<Tagged> object) {
     if (object.valid()) {
-      const ExternExternalizeOp* externalize =
-          __ output_graph().Get(object).template TryCast<ExternExternalizeOp>();
+      const ExternConvertAnyOp* externalize =
+          __ output_graph().Get(object).template TryCast<ExternConvertAnyOp>();
       if (externalize != nullptr) {
         // Directly return the object as
-        // extern.internalize(extern.externalize(x)) == x.
+        // any.convert_extern(extern.convert_any(x)) == x.
         return __ MapToNewGraph(externalize->object());
       }
     }
-    return Next::ReduceExternInternalize(object);
+    return Next::ReduceAnyConvertExtern(object);
   }
 
  private:

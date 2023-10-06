@@ -1181,8 +1181,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCheckAbstract(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmTypeCastAbstract(WasmTypeCheckConfig config);
-  const Operator* WasmExternInternalize();
-  const Operator* WasmExternExternalize();
+  const Operator* WasmAnyConvertExtern();
+  const Operator* WasmExternConvertAny();
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
                                 bool is_signed, CheckForNull null_check);
   const Operator* WasmStructSet(const wasm::StructType* type, int field_index,

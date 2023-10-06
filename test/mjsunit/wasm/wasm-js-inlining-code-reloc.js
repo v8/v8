@@ -16,7 +16,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('getElementNull', makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0])
     .exportFunc();

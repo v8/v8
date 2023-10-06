@@ -1714,8 +1714,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kIsNull:
     case IrOpcode::kIsNotNull:
     case IrOpcode::kAssertNotNull:
-    case IrOpcode::kWasmExternInternalize:
-    case IrOpcode::kWasmExternExternalize:
+    case IrOpcode::kWasmAnyConvertExtern:
+    case IrOpcode::kWasmExternConvertAny:
     case IrOpcode::kWasmStructGet:
     case IrOpcode::kWasmStructSet:
     case IrOpcode::kWasmArrayGet:

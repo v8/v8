@@ -60,20 +60,20 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   builder.addFunction("roundtrip", makeSig([kWasmExternRef], [kWasmExternRef]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
-              kGCPrefix, kExprExternExternalize])
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
+              kGCPrefix, kExprExternConvertAny])
     .exportFunc();
   builder.addFunction("signed", makeSig([kWasmExternRef], [kWasmI32]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
               kGCPrefix, kExprRefCast, kI31RefCode, kGCPrefix, kExprI31GetS])
     .exportFunc();
   builder.addFunction("unsigned", makeSig([kWasmExternRef], [kWasmI32]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
               kGCPrefix, kExprRefCast, kI31RefCode, kGCPrefix, kExprI31GetU])
     .exportFunc();
   builder.addFunction("new", makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31,
-              kGCPrefix, kExprExternExternalize])
+              kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let instance = builder.instantiate();

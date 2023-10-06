@@ -69,7 +69,7 @@ if (use_module_builder) {
         kExprLocalGet, 0, // length
         kExprLocalGet, 2, // backingStore
         kGCPrefix, kExprStructNew, arrayStruct,
-        kGCPrefix, kExprExternExternalize,
+        kGCPrefix, kExprExternConvertAny,
       ])
       .exportFunc();
 
@@ -77,7 +77,7 @@ if (use_module_builder) {
         makeSig([kWasmExternRef], [kWasmI32]))
       .addBody([
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kGCPrefix, kExprRefCast, arrayStruct,
         kGCPrefix, kExprStructGet, arrayStruct, 0,
       ])
@@ -86,7 +86,7 @@ if (use_module_builder) {
     builder.addFunction('get', makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
       .addBody([
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kGCPrefix, kExprRefCast, arrayStruct,
         kGCPrefix, kExprStructGet, arrayStruct, 1,
         kExprLocalGet, 1,
@@ -99,7 +99,7 @@ if (use_module_builder) {
       .addBody([
         // index = cast<arrayStruct>(internalize(local.get 0)).length;
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprAnyConvertExtern,
         kGCPrefix, kExprRefCast, arrayStruct,
         kGCPrefix, kExprStructGet, arrayStruct, 0,
         kExprLocalTee, 1,
@@ -117,7 +117,7 @@ if (use_module_builder) {
           //     .backingStore[--index]
           //   + result;
           kExprLocalGet, 0,
-          kGCPrefix, kExprExternInternalize,
+          kGCPrefix, kExprAnyConvertExtern,
           kGCPrefix, kExprRefCast, arrayStruct,
           kGCPrefix, kExprStructGet, arrayStruct, 1,
 

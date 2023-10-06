@@ -562,11 +562,11 @@ class CallWithReduceArgsHelper {
     return callback_(op.string());
   }
 
-  OpIndex operator()(const ExternExternalizeOp& op) {
+  OpIndex operator()(const ExternConvertAnyOp& op) {
     return callback_(op.object());
   }
 
-  OpIndex operator()(const ExternInternalizeOp& op) {
+  OpIndex operator()(const AnyConvertExternOp& op) {
     return callback_(op.object());
   }
 #endif

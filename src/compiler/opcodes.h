@@ -559,8 +559,8 @@
   V(WasmTypeCastAbstract)          \
   V(WasmTypeCheck)                 \
   V(WasmTypeCheckAbstract)         \
-  V(WasmExternInternalize)         \
-  V(WasmExternExternalize)         \
+  V(WasmAnyConvertExtern)          \
+  V(WasmExternConvertAny)          \
   V(WasmStructGet)                 \
   V(WasmStructSet)                 \
   V(WasmArrayGet)                  \

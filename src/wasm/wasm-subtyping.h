@@ -173,7 +173,7 @@ ValueType ToNullSentinel(TypeInModule type);
 bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
                          const WasmModule* module);
 
-// Returns if the cast performs an implicit extern.internalize, i.e. it crosses
+// Returns if the cast performs an implicit any.convert_extern, i.e. it crosses
 // the type hiearchy boundary from extern to any.
 // This can happen as a result e.g. when mapping imported strings to stringref.
 bool IsImplicitInternalization(wasm::ValueType from, wasm::ValueType to,

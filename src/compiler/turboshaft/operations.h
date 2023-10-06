@@ -106,8 +106,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(RttCanon)                             \
   V(WasmTypeCheck)                        \
   V(WasmTypeCast)                         \
-  V(ExternInternalize)                    \
-  V(ExternExternalize)                    \
+  V(AnyConvertExtern)                     \
+  V(ExternConvertAny)                     \
   V(StructGet)                            \
   V(StructSet)                            \
   V(ArrayGet)                             \
@@ -6189,12 +6189,12 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   }
 };
 
-struct ExternInternalizeOp : FixedArityOperationT<1, ExternInternalizeOp> {
+struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   static constexpr OpEffects effects =
       SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
                            : OpEffects().CanReadMemory().CanAllocate();
 
-  explicit ExternInternalizeOp(V<Tagged> object) : Base(object) {}
+  explicit AnyConvertExternOp(V<Tagged> object) : Base(object) {}
 
   V<Tagged> object() const { return Base::input(0); }
 
@@ -6212,10 +6212,10 @@ struct ExternInternalizeOp : FixedArityOperationT<1, ExternInternalizeOp> {
   auto options() const { return std::tuple(); }
 };
 
-struct ExternExternalizeOp : FixedArityOperationT<1, ExternExternalizeOp> {
+struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   static constexpr OpEffects effects = OpEffects();
 
-  explicit ExternExternalizeOp(V<Tagged> object) : Base(object) {}
+  explicit ExternConvertAnyOp(V<Tagged> object) : Base(object) {}
 
   V<Tagged> object() const { return Base::input(0); }
 
