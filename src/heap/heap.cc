@@ -3687,26 +3687,10 @@ void Heap::FreeLinearAllocationAreas() {
 }
 
 void Heap::FreeMainThreadLinearAllocationAreas() {
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Setting the high water mark in CODE_SPACE requires access to code "
-        "page headers.");
-
-    PagedSpaceIterator spaces(this);
-    for (PagedSpace* space = spaces.Next(); space != nullptr;
-         space = spaces.Next()) {
-      base::MutexGuard guard(space->mutex());
-      if (space->main_allocator()) {
-        space->main_allocator()->FreeLinearAllocationArea();
-      }
-    }
-  }
+  allocator()->FreeLinearAllocationArea();
 
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
-  }
-  if (new_space()) {
-    allocator()->new_space_allocator()->FreeLinearAllocationArea();
   }
 }
 

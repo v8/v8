@@ -2189,7 +2189,7 @@ static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
   }
   Address top = *top_addr;
   // Now force the remaining allocation onto the free list.
-  CcTest::heap()->old_space()->FreeLinearAllocationArea();
+  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
   return top;
 }
 

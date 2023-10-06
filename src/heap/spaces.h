@@ -288,25 +288,13 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
 
   void set_main_allocator(MainAllocator* allocator);
 
+  virtual AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) = 0;
+
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
  protected:
-  // Sets up a linear allocation area that fits the given number of bytes.
-  // Returns false if there is not enough space and the caller has to retry
-  // after collecting garbage.
-  // Writes to `max_aligned_size` the actual number of bytes used for checking
-  // that there is enough space.
-  virtual bool EnsureAllocation(int size_in_bytes,
-                                AllocationAlignment alignment,
-                                AllocationOrigin origin,
-                                int* out_max_aligned_size) = 0;
-
-  virtual void FreeLinearAllocationArea() = 0;
-
-  virtual void UpdateInlineAllocationLimit() = 0;
-
   // TODO(chromium:1480975): Move the LAB out of the space.
   MainAllocator* allocator_ = nullptr;
 

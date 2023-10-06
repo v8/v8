@@ -206,9 +206,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   void ResetFreeList();
 
-  // Empty space linear allocation area, returning unused area to free list.
-  void FreeLinearAllocationArea() override;
-
   void DecreaseAllocatedBytes(size_t bytes, Page* page) {
     accounting_stats_.DecreaseAllocatedBytes(bytes, page);
   }
@@ -336,7 +333,13 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
  protected:
-  void UpdateInlineAllocationLimit() override;
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin, int* out_max_aligned_size);
+
+  // Empty space linear allocation area, returning unused area to free list.
+  void FreeLinearAllocationArea();
+
+  void UpdateInlineAllocationLimit();
 
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -352,10 +355,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   virtual Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode);
-
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) override;
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
@@ -428,6 +427,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   friend class ConcurrentAllocator;
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
+  friend class PagedSpaceAllocatorPolicy;
 
   // Used in cctest.
   friend class heap::HeapTester;
@@ -440,6 +440,8 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
              CompactionSpaceKind compaction_space_kind)
       : PagedSpaceBase(heap, id, executable, std::move(free_list),
                        compaction_space_kind) {}
+
+  AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 };
 
 // -----------------------------------------------------------------------------

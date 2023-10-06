@@ -876,6 +876,11 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
   return true;
 }
 
+AllocatorPolicy* SemiSpaceNewSpace::CreateAllocatorPolicy(
+    MainAllocator* allocator) {
+  return new SemiSpaceNewSpaceAllocatorPolicy(this, allocator);
+}
+
 // -----------------------------------------------------------------------------
 // PagedSpaceForNewSpace implementation
 
@@ -1129,6 +1134,11 @@ PagedNewSpace::~PagedNewSpace() {
   allocator_->allocation_info().Reset(kNullAddress, kNullAddress);
 
   paged_space_.TearDown();
+}
+
+AllocatorPolicy* PagedNewSpace::CreateAllocatorPolicy(
+    MainAllocator* allocator) {
+  return new PagedNewSpaceAllocatorPolicy(this, allocator);
 }
 
 }  // namespace internal

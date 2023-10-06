@@ -960,6 +960,10 @@ void PagedSpaceBase::RefillFreeList() {
   }
 }
 
+AllocatorPolicy* PagedSpace::CreateAllocatorPolicy(MainAllocator* allocator) {
+  return new PagedSpaceAllocatorPolicy(this, allocator);
+}
+
 // -----------------------------------------------------------------------------
 // CompactionSpace implementation
 

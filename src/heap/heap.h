@@ -1588,6 +1588,9 @@ class Heap final {
   // Free all LABs in the heap.
   V8_EXPORT_PRIVATE void FreeLinearAllocationAreas();
 
+  // Frees all LABs owned by the main thread.
+  V8_EXPORT_PRIVATE void FreeMainThreadLinearAllocationAreas();
+
   V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(
       size_t size) const;
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size) const;
@@ -1703,9 +1706,6 @@ class Heap final {
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           GarbageCollectionReason gc_reason,
                                           const char** reason) const;
-
-  // Frees all LABs owned by the main thread.
-  void FreeMainThreadLinearAllocationAreas();
 
   // Free all shared LABs.
   void FreeSharedLinearAllocationAreas();

@@ -356,7 +356,7 @@ TEST(Regress5829) {
   // Right trim the array without clearing the mark bits.
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
-  heap->old_space()->FreeLinearAllocationArea();
+  heap->FreeMainThreadLinearAllocationAreas();
   Page* page = Page::FromAddress(array->address());
   for (auto object_and_size : LiveObjectRange(page)) {
     CHECK(!IsFreeSpaceOrFiller(object_and_size.first));

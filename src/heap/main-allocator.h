@@ -16,7 +16,80 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class MainAllocator;
+class SemiSpaceNewSpace;
 class SpaceWithLinearArea;
+class PagedNewSpace;
+class PagedSpace;
+
+class AllocatorPolicy {
+ public:
+  explicit AllocatorPolicy(MainAllocator* allocator);
+  virtual ~AllocatorPolicy() {}
+
+  // Sets up a linear allocation area that fits the given number of bytes.
+  // Returns false if there is not enough space and the caller has to retry
+  // after collecting garbage.
+  // Writes to `max_aligned_size` the actual number of bytes used for checking
+  // that there is enough space.
+  virtual bool EnsureAllocation(int size_in_bytes,
+                                AllocationAlignment alignment,
+                                AllocationOrigin origin,
+                                int* out_max_aligned_size) = 0;
+  virtual void FreeLinearAllocationArea() = 0;
+  virtual void UpdateInlineAllocationLimit() = 0;
+
+ private:
+  MainAllocator* allocator_;
+};
+
+class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
+ public:
+  explicit SemiSpaceNewSpaceAllocatorPolicy(SemiSpaceNewSpace* space,
+                                            MainAllocator* allocator)
+      : AllocatorPolicy(allocator), space_(space) {}
+
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
+  void FreeLinearAllocationArea() final;
+  void UpdateInlineAllocationLimit() final;
+
+ private:
+  SemiSpaceNewSpace* const space_;
+};
+
+class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
+ public:
+  explicit PagedNewSpaceAllocatorPolicy(PagedNewSpace* space,
+                                        MainAllocator* allocator)
+      : AllocatorPolicy(allocator), space_(space) {}
+
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
+  void FreeLinearAllocationArea() final;
+  void UpdateInlineAllocationLimit() final;
+
+ private:
+  PagedNewSpace* const space_;
+};
+
+class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
+ public:
+  explicit PagedSpaceAllocatorPolicy(PagedSpace* space,
+                                     MainAllocator* allocator)
+      : AllocatorPolicy(allocator), space_(space) {}
+
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
+  void FreeLinearAllocationArea() final;
+  void UpdateInlineAllocationLimit() final;
+
+ private:
+  PagedSpace* const space_;
+};
 
 class LinearAreaOriginalData {
  public:
@@ -49,7 +122,7 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  enum SupportsExtendingLAB { kYes, kNo };
+  enum class SupportsExtendingLAB { kYes, kNo };
 
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                                   CompactionSpaceKind compaction_space_kind,
@@ -208,9 +281,9 @@ class MainAllocator {
 
   Heap* heap() const { return heap_; }
 
-  Heap* heap_;
-  SpaceWithLinearArea* space_;
-  CompactionSpaceKind compaction_space_kind_;
+  Heap* const heap_;
+  SpaceWithLinearArea* const space_;
+  const CompactionSpaceKind compaction_space_kind_;
   const SupportsExtendingLAB supports_extending_lab_;
 
   AllocationCounter allocation_counter_;
@@ -218,6 +291,7 @@ class MainAllocator {
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
   LinearAreaOriginalData linear_area_original_data_;
+  std::unique_ptr<AllocatorPolicy> allocator_policy_;
 };
 
 }  // namespace internal
