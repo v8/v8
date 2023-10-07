@@ -174,7 +174,6 @@ enum AccessControl {
   DEFAULT = 0,
   ALL_CAN_READ = 1,
   ALL_CAN_WRITE = 1 << 1,
-  PROHIBITS_OVERWRITING V8_ENUM_DEPRECATED("unused") = 1 << 2
 };
 
 /**
