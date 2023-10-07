@@ -97,7 +97,6 @@ class CompactorTest : public testing::TestWithPlatform {
         SweepingConfig::SweepingType::kAtomic,
         SweepingConfig::CompactableSpaceHandling::kIgnore};
     heap()->sweeper().Start(sweeping_config);
-    heap()->sweeper().FinishIfRunning();
   }
 
   Heap* heap() { return Heap::From(heap_.get()); }

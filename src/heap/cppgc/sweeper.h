@@ -43,10 +43,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   Sweeper(const Sweeper&) = delete;
   Sweeper& operator=(const Sweeper&) = delete;
 
-  // Starts sweeping. Assumes that the heap holds no linear allocation buffers.
-  // Will not finish sweeping in case SweepingConfig::sweeping_type is
-  // SweepingType::kAtomic but rely on the caller to finish sweeping
-  // immediately.
+  // Sweeper::Start assumes the heap holds no linear allocation buffers.
   void Start(SweepingConfig);
   // Returns true when sweeping was finished and false if it was not running or
   // couldn't be finished due to being a recursive sweep call.

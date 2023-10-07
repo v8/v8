@@ -5,7 +5,6 @@
 #include "src/heap/cppgc/sweeper.h"
 
 #include <atomic>
-#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -16,7 +15,6 @@
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -825,11 +823,10 @@ class Sweeper::SweeperImpl final {
     PrepareForSweepVisitor(&space_states_, config.compactable_space_handling)
         .Run(heap_);
 
-    if (config.sweeping_type >= SweepingConfig::SweepingType::kIncremental) {
+    if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
+      Finish();
+    } else {
       ScheduleIncrementalSweeping();
-    }
-    if (config.sweeping_type >=
-        SweepingConfig::SweepingType::kIncrementalAndConcurrent) {
       ScheduleConcurrentSweeping();
     }
   }
@@ -899,11 +896,8 @@ class Sweeper::SweeperImpl final {
     if (is_sweeping_on_mutator_thread_) return false;
 
     {
-      v8::base::Optional<StatsCollector::EnabledScope> stats_scope;
-      if (config_.sweeping_type != SweepingConfig::SweepingType::kAtomic) {
-        stats_scope.emplace(stats_collector_,
-                            StatsCollector::kIncrementalSweep);
-      }
+      StatsCollector::EnabledScope stats_scope(
+          stats_collector_, StatsCollector::kIncrementalSweep);
       StatsCollector::EnabledScope inner_scope(stats_collector_,
                                                StatsCollector::kSweepFinalize);
       if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
@@ -1112,9 +1106,6 @@ class Sweeper::SweeperImpl final {
 
   void ScheduleIncrementalSweeping() {
     DCHECK(platform_);
-    DCHECK_GE(config_.sweeping_type,
-              SweepingConfig::SweepingType::kIncremental);
-
     auto runner = platform_->GetForegroundTaskRunner();
     if (!runner) return;
 
@@ -1124,8 +1115,10 @@ class Sweeper::SweeperImpl final {
 
   void ScheduleConcurrentSweeping() {
     DCHECK(platform_);
-    DCHECK_GE(config_.sweeping_type,
-              SweepingConfig::SweepingType::kIncrementalAndConcurrent);
+
+    if (config_.sweeping_type !=
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent)
+      return;
 
     concurrent_sweeper_handle_ =
         platform_->PostJob(cppgc::TaskPriority::kUserVisible,

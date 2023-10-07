@@ -863,7 +863,7 @@ void RecordEmbedderSpeed(GCTracer* tracer, base::TimeDelta marking_time,
 
 }  // namespace
 
-void CppHeap::FinishMarkingAndStartSweeping() {
+void CppHeap::TraceEpilogue() {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
 
@@ -940,13 +940,7 @@ void CppHeap::FinishMarkingAndStartSweeping() {
 
   in_atomic_pause_ = false;
   collection_type_.reset();
-}
-
-void CppHeap::FinishAtomicSweepingIfNeeded() {
-  DCHECK(sweeper().IsSweepingInProgress());
-  if (SelectSweepingType() == SweepingType::kAtomic) {
-    sweeper().FinishIfRunning();
-  }
+  sweeper().NotifyDoneIfNeeded();
 }
 
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
@@ -1029,8 +1023,7 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     if (FinishConcurrentMarkingIfNeeded()) {
       CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     }
-    FinishMarkingAndStartSweeping();
-    FinishAtomicSweepingIfNeeded();
+    TraceEpilogue();
   });
 }
 
