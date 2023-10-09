@@ -898,50 +898,45 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {
-  MaglevAssembler::ScratchRegisterScope temps(this);
-  Register repr = temps.Acquire();
-  Label not_hole_nan;
-  static_assert(kHoleNanLower32 == kHoleNanUpper32);
-  Move(scratch, kHoleNanLower32);
-  VmovLow(repr, value);
-  cmp(repr, scratch);
-  JumpIf(kNotEqual, &not_hole_nan, Label::kNear);
-  VmovHigh(repr, value);
-  cmp(repr, scratch);
-  JumpIf(kEqual, target, distance);
-  bind(&not_hole_nan);
+  // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
+  // This works because all callsites are jumping to either a deopt, deferred
+  // code, or a basic block. If we ever need to jump to an on-stack label, we
+  // have to add support for it here change the caller to pass a ZoneLabelRef.
+  DCHECK(compilation_info()->zone()->Contains(target));
+  ZoneLabelRef is_hole = ZoneLabelRef::UnsafeFromLabelPointer(target);
+  ZoneLabelRef is_not_hole(this);
+  VFPCompareAndSetFlags(value, value);
+  JumpIf(ConditionForNaN(),
+         MakeDeferredCode(
+             [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
+                ZoneLabelRef is_hole, ZoneLabelRef is_not_hole) {
+               masm->VmovHigh(scratch, value);
+               masm->CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kEqual,
+                                           *is_hole);
+               masm->Jump(*is_not_hole);
+             },
+             value, scratch, is_hole, is_not_hole));
+  bind(*is_not_hole);
 }
 
 void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
                                        Label* target,
                                        Label::Distance distance) {
-  MaglevAssembler::ScratchRegisterScope temps(this);
-  Register repr = temps.Acquire();
-  static_assert(kHoleNanLower32 == kHoleNanUpper32);
-  Move(scratch, kHoleNanLower32);
-  VmovLow(repr, value);
-  cmp(repr, scratch);
-  JumpIf(kNotEqual, target, distance);
-  VmovHigh(repr, value);
-  cmp(repr, scratch);
-  JumpIf(kNotEqual, target, distance);
+  VFPCompareAndSetFlags(value, value);
+  JumpIf(NegateCondition(ConditionForNaN()), target, distance);
+  VmovHigh(scratch, value);
+  CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kNotEqual, target, distance);
 }
 
 void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                                        Label::Distance distance) {
   MaglevAssembler::ScratchRegisterScope temps(this);
-  Register repr = temps.Acquire();
-  ldr(repr, operand);
-  // Acquire {scratch} after ldr, since this might need a scratch register.
-  Register scratch = temps.Acquire();
-  static_assert(kHoleNanLower32 == kHoleNanUpper32);
-  Move(scratch, kHoleNanUpper32);
-  cmp(repr, scratch);
-  JumpIf(kNotEqual, target, distance);
-  operand.set_offset(operand.offset() + 4);
-  ldr(repr, operand);
-  cmp(repr, scratch);
-  JumpIf(kNotEqual, target, distance);
+  Register upper_bits = temps.Acquire();
+  DCHECK(operand.IsImmediateOffset());
+  ldr(upper_bits, MemOperand(operand.rn(), operand.offset() + (kDoubleSize / 2),
+                             operand.am()));
+  CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kNotEqual, target,
+                        distance);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
