@@ -2736,7 +2736,7 @@ class AssemblerOpInterface {
                                        array_type);
   }
 
-  void StoreDataViewElement(V<Object> object, V<Object> storage,
+  void StoreDataViewElement(V<Object> object, V<WordPtr> storage,
                             V<WordPtr> index, OpIndex value,
                             V<Word32> is_little_endian,
                             ExternalArrayType element_type) {

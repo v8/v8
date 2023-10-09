@@ -2012,6 +2012,9 @@ void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
     case Builtin::kThrowDataViewGetInt32DetachedError:
     case Builtin::kThrowDataViewGetInt32OutOfBounds:
     case Builtin::kThrowDataViewGetInt32TypeError:
+    case Builtin::kThrowDataViewSetInt32DetachedError:
+    case Builtin::kThrowDataViewSetInt32OutOfBounds:
+    case Builtin::kThrowDataViewSetInt32TypeError:
     case Builtin::kThrowIndexOfCalledOnNull:
     case Builtin::kThrowToLowerCaseCalledOnNull:
     case Builtin::kWasmIntToString: {

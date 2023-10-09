@@ -1104,6 +1104,26 @@ builtin ThrowDataViewGetInt32TypeError(value: JSAny): JSAny {
   runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
 }
 
+builtin ThrowDataViewSetInt32DetachedError(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kDetachedOperation;
+  const name = StringConstant('DataView.prototype.setInt32');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
+builtin ThrowDataViewSetInt32OutOfBounds(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kInvalidDataViewAccessorOffset;
+  runtime::WasmThrowRangeError(context, SmiConstant(error));
+}
+
+builtin ThrowDataViewSetInt32TypeError(value: JSAny): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kIncompatibleMethodReceiver;
+  const name = StringConstant('DataView.prototype.setInt32');
+  runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
+}
+
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   tail StringAdd_CheckNone(a, b);

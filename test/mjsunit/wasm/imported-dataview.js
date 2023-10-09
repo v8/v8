@@ -8,14 +8,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We use "r" for nullable "externref", and "e" for non-nullable "ref extern".
 let kSig_i_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmI32]);
+let kSig_v_riii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32], []);
 
 let kDataViewGetInt32;
+let kDataViewSetInt32;
 
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
 
   kDataViewGetInt32 =
       builder.addImport('DataView', 'getInt32Import', kSig_i_rii);
+  kDataViewSetInt32 =
+      builder.addImport('DataView', 'setInt32Import', kSig_v_riii);
 
   return builder;
 }
@@ -23,6 +27,7 @@ function MakeBuilder() {
 let kImports = {
   DataView: {
     getInt32Import: Function.prototype.call.bind(DataView.prototype.getInt32),
+    setInt32Import: Function.prototype.call.bind(DataView.prototype.setInt32),
   },
 };
 
@@ -82,19 +87,23 @@ function CheckStackTrace(thrower, reference, topmost_wasm_func) {
       () => instance.exports.getInt32('test_string', 0, 1),
       () => DataView.prototype.getInt32.call('test_string', 0, 1), 'getInt32');
 
-  // Out of bounds offset.
+  // Offset bounds check.
   assertThrows(() => {instance.exports.getInt32(dataview, -1, 1)}, RangeError);
   CheckStackTrace(
       () => instance.exports.getInt32(dataview, -1, 1),
       () => DataView.prototype.getInt32.call(dataview, -1, 1), 'getInt32');
 
-  // Bounds check.
+  // Dataview bounds check.
   assertThrows(() => {instance.exports.getInt32(dataview, 8, 1)}, RangeError);
-  assertThrows(
-      () => {instance.exports.getInt32(dataview, 0x7FFF_FFFF, 1)}, RangeError);
+  CheckStackTrace(
+      () => instance.exports.getInt32(dataview, 7, 1),
+      () => DataView.prototype.getInt32.call(dataview, 7, 1), 'getInt32');
   CheckStackTrace(
       () => instance.exports.getInt32(dataview, 8, 1),
       () => DataView.prototype.getInt32.call(dataview, 8, 1), 'getInt32');
+  CheckStackTrace(
+      () => instance.exports.getInt32(dataview, 0x7FFF_FFFF, 1),
+      () => DataView.prototype.getInt32.call(dataview, 0x7FFF_FFFF, 1), 'getInt32');
 
   // Detached buffer.
   %ArrayBufferDetach(array.buffer);
@@ -102,4 +111,57 @@ function CheckStackTrace(thrower, reference, topmost_wasm_func) {
   CheckStackTrace(
       () => instance.exports.getInt32(dataview, 0, 1),
       () => DataView.prototype.getInt32.call(dataview, 0, 1), 'getInt32');
+})();
+
+(function TestSetInt32() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+  builder.addFunction("setInt32", kSig_v_riii).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprLocalGet, 2,
+    kExprLocalGet, 3,
+    kExprCallFunction, kDataViewSetInt32,
+    ]);
+  let instance = builder.instantiate(kImports);
+  let array = new Int32Array(2);
+  array[0] = 42;
+  array[1] = 3;
+
+  let dataview = new DataView(array.buffer);
+
+  instance.exports.setInt32(dataview, 0, 50, 1);
+  assertEquals(50, array[0]);
+  instance.exports.setInt32(dataview, 4, 100, 1);
+  assertEquals(100, array[1]);
+  instance.exports.setInt32(dataview, 0, 0x12345678, 0);
+  assertEquals(0x78563412, array[0]);
+
+  // Incompatible receiver.
+  CheckStackTrace(
+      () => instance.exports.setInt32('test_string', 0, 100, 1),
+      () => DataView.prototype.setInt32.call('test_string', 0, 100, 1),
+      'setInt32');
+
+  // Offset bounds check.
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, -1, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, -1, 100, 1), 'setInt32');
+
+  // Dataview bounds check.
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, 7, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, 7, 100, 1), 'setInt32');
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, 8, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, 8, 100, 1), 'setInt32');
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, 9, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, 9, 100, 1), 'setInt32');
+
+  // Detached buffer.
+  %ArrayBufferDetach(array.buffer);
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, 0, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, 0, 100, 1), 'setInt32');
 })();

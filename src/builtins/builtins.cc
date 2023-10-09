@@ -267,6 +267,11 @@ const char* Builtins::NameForStackTrace(Builtin builtin) {
     case Builtin::kThrowDataViewGetInt32OutOfBounds:
     case Builtin::kThrowDataViewGetInt32TypeError:
       return "DataView.getInt32";
+    case Builtin::kDataViewPrototypeSetInt32:
+    case Builtin::kThrowDataViewSetInt32DetachedError:
+    case Builtin::kThrowDataViewSetInt32OutOfBounds:
+    case Builtin::kThrowDataViewSetInt32TypeError:
+      return "DataView.setInt32";
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif
