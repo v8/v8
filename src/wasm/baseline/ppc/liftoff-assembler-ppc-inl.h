@@ -2552,10 +2552,10 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
-                             const LiftoffRegister* rets, ValueKind return_kind,
-                             ValueKind out_argument_kind, int stack_bytes,
-                             ExternalReference ext_ref) {
+void LiftoffAssembler::CallCWithStackBuffer(
+    const std::initializer_list<VarState> args, const LiftoffRegister* rets,
+    ValueKind return_kind, ValueKind out_argument_kind, int stack_bytes,
+    ExternalReference ext_ref) {
   int total_size = RoundUp(stack_bytes, kSystemPointerSize);
 
   int size = total_size;
