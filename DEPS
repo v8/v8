@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7c58dc7046ff4333c1648ee6cbb57c6bc8755375',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bc93fc04331624a96d91bc0c51eb9354d828ef93',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '878f3f16786970d71c73773db6ef2396084414b6',
   'buildtools/linux64': {
@@ -322,7 +322,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'bf36a1f158fe5a73ed689d631ea7e3745232aac6',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '88f60e4dc3e8a8b1f3fc7bad320a9a51a117cf18',
     'condition': 'not build_with_chromium',
   }
 }
