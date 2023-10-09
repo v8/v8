@@ -4726,10 +4726,10 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
-void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
-                             const LiftoffRegister* rets, ValueKind return_kind,
-                             ValueKind out_argument_kind, int stack_bytes,
-                             ExternalReference ext_ref) {
+void LiftoffAssembler::CallCWithStackBuffer(
+    const std::initializer_list<VarState> args, const LiftoffRegister* rets,
+    ValueKind return_kind, ValueKind out_argument_kind, int stack_bytes,
+    ExternalReference ext_ref) {
   AllocateStackSpace(stack_bytes);
 
   int arg_offset = 0;
@@ -4785,6 +4785,65 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
   }
 
   add(esp, Immediate(stack_bytes));
+}
+
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             ExternalReference ext_ref) {
+  LiftoffRegList arg_regs;
+  for (const VarState arg : args) {
+    if (arg.is_reg()) arg_regs.set(arg.reg());
+  }
+
+  RegList usable_regs = kLiftoffAssemblerGpCacheRegs - arg_regs.GetGpList();
+  Register scratch = usable_regs.first();
+  int num_args = 0;
+  // i64 values take two stack slots.
+  for (const VarState& arg : args) {
+    num_args += arg.kind() == kI64 ? 2 : 1;
+  }
+  PrepareCallCFunction(num_args, scratch);
+
+  // Ia32 passes all arguments via the stack. Store them now in the stack space
+  // allocated by {PrepareCallCFunction}.
+
+  // GetNextOperand returns the operand for the next stack slot on each
+  // invocation.
+  auto GetNextOperand = [arg_offset = 0, num_args]() mutable {
+    // Check that we don't exceed the pre-computed {num_args}.
+    DCHECK_GE(num_args * kSystemPointerSize, arg_offset);
+    Operand dst{esp, arg_offset};
+    arg_offset += kSystemPointerSize;
+    return dst;
+  };
+  for (const VarState& arg : args) {
+    Operand dst = GetNextOperand();
+    if (arg.is_reg()) {
+      LiftoffRegister reg = arg.reg();
+      if (arg.kind() == kI64) {
+        mov(dst, reg.low_gp());
+        mov(GetNextOperand(), reg.high_gp());
+      } else {
+        mov(dst, reg.gp());
+      }
+    } else if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      mov(dst, Immediate(arg.i32_const()));
+    } else {
+      DCHECK(arg.is_stack());
+      if (arg.kind() == kI64) {
+        mov(scratch, liftoff::GetStackSlot(arg.offset()));
+        mov(dst, scratch);
+        mov(scratch, liftoff::GetStackSlot(arg.offset() + kSystemPointerSize));
+        mov(GetNextOperand(), scratch);
+      } else {
+        mov(scratch, liftoff::GetStackSlot(arg.offset()));
+        mov(dst, scratch);
+      }
+    }
+  }
+
+  // Now call the C function.
+  CallCFunction(ext_ref, num_args);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {

@@ -78,13 +78,13 @@ V8_EXPORT_PRIVATE uint32_t word32_popcnt_wrapper(Address data);
 
 V8_EXPORT_PRIVATE uint32_t word64_popcnt_wrapper(Address data);
 
-V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(Address data);
+V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(uint32_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(Address data);
+V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(uint32_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE void word64_rol_wrapper(Address data);
+V8_EXPORT_PRIVATE uint64_t word64_rol_wrapper(uint64_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
+V8_EXPORT_PRIVATE uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift);
 
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
