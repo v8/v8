@@ -737,6 +737,15 @@ class VirtualAddressSpace {
   PagePermissions max_page_permissions() const { return max_page_permissions_; }
 
   /**
+   * Whether the |address| is inside the address space managed by this instance.
+   *
+   * \returns true if it is inside the address space, false if not.
+   */
+  bool Contains(Address address) const {
+    return (address >= base()) && (address < base() + size());
+  }
+
+  /**
    * Sets the random seed so that GetRandomPageAddress() will generate
    * repeatable sequences of random addresses.
    *
