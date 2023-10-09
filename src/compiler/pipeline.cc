@@ -1339,7 +1339,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  RegisterWeakObjectsInOptimizedCode(isolate, context, code);
+  GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
+  RegisterWeakObjectsInOptimizedCode(isolate, context, code, std::move(maps));
   return SUCCEEDED;
 }
 

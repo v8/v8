@@ -492,26 +492,29 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
-void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
-    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
-  // TODO(choongwoo.han): Split this method into collecting maps on the
-  // background thread, and retaining them on the foreground thread.
-  GlobalHandleVector<Map> maps(isolate->heap());
+GlobalHandleVector<Map> OptimizedCompilationJob::CollectRetainedMaps(
+    Isolate* isolate, Handle<Code> code) {
   DCHECK(code->is_optimized_code());
-  {
-    DisallowGarbageCollection no_gc;
-    PtrComprCageBase cage_base(isolate);
-    int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
-      if (code->IsWeakObjectInOptimizedCode(target_object)) {
-        if (IsMap(target_object, cage_base)) {
-          maps.Push(Map::cast(target_object));
-        }
+
+  DisallowGarbageCollection no_gc;
+  GlobalHandleVector<Map> maps(isolate->heap());
+  PtrComprCageBase cage_base(isolate);
+  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
+    if (code->IsWeakObjectInOptimizedCode(target_object)) {
+      if (IsMap(target_object, cage_base)) {
+        maps.Push(Map::cast(target_object));
       }
     }
   }
+  return maps;
+}
+
+void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
+    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code,
+    GlobalHandleVector<Map> maps) {
   isolate->heap()->AddRetainedMaps(context, std::move(maps));
   code->set_can_have_weak_objects(true);
 }

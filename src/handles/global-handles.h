@@ -266,6 +266,7 @@ class GlobalHandleVector {
   size_t size() const { return locations_.size(); }
   bool empty() const { return locations_.empty(); }
 
+  void Reserve(size_t size) { locations_.reserve(size); }
   void Push(Tagged<T> val) { locations_.push_back(val.ptr()); }
   // Handles into the GlobalHandleVector become invalid when they are removed,
   // so "pop" returns a raw object rather than a handle.

@@ -398,11 +398,6 @@ class OptimizedCompilationJob : public CompilationJob {
   // Finalizes the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
 
-  // Registers weak object to optimized code dependencies.
-  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
-                                          Handle<NativeContext> context,
-                                          Handle<Code> code);
-
   const char* compiler_name() const { return compiler_name_; }
 
   double prepare_in_ms() const {
@@ -425,6 +420,14 @@ class OptimizedCompilationJob : public CompilationJob {
   virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
                                 LocalIsolate* local_heap) = 0;
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
+
+  // Register weak object to optimized code dependencies.
+  GlobalHandleVector<Map> CollectRetainedMaps(Isolate* isolate,
+                                              Handle<Code> code);
+  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
+                                          Handle<NativeContext> context,
+                                          Handle<Code> code,
+                                          GlobalHandleVector<Map> maps);
 
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;

@@ -11,6 +11,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -145,10 +146,20 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
     return CompilationJob::FAILED;
   }
   info()->set_code(code);
+  GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
   RegisterWeakObjectsInOptimizedCode(
-      isolate, info()->broker()->target_native_context().object(), code);
+      isolate, info()->broker()->target_native_context().object(), code,
+      std::move(maps));
   EndPhaseKind();
   return CompilationJob::SUCCEEDED;
+}
+
+GlobalHandleVector<Map> MaglevCompilationJob::CollectRetainedMaps(
+    Isolate* isolate, Handle<Code> code) {
+  if (v8_flags.maglev_build_code_on_background) {
+    return info()->code_generator()->RetainedMaps(isolate);
+  }
+  return OptimizedCompilationJob::CollectRetainedMaps(isolate, code);
 }
 
 void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
@@ -266,6 +277,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
         TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                                "V8.MaglevDestructBackground", job->trace_id(),
                                TRACE_EVENT_FLAG_FLOW_IN);
+        UnparkedScope unparked_scope(&local_isolate);
         job.reset();
       } else {
         break;
