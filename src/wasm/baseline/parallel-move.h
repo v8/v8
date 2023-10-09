@@ -42,19 +42,14 @@ class ParallelMove {
 
     LoadKind load_kind;
     ValueKind kind;
-    int32_t value;  // i32 constant value or stack offset, depending on kind.
+    // `value` stores the i32 constant value (sign-extended if `kind == kI64`),
+    // or stack offset, depending on `load_kind`.
+    int32_t value;
 
     // Named constructors.
-    static RegisterLoad Const(WasmValue constant) {
-      if (constant.type().kind() == kI32) {
-        return {kConstant, kI32, constant.to_i32()};
-      }
-      DCHECK_EQ(kI64, constant.type().kind());
-      // We will only encounter 32-bit constants here (even for i64 values)
-      // since `LiftoffAssembler::VarState` can only store 32-bit constants.
-      int32_t i32_const = static_cast<int32_t>(constant.to_i64());
-      DCHECK_EQ(constant.to_i64(), i32_const);
-      return {kConstant, kI64, i32_const};
+    static RegisterLoad Const(ValueKind kind, int32_t constant) {
+      V8_ASSUME(kind == kI32 || kind == kI64);
+      return {kConstant, kind, constant};
     }
     static RegisterLoad Stack(int32_t offset, ValueKind kind) {
       return {kStack, kind, offset};
@@ -115,7 +110,7 @@ class ParallelMove {
       LoadStackSlot(dst, src.offset(), src.kind());
     } else {
       DCHECK(src.is_const());
-      LoadConstant(dst, src.constant());
+      LoadConstant(dst, src.kind(), src.i32_const());
     }
   }
 
@@ -139,7 +134,7 @@ class ParallelMove {
         int32_t value = src.i32_const();
         // The high word is the sign extension of the low word.
         if (half == kHighWord) value = value >> 31;
-        LoadConstant(dst, WasmValue(value));
+        LoadConstant(dst, kI32, value);
         break;
     }
   }
@@ -185,18 +180,17 @@ class ParallelMove {
     *register_move(dst) = {src, kind};
   }
 
-  void LoadConstant(LiftoffRegister dst, WasmValue value) {
+  // Note: {constant} will be sign-extended if {kind == kI64}.
+  void LoadConstant(LiftoffRegister dst, ValueKind kind, int32_t constant) {
     DCHECK(!load_dst_regs_.has(dst));
     load_dst_regs_.set(dst);
     if (dst.is_gp_pair()) {
-      DCHECK_EQ(kI64, value.type().kind());
-      int64_t i64 = value.to_i64();
-      *register_load(dst.low()) =
-          RegisterLoad::Const(WasmValue(static_cast<int32_t>(i64)));
-      *register_load(dst.high()) =
-          RegisterLoad::Const(WasmValue(static_cast<int32_t>(i64 >> 32)));
+      DCHECK_EQ(kI64, kind);
+      *register_load(dst.low()) = RegisterLoad::Const(kI32, constant);
+      // The high word is either 0 or 0xffffffff.
+      *register_load(dst.high()) = RegisterLoad::Const(kI32, constant >> 31);
     } else {
-      *register_load(dst) = RegisterLoad::Const(value);
+      *register_load(dst) = RegisterLoad::Const(kind, constant);
     }
   }
 

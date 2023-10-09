@@ -137,6 +137,7 @@ class LiftoffAssembler : public MacroAssembler {
 
     Location loc() const { return loc_; }
 
+    // The constant as 32-bit value, to be sign-extended if {kind() == kI64}.
     int32_t i32_const() const {
       DCHECK_EQ(loc_, kIntConst);
       return i32_const_;
