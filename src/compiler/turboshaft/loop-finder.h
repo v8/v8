@@ -61,9 +61,10 @@ class LoopFinder {
         input_graph_(input_graph),
         loop_headers_(input_graph->block_count(), nullptr, phase_zone),
         loop_header_info_(phase_zone),
-        queue_(phase_zone) {}
+        queue_(phase_zone) {
+    Run();
+  }
 
-  void Run();
   const ZoneUnorderedMap<Block*, LoopInfo>& LoopHeaders() const {
     return loop_header_info_;
   }
@@ -78,6 +79,7 @@ class LoopFinder {
   }
 
  private:
+  void Run();
   LoopInfo VisitLoop(Block* header);
 
   // Returns an upper bound on the number of Operations in {block}, which is

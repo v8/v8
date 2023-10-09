@@ -3000,6 +3000,8 @@ filegroup(
         "src/compiler/string-builder-optimizer.h",
         "src/compiler/turbofan.h",
         "src/compiler/turbofan-enabled.cc",
+        "src/compiler/turboshaft/analyzer-iterator.cc",
+        "src/compiler/turboshaft/analyzer-iterator.h",
         "src/compiler/turboshaft/assembler.cc",
         "src/compiler/turboshaft/assembler.h",
         "src/compiler/turboshaft/assert-types-reducer.h",

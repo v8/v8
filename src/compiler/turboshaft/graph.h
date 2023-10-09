@@ -428,6 +428,15 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   bool HasPhis(const Graph& graph) const;
 
+#ifdef DEBUG
+  bool HasBackedge(const Graph& graph) const {
+    if (const GotoOp* gto = LastOperation(graph).TryCast<GotoOp>()) {
+      return gto->destination->index().id() < index().id();
+    }
+    return false;
+  }
+#endif
+
   // Computes the dominators of the this block, assuming that the dominators of
   // its predecessors are already computed. Returns the depth of the current
   // block in the dominator tree.

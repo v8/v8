@@ -3297,6 +3297,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/store-store-elimination.h",
     "src/compiler/string-builder-optimizer.h",
     "src/compiler/turbofan.h",
+    "src/compiler/turboshaft/analyzer-iterator.h",
     "src/compiler/turboshaft/assembler.h",
     "src/compiler/turboshaft/assert-types-reducer.h",
     "src/compiler/turboshaft/branch-elimination-reducer.h",
@@ -4855,6 +4856,7 @@ v8_source_set("v8_turboshaft") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "src/compiler/turboshaft/analyzer-iterator.cc",
     "src/compiler/turboshaft/assembler.cc",
     "src/compiler/turboshaft/build-graph-phase.cc",
     "src/compiler/turboshaft/dead-code-elimination-phase.cc",

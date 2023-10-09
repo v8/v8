@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 
+#include "src/compiler/turboshaft/analyzer-iterator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/zone/zone.h"
@@ -548,6 +550,7 @@ class LateLoadEliminationAnalyzer {
   LateLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone,
                               JSHeapBroker* broker)
       : graph_(graph),
+        phase_zone_(phase_zone),
         broker_(broker),
         replacements_(graph.op_id_count(), phase_zone),
         non_aliasing_objects_(phase_zone),
@@ -559,18 +562,20 @@ class LateLoadEliminationAnalyzer {
         predecessor_memory_snapshots_(phase_zone) {}
 
   void Run() {
-    bool compute_start_snapshot = true;
-    for (uint32_t block_index = 0; block_index < graph_.block_count();
-         block_index++) {
-      const Block& block = graph_.Get(BlockIndex{block_index});
+    LoopFinder loop_finder(phase_zone_, &graph_);
+    AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
 
-      ProcessBlock(block, compute_start_snapshot);
+    bool compute_start_snapshot = true;
+    while (iterator.HasNext()) {
+      const Block* block = iterator.Next();
+
+      ProcessBlock(*block, compute_start_snapshot);
       compute_start_snapshot = true;
 
       // Consider re-processing for loops.
-      if (const GotoOp* last = block.LastOperation(graph_).TryCast<GotoOp>()) {
+      if (const GotoOp* last = block->LastOperation(graph_).TryCast<GotoOp>()) {
         if (last->destination->IsLoop() &&
-            last->destination->LastPredecessor() == &block) {
+            last->destination->LastPredecessor() == block) {
           const Block* loop_header = last->destination;
           // {block} is the backedge of a loop. We recompute the loop header's
           // initial snapshots, and if they differ from its original snapshot,
@@ -597,7 +602,7 @@ class LateLoadEliminationAnalyzer {
             object_maps_.StartNewSnapshot(pred_snapshots->maps_snapshot);
             memory_.StartNewSnapshot(pred_snapshots->memory_snapshot);
 
-            block_index = loop_header->index().id() - 1;
+            iterator.MarkLoopForRevisit();
             compute_start_snapshot = false;
           } else {
             SealAndDiscard();
@@ -641,6 +646,7 @@ class LateLoadEliminationAnalyzer {
   void InvalidateIfAlias(OpIndex op_idx);
 
   Graph& graph_;
+  Zone* phase_zone_;
   JSHeapBroker* broker_;
 
 #if V8_ENABLE_WEBASSEMBLY

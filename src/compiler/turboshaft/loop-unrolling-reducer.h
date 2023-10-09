@@ -112,7 +112,6 @@ class LoopUnrollingAnalyzer {
         loop_finder_(phase_zone, input_graph),
         loop_iteration_count_(phase_zone),
         canonical_loop_matcher_(matcher_, kPartialUnrollingCount) {
-    loop_finder_.Run();
     DetectUnrollableLoops();
   }
 
