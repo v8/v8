@@ -857,7 +857,11 @@ inline void MaglevAssembler::CompareObjectTypeAndJumpIf(
     Label::Distance distance) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  MacroAssembler::CompareObjectType(heap_object, scratch, scratch, type);
+  if (cond == kEqual || cond == kNotEqual) {
+    IsObjectType(heap_object, scratch, scratch, type);
+  } else {
+    CompareObjectType(heap_object, scratch, scratch, type);
+  }
   JumpIf(cond, target, distance);
 }
 
@@ -868,7 +872,11 @@ inline void MaglevAssembler::CompareObjectTypeAndAssert(Register heap_object,
   AssertNotSmi(heap_object);
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  MacroAssembler::CompareObjectType(heap_object, scratch, scratch, type);
+  if (cond == kEqual || cond == kNotEqual) {
+    IsObjectType(heap_object, scratch, scratch, type);
+  } else {
+    CompareObjectType(heap_object, scratch, scratch, type);
+  }
   Assert(cond, reason);
 }
 
@@ -879,7 +887,11 @@ inline void MaglevAssembler::CompareObjectTypeAndBranch(
     bool fallthrough_when_false) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  MacroAssembler::CompareObjectType(heap_object, scratch, scratch, type);
+  if (condition == kEqual || condition == kNotEqual) {
+    IsObjectType(heap_object, scratch, scratch, type);
+  } else {
+    CompareObjectType(heap_object, scratch, scratch, type);
+  }
   Branch(condition, if_true, true_distance, fallthrough_when_true, if_false,
          false_distance, fallthrough_when_false);
 }

@@ -704,8 +704,12 @@ inline void MaglevAssembler::LoadInstanceType(Register instance_type,
 inline void MaglevAssembler::CompareObjectTypeAndJumpIf(
     Register heap_object, InstanceType type, Condition cond, Label* target,
     Label::Distance distance) {
-  LoadMap(kScratchRegister, heap_object);
-  CmpInstanceType(kScratchRegister, type);
+  if (cond == kEqual || cond == kNotEqual) {
+    IsObjectType(heap_object, type, kScratchRegister);
+  } else {
+    LoadMap(kScratchRegister, heap_object);
+    CmpInstanceType(kScratchRegister, type);
+  }
   JumpIf(cond, target, distance);
 }
 
@@ -714,8 +718,12 @@ inline void MaglevAssembler::CompareObjectTypeAndAssert(Register heap_object,
                                                         Condition cond,
                                                         AbortReason reason) {
   AssertNotSmi(heap_object);
-  LoadMap(kScratchRegister, heap_object);
-  CmpInstanceType(kScratchRegister, type);
+  if (cond == kEqual || cond == kNotEqual) {
+    IsObjectType(heap_object, type, kScratchRegister);
+  } else {
+    LoadMap(kScratchRegister, heap_object);
+    CmpInstanceType(kScratchRegister, type);
+  }
   Assert(cond, reason);
 }
 
@@ -724,8 +732,12 @@ inline void MaglevAssembler::CompareObjectTypeAndBranch(
     Label* if_true, Label::Distance true_distance, bool fallthrough_when_true,
     Label* if_false, Label::Distance false_distance,
     bool fallthrough_when_false) {
-  LoadMap(kScratchRegister, heap_object);
-  CmpInstanceType(kScratchRegister, type);
+  if (condition == kEqual || condition == kNotEqual) {
+    IsObjectType(heap_object, type, kScratchRegister);
+  } else {
+    LoadMap(kScratchRegister, heap_object);
+    CmpInstanceType(kScratchRegister, type);
+  }
   Branch(condition, if_true, true_distance, fallthrough_when_true, if_false,
          false_distance, fallthrough_when_false);
 }
