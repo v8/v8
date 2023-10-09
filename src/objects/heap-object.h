@@ -21,6 +21,7 @@ class Heap;
 class PrimitiveHeapObject;
 class ExternalPointerSlot;
 class IndirectPointerSlot;
+class ExposedTrustedObject;
 
 V8_OBJECT class HeapObjectLayout {
  private:
@@ -231,9 +232,18 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // IndirectPointer field accessors.
   //
+  // Indirect pointer fields can be initialized on background threads, so take a
+  // LocalIsolate instead of an Isolate as parameter.
+  inline void InitSelfIndirectPointerField(size_t offset,
+                                           LocalIsolate* isolate);
+
   template <IndirectPointerTag tag>
-  inline Tagged<Object> ReadIndirectPointerField(
-      size_t offset, Isolate* isolate, InstanceType expected_type) const;
+  inline Tagged<Object> ReadIndirectPointerField(size_t offset,
+                                                 const Isolate* isolate) const;
+
+  template <IndirectPointerTag tag>
+  inline void WriteIndirectPointerField(size_t offset,
+                                        Tagged<ExposedTrustedObject> value);
 
   //
   // CodePointer field accessors.

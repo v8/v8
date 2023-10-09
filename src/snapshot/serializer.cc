@@ -1121,7 +1121,10 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 void Serializer::ObjectSerializer::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
-  DCHECK(V8_ENABLE_SANDBOX_BOOL);
+#ifdef V8_ENABLE_SANDBOX
+
+  // If necessary, output any raw data preceeding this slot.
+  OutputRawData(slot.address());
 
   // The slot must be properly initialized at this point, so will always contain
   // a reference to a HeapObject.
@@ -1130,16 +1133,39 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   CHECK(IsHeapObject(*slot_value));
   bytes_processed_so_far_ += kIndirectPointerSlotSize;
 
-  // Currently, we only reference Code objects through indirect pointers, and
-  // we only serialize builtin Code objects which end up in the RO snapshot, so
-  // we cannot see pending objects here. However, we'll need to handle pending
-  // objects here and in the deserializer once we reference other types of
-  // objects through indirect pointers.
-  CHECK_EQ(slot.tag(), kCodeIndirectPointerTag);
-  DCHECK(IsJSFunction(host) && IsCode(*slot_value));
-  DCHECK(!serializer_->SerializePendingObject(*slot_value));
+  // Currently we cannot see pending objects here, but we may need to handle
+  // them here and in the deserializer in the future.
+  CHECK(!serializer_->SerializePendingObject(*slot_value));
   sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void Serializer::ObjectSerializer::VisitIndirectPointerTableEntry(
+    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+#ifdef V8_ENABLE_SANDBOX
+  // These slots will be recreated during deserialization. We zero them out in
+  // the snapshot so that (a) the snapshot is deterministic and (b) the field
+  // will contain the kIndirectPointerNullHandle prior to the post-processing
+  // step during deserialization. This is important as a GC marker can see the
+  // object before post-processing, and would then see an invalid handle.
+
+  // These fields only exist on the ExposedTrustedObject class, and they are
+  // located directly after the Map word.
+  DCHECK_EQ(bytes_processed_so_far_,
+            ExposedTrustedObject::kSelfIndirectPointerOffset);
+  bytes_processed_so_far_ += kIndirectPointerSlotSize;
+
+  sink_->Put(
+      FixedRawDataWithSize::Encode(kIndirectPointerSlotSize / kTaggedSize),
+      "SelfIndirectPointer");
+  static uint8_t field_value[kIndirectPointerSlotSize] = {0};
+  sink_->PutRaw(field_value, kIndirectPointerSlotSize, "Bytes");
+#else
+  UNREACHABLE();
+#endif
 }
 
 namespace {

@@ -191,6 +191,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   CHECK(CheckRequiredAlignment(isolate));
 
+  // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
+  // TODO(saelo): currently, Code objects still outside of trusted space.
+  CHECK_EQ(IsTrustedObject(*this),
+           IsTrustedSpaceObject(*this) || IsCode(*this));
+
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
@@ -1207,9 +1212,9 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 
 void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
-  // TODO(saelo): check here that the object lives in trusted space once we
-  // actually allocate them there. If possible, also check (elsewhere in this
-  // file) that no other type of object lives in trusted space.
+  // All trusted objects must live in trusted space.
+  // TODO(saelo): Code objects are trusted but do not yet live in trusted space.
+  CHECK(IsCode(*this) || IsTrustedSpaceObject(*this));
 #endif
 }
 

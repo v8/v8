@@ -2331,9 +2331,10 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
 bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   if (!IsHeapObject(object)) return false;
-  // Avoid comparing InstructionStream objects with non-InstructionStream
-  // objects below.
-  if (IsCodeSpaceObject(HeapObject::cast(object))) {
+  // Avoid comparing objects in other pointer compression cages to objects
+  // inside the main cage as the comparison may only look at the lower 32 bits.
+  if (IsCodeSpaceObject(HeapObject::cast(object)) ||
+      IsTrustedSpaceObject(HeapObject::cast(object))) {
     return true;
   }
   Isolate* isolate = heap_->isolate();

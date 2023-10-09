@@ -16924,9 +16924,6 @@ TEST(GetHeapSpaceStatistics) {
   auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024,
                                                        i::AllocationType::kOld);
   USE(unused);
-  unused = i_isolate->factory()->TryNewFixedArray(512 * 1024,
-                                                  i::AllocationType::kTrusted);
-  USE(unused);
 
   isolate->GetHeapStatistics(&heap_statistics);
 

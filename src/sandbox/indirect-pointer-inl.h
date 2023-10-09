@@ -8,6 +8,7 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer.h"
@@ -15,11 +16,34 @@
 namespace v8 {
 namespace internal {
 
+V8_INLINE void InitSelfIndirectPointerField(Address field_address,
+                                            LocalIsolate* isolate,
+                                            Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_SANDBOX
+  // TODO(saelo): we'll need the tag here in the future (to tag the entry in
+  // the pointer table). At that point, DCHECK that we don't see
+  // kCodeIndirectPointerTag here.
+  // TODO(saelo): in the future, we might want to CHECK here or in
+  // AllocateAndInitializeEntry that the object lives in trusted space.
+  IndirectPointerTable::Space* space =
+      isolate->heap()->indirect_pointer_space();
+  IndirectPointerHandle handle =
+      isolate->indirect_pointer_table()->AllocateAndInitializeEntry(
+          space, object->ptr());
+  // Use a Release_Store to ensure that the store of the pointer into the table
+  // is not reordered after the store of the handle. Otherwise, other threads
+  // may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  UNREACHABLE();
+#endif
+}
 
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   const Isolate* isolate) {
+#ifdef V8_ENABLE_SANDBOX
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   IndirectPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   DCHECK_NE(handle, kNullIndirectPointerHandle);
@@ -37,10 +61,25 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
 
   const IndirectPointerTable& table = isolate->indirect_pointer_table();
   return Tagged<Object>(table.Get(handle));
+#else
+  UNREACHABLE();
+#endif
 }
 
-#endif  // V8_ENABLE_SANDBOX
-        //
+template <IndirectPointerTag tag>
+V8_INLINE void WriteIndirectPointerField(Address field_address,
+                                         Tagged<ExposedTrustedObject> value) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(tag != kIndirectPointerNullTag);
+  IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
+      ExposedTrustedObject::kSelfIndirectPointerOffset);
+  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  UNREACHABLE();
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
 

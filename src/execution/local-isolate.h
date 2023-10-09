@@ -26,6 +26,7 @@ namespace internal {
 class Isolate;
 class LocalLogger;
 class RuntimeCallStats;
+class IndirectPointerTable;
 
 // HiddenLocalFactory parallels Isolate's HiddenFactory
 class V8_EXPORT_PRIVATE HiddenLocalFactory : private LocalFactory {
@@ -98,6 +99,12 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
 
   AccountingAllocator* allocator() { return isolate_->allocator(); }
+
+#ifdef V8_COMPRESS_POINTERS
+  IndirectPointerTable* indirect_pointer_table() const {
+    return &isolate_->indirect_pointer_table();
+  }
+#endif
 
   bool has_pending_exception() const { return false; }
   bool serializer_enabled() const { return isolate_->serializer_enabled(); }

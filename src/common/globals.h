@@ -936,6 +936,7 @@ class DirectHandle;
 #endif
 class TransitionArray;
 class ExternalReference;
+class ExposedTrustedObject;
 class FeedbackVector;
 class FixedArray;
 class Foreign;
