@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_H_
-#define V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_H_
+#ifndef V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_INL_H_
+#define V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_INL_H_
 
 #include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
@@ -11,9 +11,7 @@
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace liftoff {
 
@@ -3322,8 +3320,6 @@ void LiftoffStackSlots::Construct(int param_slots) {
   }
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
-#endif  // V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_H_
+#endif  // V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_INL_H_

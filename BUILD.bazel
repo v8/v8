@@ -2382,7 +2382,7 @@ filegroup(
             "src/execution/ia32/frame-constants-ia32.h",
             "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
             "src/regexp/ia32/regexp-macro-assembler-ia32.h",
-            "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
+            "src/wasm/baseline/ia32/liftoff-assembler-ia32-inl.h",
         ],
         "@v8//bazel/config:v8_target_x64": [
             "src/baseline/x64/baseline-assembler-x64-inl.h",
@@ -2409,7 +2409,7 @@ filegroup(
             "src/execution/x64/frame-constants-x64.h",
             "src/regexp/x64/regexp-macro-assembler-x64.cc",
             "src/regexp/x64/regexp-macro-assembler-x64.h",
-            "src/wasm/baseline/x64/liftoff-assembler-x64.h",
+            "src/wasm/baseline/x64/liftoff-assembler-x64-inl.h",
         ],
         "@v8//bazel/config:v8_target_arm": [
             "src/baseline/arm/baseline-assembler-arm-inl.h",
@@ -2435,7 +2435,7 @@ filegroup(
             "src/execution/arm/simulator-arm.h",
             "src/regexp/arm/regexp-macro-assembler-arm.cc",
             "src/regexp/arm/regexp-macro-assembler-arm.h",
-            "src/wasm/baseline/arm/liftoff-assembler-arm.h",
+            "src/wasm/baseline/arm/liftoff-assembler-arm-inl.h",
         ],
         "@v8//bazel/config:v8_target_arm64": [
             "src/baseline/arm64/baseline-assembler-arm64-inl.h",
@@ -2473,7 +2473,7 @@ filegroup(
             "src/execution/arm64/simulator-logic-arm64.cc",
             "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
             "src/regexp/arm64/regexp-macro-assembler-arm64.h",
-            "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
+            "src/wasm/baseline/arm64/liftoff-assembler-arm64-inl.h",
         ],
         "@v8//bazel/config:v8_target_s390x": [
             "src/baseline/s390/baseline-assembler-s390-inl.h",
@@ -2499,7 +2499,7 @@ filegroup(
             "src/execution/s390/simulator-s390.h",
             "src/regexp/s390/regexp-macro-assembler-s390.cc",
             "src/regexp/s390/regexp-macro-assembler-s390.h",
-            "src/wasm/baseline/s390/liftoff-assembler-s390.h",
+            "src/wasm/baseline/s390/liftoff-assembler-s390-inl.h",
         ],
         "@v8//bazel/config:v8_target_riscv64": [
             "src/baseline/riscv64/baseline-assembler-riscv64-inl.h",
@@ -2524,7 +2524,7 @@ filegroup(
             "src/execution/riscv64/simulator-riscv64.h",
             "src/regexp/riscv64/regexp-macro-assembler-riscv64.cc",
             "src/regexp/riscv64/regexp-macro-assembler-riscv64.h",
-            "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
+            "src/wasm/baseline/riscv64/liftoff-assembler-riscv64-inl.h",
         ],
         "@v8//bazel/config:v8_target_ppc64le": [
             "src/baseline/ppc/baseline-assembler-ppc-inl.h",
@@ -2550,7 +2550,7 @@ filegroup(
             "src/execution/ppc/simulator-ppc.h",
             "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
             "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-            "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+            "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
@@ -2609,9 +2609,13 @@ filegroup(
             "src/wasm/baseline/liftoff-assembler.cc",
             "src/wasm/baseline/liftoff-assembler.h",
             "src/wasm/baseline/liftoff-assembler-defs.h",
+            "src/wasm/baseline/liftoff-assembler-inl.h",
             "src/wasm/baseline/liftoff-compiler.cc",
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",
+            "src/wasm/baseline/parallel-move.cc",
+            "src/wasm/baseline/parallel-move.h",
+            "src/wasm/baseline/parallel-move-inl.h",
             "src/wasm/branch-hint-map.h",
             "src/wasm/canonical-types.cc",
             "src/wasm/canonical-types.h",

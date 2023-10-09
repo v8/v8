@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_H_
-#define V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_H_
+#ifndef V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_INL_H_
+#define V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_INL_H_
 
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler.h"
@@ -13,9 +13,7 @@
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace liftoff {
 
@@ -478,8 +476,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     ZeroExtWord32(ip, offset_reg);
     offset_reg = ip;
   }
-  MemOperand dst_op =
-      MemOperand(dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
@@ -2842,10 +2839,8 @@ void LiftoffStackSlots::Construct(int param_slots) {
   }
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #undef BAILOUT
 
-#endif  // V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_H_
+#endif  // V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_INL_H_

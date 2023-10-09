@@ -2,17 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_H_
-#define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_H_
+#ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
+#define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
 
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
-#include "src/wasm/wasm-objects.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace liftoff {
 
@@ -2365,7 +2363,6 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
-#endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_H_
+}  // namespace v8::internal::wasm
+
+#endif  // V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_

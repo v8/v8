@@ -4104,9 +4104,12 @@ v8_header_set("v8_internal_headers") {
       "src/trap-handler/trap-handler-internal.h",
       "src/trap-handler/trap-handler.h",
       "src/wasm/baseline/liftoff-assembler-defs.h",
+      "src/wasm/baseline/liftoff-assembler-inl.h",
       "src/wasm/baseline/liftoff-assembler.h",
       "src/wasm/baseline/liftoff-compiler.h",
       "src/wasm/baseline/liftoff-register.h",
+      "src/wasm/baseline/parallel-move-inl.h",
+      "src/wasm/baseline/parallel-move.h",
       "src/wasm/canonical-types.h",
       "src/wasm/code-space-access.h",
       "src/wasm/compilation-environment.h",
@@ -4253,7 +4256,7 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/backend/ia32/instruction-codes-ia32.h",
       "src/execution/ia32/frame-constants-ia32.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
-      "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
+      "src/wasm/baseline/ia32/liftoff-assembler-ia32-inl.h",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
@@ -4275,7 +4278,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/x64/frame-constants-x64.h",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
-      "src/wasm/baseline/x64/liftoff-assembler-x64.h",
+      "src/wasm/baseline/x64/liftoff-assembler-x64-inl.h",
     ]
 
     if (is_win) {
@@ -4309,7 +4312,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/arm/frame-constants-arm.h",
       "src/execution/arm/simulator-arm.h",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
-      "src/wasm/baseline/arm/liftoff-assembler-arm.h",
+      "src/wasm/baseline/arm/liftoff-assembler-arm-inl.h",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [
@@ -4334,7 +4337,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/arm64/frame-constants-arm64.h",
       "src/execution/arm64/simulator-arm64.h",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
-      "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
+      "src/wasm/baseline/arm64/liftoff-assembler-arm64-inl.h",
     ]
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
@@ -4370,7 +4373,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/mips64/frame-constants-mips64.h",
       "src/execution/mips64/simulator-mips64.h",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
-      "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
+      "src/wasm/baseline/mips64/liftoff-assembler-mips64-inl.h",
     ]
   } else if (v8_current_cpu == "loong64") {
     sources += [
@@ -4387,7 +4390,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/loong64/frame-constants-loong64.h",
       "src/execution/loong64/simulator-loong64.h",
       "src/regexp/loong64/regexp-macro-assembler-loong64.h",
-      "src/wasm/baseline/loong64/liftoff-assembler-loong64.h",
+      "src/wasm/baseline/loong64/liftoff-assembler-loong64-inl.h",
     ]
     if (v8_enable_webassembly) {
       # Trap handling is enabled on loong64 Linux and in simulators on
@@ -4415,7 +4418,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/ppc/frame-constants-ppc.h",
       "src/execution/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
@@ -4434,7 +4437,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/ppc/frame-constants-ppc.h",
       "src/execution/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
@@ -4453,7 +4456,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/s390/frame-constants-s390.h",
       "src/execution/s390/simulator-s390.h",
       "src/regexp/s390/regexp-macro-assembler-s390.h",
-      "src/wasm/baseline/s390/liftoff-assembler-s390.h",
+      "src/wasm/baseline/s390/liftoff-assembler-s390-inl.h",
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [
@@ -4491,7 +4494,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/riscv/frame-constants-riscv.h",
       "src/execution/riscv/simulator-riscv.h",
       "src/regexp/riscv/regexp-macro-assembler-riscv.h",
-      "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
+      "src/wasm/baseline/riscv64/liftoff-assembler-riscv64-inl.h",
     ]
   } else if (v8_current_cpu == "riscv32") {
     sources += [
@@ -4530,7 +4533,7 @@ v8_header_set("v8_internal_headers") {
       "src/execution/riscv/frame-constants-riscv.h",
       "src/execution/riscv/simulator-riscv.h",
       "src/regexp/riscv/regexp-macro-assembler-riscv.h",
-      "src/wasm/baseline/riscv32/liftoff-assembler-riscv32.h",
+      "src/wasm/baseline/riscv32/liftoff-assembler-riscv32-inl.h",
     ]
   }
 
@@ -5468,6 +5471,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/trap-handler/handler-shared.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
+      "src/wasm/baseline/parallel-move.cc",
       "src/wasm/canonical-types.cc",
       "src/wasm/code-space-access.cc",
       "src/wasm/constant-expression-interface.cc",

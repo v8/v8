@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
-#define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
+#ifndef V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_INL_H_
+#define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_INL_H_
 
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler.h"
@@ -13,9 +13,7 @@
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace liftoff {
 
@@ -50,7 +48,6 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 }
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
-
 
 }  // namespace liftoff
 
@@ -3274,10 +3271,8 @@ void LiftoffStackSlots::Construct(int param_slots) {
   }
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #undef BAILOUT
 
-#endif  // V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
+#endif  // V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_INL_H_

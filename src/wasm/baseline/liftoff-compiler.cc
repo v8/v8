@@ -21,7 +21,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
