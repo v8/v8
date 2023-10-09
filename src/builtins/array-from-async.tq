@@ -32,8 +32,6 @@ transitioning macro ArrayFromAsyncAwaitPoint<T : type extends FunctionContext>(
   const resolve = *ContextSlot(resolveContext, resolveSlot);
   const reject = *ContextSlot(resolveContext, rejectSlot);
 
-  // TODO(v8:13321): Add a fast path for values that are already
-  // built-in promises.
   const resultPromise = promise::PromiseResolve(promiseFun, value);
 
   promise::PerformPromiseThenImpl(
