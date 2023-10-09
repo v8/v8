@@ -244,36 +244,33 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
-  OpIndex REDUCE(Load)(OpIndex base_idx, OptionalOpIndex index,
-                       LoadOp::Kind kind, MemoryRepresentation loaded_rep,
+  OpIndex REDUCE(Load)(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
+                       MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_scale) {
     if (kind.is_atomic) {
       if (loaded_rep == MemoryRepresentation::Int64() ||
           loaded_rep == MemoryRepresentation::Uint64()) {
-        return Next::ReduceAtomicWord32Pair(
-            base_idx, index, OpIndex::Invalid(), OpIndex::Invalid(),
-            OpIndex::Invalid(), OpIndex::Invalid(),
-            AtomicWord32PairOp::OpKind::kLoad, offset);
+        return __ AtomicWord32PairLoad(base, index, offset);
       }
       if (kind.is_atomic && result_rep == RegisterRepresentation::Word64()) {
-        return __ Tuple(Next::ReduceLoad(base_idx, index, kind, loaded_rep,
-                                         RegisterRepresentation::Word32(),
-                                         offset, element_scale),
-                        __ Word32Constant(0));
+        return __ Tuple(
+            __ Load(base, index, kind, loaded_rep,
+                    RegisterRepresentation::Word32(), offset, element_scale),
+            __ Word32Constant(0));
       }
     }
     if (loaded_rep == MemoryRepresentation::Int64()) {
       return __ Tuple(
-          Next::ReduceLoad(base_idx, index, kind, MemoryRepresentation::Int32(),
+          Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(), offset,
                            element_scale),
-          Next::ReduceLoad(base_idx, index, kind, MemoryRepresentation::Int32(),
+          Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(),
                            offset + sizeof(int32_t), element_scale));
     }
-    return Next::ReduceLoad(base_idx, index, kind, loaded_rep, result_rep,
-                            offset, element_scale);
+    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
+                            element_scale);
   }
 
   OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
@@ -286,9 +283,7 @@ class Int64LoweringReducer : public Next {
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
       if (kind.is_atomic) {
-        return Next::ReduceAtomicWord32Pair(
-            base, index, low, high, OpIndex::Invalid(), OpIndex::Invalid(),
-            AtomicWord32PairOp::OpKind::kStore, offset);
+        return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       return __ Tuple(
           Next::ReduceStore(
@@ -307,7 +302,7 @@ class Int64LoweringReducer : public Next {
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,
-                            OpIndex expected, AtomicRMWOp::BinOp bin_op,
+                            OptionalOpIndex expected, AtomicRMWOp::BinOp bin_op,
                             RegisterRepresentation result_rep,
                             MemoryRepresentation input_rep,
                             MemoryAccessKind kind) {
@@ -319,20 +314,18 @@ class Int64LoweringReducer : public Next {
     if (input_rep == MemoryRepresentation::Int64() ||
         input_rep == MemoryRepresentation::Uint64()) {
       if (bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
-        auto [expected_low, expected_high] = Unpack(expected);
-        return Next::ReduceAtomicWord32Pair(
-            base, index, value_low, value_high, expected_low, expected_high,
-            AtomicWord32PairOp::OpKind::kCompareExchange, 0);
+        auto [expected_low, expected_high] = Unpack(expected.value());
+        return __ AtomicWord32PairCompareExchange(
+            base, index, value_low, value_high, expected_low, expected_high);
       } else {
-        return Next::ReduceAtomicWord32Pair(
-            base, index, value_low, value_high, OpIndex::Invalid(),
-            OpIndex::Invalid(), AtomicWord32PairOp::OpKindFromBinOp(bin_op), 0);
+        return __ AtomicWord32PairBinop(base, index, value_low, value_high,
+                                        bin_op);
       }
     }
 
     OpIndex new_expected = OpIndex::Invalid();
     if (bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
-      auto [expected_low, expected_high] = Unpack(expected);
+      auto [expected_low, expected_high] = Unpack(expected.value());
       new_expected = expected_low;
     }
     return __ Tuple(Next::ReduceAtomicRMW(

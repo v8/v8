@@ -2310,6 +2310,30 @@ OpIndex GraphBuilder::Process(
       }
     }
 
+    case IrOpcode::kWord32AtomicPairLoad:
+      return __ AtomicWord32PairLoad(Map(node->InputAt(0)),
+                                     Map(node->InputAt(1)), 0);
+    case IrOpcode::kWord32AtomicPairStore:
+      return __ AtomicWord32PairStore(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          Map(node->InputAt(3)), 0);
+#define ATOMIC_WORD32_PAIR_BINOP(kind)                                       \
+  case IrOpcode::kWord32AtomicPair##kind:                                    \
+    return __ AtomicWord32PairBinop(                                         \
+        Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)), \
+        Map(node->InputAt(3)), AtomicRMWOp::BinOp::k##kind, 0);
+      ATOMIC_WORD32_PAIR_BINOP(Add)
+      ATOMIC_WORD32_PAIR_BINOP(Sub)
+      ATOMIC_WORD32_PAIR_BINOP(And)
+      ATOMIC_WORD32_PAIR_BINOP(Or)
+      ATOMIC_WORD32_PAIR_BINOP(Xor)
+      ATOMIC_WORD32_PAIR_BINOP(Exchange)
+    case IrOpcode::kWord32AtomicPairCompareExchange:
+      return __ AtomicWord32PairCompareExchange(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(4)),
+          Map(node->InputAt(5)), Map(node->InputAt(2)), Map(node->InputAt(3)),
+          0);
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define SIMD128_BINOP(name)                                              \
   case IrOpcode::k##name:                                                \

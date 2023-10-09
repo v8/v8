@@ -400,25 +400,25 @@ std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp bin_op) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::OpKind bin_op) {
+std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::Kind bin_op) {
   switch (bin_op) {
-    case AtomicWord32PairOp::OpKind::kAdd:
+    case AtomicWord32PairOp::Kind::kAdd:
       return os << "add";
-    case AtomicWord32PairOp::OpKind::kSub:
+    case AtomicWord32PairOp::Kind::kSub:
       return os << "sub";
-    case AtomicWord32PairOp::OpKind::kAnd:
+    case AtomicWord32PairOp::Kind::kAnd:
       return os << "and";
-    case AtomicWord32PairOp::OpKind::kOr:
+    case AtomicWord32PairOp::Kind::kOr:
       return os << "or";
-    case AtomicWord32PairOp::OpKind::kXor:
+    case AtomicWord32PairOp::Kind::kXor:
       return os << "xor";
-    case AtomicWord32PairOp::OpKind::kExchange:
+    case AtomicWord32PairOp::Kind::kExchange:
       return os << "exchange";
-    case AtomicWord32PairOp::OpKind::kCompareExchange:
+    case AtomicWord32PairOp::Kind::kCompareExchange:
       return os << "compare-exchange";
-    case AtomicWord32PairOp::OpKind::kLoad:
+    case AtomicWord32PairOp::Kind::kLoad:
       return os << "load";
-    case AtomicWord32PairOp::OpKind::kStore:
+    case AtomicWord32PairOp::Kind::kStore:
       return os << "store";
   }
 }
@@ -536,8 +536,8 @@ void AtomicRMWOp::PrintInputs(std::ostream& os,
   os << " *(" << op_index_prefix << base().id() << " + " << op_index_prefix
      << index().id() << ").atomic_" << bin_op << "(";
   if (bin_op == BinOp::kCompareExchange) {
-    os << "expected: " << op_index_prefix << expected().id();
-    os << ", new: " << op_index_prefix << value().id();
+    os << "expected: " << op_index_prefix << expected();
+    os << ", new: " << op_index_prefix << value();
   } else {
     os << op_index_prefix << value().id();
   }
@@ -559,21 +559,21 @@ void AtomicWord32PairOp::PrintInputs(std::ostream& os,
   if (offset) {
     os << " + offset=" << offset;
   }
-  os << ").atomic_word32_pair_" << op_kind << "(";
-  if (op_kind == OpKind::kCompareExchange) {
-    os << "expected: {lo: " << op_index_prefix << value_low().id()
+  os << ").atomic_word32_pair_" << kind << "(";
+  if (kind == Kind::kCompareExchange) {
+    os << "expected: {lo: " << op_index_prefix << value_low()
        << ", hi: " << op_index_prefix << value_high();
-    os << "}, value: {lo: " << op_index_prefix << value_low().id()
+    os << "}, value: {lo: " << op_index_prefix << value_low()
        << ", hi: " << op_index_prefix << value_high() << "}";
-  } else if (op_kind != OpKind::kLoad) {
-    os << "lo: " << op_index_prefix << value_low().id()
+  } else if (kind != Kind::kLoad) {
+    os << "lo: " << op_index_prefix << value_low()
        << ", hi: " << op_index_prefix << value_high();
   }
   os << ")";
 }
 
 void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
-  os << "[opkind: " << op_kind << "]";
+  os << "[opkind: " << kind << "]";
 }
 
 void MemoryBarrierOp::PrintOptions(std::ostream& os) const {

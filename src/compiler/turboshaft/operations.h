@@ -2649,7 +2649,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   V<WordPtr> base() const { return input(0); }
   V<WordPtr> index() const { return input(1); }
   OpIndex value() const { return input(2); }
-  OpIndex expected() const {
+  OptionalOpIndex expected() const {
     return (input_count == 4) ? input(3) : OpIndex::Invalid();
   }
 
@@ -2657,9 +2657,10 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
 
-  AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value, OpIndex expected,
-              BinOp bin_op, RegisterRepresentation result_rep,
-              MemoryRepresentation input_rep, MemoryAccessKind kind)
+  AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value,
+              OptionalOpIndex expected, BinOp bin_op,
+              RegisterRepresentation result_rep, MemoryRepresentation input_rep,
+              MemoryAccessKind kind)
       : Base(3 + expected.valid()),
         bin_op(bin_op),
         result_rep(result_rep),
@@ -2669,12 +2670,12 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     input(1) = index;
     input(2) = value;
     if (expected.valid()) {
-      input(3) = expected;
+      input(3) = expected.value();
     }
   }
 
   static AtomicRMWOp& New(Graph* graph, OpIndex base, OpIndex index,
-                          OpIndex value, OpIndex expected, BinOp bin_op,
+                          OpIndex value, OptionalOpIndex expected, BinOp bin_op,
                           RegisterRepresentation result_rep,
                           MemoryRepresentation input_rep,
                           MemoryAccessKind kind) {
@@ -2695,7 +2696,7 @@ DEFINE_MULTI_SWITCH_INTEGRAL(AtomicRMWOp::BinOp, 8)
 std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp kind);
 
 struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
-  enum class OpKind : uint8_t {
+  enum class Kind : uint8_t {
     kAdd,
     kSub,
     kAnd,
@@ -2707,146 +2708,151 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
     kStore
   };
 
-  static OpKind OpKindFromBinOp(AtomicRMWOp::BinOp bin_op) {
+  Kind kind;
+  int32_t offset;
+
+  static Kind KindFromBinOp(AtomicRMWOp::BinOp bin_op) {
     switch (bin_op) {
       case AtomicRMWOp::BinOp::kAdd:
-        return OpKind::kAdd;
+        return Kind::kAdd;
       case AtomicRMWOp::BinOp::kSub:
-        return OpKind::kSub;
+        return Kind::kSub;
       case AtomicRMWOp::BinOp::kAnd:
-        return OpKind::kAnd;
+        return Kind::kAnd;
       case AtomicRMWOp::BinOp::kOr:
-        return OpKind::kOr;
+        return Kind::kOr;
       case AtomicRMWOp::BinOp::kXor:
-        return OpKind::kXor;
+        return Kind::kXor;
       case AtomicRMWOp::BinOp::kExchange:
-        return OpKind::kExchange;
+        return Kind::kExchange;
       case AtomicRMWOp::BinOp::kCompareExchange:
-        return OpKind::kCompareExchange;
+        return Kind::kCompareExchange;
     }
   }
 
-  OpKind op_kind;
-  int32_t offset;
-  bool has_index;
   OpEffects Effects() const {
     OpEffects effects = OpEffects().CanDependOnChecks();
-    if (op_kind == OpKind::kLoad) {
+    if (kind == Kind::kLoad) {
       return effects.CanReadMemory();
     }
-    if (op_kind == OpKind::kStore) {
+    if (kind == Kind::kStore) {
       return effects.CanWriteMemory();
     }
     return effects.CanReadMemory().CanWriteMemory();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    if (op_kind == OpKind::kStore) return {};
+    if (kind == Kind::kStore) return {};
     return RepVector<RegisterRepresentation::Word32(),
                      RegisterRepresentation::Word32()>();
   }
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     storage.resize(input_count);
-    int idx = 0;
-    storage[idx++] = RegisterRepresentation::PointerSized();  // base
+
+    const bool has_index = HasIndex();
+    storage[0] = RegisterRepresentation::PointerSized();  // base
     if (has_index) {
-      storage[idx++] = RegisterRepresentation::PointerSized();  // index
+      storage[1] = RegisterRepresentation::PointerSized();  // index
     }
-    if (op_kind != OpKind::kLoad) {
-      storage[idx++] = RegisterRepresentation::Word32();  // value_low
-      storage[idx++] = RegisterRepresentation::Word32();  // value_high
+    if (kind != Kind::kLoad) {
+      storage[1 + has_index] = RegisterRepresentation::Word32();  // value_low
+      storage[2 + has_index] = RegisterRepresentation::Word32();  // value_high
+      if (kind == Kind::kCompareExchange) {
+        storage[3 + has_index] =
+            RegisterRepresentation::Word32();  // expected_low
+        storage[4 + has_index] =
+            RegisterRepresentation::Word32();  // expected_high
+      }
     }
-    if (op_kind == OpKind::kCompareExchange) {
-      storage[idx++] = RegisterRepresentation::Word32();  // expected_low
-      storage[idx++] = RegisterRepresentation::Word32();  // expected_high
-    }
-    DCHECK_EQ(idx, input_count);
     return base::VectorOf(storage);
   }
 
   V<WordPtr> base() const { return input(0); }
   OptionalV<WordPtr> index() const {
-    return has_index ? input(1) : OpIndex::Invalid();
+    return HasIndex() ? input(1) : OpIndex::Invalid();
   }
-  V<Word32> value_low() const {
-    return (input_count > 1 + has_index) ? input(1 + has_index)
-                                         : OpIndex::Invalid();
+  OptionalV<Word32> value_low() const {
+    return kind != Kind::kLoad ? input(1 + HasIndex()) : OpIndex::Invalid();
   }
-  V<Word32> value_high() const {
-    return (input_count > 2 + has_index) ? input(2 + has_index)
-                                         : OpIndex::Invalid();
+  OptionalV<Word32> value_high() const {
+    return kind != Kind::kLoad ? input(2 + HasIndex()) : OpIndex::Invalid();
   }
-  V<Word32> expected_low() const {
-    return (input_count > 3 + has_index) ? input(3 + has_index)
-                                         : OpIndex::Invalid();
+  OptionalV<Word32> expected_low() const {
+    return kind == Kind::kCompareExchange ? input(3 + HasIndex())
+                                          : OpIndex::Invalid();
   }
-  V<Word32> expected_high() const {
-    return (input_count > 4 + has_index) ? input(4 + has_index)
-                                         : OpIndex::Invalid();
+  OptionalV<Word32> expected_high() const {
+    return kind == Kind::kCompareExchange ? input(4 + HasIndex())
+                                          : OpIndex::Invalid();
   }
 
-  void Validate(const Graph& graph) const {
-    if (op_kind == OpKind::kLoad) {
-      DCHECK_EQ(input_count, 1 + has_index);
-    }
-    DCHECK_EQ(op_kind == OpKind::kLoad, input_count == 1 + has_index);
-    DCHECK_EQ(op_kind == OpKind::kCompareExchange,
-              input_count == 5 + has_index);
-    DCHECK_EQ(op_kind != OpKind::kCompareExchange && op_kind != OpKind::kLoad,
-              input_count == 3 + has_index);
-  }
+  void Validate(const Graph& graph) const {}
 
   AtomicWord32PairOp(V<WordPtr> base, OptionalV<WordPtr> index,
-                     V<Word32> value_low, V<Word32> value_high,
-                     V<Word32> expected_low, V<Word32> expected_high,
-                     OpKind op_kind, int32_t offset)
-      : Base(1 + index.valid() + value_low.valid() + value_high.valid() +
-             expected_low.valid() + expected_high.valid()),
-        op_kind(op_kind),
-        offset(offset) {
+                     OptionalV<Word32> value_low, OptionalV<Word32> value_high,
+                     OptionalV<Word32> expected_low,
+                     OptionalV<Word32> expected_high, Kind kind, int32_t offset)
+      : Base(InputCount(kind, index.has_value())), kind(kind), offset(offset) {
     DCHECK_EQ(value_low.valid(), value_high.valid());
     DCHECK_EQ(expected_low.valid(), expected_high.valid());
-    has_index = index.valid();
+    DCHECK_EQ(kind == Kind::kCompareExchange, expected_low.valid());
+    DCHECK_EQ(kind != Kind::kLoad, value_low.valid());
+
+    const bool has_index = index.has_value();
+    DCHECK_EQ(has_index, HasIndex());
+
     input(0) = base;
-    if (index.valid()) {
-      input(1) = index.value();
-    }
-    if (value_low.valid()) {
-      input(1 + has_index) = value_low;
-    }
-    if (value_high.valid()) {
-      input(2 + has_index) = value_high;
-    }
-    if (expected_low.valid()) {
-      input(3 + has_index) = expected_low;
-    }
-    if (expected_high.valid()) {
-      input(4 + has_index) = expected_high;
+    if (has_index) input(1) = index.value();
+    if (kind != Kind::kLoad) {
+      input(1 + has_index) = value_low.value();
+      input(2 + has_index) = value_high.value();
+      if (kind == Kind::kCompareExchange) {
+        input(3 + has_index) = expected_low.value();
+        input(4 + has_index) = expected_high.value();
+      }
     }
   }
 
+  static constexpr size_t InputCount(Kind kind, bool has_index) {
+    switch (kind) {
+      case Kind::kLoad:
+        return 1 + has_index;  // base, index?
+      case Kind::kAdd:
+      case Kind::kSub:
+      case Kind::kAnd:
+      case Kind::kOr:
+      case Kind::kXor:
+      case Kind::kExchange:
+      case Kind::kStore:
+        return 3 + has_index;  // base, index?, value_low, value_high
+      case Kind::kCompareExchange:
+        return 5 + has_index;  // base, index?, value_low, value_high,
+                               // expected_low, expected_high
+    }
+  }
+  bool HasIndex() const { return input_count == InputCount(kind, true); }
+
   static AtomicWord32PairOp& New(Graph* graph, V<WordPtr> base,
-                                 OptionalV<WordPtr> index, V<Word32> value_low,
-                                 V<Word32> value_high, V<Word32> expected_low,
-                                 V<Word32> expected_high, OpKind op_kind,
+                                 OptionalV<WordPtr> index,
+                                 OptionalV<Word32> value_low,
+                                 OptionalV<Word32> value_high,
+                                 OptionalV<Word32> expected_low,
+                                 OptionalV<Word32> expected_high, Kind kind,
                                  int32_t offset) {
-    return Base::New(graph,
-                     1 + index.valid() + value_low.valid() +
-                         value_high.valid() + expected_low.valid() +
-                         expected_high.valid(),
-                     base, index, value_low, value_high, expected_low,
-                     expected_high, op_kind, offset);
+    return Base::New(graph, InputCount(kind, index.has_value()), base, index,
+                     value_low, value_high, expected_low, expected_high, kind,
+                     offset);
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
 
   void PrintOptions(std::ostream& os) const;
 
-  auto options() const { return std::tuple{op_kind, offset}; }
+  auto options() const { return std::tuple{kind, offset}; }
 };
 
-std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::OpKind kind);
+std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::Kind kind);
 
 struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
   AtomicMemoryOrder memory_order;

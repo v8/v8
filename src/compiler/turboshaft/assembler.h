@@ -1692,13 +1692,41 @@ class AssemblerOpInterface {
         result_rep, input_rep, memory_access_kind);
   }
 
-  OpIndex AtomicWord32Pair(V<WordPtr> base, V<WordPtr> index,
-                           V<Word32> value_low, V<Word32> value_high,
-                           V<Word32> expected_low, V<Word32> expected_high,
-                           AtomicWord32PairOp::OpKind op_kind, int32_t offset) {
+  OpIndex AtomicWord32Pair(V<WordPtr> base, OptionalV<WordPtr> index,
+                           OptionalV<Word32> value_low,
+                           OptionalV<Word32> value_high,
+                           OptionalV<Word32> expected_low,
+                           OptionalV<Word32> expected_high,
+                           AtomicWord32PairOp::Kind op_kind, int32_t offset) {
     return ReduceIfReachableAtomicWord32Pair(base, index, value_low, value_high,
                                              expected_low, expected_high,
                                              op_kind, offset);
+  }
+
+  OpIndex AtomicWord32PairLoad(V<WordPtr> base, OptionalV<WordPtr> index,
+                               int32_t offset) {
+    return AtomicWord32Pair(base, index, {}, {}, {}, {},
+                            AtomicWord32PairOp::Kind::kLoad, offset);
+  }
+  OpIndex AtomicWord32PairStore(V<WordPtr> base, OptionalV<WordPtr> index,
+                                V<Word32> value_low, V<Word32> value_high,
+                                int32_t offset) {
+    return AtomicWord32Pair(base, index, value_low, value_high, {}, {},
+                            AtomicWord32PairOp::Kind::kStore, offset);
+  }
+  OpIndex AtomicWord32PairCompareExchange(
+      V<WordPtr> base, OptionalV<WordPtr> index, V<Word32> value_low,
+      V<Word32> value_high, V<Word32> expected_low, V<Word32> expected_high,
+      int32_t offset = 0) {
+    return AtomicWord32Pair(base, index, value_low, value_high, expected_low,
+                            expected_high,
+                            AtomicWord32PairOp::Kind::kCompareExchange, offset);
+  }
+  OpIndex AtomicWord32PairBinop(V<WordPtr> base, OptionalV<WordPtr> index,
+                                V<Word32> value_low, V<Word32> value_high,
+                                AtomicRMWOp::BinOp bin_op, int32_t offset = 0) {
+    return AtomicWord32Pair(base, index, value_low, value_high, {}, {},
+                            AtomicWord32PairOp::KindFromBinOp(bin_op), offset);
   }
 
   OpIndex MemoryBarrier(AtomicMemoryOrder memory_order) {

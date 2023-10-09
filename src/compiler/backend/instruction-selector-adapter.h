@@ -853,7 +853,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     node_t value() const { return op_->value(); }
     node_t expected() const {
       DCHECK_EQ(op_->bin_op, turboshaft::AtomicRMWOp::BinOp::kCompareExchange);
-      return op_->expected();
+      return op_->expected().value_or_invalid();
     }
 
     operator node_t() const { return node_; }

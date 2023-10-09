@@ -435,8 +435,7 @@ class CallWithReduceArgsHelper {
 
   OpIndex operator()(const AtomicWord32PairOp& op) {
     return callback_(op.base(), op.index(), op.value_low(), op.value_high(),
-                     op.expected_low(), op.expected_high(), op.op_kind,
-                     op.offset);
+                     op.expected_low(), op.expected_high(), op.kind, op.offset);
   }
 
   OpIndex operator()(const MemoryBarrierOp& op) {

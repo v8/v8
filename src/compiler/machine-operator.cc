@@ -1627,7 +1627,7 @@ struct MachineOperatorGlobalCache {
     Word32AtomicPair##op##Operator()                            \
         : Operator(IrOpcode::kWord32AtomicPair##op,             \
                    Operator::kNoDeopt | Operator::kNoThrow,     \
-                   "Word32AtomicPair##op", 4, 1, 1, 2, 1, 0) {} \
+                   "Word32AtomicPair" #op, 4, 1, 1, 2, 1, 0) {} \
   };                                                            \
   Word32AtomicPair##op##Operator kWord32AtomicPair##op;
   ATOMIC_PAIR_BINOP_LIST(ATOMIC_PAIR_OP)

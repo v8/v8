@@ -926,13 +926,12 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicWord32PairOp& op) {
   } else {
     index = IntPtrConstant(op.offset);
   }
-#define BINOP_CASE(OP)                                                         \
-  if (op.op_kind == AtomicWord32PairOp::OpKind::k##OP) {                       \
-    return AddNode(                                                            \
-        machine.Word32AtomicPair##OP(),                                        \
-        {GetNode(op.base()),                                                   \
-         op.index().valid() ? GetNode(op.index().value()) : IntPtrConstant(0), \
-         GetNode(op.value_low()), GetNode(op.value_high())});                  \
+#define BINOP_CASE(OP)                                               \
+  if (op.kind == AtomicWord32PairOp::Kind::k##OP) {                  \
+    return AddNode(                                                  \
+        machine.Word32AtomicPair##OP(),                              \
+        {GetNode(op.base()), index, GetNode(op.value_low().value()), \
+         GetNode(op.value_high().value())});                         \
   }
 #define ATOMIC_BINOPS(V) \
   V(Add)                 \
@@ -945,20 +944,21 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicWord32PairOp& op) {
 #undef ATOMIC_BINOPS
 #undef BINOP_CASE
 
-  if (op.op_kind == AtomicWord32PairOp::OpKind::kLoad) {
+  if (op.kind == AtomicWord32PairOp::Kind::kLoad) {
     return AddNode(machine.Word32AtomicPairLoad(AtomicMemoryOrder::kSeqCst),
                    {GetNode(op.base()), index});
   }
-  if (op.op_kind == AtomicWord32PairOp::OpKind::kStore) {
+  if (op.kind == AtomicWord32PairOp::Kind::kStore) {
     return AddNode(machine.Word32AtomicPairStore(AtomicMemoryOrder::kSeqCst),
-                   {GetNode(op.base()), index, GetNode(op.value_low()),
-                    GetNode(op.value_high())});
+                   {GetNode(op.base()), index, GetNode(op.value_low().value()),
+                    GetNode(op.value_high().value())});
   }
-  DCHECK_EQ(op.op_kind, AtomicWord32PairOp::OpKind::kCompareExchange);
-  return AddNode(machine.Word32AtomicPairCompareExchange(),
-                 {GetNode(op.base()), index, GetNode(op.expected_low()),
-                  GetNode(op.expected_high()), GetNode(op.value_low()),
-                  GetNode(op.value_high())});
+  DCHECK_EQ(op.kind, AtomicWord32PairOp::Kind::kCompareExchange);
+  return AddNode(
+      machine.Word32AtomicPairCompareExchange(),
+      {GetNode(op.base()), index, GetNode(op.expected_low().value()),
+       GetNode(op.expected_high().value()), GetNode(op.value_low().value()),
+       GetNode(op.value_high().value())});
 }
 
 Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
@@ -998,7 +998,7 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   Node* index = GetNode(op.index());
   Node* value = GetNode(op.value());
   if (op.bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
-    Node* expected = GetNode(op.expected());
+    Node* expected = GetNode(op.expected().value());
     return AddNode(node_op, {base, index, expected, value});
   } else {
     return AddNode(node_op, {base, index, value});

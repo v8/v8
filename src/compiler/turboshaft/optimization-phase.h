@@ -848,17 +848,16 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphAtomicRMW(const AtomicRMWOp& op) {
     return assembler().ReduceAtomicRMW(
         MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), MapToNewGraphIfValid(op.expected()),
-        op.bin_op, op.result_rep, op.input_rep, op.memory_access_kind);
+        MapToNewGraph(op.value()), MapToNewGraph(op.expected()), op.bin_op,
+        op.result_rep, op.input_rep, op.memory_access_kind);
   }
 
   OpIndex AssembleOutputGraphAtomicWord32Pair(const AtomicWord32PairOp& op) {
     return assembler().ReduceAtomicWord32Pair(
         MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraphIfValid(op.value_low()),
-        MapToNewGraphIfValid(op.value_high()),
-        MapToNewGraphIfValid(op.expected_low()),
-        MapToNewGraphIfValid(op.expected_high()), op.op_kind, op.offset);
+        MapToNewGraph(op.value_low()), MapToNewGraph(op.value_high()),
+        MapToNewGraph(op.expected_low()), MapToNewGraph(op.expected_high()),
+        op.kind, op.offset);
   }
 
   OpIndex AssembleOutputGraphMemoryBarrier(const MemoryBarrierOp& op) {
