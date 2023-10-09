@@ -122,6 +122,7 @@
 #include "src/compiler/turboshaft/int64-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-dead-code-elimination-phase.h"
 #include "src/compiler/turboshaft/wasm-gc-optimize-phase.h"
+#include "src/compiler/turboshaft/wasm-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
@@ -3804,14 +3805,23 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       pipeline.Run<turboshaft::WasmGCOptimizePhase>();
     }
 
-    // This is more than an optimization currently: We need it to sort blocks to
-    // work around a bug in RecreateSchedulePhase.
-    pipeline.Run<turboshaft::WasmOptimizePhase>();
+    // TODO(mliedtke): This phase could be merged with the WasmGCOptimizePhase
+    // if wasm_opt is enabled to improve compile time. Consider potential code
+    // size increase.
+    pipeline.Run<turboshaft::WasmLoweringPhase>();
+
+    // TODO(14108): Do we need value numbering if wasm_opt is turned off?
+    const bool is_asm_js = is_asmjs_module(module);
+    if (v8_flags.wasm_opt || is_asm_js) {
+      pipeline.Run<turboshaft::WasmOptimizePhase>();
+    }
 
     if (mcgraph->machine()->Is32()) {
       pipeline.Run<turboshaft::Int64LoweringPhase>();
     }
 
+    // This is more than an optimization currently: We need it to sort blocks to
+    // work around a bug in RecreateSchedulePhase.
     pipeline.Run<turboshaft::WasmDeadCodeEliminationPhase>();
 
     if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
