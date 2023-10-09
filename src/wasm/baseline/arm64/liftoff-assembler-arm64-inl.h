@@ -9,7 +9,7 @@
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
-#include "src/wasm/baseline/parallel-move-inl.h"
+#include "src/wasm/baseline/parallel-move.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -3477,10 +3477,10 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallCWithStackBuffer(
-    const std::initializer_list<VarState> args, const LiftoffRegister* rets,
-    ValueKind return_kind, ValueKind out_argument_kind, int stack_bytes,
-    ExternalReference ext_ref) {
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
+                             ValueKind out_argument_kind, int stack_bytes,
+                             ExternalReference ext_ref) {
   // The stack pointer is required to be quadword aligned.
   int total_size = RoundUp(stack_bytes, kQuadWordSizeInBytes);
   // Reserve space in the stack.
@@ -3540,23 +3540,6 @@ void LiftoffAssembler::CallCWithStackBuffer(
   }
 
   Drop(total_size, 1);
-}
-
-void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
-                             ExternalReference ext_ref) {
-  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
-  DCHECK_LE(args.size(), arraysize(kArgRegs));
-  const Register* next_arg_reg = kArgRegs;
-  ParallelMove parallel_move{this};
-  for (const VarState& arg : args) {
-    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
-    ++next_arg_reg;
-  }
-  parallel_move.Execute();
-
-  // Now call the C function.
-  int num_args = static_cast<int>(args.size());
-  CallCFunction(ext_ref, num_args);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
