@@ -156,7 +156,7 @@ class TurboshaftGraphBuildingInterface {
   void StartFunction(FullDecoder* decoder) {
     if (mode_ == kRegular) __ Bind(__ NewBlock());
     // Set 0 as the current source position (before locals declarations).
-    __ SetCurrentOrigin(WasmPositionToOpIndex(0));
+    __ SetCurrentOrigin(WasmPositionToOpIndex(0, inlining_id_));
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
     if (mode_ == kRegular) {
@@ -203,7 +203,8 @@ class TurboshaftGraphBuildingInterface {
     }
 
     if (v8_flags.trace_wasm) {
-      __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
+      __ SetCurrentOrigin(
+          WasmPositionToOpIndex(decoder->position(), inlining_id_));
       CallRuntime(Runtime::kWasmTraceEnter, {});
     }
 
@@ -228,7 +229,8 @@ class TurboshaftGraphBuildingInterface {
   void OnFirstError(FullDecoder*) {}
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode) {
-    __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
+    __ SetCurrentOrigin(
+        WasmPositionToOpIndex(decoder->position(), inlining_id_));
   }
 
   // ******** Control Flow ********
@@ -4553,13 +4555,9 @@ class TurboshaftGraphBuildingInterface {
       arg_indices[i + 1] = args[i].op;
     }
 
-    // TODO(14108): Push this inside `CallAndMaybeCatchException`.
-    OpIndex call = check_for_exception != CheckForException::kNo
-                       ? CallAndMaybeCatchException(
-                             decoder, callee, base::VectorOf(arg_indices),
-                             descriptor, check_for_exception)
-                       : __ Call(callee, OpIndex::Invalid(),
-                                 base::VectorOf(arg_indices), descriptor);
+    OpIndex call =
+        CallAndMaybeCatchException(decoder, callee, base::VectorOf(arg_indices),
+                                   descriptor, check_for_exception);
 
     if (sig->return_count() == 1) {
       returns[0].op = call;
@@ -4621,13 +4619,8 @@ class TurboshaftGraphBuildingInterface {
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
     V<WordPtr> call_target = __ RelocatableWasmBuiltinCallTarget(builtin);
-    // TODO(14108): Push this into `CallAndMaybeCatchException`.
-    return check_for_exception == CheckForException::kCatchInThisFrame
-               ? CallAndMaybeCatchException(
-                     decoder, call_target, args, ts_call_descriptor,
-                     CheckForException::kCatchInThisFrame)
-               : __ Call(call_target, OpIndex::Invalid(), args,
-                         ts_call_descriptor);
+    return CallAndMaybeCatchException(decoder, call_target, args,
+                                      ts_call_descriptor, check_for_exception);
   }
 
   OpIndex CallBuiltinThroughJumptable(
@@ -4639,16 +4632,33 @@ class TurboshaftGraphBuildingInterface {
                                        properties, check_for_exception);
   }
 
+  void MaybeSetPositionToParent(OpIndex call,
+                                CheckForException check_for_exception) {
+    // For tail calls that we transform to regular calls, we need to set the
+    // call's position to that of the inlined call node to get correct stack
+    // traces.
+    if (check_for_exception == CheckForException::kCatchInParentFrame) {
+      __ output_graph().operation_origins()[call] = WasmPositionToOpIndex(
+          parent_position_.ScriptOffset(), parent_position_.InliningId() == -1
+                                               ? kNoInliningId
+                                               : parent_position_.InliningId());
+    }
+  }
+
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<WordPtr> callee,
                                      base::Vector<const OpIndex> args,
                                      const TSCallDescriptor* descriptor,
                                      CheckForException check_for_exception) {
-    DCHECK_NE(check_for_exception, CheckForException::kNo);
+    if (check_for_exception == CheckForException::kNo) {
+      return __ Call(callee, OpIndex::Invalid(), args, descriptor);
+    }
     bool handled_in_this_frame =
         decoder->current_catch() != -1 &&
         check_for_exception == CheckForException::kCatchInThisFrame;
     if (!handled_in_this_frame && mode_ != kInlinedWithCatch) {
-      return __ Call(callee, OpIndex::Invalid(), args, descriptor);
+      OpIndex call = __ Call(callee, OpIndex::Invalid(), args, descriptor);
+      MaybeSetPositionToParent(call, check_for_exception);
+      return call;
     }
 
     TSBlock* catch_block;
@@ -4681,6 +4691,9 @@ class TurboshaftGraphBuildingInterface {
     __ Goto(catch_block);
 
     __ Bind(success_block);
+
+    MaybeSetPositionToParent(call, check_for_exception);
+
     return call;
   }
 
@@ -5273,12 +5286,13 @@ class TurboshaftGraphBuildingInterface {
                         &inlinee_args, callee_return_block, callee_catch_block);
     inlinee_decoder.interface().set_inlining_budget(inlining_budget_);
     size_t inlining_id = inlining_positions_->size();
+    SourcePosition call_position = SourcePosition(
+        decoder->position(), inlining_id_ == kNoInliningId ? -1 : inlining_id_);
     inlining_positions_->push_back(
-        {static_cast<int>(imm.index),
-         SourcePosition(decoder->position(),
-                        inlining_id_ == kNoInliningId ? -1 : inlining_id_)});
+        {static_cast<int>(imm.index), call_position});
     inlinee_decoder.interface().set_inlining_id(
         static_cast<uint8_t>(inlining_id));
+    inlinee_decoder.interface().set_parent_position(call_position);
     inlinee_decoder.Decode();
     // Turboshaft runs with validation, but the function should already be
     // validated, so graph building must always succeed, unless we bailed out.
@@ -5357,9 +5371,9 @@ class TurboshaftGraphBuildingInterface {
       base::BitField<WasmCodePosition, kPositionFieldShift, kPositionFieldSize>;
   using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
 
-  OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
+  OpIndex WasmPositionToOpIndex(WasmCodePosition position, int inlining_id) {
     return OpIndex(PositionField::encode(position) |
-                   InliningIdField::encode(inlining_id_));
+                   InliningIdField::encode(inlining_id));
   }
 
   SourcePosition OpIndexToSourcePosition(OpIndex index) {
@@ -5396,6 +5410,9 @@ class TurboshaftGraphBuildingInterface {
     DCHECK_NE(inlining_id, kNoInliningId);
     inlining_id_ = inlining_id;
   }
+  void set_parent_position(SourcePosition position) {
+    parent_position_ = position;
+  }
 
   Mode mode_;
   V<WasmInstanceObject> instance_node_;
@@ -5430,6 +5447,8 @@ class TurboshaftGraphBuildingInterface {
   // The exception values for this function (will be reconstructed in the caller
   // with a Phi).
   std::vector<OpIndex> return_exception_phis_;
+  // The position of the call that is being inlined.
+  SourcePosition parent_position_;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(

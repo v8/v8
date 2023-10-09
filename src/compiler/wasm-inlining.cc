@@ -237,7 +237,7 @@ void WasmInliner::Finalize() {
     function_inlining_count_[candidate.inlinee_index]++;
 
     if (call->opcode() == IrOpcode::kCall) {
-      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
+      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig, caller_pos,
                  &dangling_exceptions);
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
@@ -309,6 +309,7 @@ void WasmInliner::InlineTailCall(Node* call, Node* callee_start,
 
 void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
                              const wasm::FunctionSig* inlinee_sig,
+                             SourcePosition parent_pos,
                              wasm::DanglingExceptions* dangling_exceptions) {
   DCHECK_EQ(call->opcode(), IrOpcode::kCall);
 
@@ -338,6 +339,11 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         // inlinee. It will then be handled like any other return.
         auto descriptor = CallDescriptorOf(input->op());
         NodeProperties::ChangeOp(input, common()->Call(descriptor));
+        // Consider a function f which calls g which tail calls h. If h traps,
+        // we need the stack trace to include h and f (g's frame is gone due to
+        // the tail call). The way to achieve this is to set this call's
+        // position to the position of g's call in f.
+        data_.source_positions->SetSourcePosition(input, parent_pos);
 
         DCHECK_GT(input->op()->EffectOutputCount(), 0);
         DCHECK_GT(input->op()->ControlOutputCount(), 0);
