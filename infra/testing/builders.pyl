@@ -34,7 +34,7 @@
   # Android
   'v8_android_arm64_n5x_rel': {
     'swarming_dimensions' : {
-      'device_os': 'MMB29Q',
+      'device_os': 'OPR4.170623.020',
       'device_type': 'bullhead',
       'os': 'Android',
     },
@@ -2077,7 +2077,7 @@
   # Ports.
   'V8 Android Arm64 - N5X': {
     'swarming_dimensions': {
-      'device_os': 'MMB29Q',
+      'device_os': 'OPR4.170623.020',
       'device_type': 'bullhead',
       'os': 'Android',
     },
