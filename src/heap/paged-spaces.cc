@@ -105,6 +105,15 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
 
   DCHECK_NE(NEW_SPACE, identity());
   DCHECK_NE(NEW_SPACE, other->identity());
+  DCHECK(identity() == other->identity());
+
+  // Unmerged fields:
+  //   area_size_
+  other->FreeLinearAllocationArea();
+
+  // The linear allocation area of {other} should be destroyed now.
+  DCHECK_EQ(kNullAddress, other->allocator_->top());
+  DCHECK_EQ(kNullAddress, other->allocator_->limit());
 
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
