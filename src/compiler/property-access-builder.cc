@@ -112,7 +112,7 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
                                              Handle<HeapObject> value) {
   HeapObjectMatcher m(receiver);
   if (m.Is(value)) return receiver;
-  Node* expected = jsgraph()->HeapConstant(value);
+  Node* expected = jsgraph()->HeapConstantNoHole(value);
   Node* check =
       graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
   *effect =
@@ -125,7 +125,7 @@ Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* lookup_start_object) {
   OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value()) {
-    return jsgraph()->Constant(holder.value(), broker());
+    return jsgraph()->ConstantNoHole(holder.value(), broker());
   }
   return lookup_start_object;
 }
@@ -176,7 +176,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
         map, access_info.name(), value.value(), PropertyKind::kData);
   }
 
-  return jsgraph()->Constant(value.value(), broker());
+  return jsgraph()->ConstantNoHole(value.value(), broker());
 }
 
 Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
@@ -211,7 +211,8 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   OptionalObjectRef value = holder->GetOwnFastDataProperty(
       broker(), access_info.field_representation(), access_info.field_index(),
       dependencies());
-  return value.has_value() ? jsgraph()->Constant(*value, broker()) : nullptr;
+  return value.has_value() ? jsgraph()->ConstantNoHole(*value, broker())
+                           : nullptr;
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,

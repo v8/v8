@@ -102,17 +102,17 @@ Node* GraphAssembler::Float64Constant(double value) {
 
 TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return TNode<HeapObject>::UncheckedCast(
-      AddClonedNode(jsgraph()->HeapConstant(object)));
+      AddClonedNode(jsgraph()->HeapConstantNoHole(object)));
 }
 
 TNode<Object> JSGraphAssembler::Constant(ObjectRef ref) {
   return TNode<Object>::UncheckedCast(
-      AddClonedNode(jsgraph()->Constant(ref, broker())));
+      AddClonedNode(jsgraph()->ConstantNoHole(ref, broker())));
 }
 
 TNode<Number> JSGraphAssembler::NumberConstant(double value) {
   return TNode<Number>::UncheckedCast(
-      AddClonedNode(jsgraph()->Constant(value)));
+      AddClonedNode(jsgraph()->ConstantNoHole(value)));
 }
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {

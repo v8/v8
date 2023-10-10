@@ -170,7 +170,8 @@ void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
 void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
                                                  TNode<Object> regexp,
                                                  TNode<Object> value) {
-  TNode<String> name = HeapConstant(isolate()->factory()->lastIndex_string());
+  TNode<String> name =
+      HeapConstantNoHole(isolate()->factory()->lastIndex_string());
   SetPropertyStrict(context, regexp, name, value);
 }
 

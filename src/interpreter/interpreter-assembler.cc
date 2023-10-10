@@ -737,7 +737,7 @@ void InterpreterAssembler::CallJSAndDispatch(
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
@@ -758,7 +758,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
   Callable callable = CodeFactory::Call(isolate());
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -808,7 +808,7 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
       InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   TNode<Word32T> args_count = args.reg_count();
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
@@ -906,7 +906,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
     // Check if it is a megamorphic {new_target}.
     Comment("check if megamorphic");
     TNode<BoolT> is_megamorphic = TaggedEqual(
-        feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+        feedback,
+        HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak reference");
@@ -982,7 +983,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
       DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
-          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
+          HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:TransitionMegamorphic");
@@ -1008,7 +1009,7 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
   Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(

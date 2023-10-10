@@ -104,7 +104,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   params.push_back(__ Parameter<Object>(1));
   // The parameters of the teardown function are the results of the test
   // function.
-  params.push_back(__ HeapConstant(
+  params.push_back(__ HeapConstantNoHole(
       BuildTeardownFunction(isolate, teardown_call_descriptor, results)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and

@@ -133,7 +133,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           Replace(use, new_target);
         } else if (index == inlinee_arity_index) {
           // The projection is requesting the number of arguments.
-          Replace(use, jsgraph()->Constant(argument_count));
+          Replace(use, jsgraph()->ConstantNoHole(argument_count));
         } else if (index == inlinee_context_index) {
           // The projection is requesting the inlinee function context.
           Replace(use, context);
@@ -375,7 +375,8 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
     CHECK(function.feedback_vector(broker()).has_value());
 
     // The inlinee specializes to the context from the JSFunction object.
-    *context_out = jsgraph()->Constant(function.context(broker()), broker());
+    *context_out =
+        jsgraph()->ConstantNoHole(function.context(broker()), broker());
     return function.raw_feedback_cell(broker());
   }
 
@@ -901,7 +902,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     Effect effect{NodeProperties::GetEffectInput(node)};
     if (NodeProperties::CanBePrimitive(broker(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
-      Node* global_proxy = jsgraph()->Constant(
+      Node* global_proxy = jsgraph()->ConstantNoHole(
           broker()->target_native_context().global_proxy_object(broker()),
           broker());
       Node* receiver = effect =

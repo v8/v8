@@ -343,7 +343,7 @@ void BaseCollectionsAssembler::GenerateConstructor(
 
   BIND(&if_undefined);
   ThrowTypeError(context, MessageTemplate::kConstructorNotFunction,
-                 HeapConstant(constructor_function_name));
+                 HeapConstantNoHole(constructor_function_name));
 }
 
 TNode<Object> BaseCollectionsAssembler::GetAddFunction(
@@ -360,7 +360,7 @@ TNode<Object> BaseCollectionsAssembler::GetAddFunction(
 
   BIND(&if_notcallable);
   ThrowTypeError(context, MessageTemplate::kPropertyNotFunction, add_func,
-                 HeapConstant(add_func_name), collection);
+                 HeapConstantNoHole(add_func_name), collection);
 
   BIND(&exit);
   return add_func;
@@ -2398,7 +2398,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(AllocateFixedArray(HOLEY_ELEMENTS, length));
 
   TNode<Map> map =
-      HeapConstant(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstantNoHole(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
   StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);

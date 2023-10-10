@@ -117,6 +117,8 @@ bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
   return IsHole(obj, cage_base);
 }
 
+bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
+
 #define IS_TYPE_FUNCTION_DEF(Type, Value, _)                             \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {                  \
     return Is##Type(obj, ReadOnlyRoots(isolate));                        \

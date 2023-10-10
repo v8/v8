@@ -47,7 +47,8 @@ class GraphTest : public TestWithNativeContextAndZone {
     return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* NumberConstant(double value);
-  Node* HeapConstant(const Handle<HeapObject>& value);
+  Node* HeapConstantNoHole(const Handle<HeapObject>& value);
+  Node* HeapConstantHole(const Handle<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
   Node* UndefinedConstant();

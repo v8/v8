@@ -1021,7 +1021,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<String> SingleCharacterStringConstant(char const* single_char) {
     DCHECK_EQ(strlen(single_char), 1);
-    return HeapConstant(
+    return HeapConstantNoHole(
         isolate()->factory()->LookupSingleCharacterStringFromCode(
             single_char[0]));
   }
@@ -3542,7 +3542,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
                             Handle<Name> name) {
-    return GetProperty(context, receiver, HeapConstant(name));
+    return GetProperty(context, receiver, HeapConstantNoHole(name));
   }
 
   TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,

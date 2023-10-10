@@ -76,27 +76,34 @@ Node* GraphTest::NumberConstant(double value) {
   return graph()->NewNode(common()->NumberConstant(value));
 }
 
-
-Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
+Node* GraphTest::HeapConstantNoHole(const Handle<HeapObject>& value) {
+  CHECK(!IsAnyHole(*value));
   Node* node = graph()->NewNode(common()->HeapConstant(value));
   Type type = Type::Constant(broker(), value, zone());
   NodeProperties::SetType(node, type);
   return node;
 }
 
+Node* GraphTest::HeapConstantHole(const Handle<HeapObject>& value) {
+  CHECK(IsAnyHole(*value));
+  Node* node = graph()->NewNode(common()->HeapConstant(value));
+  Type type = Type::Constant(broker(), value, zone());
+  NodeProperties::SetType(node, type);
+  return node;
+}
 
 Node* GraphTest::FalseConstant() {
-  return HeapConstant(factory()->false_value());
+  return HeapConstantNoHole(factory()->false_value());
 }
 
 
 Node* GraphTest::TrueConstant() {
-  return HeapConstant(factory()->true_value());
+  return HeapConstantNoHole(factory()->true_value());
 }
 
 
 Node* GraphTest::UndefinedConstant() {
-  return HeapConstant(factory()->undefined_value());
+  return HeapConstantNoHole(factory()->undefined_value());
 }
 
 

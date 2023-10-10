@@ -44,7 +44,7 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   std::vector<Node*> params;
   // The first parameter is always the callee.
   Handle<Code> code = BuildCallee(isolate, callee_descriptor);
-  params.push_back(__ HeapConstant(code));
+  params.push_back(__ HeapConstantNoHole(code));
   int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
     params.push_back(__ IntPtrConstant(i));
@@ -65,7 +65,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   // The first parameter is always the callee.
   Handle<Code> code =
       BuildCaller(isolate, caller_descriptor, callee_descriptor);
-  params.push_back(__ HeapConstant(code));
+  params.push_back(__ HeapConstantNoHole(code));
   // Set up arguments for "Caller".
   int param_slots = static_cast<int>(caller_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {

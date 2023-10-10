@@ -1356,8 +1356,8 @@ void ObjectBuiltinsAssembler::AddToDictionaryIf(
   Label done(this);
   GotoIfNot(condition, &done);
 
-  AddToDictionary<PropertyDictionary>(CAST(name_dictionary), HeapConstant(name),
-                                      value, bailout);
+  AddToDictionary<PropertyDictionary>(CAST(name_dictionary),
+                                      HeapConstantNoHole(name), value, bailout);
   Goto(&done);
 
   BIND(&done);

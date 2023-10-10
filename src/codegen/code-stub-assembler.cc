@@ -1940,7 +1940,7 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
   RootIndex map_idx = Map::TryGetMapRootIdxFor(instance_type).value();
-  return HeapConstant(
+  return HeapConstantNoHole(
       Handle<Map>::cast(ReadOnlyRoots(isolate()).handle_at(map_idx)));
 }
 
@@ -4167,7 +4167,7 @@ TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTableWithCapacity(
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   TNode<Map> fixed_array_map =
-      HeapConstant(CollectionType::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstantNoHole(CollectionType::GetMap(ReadOnlyRoots(isolate())));
   TNode<CollectionType> table =
       CAST(AllocateFixedArray(elements_kind, fixed_array_length,
                               AllocationFlag::kNone, fixed_array_map));
@@ -14901,7 +14901,7 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   BIND(&return_number);
   {
-    result_var = HeapConstant(isolate()->factory()->number_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->number_string());
     Goto(&return_result);
   }
 
@@ -14915,37 +14915,37 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   BIND(&return_function);
   {
-    result_var = HeapConstant(isolate()->factory()->function_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->function_string());
     Goto(&return_result);
   }
 
   BIND(&return_undefined);
   {
-    result_var = HeapConstant(isolate()->factory()->undefined_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->undefined_string());
     Goto(&return_result);
   }
 
   BIND(&return_object);
   {
-    result_var = HeapConstant(isolate()->factory()->object_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->object_string());
     Goto(&return_result);
   }
 
   BIND(&return_string);
   {
-    result_var = HeapConstant(isolate()->factory()->string_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->string_string());
     Goto(&return_result);
   }
 
   BIND(&return_bigint);
   {
-    result_var = HeapConstant(isolate()->factory()->bigint_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->bigint_string());
     Goto(&return_result);
   }
 
   BIND(&return_symbol);
   {
-    result_var = HeapConstant(isolate()->factory()->symbol_string());
+    result_var = HeapConstantNoHole(isolate()->factory()->symbol_string());
     Goto(&return_result);
   }
 
@@ -16150,7 +16150,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsBytecodeArray: Interpret bytecode
   BIND(&check_is_bytecode_array);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+  sfi_code =
+      HeapConstantNoHole(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
   Goto(&done);
 
   // IsBaselineData: Execute baseline code
@@ -16164,12 +16165,13 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
   BIND(&check_is_uncompiled_data);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
+  sfi_code =
+      HeapConstantNoHole(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
   Goto(&done);
 
   // IsInterpreterData: Interpret bytecode
@@ -16193,12 +16195,12 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsAsmWasmData: Instantiate using AsmWasmData
   BIND(&check_is_asm_wasm_data);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
+  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), InstantiateAsmJs));
   Goto(&done);
 
   // IsWasmResumeData: Resume the suspended wasm continuation.
   BIND(&check_is_wasm_resume);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), WasmResume));
+  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), WasmResume));
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -16419,7 +16421,7 @@ void CodeStubAssembler::PrintToStream(const char* prefix,
     Handle<String> string =
         isolate()->factory()->InternalizeString(formatted.c_str());
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-                HeapConstant(string), SmiConstant(stream));
+                HeapConstantNoHole(string), SmiConstant(stream));
   }
   // CallRuntime only accepts Objects, so do an UncheckedCast to object.
   // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
@@ -16436,7 +16438,7 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<UintPtrT> value,
     Handle<String> string =
         isolate()->factory()->InternalizeString(formatted.c_str());
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-                HeapConstant(string), SmiConstant(stream));
+                HeapConstantNoHole(string), SmiConstant(stream));
   }
 
   // We use 16 bit per chunk.
@@ -16460,7 +16462,7 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
     Handle<String> string =
         isolate()->factory()->InternalizeString(formatted.c_str());
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-                HeapConstant(string), SmiConstant(stream));
+                HeapConstantNoHole(string), SmiConstant(stream));
   }
 
   // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32

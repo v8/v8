@@ -48,15 +48,35 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   TNode<Number> NoContextConstant() { return ZeroConstant(); }
 
   // Creates a HeapConstant node, possibly canonicalized.
-  Node* HeapConstant(Handle<HeapObject> value);
+  // Checks that we don't emit hole values. Use this if possible to emit
+  // JSReceiver heap constants.
+  Node* HeapConstantNoHole(Handle<HeapObject> value);
 
-  // Creates a Constant node of the appropriate type for the given object.
-  // Inspect the (serialized) object and determine whether one of the
-  // canonicalized globals or a number constant should be returned.
-  Node* Constant(ObjectRef value, JSHeapBroker* broker);
+  // Creates a HeapConstant node, possibly canonicalized.
+  // This can be used whenever we might need to emit a hole value or a
+  // JSReceiver. Use this cautiously only if you really need it.
+  Node* HeapConstantMaybeHole(Handle<HeapObject> value);
+
+  // Creates a HeapConstant node, possibly canonicalized.
+  // This is only used to emit hole values. Use this if you are sure that you
+  // only emit a Hole value.
+  Node* HeapConstantHole(Handle<HeapObject> value);
+
+  // Creates a Constant node of the appropriate type for
+  // the given object.  Inspect the (serialized) object and determine whether
+  // one of the canonicalized globals or a number constant should be returned.
+  // Checks that we do not emit a Hole value, use this whenever possible.
+  Node* ConstantNoHole(ObjectRef ref, JSHeapBroker* broker);
+  // Creates a Constant node of the appropriate type for
+  // the given object.  Inspect the (serialized) object and determine whether
+  // one of the canonicalized globals or a number constant should be returned.
+  // Use this if you really need to emit Hole values.
+  Node* ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker);
 
   // Creates a NumberConstant node, usually canonicalized.
-  Node* Constant(double value);
+  // Checks that we are not emitting a kHoleNanInt64, please use whenever you
+  // can.
+  Node* ConstantNoHole(double value);
 
   // Creates a HeapConstant node for either true or false.
   TNode<Boolean> BooleanConstant(bool is_true) {
@@ -135,6 +155,14 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   // Internal helper to canonicalize a number constant.
   Node* NumberConstant(double value);
+
+  // Internal helper that creates a NumberConstant node, usually canonicalized.
+  Node* Constant(double value);
+
+  // Internal helper that creates a Constant node of the appropriate type for
+  // the given object.  Inspect the (serialized) object and determine whether
+  // one of the canonicalized globals or a number constant should be returned.
+  Node* Constant(ObjectRef value, JSHeapBroker* broker);
 };
 
 }  // namespace compiler

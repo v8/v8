@@ -3040,7 +3040,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
 
     // Call into the stub that implements the non-inlined parts of LoadIC.
     Callable ic = Builtins::CallableFor(isolate(), Builtin::kLoadIC_Noninlined);
-    TNode<Code> code_target = HeapConstant(ic.code());
+    TNode<Code> code_target = HeapConstantNoHole(ic.code());
     exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context(),
                                p->receiver_and_lookup_start_object(), p->name(),
                                p->slot(), p->vector());

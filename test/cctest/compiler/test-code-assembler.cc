@@ -82,7 +82,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
@@ -95,7 +95,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
@@ -108,7 +108,7 @@ TEST(SimpleCallRuntime2Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
@@ -121,7 +121,7 @@ TEST(SimpleTailCallRuntime2Arg) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
+      m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
@@ -451,7 +451,7 @@ TEST(ExceptionHandler) {
   {
     ScopedExceptionHandler handler(&m, &exception, &var);
     TNode<Context> context =
-        m.HeapConstant(Handle<Context>(isolate->native_context()));
+        m.HeapConstantNoHole(Handle<Context>(isolate->native_context()));
     m.CallRuntime(Runtime::kThrow, context, m.SmiConstant(2));
   }
   m.Return(m.SmiConstant(1));
