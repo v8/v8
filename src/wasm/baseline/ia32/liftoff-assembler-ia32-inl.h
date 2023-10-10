@@ -4796,25 +4796,23 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
 
   RegList usable_regs = kLiftoffAssemblerGpCacheRegs - arg_regs.GetGpList();
   Register scratch = usable_regs.first();
-  int num_args = 0;
-  // i64 values take two stack slots.
+  int num_lowered_args = 0;
+  // i64 arguments are lowered to two actual arguments (taking two stack slots).
   for (const VarState& arg : args) {
-    num_args += arg.kind() == kI64 ? 2 : 1;
+    num_lowered_args += arg.kind() == kI64 ? 2 : 1;
   }
-  PrepareCallCFunction(num_args, scratch);
+  PrepareCallCFunction(num_lowered_args, scratch);
 
   // Ia32 passes all arguments via the stack. Store them now in the stack space
   // allocated by {PrepareCallCFunction}.
 
   // GetNextOperand returns the operand for the next stack slot on each
   // invocation.
-  auto GetNextOperand = [arg_offset = 0, num_args]() mutable {
-    // Check that we don't exceed the pre-computed {num_args}.
-    DCHECK_GE(num_args * kSystemPointerSize, arg_offset);
-    USE(num_args);
-    Operand dst{esp, arg_offset};
-    arg_offset += kSystemPointerSize;
-    return dst;
+  auto GetNextOperand = [arg_offset = 0, num_lowered_args]() mutable {
+    // Check that we don't exceed the pre-computed {num_stack_slots}.
+    DCHECK_GE(num_lowered_args, arg_offset);
+    USE(num_lowered_args);
+    return Operand{esp, arg_offset++ * kSystemPointerSize};
   };
   for (const VarState& arg : args) {
     Operand dst = GetNextOperand();
@@ -4844,7 +4842,7 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
   }
 
   // Now call the C function.
-  CallCFunction(ext_ref, num_args);
+  CallCFunction(ext_ref, num_lowered_args);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
