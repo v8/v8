@@ -1521,7 +1521,8 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
 }
 
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
-  movl(dst, src);
+  AssertZeroExtended(src);
+  if (dst != src) movl(dst, src);
 }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
@@ -2103,8 +2104,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                                            src.fp());
     }
     case kExprI64UConvertI32:
-      AssertZeroExtended(src.gp());
-      if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
+      emit_u32_to_uintptr(dst.gp(), src.gp());
       return true;
     case kExprI64ReinterpretF64:
       Movq(dst.gp(), src.fp());
