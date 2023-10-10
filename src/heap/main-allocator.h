@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -74,7 +75,27 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   void UpdateInlineAllocationLimit() final;
 
  private:
+  bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
+  bool RawRefillLabMain(int size_in_bytes, AllocationOrigin origin);
+
+  bool ContributeToSweepingMain(int required_freed_bytes, int max_pages,
+                                int size_in_bytes, AllocationOrigin origin,
+                                GCTracer::Scope::ScopeId sweeping_scope_id,
+                                ThreadKind sweeping_scope_kind);
+
+  bool TryAllocationFromFreeListMain(size_t size_in_bytes,
+                                     AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
+
+  void SetLinearAllocationArea(Address top, Address limit, Address end);
+  void DecreaseLimit(Address new_limit);
+
+  void FreeLinearAllocationAreaUnsynchronized();
+
   PagedSpaceBase* const space_;
+
+  friend class PagedNewSpaceAllocatorPolicy;
 };
 
 class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
@@ -232,6 +253,10 @@ class MainAllocator {
     return supports_extending_lab_ == SupportsExtendingLAB::kYes;
   }
 
+  V8_EXPORT_PRIVATE bool EnsureAllocationForTesting(
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin origin);
+
  private:
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
@@ -298,6 +323,7 @@ class MainAllocator {
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
   friend class AllocatorPolicy;
+  friend class PagedSpaceAllocatorPolicy;
 };
 
 }  // namespace internal

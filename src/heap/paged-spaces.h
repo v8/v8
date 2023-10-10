@@ -318,8 +318,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
-  void SetLinearAllocationArea(Address top, Address limit, Address end);
-
   void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
   void ReduceActiveSystemPages(Page* page,
                                ActiveSystemPages active_system_pages);
@@ -333,14 +331,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
  protected:
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin, int* out_max_aligned_size);
-
-  // Empty space linear allocation area, returning unused area to free list.
-  void FreeLinearAllocationArea();
-
-  void UpdateInlineAllocationLimit();
-
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
   virtual bool snapshotable() const { return true; }
@@ -355,27 +345,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   virtual Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode);
-
-  V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
-      size_t size_in_bytes, AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(
-      int required_freed_bytes, int max_pages, int size_in_bytes,
-      AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
-      ThreadKind sweeping_scope_kind);
-
-  // Refills LAB for EnsureLabMain. This function is space-dependent. Returns
-  // false if there is not enough space and the caller has to retry after
-  // collecting garbage.
-  V8_WARN_UNUSED_RESULT virtual bool RefillLabMain(int size_in_bytes,
-                                                   AllocationOrigin origin);
-
-  // Actual implementation of refilling LAB. Returns false if there is not
-  // enough space and the caller has to retry after collecting garbage.
-  V8_WARN_UNUSED_RESULT bool RawRefillLabMain(int size_in_bytes,
-                                              AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
 
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
                                        AllocationOrigin origin);
@@ -421,9 +390,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return !is_compaction_space() && (identity() != NEW_SPACE);
   }
 
-  // Set space linear allocation area.
-  void DecreaseLimit(Address new_limit);
-
   friend class ConcurrentAllocator;
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
@@ -461,9 +427,6 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   void RefillFreeList() final;
 
  protected:
-  V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
-                                           AllocationOrigin origin) final;
-
   Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode) final;
   // The space is temporary and not included in any snapshots.
   bool snapshotable() const final { return false; }

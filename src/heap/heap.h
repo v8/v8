@@ -2398,6 +2398,7 @@ class Heap final {
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
+  friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
   friend class PagedSpaceForNewSpace;
   friend class PauseAllocationObserversScope;
