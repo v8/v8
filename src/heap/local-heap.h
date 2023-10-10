@@ -118,27 +118,21 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return trusted_space_allocator_.get();
   }
 
-  // Mark/Unmark linear allocation areas black. Used for black allocation.
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
+  // Give up all LABs. Used for e.g. full GCs.
+  void FreeLinearAllocationAreas();
+
+  // Make all LABs iterable.
+  void MakeLinearAllocationAreasIterable();
+
+  // Mark/Unmark all LABs except for new and shared space. Use for black
+  // allocation.
+  void MarkLinearAllocationAreasBlack();
+  void UnmarkLinearAllocationsArea();
 
   // Mark/Unmark linear allocation areas in shared heap black. Used for black
   // allocation.
-  void MarkSharedLinearAllocationAreaBlack();
-  void UnmarkSharedLinearAllocationArea();
-
-  // Give up linear allocation areas. Used for mark-compact GC.
-  void FreeLinearAllocationArea();
-
-  // Free all shared LABs. Used by the shared mark-compact GC.
-  void FreeSharedLinearAllocationArea();
-
-  // Create filler object in linear allocation areas. Verifying requires
-  // iterable heap.
-  void MakeLinearAllocationAreaIterable();
-
-  // Makes the shared LAB iterable.
-  void MakeSharedLinearAllocationAreaIterable();
+  void MarkSharedLinearAllocationAreasBlack();
+  void UnmarkSharedLinearAllocationsArea();
 
   // Fetches a pointer to the local heap from the thread local storage.
   // It is intended to be used in handle and write barrier code where it is

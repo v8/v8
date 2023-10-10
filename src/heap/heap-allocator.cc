@@ -56,8 +56,15 @@ void HeapAllocator::Setup(LinearAllocationArea& new_allocation_info,
                                 MainAllocator::SupportsExtendingLAB::kNo);
   heap_->code_space()->set_main_allocator(code_space_allocator());
 
-  shared_old_allocator_ = heap_->shared_space_allocator_.get();
-  shared_lo_space_ = heap_->shared_lo_allocation_space();
+  if (heap_->isolate()->has_shared_space()) {
+    Heap* heap = heap_->isolate()->shared_space_isolate()->heap();
+
+    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+        heap_->main_thread_local_heap(), heap->shared_space_,
+        ConcurrentAllocator::Context::kNotGC);
+
+    shared_lo_space_ = heap->shared_lo_allocation_space();
+  }
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
@@ -166,16 +173,20 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
                               V8::kHeapOOM);
 }
 
-void HeapAllocator::MakeLinearAllocationAreaIterable() {
+void HeapAllocator::MakeLinearAllocationAreasIterable() {
   if (new_space_allocator_) {
     new_space_allocator_->MakeLinearAllocationAreaIterable();
   }
   old_space_allocator_->MakeLinearAllocationAreaIterable();
   trusted_space_allocator_->MakeLinearAllocationAreaIterable();
   code_space_allocator_->MakeLinearAllocationAreaIterable();
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
 }
 
-void HeapAllocator::MarkLinearAllocationAreaBlack() {
+void HeapAllocator::MarkLinearAllocationAreasBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();
 
@@ -186,7 +197,7 @@ void HeapAllocator::MarkLinearAllocationAreaBlack() {
   }
 }
 
-void HeapAllocator::UnmarkLinearAllocationArea() {
+void HeapAllocator::UnmarkLinearAllocationsArea() {
   old_space_allocator_->UnmarkLinearAllocationArea();
   trusted_space_allocator_->UnmarkLinearAllocationArea();
 
@@ -197,7 +208,19 @@ void HeapAllocator::UnmarkLinearAllocationArea() {
   }
 }
 
-void HeapAllocator::FreeLinearAllocationArea() {
+void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+}
+
+void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+}
+
+void HeapAllocator::FreeLinearAllocationAreas() {
   if (new_space_allocator_) {
     new_space_allocator_->FreeLinearAllocationArea();
   }
@@ -209,6 +232,10 @@ void HeapAllocator::FreeLinearAllocationArea() {
         "Setting the high water mark requires write access to the Code page "
         "header");
     code_space_allocator_->FreeLinearAllocationArea();
+  }
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->FreeLinearAllocationArea();
   }
 }
 

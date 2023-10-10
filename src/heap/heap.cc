@@ -3659,21 +3659,20 @@ void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
 void Heap::MakeHeapIterable() {
   EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
 
+  MakeLinearAllocationAreasIterable();
+}
+
+void Heap::MakeLinearAllocationAreasIterable() {
+  allocator()->MakeLinearAllocationAreasIterable();
+
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MakeLinearAllocationAreaIterable();
+    local_heap->MakeLinearAllocationAreasIterable();
   });
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
-        [](Isolate* client) {
-          client->heap()->MakeSharedLinearAllocationAreasIterable();
-        });
-  }
-
-  allocator()->MakeLinearAllocationAreaIterable();
-
-  if (shared_space_allocator_) {
-    shared_space_allocator_->MakeLinearAllocationAreaIterable();
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      client->heap()->MakeLinearAllocationAreasIterable();
+    });
   }
 }
 
@@ -3681,70 +3680,33 @@ void Heap::FreeLinearAllocationAreas() {
   FreeMainThreadLinearAllocationAreas();
 
   safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
+      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationAreas(); });
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
-        [](Isolate* client) {
-          client->heap()->FreeSharedLinearAllocationAreas();
-        });
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [](Isolate* client) { client->heap()->FreeLinearAllocationAreas(); });
   }
 }
 
 void Heap::FreeMainThreadLinearAllocationAreas() {
-  allocator()->FreeLinearAllocationArea();
-
-  if (shared_space_allocator_) {
-    shared_space_allocator_->FreeLinearAllocationArea();
-  }
-}
-
-void Heap::FreeSharedLinearAllocationAreas() {
-  if (!isolate()->has_shared_space()) return;
-  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->FreeSharedLinearAllocationArea();
-  });
-  FreeMainThreadSharedLinearAllocationAreas();
-}
-
-void Heap::FreeMainThreadSharedLinearAllocationAreas() {
-  if (!isolate()->has_shared_space()) return;
-  shared_space_allocator_->FreeLinearAllocationArea();
-  main_thread_local_heap()->FreeSharedLinearAllocationArea();
-}
-
-void Heap::MakeSharedLinearAllocationAreasIterable() {
-  if (!isolate()->has_shared_space()) return;
-
-  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MakeSharedLinearAllocationAreaIterable();
-  });
-
-  if (shared_space_allocator_) {
-    shared_space_allocator_->MakeLinearAllocationAreaIterable();
-  }
-
-  main_thread_local_heap()->MakeSharedLinearAllocationAreaIterable();
+  allocator()->FreeLinearAllocationAreas();
 }
 
 void Heap::MarkSharedLinearAllocationAreasBlack() {
-  if (shared_space_allocator_) {
-    shared_space_allocator_->MarkLinearAllocationAreaBlack();
-  }
+  allocator()->MarkSharedLinearAllocationAreasBlack();
+  main_thread_local_heap()->MarkSharedLinearAllocationAreasBlack();
+
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MarkSharedLinearAllocationAreaBlack();
+    local_heap->MarkSharedLinearAllocationAreasBlack();
   });
-  main_thread_local_heap()->MarkSharedLinearAllocationAreaBlack();
 }
 
 void Heap::UnmarkSharedLinearAllocationAreas() {
-  if (shared_space_allocator_) {
-    shared_space_allocator_->UnmarkLinearAllocationArea();
-  }
+  allocator()->UnmarkSharedLinearAllocationAreas();
+  main_thread_local_heap()->UnmarkSharedLinearAllocationsArea();
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->UnmarkSharedLinearAllocationArea();
+    local_heap->UnmarkSharedLinearAllocationsArea();
   });
-  main_thread_local_heap()->UnmarkSharedLinearAllocationArea();
 }
 
 namespace {
@@ -5615,23 +5577,18 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
         static_cast<SharedLargeObjectSpace*>(space_[SHARED_LO_SPACE].get());
   }
 
+  if (isolate()->has_shared_space()) {
+    Heap* heap = isolate()->shared_space_isolate()->heap();
+    shared_allocation_space_ = heap->shared_space_;
+    shared_lo_allocation_space_ = heap->shared_lo_space_;
+  }
+
   space_[TRUSTED_SPACE] = std::make_unique<TrustedSpace>(this);
   trusted_space_ = static_cast<TrustedSpace*>(space_[TRUSTED_SPACE].get());
 
   space_[TRUSTED_LO_SPACE] = std::make_unique<TrustedLargeObjectSpace>(this);
   trusted_lo_space_ =
       static_cast<TrustedLargeObjectSpace*>(space_[TRUSTED_LO_SPACE].get());
-
-  if (isolate()->has_shared_space()) {
-    Heap* heap = isolate()->shared_space_isolate()->heap();
-
-    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        main_thread_local_heap(), heap->shared_space_,
-        ConcurrentAllocator::Context::kNotGC);
-
-    shared_allocation_space_ = heap->shared_space_;
-    shared_lo_allocation_space_ = heap->shared_lo_space_;
-  }
 
   heap_allocator_.Setup(new_allocation_info, old_allocation_info);
   main_thread_local_heap()->SetUpMainThread();
@@ -5879,7 +5836,7 @@ void Heap::StartTearDown() {
   collection_barrier_->NotifyShutdownRequested();
 
   // Main thread isn't going to allocate anymore.
-  main_thread_local_heap()->FreeLinearAllocationArea();
+  main_thread_local_heap()->FreeLinearAllocationAreas();
 
   FreeMainThreadLinearAllocationAreas();
 }
@@ -5984,8 +5941,6 @@ void Heap::TearDown() {
   tracer_.reset();
 
   pretenuring_handler_.reset();
-
-  shared_space_allocator_.reset();
 
   {
     CodePageHeaderModificationScope rwx_write_scope(

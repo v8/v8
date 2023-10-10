@@ -131,8 +131,8 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           break;
         case AllocationType::kSharedMap:
         case AllocationType::kSharedOld:
-          allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
-                                                          alignment, origin);
+          allocation = shared_space_allocator_->AllocateRaw(size_in_bytes,
+                                                            alignment, origin);
           break;
         case AllocationType::kTrusted:
           allocation = trusted_space_allocator_->AllocateRaw(size_in_bytes,

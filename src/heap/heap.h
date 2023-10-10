@@ -1709,14 +1709,8 @@ class Heap final {
                                           GarbageCollectionReason gc_reason,
                                           const char** reason) const;
 
-  // Free all shared LABs.
-  void FreeSharedLinearAllocationAreas();
-
-  // Makes all shared LABs iterable.
-  void MakeSharedLinearAllocationAreasIterable();
-
-  // Free all shared LABs of main thread.
-  void FreeMainThreadSharedLinearAllocationAreas();
+  // Make all LABs of all threads iterable.
+  void MakeLinearAllocationAreasIterable();
 
   // Enables/Disables black allocation in shared LABs.
   void MarkSharedLinearAllocationAreasBlack();
@@ -2126,9 +2120,6 @@ class Heap final {
   // in another isolate.
   PagedSpace* shared_allocation_space_ = nullptr;
   OldLargeObjectSpace* shared_lo_allocation_space_ = nullptr;
-
-  // Allocators for the shared spaces.
-  std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
 
   // Map from the space id to the space.
   std::unique_ptr<Space> space_[LAST_SPACE + 1];

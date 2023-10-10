@@ -81,13 +81,21 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   static void InitializeOncePerProcess();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  void MakeLinearAllocationAreaIterable();
+  // Give up all LABs. Used for e.g. full GCs.
+  void FreeLinearAllocationAreas();
 
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
+  // Make all LABs iterable.
+  void MakeLinearAllocationAreasIterable();
 
-  // Give up linear allocation areas. Used for mark-compact GC.
-  void FreeLinearAllocationArea();
+  // Mark/Unmark all LABs except for new and shared space. Use for black
+  // allocation.
+  void MarkLinearAllocationAreasBlack();
+  void UnmarkLinearAllocationsArea();
+
+  // Mark/Unmark linear allocation areas in shared heap black. Used for black
+  // allocation.
+  void MarkSharedLinearAllocationAreasBlack();
+  void UnmarkSharedLinearAllocationAreas();
 
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
@@ -106,7 +114,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
     return &code_space_allocator_.value();
   }
   ConcurrentAllocator* shared_space_allocator() {
-    return shared_old_allocator_;
+    return shared_space_allocator_.get();
   }
 
  private:
@@ -146,7 +154,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   base::Optional<MainAllocator> trusted_space_allocator_;
   base::Optional<MainAllocator> code_space_allocator_;
 
-  ConcurrentAllocator* shared_old_allocator_;
+  // Allocators for the shared spaces.
+  std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

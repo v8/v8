@@ -412,7 +412,7 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
   DCHECK(IsMajorMarking());
   black_allocation_ = true;
-  heap()->allocator()->MarkLinearAllocationAreaBlack();
+  heap()->allocator()->MarkLinearAllocationAreasBlack();
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
@@ -421,7 +421,7 @@ void IncrementalMarking::StartBlackAllocation() {
         });
   }
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MarkLinearAllocationAreaBlack();
+    local_heap->MarkLinearAllocationAreasBlack();
   });
   if (v8_flags.trace_incremental_marking) {
     isolate()->PrintWithTimestamp(
@@ -431,7 +431,7 @@ void IncrementalMarking::StartBlackAllocation() {
 
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMajorMarking());
-  heap()->allocator()->UnmarkLinearAllocationArea();
+  heap()->allocator()->UnmarkLinearAllocationsArea();
   if (isolate()->is_shared_space_isolate()) {
     DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
@@ -440,7 +440,7 @@ void IncrementalMarking::PauseBlackAllocation() {
         });
   }
   heap()->safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });
+      [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationsArea(); });
   if (v8_flags.trace_incremental_marking) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");
