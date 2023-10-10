@@ -263,7 +263,7 @@ class WasmGCTypeReducer : public Next {
       if (externalize != nullptr) {
         // Directly return the object as
         // any.convert_extern(extern.convert_any(x)) == x.
-        return __ MapToNewGraph(externalize->object());
+        return externalize->object();
       }
     }
     return Next::ReduceAnyConvertExtern(object);
