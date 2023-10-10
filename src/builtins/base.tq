@@ -457,6 +457,7 @@ extern enum MessageTemplate {
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
   kWasmObjectsAreOpaque,
+  kWasmArgDoesntMatchSignature,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,

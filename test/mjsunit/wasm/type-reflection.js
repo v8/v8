@@ -352,17 +352,24 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction('func2', kSig_v_v).addBody([]).exportFunc();
 
   const instance = builder.instantiate();
-  assertThrows(
-      () => new WebAssembly.Function(
-          {parameters: [], results: []}, instance.exports.func1),
-      TypeError,
-      'WebAssembly.Function(): The signature of Argument 1 (a ' +
-      'WebAssembly function) does not match the signature specified in ' +
-      'Argument 0');
 
   assertDoesNotThrow(
       () => new WebAssembly.Function(
           {parameters: [], results: []}, instance.exports.func2));
+
+  assertDoesNotThrow(
+      () => new WebAssembly.Function(
+          {parameters: [], results: []}, instance.exports.func1));
+
+  assertThrows(
+      () => {
+        const rewrapped = new WebAssembly.Function(
+          {parameters: [], results: []}, instance.exports.func1);
+        rewrapped();
+      },
+      TypeError,
+      "The signature of the provided Callable does not match " +
+      "the specified signature.");
 })();
 
 (function TestFunctionConstructorWithWasmJSFunction() {
@@ -371,12 +378,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   assertDoesNotThrow(
       () => new WebAssembly.Function({parameters: [], results: []}, func));
+  assertDoesNotThrow(
+      () => new WebAssembly.Function({parameters: ['i32'], results: []}, func));
   assertThrows(
-      () => new WebAssembly.Function({parameters: ['i32'], results: []}, func),
+      () => {
+        const rewrapped = new WebAssembly.Function(
+          {parameters: ['i32'], results: []}, func);
+        rewrapped();
+      },
       TypeError,
-      'WebAssembly.Function(): The signature of Argument 1 (a ' +
-          'WebAssembly function) does not match the signature specified in ' +
-          'Argument 0');
+      "The signature of the provided Callable does not match " +
+      "the specified signature.");
 })();
 
 (function TestFunctionConstructorNonArray1() {

@@ -1077,6 +1077,13 @@ builtin ThrowToLowerCaseCalledOnNull(): JSAny {
   runtime::WasmThrowTypeError(context, SmiConstant(error), name);
 }
 
+transitioning javascript builtin ThrowSignatureMismatch(
+    js-implicit context: NativeContext)(...arguments): JSAny {
+  const error = MessageTemplate::kWasmArgDoesntMatchSignature;
+  const name = StringConstant('WebAssembly.Function');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
 builtin ThrowIndexOfCalledOnNull(): JSAny {
   const context = LoadContextFromFrame();
   const error = MessageTemplate::kCalledOnNullOrUndefined;

@@ -2118,31 +2118,27 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (is_wasm_exported_function && !suspend && !promise) {
     uint32_t canonical_sig_index =
         i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
-    if (i::Handle<i::WasmExportedFunction>::cast(callable)->MatchesSignature(
+    if (!i::Handle<i::WasmExportedFunction>::cast(callable)->MatchesSignature(
             canonical_sig_index)) {
-      info.GetReturnValue().Set(Utils::ToLocal(callable));
+      i::Handle<i::JSFunction> result =
+        i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
+      result->set_code(*BUILTIN_CODE(i_isolate, ThrowSignatureMismatch));
+      info.GetReturnValue().Set(Utils::ToLocal(result));
       return;
     }
-
-    thrower.TypeError(
-        "The signature of Argument 1 (a WebAssembly function) does "
-        "not match the signature specified in Argument 0");
-    return;
   }
 
   if (is_wasm_js_function && !suspend && !promise) {
     uint32_t canonical_sig_index =
         i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
-    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(
+    if (!i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(
             canonical_sig_index)) {
-      info.GetReturnValue().Set(Utils::ToLocal(callable));
+      i::Handle<i::JSFunction> result =
+        i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
+      result->set_code(*BUILTIN_CODE(i_isolate, ThrowSignatureMismatch));
+      info.GetReturnValue().Set(Utils::ToLocal(result));
       return;
     }
-
-    thrower.TypeError(
-        "The signature of Argument 1 (a WebAssembly function) does "
-        "not match the signature specified in Argument 0");
-    return;
   }
 
   if (is_wasm_exported_function && suspend) {
