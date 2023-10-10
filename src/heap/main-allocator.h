@@ -20,7 +20,7 @@ class MainAllocator;
 class SemiSpaceNewSpace;
 class SpaceWithLinearArea;
 class PagedNewSpace;
-class PagedSpace;
+class PagedSpaceBase;
 
 class AllocatorPolicy {
  public:
@@ -39,8 +39,11 @@ class AllocatorPolicy {
   virtual void FreeLinearAllocationArea() = 0;
   virtual void UpdateInlineAllocationLimit() = 0;
 
- private:
-  MainAllocator* allocator_;
+ protected:
+  Heap* heap() const { return heap_; }
+
+  MainAllocator* const allocator_;
+  Heap* const heap_;
 };
 
 class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
@@ -59,26 +62,9 @@ class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   SemiSpaceNewSpace* const space_;
 };
 
-class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
- public:
-  explicit PagedNewSpaceAllocatorPolicy(PagedNewSpace* space,
-                                        MainAllocator* allocator)
-      : AllocatorPolicy(allocator), space_(space) {}
-
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) final;
-  void FreeLinearAllocationArea() final;
-  void UpdateInlineAllocationLimit() final;
-
- private:
-  PagedNewSpace* const space_;
-};
-
 class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
  public:
-  explicit PagedSpaceAllocatorPolicy(PagedSpace* space,
-                                     MainAllocator* allocator)
+  PagedSpaceAllocatorPolicy(PagedSpaceBase* space, MainAllocator* allocator)
       : AllocatorPolicy(allocator), space_(space) {}
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
@@ -88,7 +74,25 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   void UpdateInlineAllocationLimit() final;
 
  private:
-  PagedSpace* const space_;
+  PagedSpaceBase* const space_;
+};
+
+class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
+ public:
+  PagedNewSpaceAllocatorPolicy(PagedNewSpace* space, MainAllocator* allocator);
+
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
+  void FreeLinearAllocationArea() final;
+  void UpdateInlineAllocationLimit() final;
+
+ private:
+  bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
+  bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
+
+  PagedNewSpace* const space_;
+  std::unique_ptr<PagedSpaceAllocatorPolicy> paged_space_allocator_policy_;
 };
 
 class LinearAreaOriginalData {
@@ -292,6 +296,8 @@ class MainAllocator {
   LinearAllocationArea owned_allocation_info_;
   LinearAreaOriginalData linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
+
+  friend class AllocatorPolicy;
 };
 
 }  // namespace internal

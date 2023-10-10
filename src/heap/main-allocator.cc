@@ -4,10 +4,12 @@
 
 #include "src/heap/main-allocator.h"
 
+#include "src/heap/free-list-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/page-inl.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
@@ -372,9 +374,7 @@ int MainAllocator::ObjectAlignment() const {
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
 
 AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
-    : allocator_(allocator) {
-  USE(allocator_);
-}
+    : allocator_(allocator), heap_(allocator->heap()) {}
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
@@ -391,19 +391,106 @@ void SemiSpaceNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
   space_->UpdateInlineAllocationLimit();
 }
 
+PagedNewSpaceAllocatorPolicy::PagedNewSpaceAllocatorPolicy(
+    PagedNewSpace* space, MainAllocator* allocator)
+    : AllocatorPolicy(allocator),
+      space_(space),
+      paged_space_allocator_policy_(
+          new PagedSpaceAllocatorPolicy(space->paged_space(), allocator)) {}
+
 bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
     int* out_max_aligned_size) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                  out_max_aligned_size);
+  if (space_->paged_space()->last_lab_page_) {
+    space_->paged_space()->last_lab_page_->DecreaseAllocatedLabSize(
+        allocator_->limit() - allocator_->top());
+    allocator_->ExtendLAB(allocator_->top());
+    // No need to write a filler to the remaining lab because it will either be
+    // reallocated if the lab can be extended or freed otherwise.
+  }
+
+  if (!paged_space_allocator_policy_->EnsureAllocation(
+          size_in_bytes, alignment, origin, out_max_aligned_size)) {
+    if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
+      if (!WaitForSweepingForAllocation(size_in_bytes, origin)) {
+        return false;
+      }
+    }
+  }
+
+  space_->paged_space()->last_lab_page_ =
+      Page::FromAllocationAreaAddress(allocator_->top());
+  DCHECK_NOT_NULL(space_->paged_space()->last_lab_page_);
+  space_->paged_space()->last_lab_page_->IncreaseAllocatedLabSize(
+      allocator_->limit() - allocator_->top());
+
+  return true;
+}
+
+bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
+    int size_in_bytes, AllocationOrigin origin) {
+  // This method should be called only when there are no more pages for main
+  // thread to sweep.
+  DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+  if (!v8_flags.concurrent_sweeping || !heap()->sweeping_in_progress())
+    return false;
+  Sweeper* sweeper = heap()->sweeper();
+  if (!sweeper->AreMinorSweeperTasksRunning() &&
+      !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
+#if DEBUG
+    for (Page* p : *space_) {
+      DCHECK(p->SweepingDone());
+      p->ForAllFreeListCategories(
+          [space = space_->paged_space()](FreeListCategory* category) {
+            DCHECK_IMPLIES(!category->is_empty(),
+                           category->is_linked(space->free_list()));
+          });
+    }
+#endif  // DEBUG
+    // All pages are already swept and relinked to the free list
+    return false;
+  }
+  // When getting here we know that any unswept new space page is currently
+  // being handled by a concurrent sweeping thread. Rather than try to cancel
+  // tasks and restart them, we wait "per page". This should be faster.
+  for (Page* p : *space_) {
+    if (!p->SweepingDone()) sweeper->WaitForPageToBeSwept(p);
+  }
+  space_->paged_space()->RefillFreeList();
+  DCHECK(!sweeper->ShouldRefillFreelistForSpace(NEW_SPACE));
+  return space_->paged_space()->TryAllocationFromFreeListMain(
+      static_cast<size_t>(size_in_bytes), origin);
+}
+
+bool PagedNewSpaceAllocatorPolicy::AddPageBeyondCapacity(
+    int size_in_bytes, AllocationOrigin origin) {
+  if (space_->paged_space()->AddPageBeyondCapacity(size_in_bytes, origin)) {
+    return space_->paged_space()->TryAllocationFromFreeListMain(size_in_bytes,
+                                                                origin);
+  }
+
+  return false;
 }
 
 void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  space_->FreeLinearAllocationArea();
+  if (allocator_->top() == kNullAddress) {
+    DCHECK_EQ(kNullAddress, allocator_->limit());
+    return;
+  }
+  Page::FromAllocationAreaAddress(allocator_->top())
+      ->DecreaseAllocatedLabSize(allocator_->limit() - allocator_->top());
+  paged_space_allocator_policy_->FreeLinearAllocationArea();
 }
 
 void PagedNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  space_->UpdateInlineAllocationLimit();
+  Address old_limit = allocator_->limit();
+  paged_space_allocator_policy_->UpdateInlineAllocationLimit();
+  Address new_limit = allocator_->limit();
+  DCHECK_LE(new_limit, old_limit);
+  if (new_limit != old_limit) {
+    Page::FromAllocationAreaAddress(allocator_->top())
+        ->DecreaseAllocatedLabSize(old_limit - new_limit);
+  }
 }
 
 bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,

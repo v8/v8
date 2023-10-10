@@ -528,18 +528,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
     last_lab_page_ = nullptr;
   }
 
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin, int* out_max_aligned_size);
-
-  // When inline allocation stepping is active, either because of incremental
-  // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
-  // inline allocation every once in a while. This is done by setting
-  // allocation_info_.limit to be lower than the actual limit and and increasing
-  // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit();
-
-  void FreeLinearAllocationArea();
-
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
@@ -569,7 +557,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   bool ShouldReleaseEmptyPage() const;
 
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
-  bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
 
@@ -602,6 +589,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool force_allocation_success_ = false;
   bool should_exceed_target_capacity_ = false;
+
+  friend class PagedNewSpaceAllocatorPolicy;
 };
 
 // TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and
@@ -742,28 +731,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 
  private:
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin, int* out_max_aligned_size) {
-    return paged_space_.EnsureAllocation(size_in_bytes, alignment, origin,
-                                         out_max_aligned_size);
-  }
-
-  // When inline allocation stepping is active, either because of incremental
-  // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
-  // inline allocation every once in a while. This is done by setting
-  // allocation_info_.limit to be lower than the actual limit and and increasing
-  // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit() {
-    paged_space_.UpdateInlineAllocationLimit();
-  }
-
-  void FreeLinearAllocationArea() { paged_space_.FreeLinearAllocationArea(); }
-
   void RemovePage(Page* page) final { paged_space_.RemovePage(page); }
 
   PagedSpaceForNewSpace paged_space_;
-
-  friend class PagedNewSpaceAllocatorPolicy;
 };
 
 // For contiguous spaces, top should be in the space (or at the end) and limit

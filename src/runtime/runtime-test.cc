@@ -1162,6 +1162,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
 RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
+  heap->FreeMainThreadLinearAllocationAreas();
   AlwaysAllocateScopeForTesting always_allocate(heap);
   if (v8_flags.minor_ms) {
     if (heap->minor_sweeping_in_progress()) {
@@ -1170,7 +1171,6 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
     auto* space = heap->paged_new_space()->paged_space();
     while (space->AddFreshPage()) {
     }
-    space->FreeLinearAllocationArea();
     space->ResetFreeList();
   } else {
     NewSpace* space = heap->new_space();
