@@ -22,6 +22,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/small-vector.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/code-memory-access.h"
@@ -630,7 +631,8 @@ class Heap final {
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
-  void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
+  void IncrementDeferredCounts(
+      base::Vector<const v8::Isolate::UseCounterFeature> features);
 
   inline int NextScriptId();
   inline int NextDebuggingId();
@@ -2199,7 +2201,7 @@ class Heap final {
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
-  int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
+  base::SmallVector<v8::Isolate::UseCounterFeature, 8> deferred_counters_;
 
   size_t promoted_objects_size_ = 0;
   double promotion_ratio_ = 0.0;

@@ -855,12 +855,9 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
 }
 
 void Heap::ReportStatisticsAfterGC() {
-  for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
-       ++i) {
-    isolate()->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(i),
-                          deferred_counters_[i]);
-    deferred_counters_[i] = 0;
-  }
+  if (deferred_counters_.empty()) return;
+  isolate()->CountUsage(base::VectorOf(deferred_counters_));
+  deferred_counters_.clear();
 }
 
 class Heap::AllocationTrackerForDebugging final
@@ -1160,8 +1157,10 @@ void Heap::AddRetainingRoot(Root root, Tagged<HeapObject> object) {
   }
 }
 
-void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
-  deferred_counters_[feature]++;
+void Heap::IncrementDeferredCounts(
+    base::Vector<const v8::Isolate::UseCounterFeature> features) {
+  deferred_counters_.insert(deferred_counters_.end(), features.begin(),
+                            features.end());
 }
 
 void Heap::GarbageCollectionPrologue(
@@ -5586,11 +5585,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   heap_allocator_.Setup(new_allocation_info, old_allocation_info);
   main_thread_local_heap()->SetUpMainThread();
-
-  for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
-       i++) {
-    deferred_counters_[i] = 0;
-  }
 
   base::TimeTicks startup_time = base::TimeTicks::Now();
 

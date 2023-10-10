@@ -646,7 +646,7 @@ class CompilationStateImpl {
   void OnFinishedJSToWasmWrapperUnits();
 
   void OnCompilationStopped(WasmFeatures detected);
-  void PublishDetectedFeatures(Isolate*);
+  void PublishDetectedFeaturesAfterCompilation(Isolate*);
   void SchedulePublishCompilationResults(
       std::vector<std::unique_ptr<WasmCode>> unpublished_code,
       CompilationTier tier);
@@ -851,24 +851,6 @@ size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
 bool BackgroundCompileScope::cancelled() const {
   return native_module_ == nullptr ||
          Impl(native_module_->compilation_state())->cancelled();
-}
-
-void UpdateFeatureUseCounts(Isolate* isolate, WasmFeatures detected) {
-  using Feature = v8::Isolate::UseCounterFeature;
-  constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
-      {kFeature_reftypes, Feature::kWasmRefTypes},
-      {kFeature_simd, Feature::kWasmSimdOpcodes},
-      {kFeature_threads, Feature::kWasmThreadOpcodes},
-      {kFeature_eh, Feature::kWasmExceptionHandling},
-      {kFeature_memory64, Feature::kWasmMemory64},
-      {kFeature_multi_memory, Feature::kWasmMultiMemory},
-      {kFeature_gc, Feature::kWasmGC},
-      {kFeature_imported_strings, Feature::kWasmImportedStrings},
-  };
-
-  for (auto& feature : kUseCounters) {
-    if (detected.contains(feature.first)) isolate->CountUsage(feature.second);
-  }
 }
 
 }  // namespace
@@ -1877,7 +1859,7 @@ void CompileNativeModule(Isolate* isolate,
     compilation_state->WaitForCompilationEvent(
         CompilationEvent::kFinishedBaselineCompilation);
 
-    compilation_state->PublishDetectedFeatures(isolate);
+    compilation_state->PublishDetectedFeaturesAfterCompilation(isolate);
   }
 
   if (compilation_state->failed()) {
@@ -2472,7 +2454,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   }
 
   // We can only update the feature counts once the entire compile is done.
-  compilation_state->PublishDetectedFeatures(isolate_);
+  compilation_state->PublishDetectedFeaturesAfterCompilation(isolate_);
 
   // We might need debug code for the module, if the debugger was enabled while
   // streaming compilation was running. Since handling this while compiling via
@@ -3778,12 +3760,37 @@ void CompilationStateImpl::OnCompilationStopped(WasmFeatures detected) {
   detected_features_.Add(detected);
 }
 
-void CompilationStateImpl::PublishDetectedFeatures(Isolate* isolate) {
+void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
+    Isolate* isolate) {
   // Notifying the isolate of the feature counts must take place under
   // the mutex, because even if we have finished baseline compilation,
   // tiering compilations may still occur in the background.
   base::MutexGuard guard(&mutex_);
-  UpdateFeatureUseCounts(isolate, detected_features_);
+
+  using Feature = v8::Isolate::UseCounterFeature;
+  static constexpr std::pair<WasmFeature, Feature> kUseCounters[] = {
+      {kFeature_reftypes, Feature::kWasmRefTypes},
+      {kFeature_simd, Feature::kWasmSimdOpcodes},
+      {kFeature_threads, Feature::kWasmThreadOpcodes},
+      {kFeature_eh, Feature::kWasmExceptionHandling},
+      {kFeature_memory64, Feature::kWasmMemory64},
+      {kFeature_multi_memory, Feature::kWasmMultiMemory},
+      {kFeature_gc, Feature::kWasmGC},
+      {kFeature_imported_strings, Feature::kWasmImportedStrings},
+  };
+
+  static constexpr size_t kMaxFeatures = arraysize(kUseCounters) + 1;
+  base::SmallVector<Feature, kMaxFeatures> use_counter_features;
+  // Always set the WasmModuleCompilation feature as a baseline for the other
+  // features. Note that we also track instantiation, but the number of
+  // compilations and instantiations are pretty unrelated.
+  use_counter_features.push_back(Feature::kWasmModuleCompilation);
+
+  for (auto [wasm_feature, feature] : kUseCounters) {
+    if (!detected_features_.contains(wasm_feature)) continue;
+    use_counter_features.push_back(feature);
+  }
+  isolate->CountUsage(base::VectorOf(use_counter_features));
 }
 
 void CompilationStateImpl::PublishCompilationResults(

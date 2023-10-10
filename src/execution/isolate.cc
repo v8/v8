@@ -5947,6 +5947,11 @@ void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
 }
 
 void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
+  CountUsage(base::VectorOf({feature}));
+}
+
+void Isolate::CountUsage(
+    base::Vector<const v8::Isolate::UseCounterFeature> features) {
   // The counter callback
   // - may cause the embedder to call into V8, which is not generally possible
   //   during GC.
@@ -5958,16 +5963,12 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
     DCHECK(IsNativeContext(context()->native_context()));
     if (use_counter_callback_) {
       HandleScope handle_scope(this);
-      use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
+      for (auto feature : features) {
+        use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
+      }
     }
   } else {
-    heap_.IncrementDeferredCount(feature);
-  }
-}
-
-void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature, int count) {
-  for (int i = 0; i < count; ++i) {
-    CountUsage(feature);
+    heap_.IncrementDeferredCounts(features);
   }
 }
 
