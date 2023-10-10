@@ -491,6 +491,8 @@ class TurboshaftGraphBuildingInterface {
     if (mode_ == kRegular) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values));
     } else {
+      // Do not add return values if we are in unreachable code.
+      if (__ generating_unreachable_operations()) return;
       for (size_t i = 0; i < return_values.size(); i++) {
         return_phis_.phi_inputs[i].push_back(return_values[i]);
       }
@@ -4723,6 +4725,7 @@ class TurboshaftGraphBuildingInterface {
       }
       __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
     } else {
+      if (__ generating_unreachable_operations()) return;
       // This is a tail call in the inlinee. Transform it into a regular call,
       // and return the return values to the caller.
       // TODO(14108): This can remain a tail call if the inlined call is also a
@@ -4734,7 +4737,7 @@ class TurboshaftGraphBuildingInterface {
       BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
                     CheckForException::kCatchInParentFrame);
       for (size_t i = 0; i < sig->return_count(); i++) {
-        return_phis_.phi_inputs[i].emplace_back(returns[i].op);
+        return_phis_.phi_inputs[i].push_back(returns[i].op);
       }
       __ Goto(return_block_);
     }
