@@ -5881,7 +5881,7 @@ void Heap::StartTearDown() {
   // Main thread isn't going to allocate anymore.
   main_thread_local_heap()->FreeLinearAllocationArea();
 
-  FreeMainThreadSharedLinearAllocationAreas();
+  FreeMainThreadLinearAllocationAreas();
 }
 
 void Heap::TearDownWithSharedHeap() {

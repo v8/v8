@@ -87,7 +87,6 @@ LocalHeap::~LocalHeap() {
 
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     FreeLinearAllocationArea();
-    FreeSharedLinearAllocationArea();
 
     if (!is_main_thread()) {
       marking_barrier_->PublishIfNeeded();
@@ -388,6 +387,7 @@ void LocalHeap::FreeLinearAllocationArea() {
   old_space_allocator_->FreeLinearAllocationArea();
   code_space_allocator_->FreeLinearAllocationArea();
   trusted_space_allocator_->FreeLinearAllocationArea();
+  FreeSharedLinearAllocationArea();
 }
 
 void LocalHeap::FreeSharedLinearAllocationArea() {

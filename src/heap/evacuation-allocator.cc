@@ -106,12 +106,16 @@ void EvacuationAllocator::FreeLastInCompactionSpace(AllocationSpace space,
 }
 
 void EvacuationAllocator::Finalize() {
+  old_space_allocator()->FreeLinearAllocationArea();
   heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
+  code_space_allocator()->FreeLinearAllocationArea();
   heap_->code_space()->MergeCompactionSpace(compaction_spaces_.Get(CODE_SPACE));
   if (heap_->shared_space()) {
+    shared_space_allocator()->FreeLinearAllocationArea();
     heap_->shared_space()->MergeCompactionSpace(
         compaction_spaces_.Get(SHARED_SPACE));
   }
+  trusted_space_allocator()->FreeLinearAllocationArea();
   heap_->trusted_space()->MergeCompactionSpace(
       compaction_spaces_.Get(TRUSTED_SPACE));
 
