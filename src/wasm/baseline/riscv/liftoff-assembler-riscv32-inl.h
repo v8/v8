@@ -2074,10 +2074,10 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
   vwaddu_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
-void LiftoffAssembler::CallCWithStackBuffer(
-    const std::initializer_list<VarState> args, const LiftoffRegister* rets,
-    ValueKind return_kind, ValueKind out_argument_kind, int stack_bytes,
-    ExternalReference ext_ref) {
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
+                             ValueKind out_argument_kind, int stack_bytes,
+                             ExternalReference ext_ref) {
   AddWord(sp, sp, Operand(-stack_bytes));
 
   int arg_offset = 0;
