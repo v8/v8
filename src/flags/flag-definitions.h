@@ -254,8 +254,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
-  V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_array_from_async, "harmony Array.fromAsync")
+  V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 
@@ -277,9 +276,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)                  \
-  V(harmony_set_methods, "harmony Set Methods") \
-  V(harmony_iterator_helpers, "JavaScript iterator helpers")
+#define HARMONY_STAGED_BASE(V)                               \
+  V(harmony_set_methods, "harmony Set Methods")              \
+  V(harmony_iterator_helpers, "JavaScript iterator helpers") \
+  V(harmony_array_from_async, "harmony Array.fromAsync")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
