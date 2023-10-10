@@ -235,6 +235,9 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
  private:
   void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    if (object.ptr() == kTaggedNullAddress) return;
+#endif
     if (!IsHeapObject(object)) return;
     DCHECK(!MapWord::IsPacked(object.ptr()));
     Tagged<HeapObject> heap_object = HeapObject::cast(object);

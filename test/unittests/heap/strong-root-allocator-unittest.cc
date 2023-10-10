@@ -181,5 +181,71 @@ TEST_F(StrongRootAllocatorTest, SetNotRetained) {
   EXPECT_TRUE(weak.IsEmpty());
 }
 
+TEST_F(StrongRootAllocatorTest, LocalVector) {
+  ManualGCScope manual_gc_scope(i_isolate());
+  Global<v8::FixedArray> weak;
+
+  {
+    v8::HandleScope outer_scope(v8_isolate());
+    // LocalVector uses the StrongRootAllocator for its backing store.
+    LocalVector<v8::FixedArray> v(v8_isolate(), 10);
+
+    {
+      v8::EscapableHandleScope inner_scope(v8_isolate());
+      Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+      Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
+      weak.Reset(v8_isolate(), l);
+      weak.SetWeak();
+      v[7] = inner_scope.Escape(l);
+    }
+
+    {
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+      InvokeMajorGC();
+    }
+    EXPECT_FALSE(weak.IsEmpty());
+  }
+
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(weak.IsEmpty());
+}
+
+#ifdef V8_ENABLE_DIRECT_LOCAL
+TEST_F(StrongRootAllocatorTest, LocalVectorWithDirect) {
+  ManualGCScope manual_gc_scope(i_isolate());
+  Global<v8::FixedArray> weak;
+
+  {
+    // LocalVector uses the StrongRootAllocator for its backing store.
+    LocalVector<v8::FixedArray> v(v8_isolate(), 10);
+
+    {
+      v8::HandleScope scope(v8_isolate());
+      Handle<FixedArray> h = factory()->NewFixedArray(10, AllocationType::kOld);
+      Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
+      // This is legal without escaping, because locals are direct.
+      v[7] = l;
+      weak.Reset(v8_isolate(), l);
+      weak.SetWeak();
+    }
+
+    {
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+      InvokeMajorGC();
+    }
+    EXPECT_FALSE(weak.IsEmpty());
+  }
+
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(weak.IsEmpty());
+}
+#endif  // V8_ENABLE_DIRECT_LOCAL
+
 }  // namespace internal
 }  // namespace v8

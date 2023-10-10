@@ -564,6 +564,7 @@ def build_config_content(cpu, icu):
         ("is_ios", "false"),
         ("js_shared_memory", "false"),
         ("lite_mode", "false"),
+        ("local_off_stack_check", "false"),
         ("mips_arch_variant", '""'),
         ("mips_use_msa", "false"),
         ("msan", "false"),

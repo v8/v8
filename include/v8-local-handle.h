@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <type_traits>
+#include <vector>
 
 #include "v8-handle-base.h"  // NOLINT(build/include_directory)
 
@@ -17,6 +18,8 @@ template <class T>
 class LocalBase;
 template <class T>
 class Local;
+template <class T>
+class LocalVector;
 template <class F>
 class MaybeLocal;
 
@@ -67,6 +70,8 @@ class ConsoleCallArguments;
 namespace internal {
 template <typename T>
 class CustomArguments;
+template <typename T>
+class LocalUnchecked;
 class SamplingHeapProfiler;
 }  // namespace internal
 
@@ -241,10 +246,12 @@ class LocalBase : public IndirectHandleBase {
 template <class T>
 class Local : public LocalBase<T> {
  public:
-  V8_INLINE Local() = default;
+  V8_INLINE Local() : LocalBase<T>() { VerifyOnStack(); }
 
   template <class S>
   V8_INLINE Local(Local<S> that) : LocalBase<T>(that) {
+    VerifyOnStack();
+
     /**
      * This check fails when trying to convert between incompatible
      * handles. For example, converting from a Local<String> to a
@@ -374,9 +381,17 @@ class Local : public LocalBase<T> {
   friend class internal::SamplingHeapProfiler;
   friend class internal::HandleHelper;
   friend class debug::ConsoleCallArguments;
+  friend class internal::LocalUnchecked<T>;
 
-  V8_INLINE explicit Local<T>(const LocalBase<T>& other)
+  struct no_checking_tag {};
+
+  explicit Local(no_checking_tag) : LocalBase<T>() {}
+  explicit Local(const Local<T>& other, no_checking_tag)
       : LocalBase<T>(other) {}
+
+  V8_INLINE explicit Local<T>(const LocalBase<T>& other) : LocalBase<T>(other) {
+    VerifyOnStack();
+  }
 
   V8_INLINE static Local<T> FromSlot(internal::Address* slot) {
     return Local<T>(LocalBase<T>::FromSlot(slot));
@@ -401,6 +416,185 @@ class Local : public LocalBase<T> {
   V8_INLINE Local<S> UnsafeAs() const {
     return Local<S>(LocalBase<S>(*this));
   }
+
+  void VerifyOnStack() const {
+#ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
+    internal::HandleHelper::VerifyOnStack(this);
+#endif
+  }
+};
+
+namespace internal {
+// A local variant that is suitable for off-stack allocation.
+// Used internally by LocalVector<T>. Not to be used directly!
+template <typename T>
+class LocalUnchecked : public Local<T> {
+ public:
+  LocalUnchecked() : Local<T>(do_not_check) {}
+  LocalUnchecked(const LocalUnchecked& other) : Local<T>(other, do_not_check) {}
+  LocalUnchecked& operator=(const LocalUnchecked&) = default;
+
+  // Implicit conversion from Local.
+  LocalUnchecked(const Local<T>& other)  // NOLINT(runtime/explicit)
+      : Local<T>(other, do_not_check) {}
+
+ private:
+  static constexpr typename Local<T>::no_checking_tag do_not_check{};
+};
+
+#ifdef V8_ENABLE_DIRECT_LOCAL
+// Off-stack allocated direct locals must be registered as strong roots.
+// For off-stack indirect locals, this is not necessary.
+
+template <typename T>
+class StrongRootAllocator<LocalUnchecked<T>> : public StrongRootAllocatorBase {
+ public:
+  using value_type = LocalUnchecked<T>;
+  static_assert(std::is_standard_layout_v<value_type>);
+  static_assert(sizeof(value_type) == sizeof(Address));
+
+  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
+  explicit StrongRootAllocator(v8::Isolate* isolate)
+      : StrongRootAllocatorBase(isolate) {}
+  template <typename U>
+  StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
+      : StrongRootAllocatorBase(other) {}
+
+  value_type* allocate(size_t n) {
+    return reinterpret_cast<value_type*>(allocate_impl(n));
+  }
+  void deallocate(value_type* p, size_t n) noexcept {
+    return deallocate_impl(reinterpret_cast<Address*>(p), n);
+  }
+};
+#endif  // V8_ENABLE_DIRECT_LOCAL
+}  // namespace internal
+
+template <typename T>
+class LocalVector {
+ public:
+  using value_type = Local<T>;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+  using iterator = Local<T>*;
+  using const_iterator = const Local<T>*;
+
+  explicit LocalVector(Isolate* isolate) : backing_(make_allocator(isolate)) {}
+  LocalVector(Isolate* isolate, size_t n)
+      : backing_(n, make_allocator(isolate)) {}
+  explicit LocalVector(Isolate* isolate, std::initializer_list<Local<T>> init)
+      : backing_(make_allocator(isolate)) {
+    if (init.size() == 0) return;
+    backing_.reserve(init.size());
+    backing_.insert(backing_.end(), init.begin(), init.end());
+  }
+
+  iterator begin() noexcept { return to_iter(backing_.begin()); }
+  const_iterator begin() const noexcept { return to_iter(backing_.begin()); }
+  iterator end() noexcept { return to_iter(backing_.end()); }
+  const_iterator end() const noexcept { return to_iter(backing_.end()); }
+
+  size_t size() const noexcept { return backing_.size(); }
+  bool empty() const noexcept { return backing_.empty(); }
+  void reserve(size_t n) { backing_.reserve(n); }
+  void shrink_to_fit() { backing_.shrink_to_fit(); }
+
+  Local<T>& operator[](size_t n) { return backing_[n]; }
+  const Local<T>& operator[](size_t n) const { return backing_[n]; }
+
+  Local<T>& at(size_t n) { return backing_.at(n); }
+  const Local<T>& at(size_t n) const { return backing_.at(n); }
+
+  Local<T>& front() { return backing_.front(); }
+  const Local<T>& front() const { return backing_.front(); }
+  Local<T>& back() { return backing_.back(); }
+  const Local<T>& back() const { return backing_.back(); }
+
+  Local<T>* data() noexcept { return backing_.data(); }
+  const Local<T>* data() const noexcept { return backing_.data(); }
+
+  iterator insert(const_iterator pos, const Local<T>& value) {
+    return to_iter(backing_.insert(from_iter(pos), value));
+  }
+
+  template <class InputIt>
+  iterator insert(const_iterator pos, InputIt first, InputIt last) {
+    return to_iter(backing_.insert(from_iter(pos), first, last));
+  }
+
+  iterator insert(const_iterator pos, std::initializer_list<Local<T>> init) {
+    return to_iter(backing_.insert(from_iter(pos), init.begin(), init.end()));
+  }
+
+  LocalVector<T>& operator=(std::initializer_list<Local<T>> init) {
+    backing_.clear();
+    backing_.insert(backing_.end(), init.begin(), init.end());
+    return *this;
+  }
+
+  void push_back(const Local<T>& x) { backing_.push_back(x); }
+  void pop_back() { backing_.pop_back(); }
+  void emplace_back(const Local<T>& x) { backing_.emplace_back(x); }
+
+  void clear() noexcept { backing_.clear(); }
+  void resize(size_t n) { backing_.resize(n); }
+  void swap(LocalVector<T>& other) { backing_.swap(other.backing_); }
+
+  friend bool operator==(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ == y.backing_;
+  }
+  friend bool operator!=(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ != y.backing_;
+  }
+  friend bool operator<(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ < y.backing_;
+  }
+  friend bool operator>(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ > y.backing_;
+  }
+  friend bool operator<=(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ <= y.backing_;
+  }
+  friend bool operator>=(const LocalVector<T>& x, const LocalVector<T>& y) {
+    return x.backing_ >= y.backing_;
+  }
+
+ private:
+  using element_type = internal::LocalUnchecked<T>;
+
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  using allocator_type = internal::StrongRootAllocator<element_type>;
+
+  static allocator_type make_allocator(Isolate* isolate) noexcept {
+    return allocator_type(isolate);
+  }
+#else
+  using allocator_type = std::allocator<element_type>;
+
+  static allocator_type make_allocator(Isolate* isolate) noexcept {
+    return allocator_type();
+  }
+#endif  // V8_ENABLE_DIRECT_LOCAL
+
+  using vector_type = std::vector<element_type, allocator_type>;
+
+  static constexpr iterator to_iter(typename vector_type::iterator it) {
+    return &*it;
+  }
+  static constexpr const_iterator to_iter(
+      typename vector_type::const_iterator it) {
+    return &*it;
+  }
+  constexpr typename vector_type::iterator from_iter(iterator it) {
+    return backing_.begin() + (it - begin());
+  }
+  constexpr typename vector_type::const_iterator from_iter(const_iterator it) {
+    return backing_.begin() + (it - begin());
+  }
+
+  vector_type backing_;
 };
 
 #if !defined(V8_IMMINENT_DEPRECATION_WARNINGS)

@@ -128,6 +128,9 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
         GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+      if (object.ptr() == kTaggedNullAddress) continue;
+#endif
       Tagged<HeapObject> heap_object;
       // Minor MS treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {

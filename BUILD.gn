@@ -1216,6 +1216,9 @@ config("features") {
   if (v8_enable_extensible_ro_snapshot) {
     defines += [ "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT" ]
   }
+  if (v8_enable_local_off_stack_check) {
+    defines += [ "V8_ENABLE_LOCAL_OFF_STACK_CHECK" ]
+  }
 }
 
 config("toolchain") {
@@ -2631,6 +2634,7 @@ action("v8_dump_build_config") {
     "is_ios=$is_ios",
     "js_shared_memory=$js_shared_memory",
     "lite_mode=$v8_enable_lite_mode",
+    "local_off_stack_check=$v8_enable_local_off_stack_check",
     "mips_arch_variant=\"$mips_arch_variant_var\"",
     "mips_use_msa=$mips_use_msa_var",
     "msan=$is_msan",

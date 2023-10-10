@@ -443,6 +443,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
       Tagged<Object> old_slot_value_obj = slot.load(isolate_);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+      if (old_slot_value_obj.ptr() == kTaggedNullAddress) return;
+#endif
       if (!IsHeapObject(old_slot_value_obj)) return;
       Tagged<HeapObject> old_slot_value = HeapObject::cast(old_slot_value_obj);
       auto it = moves_->find(old_slot_value);

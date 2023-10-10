@@ -503,6 +503,15 @@ DEFINE_BOOL_READONLY(direct_local, V8_ENABLE_DIRECT_LOCAL_BOOL,
                      "use direct local handles")
 DEFINE_IMPLICATION(direct_local, conservative_stack_scanning)
 
+#ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
+#define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
+#else
+#define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL false
+#endif
+DEFINE_BOOL_READONLY(local_off_stack_check,
+                     V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL,
+                     "check for off-stack allocation of v8::Local")
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

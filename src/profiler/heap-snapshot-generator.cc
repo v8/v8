@@ -2205,12 +2205,16 @@ class RootsReferencesExtractor : public RootVisitor {
   void SetVisitingWeakRoots() { visiting_weak_roots_ = true; }
 
   void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot object) override {
+                        FullObjectSlot p) override {
+    Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    if (object.ptr() == kTaggedNullAddress) return;
+#endif
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
+      explorer_->TagBuiltinCodeObject(Code::cast(object), description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
-                                     *object);
+                                     object);
   }
 
   void VisitRootPointers(Root root, const char* description,

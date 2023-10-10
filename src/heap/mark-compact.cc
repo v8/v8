@@ -189,6 +189,9 @@ class FullMarkingVerifier : public MarkingVerifierBase {
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base());
+#ifdef V8_ENABLE_DIRECT_LOCAL
+      if (object.ptr() == kTaggedNullAddress) continue;
+#endif
       Tagged<HeapObject> heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
@@ -913,6 +916,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  private:
   V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    if (object.ptr() == kTaggedNullAddress) return;
+#endif
     if (!IsHeapObject(object)) return;
     Tagged<HeapObject> heap_object = HeapObject::cast(object);
     if (!collector_->ShouldMarkObject(heap_object)) return;
@@ -3673,6 +3679,9 @@ static inline SlotCallbackResult UpdateOldToSharedSlot(
 template <typename TSlot>
 static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  if (obj.ptr() == kTaggedNullAddress) return;
+#endif
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   Tagged<HeapObject> heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
@@ -3683,6 +3692,9 @@ static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
 static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
     PtrComprCageBase cage_base, FullMaybeObjectSlot slot) {
   MaybeObject obj = slot.Relaxed_Load(cage_base);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  if (obj.ptr() == kTaggedNullAddress) return REMOVE_SLOT;
+#endif
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   Tagged<HeapObject> heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
