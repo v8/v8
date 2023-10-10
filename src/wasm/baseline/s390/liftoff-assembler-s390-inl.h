@@ -3210,7 +3210,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kF32: {
             asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             asm_->LoadF32(kScratchDoubleReg,
-                          liftoff::GetStackSlot(slot.src_offset_));
+                          liftoff::GetStackSlot(slot.src_offset_ + stack_bias));
             asm_->lay(sp, MemOperand(sp, -kSystemPointerSize));
             asm_->StoreF32(kScratchDoubleReg, MemOperand(sp));
             break;
