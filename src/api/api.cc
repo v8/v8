@@ -9326,10 +9326,11 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
   return Utils::ToLocal(handle(native_context, i_isolate));
 }
 
+// TODO(ishell): rename back to GetEnteredContext().
 v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Handle<i::NativeContext> last =
-      i_isolate->handle_scope_implementer()->LastEnteredOrMicrotaskContext();
+      i_isolate->handle_scope_implementer()->LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   return Utils::ToLocal(last);
 }
@@ -11349,8 +11350,6 @@ namespace internal {
 
 const size_t HandleScopeImplementer::kEnteredContextsOffset =
     offsetof(HandleScopeImplementer, entered_contexts_);
-const size_t HandleScopeImplementer::kIsMicrotaskContextOffset =
-    offsetof(HandleScopeImplementer, is_microtask_context_);
 
 void HandleScopeImplementer::FreeThreadResources() { Free(); }
 
@@ -11423,11 +11422,6 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
                          start + static_cast<int>(entered_contexts_.size()));
   }
-  // The shape of |entered_contexts_| and |is_microtask_context_| stacks must
-  // be in sync.
-  is_microtask_context_.shrink_to_fit();
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 }
 
 void HandleScopeImplementer::Iterate(RootVisitor* v) {

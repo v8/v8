@@ -1685,15 +1685,15 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
         tsan_relaxed_load_64_bits)
 
-static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
-                                        Address raw_context) {
+static int EnterContextWrapper(HandleScopeImplementer* hsi,
+                               Address raw_context) {
   Tagged<NativeContext> context =
       NativeContext::cast(Tagged<Object>(raw_context));
-  hsi->EnterMicrotaskContext(context);
+  hsi->EnterContext(context);
   return 0;
 }
 
-FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper)
+FUNCTION_REFERENCE(call_enter_context_function, EnterContextWrapper)
 
 FUNCTION_REFERENCE(
     js_finalization_registry_remove_cell_from_unregister_token_map,

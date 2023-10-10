@@ -351,35 +351,10 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
 namespace internal {
 
 void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(0);
-}
-
-void HandleScopeImplementer::EnterMicrotaskContext(
-    Tagged<NativeContext> context) {
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(1);
 }
 
 Handle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-
-  for (size_t i = 0; i < entered_contexts_.size(); ++i) {
-    size_t j = entered_contexts_.size() - i - 1;
-    if (!is_microtask_context_.at(j)) {
-      return handle(entered_contexts_.at(j), isolate_);
-    }
-  }
-
-  return {};
-}
-
-Handle<NativeContext> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
   if (entered_contexts_.empty()) return {};
   return handle(entered_contexts_.back(), isolate_);
 }

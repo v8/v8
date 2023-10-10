@@ -43,7 +43,7 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   void SetCurrentContext(TNode<Context> context);
 
   TNode<IntPtrT> GetEnteredContextCount();
-  void EnterMicrotaskContext(TNode<Context> native_context);
+  void EnterContext(TNode<Context> native_context);
   void RewindEnteredContext(TNode<IntPtrT> saved_entered_context_count);
 
   void RunAllPromiseHooks(PromiseHookType type, TNode<Context> context,
@@ -111,7 +111,7 @@ void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
   GotoIf(WordEqual(GetMicrotaskQueue(native_context), IntPtrConstant(0)),
          bailout);
 
-  EnterMicrotaskContext(native_context);
+  EnterContext(native_context);
   SetCurrentContext(native_context);
 }
 
@@ -377,7 +377,7 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
   return Load<IntPtrT>(hsi, size_offset);
 }
 
-void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
+void MicrotaskQueueBuiltinsAssembler::EnterContext(
     TNode<Context> native_context) {
   CSA_DCHECK(this, IsNativeContext(native_context));
 
@@ -409,29 +409,6 @@ void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
     TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));
     StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
                         new_size);
-
-    using FlagStack = DetachableVector<int8_t>;
-    TNode<IntPtrT> flag_data_offset =
-        IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
-                       FlagStack::kDataOffset);
-    TNode<IntPtrT> flag_capacity_offset =
-        IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
-                       FlagStack::kCapacityOffset);
-    TNode<IntPtrT> flag_size_offset =
-        IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
-                       FlagStack::kSizeOffset);
-    // Ensure both stacks are in sync.
-    USE(flag_capacity_offset);
-    CSA_DCHECK(this,
-               WordEqual(capacity, Load<IntPtrT>(hsi, flag_capacity_offset)));
-    CSA_DCHECK(this, WordEqual(size, Load<IntPtrT>(hsi, flag_size_offset)));
-
-    TNode<RawPtrT> flag_data = Load<RawPtrT>(hsi, flag_data_offset);
-    StoreNoWriteBarrier(MachineRepresentation::kWord8, flag_data, size,
-                        BoolConstant(true));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi,
-                        flag_size_offset, new_size);
-
     Goto(&done);
   }
 
@@ -467,13 +444,6 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
 
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
                       saved_entered_context_count);
-
-  using FlagStack = DetachableVector<int8_t>;
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), hsi,
-      IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
-                     FlagStack::kSizeOffset),
-      saved_entered_context_count);
 }
 
 void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(

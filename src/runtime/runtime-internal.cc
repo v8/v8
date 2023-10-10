@@ -306,8 +306,8 @@ RUNTIME_FUNCTION(Runtime_ThrowNoAccess) {
   // TODO(verwaest): We would like to throw using the calling context instead
   // of the entered context but we don't currently have access to that.
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  SaveAndSwitchContext save(
-      isolate, impl->LastEnteredOrMicrotaskContext()->native_context());
+  SaveAndSwitchContext save(isolate,
+                            impl->LastEnteredContext()->native_context());
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(MessageTemplate::kNoAccess));
 }
