@@ -344,30 +344,20 @@ uint32_t word64_popcnt_wrapper(Address data) {
   return base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(data));
 }
 
-uint32_t word32_rol_wrapper(Address data) {
-  uint32_t input = ReadUnalignedValue<uint32_t>(data);
-  uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
-  return (input << shift) | (input >> ((32 - shift) & 31));
+uint32_t word32_rol_wrapper(uint32_t input, uint32_t shift) {
+  return (input << (shift & 31)) | (input >> ((32 - shift) & 31));
 }
 
-uint32_t word32_ror_wrapper(Address data) {
-  uint32_t input = ReadUnalignedValue<uint32_t>(data);
-  uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
-  return (input >> shift) | (input << ((32 - shift) & 31));
+uint32_t word32_ror_wrapper(uint32_t input, uint32_t shift) {
+  return (input >> (shift & 31)) | (input << ((32 - shift) & 31));
 }
 
-void word64_rol_wrapper(Address data) {
-  uint64_t input = ReadUnalignedValue<uint64_t>(data);
-  uint64_t shift = ReadUnalignedValue<uint64_t>(data + sizeof(input)) & 63;
-  uint64_t result = (input << shift) | (input >> ((64 - shift) & 63));
-  WriteUnalignedValue<uint64_t>(data, result);
+uint64_t word64_rol_wrapper(uint64_t input, uint32_t shift) {
+  return (input << (shift & 63)) | (input >> ((64 - shift) & 63));
 }
 
-void word64_ror_wrapper(Address data) {
-  uint64_t input = ReadUnalignedValue<uint64_t>(data);
-  uint64_t shift = ReadUnalignedValue<uint64_t>(data + sizeof(input)) & 63;
-  uint64_t result = (input >> shift) | (input << ((64 - shift) & 63));
-  WriteUnalignedValue<uint64_t>(data, result);
+uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift) {
+  return (input >> (shift & 63)) | (input << ((64 - shift) & 63));
 }
 
 void float64_pow_wrapper(Address data) {
