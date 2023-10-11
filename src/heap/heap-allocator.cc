@@ -186,6 +186,21 @@ void HeapAllocator::MakeLinearAllocationAreasIterable() {
   }
 }
 
+#if DEBUG
+void HeapAllocator::VerifyLinearAllocationAreas() const {
+  if (new_space_allocator_) {
+    new_space_allocator_->Verify();
+  }
+  old_space_allocator_->Verify();
+  trusted_space_allocator_->Verify();
+  code_space_allocator_->Verify();
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->Verify();
+  }
+}
+#endif  // DEBUG
+
 void HeapAllocator::MarkLinearAllocationAreasBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();

@@ -393,6 +393,17 @@ void LocalHeap::FreeLinearAllocationAreas() {
   }
 }
 
+#if DEBUG
+void LocalHeap::VerifyLinearAllocationAreas() const {
+  old_space_allocator_->Verify();
+  code_space_allocator_->Verify();
+  trusted_space_allocator_->Verify();
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->Verify();
+  }
+}
+#endif  // DEBUG
+
 void LocalHeap::MakeLinearAllocationAreasIterable() {
   old_space_allocator_->MakeLinearAllocationAreaIterable();
   code_space_allocator_->MakeLinearAllocationAreaIterable();
