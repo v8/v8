@@ -2135,6 +2135,31 @@ void LiftoffAssembler::CallCWithStackBuffer(
   AddWord(sp, sp, Operand(stack_bytes));
 }
 
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             ExternalReference ext_ref) {
+  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
+  const Register* next_arg_reg = kArgRegs;
+  ParallelMove parallel_move{this};
+  for (const VarState& arg : args) {
+    DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+    Register dst_lo = *next_arg_reg++;
+    if (arg.kind() == kI64) {
+      DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+      Register dst_hi = *next_arg_reg++;
+      parallel_move.LoadIntoRegister(LiftoffRegister::ForPair(dst_lo, dst_hi),
+                                     arg);
+    } else {
+      parallel_move.LoadIntoRegister(LiftoffRegister{dst_lo}, arg);
+    }
+  }
+  parallel_move.Execute();
+
+  // Now call the C function.
+  int num_args = static_cast<int>(args.size());
+  PrepareCallCFunction(num_args, kScratchReg);
+  CallCFunction(ext_ref, num_args);
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   ASM_CODE_COMMENT(asm_);
   DCHECK_LT(0, slots_.size());

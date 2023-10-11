@@ -1733,6 +1733,23 @@ void LiftoffAssembler::CallCWithStackBuffer(
   AddWord(sp, sp, Operand(stack_bytes));
 }
 
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             ExternalReference ext_ref) {
+  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
+  DCHECK_LE(args.size(), arraysize(kArgRegs));
+  const Register* next_arg_reg = kArgRegs;
+  ParallelMove parallel_move{this};
+  for (const VarState& arg : args) {
+    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
+    ++next_arg_reg;
+  }
+  parallel_move.Execute();
+
+  // Now call the C function.
+  int num_args = static_cast<int>(args.size());
+  CallCFunction(ext_ref, num_args);
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();
