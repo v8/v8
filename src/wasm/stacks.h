@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/utils/allocation.h"
+#include "src/wasm/wasm-builtin-list.h"
 
 namespace v8::internal::wasm {
 
@@ -76,6 +77,19 @@ class StackMemory {
   StackMemory* next_ = this;
   StackMemory* prev_ = this;
 };
+
+// Whether this code kind / builtin may run on a secondary stack, i.e. whether
+// it is a wasm function, a wasm builtin or a wasm wrapper.
+static inline bool IsWasmOrWasmBuiltin(CodeKind kind, Builtin builtin) {
+  return kind == CodeKind::WASM_FUNCTION ||
+         kind == CodeKind::WASM_TO_JS_FUNCTION ||
+         kind == CodeKind::JS_TO_WASM_FUNCTION ||
+         (kind == CodeKind::BUILTIN &&
+          (builtin == Builtin::kJSToWasmWrapper ||
+           builtin == Builtin::kJSToWasmHandleReturns ||
+           builtin == Builtin::kWasmToJsWrapperCSA ||
+           wasm::BuiltinLookup::IsWasmBuiltinId(builtin)));
+}
 
 }  // namespace v8::internal::wasm
 

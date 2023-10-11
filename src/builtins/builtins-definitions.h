@@ -255,6 +255,8 @@ namespace internal {
   /* Adapters for Turbofan into runtime */                                     \
   TFC(AllocateInYoungGeneration, Allocate)                                     \
   TFC(AllocateInOldGeneration, Allocate)                                       \
+  IF_WASM(TFC, WasmAllocateInYoungGeneration, Allocate)                        \
+  IF_WASM(TFC, WasmAllocateInOldGeneration, Allocate)                          \
                                                                                \
   TFC(NewHeapNumber, NewHeapNumber)                                            \
                                                                                \

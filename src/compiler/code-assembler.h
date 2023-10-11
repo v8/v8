@@ -29,6 +29,10 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/stacks.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

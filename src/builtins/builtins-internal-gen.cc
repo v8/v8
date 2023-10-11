@@ -1320,6 +1320,28 @@ TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+TF_BUILTIN(WasmAllocateInYoungGeneration, CodeStubAssembler) {
+  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
+
+  TNode<Smi> allocation_flags =
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), allocation_flags);
+}
+
+TF_BUILTIN(WasmAllocateInOldGeneration, CodeStubAssembler) {
+  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
+
+  TNode<Smi> runtime_flags =
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), runtime_flags);
+}
+#endif
+
 TF_BUILTIN(Abort, CodeStubAssembler) {
   auto message_id = Parameter<Smi>(Descriptor::kMessageOrMessageId);
   TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);

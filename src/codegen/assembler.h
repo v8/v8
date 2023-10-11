@@ -250,6 +250,13 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Whether to emit code comments.
   bool emit_code_comments = v8_flags.code_comments;
 
+  // Whether we are currently generating code for a wasm function, a wasm
+  // builtin or a wasm wrapper. Used for wasm stack-switching: if this is true,
+  // runtime calls use a variant of the CEntry which checks whether the code is
+  // currently running on a secondary stack, and switches to the central stack
+  // if needed.
+  bool is_wasm_or_wasm_builtin = false;
+
   static AssemblerOptions Default(Isolate* isolate);
 };
 

@@ -642,6 +642,8 @@ function TestNestedSuspenders(suspend) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let table = builder.addTable(kWasmExternRef, 1);
+  let array_index = builder.addArray(kWasmI32, true);
+  let new_space_full_index = builder.addImport('m', 'new_space_full', kSig_v_v);
   builder.addFunction("test", kSig_i_r)
       .addBody([
         kExprLocalGet, 0,
@@ -650,20 +652,43 @@ function TestNestedSuspenders(suspend) {
   builder.addFunction("test2", kSig_i_r)
       .addBody([
         kExprI32Const, 1]).exportFunc();
-  let instance = builder.instantiate();
+  let sig_l_r = makeSig([kWasmExternRef], [kWasmI64]);
+  builder.addFunction("test3", sig_l_r)
+      .addBody([
+        kExprCallFunction, new_space_full_index,
+        ...wasmI64Const(0)
+        ]).exportFunc();
+  builder.addFunction("test4", kSig_v_r)
+      .addBody([
+        kExprCallFunction, new_space_full_index,
+        kExprI32Const, 1,
+        kGCPrefix, kExprArrayNewDefault, array_index,
+        kExprDrop]).exportFunc();
+  function new_space_full() {
+    %SimulateNewspaceFull();
+  }
+  let instance = builder.instantiate({m: {new_space_full}});
   let wrapper = ToPromising(instance.exports.test);
   let wrapper2 = ToPromising(instance.exports.test2);
+  let wrapper3 = ToPromising(instance.exports.test3);
+  let wrapper4 = ToPromising(instance.exports.test4);
   function switchesToCS(fn) {
     const beforeCall = %WasmSwitchToTheCentralStackCount();
     fn();
     return %WasmSwitchToTheCentralStackCount() - beforeCall;
   }
   // Calling exported functions from the central stack.
-  assertEquals(switchesToCS(() => instance.exports.test({})), 0);
-  assertEquals(switchesToCS(() => instance.exports.test2({})), 0);
+  assertEquals(0, switchesToCS(() => instance.exports.test({})));
+  assertEquals(0, switchesToCS(() => instance.exports.test2({})));
+  assertEquals(0, switchesToCS(() => instance.exports.test3({})));
+  assertEquals(0, switchesToCS(() => instance.exports.test4({})));
 
   // Runtime call to table.grow.
-  assertEquals(switchesToCS(wrapper), 1);
+  assertEquals(1, switchesToCS(wrapper));
   // No runtime calls.
-  assertEquals(switchesToCS(wrapper2), 0);
+  assertEquals(0, switchesToCS(wrapper2));
+  // Runtime call to allocate the bigint.
+  assertEquals(1, switchesToCS(wrapper3));
+  // Runtime call for array.new.
+  assertEquals(1, switchesToCS(wrapper4));
 })();

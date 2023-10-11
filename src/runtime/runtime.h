@@ -871,10 +871,6 @@ class Runtime : public AllStatic {
   // using it with fuzzers.
   static bool IsAllowListedForFuzzing(FunctionId id);
 
-  // Check if a switch to the central stack should be performed
-  // for a runtime function.
-  static bool SwitchToTheCentralStackForTarget(FunctionId id);
-
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);
 
