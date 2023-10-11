@@ -181,14 +181,15 @@ class FullMarkingVerifier : public MarkingVerifierBase {
 
   V8_INLINE bool ShouldVerifyObject(Tagged<HeapObject> heap_object) {
     const bool in_shared_heap = heap_object.InWritableSharedSpace();
-    return heap_->isolate()->is_shared_space_isolate() ? in_shared_heap
-                                                       : !in_shared_heap;
+    return heap_->isolate()->is_shared_space_isolate() ? true : !in_shared_heap;
   }
 
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
+    PtrComprCageBase cage_base =
+        GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
-      typename TSlot::TObject object = slot.load(cage_base());
+      typename TSlot::TObject object = slot.load(cage_base);
 #ifdef V8_ENABLE_DIRECT_LOCAL
       if (object.ptr() == kTaggedNullAddress) continue;
 #endif

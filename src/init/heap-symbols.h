@@ -635,7 +635,8 @@
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
+  F(SCAVENGER_VERIFY_ROOTS)
 
 #define MC_MAIN_THREAD_SCOPES(F)              \
   F(MARK_COMPACTOR)                           \

@@ -1169,6 +1169,17 @@ Tagged<Object> TracedHandles::MarkConservatively(
   return MarkObject(node.object(), node, mark_mode);
 }
 
+bool TracedHandles::IsValidInUseNode(Address* location) {
+  TracedNode* node = TracedNode::FromLocation(location);
+  // This method is called after mark bits have been cleared.
+  DCHECK(!node->markbit<AccessMode::NON_ATOMIC>());
+  CHECK_IMPLIES(node->is_in_use<AccessMode::NON_ATOMIC>(),
+                node->raw_object() != kGlobalHandleZapValue);
+  CHECK_IMPLIES(!node->is_in_use<AccessMode::NON_ATOMIC>(),
+                node->raw_object() == kGlobalHandleZapValue);
+  return node->is_in_use<AccessMode::NON_ATOMIC>();
+}
+
 bool TracedHandles::HasYoung() const { return impl_->HasYoung(); }
 
 }  // namespace v8::internal

@@ -33,6 +33,8 @@ class V8_EXPORT_PRIVATE TracedHandles final {
                                            Address* traced_node_block_base,
                                            MarkMode mark_mode);
 
+  static bool IsValidInUseNode(Address* location);
+
   explicit TracedHandles(Isolate*);
   ~TracedHandles();
 
