@@ -35,8 +35,7 @@ class AllocatorPolicy {
   // that there is enough space.
   virtual bool EnsureAllocation(int size_in_bytes,
                                 AllocationAlignment alignment,
-                                AllocationOrigin origin,
-                                int* out_max_aligned_size) = 0;
+                                AllocationOrigin origin) = 0;
   virtual void FreeLinearAllocationArea() = 0;
   virtual void UpdateInlineAllocationLimit() = 0;
 
@@ -54,8 +53,7 @@ class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
       : AllocatorPolicy(allocator), space_(space) {}
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) final;
+                        AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
   void UpdateInlineAllocationLimit() final;
 
@@ -69,8 +67,7 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
       : AllocatorPolicy(allocator), space_(space) {}
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) final;
+                        AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
   void UpdateInlineAllocationLimit() final;
 
@@ -103,8 +100,7 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   PagedNewSpaceAllocatorPolicy(PagedNewSpace* space, MainAllocator* allocator);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) final;
+                        AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
   void UpdateInlineAllocationLimit() final;
 
@@ -288,7 +284,7 @@ class MainAllocator {
                          AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin, int* out_max_aligned_size);
+                        AllocationOrigin origin);
 
   LinearAreaOriginalData& linear_area_original_data() {
     return linear_area_original_data_;

@@ -458,7 +458,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void ResetLinearAllocationArea();
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin, int* out_max_aligned_size);
+                        AllocationOrigin origin);
 
   // Creates a filler object in the linear allocation area and closes it.
   void FreeLinearAllocationArea();

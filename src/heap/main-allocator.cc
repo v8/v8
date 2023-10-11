@@ -165,14 +165,9 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
 AllocationResult MainAllocator::AllocateRawSlowUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
-                        &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
     return AllocationResult::Failure();
   }
-
-  DCHECK_EQ(max_aligned_size, size_in_bytes);
-  DCHECK_LE(allocation_info().start(), allocation_info().top());
 
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
   DCHECK(!result.IsFailure());
@@ -186,14 +181,11 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
 AllocationResult MainAllocator::AllocateRawSlowAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
 
-  DCHECK_GE(max_aligned_size, size_in_bytes);
-  DCHECK_LE(allocation_info().start(), allocation_info().top());
-
+  int max_aligned_size = size_in_bytes + Heap::GetMaximumFillToAlign(alignment);
   int aligned_size_in_bytes;
 
   AllocationResult result = AllocateFastAligned(
@@ -289,10 +281,8 @@ void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
 
 bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationAlignment alignment,
-                                     AllocationOrigin origin,
-                                     int* out_max_aligned_size) {
-  return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                             out_max_aligned_size);
+                                     AllocationOrigin origin) {
+  return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
 void MainAllocator::UpdateInlineAllocationLimit() {
@@ -371,7 +361,7 @@ bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
     optional_scope.emplace("Slow allocation path writes to the page header.");
   }
 
-  if (EnsureAllocation(size_in_bytes, alignment, origin, nullptr)) {
+  if (EnsureAllocation(size_in_bytes, alignment, origin)) {
     UpdateInlineAllocationLimit();
     return true;
   } else {
@@ -395,10 +385,8 @@ AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
     : allocator_(allocator), heap_(allocator->heap()) {}
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
-    int* out_max_aligned_size) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin,
-                                  out_max_aligned_size);
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+  return space_->EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
 void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
@@ -417,8 +405,7 @@ PagedNewSpaceAllocatorPolicy::PagedNewSpaceAllocatorPolicy(
           new PagedSpaceAllocatorPolicy(space->paged_space(), allocator)) {}
 
 bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
-    int* out_max_aligned_size) {
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   if (space_->paged_space()->last_lab_page_) {
     space_->paged_space()->last_lab_page_->DecreaseAllocatedLabSize(
         allocator_->limit() - allocator_->top());
@@ -427,8 +414,8 @@ bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
     // reallocated if the lab can be extended or freed otherwise.
   }
 
-  if (!paged_space_allocator_policy_->EnsureAllocation(
-          size_in_bytes, alignment, origin, out_max_aligned_size)) {
+  if (!paged_space_allocator_policy_->EnsureAllocation(size_in_bytes, alignment,
+                                                       origin)) {
     if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
       if (!WaitForSweepingForAllocation(size_in_bytes, origin)) {
         return false;
@@ -513,8 +500,7 @@ void PagedNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
 
 bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
                                                  AllocationAlignment alignment,
-                                                 AllocationOrigin origin,
-                                                 int* out_max_aligned_size) {
+                                                 AllocationOrigin origin) {
   if (!allocator_->is_compaction_space() &&
       !((allocator_->identity() == NEW_SPACE) &&
         heap_->ShouldOptimizeForLoadTime())) {
@@ -533,9 +519,6 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
   // We don't know exactly how much filler we need to align until space is
   // allocated, so assume the worst case.
   size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
-  if (out_max_aligned_size) {
-    *out_max_aligned_size = size_in_bytes;
-  }
   if (allocator_->allocation_info().top() + size_in_bytes <=
       allocator_->allocation_info().limit()) {
     return true;
