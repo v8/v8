@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "src/base/optional.h"
-#include "src/builtins/builtins.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/bailout-reason.h"
@@ -36,7 +35,6 @@
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/checkpoint-elimination.h"
-#include "src/compiler/code-assembler.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -113,7 +111,6 @@
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/runtime-call-stats.h"
-#include "src/objects/code-kind.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
 #include "src/tracing/trace-event.h"
@@ -139,7 +136,6 @@
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/turboshaft-graph-interface.h"
-#include "src/wasm/wasm-builtin-list.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -613,10 +609,6 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-#if V8_ENABLE_WEBASSEMBLY
-    assembler_options_.is_wasm_or_wasm_builtin = wasm::IsWasmOrWasmBuiltin(
-        this->info()->code_kind(), this->info()->builtin());
-#endif
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
@@ -2053,19 +2045,13 @@ struct MemoryOptimizationPhase {
       trimmer.TrimGraph(roots.begin(), roots.end());
     }
 
-#if V8_ENABLE_WEBASSEMBLY
-    bool is_wasm = wasm::IsWasmOrWasmBuiltin(data->info()->code_kind(),
-                                             data->info()->builtin());
-#else
-    bool is_wasm = false;
-#endif
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
         data->broker(), data->jsgraph(), temp_zone,
         data->info()->allocation_folding()
             ? MemoryLowering::AllocationFolding::kDoAllocationFolding
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
-        data->debug_name(), &data->info()->tick_counter(), is_wasm);
+        data->debug_name(), &data->info()->tick_counter());
     optimizer.Optimize();
   }
 };

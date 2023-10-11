@@ -910,7 +910,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
-  bool switch_to_central = this->options().is_wasm_or_wasm_builtin;
+  bool switch_to_central =
+      Runtime::SwitchToTheCentralStackForTarget(f->function_id);
   Handle<Code> code = CodeFactory::CEntry(
       isolate(), f->result_size, ArgvMode::kStack, false, switch_to_central);
   Call(code, RelocInfo::CODE_TARGET);

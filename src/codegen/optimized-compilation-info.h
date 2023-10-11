@@ -21,11 +21,6 @@
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/stacks.h"
-#include "src/wasm/wasm-builtin-list.h"
-#endif
-
 namespace v8 {
 
 namespace tracing {

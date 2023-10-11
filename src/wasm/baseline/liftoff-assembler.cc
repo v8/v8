@@ -344,11 +344,7 @@ int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
 
 namespace {
 
-AssemblerOptions DefaultLiftoffOptions() {
-  AssemblerOptions options = AssemblerOptions{};
-  options.is_wasm_or_wasm_builtin = true;
-  return options;
-}
+AssemblerOptions DefaultLiftoffOptions() { return AssemblerOptions{}; }
 
 }  // namespace
 

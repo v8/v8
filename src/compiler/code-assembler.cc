@@ -6,8 +6,6 @@
 
 #include <ostream>
 
-#include "src/builtins/builtins.h"
-#include "src/codegen/assembler.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
@@ -173,6 +171,7 @@ Handle<Code> CodeAssembler::GenerateCode(
 
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
+
   code = Pipeline::GenerateCodeForCodeStub(
              rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
              rasm->source_positions(), state->kind_, state->name_,
@@ -1045,12 +1044,8 @@ Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      wasm::IsWasmOrWasmBuiltin(state_->kind_, state_->builtin_);
-#else
-  bool switch_to_the_central_stack = false;
-#endif
+      Runtime::SwitchToTheCentralStackForTarget(function);
   TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
       isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;
@@ -1084,12 +1079,8 @@ void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      wasm::IsWasmOrWasmBuiltin(state_->kind_, state_->builtin_);
-#else
-  bool switch_to_the_central_stack = false;
-#endif
+      Runtime::SwitchToTheCentralStackForTarget(function);
   TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
       isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;

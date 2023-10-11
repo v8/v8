@@ -130,9 +130,7 @@ namespace v8::internal::wasm {
   V(WasmStringFromDataSegment)           \
   V(StringAdd_CheckNone)                 \
   V(DebugPrintFloat64)                   \
-  V(DebugPrintWordPtr)                   \
-  V(WasmAllocateInYoungGeneration)       \
-  V(WasmAllocateInOldGeneration)
+  V(DebugPrintWordPtr)
 
 namespace detail {
 constexpr std::array<uint8_t, static_cast<int>(Builtin::kFirstBytecodeHandler)>
@@ -164,20 +162,6 @@ class BuiltinLookup {
   }
 
   static constexpr int BuiltinCount() { return kBuiltinCount; }
-
-  static bool IsWasmBuiltinId(Builtin id) {
-    switch (id) {
-#define BUILTIN_ID(Name) \
-  case Builtin::k##Name: \
-    return true;
-#define BUILTIN_ID_TRAP(Name)     \
-  case Builtin::kThrowWasm##Name: \
-    return true;
-      WASM_BUILTIN_LIST(BUILTIN_ID, BUILTIN_ID_TRAP)
-      default:
-        return false;
-    }
-  }
 
  private:
 #define BUILTIN_COUNTER(NAME) +1
