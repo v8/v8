@@ -3118,9 +3118,11 @@ enum class FastCloneObjectMode {
 FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
   if (!IsJSObjectMap(*map)) {
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
+    if (null_proto_literal) return FastCloneObjectMode::kNotSupported;
     return IsNullOrUndefinedMap(*map) || IsBooleanMap(*map) ||
                    IsHeapNumberMap(*map)
                ? FastCloneObjectMode::kEmptyObject
@@ -3143,7 +3145,7 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
           ? FastCloneObjectMode::kIdenticalMap
           : FastCloneObjectMode::kDifferentMap;
 
-  if (flags & ObjectLiteral::kHasNullPrototype || IsNull(map->prototype())) {
+  if (null_proto_literal || IsNull(map->prototype())) {
     mode = FastCloneObjectMode::kDifferentMap;
   }
 
