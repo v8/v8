@@ -195,6 +195,12 @@ class Int64LoweringReducer : public Next {
           return LowerSignExtend(__ Word32SignExtend8(Unpack(input).first));
         case WordUnaryOp::Kind::kSignExtend16:
           return LowerSignExtend(__ Word32SignExtend16(Unpack(input).first));
+        case WordUnaryOp::Kind::kReverseBytes: {
+          auto [low, high] = Unpack(input);
+          V<Word32> reversed_low = __ Word32ReverseBytes(low);
+          V<Word32> reversed_high = __ Word32ReverseBytes(high);
+          return __ Tuple(reversed_high, reversed_low);
+        }
         default:
           FATAL("WordUnaryOp kind %d not supported by int64 lowering",
                 static_cast<int>(kind));

@@ -934,6 +934,8 @@ class TurboshaftGraphBuildingInterface {
     IF_NOT (__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE)) {
       switch (op_type) {
         case DataViewOp::kGetBigInt64:
+          builtin_to_call = Builtin::kThrowDataViewGetBigInt64TypeError;
+          break;
         case DataViewOp::kGetBigUint64:
         case DataViewOp::kGetFloat32:
         case DataViewOp::kGetFloat64:
@@ -973,6 +975,8 @@ class TurboshaftGraphBuildingInterface {
     IF (__ IntPtrLessThan(left, right)) {
       switch (op_type) {
         case DataViewOp::kGetBigInt64:
+          builtin_to_call = Builtin::kThrowDataViewGetBigInt64OutOfBounds;
+          break;
         case DataViewOp::kGetBigUint64:
         case DataViewOp::kGetFloat32:
         case DataViewOp::kGetFloat64:
@@ -1019,6 +1023,8 @@ class TurboshaftGraphBuildingInterface {
     IF (is_detached) {
       switch (op_type) {
         case DataViewOp::kGetBigInt64:
+          builtin_to_call = Builtin::kThrowDataViewGetBigInt64DetachedError;
+          break;
         case DataViewOp::kGetBigUint64:
         case DataViewOp::kGetFloat32:
         case DataViewOp::kGetFloat64:
@@ -1199,7 +1205,21 @@ class TurboshaftGraphBuildingInterface {
         return false;
 
       // DataView related imports.
-      case WKI::kDataViewGetBigInt64:
+      case WKI::kDataViewGetBigInt64: {
+        V<Tagged> dataview = args[0].op;
+        V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
+        V<Word32> is_little_endian = args[2].op;
+
+        PerformDataViewChecks(decoder, dataview, offset,
+                              DataViewOp::kGetBigInt64, kInt64Size);
+
+        V<WordPtr> data_ptr = __ LoadField<WordPtr>(
+            dataview, compiler::AccessBuilder::ForJSDataViewDataPointer());
+        result =
+            __ LoadDataViewElement(dataview, data_ptr, offset, is_little_endian,
+                                   kExternalBigInt64Array);
+        break;
+      }
       case WKI::kDataViewGetBigUint64:
       case WKI::kDataViewGetFloat32:
       case WKI::kDataViewGetFloat64:

@@ -2009,6 +2009,9 @@ void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // specifically exist to pretend to be another builtin throwing an
   // exception.
   switch (code->builtin_id()) {
+    case Builtin::kThrowDataViewGetBigInt64DetachedError:
+    case Builtin::kThrowDataViewGetBigInt64OutOfBounds:
+    case Builtin::kThrowDataViewGetBigInt64TypeError:
     case Builtin::kThrowDataViewGetInt32DetachedError:
     case Builtin::kThrowDataViewGetInt32OutOfBounds:
     case Builtin::kThrowDataViewGetInt32TypeError:

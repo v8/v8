@@ -1094,6 +1094,24 @@ builtin ThrowIndexOfCalledOnNull(): JSAny {
 // For DataView related import check fails, we need to throw a specific error
 // message containing the import's type.
 // TODO(evih): Pass the import's type as a parameter.
+builtin ThrowDataViewGetBigInt64DetachedError(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kDetachedOperation;
+  const name = StringConstant('DataView.prototype.getBigInt64');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
+builtin ThrowDataViewGetBigInt64OutOfBounds(): JSAny {
+  ThrowDataViewOutOfBounds();
+}
+
+builtin ThrowDataViewGetBigInt64TypeError(value: JSAny): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kIncompatibleMethodReceiver;
+  const name = StringConstant('DataView.prototype.getBigInt64');
+  runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
+}
+
 builtin ThrowDataViewGetInt32DetachedError(): JSAny {
   const context = LoadContextFromFrame();
   const error = MessageTemplate::kDetachedOperation;

@@ -3086,7 +3086,7 @@ class MachineLoweringReducer : public Next {
       }
       case kExternalBigInt64Array:
       case kExternalBigUint64Array:
-        UNREACHABLE();
+        return __ Word64ReverseBytes(value);
     }
   }
 
