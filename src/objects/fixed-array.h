@@ -537,73 +537,62 @@ class WeakArrayList::Iterator {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
-// Generic array grows dynamically with O(1) amortized insertion.
-//
-// ArrayList is a FixedArray with static convenience methods for adding more
-// elements. The Length() method returns the number of elements in the list, not
-// the allocated size. The number of elements is stored at kLengthIndex and is
-// updated with every insertion. The elements of the ArrayList are stored in the
-// underlying FixedArray starting at kFirstIndex.
-class ArrayList : public FixedArray {
+class ArrayListShape final : public AllStatic {
  public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = Object;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
+  static constexpr bool kLengthEqualsCapacity = false;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kLengthOffset, kTaggedSize)                                         \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// A generic array that grows dynamically with O(1) amortized insertion.
+class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
+  using Super = TaggedArrayBase<ArrayList, ArrayListShape>;
+  OBJECT_CONSTRUCTORS(ArrayList, Super);
+
+ public:
+  using Shape = ArrayListShape;
+
+  template <class IsolateT>
+  static inline Handle<ArrayList> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
+
+  inline int length() const;
+  inline void set_length(int value);
+
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
+      Isolate* isolate, Handle<ArrayList> array, Tagged<Smi> obj,
+      AllocationType allocation = AllocationType::kYoung);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
       Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj,
       AllocationType allocation = AllocationType::kYoung);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
-                                                 Handle<ArrayList> array,
-                                                 Handle<Object> obj1,
-                                                 Handle<Object> obj2);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
-                                                 Handle<ArrayList> array,
-                                                 Tagged<Smi> obj1);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
-      Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj1,
-      Tagged<Smi> obj2, Tagged<Smi> obj3, Tagged<Smi> obj4);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> New(
-      Isolate* isolate, int size,
-      AllocationType allocation = AllocationType::kOld);
+      Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj0,
+      Handle<Object> obj1, AllocationType allocation = AllocationType::kYoung);
 
-  // Returns the number of elements in the list, not the allocated size, which
-  // is length(). Lower and upper case length() return different results!
-  inline int Length() const;
-
-  // Sets the Length() as used by Elements(). Does not change the underlying
-  // storage capacity, i.e., length().
-  inline void SetLength(int length);
-  inline Tagged<Object> Get(int index) const;
-  inline Tagged<Object> Get(PtrComprCageBase cage_base, int index) const;
-  inline ObjectSlot Slot(int index);
-
-  // Set the element at index to obj. The underlying array must be large enough.
-  // If you need to grow the ArrayList, use the static Add() methods instead.
-  inline void Set(int index, Tagged<Object> obj,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline void Set(int index, Tagged<Smi> obj);
-
-  // Set the element at index to undefined. This does not change the Length().
-  inline void Clear(int index, Tagged<Object> undefined);
-
-  // Return a copy of the list of size Length() without the first entry. The
-  // number returned by Length() is stored in the first entry.
-  V8_EXPORT_PRIVATE static Handle<FixedArray> Elements(Isolate* isolate,
-                                                       Handle<ArrayList> array);
-
-  static const int kHeaderFields = 1;
-
-  static const int kLengthIndex = 0;
-  static const int kFirstIndex = 1;
-  static_assert(kHeaderFields == kFirstIndex);
+  V8_EXPORT_PRIVATE static Handle<FixedArray> ToFixedArray(
+      Isolate* isolate, Handle<ArrayList> array,
+      AllocationType allocation = AllocationType::kYoung);
 
   DECL_CAST(ArrayList)
+  DECL_PRINTER(ArrayList)
   DECL_VERIFIER(ArrayList)
+
+  class BodyDescriptor;
 
  private:
   static Handle<ArrayList> EnsureSpace(
       Isolate* isolate, Handle<ArrayList> array, int length,
       AllocationType allocation = AllocationType::kYoung);
-
-  OBJECT_CONSTRUCTORS(ArrayList, FixedArray);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };

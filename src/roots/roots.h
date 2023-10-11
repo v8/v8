@@ -353,7 +353,7 @@ class RootVisitor;
   /* Feedback vectors that we need for code coverage or type profile */     \
   V(Object, feedback_vectors_for_profiling_tools,                           \
     FeedbackVectorsForProfilingTools)                                       \
-  V(FixedArray, serialized_objects, SerializedObjects)                      \
+  V(HeapObject, serialized_objects, SerializedObjects)                      \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)  \
   V(ArrayList, message_listeners, MessageListeners)                         \
   /* Support for async stack traces */                                      \

@@ -1892,11 +1892,13 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   InstanceType instance_type = map->instance_type();
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
                       LAST_FIXED_ARRAY_TYPE)) {
-    return FixedArray::SizeFor(
-        FixedArray::unchecked_cast(*this)->length(kAcquireLoad));
+    return FixedArray::unchecked_cast(*this)->AllocatedSize();
   }
   if (instance_type == REG_EXP_MATCH_INFO_TYPE) {
     return RegExpMatchInfo::unchecked_cast(*this)->AllocatedSize();
+  }
+  if (instance_type == ARRAY_LIST_TYPE) {
+    return ArrayList::unchecked_cast(*this)->AllocatedSize();
   }
   if (instance_type == SLOPPY_ARGUMENTS_ELEMENTS_TYPE) {
     return SloppyArgumentsElements::unchecked_cast(*this)->AllocatedSize();
@@ -2685,13 +2687,13 @@ template <class T>
 int AppendUniqueCallbacks(Isolate* isolate, Handle<ArrayList> callbacks,
                           Handle<typename T::Array> array,
                           int valid_descriptors) {
-  int nof_callbacks = callbacks->Length();
+  int nof_callbacks = callbacks->length();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->Get(i)), isolate);
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)), isolate);
     Handle<Name> key(Name::cast(entry->name()), isolate);
     DCHECK(IsUniqueName(*key));
     // Check if a descriptor with this name already exists before writing.
@@ -2726,7 +2728,7 @@ int AccessorInfo::AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                                Handle<FixedArray> array,
                                int valid_descriptors) {
   Handle<ArrayList> callbacks = Handle<ArrayList>::cast(descriptors);
-  DCHECK_GE(array->length(), callbacks->Length() + valid_descriptors);
+  DCHECK_GE(array->length(), callbacks->length() + valid_descriptors);
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }

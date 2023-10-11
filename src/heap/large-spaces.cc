@@ -330,6 +330,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsFeedbackVector(object, cage_base) ||                     //
         IsFixedArray(object, cage_base) ||                         //
         IsFixedDoubleArray(object, cage_base) ||                   //
+        IsArrayList(object, cage_base) ||                          //
         IsFreeSpace(object, cage_base) ||                          //
         IsInstructionStream(object, cage_base) ||                  //
         IsPreparseData(object, cage_base) ||                       //

@@ -700,8 +700,6 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
   if (*this == ReadOnlyRoots(isolate).empty_fixed_array()) {
     CHECK_EQ(length(), 0);
     CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
-  } else if (IsArrayList(*this)) {
-    ArrayList::cast(*this)->ArrayListVerify(isolate);
   }
 }
 
@@ -726,13 +724,12 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
 }
 
 void ArrayList::ArrayListVerify(Isolate* isolate) {
-  // Avoid calling the torque-generated ArrayListVerify to prevent an endlessly
-  // recursion verification.
-  CHECK(IsArrayList(*this));
-  CHECK_LE(ArrayList::kLengthIndex, length());
-  CHECK_LE(0, Length());
-  if (Length() == 0 && length() == ArrayList::kLengthIndex) {
-    CHECK_EQ(*this, ReadOnlyRoots(isolate).empty_array_list());
+  CHECK_LE(0, length());
+  CHECK_LE(length(), capacity());
+  CHECK_IMPLIES(capacity() == 0,
+                *this == ReadOnlyRoots(isolate).empty_array_list());
+  for (int i = 0; i < capacity(); ++i) {
+    Object::VerifyPointer(isolate, get(i));
   }
 }
 

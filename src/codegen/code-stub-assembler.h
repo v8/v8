@@ -1955,6 +1955,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       UNREACHABLE();
     }
   }
+  template <typename Array>
+  void UnsafeStoreArrayElement(
+      TNode<Array> object, TNode<Smi> index,
+      TNode<typename Array::Shape::ElementT> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+           barrier_mode == UPDATE_WRITE_BARRIER);
+    // TODO(jgruber): This is just a barebones implementation taken from
+    // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
+    // generic if needed.
+    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, PACKED_ELEMENTS,
+                                                   Array::Shape::kHeaderSize);
+    if (barrier_mode == SKIP_WRITE_BARRIER) {
+      StoreObjectFieldNoWriteBarrier(object, offset, value);
+    } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
+      StoreObjectField(object, offset, value);
+    } else {
+      UNREACHABLE();
+    }
+  }
 
   void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
                                     TNode<Smi> value) {
@@ -2408,6 +2428,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     TNode<IntPtrT> src_index, TNode<IntPtrT> length,
                     WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER);
 
+  void CopyRange(TNode<HeapObject> dst_object, int dst_offset,
+                 TNode<HeapObject> src_object, int src_offset,
+                 TNode<IntPtrT> length_in_tagged,
+                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   TNode<FixedArray> HeapObjectToFixedArray(TNode<HeapObject> base,
                                            Label* cast_fail);
 
@@ -2419,19 +2444,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<ArrayList> AllocateArrayList(TNode<Smi> size);
-
   TNode<ArrayList> ArrayListEnsureSpace(TNode<ArrayList> array,
-                                        TNode<Smi> size);
-
+                                        TNode<Smi> length);
   TNode<ArrayList> ArrayListAdd(TNode<ArrayList> array, TNode<Object> object);
-
   void ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
                     TNode<Object> object);
-
   TNode<Smi> ArrayListGetLength(TNode<ArrayList> array);
-
   void ArrayListSetLength(TNode<ArrayList> array, TNode<Smi> length);
-
+  // TODO(jgruber): Rename to ArrayListToFixedArray.
   TNode<FixedArray> ArrayListElements(TNode<ArrayList> array);
 
   template <typename T>

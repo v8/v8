@@ -56,123 +56,82 @@ void FixedArray::Shrink(Isolate* isolate, int new_length) {
 
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
+                                 Tagged<Smi> obj, AllocationType allocation) {
+  int length = array->length();
+  int new_length = length + 1;
+  array = EnsureSpace(isolate, array, new_length, allocation);
+  DCHECK_EQ(array->length(), length);
+
+  DisallowGarbageCollection no_gc;
+  array->set(length, obj, SKIP_WRITE_BARRIER);
+  array->set_length(new_length);
+  return array;
+}
+
+// static
+Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
                                  Handle<Object> obj,
                                  AllocationType allocation) {
-  int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 1, allocation);
-  // Check that GC didn't remove elements from the array.
-  DCHECK_EQ(array->Length(), length);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<ArrayList> raw_array = *array;
-    raw_array->Set(length, *obj);
-    raw_array->SetLength(length + 1);
-  }
-  return array;
-}
+  int length = array->length();
+  int new_length = length + 1;
+  array = EnsureSpace(isolate, array, new_length, allocation);
+  DCHECK_EQ(array->length(), length);
 
-Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Tagged<Smi> obj1) {
-  int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 1);
-  // Check that GC didn't remove elements from the array.
-  DCHECK_EQ(array->Length(), length);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<ArrayList> raw_array = *array;
-    raw_array->Set(length, obj1);
-    raw_array->SetLength(length + 1);
-  }
+  DisallowGarbageCollection no_gc;
+  array->set(length, *obj);
+  array->set_length(new_length);
   return array;
 }
 
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj1, Handle<Object> obj2) {
-  int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 2);
-  // Check that GC didn't remove elements from the array.
-  DCHECK_EQ(array->Length(), length);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<ArrayList> raw_array = *array;
-    raw_array->Set(length, *obj1);
-    raw_array->Set(length + 1, *obj2);
-    raw_array->SetLength(length + 2);
-  }
-  return array;
-}
-
-Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj1, Tagged<Smi> obj2,
-                                 Tagged<Smi> obj3, Tagged<Smi> obj4) {
-  int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 4);
-  // Check that GC didn't remove elements from the array.
-  DCHECK_EQ(array->Length(), length);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<ArrayList> raw_array = *array;
-    raw_array->Set(length, *obj1);
-    raw_array->Set(length + 1, obj2);
-    raw_array->Set(length + 2, obj3);
-    raw_array->Set(length + 3, obj4);
-    raw_array->SetLength(length + 4);
-  }
-  return array;
-}
-
-// static
-Handle<ArrayList> ArrayList::New(Isolate* isolate, int size,
+                                 Handle<Object> obj0, Handle<Object> obj1,
                                  AllocationType allocation) {
-  return isolate->factory()->NewArrayList(size, allocation);
+  int length = array->length();
+  int new_length = length + 2;
+  array = EnsureSpace(isolate, array, new_length, allocation);
+  DCHECK_EQ(array->length(), length);
+
+  DisallowGarbageCollection no_gc;
+  array->set(length + 0, *obj0);
+  array->set(length + 1, *obj1);
+  array->set_length(new_length);
+  return array;
 }
 
 // static
-Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
-                                       Handle<ArrayList> array) {
-  int length = array->Length();
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
+Handle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
+                                           Handle<ArrayList> array,
+                                           AllocationType allocation) {
+  int length = array->length();
+  if (length == 0) return isolate->factory()->empty_fixed_array();
 
-  if (length != 0) {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> dst = *result;
-    WriteBarrierMode mode = dst->GetWriteBarrierMode(no_gc);
-    // Do not copy the first entry, i.e., the length.
-    FixedArray::CopyElements(isolate, dst, 0, *array, kFirstIndex, length,
-                             mode);
-  }
-
+  Handle<FixedArray> result = FixedArray::New(isolate, length, allocation);
+  DisallowGarbageCollection no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  ObjectSlot dst_slot(result->RawFieldOfElementAt(0));
+  ObjectSlot src_slot(array->RawFieldOfElementAt(0));
+  isolate->heap()->CopyRange(*result, dst_slot, src_slot, length, mode);
   return result;
 }
-
-namespace {
-
-Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
-                                           Handle<FixedArray> array, int length,
-                                           AllocationType allocation) {
-  // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
-  int capacity = array->length();
-  if (capacity < length) {
-    int new_capacity = length;
-    new_capacity = new_capacity + std::max(new_capacity / 2, 2);
-    int grow_by = new_capacity - capacity;
-    array =
-        isolate->factory()->CopyFixedArrayAndGrow(array, grow_by, allocation);
-  }
-  return array;
-}
-
-}  // namespace
 
 // static
 Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                          Handle<ArrayList> array, int length,
                                          AllocationType allocation) {
   DCHECK_LT(0, length);
-  Handle<ArrayList> new_array = Handle<ArrayList>::cast(EnsureSpaceInFixedArray(
-      isolate, array, kFirstIndex + length, allocation));
-  DCHECK_EQ(array->Length(), new_array->Length());
+  int old_capacity = array->capacity();
+  if (old_capacity >= length) return array;
+
+  int old_length = array->length();
+  // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
+  int new_capacity = length + std::max(length / 2, 2);
+  Handle<ArrayList> new_array =
+      ArrayList::New(isolate, new_capacity, allocation);
+  DisallowGarbageCollection no_gc;
+  new_array->set_length(old_length);
+  WriteBarrierMode mode = new_array->GetWriteBarrierMode(no_gc);
+  CopyElements(isolate, *new_array, 0, *array, 0, old_length, mode);
   return new_array;
 }
 

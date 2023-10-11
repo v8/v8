@@ -199,7 +199,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   while (!info.is_null()) {
     Tagged<Object> props = info->property_accessors();
     if (!IsUndefined(props, isolate)) {
-      max_number_of_properties += ArrayList::cast(props)->Length();
+      max_number_of_properties += ArrayList::cast(props)->length();
     }
     info = info->GetParent(isolate);
   }
@@ -236,26 +236,26 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   Tagged<Object> maybe_property_list = data->property_list();
   if (IsUndefined(maybe_property_list, isolate)) return obj;
   Handle<ArrayList> properties(ArrayList::cast(maybe_property_list), isolate);
-  if (properties->Length() == 0) return obj;
+  if (properties->length() == 0) return obj;
 
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
-    auto name = handle(Name::cast(properties->Get(i++)), isolate);
-    Tagged<Object> bit = properties->Get(i++);
+    auto name = handle(Name::cast(properties->get(i++)), isolate);
+    Tagged<Object> bit = properties->get(i++);
     if (IsSmi(bit)) {
       PropertyDetails details(Smi::cast(bit));
       PropertyAttributes attributes = details.attributes();
       PropertyKind kind = details.kind();
 
       if (kind == PropertyKind::kData) {
-        auto prop_data = handle(properties->Get(i++), isolate);
+        auto prop_data = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(
             isolate,
             DefineDataProperty(isolate, obj, name, prop_data, attributes),
             JSObject);
       } else {
-        auto getter = handle(properties->Get(i++), isolate);
-        auto setter = handle(properties->Get(i++), isolate);
+        auto getter = handle(properties->get(i++), isolate);
+        auto setter = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(isolate,
                             DefineAccessorProperty(isolate, obj, name, getter,
                                                    setter, attributes),
@@ -264,12 +264,12 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     } else {
       // Intrinsic data property --- Get appropriate value from the current
       // context.
-      PropertyDetails details(Smi::cast(properties->Get(i++)));
+      PropertyDetails details(Smi::cast(properties->get(i++)));
       PropertyAttributes attributes = details.attributes();
       DCHECK_EQ(PropertyKind::kData, details.kind());
 
       v8::Intrinsic intrinsic =
-          static_cast<v8::Intrinsic>(Smi::ToInt(properties->Get(i++)));
+          static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
       RETURN_ON_EXCEPTION(

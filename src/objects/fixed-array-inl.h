@@ -365,7 +365,7 @@ CAST_ACCESSOR(ExternalPointerArray)
 OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
 
 CAST_ACCESSOR(ArrayList)
-OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(ArrayList, ArrayList::Super)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
@@ -801,39 +801,25 @@ Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   return Tagged<HeapObject>();
 }
 
-int ArrayList::Length() const {
-  if (FixedArray::cast(*this)->length() == 0) return 0;
-  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
-}
+SMI_ACCESSORS(ArrayList, length, ArrayList::Shape::kLengthOffset)
 
-void ArrayList::SetLength(int length) {
-  return FixedArray::cast(*this)->set(kLengthIndex, Smi::FromInt(length));
-}
+// static
+template <class IsolateT>
+Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
+                                 AllocationType allocation) {
+  if (capacity == 0) return isolate->factory()->empty_array_list();
 
-Tagged<Object> ArrayList::Get(int index) const {
-  return FixedArray::cast(*this)->get(kFirstIndex + index);
-}
+  DCHECK_GT(capacity, 0);
+  DCHECK_LE(capacity, kMaxCapacity);
 
-Tagged<Object> ArrayList::Get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this)->get(kFirstIndex + index);
-}
-
-ObjectSlot ArrayList::Slot(int index) {
-  return RawField(OffsetOfElementAt(kFirstIndex + index));
-}
-
-void ArrayList::Set(int index, Tagged<Object> obj, WriteBarrierMode mode) {
-  FixedArray::cast(*this)->set(kFirstIndex + index, obj, mode);
-}
-
-void ArrayList::Set(int index, Tagged<Smi> value) {
-  DCHECK(IsSmi(Tagged<Object>(value)));
-  Set(index, value, SKIP_WRITE_BARRIER);
-}
-void ArrayList::Clear(int index, Tagged<Object> undefined) {
-  DCHECK(IsUndefined(undefined));
-  FixedArray::cast(*this)->set(kFirstIndex + index, undefined,
-                               SKIP_WRITE_BARRIER);
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<ArrayList> result =
+      Handle<ArrayList>::cast(Allocate(isolate, capacity, &no_gc, allocation));
+  result->set_length(0);
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged(result->RawFieldOfFirstElement(), roots.undefined_value(),
+               capacity);
+  return result;
 }
 
 // static

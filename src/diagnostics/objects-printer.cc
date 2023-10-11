@@ -837,6 +837,17 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, *this, "FixedArray");
 }
 
+void ArrayList::ArrayListPrint(std::ostream& os) {
+  PrintHeader(os, "ArrayList");
+  os << "\n - capacity: " << capacity();
+  os << "\n - length: " << length();
+  os << "\n - elements:";
+  PrintFixedArrayElements<ArrayList>(
+      os, *this, length(),
+      [](Tagged<ArrayList> xs, int i) { return xs->get(i); });
+  os << "\n";
+}
+
 void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   PrintHeader(os, "RegExpMatchInfo");
   os << "\n - capacity: " << capacity();
@@ -2826,6 +2837,8 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {
 }
 
 void HeapNumber::HeapNumberPrint(std::ostream& os) {
+  PrintHeader(os, "HeapNumber");
+  os << "\n - value: ";
   HeapNumberShortPrint(os);
   os << "\n";
 }

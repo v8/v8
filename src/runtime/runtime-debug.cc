@@ -380,7 +380,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return isolate->factory()->NewJSArrayWithElements(
-      ArrayList::Elements(isolate, result), PACKED_ELEMENTS);
+      ArrayList::ToFixedArray(isolate, result), PACKED_ELEMENTS);
 }
 
 RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {

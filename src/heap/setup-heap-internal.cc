@@ -581,7 +581,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
     ALLOCATE_VARSIZE_MAP(REGISTERED_SYMBOL_TABLE_TYPE, registered_symbol_table)
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)
+    ALLOCATE_VARSIZE_MAP(ARRAY_LIST_TYPE, array_list)
 
     ALLOCATE_MAP(ACCESSOR_INFO_TYPE, AccessorInfo::kSize, accessor_info)
 
@@ -881,15 +881,14 @@ bool Heap::CreateReadOnlyObjects() {
   ReadOnlyRoots roots(this);
   Tagged<HeapObject> obj;
 
-  // Empty elements
   {
-    AllocationResult alloc = AllocateRaw(
-        ArrayList::SizeFor(ArrayList::kFirstIndex), AllocationType::kReadOnly);
+    AllocationResult alloc =
+        AllocateRaw(ArrayList::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.array_list_map(), SKIP_WRITE_BARRIER);
     // Unchecked to skip failing checks since required roots are uninitialized.
-    ArrayList::unchecked_cast(obj)->set_length(ArrayList::kFirstIndex);
-    ArrayList::unchecked_cast(obj)->SetLength(0);
+    ArrayList::unchecked_cast(obj)->set_capacity(0);
+    ArrayList::unchecked_cast(obj)->set_length(0);
   }
   set_empty_array_list(ArrayList::unchecked_cast(obj));
 
@@ -1209,7 +1208,7 @@ bool Heap::CreateReadOnlyObjects() {
 
 void Heap::CreateMutableApiObjects() {
   HandleScope scope(isolate());
-  set_message_listeners(*ArrayList::New(isolate(), 2));
+  set_message_listeners(*ArrayList::New(isolate(), 2, AllocationType::kOld));
 }
 
 void Heap::CreateReadOnlyApiObjects() {

@@ -846,7 +846,7 @@ UnsafeCast<RegExpMatchInfo>(
 }
 
 UnsafeCast<ArrayList>(implicit context: Context)(o: Object): ArrayList {
-  dcheck(Is<FixedArray>(o));
+  dcheck(Is<ArrayList>(o));
   return %RawDownCast<ArrayList>(o);
 }
 

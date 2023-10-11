@@ -135,6 +135,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case REG_EXP_MATCH_INFO_TYPE:
       return kVisitRegExpMatchInfo;
 
+    case ARRAY_LIST_TYPE:
+      return kVisitArrayList;
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:

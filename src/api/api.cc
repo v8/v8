@@ -2190,9 +2190,9 @@ std::vector<int> Script::GetProducedCompileHints() const {
   std::vector<int> result;
   if (!IsUndefined(maybe_array_list, i_isolate)) {
     i::Tagged<i::ArrayList> array_list = i::ArrayList::cast(maybe_array_list);
-    result.reserve(array_list->Length());
-    for (int i = 0; i < array_list->Length(); ++i) {
-      i::Tagged<i::Object> item = array_list->Get(i);
+    result.reserve(array_list->length());
+    for (int i = 0; i < array_list->length(); ++i) {
+      i::Tagged<i::Object> item = array_list->get(i);
       CHECK(IsSmi(item));
       result.push_back(i::Smi::ToInt(item));
     }
@@ -7276,7 +7276,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* i_isolate,
 i::Address* Context::GetDataFromSnapshotOnce(size_t index) {
   auto context = Utils::OpenHandle(this);
   i::Isolate* i_isolate = context->GetIsolate();
-  i::Tagged<i::FixedArray> list = context->serialized_objects();
+  auto list = i::FixedArray::cast(context->serialized_objects());
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
@@ -9763,7 +9763,7 @@ Isolate::SafeForTerminationScope::~SafeForTerminationScope() {
 
 i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Tagged<i::FixedArray> list = i_isolate->heap()->serialized_objects();
+  auto list = i::FixedArray::cast(i_isolate->heap()->serialized_objects());
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
@@ -10379,14 +10379,14 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   i::HandleScope scope(i_isolate);
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::ArrayList> listeners = i_isolate->heap()->message_listeners();
-  for (int i = 0; i < listeners->Length(); i++) {
-    if (i::IsUndefined(listeners->Get(i), i_isolate)) {
+  for (int i = 0; i < listeners->length(); i++) {
+    if (i::IsUndefined(listeners->get(i), i_isolate)) {
       continue;  // skip deleted ones
     }
-    i::Tagged<i::FixedArray> listener = i::FixedArray::cast(listeners->Get(i));
+    i::Tagged<i::FixedArray> listener = i::FixedArray::cast(listeners->get(i));
     i::Tagged<i::Foreign> callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
-      listeners->Set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
+      listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
     }
   }
 }

@@ -23,6 +23,7 @@ namespace internal {
 #define TYPED_VISITOR_ID_LIST(V)        \
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
+  V(ArrayList)                          \
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \

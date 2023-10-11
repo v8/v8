@@ -165,7 +165,7 @@ void MessageHandler::ReportMessageNoExceptions(
   int error_level = api_message_obj->ErrorLevel();
 
   Handle<ArrayList> global_listeners = isolate->factory()->message_listeners();
-  int global_length = global_listeners->Length();
+  int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
     if (isolate->has_scheduled_exception()) {
@@ -174,8 +174,8 @@ void MessageHandler::ReportMessageNoExceptions(
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (IsUndefined(global_listeners->Get(i), isolate)) continue;
-      Tagged<FixedArray> listener = FixedArray::cast(global_listeners->Get(i));
+      if (IsUndefined(global_listeners->get(i), isolate)) continue;
+      Tagged<FixedArray> listener = FixedArray::cast(global_listeners->get(i));
       Tagged<Foreign> callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));

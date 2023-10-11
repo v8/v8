@@ -4754,7 +4754,6 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   TNode<IntPtrT> total_size = GetFixedArrayAllocationSize(capacity, kind);
 
   if (IsDoubleElementsKind(kind)) flags |= AllocationFlag::kDoubleAlignment;
-  // Allocate both array and elements object, and initialize the JSArray.
   TNode<HeapObject> array = Allocate(total_size, flags);
   if (fixed_array_map) {
     // Conservatively only skip the write barrier if there are no allocation
@@ -5436,6 +5435,29 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
     }
     BIND(&finished);
   }
+}
+
+void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
+                                  TNode<HeapObject> src_object, int src_offset,
+                                  TNode<IntPtrT> length_in_tagged,
+                                  WriteBarrierMode mode) {
+  // TODO(jgruber): This could be a lot more involved (e.g. better code when
+  // write barriers can be skipped). Extend as needed.
+  BuildFastLoop<IntPtrT>(
+      IntPtrConstant(0), length_in_tagged,
+      [=](TNode<IntPtrT> index) {
+        TNode<IntPtrT> current_src_offset =
+            IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(src_offset));
+        TNode<Object> value = LoadObjectField(src_object, current_src_offset);
+        TNode<IntPtrT> current_dst_offset =
+            IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(dst_offset));
+        if (mode == SKIP_WRITE_BARRIER) {
+          StoreObjectFieldNoWriteBarrier(dst_object, current_dst_offset, value);
+        } else {
+          StoreObjectField(dst_object, current_dst_offset, value);
+        }
+      },
+      1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 }
 
 template <typename TIndex>
@@ -17453,20 +17475,55 @@ void CodeStubAssembler::SharedValueBarrier(
   BIND(&done);
 }
 
-TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> size) {
+TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> capacity) {
   TVARIABLE(ArrayList, result);
   Label empty(this), nonempty(this), done(this);
 
-  Branch(SmiEqual(size, SmiConstant(0)), &empty, &nonempty);
+  Branch(SmiEqual(capacity, SmiConstant(0)), &empty, &nonempty);
 
   BIND(&nonempty);
   {
-    TNode<Smi> fixed_array_size =
-        SmiAdd(size, SmiConstant(ArrayList::kFirstIndex));
-    result =
-        CAST(AllocateFixedArray(PACKED_ELEMENTS, fixed_array_size,
-                                AllocationFlag::kNone, ArrayListMapConstant()));
-    ArrayListSetLength(result.value(), SmiConstant(0));
+    CSA_DCHECK(this, SmiGreaterThan(capacity, SmiConstant(0)));
+
+    intptr_t capacity_constant;
+    if (ToParameterConstant(capacity, &capacity_constant)) {
+      CHECK_LE(capacity_constant, ArrayList::kMaxCapacity);
+    } else {
+      Label if_out_of_memory(this, Label::kDeferred), next(this);
+      Branch(SmiGreaterThan(capacity, SmiConstant(ArrayList::kMaxCapacity)),
+             &if_out_of_memory, &next);
+
+      BIND(&if_out_of_memory);
+      CallRuntime(Runtime::kFatalProcessOutOfMemoryInvalidArrayLength,
+                  NoContextConstant());
+      Unreachable();
+
+      BIND(&next);
+    }
+
+    TNode<IntPtrT> total_size = GetArrayAllocationSize(
+        capacity, PACKED_ELEMENTS, ArrayList::Shape::kHeaderSize);
+    TNode<HeapObject> array = Allocate(total_size);
+    RootIndex map_index = RootIndex::kArrayListMap;
+    DCHECK(RootsTable::IsImmortalImmovable(map_index));
+    StoreMapNoWriteBarrier(array, map_index);
+    StoreObjectFieldNoWriteBarrier(array, ArrayList::Shape::kCapacityOffset,
+                                   capacity);
+    StoreObjectFieldNoWriteBarrier(array, ArrayList::Shape::kLengthOffset,
+                                   SmiConstant(0));
+
+    TNode<IntPtrT> offset_of_first_element =
+        IntPtrConstant(ArrayList::OffsetOfElementAt(0));
+    BuildFastLoop<IntPtrT>(
+        IntPtrConstant(0), SmiUntag(capacity),
+        [=](TNode<IntPtrT> index) {
+          TNode<IntPtrT> offset =
+              IntPtrAdd(TimesTaggedSize(index), offset_of_first_element);
+          StoreObjectFieldNoWriteBarrier(array, offset, UndefinedConstant());
+        },
+        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+
+    result = UncheckedCast<ArrayList>(array);
 
     Goto(&done);
   }
@@ -17481,34 +17538,32 @@ TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> size) {
   return result.value();
 }
 
-TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(
-    TNode<ArrayList> array, TNode<Smi> requested_size) {
+TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(TNode<ArrayList> array,
+                                                         TNode<Smi> length) {
   Label overflow(this, Label::kDeferred);
   TNode<Smi> capacity = LoadFixedArrayBaseLength(array);
-  TNode<Smi> requested_capacity =
-      TrySmiAdd(requested_size, SmiConstant(ArrayList::kFirstIndex), &overflow);
+  TNode<Smi> requested_capacity = length;
 
-  Label grow(this), done(this);
-
+  Label done(this);
   TVARIABLE(ArrayList, result_array, array);
 
-  GotoIf(SmiLessThan(capacity, requested_capacity), &grow);
-  Goto(&done);
+  GotoIf(SmiGreaterThanOrEqual(capacity, requested_capacity), &done);
 
-  BIND(&grow);
-  {
-    // new_capacity = new_length;
-    // new_capacity = capacity + max(capacity / 2, 2);
-    //
-    // Ensure calculation matches ArrayList::EnsureSpace.
-    TNode<Smi> new_capacity = TrySmiAdd(
-        requested_capacity,
-        SmiMax(SmiShr(requested_capacity, 1), SmiConstant(2)), &overflow);
-    result_array = CAST(
-        ExtractFixedArray<Smi>(array, SmiConstant(0), capacity, new_capacity,
-                               ExtractFixedArrayFlag::kFixedArrays));
-    Goto(&done);
-  }
+  // new_capacity = new_length;
+  // new_capacity = capacity + max(capacity / 2, 2);
+  //
+  // Ensure calculation matches ArrayList::EnsureSpace.
+  TNode<Smi> new_capacity = TrySmiAdd(
+      requested_capacity, SmiMax(SmiShr(requested_capacity, 1), SmiConstant(2)),
+      &overflow);
+  TNode<ArrayList> new_array = AllocateArrayList(new_capacity);
+  TNode<Smi> array_length = ArrayListGetLength(array);
+  StoreObjectFieldNoWriteBarrier(new_array, ArrayList::Shape::kLengthOffset,
+                                 array_length);
+  CopyRange(new_array, ArrayList::OffsetOfElementAt(0), array,
+            ArrayList::OffsetOfElementAt(0), SmiUntag(array_length));
+  result_array = new_array;
+  Goto(&done);
 
   BIND(&overflow);
   CallRuntime(Runtime::kFatalInvalidSize, NoContextConstant());
@@ -17534,33 +17589,25 @@ TNode<ArrayList> CodeStubAssembler::ArrayListAdd(TNode<ArrayList> array,
 
 void CodeStubAssembler::ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
                                      TNode<Object> object) {
-  StoreFixedArrayElement(
-      array, SmiAdd(SmiConstant(ArrayList::kFirstIndex), index), object);
+  UnsafeStoreArrayElement(array, index, object);
 }
 
 TNode<Smi> CodeStubAssembler::ArrayListGetLength(TNode<ArrayList> array) {
-  TNode<Smi> capacity = LoadFixedArrayBaseLength(array);
-  return Select<Smi>(
-      SmiEqual(capacity, SmiConstant(0)), [=]() { return SmiConstant(0); },
-      [=]() {
-        return CAST(
-            LoadFixedArrayElement(array, SmiConstant(ArrayList::kLengthIndex)));
-      });
+  return CAST(LoadObjectField(array, ArrayList::Shape::kLengthOffset));
 }
 
 void CodeStubAssembler::ArrayListSetLength(TNode<ArrayList> array,
                                            TNode<Smi> length) {
-  StoreFixedArrayElement(array, SmiConstant(ArrayList::kLengthIndex), length);
+  StoreObjectField(array, ArrayList::Shape::kLengthOffset, length);
 }
 
 TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
-  // TODO(v8:12499): Consider supporting other ElementsKinds.
-  constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
+  static constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
   TNode<IntPtrT> length = PositiveSmiUntag(ArrayListGetLength(array));
-  TNode<FixedArrayBase> elements = AllocateFixedArray(kind, length);
-  CopyElements(kind, elements, IntPtrConstant(0), array,
-               IntPtrConstant(ArrayList::kFirstIndex), length);
-  return CAST(elements);
+  TNode<FixedArray> elements = CAST(AllocateFixedArray(kind, length));
+  CopyRange(elements, FixedArray::OffsetOfElementAt(0), array,
+            ArrayList::OffsetOfElementAt(0), length);
+  return elements;
 }
 
 }  // namespace internal

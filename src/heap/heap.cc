@@ -179,7 +179,7 @@ void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetSerializedObjects(Tagged<FixedArray> objects) {
+void Heap::SetSerializedObjects(Tagged<HeapObject> objects) {
   DCHECK(isolate()->serializer_enabled());
   set_serialized_objects(objects);
 }

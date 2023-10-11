@@ -378,11 +378,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
   return IsJSArray(obj, cage_base);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsArrayList) {
-  return obj->map(cage_base) ==
-         obj->GetReadOnlyRoots().unchecked_array_list_map();
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // Must be a fixed array.
   if (!IsFixedArrayExact(obj, cage_base)) return false;

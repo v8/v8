@@ -636,7 +636,7 @@ class Heap final {
   inline int NextDebuggingId();
   inline int GetNextTemplateSerialNumber();
 
-  void SetSerializedObjects(Tagged<FixedArray> objects);
+  void SetSerializedObjects(Tagged<HeapObject> objects);
   void SetSerializedGlobalProxySizes(Tagged<FixedArray> sizes);
 
   void SetBasicBlockProfilingData(Handle<ArrayList> list);

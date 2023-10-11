@@ -39,6 +39,7 @@ enum InstanceType : uint16_t;
 #define POINTER_VISITOR_ID_LIST(V)      \
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
+  V(ArrayList)                          \
   V(BytecodeArray)                      \
   V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \

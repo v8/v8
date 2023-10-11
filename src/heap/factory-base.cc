@@ -365,16 +365,7 @@ Handle<SloppyArgumentsElements> FactoryBase<Impl>::NewSloppyArgumentsElements(
 template <typename Impl>
 Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
                                                   AllocationType allocation) {
-  if (size == 0) return impl()->empty_array_list();
-  Handle<FixedArray> fixed_array =
-      NewFixedArray(size + ArrayList::kFirstIndex, allocation);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> raw = *fixed_array;
-    raw->set_map_no_write_barrier(read_only_roots().array_list_map());
-    ArrayList::cast(raw)->SetLength(0);
-  }
-  return Handle<ArrayList>::cast(fixed_array);
+  return ArrayList::New(isolate(), size, allocation);
 }
 
 template <typename Impl>
