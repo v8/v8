@@ -860,7 +860,9 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
     isolate_->InitWithoutSnapshot();
   }
 
+#ifdef V8_ENABLE_SPARKPLUG
   isolate_->baseline_batch_compiler()->set_enabled(false);
+#endif  // V8_ENABLE_SPARKPLUG
 
   // Reserve a spot for the default context s.t. the call sequence of
   // SetDefaultContext / AddContext remains independent.

@@ -3796,8 +3796,10 @@ void Isolate::Deinit() {
   cancelable_task_manager()->CancelAndWait();
 
   // Cancel all compiler tasks.
+#ifdef V8_ENABLE_SPARKPLUG
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;
+#endif  // V8_ENABLE_SPARKPLUG
 
 #ifdef V8_ENABLE_MAGLEV
   delete maglev_concurrent_dispatcher_;
@@ -4551,7 +4553,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     lazy_compile_dispatcher_ = std::make_unique<LazyCompileDispatcher>(
         this, V8::GetCurrentPlatform(), v8_flags.stack_size);
   }
+#ifdef V8_ENABLE_SPARKPLUG
   baseline_batch_compiler_ = new baseline::BaselineBatchCompiler(this);
+#endif  // V8_ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
   maglev_concurrent_dispatcher_ = new maglev::MaglevConcurrentDispatcher(this);
 #endif  // V8_ENABLE_MAGLEV

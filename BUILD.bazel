@@ -364,6 +364,7 @@ v8_config(
         "GOOGLE3",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
+        "V8_ENABLE_SPARKPLUG",
     ] + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",

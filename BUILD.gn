@@ -401,6 +401,10 @@ declare_args() {
   # applications yet so disable jit.
   v8_jitless = v8_enable_lite_mode || target_is_ios_device
 
+  # Enable Sparkplug
+  # Sets -DV8_ENABLE_SPARKPLUG.
+  v8_enable_sparkplug = ""
+
   # Enable Maglev's graph printer.
   # Sets -DV8_ENABLE_MAGLEV_GRAPH_PRINTER.
   v8_enable_maglev_graph_printer = !build_with_chromium
@@ -499,6 +503,9 @@ if (v8_enable_external_code_space == "") {
       v8_enable_pointer_compression_shared_cage &&
       (v8_current_cpu == "x64" || v8_current_cpu == "arm64")
 }
+if (v8_enable_sparkplug == "") {
+  v8_enable_sparkplug = !v8_jitless
+}
 if (v8_enable_maglev == "") {
   v8_enable_maglev = v8_enable_turbofan &&
                      (v8_current_cpu == "arm" || v8_current_cpu == "x64" ||
@@ -507,9 +514,9 @@ if (v8_enable_maglev == "") {
 assert(v8_enable_turbofan || !v8_enable_maglev,
        "Maglev is not available when Turbofan is disabled.")
 
-assert(!v8_jitless ||
-           (!v8_enable_maglev && !v8_enable_turbofan && !v8_enable_webassembly),
-       "Maglev, Turbofan and Wasm are not available in jitless mode")
+assert(!v8_jitless || (!v8_enable_sparkplug && !v8_enable_maglev &&
+                           !v8_enable_turbofan && !v8_enable_webassembly),
+       "Sparkplug, Maglev, Turbofan and Wasm are not available in jitless mode")
 
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
@@ -1134,6 +1141,9 @@ config("features") {
   }
   if (v8_enable_external_code_space) {
     defines += [ "V8_EXTERNAL_CODE_SPACE" ]
+  }
+  if (v8_enable_sparkplug) {
+    defines += [ "V8_ENABLE_SPARKPLUG" ]
   }
   if (v8_enable_maglev) {
     defines += [ "V8_ENABLE_MAGLEV" ]
@@ -3098,10 +3108,6 @@ v8_header_set("v8_internal_headers") {
     "src/ast/scopes.h",
     "src/ast/source-range-ast-visitor.h",
     "src/ast/variables.h",
-    "src/baseline/baseline-assembler-inl.h",
-    "src/baseline/baseline-assembler.h",
-    "src/baseline/baseline-batch-compiler.h",
-    "src/baseline/baseline-compiler.h",
     "src/baseline/baseline.h",
     "src/baseline/bytecode-offset-iterator.h",
     "src/builtins/accessors.h",
@@ -4034,6 +4040,15 @@ v8_header_set("v8_internal_headers") {
     sources -= [ "//base/trace_event/common/trace_event_common.h" ]
   }
 
+  if (v8_enable_sparkplug) {
+    sources += [
+      "src/baseline/baseline-assembler-inl.h",
+      "src/baseline/baseline-assembler.h",
+      "src/baseline/baseline-batch-compiler.h",
+      "src/baseline/baseline-compiler.h",
+    ]
+  }
+
   if (v8_enable_maglev) {
     sources += [
       "src/maglev/maglev-assembler-inl.h",
@@ -4262,11 +4277,15 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
       "src/wasm/baseline/ia32/liftoff-assembler-ia32-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/ia32/baseline-assembler-ia32-inl.h",
+        "src/baseline/ia32/baseline-compiler-ia32-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "x64") {
     sources += [
       ### gcmole(x64) ###
-      "src/baseline/x64/baseline-assembler-x64-inl.h",
-      "src/baseline/x64/baseline-compiler-x64-inl.h",
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
       "src/codegen/x64/assembler-x64-inl.h",
       "src/codegen/x64/assembler-x64.h",
@@ -4289,6 +4308,13 @@ v8_header_set("v8_internal_headers") {
       sources += [ "src/diagnostics/unwinding-info-win64.h" ]
     }
 
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/x64/baseline-assembler-x64-inl.h",
+        "src/baseline/x64/baseline-compiler-x64-inl.h",
+      ]
+    }
+
     if (v8_enable_webassembly) {
       # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
       # based on Darwin and thus POSIX-compliant to a similar degree.
@@ -4302,8 +4328,6 @@ v8_header_set("v8_internal_headers") {
   } else if (v8_current_cpu == "arm") {
     sources += [
       ### gcmole(arm) ###
-      "src/baseline/arm/baseline-assembler-arm-inl.h",
-      "src/baseline/arm/baseline-compiler-arm-inl.h",
       "src/codegen/arm/assembler-arm-inl.h",
       "src/codegen/arm/assembler-arm.h",
       "src/codegen/arm/constants-arm.h",
@@ -4318,11 +4342,16 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/arm/regexp-macro-assembler-arm.h",
       "src/wasm/baseline/arm/liftoff-assembler-arm-inl.h",
     ]
+
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/arm/baseline-assembler-arm-inl.h",
+        "src/baseline/arm/baseline-compiler-arm-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "arm64") {
     sources += [
       ### gcmole(arm64) ###
-      "src/baseline/arm64/baseline-assembler-arm64-inl.h",
-      "src/baseline/arm64/baseline-compiler-arm64-inl.h",
       "src/codegen/arm64/assembler-arm64-inl.h",
       "src/codegen/arm64/assembler-arm64.h",
       "src/codegen/arm64/constants-arm64.h",
@@ -4346,6 +4375,12 @@ v8_header_set("v8_internal_headers") {
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/arm64/baseline-assembler-arm64-inl.h",
+        "src/baseline/arm64/baseline-compiler-arm64-inl.h",
+      ]
+    }
     if (v8_enable_webassembly) {
       # Trap handling is enabled on arm64 Mac and Linux and in simulators on
       # x64 on Linux and Mac.
@@ -4365,8 +4400,6 @@ v8_header_set("v8_internal_headers") {
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
       ### gcmole(mips64el) ###
-      "src/baseline/mips64/baseline-assembler-mips64-inl.h",
-      "src/baseline/mips64/baseline-compiler-mips64-inl.h",
       "src/codegen/mips64/assembler-mips64-inl.h",
       "src/codegen/mips64/assembler-mips64.h",
       "src/codegen/mips64/constants-mips64.h",
@@ -4379,11 +4412,15 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
       "src/wasm/baseline/mips64/liftoff-assembler-mips64-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/mips64/baseline-assembler-mips64-inl.h",
+        "src/baseline/mips64/baseline-compiler-mips64-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "loong64") {
     sources += [
       ### gcmole(loong64) ###
-      "src/baseline/loong64/baseline-assembler-loong64-inl.h",
-      "src/baseline/loong64/baseline-compiler-loong64-inl.h",
       "src/codegen/loong64/assembler-loong64-inl.h",
       "src/codegen/loong64/assembler-loong64.h",
       "src/codegen/loong64/constants-loong64.h",
@@ -4396,6 +4433,12 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/loong64/regexp-macro-assembler-loong64.h",
       "src/wasm/baseline/loong64/liftoff-assembler-loong64-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/loong64/baseline-assembler-loong64-inl.h",
+        "src/baseline/loong64/baseline-compiler-loong64-inl.h",
+      ]
+    }
     if (v8_enable_webassembly) {
       # Trap handling is enabled on loong64 Linux and in simulators on
       # x64 on Linux.
@@ -4427,8 +4470,6 @@ v8_header_set("v8_internal_headers") {
   } else if (v8_current_cpu == "ppc64") {
     sources += [
       ### gcmole(ppc64) ###
-      "src/baseline/ppc/baseline-assembler-ppc-inl.h",
-      "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
@@ -4443,11 +4484,15 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
       "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/ppc/baseline-assembler-ppc-inl.h",
+        "src/baseline/ppc/baseline-compiler-ppc-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
       ### gcmole(s390) ###
-      "src/baseline/s390/baseline-assembler-s390-inl.h",
-      "src/baseline/s390/baseline-compiler-s390-inl.h",
       "src/codegen/s390/assembler-s390-inl.h",
       "src/codegen/s390/assembler-s390.h",
       "src/codegen/s390/constants-s390.h",
@@ -4462,6 +4507,12 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/s390/regexp-macro-assembler-s390.h",
       "src/wasm/baseline/s390/liftoff-assembler-s390-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/s390/baseline-assembler-s390-inl.h",
+        "src/baseline/s390/baseline-compiler-s390-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       ### gcmole(riscv64) ###
@@ -4500,11 +4551,15 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/riscv/regexp-macro-assembler-riscv.h",
       "src/wasm/baseline/riscv64/liftoff-assembler-riscv64-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/riscv/baseline-assembler-riscv-inl.h",
+        "src/baseline/riscv/baseline-compiler-riscv-inl.h",
+      ]
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       ### gcmole(riscv32) ###
-      "src/baseline/riscv/baseline-assembler-riscv-inl.h",
-      "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv.h",
       "src/codegen/riscv/base-assembler-riscv.h",
@@ -4539,6 +4594,12 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/riscv/regexp-macro-assembler-riscv.h",
       "src/wasm/baseline/riscv32/liftoff-assembler-riscv32-inl.h",
     ]
+    if (v8_enable_sparkplug) {
+      sources += [
+        "src/baseline/riscv/baseline-assembler-riscv-inl.h",
+        "src/baseline/riscv/baseline-compiler-riscv-inl.h",
+      ]
+    }
   }
 
   public_deps = [
@@ -4969,8 +5030,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/ast/scopes.cc",
     "src/ast/source-range-ast-visitor.cc",
     "src/ast/variables.cc",
-    "src/baseline/baseline-batch-compiler.cc",
-    "src/baseline/baseline-compiler.cc",
     "src/baseline/baseline.cc",
     "src/baseline/bytecode-offset-iterator.cc",
     "src/builtins/accessors.cc",
@@ -5423,6 +5482,13 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.cc" ]
+  }
+
+  if (v8_enable_sparkplug) {
+    sources += [
+      "src/baseline/baseline-batch-compiler.cc",
+      "src/baseline/baseline-compiler.cc",
+    ]
   }
 
   if (v8_enable_maglev) {

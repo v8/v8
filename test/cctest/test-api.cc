@@ -13872,7 +13872,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::v8_flags.incremental_marking = false;
   i::v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   // Batch compilation can cause different owning spaces for foo and bar.
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   i::v8_flags.baseline_batch_compilation = false;
 #endif
   if (!i::v8_flags.compact) return;

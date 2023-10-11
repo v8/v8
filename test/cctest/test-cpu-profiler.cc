@@ -4748,9 +4748,9 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8_flags.always_turbofan = false;
   v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   v8_flags.flush_bytecode = true;
   v8_flags.allow_natives_syntax = true;
 

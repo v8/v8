@@ -119,11 +119,7 @@
 #error DEBUG_BOOL must be defined at this point.
 #endif  // DEBUG_BOOL
 
-#ifndef ENABLE_SPARKPLUG
-#error ENABLE_SPARKPLUG must be defined at this point.
-#endif  // ENABLE_SPARKPLUG
-
-#if ENABLE_SPARKPLUG
+#if V8_ENABLE_SPARKPLUG
 #define ENABLE_SPARKPLUG_BY_DEFAULT true
 #else
 #define ENABLE_SPARKPLUG_BY_DEFAULT false
@@ -645,7 +641,7 @@ DEFINE_BOOL(maglev_stats_nvp, false,
 DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")
 
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 
@@ -664,9 +660,9 @@ DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 3, turbofan, false)
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 2, maglev, false)
 #endif  // V8_ENABLE_MAGLEV
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 1, sparkplug, false)
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
 
 // Flag to select wasm trace mark type
 DEFINE_STRING(
@@ -690,10 +686,10 @@ DEFINE_NEG_IMPLICATION(jitless, track_field_types)
 // No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif  // V8_ENABLE_MAGLEV
@@ -886,7 +882,7 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
 // Flags for Sparkplug
 #undef FLAG
-#if ENABLE_SPARKPLUG
+#if V8_ENABLE_SPARKPLUG
 #define FLAG FLAG_FULL
 #else
 #define FLAG FLAG_READONLY
@@ -894,7 +890,7 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 DEFINE_BOOL(sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
             "enable Sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
-#if ENABLE_SPARKPLUG
+#if V8_ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
 #if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64) && \

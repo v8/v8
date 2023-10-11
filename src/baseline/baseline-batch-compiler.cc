@@ -4,11 +4,6 @@
 
 #include "src/baseline/baseline-batch-compiler.h"
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
-
 #include <algorithm>
 
 #include "src/baseline/baseline-compiler.h"
@@ -390,41 +385,3 @@ void BaselineBatchCompiler::ClearBatch() {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#else
-
-namespace v8 {
-namespace internal {
-namespace baseline {
-
-class ConcurrentBaselineCompiler {};
-
-BaselineBatchCompiler::BaselineBatchCompiler(Isolate* isolate)
-    : isolate_(isolate),
-      compilation_queue_(Handle<WeakFixedArray>::null()),
-      last_index_(0),
-      estimated_instruction_size_(0),
-      enabled_(false) {}
-
-BaselineBatchCompiler::~BaselineBatchCompiler() {
-  if (!compilation_queue_.is_null()) {
-    GlobalHandles::Destroy(compilation_queue_.location());
-    compilation_queue_ = Handle<WeakFixedArray>::null();
-  }
-}
-
-void BaselineBatchCompiler::InstallBatch() { UNREACHABLE(); }
-
-void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
-  UNREACHABLE();
-}
-
-void BaselineBatchCompiler::EnqueueSFI(SharedFunctionInfo shared) {
-  UNREACHABLE();
-}
-
-}  // namespace baseline
-}  // namespace internal
-}  // namespace v8
-
-#endif

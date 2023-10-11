@@ -5,7 +5,6 @@
 #include "src/execution/tiering-manager.h"
 
 #include "src/base/platform/platform.h"
-#include "src/baseline/baseline-batch-compiler.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/compilation-cache.h"
@@ -22,6 +21,10 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/code.h"
 #include "src/tracing/trace-event.h"
+
+#ifdef V8_ENABLE_SPARKPLUG
+#include "src/baseline/baseline-batch-compiler.h"
+#endif  // V8_ENABLE_SPARKPLUG
 
 namespace v8 {
 namespace internal {
@@ -427,6 +430,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   // compile request and fulfillment, which doesn't work with strictly linear
   // tiering.
   if (compile_sparkplug) {
+#ifdef V8_ENABLE_SPARKPLUG
     if (v8_flags.baseline_batch_compilation) {
       isolate_->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
@@ -435,6 +439,9 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
       Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope);
     }
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_SPARKPLUG
   }
 
   // We only tier up beyond sparkplug if we already had a feedback vector.

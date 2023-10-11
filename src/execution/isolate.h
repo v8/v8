@@ -1585,10 +1585,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
 
+#ifdef V8_ENABLE_SPARKPLUG
   baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
     DCHECK_NOT_NULL(baseline_batch_compiler_);
     return baseline_batch_compiler_;
   }
+#endif  // V8_ENABLE_SPARKPLUG
 
 #ifdef V8_ENABLE_MAGLEV
   maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher() {
@@ -2414,7 +2416,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Zone* compiler_zone_ = nullptr;
 
   std::unique_ptr<LazyCompileDispatcher> lazy_compile_dispatcher_;
+#ifdef V8_ENABLE_SPARKPLUG
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
+#endif  // V8_ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
   maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher_ = nullptr;
 #endif  // V8_ENABLE_MAGLEV

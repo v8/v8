@@ -377,6 +377,7 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 }
 
+#ifdef V8_ENABLE_SPARKPLUG
 void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate,
                                              Tagged<Script> script) {
   // Here is main thread, we trigger early baseline compilation only in
@@ -392,6 +393,9 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate,
     }
   }
 }
+#else
+void BaselineBatchCompileIfSparkplugCompiled(Isolate*, Tagged<Script>) {}
+#endif  // V8_ENABLE_SPARKPLUG
 
 const char* ToString(SerializedCodeSanityCheckResult result) {
   switch (result) {

@@ -654,6 +654,7 @@ void JSFunction::InitializeFeedbackCell(
     EnsureClosureFeedbackCellArray(function,
                                    reset_budget_for_feedback_allocation);
   }
+#ifdef V8_ENABLE_SPARKPLUG
   // TODO(jgruber): Unduplicate these conditions from tiering-manager.cc.
   if (function->shared()->sparkplug_compiled() &&
       CanCompileWithBaseline(isolate, function->shared()) &&
@@ -667,6 +668,7 @@ void JSFunction::InitializeFeedbackCell(
                                 &is_compiled_scope);
     }
   }
+#endif  // V8_ENABLE_SPARKPLUG
 }
 
 namespace {

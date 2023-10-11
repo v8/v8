@@ -1078,9 +1078,9 @@ TEST(TestBytecodeFlushing) {
   v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
 
@@ -1141,12 +1141,12 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
   v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
   v8_flags.flush_baseline_code = true;
 #else
   if (sparkplug_compile) return;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
 
@@ -1227,9 +1227,9 @@ HEAP_TEST(Regress10560) {
   i::v8_flags.turbofan = false;
   i::v8_flags.always_turbofan = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   i::v8_flags.lazy_feedback_allocation = true;
 
   ManualGCScope manual_gc_scope;
@@ -1395,9 +1395,9 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   if (v8_flags.single_generation) return;
   v8_flags.turbofan = true;
   v8_flags.always_turbofan = false;
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   i::v8_flags.optimize_for_size = false;
   i::v8_flags.incremental_marking = true;
   i::v8_flags.flush_bytecode = true;

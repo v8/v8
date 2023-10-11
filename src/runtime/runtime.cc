@@ -225,7 +225,10 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
              !v8_flags.concurrent_recompilation;
     case Runtime::kBaselineOsr:
     case Runtime::kCompileBaseline:
-      return ENABLE_SPARKPLUG;
+#ifdef V8_ENABLE_SPARKPLUG
+      return true;
+#endif
+      // Fallthrough.
     default:
       return false;
   }
