@@ -103,7 +103,14 @@ void ExternalizeStringExtension::Externalize(
   if (!string->SupportsExternalization(
           externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING
                                   : v8::String::Encoding::TWO_BYTE_ENCODING)) {
-    info.GetIsolate()->ThrowError("string does not support externalization.");
+    // If the string is shared, testing with the combination of
+    // --shared-string-table and --isolate in d8 may result in races to
+    // externalize the same string. If GC is stressed in addition, this test
+    // might fail as the string was already externalized (marked for
+    // externalization by another thread and externalized during GC).
+    if (!StringShape(*string).IsExternal()) {
+      info.GetIsolate()->ThrowError("string does not support externalization.");
+    }
     return;
   }
   if (externalize_as_one_byte) {
