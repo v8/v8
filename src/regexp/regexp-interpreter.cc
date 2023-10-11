@@ -97,8 +97,7 @@ int32_t Load32Aligned(const uint8_t* pc) {
   return *reinterpret_cast<const int32_t*>(pc);
 }
 
-// TODO(jgruber): Rename to Load16AlignedUnsigned.
-uint32_t Load16Aligned(const uint8_t* pc) {
+uint32_t Load16AlignedUnsigned(const uint8_t* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t*>(pc);
 }
@@ -712,8 +711,8 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(MINUS_AND_CHECK_NOT_CHAR) {
       uint32_t c = LoadPacked24Unsigned(insn);
-      uint32_t minus = Load16Aligned(pc + 4);
-      uint32_t mask = Load16Aligned(pc + 6);
+      uint32_t minus = Load16AlignedUnsigned(pc + 4);
+      uint32_t mask = Load16AlignedUnsigned(pc + 6);
       if (c != ((current_char - minus) & mask)) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
       } else {
@@ -722,8 +721,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(CHECK_CHAR_IN_RANGE) {
-      uint32_t from = Load16Aligned(pc + 4);
-      uint32_t to = Load16Aligned(pc + 6);
+      uint32_t from = Load16AlignedUnsigned(pc + 4);
+      uint32_t to = Load16AlignedUnsigned(pc + 6);
       if (from <= current_char && current_char <= to) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
       } else {
@@ -732,8 +731,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(CHECK_CHAR_NOT_IN_RANGE) {
-      uint32_t from = Load16Aligned(pc + 4);
-      uint32_t to = Load16Aligned(pc + 6);
+      uint32_t from = Load16AlignedUnsigned(pc + 4);
+      uint32_t to = Load16AlignedUnsigned(pc + 6);
       if (from > current_char || current_char > to) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
       } else {
@@ -924,7 +923,7 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_CHAR) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
-      uint32_t c = Load16Aligned(pc + 6);
+      uint32_t c = Load16AlignedUnsigned(pc + 6);
       while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (c == current_char) {
@@ -939,7 +938,7 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_CHAR_AND) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t c = Load16Aligned(pc + 6);
+      uint16_t c = Load16AlignedUnsigned(pc + 6);
       uint32_t mask = Load32Aligned(pc + 8);
       int32_t maximum_offset = Load32Aligned(pc + 12);
       while (static_cast<uintptr_t>(current + maximum_offset) <=
@@ -957,7 +956,7 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_CHAR_POS_CHECKED) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t c = Load16Aligned(pc + 6);
+      uint16_t c = Load16AlignedUnsigned(pc + 6);
       int32_t maximum_offset = Load32Aligned(pc + 8);
       while (static_cast<uintptr_t>(current + maximum_offset) <=
              static_cast<uintptr_t>(subject.length())) {
@@ -989,7 +988,7 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
-      uint16_t limit = Load16Aligned(pc + 6);
+      uint16_t limit = Load16AlignedUnsigned(pc + 6);
       const uint8_t* table = pc + 8;
       while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
@@ -1009,8 +1008,8 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_CHAR_OR_CHAR) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load32Aligned(pc + 4);
-      uint16_t c = Load16Aligned(pc + 8);
-      uint16_t c2 = Load16Aligned(pc + 10);
+      uint16_t c = Load16AlignedUnsigned(pc + 8);
+      uint16_t c2 = Load16AlignedUnsigned(pc + 10);
       while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         // The two if-statements below are split up intentionally, as combining
