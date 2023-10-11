@@ -1091,6 +1091,9 @@ builtin ThrowIndexOfCalledOnNull(): JSAny {
   runtime::WasmThrowTypeError(context, SmiConstant(error), name);
 }
 
+// For DataView related import check fails, we need to throw a specific error
+// message containing the import's type.
+// TODO(evih): Pass the import's type as a parameter.
 builtin ThrowDataViewGetInt32DetachedError(): JSAny {
   const context = LoadContextFromFrame();
   const error = MessageTemplate::kDetachedOperation;
@@ -1099,9 +1102,7 @@ builtin ThrowDataViewGetInt32DetachedError(): JSAny {
 }
 
 builtin ThrowDataViewGetInt32OutOfBounds(): JSAny {
-  const context = LoadContextFromFrame();
-  const error = MessageTemplate::kInvalidDataViewAccessorOffset;
-  runtime::WasmThrowRangeError(context, SmiConstant(error));
+  ThrowDataViewOutOfBounds();
 }
 
 builtin ThrowDataViewGetInt32TypeError(value: JSAny): JSAny {
@@ -1119,6 +1120,10 @@ builtin ThrowDataViewSetInt32DetachedError(): JSAny {
 }
 
 builtin ThrowDataViewSetInt32OutOfBounds(): JSAny {
+  ThrowDataViewOutOfBounds();
+}
+
+macro ThrowDataViewOutOfBounds(): never {
   const context = LoadContextFromFrame();
   const error = MessageTemplate::kInvalidDataViewAccessorOffset;
   runtime::WasmThrowRangeError(context, SmiConstant(error));
