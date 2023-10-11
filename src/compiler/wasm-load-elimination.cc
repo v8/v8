@@ -117,7 +117,7 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
     // Example: Storing a value x of type A in a struct, then casting the struct
     // to a different struct type to then load type B from the same offset
     // results in trying to replace the load with value x.
-    return {dead(), effect};
+    return {dead(), dead()};
   }
   if (!wasm::IsSubtypeOf(node_type.type, field_type, node_type.module)) {
     Type type = Type::Wasm({field_type, node_type.module}, graph()->zone());
@@ -212,6 +212,15 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
     std::tuple<Node*, Node*> replacement = TruncateAndExtendOrType(
         lookup_result.value, effect, control,
         field_info.type->field(field_info.field_index), field_info.is_signed);
+    if (std::get<0>(replacement) == dead()) {
+      // If the value is dead (unreachable), this whole code path is unreachable
+      // and we can mark this control flow path as dead.
+      ReplaceWithValue(node, dead(), dead(), dead());
+      MergeControlToEnd(graph(), common(),
+                        graph()->NewNode(common()->Throw(), effect, control));
+      node->Kill();
+      return Replace(dead());
+    }
     ReplaceWithValue(node, std::get<0>(replacement), std::get<1>(replacement),
                      control);
     node->Kill();
