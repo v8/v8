@@ -1499,6 +1499,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<Uint32T> LoadAndUntagWeakFixedArrayLengthAsUint32(
       TNode<WeakFixedArray> array);
+  // Load the length of a BytecodeArray.
+  TNode<Uint32T> LoadAndUntagBytecodeArrayLength(TNode<BytecodeArray> array);
   // Load the number of descriptors in DescriptorArray.
   TNode<Int32T> LoadNumberOfDescriptors(TNode<DescriptorArray> array);
   // Load the number of own descriptors of a map.

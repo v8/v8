@@ -1317,6 +1317,12 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // since this visitor is for recording slots, not updating them. Figure
     // out if there's a better place for this logic.
     IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+
+    // We can see an uninitialized slot here, for example if GC is triggered
+    // during snapshot deserialization. In this case, there is nothing to do
+    // since the slot will be initialized later with the correct pointer.
+    if (handle == kNullIndirectPointerHandle) return;
+
     if (slot.tag() == kCodeIndirectPointerTag) {
       DCHECK(IsCode(host));
       GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
@@ -1384,6 +1390,8 @@ class ProfilingMigrationObserver final : public MigrationObserver {
                                               InstructionStream::cast(dst)));
     } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE) &&
                IsBytecodeArray(dst)) {
+      // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
+      // allocated in trusted space.
       PROFILE(heap_->isolate(), BytecodeMoveEvent(BytecodeArray::cast(src),
                                                   BytecodeArray::cast(dst)));
     }

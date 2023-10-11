@@ -1491,6 +1491,7 @@ int64_t BigIntRef::AsInt64(bool* lossless) const {
   return ObjectRef::data()->AsBigInt()->AsInt64(lossless);
 }
 
+int BytecodeArrayRef::length() const { return object()->length(); }
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();
 }

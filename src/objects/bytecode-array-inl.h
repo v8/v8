@@ -18,8 +18,10 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(BytecodeArray)
-OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
 
+SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 ACCESSORS(BytecodeArray, constant_pool, Tagged<FixedArray>, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, Tagged<ByteArray>, kHandlerTableOffset)
 RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,

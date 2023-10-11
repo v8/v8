@@ -109,7 +109,6 @@ enum class RefSerializationKind {
   /* Subtypes of String */                                                    \
   NEVER_SERIALIZED(InternalizedString)                                        \
   /* Subtypes of FixedArrayBase */                                            \
-  NEVER_SERIALIZED(BytecodeArray)                                             \
   BACKGROUND_SERIALIZED(FixedArray)                                           \
   NEVER_SERIALIZED(FixedDoubleArray)                                          \
   /* Subtypes of Name */                                                      \
@@ -122,6 +121,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(AllocationSite)                                            \
   NEVER_SERIALIZED(ArrayBoilerplateDescription)                               \
   BACKGROUND_SERIALIZED(BigInt)                                               \
+  NEVER_SERIALIZED(BytecodeArray)                                             \
   NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
   NEVER_SERIALIZED(Code)                                                      \
@@ -943,15 +943,17 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
   Float64 GetFromImmutableFixedDoubleArray(int i) const;
 };
 
-class BytecodeArrayRef : public FixedArrayBaseRef {
+class BytecodeArrayRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(BytecodeArray, FixedArrayBaseRef)
+  DEFINE_REF_CONSTRUCTOR(BytecodeArray, HeapObjectRef)
 
   Handle<BytecodeArray> object() const;
 
   // NOTE: Concurrent reads of the actual bytecodes as well as the constant pool
   // (both immutable) do not go through BytecodeArrayRef but are performed
   // directly through the handle by BytecodeArrayIterator.
+
+  int length() const;
 
   int register_count() const;
   int parameter_count() const;

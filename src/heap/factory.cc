@@ -2587,6 +2587,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
       size, AllocationType::kOld, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
+  copy->init_self_indirect_pointer(isolate()->AsLocalIsolate());
   copy->set_length(raw_source->length());
   copy->set_frame_size(raw_source->frame_size());
   copy->set_parameter_count(raw_source->parameter_count());

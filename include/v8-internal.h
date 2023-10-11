@@ -503,11 +503,11 @@ using IndirectPointerHandle = uint32_t;
 // The size of the virtual memory reservation for the indirect pointer table.
 // As with the external pointer table, a maximum table size in combination with
 // shifted indices allows omitting bounds checks.
-constexpr size_t kIndirectPointerTableReservationSize = 8 * MB;
+constexpr size_t kIndirectPointerTableReservationSize = 64 * MB;
 
 // The indirect pointer handles are stores shifted to the left by this amount
 // to guarantee that they are smaller than the maximum table size.
-constexpr uint32_t kIndirectPointerHandleShift = 12;
+constexpr uint32_t kIndirectPointerHandleShift = 9;
 
 // A null handle always references an entry that contains nullptr.
 constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;

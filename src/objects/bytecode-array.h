@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_H_
 
-#include "src/objects/fixed-array.h"
+#include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -22,8 +22,14 @@ class Register;
 #include "torque-generated/src/objects/bytecode-array-tq.inc"
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
-class BytecodeArray : public FixedArrayBase {
+class BytecodeArray : public ExposedTrustedObject {
  public:
+  // The length of this bytecode array, in bytes.
+  inline int length() const;
+  inline int length(AcquireLoadTag tag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag tag);
+
   DECL_ACCESSORS(constant_pool, Tagged<FixedArray>)
   // The handler table contains offsets of exception handlers.
   DECL_ACCESSORS(handler_table, Tagged<ByteArray>)
@@ -104,6 +110,7 @@ class BytecodeArray : public FixedArrayBase {
   static const int kMaxLength = kMaxSize - kHeaderSize;
 
 #define FIELD_LIST(V)                                                   \
+  V(kLengthOffset, kTaggedSize)                                         \
   V(kConstantPoolOffset, kTaggedSize)                                   \
   V(kHandlerTableOffset, kTaggedSize)                                   \
   V(kSourcePositionTableOffset, kTaggedSize)                            \
@@ -113,12 +120,12 @@ class BytecodeArray : public FixedArrayBase {
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize, FIELD_LIST)
+  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(BytecodeArray, FixedArrayBase);
+  OBJECT_CONSTRUCTORS(BytecodeArray, ExposedTrustedObject);
 };
 
 }  // namespace internal

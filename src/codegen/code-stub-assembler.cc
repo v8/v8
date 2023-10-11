@@ -2100,6 +2100,14 @@ TNode<Uint32T> CodeStubAssembler::LoadAndUntagWeakFixedArrayLengthAsUint32(
   return Unsigned(length);
 }
 
+TNode<Uint32T> CodeStubAssembler::LoadAndUntagBytecodeArrayLength(
+    TNode<BytecodeArray> array) {
+  TNode<Int32T> value =
+      LoadAndUntagToWord32ObjectField(array, BytecodeArray::kLengthOffset);
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(value, Int32Constant(0)));
+  return Unsigned(value);
+}
+
 TNode<Int32T> CodeStubAssembler::LoadNumberOfDescriptors(
     TNode<DescriptorArray> array) {
   return UncheckedCast<Int32T>(LoadObjectField<Int16T>(

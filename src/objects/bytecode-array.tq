@@ -5,7 +5,8 @@
 type DependentCode extends WeakArrayList;
 
 @cppObjectDefinition
-extern class BytecodeArray extends FixedArrayBase {
+extern class BytecodeArray extends ExposedTrustedObject {
+  const length: Smi;
   constant_pool: FixedArray;
   handler_table: ByteArray;
   source_position_table: Undefined|ByteArray|Exception;

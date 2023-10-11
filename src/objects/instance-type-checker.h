@@ -33,9 +33,7 @@ class Map;
   V(ExternalString)                      \
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
-  V(InternalizedString)                  \
-  V(TrustedObject)                       \
-  V(ExposedTrustedObject)
+  V(InternalizedString)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \
   INSTANCE_TYPE_CHECKERS_SINGLE(V) \

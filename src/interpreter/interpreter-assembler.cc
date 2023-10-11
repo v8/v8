@@ -1425,7 +1425,7 @@ void InterpreterAssembler::OnStackReplacement(
   BIND(&osr_to_opt);
   {
     TNode<Uint32T> length =
-        LoadAndUntagFixedArrayBaseLengthAsUint32(BytecodeArrayTaggedPointer());
+        LoadAndUntagBytecodeArrayLength(BytecodeArrayTaggedPointer());
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);

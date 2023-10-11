@@ -305,6 +305,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, AllocationType::kOld, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = Tagged<BytecodeArray>::cast(result);
+  instance->init_self_indirect_pointer(isolate()->AsLocalIsolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);

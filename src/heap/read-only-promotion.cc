@@ -388,42 +388,52 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                         IndirectPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
       // When an object owning an indirect pointer table entry is relocated, it
-      // needs to update the entry to point to its new location. Currently, only
-      // Code objects are referenced through indirect pointers, and they use the
-      // code pointer table.
-      CHECK(IsCode(host));
-      CHECK_EQ(slot.tag(), kCodeIndirectPointerTag);
+      // needs to update the entry to point to its new location.
 
-      // Due to the way we handle baseline code during serialization (we
-      // manually skip over them), we may encounter such live Code objects in
-      // mutable space during iteration. Do a lookup to make sure we only
-      // update CPT entries for moved objects.
+      // Check if the host object was promoted and moved to RO space. Due to
+      // the way we handle baseline code during serialization (we manually skip
+      // over them), we may for example encounter live Code objects in mutable
+      // space during iteration, which will also be ignored here.
       auto it = moves_reverse_lookup_.find(host);
       if (it == moves_reverse_lookup_.end()) return;
 
-      // If we reach here, `host` is a moved Code object located in RO space.
+      // If we reach here, `host` is a moved object located in RO space.
       CHECK(host.InReadOnlySpace());
       RecordProcessedSlotIfDebug(slot.address());
 
-      Tagged<Code> dead_code = Code::cast(it->second);
-      CHECK(IsCode(dead_code));
-      CHECK(!dead_code.InReadOnlySpace());
+      Tagged<ExposedTrustedObject> dead_object =
+          ExposedTrustedObject::cast(it->second);
+      CHECK(IsExposedTrustedObject(dead_object));
+      CHECK(!dead_object.InReadOnlySpace());
 
-      IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-      CodePointerTable* cpt = GetProcessWideCodePointerTable();
-      CHECK_EQ(dead_code, Tagged<Object>(cpt->GetCodeObject(handle)));
+      // Currently, only Code objects are RO promotion candidates and are
+      // referenced through indirect pointers. Code objects always use the code
+      // pointer table.
+      if (slot.tag() == kCodeIndirectPointerTag) {
+        CHECK(IsCode(host));
+        CHECK(IsCode(dead_object));
 
-      // The old Code object (in mutable space) is dead. To preserve the 1:1
-      // relation between Code objects and CPT entries, overwrite it immediately
-      // with the filler object.
-      isolate_->heap()->CreateFillerObjectAt(dead_code.address(), Code::kSize);
+        IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+        CodePointerTable* cpt = GetProcessWideCodePointerTable();
+        CHECK_EQ(dead_object, Tagged<Object>(cpt->GetCodeObject(handle)));
 
-      // Update the CPT entry to point at the moved RO Code object.
-      cpt->SetCodeObject(handle, host.ptr());
+        // Update the table entry to point at the moved RO object.
+        cpt->SetCodeObject(handle, host.ptr());
 
-      if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
-        LogUpdatedCodePointerTableEntry(host, slot, dead_code);
+        if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
+          LogUpdatedCodePointerTableEntry(host, slot, Code::cast(dead_object));
+        }
+      } else {
+        // If we ever need to handle objects other than Code here, we would
+        // simply need to use the indirect pointer table for them instead.
+        UNREACHABLE();
       }
+
+      // The old object (in mutable space) is dead. To preserve the 1:1
+      // relation between ExposedTrusted objects and their pointer table
+      // entries, overwrite it immediately with the filler object.
+      isolate_->heap()->CreateFillerObjectAt(dead_object.address(),
+                                             dead_object->Size(isolate_));
 #else
       UNREACHABLE();
 #endif
