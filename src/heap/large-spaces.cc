@@ -334,6 +334,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsInstructionStream(object, cage_base) ||                  //
         IsPreparseData(object, cage_base) ||                       //
         IsPropertyArray(object, cage_base) ||                      //
+        IsRegExpMatchInfo(object, cage_base) ||                    //
         IsScopeInfo(object) ||                                     //
         IsSeqString(object, cage_base) ||                          //
         IsSloppyArgumentsElements(object, cage_base) ||            //
