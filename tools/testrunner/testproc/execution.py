@@ -74,4 +74,11 @@ class ExecutionProc(base.TestProc):
 
     test, result.cmd = self._tests[test_id]
     del self._tests[test_id]
+
+    # TODO(https://crbug.com/v8/14373): Temporary investigation logging.
+    if result.has_unexpected_output:
+      print('List of processes after failure:')
+      for _, cmdline in self.ctx.list_processes():
+        print(cmdline)
+
     self._send_result(test, result)
