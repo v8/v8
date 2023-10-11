@@ -1892,8 +1892,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   heap->sweeper()->FinishMajorJobs();
 
   if (auto* new_space = heap->new_space()) {
-    new_space->main_allocator()->MakeLinearAllocationAreaIterable();
-
+    // TODO(chromium:1480975): We can assume here that all LABs were freed for
+    // all client isolates. DCHECK here that the new space LAB was freed as soon
+    // as this is possible.
     for (Page* page : *new_space) {
       for (Tagged<HeapObject> obj : HeapObjectRange(page)) {
         obj->IterateFast(cage_base, &visitor);

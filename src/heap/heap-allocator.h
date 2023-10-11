@@ -104,6 +104,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
 
+  void PublishPendingAllocations();
+
   void AddAllocationObserver(AllocationObserver* observer,
                              AllocationObserver* new_space_observer);
   void RemoveAllocationObserver(AllocationObserver* observer,

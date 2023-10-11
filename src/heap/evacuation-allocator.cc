@@ -76,10 +76,10 @@ void EvacuationAllocator::FreeLast(AllocationSpace space,
       FreeLastInNewSpace(object, object_size);
       return;
     case OLD_SPACE:
-      FreeLastInCompactionSpace(OLD_SPACE, object, object_size);
+      FreeLastInCompactionSpace(old_space_allocator(), object, object_size);
       return;
     case SHARED_SPACE:
-      FreeLastInCompactionSpace(SHARED_SPACE, object, object_size);
+      FreeLastInCompactionSpace(shared_space_allocator(), object, object_size);
       return;
     default:
       // Only new and old space supported.
@@ -95,11 +95,10 @@ void EvacuationAllocator::FreeLastInNewSpace(Tagged<HeapObject> object,
   }
 }
 
-void EvacuationAllocator::FreeLastInCompactionSpace(AllocationSpace space,
+void EvacuationAllocator::FreeLastInCompactionSpace(MainAllocator* allocator,
                                                     Tagged<HeapObject> object,
                                                     int object_size) {
-  if (!compaction_spaces_.Get(space)->main_allocator()->TryFreeLast(
-          object.address(), object_size)) {
+  if (!allocator->TryFreeLast(object.address(), object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
     heap_->CreateFillerObjectAt(object.address(), object_size);
   }
@@ -122,7 +121,8 @@ void EvacuationAllocator::Finalize() {
   // Give back remaining LAB space if this EvacuationAllocator's new space LAB
   // sits right next to new space allocation top.
   const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
-  if (new_space_) new_space_->main_allocator()->MaybeFreeUnusedLab(info);
+  if (new_space_)
+    heap_->allocator()->new_space_allocator()->MaybeFreeUnusedLab(info);
 }
 
 }  // namespace internal
