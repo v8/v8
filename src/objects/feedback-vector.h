@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
@@ -172,27 +173,46 @@ class FeedbackMetadata;
 
 #include "torque-generated/src/objects/feedback-vector-tq.inc"
 
-// ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
-// when creating closures from a function. This is created once the function is
-// compiled and is either held by the feedback vector (if allocated) or by the
-// FeedbackCell of the closure.
-class ClosureFeedbackCellArray : public FixedArray {
+class ClosureFeedbackCellArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = FeedbackCell;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kClosureFeedbackCellArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// ClosureFeedbackCellArray contains feedback cells used when creating closures
+// from a function. This is created once the function is compiled and is either
+// held by the feedback vector (if allocated) or by the FeedbackCell of the
+// closure.
+class ClosureFeedbackCellArray
+    : public TaggedArrayBase<ClosureFeedbackCellArray,
+                             ClosureFeedbackCellArrayShape> {
+  using Super =
+      TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
+  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, Super);
+
  public:
   NEVER_READ_ONLY_SPACE
-
-  DECL_CAST(ClosureFeedbackCellArray)
+  using Shape = ClosureFeedbackCellArrayShape;
 
   V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
-
-  inline Handle<FeedbackCell> GetFeedbackCell(int index);
-  inline Tagged<FeedbackCell> cell(int index);
+      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      AllocationType allocation = AllocationType::kYoung);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
+  DECL_CAST(ClosureFeedbackCellArray)
 
- private:
-  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, FixedArray);
+  class BodyDescriptor;
 };
 
 class NexusConfig;
@@ -304,7 +324,8 @@ class FeedbackVector
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.
-  inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
+  inline Handle<FeedbackCell> GetClosureFeedbackCell(Isolate* isolate,
+                                                     int index) const;
   inline Tagged<FeedbackCell> closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.

@@ -923,13 +923,14 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Empty arrays.
   {
-    if (!AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly)
+    if (!AllocateRaw(ClosureFeedbackCellArray::SizeFor(0),
+                     AllocationType::kReadOnly)
              .To(&obj)) {
       return false;
     }
     obj->set_map_after_allocation(roots.closure_feedback_cell_array_map(),
                                   SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
+    ClosureFeedbackCellArray::cast(obj)->set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
 

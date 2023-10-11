@@ -16,12 +16,14 @@
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/descriptor-array.h"
-#include "src/objects/object-macros.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -758,5 +760,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_HEAP_MARKING_VISITOR_INL_H_

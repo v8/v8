@@ -763,4 +763,6 @@ ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, Tagged<ByteArray>,
 }  // namespace internal
 }  // namespace v8
 
+#include "src/objects/object-macros-undef.h"
+
 #endif  // V8_OBJECTS_SWISS_NAME_DICTIONARY_INL_H_

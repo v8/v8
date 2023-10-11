@@ -324,6 +324,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsBigInt(object, cage_base) ||                             //
         IsByteArray(object, cage_base) ||                          //
         IsExternalPointerArray(object, cage_base) ||               //
+        IsClosureFeedbackCellArray(object, cage_base) ||           //
         IsContext(object, cage_base) ||                            //
         IsExternalString(object, cage_base) ||                     //
         IsFeedbackMetadata(object, cage_base) ||                   //

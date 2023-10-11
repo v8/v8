@@ -2516,7 +2516,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   TNode<ClosureFeedbackCellArray> feedback_cell_array =
       LoadClosureFeedbackArray(LoadFunctionClosure());
   TNode<FeedbackCell> feedback_cell =
-      CAST(LoadFixedArrayElement(feedback_cell_array, slot));
+      LoadArrayElement(feedback_cell_array, slot);
 
   Label if_fast(this), if_slow(this, Label::kDeferred);
   Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,

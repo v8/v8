@@ -243,7 +243,6 @@ type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
 
-extern class ClosureFeedbackCellArray extends FixedArray;
 extern class ScriptContextTable extends FixedArray;
 
 extern class TransitionArray extends WeakFixedArray;

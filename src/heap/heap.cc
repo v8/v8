@@ -7394,5 +7394,7 @@ CodePageMemoryModificationScopeForDebugging::
 
 #endif
 
+#include "src/objects/object-macros-undef.h"
+
 }  // namespace internal
 }  // namespace v8

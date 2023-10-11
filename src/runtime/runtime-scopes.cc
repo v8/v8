@@ -151,8 +151,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
           SharedFunctionInfo::cast(declarations->get(i)), isolate);
       int feedback_index = Smi::ToInt(declarations->get(++i));
       index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell =
-          closure_feedback_cell_array->GetFeedbackCell(feedback_index);
+      Handle<FeedbackCell> feedback_cell(
+          closure_feedback_cell_array->get(feedback_index), isolate);
       value = *Factory::JSFunctionBuilder(isolate, sfi, context)
                    .set_feedback_cell(feedback_cell)
                    .Build();
@@ -199,8 +199,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(decl);
       name = handle(sfi->Name(), isolate);
       int index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell =
-          closure_feedback_cell_array->GetFeedbackCell(index);
+      Handle<FeedbackCell> feedback_cell(
+          closure_feedback_cell_array->get(index), isolate);
       value = Factory::JSFunctionBuilder(isolate, sfi, context)
                   .set_feedback_cell(feedback_cell)
                   .Build();

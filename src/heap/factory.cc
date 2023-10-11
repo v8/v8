@@ -456,18 +456,6 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   return handle(array, isolate());
 }
 
-Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
-    int length) {
-  if (length == 0) return empty_closure_feedback_cell_array();
-
-  Handle<ClosureFeedbackCellArray> feedback_cell_array =
-      Handle<ClosureFeedbackCellArray>::cast(NewFixedArrayWithMap(
-          read_only_roots().closure_feedback_cell_array_map_handle(), length,
-          AllocationType::kOld));
-
-  return feedback_cell_array;
-}
-
 Handle<FeedbackVector> Factory::NewFeedbackVector(
     Handle<SharedFunctionInfo> shared,
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,

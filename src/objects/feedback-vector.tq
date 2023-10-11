@@ -32,6 +32,12 @@ bitfield struct OsrState extends uint8 {
   dont_use_these_bits_unless_beneficial: uint32: 3 bit;
 }
 
+@cppObjectDefinition
+extern class ClosureFeedbackCellArray extends HeapObject {
+  const capacity: Smi;
+  objects[capacity]: FeedbackCell;
+}
+
 @generateBodyDescriptor
 extern class FeedbackVector extends HeapObject {
   const length: int32;

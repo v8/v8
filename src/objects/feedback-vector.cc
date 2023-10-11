@@ -16,7 +16,6 @@
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/object-macros.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
@@ -195,21 +194,29 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 
 // static
 Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
-  Factory* factory = isolate->factory();
-
-  int num_feedback_cells =
-      shared->feedback_metadata()->create_closure_slot_count();
-
-  Handle<ClosureFeedbackCellArray> feedback_cell_array =
-      factory->NewClosureFeedbackCellArray(num_feedback_cells);
-
-  for (int i = 0; i < num_feedback_cells; i++) {
-    Handle<FeedbackCell> cell =
-        factory->NewNoClosuresCell(factory->undefined_value());
-    feedback_cell_array->set(i, *cell);
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    AllocationType allocation) {
+  int length = shared->feedback_metadata()->create_closure_slot_count();
+  if (length == 0) {
+    return isolate->factory()->empty_closure_feedback_cell_array();
   }
-  return feedback_cell_array;
+
+  // Pre-allocate the cells s.t. we can initialize `result` without further
+  // allocation.
+  Handle<HeapObject> undefined = isolate->factory()->undefined_value();
+  std::vector<Handle<FeedbackCell>> cells;
+  cells.reserve(length);
+  for (int i = 0; i < length; i++) {
+    cells.push_back(isolate->factory()->NewNoClosuresCell(undefined));
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  auto result = Allocate(isolate, length, &no_gc, allocation);
+  for (int i = 0; i < length; i++) {
+    result->set(i, *cells[i]);
+  }
+
+  return result;
 }
 
 // static

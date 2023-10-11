@@ -177,10 +177,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(*this)->TransitionArrayPrint(os);
       break;
-    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
-      ClosureFeedbackCellArray::cast(*this)->ClosureFeedbackCellArrayPrint(os);
-      break;
-
     case FILLER_TYPE:
       os << "filler";
       break;
@@ -464,8 +460,9 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
 
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
-  PrintFixedArrayElements<T>(os, array, array->length(),
-                             [](Tagged<T> xs, int i) { return xs->get(i); });
+  PrintFixedArrayElements<T>(
+      os, array, array->length(),
+      [](Tagged<T> xs, int i) { return Object::cast(xs->get(i)); });
 }
 
 void PrintDictionaryElements(std::ostream& os,
@@ -1285,7 +1282,11 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
 }
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "ClosureFeedbackCellArray");
+  PrintHeader(os, "ClosureFeedbackCellArray");
+  os << "\n - length: " << length();
+  os << "\n - elements:";
+  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, *this);
+  os << "\n";
 }
 
 void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {

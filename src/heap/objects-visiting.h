@@ -31,6 +31,7 @@ namespace internal {
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
+  V(ClosureFeedbackCellArray)           \
   V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \

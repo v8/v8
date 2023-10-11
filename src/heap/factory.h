@@ -150,10 +150,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocates a closure feedback cell array whose feedback cells are
-  // initialized with undefined values.
-  Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(int num_slots);
-
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
   Handle<FeedbackVector> NewFeedbackVector(

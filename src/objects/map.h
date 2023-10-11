@@ -44,6 +44,7 @@ enum InstanceType : uint16_t;
   V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
+  V(ClosureFeedbackCellArray)           \
   V(InstructionStream)                  \
   V(Code)                               \
   V(DataHandler)                        \

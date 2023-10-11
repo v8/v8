@@ -216,7 +216,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     }
     break;
     // FixedArray types
-    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -709,6 +708,14 @@ void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, last_input());
   for (int i = 0; i < capacity(); ++i) {
     CHECK(IsSmi(get(i)));
+  }
+}
+
+void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
+  for (int i = 0; i < length(); ++i) {
+    Object::VerifyPointer(isolate, get(i));
   }
 }
 

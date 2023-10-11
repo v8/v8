@@ -116,7 +116,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case FIXED_ARRAY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
-    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -127,6 +126,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
+
+    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
+      return kVisitClosureFeedbackCellArray;
 
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       return kVisitObjectBoilerplateDescription;
