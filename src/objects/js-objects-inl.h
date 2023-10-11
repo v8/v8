@@ -224,7 +224,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
     ObjectSlot objects =
-        Handle<FixedArray>::cast(elements)->GetFirstElementAddress();
+        Handle<FixedArray>::cast(elements)->RawFieldOfFirstElement();
     EnsureCanContainElements(object, objects, length, mode);
     return;
   }

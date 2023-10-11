@@ -488,7 +488,7 @@ void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
 
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  AtomicSlot start(indices->GetFirstElementAddress());
+  AtomicSlot start(indices->RawFieldOfFirstElement());
   AtomicSlot end(start + sort_size);
   std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
@@ -2165,8 +2165,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     entry = InternalIndex(
         dictionary->FindEntry(object->GetIsolate(), entry.as_uint32()));
-    DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
-                                                value, attributes);
+    DictionaryElementsAccessor::ReconfigureImpl(
+        object, Handle<FixedArrayBase>::cast(dictionary), entry, value,
+        attributes);
   }
 
   static Maybe<bool> AddImpl(Handle<JSObject> object, uint32_t index,
@@ -2272,9 +2273,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (IsSmiElementsKind(KindTraits::Kind)) {
       HandleScope scope(isolate);
       for (int i = 0; i < length_int; i++) {
-        DCHECK(IsSmi(*BackingStore::get(backing_store, i, isolate)) ||
-               (IsHoleyElementsKind(KindTraits::Kind) &&
-                backing_store->is_the_hole(isolate, i)));
+        Tagged<Object> element = FixedArray::cast(backing_store)->get(i);
+        DCHECK(IsSmi(element) || (IsHoleyElementsKind(KindTraits::Kind) &&
+                                  IsTheHole(element, isolate)));
       }
     } else if (KindTraits::Kind == PACKED_ELEMENTS ||
                KindTraits::Kind == PACKED_DOUBLE_ELEMENTS) {
@@ -4947,8 +4948,7 @@ class SlowSloppyArgumentsElementsAccessor
     Isolate* isolate = object->GetIsolate();
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
-    Handle<FixedArrayBase> old_arguments(
-        FixedArrayBase::cast(elements->arguments()), isolate);
+    Handle<FixedArrayBase> old_arguments(elements->arguments(), isolate);
     Handle<NumberDictionary> dictionary =
         IsNumberDictionary(*old_arguments)
             ? Handle<NumberDictionary>::cast(old_arguments)

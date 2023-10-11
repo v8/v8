@@ -2900,10 +2900,19 @@ void Debug::StartSideEffectCheckMode() {
   DCHECK(!temporary_objects_);
   temporary_objects_.reset(new TemporaryObjectsTracker());
   isolate_->heap()->AddHeapObjectAllocationTracker(temporary_objects_.get());
-  Handle<FixedArray> array(isolate_->native_context()->regexp_last_match_info(),
-                           isolate_);
-  regexp_match_info_ =
-      Handle<RegExpMatchInfo>::cast(isolate_->factory()->CopyFixedArray(array));
+
+  Handle<RegExpMatchInfo> current_match_info(
+      isolate_->native_context()->regexp_last_match_info(), isolate_);
+  int register_count = current_match_info->number_of_capture_registers();
+  regexp_match_info_ = RegExpMatchInfo::New(
+      isolate_, JSRegExp::CaptureCountForRegisters(register_count));
+  DCHECK_EQ(regexp_match_info_->number_of_capture_registers(),
+            current_match_info->number_of_capture_registers());
+  regexp_match_info_->set_last_subject(current_match_info->last_subject());
+  regexp_match_info_->set_last_input(current_match_info->last_input());
+  RegExpMatchInfo::CopyElements(isolate_, *regexp_match_info_, 0,
+                                *current_match_info, 0, register_count,
+                                SKIP_WRITE_BARRIER);
 
   // Update debug infos to have correct execution mode.
   UpdateDebugInfosForExecutionMode();

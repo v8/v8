@@ -442,17 +442,17 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
                              Tagged<Object> (*get)(Tagged<T>, int)) {
   // Print in array notation for non-sparse arrays.
-  if (array->length() == 0) return;
+  if (capacity == 0) return;
   Tagged<Object> previous_value = get(array, 0);
   Tagged<Object> value;
   int previous_index = 0;
   int i;
-  for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = get(array, i);
-    if (previous_value == value && i != array->length()) {
+  for (i = 1; i <= capacity; i++) {
+    if (i < capacity) value = get(array, i);
+    if (previous_value == value && i != capacity) {
       continue;
     }
     os << "\n";
@@ -469,7 +469,7 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
 
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
-  PrintFixedArrayElements<T>(os, array,
+  PrintFixedArrayElements<T>(os, array, array->length(),
                              [](Tagged<T> xs, int i) { return xs->get(i); });
 }
 
@@ -838,6 +838,20 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, *this, "FixedArray");
 }
 
+void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
+  PrintHeader(os, "RegExpMatchInfo");
+  os << "\n - capacity: " << capacity();
+  os << "\n - number_of_capture_registers: " << number_of_capture_registers();
+  os << "\n - last_subject: " << last_subject();
+  os << "\n - last_input: " << last_input();
+  os << "\n - captures:";
+  PrintFixedArrayElements<RegExpMatchInfo>(
+      os, Tagged{*this}, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
+        return Object::cast(xs->get(i));
+      });
+  os << "\n";
+}
+
 void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
   PrintHeader(os, "ExternalPointerArray");
   os << "\n - length: " << length();
@@ -851,7 +865,8 @@ void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
   os << "\n - arguments: " << Brief(arguments());
   os << "\n - mapped_entries:";
   PrintFixedArrayElements<SloppyArgumentsElements>(
-      os, Tagged(*this), [](Tagged<SloppyArgumentsElements> xs, int i) {
+      os, Tagged(*this), length(),
+      [](Tagged<SloppyArgumentsElements> xs, int i) {
         return xs->mapped_entries(i, kRelaxedLoad);
       });
   os << '\n';

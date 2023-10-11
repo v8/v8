@@ -1486,6 +1486,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> LoadFastJSArrayLength(TNode<JSArray> array);
   // Load the length of a fixed array base instance.
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
+  template <typename Array>
+  TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
+    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
+  }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
   TNode<Uint32T> LoadAndUntagFixedArrayBaseLengthAsUint32(
@@ -1613,9 +1617,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<Smi> index,
                              int additional_offset);
+  void FixedArrayBoundsCheck(TNode<FixedArray> array, TNode<Smi> index,
+                             int additional_offset) {
+    FixedArrayBoundsCheck(UncheckedCast<FixedArrayBase>(array), index,
+                          additional_offset);
+  }
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<IntPtrT> index,
                              int additional_offset);
+  void FixedArrayBoundsCheck(TNode<FixedArray> array, TNode<IntPtrT> index,
+                             int additional_offset) {
+    FixedArrayBoundsCheck(UncheckedCast<FixedArrayBase>(array), index,
+                          additional_offset);
+  }
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<UintPtrT> index,
                              int additional_offset) {
@@ -1633,6 +1647,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TValue> LoadArrayElement(TNode<Array> array, int array_header_size,
                                  TNode<TIndex> index,
                                  int additional_offset = 0);
+  template <typename Array, typename TIndex>
+  TNode<typename Array::Shape::ElementT> LoadArrayElement(
+      TNode<Array> array, TNode<TIndex> index, int additional_offset = 0) {
+    return LoadArrayElement<Array, TIndex, typename Array::Shape::ElementT>(
+        array, Array::Shape::kHeaderSize, index, additional_offset);
+  }
 
   template <typename TIndex>
   TNode<Object> LoadFixedArrayElement(
@@ -1910,6 +1930,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
                                   barrier_mode, 0, CheckBounds::kDebugOnly);
+  }
+  template <typename Array>
+  void UnsafeStoreArrayElement(
+      TNode<Array> object, int index,
+      TNode<typename Array::Shape::ElementT> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+           barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
+           barrier_mode == UPDATE_WRITE_BARRIER);
+    // TODO(jgruber): This is just a barebones implementation taken from
+    // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
+    // generic if needed.
+    int offset = Array::OffsetOfElementAt(index);
+    if (barrier_mode == UNSAFE_SKIP_WRITE_BARRIER) {
+      UnsafeStoreObjectFieldNoWriteBarrier(object, offset, value);
+    } else if (barrier_mode == SKIP_WRITE_BARRIER) {
+      StoreObjectFieldNoWriteBarrier(object, offset, value);
+    } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
+      StoreObjectField(object, offset, value);
+    } else {
+      UNREACHABLE();
+    }
   }
 
   void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
@@ -2243,6 +2285,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FillFixedArrayWithValue(ElementsKind kind, TNode<FixedArrayBase> array,
                                TNode<TIndex> from_index, TNode<TIndex> to_index,
                                RootIndex value_root_index);
+  template <typename TIndex>
+  void FillFixedArrayWithValue(ElementsKind kind, TNode<FixedArray> array,
+                               TNode<TIndex> from_index, TNode<TIndex> to_index,
+                               RootIndex value_root_index) {
+    FillFixedArrayWithValue(kind, UncheckedCast<FixedArrayBase>(array),
+                            from_index, to_index, value_root_index);
+  }
 
   // Uses memset to effectively initialize the given FixedArray with zeroes.
   void FillFixedArrayWithSmiZero(ElementsKind kind, TNode<FixedArray> array,
@@ -4063,6 +4112,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,
                                         int base_size = 0);
+  template <typename Array, typename TIndex>
+  TNode<IntPtrT> OffsetOfElementAt(TNode<TIndex> index) {
+    static_assert(Array::Shape::kElementSize == kTaggedSize);
+    return ElementOffsetFromIndex(index, PACKED_ELEMENTS,
+                                  Array::kHeaderSize - kHeapObjectTag);
+  }
 
   // Check that a field offset is within the bounds of the an object.
   TNode<BoolT> IsOffsetInBounds(TNode<IntPtrT> offset, TNode<IntPtrT> length,

@@ -905,7 +905,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
     old_object->set(0, *one_byte_seq);
-    ObjectSlot slot = old_object->GetFirstElementAddress();
+    ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
@@ -956,7 +956,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
     old_object->set(0, *one_byte_seq);
-    ObjectSlot slot = old_object->GetFirstElementAddress();
+    ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
@@ -1019,7 +1019,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     CHECK(heap->Contains(*one_byte_seq));
 
     old_object->set(0, *one_byte_seq);
-    ObjectSlot slot = old_object->GetFirstElementAddress();
+    ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(
         !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
@@ -1085,7 +1085,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    ObjectSlot slot = young_object->GetFirstElementAddress();
+    ObjectSlot slot = young_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
         MemoryChunk::FromHeapObject(*young_object), slot.address()));
   }
@@ -2114,7 +2114,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
 
       // Since the GC promoted that string into shared heap, it also needs to
       // create an OLD_TO_SHARED slot.
-      ObjectSlot slot = young_object->GetFirstElementAddress();
+      ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
           MemoryChunk::FromHeapObject(*young_object), slot.address()));
     }
@@ -2288,7 +2288,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 
       // Since the GC promoted that string into shared heap, it also needs to
       // create an OLD_TO_SHARED slot.
-      ObjectSlot slot = young_object->GetFirstElementAddress();
+      ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
           MemoryChunk::FromHeapObject(*young_object), slot.address()));
     }

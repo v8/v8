@@ -434,8 +434,9 @@ class Heap final {
   // Copy len non-weak tagged elements from src_slot to dst_slot of dst_object.
   // The source and destination memory ranges must not overlap.
   template <typename TSlot>
-  void CopyRange(Tagged<HeapObject> dst_object, TSlot dst_slot, TSlot src_slot,
-                 int len, WriteBarrierMode mode);
+  V8_EXPORT_PRIVATE void CopyRange(Tagged<HeapObject> dst_object,
+                                   TSlot dst_slot, TSlot src_slot, int len,
+                                   WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. This method will verify that no slots

@@ -77,7 +77,8 @@ static Handle<FixedArray> CombineKeys(Isolate* isolate,
   Handle<FixedArray> combined_keys = isolate->factory()->NewFixedArray(
       own_keys_length + prototype_chain_keys_length);
   if (own_keys_length != 0) {
-    own_keys->CopyTo(0, *combined_keys, 0, own_keys_length);
+    FixedArray::CopyElements(isolate, *combined_keys, 0, *own_keys, 0,
+                             own_keys_length);
   }
   int target_keys_length = own_keys_length;
   for (int i = 0; i < prototype_chain_keys_length; i++) {
@@ -902,7 +903,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
   EnumIndexComparator<Dictionary> cmp(raw_dictionary);
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  AtomicSlot start(storage->GetFirstElementAddress());
+  AtomicSlot start(storage->RawFieldOfFirstElement());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     InternalIndex index(Smi::ToInt(raw_storage->get(i)));
@@ -984,7 +985,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       EnumIndexComparator<Dictionary> cmp(*dictionary);
       // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
       // store operations that are safe for concurrent marking.
-      AtomicSlot start(array->GetFirstElementAddress());
+      AtomicSlot start(array->RawFieldOfFirstElement());
       std::sort(start, start + array_size, cmp);
     }
   }

@@ -257,7 +257,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
   static_assert(EntryToIndex(InternalIndex(kMaxRegularCapacity)) <
-                kMaxRegularLength);
+                FixedArray::kMaxRegularLength);
   static_assert(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
   static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
   static const int kMaxRegularIndex =

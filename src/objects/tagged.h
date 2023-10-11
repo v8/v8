@@ -78,6 +78,23 @@ struct is_subtype<Base, Object,
                   std::enable_if_t<std::is_base_of_v<HeapObject, Base>>>
     : public std::true_type {};
 
+// TODO(jgruber): Clean up this artificial FixedArrayBase hierarchy. Only types
+// that can be used as elements should be in it.
+// TODO(jgruber): Replace FixedArrayBase with a union type, once they exist.
+class FixedArrayBase;
+#define DEF_FIXED_ARRAY_SUBTYPE(Subtype) \
+  class Subtype;                         \
+  template <>                            \
+  struct is_subtype<Subtype, FixedArrayBase> : public std::true_type {};
+DEF_FIXED_ARRAY_SUBTYPE(FixedArray)
+DEF_FIXED_ARRAY_SUBTYPE(NameDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(NumberDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedHashMap)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedHashSet)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedNameDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(ArrayList)
+#undef DEF_FIXED_ARRAY_SUBTYPE
+
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
 

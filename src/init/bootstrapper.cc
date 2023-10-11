@@ -116,7 +116,8 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
   int length = cache_->length();
   Handle<FixedArray> new_array =
       factory->NewFixedArray(length + 2, AllocationType::kOld);
-  cache_->CopyTo(0, *new_array, 0, cache_->length());
+  FixedArray::CopyElements(isolate, *new_array, 0, *cache_, 0,
+                           cache_->length());
   cache_ = *new_array;
   Handle<String> str =
       factory
@@ -3394,7 +3395,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->AppendDescriptor(isolate(), &d);
 
     // Create the last match info.
-    Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
+    Handle<RegExpMatchInfo> last_match_info =
+        RegExpMatchInfo::New(isolate(), RegExpMatchInfo::kMinCapacity);
     native_context()->set_regexp_last_match_info(*last_match_info);
 
     // Install the species protector cell.

@@ -56,6 +56,7 @@ class PropertyArray
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
+  inline ObjectSlot RawFieldOfElementAt(int index);
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {

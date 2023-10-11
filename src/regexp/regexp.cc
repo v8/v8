@@ -353,11 +353,11 @@ void SetAtomLastCapture(Isolate* isolate,
                         Handle<RegExpMatchInfo> last_match_info,
                         Tagged<String> subject, int from, int to) {
   SealHandleScope shs(isolate);
-  last_match_info->SetNumberOfCaptureRegisters(2);
-  last_match_info->SetLastSubject(subject);
-  last_match_info->SetLastInput(subject);
-  last_match_info->SetCapture(0, from);
-  last_match_info->SetCapture(1, to);
+  last_match_info->set_number_of_capture_registers(2);
+  last_match_info->set_last_subject(subject);
+  last_match_info->set_last_input(subject);
+  last_match_info->set_capture(0, from);
+  last_match_info->set_capture(1, to);
 }
 
 }  // namespace
@@ -835,12 +835,12 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
   DisallowGarbageCollection no_gc;
   if (match != nullptr) {
     for (int i = 0; i < capture_register_count; i += 2) {
-      result->SetCapture(i, match[i]);
-      result->SetCapture(i + 1, match[i + 1]);
+      result->set_capture(i, match[i]);
+      result->set_capture(i + 1, match[i + 1]);
     }
   }
-  result->SetLastSubject(*subject);
-  result->SetLastInput(*subject);
+  result->set_last_subject(*subject);
+  result->set_last_input(*subject);
   return result;
 }
 

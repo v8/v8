@@ -3478,7 +3478,7 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
       *offset = gasm_->IntAdd(
           gasm_->IntMul(index, gasm_->IntPtrConstant(kTaggedSize)),
           gasm_->IntPtrConstant(
-              wasm::ObjectAccess::ToTagged(FixedArray::kObjectsOffset)));
+              wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(0))));
     } else {
       *base = gasm_->LoadFromObject(kMaybeSandboxedPointer,
                                     imported_mutable_globals, field_offset);

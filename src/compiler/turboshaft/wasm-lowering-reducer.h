@@ -830,12 +830,12 @@ class WasmLoweringReducer : public Next {
         if (mode == GlobalMode::kLoad) {
           return __ Load(base, index_ptr, LoadOp::Kind::TaggedBase(),
                          MemoryRepresentation::AnyTagged(),
-                         FixedArray::kObjectsOffset, kTaggedSizeLog2);
+                         FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
         } else {
           __ Store(base, index_ptr, value, StoreOp::Kind::TaggedBase(),
                    MemoryRepresentation::AnyTagged(),
                    WriteBarrierKind::kFullWriteBarrier,
-                   FixedArray::kObjectsOffset, kTaggedSizeLog2);
+                   FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
           return OpIndex::Invalid();
         }
       } else {

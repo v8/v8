@@ -105,8 +105,8 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
                                 SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = FixedArray::cast(obj);
   array->set_length(length);
-  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-               length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
   return AllocationResult::FromObject(array);
 }
 

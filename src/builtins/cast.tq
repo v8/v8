@@ -841,7 +841,7 @@ macro UnsafeConstCast<T: type>(r: const &T):&T {
 
 UnsafeCast<RegExpMatchInfo>(
     implicit context: Context)(o: Object): RegExpMatchInfo {
-  dcheck(Is<FixedArray>(o));
+  dcheck(Is<RegExpMatchInfo>(o));
   return %RawDownCast<RegExpMatchInfo>(o);
 }
 

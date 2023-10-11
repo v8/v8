@@ -73,6 +73,7 @@ enum InstanceType : uint16_t;
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
+  V(RegExpMatchInfo)                    \
   V(SharedFunctionInfo)                 \
   V(SloppyArgumentsElements)            \
   V(ShortcutCandidate)                  \

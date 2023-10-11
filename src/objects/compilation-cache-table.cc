@@ -572,7 +572,7 @@ void CompilationCacheTable::RemoveEntry(InternalIndex entry) {
   int entry_index = EntryToIndex(entry);
   Tagged<Object> the_hole_value = GetReadOnlyRoots().the_hole_value();
   for (int i = 0; i < kEntrySize; i++) {
-    NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
+    this->set(entry_index + i, the_hole_value, SKIP_WRITE_BARRIER);
   }
   ElementRemoved();
 

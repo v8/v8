@@ -451,11 +451,12 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
       // Walk all context slots to find context allocated parameters. Mark each
       // found parameter as mapped.
+      ReadOnlyRoots roots{isolate};
       for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
         if (!scope_info->ContextLocalIsParameter(i)) continue;
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
-        arguments->set_the_hole(parameter);
+        arguments->set_the_hole(roots, parameter);
         Tagged<Smi> slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
         parameter_map->set_mapped_entries(parameter, slot);
       }

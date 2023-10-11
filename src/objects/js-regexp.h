@@ -142,6 +142,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int RegistersForCaptureCount(int count) {
     return (count + 1) * 2;
   }
+  static constexpr int CaptureCountForRegisters(int register_count) {
+    DCHECK_EQ(register_count % 2, 0);
+    DCHECK_GE(register_count, 2);
+    return (register_count - 2) / 2;
+  }
 
   static constexpr int code_index(bool is_latin1) {
     return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;

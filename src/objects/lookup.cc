@@ -1445,7 +1445,7 @@ base::Optional<Tagged<Object>> ConcurrentLookupIterator::TryGetOwnCowElement(
   if (index >= static_cast<size_t>(array_length)) return {};
   if (index >= static_cast<size_t>(array_elements->length())) return {};
 
-  Tagged<Object> result = array_elements->get(isolate, static_cast<int>(index));
+  Tagged<Object> result = array_elements->get(static_cast<int>(index));
 
   //  ______________________________________
   // ( Filter out holes irrespective of the )
@@ -1494,8 +1494,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
     if (index >= static_cast<uint32_t>(elements_fixed_array->length())) {
       return kGaveUp;
     }
-    Tagged<Object> result =
-        elements_fixed_array->get(isolate, static_cast<int>(index));
+    Tagged<Object> result = elements_fixed_array->get(static_cast<int>(index));
     if (IsHoleyElementsKindForRead(elements_kind) &&
         result == ReadOnlyRoots(isolate).the_hole_value()) {
       return kNotPresent;

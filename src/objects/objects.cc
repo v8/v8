@@ -1895,6 +1895,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return FixedArray::SizeFor(
         FixedArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
+  if (instance_type == REG_EXP_MATCH_INFO_TYPE) {
+    return RegExpMatchInfo::unchecked_cast(*this)->AllocatedSize();
+  }
   if (instance_type == SLOPPY_ARGUMENTS_ELEMENTS_TYPE) {
     return SloppyArgumentsElements::unchecked_cast(*this)->AllocatedSize();
   }
@@ -5098,21 +5101,21 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
-    new_table->set(i, get(cage_base, i), mode);
+    new_table->set(i, get(i), mode);
   }
 
   // Rehash the elements.
   ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
   for (InternalIndex i : this->IterateEntries()) {
     uint32_t from_index = EntryToIndex(i);
-    Tagged<Object> k = this->get(cage_base, from_index);
+    Tagged<Object> k = this->get(from_index);
     if (!IsKey(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(cage_base, roots, hash));
-    new_table->set_key(insertion_index, get(cage_base, from_index), mode);
+    new_table->set_key(insertion_index, get(from_index), mode);
     for (int j = 1; j < Shape::kEntrySize; j++) {
-      new_table->set(insertion_index + j, get(cage_base, from_index + j), mode);
+      new_table->set(insertion_index + j, get(from_index + j), mode);
     }
   }
   new_table->SetNumberOfElements(NumberOfElements());
@@ -5656,7 +5659,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
-    AtomicSlot start(array->GetFirstElementAddress());
+    AtomicSlot start(array->RawFieldOfFirstElement());
     std::sort(start, start + array_size, cmp);
   }
   return FixedArray::ShrinkOrEmpty(isolate, array, array_size);
@@ -5680,9 +5683,10 @@ Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
     Handle<Derived> table) {
+  auto roots = table->GetReadOnlyRoots();
   int length = table->length();
   for (int i = Derived::EntryToIndex(InternalIndex(0)); i < length; i++) {
-    table->set_the_hole(i);
+    table->set_the_hole(roots, i);
   }
 }
 
@@ -5868,8 +5872,9 @@ void ObjectHashTableBase<Derived, Shape>::AddEntry(InternalIndex entry,
 
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
-  this->set_the_hole(Derived::EntryToIndex(entry));
-  this->set_the_hole(Derived::EntryToValueIndex(entry));
+  auto roots = this->GetReadOnlyRoots();
+  this->set_the_hole(roots, Derived::EntryToIndex(entry));
+  this->set_the_hole(roots, Derived::EntryToValueIndex(entry));
   this->ElementRemoved();
 }
 

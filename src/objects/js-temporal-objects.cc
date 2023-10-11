@@ -1765,7 +1765,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // 3. If n = 1, then
   if (n == 1) {
     // a. Return possibleInstants[0].
-    Handle<Object> ret_obj = FixedArray::get(*possible_instants, 0, isolate);
+    Handle<Object> ret_obj(possible_instants->get(0), isolate);
     DCHECK(IsJSTemporalInstant(*ret_obj));
     return Handle<JSTemporalInstant>::cast(ret_obj);
   }
@@ -1775,15 +1775,14 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     if (disambiguation == Disambiguation::kEarlier ||
         disambiguation == Disambiguation::kCompatible) {
       // i. Return possibleInstants[0].
-      Handle<Object> ret_obj = FixedArray::get(*possible_instants, 0, isolate);
+      Handle<Object> ret_obj(possible_instants->get(0), isolate);
       DCHECK(IsJSTemporalInstant(*ret_obj));
       return Handle<JSTemporalInstant>::cast(ret_obj);
     }
     // b. If disambiguation is "later", then
     if (disambiguation == Disambiguation::kLater) {
       // i. Return possibleInstants[n − 1].
-      Handle<Object> ret_obj =
-          FixedArray::get(*possible_instants, n - 1, isolate);
+      Handle<Object> ret_obj(possible_instants->get(n - 1), isolate);
       DCHECK(IsJSTemporalInstant(*ret_obj));
       return Handle<JSTemporalInstant>::cast(ret_obj);
     }
@@ -1903,7 +1902,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
                       JSTemporalInstant);
     }
     // e. Return possibleInstants[0].
-    Handle<Object> ret_obj = FixedArray::get(*possible_instants, 0, isolate);
+    Handle<Object> ret_obj(possible_instants->get(0), isolate);
     DCHECK(IsJSTemporalInstant(*ret_obj));
     return Handle<JSTemporalInstant>::cast(ret_obj);
   }
@@ -1955,7 +1954,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
                     JSTemporalInstant);
   }
   // 20. Return possibleInstants[n − 1].
-  Handle<Object> ret_obj = FixedArray::get(*possible_instants, n - 1, isolate);
+  Handle<Object> ret_obj(possible_instants->get(n - 1), isolate);
   DCHECK(IsJSTemporalInstant(*ret_obj));
   return Handle<JSTemporalInstant>::cast(ret_obj);
 }
@@ -2028,7 +2027,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFieldsOrPartial(
   // 3. For each value property of fieldNames, do
   int length = field_names->length();
   for (int i = 0; i < length; i++) {
-    Handle<Object> property_obj = Handle<Object>(field_names->get(i), isolate);
+    Handle<Object> property_obj(field_names->get(i), isolate);
     Handle<String> property = Handle<String>::cast(property_obj);
     // a. Let value be ? Get(fields, property).
     Handle<Object> value;

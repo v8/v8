@@ -988,7 +988,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         while (true) {
           for (; i < limit; i++) {
             Separator(i == 0);
-            SerializeSmi(Smi::cast(elements->get(cage_base, i)));
+            SerializeSmi(Smi::cast(elements->get(i)));
           }
           if (i >= length) break;
           DCHECK_LT(limit, kMaxAllowedFastPackedLength);
@@ -1032,8 +1032,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           Separator(i == 0);
           Result result = SerializeElement(
               isolate_,
-              handle(FixedArray::cast(object->elements())->get(cage_base, i),
-                     isolate_),
+              handle(FixedArray::cast(object->elements())->get(i), isolate_),
               i);
           if (result == UNCHANGED) {
             AppendCStringLiteral("null");

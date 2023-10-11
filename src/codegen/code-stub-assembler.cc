@@ -2514,6 +2514,12 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
 }
 
 template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<RegExpMatchInfo> array) {
+  return SmiUntag(LoadArrayCapacity(array));
+}
+
+template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<WeakFixedArray> array) {
   return LoadAndUntagWeakFixedArrayLength(array);
 }
@@ -2561,6 +2567,8 @@ TNode<TValue> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
 template V8_EXPORT_PRIVATE TNode<MaybeObject>
 CodeStubAssembler::LoadArrayElement<TransitionArray, IntPtrT>(
     TNode<TransitionArray>, int, TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<Smi> CodeStubAssembler::LoadArrayElement<
+    RegExpMatchInfo, IntPtrT>(TNode<RegExpMatchInfo>, int, TNode<IntPtrT>, int);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(

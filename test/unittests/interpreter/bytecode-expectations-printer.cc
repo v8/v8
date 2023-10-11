@@ -347,7 +347,7 @@ void BytecodeExpectationsPrinter::PrintConstantPool(
   if (num_constants > 0) {
     for (int i = 0; i < num_constants; ++i) {
       *stream << kIndent;
-      PrintConstant(stream, i::FixedArray::get(constant_pool, i, i_isolate()));
+      PrintConstant(stream, handle(constant_pool->get(i), i_isolate()));
       *stream << ",\n";
     }
   }

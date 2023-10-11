@@ -1981,6 +1981,7 @@ filegroup(
         "src/objects/prototype-info.h",
         "src/objects/prototype-info-inl.h",
         "src/objects/prototype-inl.h",
+        "src/objects/regexp-match-info.cc",
         "src/objects/regexp-match-info.h",
         "src/objects/regexp-match-info-inl.h",
         "src/objects/scope-info.cc",

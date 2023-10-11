@@ -2304,8 +2304,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   int length = 0;
 
   for (int i = 0; i < keys->length(); ++i) {
-    Handle<Name> key =
-        Handle<Name>::cast(handle(keys->get(isolate, i), isolate));
+    Handle<Name> key(Name::cast(keys->get(i)), isolate);
 
     if (filter & ONLY_ENUMERABLE) {
       PropertyDescriptor descriptor;
@@ -3325,7 +3324,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   int limit = std::min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-    Tagged<Object> value = inobject_props->get(isolate, i);
+    Tagged<Object> value = inobject_props->get(i);
     object->FastPropertyAtPut(index, value);
   }
 

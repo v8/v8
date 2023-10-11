@@ -26,7 +26,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   indices->set_length(Smi::zero());
 
   // Build indices array from RegExpMatchInfo.
-  int num_indices = match_info->NumberOfCaptureRegisters();
+  int num_indices = match_info->number_of_capture_registers();
   int num_results = num_indices >> 1;
   Handle<FixedArray> indices_array =
       isolate->factory()->NewFixedArray(num_results);
@@ -34,8 +34,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   for (int i = 0; i < num_results; i++) {
     int base_offset = i * 2;
-    int start_offset = match_info->Capture(base_offset);
-    int end_offset = match_info->Capture(base_offset + 1);
+    int start_offset = match_info->capture(base_offset);
+    int end_offset = match_info->capture(base_offset + 1);
 
     // Any unmatched captures are set to undefined, otherwise we set them to a
     // subarray of the indices.

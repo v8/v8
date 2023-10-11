@@ -289,9 +289,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(TNode<WordT> lhs, TNode<WordT> rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
-  void AbortIfRegisterCountInvalid(
-      TNode<FixedArrayBase> parameters_and_registers,
-      TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
+  void AbortIfRegisterCountInvalid(TNode<FixedArray> parameters_and_registers,
+                                   TNode<IntPtrT> formal_parameter_count,
+                                   TNode<UintPtrT> register_count);
 
   // Attempts to OSR.
   enum OnStackReplacementParams {

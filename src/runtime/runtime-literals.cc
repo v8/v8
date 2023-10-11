@@ -179,7 +179,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Tagged<Object> raw = elements->get(isolate, i);
+          Tagged<Object> raw = elements->get(i);
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -482,7 +482,7 @@ Handle<JSObject> CreateArrayLiteral(
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
       for (int i = 0; i < fixed_array_values->length(); i++) {
-        Tagged<Object> value = fixed_array_values_copy->get(isolate, i);
+        Tagged<Object> value = fixed_array_values_copy->get(i);
         Tagged<HeapObject> value_heap_object;
         if (value.GetHeapObject(isolate, &value_heap_object)) {
           if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {

@@ -383,10 +383,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsArrayList) {
          obj->GetReadOnlyRoots().unchecked_array_list_map();
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsRegExpMatchInfo) {
-  return IsFixedArrayExact(obj, cage_base);
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // Must be a fixed array.
   if (!IsFixedArrayExact(obj, cage_base)) return false;

@@ -637,6 +637,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
                          object_boilerplate_description)
 
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
+    ALLOCATE_VARSIZE_MAP(REG_EXP_MATCH_INFO_TYPE, regexp_match_info);
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)

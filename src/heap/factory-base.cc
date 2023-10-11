@@ -129,15 +129,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
-  if (length == 0) return impl()->empty_fixed_array();
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
-    UNREACHABLE();
-  }
-  return NewFixedArrayWithFiller(
-      read_only_roots().fixed_array_map_handle(), length,
-      read_only_roots().undefined_value_handle(), allocation);
+  return FixedArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
@@ -171,7 +163,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Tagged<FixedArray>::cast(result);
   array->set_length(length);
-  MemsetTagged(array->data_start(), *filler, length);
+  MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
   return handle(array, isolate());
 }
 
@@ -189,7 +181,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
                                    SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Tagged<FixedArray>::cast(result);
   array->set_length(length);
-  MemsetTagged(array->data_start(), Smi::zero(), length);
+  MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
   return handle(array, isolate());
 }
 

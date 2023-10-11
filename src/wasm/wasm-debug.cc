@@ -1007,7 +1007,9 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
       if (IsUndefined(entry, isolate)) break;
     }
     // Make sure last array element is empty as a result.
-    breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
+    breakpoint_infos->set(breakpoint_infos->length() - 1,
+                          ReadOnlyRoots{isolate}.undefined_value(),
+                          SKIP_WRITE_BARRIER);
   }
 
   if (break_point->id() == v8::internal::Debug::kInstrumentationId) {

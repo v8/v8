@@ -10,6 +10,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,160 +20,189 @@ namespace internal {
 
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
-// Common superclass for FixedArrays that allow implementations to share
-// common accessors and some code paths.
-// TODO(jgruber): This class is really specific to FixedArrays used as
-// elements backing stores and should not be part of the common FixedArray
-// hierarchy.
-class FixedArrayBase : public HeapObject {
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
+// Derived: must have a Smi slot at kCapacityOffset.
+template <class Derived, class Shape>
+class TaggedArrayBase : public HeapObject {
+  OBJECT_CONSTRUCTORS(TaggedArrayBase, HeapObject);
+
+  using ElementT = typename Shape::ElementT;
+  static_assert(Shape::kElementSize == kTaggedSize);
+  static_assert(is_subtype_v<ElementT, Object>);
+
+  static constexpr bool kSupportsSmiElements =
+      std::is_convertible_v<Smi, ElementT>;
+  static constexpr WriteBarrierMode kDefaultMode =
+      std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
+  // TODO(jgruber): The names should be swapped ('ShapeT' as the template
+  // argument and 'Shape' as the exposed name), but that conflicts with
+  // existing names in hash-table.h. Fix it.
+  using ShapeT = Shape;
+
+  inline int capacity() const;
+  inline int capacity(AcquireLoadTag) const;
+  inline void set_capacity(int value);
+  inline void set_capacity(int value, ReleaseStoreTag);
+
+  // For most arraylike objects, length equals capacity. Provide these
+  // convenience accessors:
+  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline int length() const;
+  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline int length(AcquireLoadTag tag) const;
+  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline void set_length(int value);
+  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline void set_length(int value, ReleaseStoreTag tag);
 
-  static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
+  inline Tagged<ElementT> get(int index) const;
+  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
+  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
+  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
 
-  V8_EXPORT_PRIVATE bool IsCowArray() const;
+  inline void set(int index, Tagged<ElementT> value,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename = std::enable_if<kSupportsSmiElements>>
+  inline void set(int index, Tagged<Smi> value);
+  inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename = std::enable_if<kSupportsSmiElements>>
+  inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
+  inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename = std::enable_if<kSupportsSmiElements>>
+  inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
+  inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
+                  WriteBarrierMode mode = kDefaultMode);
+  template <typename = std::enable_if<kSupportsSmiElements>>
+  inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
-  // Maximal allowed size, in bytes, of a single FixedArrayBase.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static constexpr int kMaxSize = 128 * kTaggedSize * MB;
-  static_assert(Smi::IsValid(kMaxSize));
+  inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
+                               SeqCstAccessTag,
+                               WriteBarrierMode mode = kDefaultMode);
+  inline Tagged<ElementT> compare_and_swap(
+      int index, Tagged<ElementT> expected, Tagged<ElementT> value,
+      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
-#define FIELD_LIST(V)           \
-  V(kLengthOffset, kTaggedSize) \
+  // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
+  // regions may overlap, for Copy they must not overlap.
+  inline static void MoveElements(Isolate* isolate, Tagged<Derived> dst,
+                                  int dst_index, Tagged<Derived> src,
+                                  int src_index, int len,
+                                  WriteBarrierMode mode = kDefaultMode);
+  inline static void CopyElements(Isolate* isolate, Tagged<Derived> dst,
+                                  int dst_index, Tagged<Derived> src,
+                                  int src_index, int len,
+                                  WriteBarrierMode mode = kDefaultMode);
+
+  inline int AllocatedSize() const;
+  static inline constexpr int SizeFor(int capacity) {
+    return Shape::kHeaderSize + capacity * Shape::kElementSize;
+  }
+  static inline constexpr int OffsetOfElementAt(int index) {
+    return SizeFor(index);
+  }
+
+  // Gives access to raw memory which stores the array's data.
+  inline ObjectSlot RawFieldOfFirstElement() const;
+  inline ObjectSlot RawFieldOfElementAt(int index) const;
+
+  // Maximal allowed capacity, in number of elements. Chosen s.t. the size fits
+  // into a Smi which is necessary for being able to create a free space
+  // filler.
+  // TODO(jgruber): The kMaxCapacity could be larger (`(Smi::kMaxValue -
+  // Shape::kHeaderSize) / Shape::kElementSize`), but our tests rely on a
+  // smaller maximum to avoid timeouts.
+  static constexpr int kMaxCapacity =
+      128 * MB - kHeaderSize / Shape::kElementSize;
+  static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
+
+  // Maximally allowed length for regular (non large object space) object.
+  static constexpr int kMaxRegularCapacity =
+      (kMaxRegularHeapObjectSize - Shape::kHeaderSize) / Shape::kElementSize;
+  static_assert(kMaxRegularCapacity < kMaxCapacity);
+
+  // Object layout.
+  static constexpr int kCapacityOffset = Shape::kCapacityOffset;
+  static constexpr int kHeaderSize = Shape::kHeaderSize;
+
+ protected:
+  template <class IsolateT>
+  static Handle<Derived> Allocate(
+      IsolateT* isolate, int capacity,
+      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      AllocationType allocation = AllocationType::kYoung);
+
+  static constexpr int NewCapacityForIndex(int index, int old_capacity);
+
+  inline bool IsInBounds(int index) const;
+  inline bool IsCowArray() const;
+};
+
+class TaggedArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = Object;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
-
-  DECL_CAST(FixedArrayBase)
-  DECL_PRINTER(FixedArrayBase)
-  DECL_VERIFIER(FixedArrayBase)
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
-class FixedArray : public FixedArrayBase {
- public:
-  // Setter and getter for elements.
-  inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
+class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
+  using Super = TaggedArrayBase<FixedArray, TaggedArrayShape>;
+  OBJECT_CONSTRUCTORS(FixedArray, Super);
 
-  static inline Handle<Object> get(Tagged<FixedArray> array, int index,
-                                   Isolate* isolate);
+ public:
+  template <class IsolateT>
+  static inline Handle<FixedArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
+
+  using Super::CopyElements;
+  using Super::MoveElements;
+
+  // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
+  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
+                           int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<FixedArray> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   // Return a grown copy if the index is bigger than the array's length.
   V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value);
 
-  // Relaxed accessors.
-  inline Tagged<Object> get(int index, RelaxedLoadTag) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                            RelaxedLoadTag) const;
-  inline void set(int index, Tagged<Object> value, RelaxedStoreTag,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
-
-  // SeqCst accessors.
-  inline Tagged<Object> get(int index, SeqCstAccessTag) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                            SeqCstAccessTag) const;
-  inline void set(int index, Tagged<Object> value, SeqCstAccessTag,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
-
-  // Acquire/release accessors.
-  inline Tagged<Object> get(int index, AcquireLoadTag) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                            AcquireLoadTag) const;
-  inline void set(int index, Tagged<Object> value, ReleaseStoreTag,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
-
-  // Setter that uses write barrier.
-  inline void set(int index, Tagged<Object> value);
-  inline bool is_the_hole(Isolate* isolate, int index);
-
-  // Setter that doesn't need write barrier.
-  inline void set(int index, Tagged<Smi> value);
-  // Setter with explicit barrier mode.
-  inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
-
-  // Atomic swap that doesn't need write barrier.
-  inline Tagged<Object> swap(int index, Tagged<Smi> value, SeqCstAccessTag);
-  // Atomic swap with explicit barrier mode.
-  inline Tagged<Object> swap(int index, Tagged<Object> value, SeqCstAccessTag,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<Object> compare_and_swap(
-      int index, Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  // Setters for frequently used oddballs located in old space.
-  inline void set_undefined(int index);
-  inline void set_undefined(Isolate* isolate, int index);
-  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
-  inline void set_null(int index);
-  inline void set_null(Isolate* isolate, int index);
-  inline void set_null(ReadOnlyRoots ro_roots, int index);
-  inline void set_the_hole(int index);
-  inline void set_the_hole(Isolate* isolate, int index);
-  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
-
-  inline ObjectSlot GetFirstElementAddress();
-  inline bool ContainsOnlySmisOrHoles();
-
-  // Gives access to raw memory which stores the array's data.
-  inline ObjectSlot data_start();
-
-  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
-                           int len, WriteBarrierMode mode);
-
-  inline void CopyElements(Isolate* isolate, int dst_index,
-                           Tagged<FixedArray> src, int src_index, int len,
-                           WriteBarrierMode mode);
-
-  inline void FillWithHoles(int from, int to);
-
-  // Shrink the array and insert filler objects. {new_length} must be > 0.
+  // Right-trim the array.
+  // Invariant: 0 < new_length <= length()
+  // TODO(jgruber): Support right-trimming for all types that derive from
+  // TaggedArrayBase.
+  // TODO(jgruber): Clarify that this method mutates the current object
+  // (in contrast to many other resizing methods which always return copies).
   V8_EXPORT_PRIVATE void Shrink(Isolate* isolate, int new_length);
-  // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
-  // like above.
+  // As above, but canonicalizes length 0 to empty_fixed_array.
   static Handle<FixedArray> ShrinkOrEmpty(Isolate* isolate,
                                           Handle<FixedArray> array,
                                           int new_length);
 
-  // Copy a sub array from the receiver to dest.
-  V8_EXPORT_PRIVATE void CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
-                                int len) const;
+  // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
+  inline void FillWithHoles(int from, int to);
 
-  inline int AllocatedSize() const;
+  // For compatibility with FixedDoubleArray:
+  // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
+  inline bool is_the_hole(Isolate* isolate, int index);
+  inline void set_the_hole(Isolate* isolate, int index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
-  static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kTaggedSize;
-  }
-  static constexpr int OffsetOfElementAt(int index) {
-    static_assert(kObjectsOffset == SizeFor(0));
-    return SizeFor(index);
-  }
-
-  // Garbage collection support.
-  inline ObjectSlot RawFieldOfElementAt(int index);
-
-  // Maximally allowed length of a FixedArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kTaggedSize;
-  static_assert(Internals::IsValidSmi(kMaxLength),
-                "FixedArray maxLength not a Smi");
-
-  // Maximally allowed length for regular (non large object space) object.
-  static_assert(kMaxRegularHeapObjectSize < kMaxSize);
-  static const int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
+  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   DECL_CAST(FixedArray)
   DECL_PRINTER(FixedArray)
@@ -180,23 +210,56 @@ class FixedArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
-  static constexpr int kObjectsOffset = kHeaderSize;
+  static constexpr int kLengthOffset = FixedArray::ShapeT::kCapacityOffset;
+  static constexpr int kMaxLength = FixedArray::kMaxCapacity;
+  static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
- protected:
-  // Set operation on FixedArray without using write barriers. Can
-  // only be used for storing old space objects or smis.
-  static inline void NoWriteBarrierSet(Tagged<FixedArray> array, int index,
-                                       Tagged<Object> value);
-
-  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
-  OBJECT_CONSTRUCTORS(FixedArray, FixedArrayBase);
+ private:
+  inline static Handle<FixedArray> Resize(
+      Isolate* isolate, Handle<FixedArray> xs, int new_capacity,
+      AllocationType allocation = AllocationType::kYoung,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
 // checks for the exact instance type FIXED_ARRAY_TYPE instead of a range
 // check: [FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE].
 class FixedArrayExact final : public FixedArray {};
+
+// Common superclass for FixedArrays that allow implementations to share common
+// accessors and some code paths. Note that due to single-inheritance
+// restrictions, it is not part of the actual type hierarchy. Instead, we slot
+// it in with manual is_subtype specializations in tagged.h.
+// TODO(jgruber): This class is really specific to FixedArrays used as
+// elements backing stores and should not be part of the common FixedArray
+// hierarchy.
+class FixedArrayBase : public HeapObject {
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
+
+ public:
+  // TODO(jgruber): Remove these `length` accessors once all subclasses have
+  // been ported to use TaggedArrayBase or similar.
+  inline int length() const;
+  inline int length(AcquireLoadTag tag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag tag);
+  static constexpr int kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
+  static constexpr int kMaxLength = FixedArray::kMaxCapacity;
+  static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
+
+  static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
+
+  V8_EXPORT_PRIVATE bool IsCowArray() const;
+
+  // Maximal allowed size, in bytes, of a single FixedArrayBase. Prevents
+  // overflowing size computations, as well as extreme memory consumption.
+  static constexpr int kMaxSize = 128 * kTaggedSize * MB;
+  static_assert(Smi::IsValid(kMaxSize));
+
+  DECL_CAST(FixedArrayBase)
+  DECL_VERIFIER(FixedArrayBase)
+};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray : public FixedArrayBase {
@@ -231,7 +294,8 @@ class FixedDoubleArray : public FixedArrayBase {
   static constexpr int kFloatsOffset = kHeaderSize;
 
   // Maximally allowed length of a FixedDoubleArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
+  static const int kMaxLength =
+      (FixedArrayBase::kMaxSize - kHeaderSize) / kDoubleSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedDoubleArray maxLength not a Smi");
 
@@ -280,7 +344,7 @@ class WeakFixedArray
   class BodyDescriptor;
 
   static const int kMaxLength =
-      (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
+      (FixedArrayBase::kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "WeakFixedArray maxLength not a Smi");
 
@@ -361,7 +425,7 @@ class WeakArrayList
   class BodyDescriptor;
 
   static const int kMaxCapacity =
-      (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
+      (FixedArrayBase::kMaxSize - kHeaderSize) / kTaggedSize;
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, int length,
@@ -537,7 +601,7 @@ class ByteArray : public FixedArrayBase {
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
   // Maximal length of a single ByteArray.
-  static const int kMaxLength = kMaxSize - kHeaderSize;
+  static const int kMaxLength = FixedArrayBase::kMaxSize - kHeaderSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "ByteArray maxLength not a Smi");
 
@@ -627,7 +691,7 @@ class ExternalPointerArray : public FixedArrayBase {
   }
 
   // Maximal length of a single ExternalPointerArray.
-  static const int kMaxLength = kMaxSize - kHeaderSize;
+  static const int kMaxLength = FixedArrayBase::kMaxSize - kHeaderSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "ExternalPointerArray maxLength not a Smi");
 

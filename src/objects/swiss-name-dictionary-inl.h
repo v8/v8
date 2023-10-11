@@ -684,7 +684,7 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       // Enumeration table entry size at maximum capacity:
       sizeof(uint32_t);
 
-  int result = (FixedArray::kMaxSize - const_size) / per_entry_size;
+  int result = (FixedArrayBase::kMaxSize - const_size) / per_entry_size;
   DCHECK_GE(Smi::kMaxValue, result);
 
   return result;

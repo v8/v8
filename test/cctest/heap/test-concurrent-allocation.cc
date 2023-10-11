@@ -41,8 +41,8 @@ void CreateFixedArray(Heap* heap, Address start, int size) {
   Tagged<FixedArray> array = FixedArray::cast(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
   array->set_length(length);
-  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-               length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
 }
 
 const int kNumIterations = 2000;

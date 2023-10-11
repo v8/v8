@@ -1493,7 +1493,7 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 }
 
 void InterpreterAssembler::AbortIfRegisterCountInvalid(
-    TNode<FixedArrayBase> parameters_and_registers,
+    TNode<FixedArray> parameters_and_registers,
     TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count) {
   TNode<IntPtrT> array_size =
       LoadAndUntagFixedArrayBaseLength(parameters_and_registers);

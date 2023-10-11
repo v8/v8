@@ -132,6 +132,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       return kVisitSloppyArgumentsElements;
 
+    case REG_EXP_MATCH_INFO_TYPE:
+      return kVisitRegExpMatchInfo;
+
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:

@@ -1041,6 +1041,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return CALL_APPLY(FixedArray);
+    case REG_EXP_MATCH_INFO_TYPE:
+      return CALL_APPLY(RegExpMatchInfo);
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       return CALL_APPLY(SloppyArgumentsElements);
     case EPHEMERON_HASH_TABLE_TYPE:
@@ -1425,6 +1427,14 @@ class SloppyArgumentsElements::BodyDescriptor final
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return SloppyArgumentsElements::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
+class RegExpMatchInfo::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return RegExpMatchInfo::unchecked_cast(raw_object)->AllocatedSize();
   }
 };
 

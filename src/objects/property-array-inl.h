@@ -114,7 +114,11 @@ Tagged<Object> PropertyArray::CompareAndSwap(int index, Tagged<Object> expected,
   return result;
 }
 
-ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
+ObjectSlot PropertyArray::data_start() { return RawFieldOfElementAt(0); }
+
+ObjectSlot PropertyArray::RawFieldOfElementAt(int index) {
+  return RawField(OffsetOfElementAt(index));
+}
 
 int PropertyArray::length() const {
   return LengthField::decode(length_and_hash());

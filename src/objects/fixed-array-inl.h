@@ -28,17 +28,330 @@ namespace internal {
 
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
+template <class D, class S>
+int TaggedArrayBase<D, S>::capacity() const {
+  return Smi::ToInt(TaggedField<Smi, D::kCapacityOffset>::load(*this));
+}
+
+template <class D, class S>
+int TaggedArrayBase<D, S>::capacity(AcquireLoadTag tag) const {
+  return Smi::ToInt(TaggedField<Smi, D::kCapacityOffset>::Acquire_Load(*this));
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set_capacity(int value) {
+  TaggedField<Smi, D::kCapacityOffset>::store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set_capacity(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, D::kCapacityOffset>::Release_Store(*this,
+                                                      Smi::FromInt(value));
+}
+
+template <class D, class S>
+template <typename>
+int TaggedArrayBase<D, S>::length() const {
+  return capacity();
+}
+
+template <class D, class S>
+template <typename>
+int TaggedArrayBase<D, S>::length(AcquireLoadTag tag) const {
+  return capacity(tag);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set_length(int value) {
+  set_capacity(value);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set_length(int value, ReleaseStoreTag tag) {
+  set_capacity(value, tag);
+}
+
+template <class D, class S>
+bool TaggedArrayBase<D, S>::IsInBounds(int index) const {
+  return static_cast<unsigned>(index) < static_cast<unsigned>(capacity());
+}
+
+template <class D, class S>
+bool TaggedArrayBase<D, S>::IsCowArray() const {
+  return map() == EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::get(int index) const {
+  DCHECK(IsInBounds(index));
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  return S::ElementT::cast(RELAXED_READ_FIELD(*this, OffsetOfElementAt(index)));
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::get(int index,
+                                                        RelaxedLoadTag) const {
+  DCHECK(IsInBounds(index));
+  return S::ElementT::cast(RELAXED_READ_FIELD(*this, OffsetOfElementAt(index)));
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::get(int index,
+                                                        AcquireLoadTag) const {
+  DCHECK(IsInBounds(index));
+  return S::ElementT::cast(ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index)));
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::get(int index,
+                                                        SeqCstAccessTag) const {
+  DCHECK(IsInBounds(index));
+  return S::ElementT::cast(SEQ_CST_READ_FIELD(*this, OffsetOfElementAt(index)));
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set(int index, Tagged<ElementT> value,
+                                WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  const int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set(int index, Tagged<Smi> value) {
+  set(index, value, SKIP_WRITE_BARRIER);
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set(int index, Tagged<ElementT> value,
+                                RelaxedStoreTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set(int index, Tagged<Smi> value,
+                                RelaxedStoreTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set(int index, Tagged<ElementT> value,
+                                ReleaseStoreTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  RELEASE_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set(int index, Tagged<Smi> value,
+                                ReleaseStoreTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::set(int index, Tagged<ElementT> value,
+                                SeqCstAccessTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  SEQ_CST_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+template <class D, class S>
+template <typename>
+void TaggedArrayBase<D, S>::set(int index, Tagged<Smi> value,
+                                SeqCstAccessTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::swap(
+    int index, Tagged<ElementT> value, SeqCstAccessTag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  Tagged<ElementT> previous_value =
+      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  return previous_value;
+}
+
+template <class D, class S>
+Tagged<typename S::ElementT> TaggedArrayBase<D, S>::compare_and_swap(
+    int index, Tagged<ElementT> expected, Tagged<ElementT> value,
+    SeqCstAccessTag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  Tagged<ElementT> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (previous_value == expected) {
+    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+  }
+  return previous_value;
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::MoveElements(Isolate* isolate, Tagged<D> dst,
+                                         int dst_index, Tagged<D> src,
+                                         int src_index, int len,
+                                         WriteBarrierMode mode) {
+  if (len == 0) return;
+
+  DCHECK_GE(len, 0);
+  DCHECK(dst->IsInBounds(dst_index));
+  DCHECK_LE(dst_index + len, dst->length());
+  DCHECK(src->IsInBounds(src_index));
+  DCHECK_LE(src_index + len, src->length());
+
+  DisallowGarbageCollection no_gc;
+  ObjectSlot dst_slot(dst->RawFieldOfElementAt(dst_index));
+  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
+  isolate->heap()->MoveRange(dst, dst_slot, src_slot, len, mode);
+}
+
+template <class D, class S>
+void TaggedArrayBase<D, S>::CopyElements(Isolate* isolate, Tagged<D> dst,
+                                         int dst_index, Tagged<D> src,
+                                         int src_index, int len,
+                                         WriteBarrierMode mode) {
+  if (len == 0) return;
+
+  DCHECK_GE(len, 0);
+  DCHECK(dst->IsInBounds(dst_index));
+  DCHECK_LE(dst_index + len, dst->capacity());
+  DCHECK(src->IsInBounds(src_index));
+  DCHECK_LE(src_index + len, src->capacity());
+
+  DisallowGarbageCollection no_gc;
+  ObjectSlot dst_slot(dst->RawFieldOfElementAt(dst_index));
+  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
+  isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
+}
+
+// Due to left- and right-trimming, concurrent visitors need to read the length
+// with acquire semantics.
+// TODO(ulan): Acquire should not be needed anymore.
+template <class D, class S>
+int TaggedArrayBase<D, S>::AllocatedSize() const {
+  return SizeFor(capacity(kAcquireLoad));
+}
+
+template <class D, class S>
+ObjectSlot TaggedArrayBase<D, S>::RawFieldOfFirstElement() const {
+  return RawFieldOfElementAt(0);
+}
+
+template <class D, class S>
+ObjectSlot TaggedArrayBase<D, S>::RawFieldOfElementAt(int index) const {
+  return RawField(OffsetOfElementAt(index));
+}
+
+// static
+template <class IsolateT>
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
+                                   AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  FixedArrayBase::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  } else if (V8_UNLIKELY(capacity == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<FixedArray> result =
+      Handle<FixedArray>::cast(Allocate(isolate, capacity, &no_gc, allocation));
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
+               capacity);
+  return result;
+}
+
+// static
+template <class D, class S>
+template <class IsolateT>
+Handle<D> TaggedArrayBase<D, S>::Allocate(
+    IsolateT* isolate, int capacity,
+    base::Optional<DisallowGarbageCollection>* no_gc_out,
+    AllocationType allocation) {
+  // Note 0-capacity is explicitly allowed since not all subtypes can be
+  // assumed to have canonical 0-capacity instances.
+  DCHECK_GE(capacity, 0);
+  DCHECK_LE(capacity, kMaxCapacity);
+  DCHECK(!no_gc_out->has_value());
+
+  Tagged<D> xs = D::unchecked_cast(
+      isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
+
+  ReadOnlyRoots roots{isolate};
+  no_gc_out->emplace();
+  Tagged<Map> map = Map::cast(roots.object_at(S::kMapRootIndex));
+  DCHECK(ReadOnlyHeap::Contains(map));
+
+  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_capacity(capacity);
+
+  return handle(xs, isolate);
+}
+
+// static
+template <class D, class S>
+constexpr int TaggedArrayBase<D, S>::NewCapacityForIndex(int index,
+                                                         int old_capacity) {
+  DCHECK_GE(index, old_capacity);
+  // Note this is currently based on JSObject::NewElementsCapacity.
+  int capacity = old_capacity;
+  do {
+    capacity = capacity + (capacity >> 1) + 16;
+  } while (capacity <= index);
+  return capacity;
+}
+
+int FixedArrayBase::length() const {
+  return Smi::ToInt(
+      TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::load(*this));
+}
+
+int FixedArrayBase::length(AcquireLoadTag tag) const {
+  return Smi::ToInt(
+      TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::Acquire_Load(*this));
+}
+
+void FixedArrayBase::set_length(int value) {
+  TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::store(
+      *this, Smi::FromInt(value));
+}
+
+void FixedArrayBase::set_length(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::Release_Store(
+      *this, Smi::FromInt(value));
+}
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
+
+template <class D, class S>
+TaggedArrayBase<D, S>::TaggedArrayBase(Address ptr) : HeapObject(ptr) {}
 
 CAST_ACCESSOR(FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
 
-SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-
 CAST_ACCESSOR(FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
 CAST_ACCESSOR(FixedDoubleArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBase)
@@ -56,172 +369,8 @@ NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
 RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-ObjectSlot FixedArray::GetFirstElementAddress() {
-  return RawField(OffsetOfElementAt(0));
-}
-
-bool FixedArray::ContainsOnlySmisOrHoles() {
-  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
-  ObjectSlot current = GetFirstElementAddress();
-  for (int i = 0; i < length(); ++i, ++current) {
-    Tagged<Object> candidate = *current;
-    if (!IsSmi(candidate) && candidate != the_hole) return false;
-  }
-  return true;
-}
-
-Tagged<Object> FixedArray::get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
-
-Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
-                                           OffsetOfElementAt(index));
-}
-
-Handle<Object> FixedArray::get(Tagged<FixedArray> array, int index,
-                               Isolate* isolate) {
-  return handle(array->get(isolate, index), isolate);
-}
-
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return IsTheHole(get(isolate, index), isolate);
-}
-
-void FixedArray::set(int index, Tagged<Smi> value) {
-  DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(IsSmi(Tagged<Object>(value)));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-}
-
-void FixedArray::set(int index, Tagged<Object> value) {
-  DCHECK_NE(EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray(*this));
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  WRITE_BARRIER(*this, offset, value);
-}
-
-void FixedArray::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-}
-
-// static
-void FixedArray::NoWriteBarrierSet(Tagged<FixedArray> array, int index,
-                                   Tagged<Object> value) {
-  DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(array->length()));
-  DCHECK(!ObjectInYoungGeneration(value));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(array, offset, value);
-}
-
-Tagged<Object> FixedArray::get(int index, RelaxedLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
-
-Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
-                               RelaxedLoadTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
-}
-
-void FixedArray::set(int index, Tagged<Object> value, RelaxedStoreTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  RELAXED_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-}
-
-void FixedArray::set(int index, Tagged<Smi> value, RelaxedStoreTag tag) {
-  DCHECK(IsSmi(Tagged<Object>(value)));
-  set(index, value, tag, SKIP_WRITE_BARRIER);
-}
-
-Tagged<Object> FixedArray::get(int index, SeqCstAccessTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
-
-Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
-                               SeqCstAccessTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return SEQ_CST_READ_FIELD(*this, OffsetOfElementAt(index));
-}
-
-void FixedArray::set(int index, Tagged<Object> value, SeqCstAccessTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  SEQ_CST_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-}
-
-void FixedArray::set(int index, Tagged<Smi> value, SeqCstAccessTag tag) {
-  DCHECK(IsSmi(Tagged<Object>(value)));
-  set(index, value, tag, SKIP_WRITE_BARRIER);
-}
-
-Tagged<Object> FixedArray::get(int index, AcquireLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
-
-Tagged<Object> FixedArray::get(PtrComprCageBase cage_base, int index,
-                               AcquireLoadTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
-}
-
-void FixedArray::set(int index, Tagged<Object> value, ReleaseStoreTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  RELEASE_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-}
-
-void FixedArray::set(int index, Tagged<Smi> value, ReleaseStoreTag tag) {
-  DCHECK(IsSmi(Tagged<Object>(value)));
-  set(index, value, tag, SKIP_WRITE_BARRIER);
-}
-
-void FixedArray::set_undefined(int index) {
-  set_undefined(GetReadOnlyRoots(), index);
-}
-
-void FixedArray::set_undefined(Isolate* isolate, int index) {
-  set_undefined(ReadOnlyRoots(isolate), index);
-}
-
-void FixedArray::set_undefined(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.undefined_value());
-}
-
-void FixedArray::set_null(int index) { set_null(GetReadOnlyRoots(), index); }
-
-void FixedArray::set_null(Isolate* isolate, int index) {
-  set_null(ReadOnlyRoots(isolate), index);
-}
-
-void FixedArray::set_null(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.null_value());
-}
-
-void FixedArray::set_the_hole(int index) {
-  set_the_hole(GetReadOnlyRoots(), index);
+  return IsTheHole(get(index), isolate);
 }
 
 void FixedArray::set_the_hole(Isolate* isolate, int index) {
@@ -229,81 +378,41 @@ void FixedArray::set_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.the_hole_value());
-}
-
-Tagged<Object> FixedArray::swap(int index, Tagged<Object> value,
-                                SeqCstAccessTag, WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  Tagged<Object> previous_value =
-      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-  return previous_value;
-}
-
-Tagged<Object> FixedArray::compare_and_swap(int index, Tagged<Object> expected,
-                                            Tagged<Object> value,
-                                            SeqCstAccessTag,
-                                            WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  Tagged<Object> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
-      *this, OffsetOfElementAt(index), expected, value);
-  if (previous_value == expected) {
-    CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-  }
-  return previous_value;
-}
-
-Tagged<Object> FixedArray::swap(int index, Tagged<Smi> value,
-                                SeqCstAccessTag tag) {
-  DCHECK(IsSmi(value));
-  return swap(index, value, tag, SKIP_WRITE_BARRIER);
+  set(index, ro_roots.the_hole_value(), SKIP_WRITE_BARRIER);
 }
 
 void FixedArray::FillWithHoles(int from, int to) {
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = from; i < to; i++) {
-    set_the_hole(i);
+    set(i, roots.the_hole_value(), SKIP_WRITE_BARRIER);
   }
-}
-
-ObjectSlot FixedArray::data_start() { return RawField(OffsetOfElementAt(0)); }
-
-ObjectSlot FixedArray::RawFieldOfElementAt(int index) {
-  return RawField(OffsetOfElementAt(index));
 }
 
 void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
                               int len, WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, length());
-  DisallowGarbageCollection no_gc;
-  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(RawFieldOfElementAt(src_index));
-  isolate->heap()->MoveRange(*this, dst_slot, src_slot, len, mode);
+  MoveElements(isolate, *this, dst_index, *this, src_index, len, mode);
 }
 
 void FixedArray::CopyElements(Isolate* isolate, int dst_index,
                               Tagged<FixedArray> src, int src_index, int len,
                               WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src->length());
-  DisallowGarbageCollection no_gc;
+  CopyElements(isolate, *this, dst_index, src, src_index, len, mode);
+}
 
-  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+// static
+Handle<FixedArray> FixedArray::Resize(Isolate* isolate, Handle<FixedArray> xs,
+                                      int new_capacity,
+                                      AllocationType allocation,
+                                      WriteBarrierMode mode) {
+  Handle<FixedArray> ys = New(isolate, new_capacity, allocation);
+  int elements_to_copy = std::min(new_capacity, xs->capacity());
+  FixedArray::CopyElements(isolate, *ys, 0, *xs, 0, elements_to_copy, mode);
+  return ys;
 }
 
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() const {
-  return SizeFor(length(kAcquireLoad));
-}
 inline int WeakFixedArray::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));
 }
@@ -600,7 +709,7 @@ Tagged<Object> ArrayList::Get(int index) const {
 }
 
 Tagged<Object> ArrayList::Get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this)->get(cage_base, kFirstIndex + index);
+  return FixedArray::cast(*this)->get(kFirstIndex + index);
 }
 
 ObjectSlot ArrayList::Slot(int index) {

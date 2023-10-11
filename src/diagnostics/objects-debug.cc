@@ -389,7 +389,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 
   for (int i = 0; i < constant_pool()->length(); ++i) {
     // No ThinStrings in the constant pool.
-    CHECK(!IsThinString(constant_pool()->get(isolate, i), isolate));
+    CHECK(!IsThinString(constant_pool()->get(i), isolate));
   }
 
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
@@ -684,7 +684,7 @@ void FixedArrayBase::FixedArrayBaseVerify(Isolate* isolate) {
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
-  FixedArrayBaseVerify(isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 
   for (int i = 0; i < length(); ++i) {
     Object::VerifyPointer(isolate, get(i));
@@ -695,6 +695,19 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
     CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
   } else if (IsArrayList(*this)) {
     ArrayList::cast(*this)->ArrayListVerify(isolate);
+  }
+}
+
+void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
+  CHECK_GE(capacity(), kMinCapacity);
+  CHECK_LE(capacity(), kMaxCapacity);
+  CHECK_GE(number_of_capture_registers(), kMinCapacity);
+  CHECK_LE(number_of_capture_registers(), capacity());
+  CHECK(IsString(last_subject()));
+  Object::VerifyPointer(isolate, last_input());
+  for (int i = 0; i < capacity(); ++i) {
+    CHECK(IsSmi(get(i)));
   }
 }
 
@@ -1997,7 +2010,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   this->FixedArrayVerify(isolate);
   for (int i = 0; i < length(); ++i) {
     // No ThinStrings in the boilerplate.
-    CHECK(!IsThinString(get(isolate, i), isolate));
+    CHECK(!IsThinString(get(i), isolate));
   }
 }
 

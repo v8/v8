@@ -2188,15 +2188,13 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
   WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
-// Instantiate Heap::CopyRange() for ObjectSlot and MaybeObjectSlot.
-template void Heap::CopyRange<ObjectSlot>(Tagged<HeapObject> dst_object,
-                                          ObjectSlot dst_slot,
-                                          ObjectSlot src_slot, int len,
-                                          WriteBarrierMode mode);
-template void Heap::CopyRange<MaybeObjectSlot>(Tagged<HeapObject> dst_object,
-                                               MaybeObjectSlot dst_slot,
-                                               MaybeObjectSlot src_slot,
-                                               int len, WriteBarrierMode mode);
+// Instantiate Heap::CopyRange().
+template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
+    Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
+    int len, WriteBarrierMode mode);
+template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
+    Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
+    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 template <typename TSlot>
 void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
@@ -3255,8 +3253,9 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();
+  ReadOnlyRoots roots{isolate()};
   for (int i = 0; i < len; i++) {
-    number_string_cache()->set_undefined(i);
+    number_string_cache()->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
   }
 }
 

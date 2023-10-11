@@ -747,7 +747,8 @@ class TestEnvironment : public HandleAndZoneScope {
       FunctionTester ft(setup, 2);
       Handle<FixedArray> result = ft.CallChecked<FixedArray>(test, state_in);
       CHECK_EQ(result->length(), state_in->length());
-      result->CopyTo(0, *state_out, 0, result->length());
+      FixedArray::CopyElements(main_isolate(), *state_out, 0, *result, 0,
+                               result->length());
     }
     return state_out;
   }
@@ -819,7 +820,8 @@ class TestEnvironment : public HandleAndZoneScope {
         static_cast<int>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the moves on a
     // copy.
-    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
+                             state_in->length());
     DCHECK_EQ(kPreserveLayout, layout_mode_);
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
@@ -862,7 +864,8 @@ class TestEnvironment : public HandleAndZoneScope {
         static_cast<int>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the swaps on a
     // copy.
-    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
+                             state_in->length());
     for (auto swap : *swaps) {
       int lhs_index = OperandToStatePosition(
           setup_layout_, AllocatedOperand::cast(swap->destination()));
@@ -1439,7 +1442,8 @@ TEST(FuzzAssembleMoveAndSwap) {
   for (int extra_space : {0, kExtraSpace}) {
     CodeGeneratorTester c(&env, extra_space);
 
-    state_in->CopyTo(0, *expected, 0, state_in->length());
+    FixedArray::CopyElements(env.main_isolate(), *expected, 0, *state_in, 0,
+                             state_in->length());
 
     for (int i = 0; i < 1000; i++) {
       // Randomly alternate between swaps and moves.

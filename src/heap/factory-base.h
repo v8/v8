@@ -393,6 +393,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationAlignment alignment = kTaggedAligned);
 
   friend TorqueGeneratedFactory<Impl>;
+  template <class Derived, class Shape>
+  friend class TaggedArrayBase;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

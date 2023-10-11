@@ -365,7 +365,8 @@ void UncacheTemplateInstantiation(Isolate* isolate,
     Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
     DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
-    fast_cache->set_undefined(serial_number);
+    fast_cache->set(serial_number, ReadOnlyRoots{isolate}.undefined_value(),
+                    SKIP_WRITE_BARRIER);
     data->set_serial_number(TemplateInfo::kUncached);
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <

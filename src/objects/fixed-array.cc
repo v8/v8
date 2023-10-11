@@ -21,55 +21,36 @@ bool FixedArrayBase::IsCowArray() const {
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
                                           Handle<Object> value) {
-  int src_length = array->length();
-  if (index < src_length) {
-    array->set(index, *value);
-    return array;
+  int len = array->length();
+  if (index >= len) {
+    int new_capacity = FixedArray::NewCapacityForIndex(index, len);
+    array = Handle<FixedArray>::cast(
+        FixedArray::Resize(isolate, array, new_capacity));
+    // TODO(jgruber): This is somewhat subtle - other FixedArray methods
+    // use `undefined` as a filler. Make this more explicit.
+    array->FillWithHoles(len, new_capacity);
   }
-  int capacity = src_length;
-  do {
-    capacity = JSObject::NewElementsCapacity(capacity);
-  } while (capacity <= index);
-  Handle<FixedArray> new_array = isolate->factory()->NewFixedArray(capacity);
 
-  DisallowGarbageCollection no_gc;
-  Tagged<FixedArray> raw_src = *array;
-  Tagged<FixedArray> raw_dst = *new_array;
-  raw_src->CopyTo(0, raw_dst, 0, src_length);
-  DCHECK_EQ(raw_dst->length(), capacity);
-  raw_dst->FillWithHoles(src_length, capacity);
-  raw_dst->set(index, *value);
-
-  return new_array;
+  array->set(index, *value);
+  return array;
 }
 
 Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
                                              Handle<FixedArray> array,
                                              int new_length) {
   if (new_length == 0) {
-    return array->GetReadOnlyRoots().empty_fixed_array_handle();
-  } else {
-    array->Shrink(isolate, new_length);
-    return array;
+    return ReadOnlyRoots{isolate}.empty_fixed_array_handle();
   }
+  array->Shrink(isolate, new_length);
+  return array;
 }
 
 void FixedArray::Shrink(Isolate* isolate, int new_length) {
-  DCHECK(0 < new_length && new_length <= length());
+  CHECK_GT(new_length, 0);
+  DCHECK_LE(new_length, length());
   if (new_length < length()) {
-    isolate->heap()->RightTrimFixedArray(*this, length() - new_length);
-  }
-}
-
-void FixedArray::CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
-                        int len) const {
-  DisallowGarbageCollection no_gc;
-  // Return early if len == 0 so that we don't try to read the write barrier off
-  // a canonical read-only empty fixed array.
-  if (len == 0) return;
-  WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
-  for (int index = 0; index < len; index++) {
-    dest->set(dest_pos + index, get(pos + index), mode);
+    isolate->heap()->RightTrimFixedArray(FixedArrayBase::cast(*this),
+                                         length() - new_length);
   }
 }
 
@@ -147,12 +128,21 @@ Handle<ArrayList> ArrayList::New(Isolate* isolate, int size,
   return isolate->factory()->NewArrayList(size, allocation);
 }
 
+// static
 Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
                                        Handle<ArrayList> array) {
   int length = array->Length();
   Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
-  // Do not copy the first entry, i.e., the length.
-  array->CopyTo(kFirstIndex, *result, 0, length);
+
+  if (length != 0) {
+    DisallowGarbageCollection no_gc;
+    Tagged<FixedArray> dst = *result;
+    WriteBarrierMode mode = dst->GetWriteBarrierMode(no_gc);
+    // Do not copy the first entry, i.e., the length.
+    FixedArray::CopyElements(isolate, dst, 0, *array, kFirstIndex, length,
+                             mode);
+  }
+
   return result;
 }
 
@@ -347,26 +337,6 @@ bool WeakArrayList::Contains(MaybeObject value) {
     if (Get(i) == value) return true;
   }
   return false;
-}
-
-Handle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
-                                             int capture_count) {
-  Handle<RegExpMatchInfo> match_info = isolate->factory()->NewRegExpMatchInfo();
-  return ReserveCaptures(isolate, match_info, capture_count);
-}
-
-Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
-    Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count) {
-  DCHECK_GE(match_info->length(), kLastMatchOverhead);
-
-  int capture_register_count =
-      JSRegExp::RegistersForCaptureCount(capture_count);
-  const int required_length = kFirstCaptureIndex + capture_register_count;
-  Handle<RegExpMatchInfo> result =
-      Handle<RegExpMatchInfo>::cast(EnsureSpaceInFixedArray(
-          isolate, match_info, required_length, AllocationType::kYoung));
-  result->SetNumberOfCaptureRegisters(capture_register_count);
-  return result;
 }
 
 }  // namespace internal

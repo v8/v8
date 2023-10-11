@@ -5267,6 +5267,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/ordered-hash-table.cc",
     "src/objects/property-descriptor.cc",
     "src/objects/property.cc",
+    "src/objects/regexp-match-info.cc",
     "src/objects/scope-info.cc",
     "src/objects/shared-function-info.cc",
     "src/objects/simd.cc",
