@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import os
-import psutil
 import signal
 import subprocess
 import sys
@@ -13,7 +12,7 @@ from contextlib import contextmanager
 from ..local.android import Driver
 from .command import AndroidCommand, IOSCommand, PosixCommand, WindowsCommand, taskkill_windows
 from .pool import DefaultExecutionPool
-from ..testproc.util import list_processes_linux, OUT_DIR
+from ..testproc.util import list_processes_linux
 
 
 class DefaultOSContext:
@@ -52,16 +51,6 @@ class WindowsContext(DefaultOSContext):
 
   def __init__(self):
     super().__init__(WindowsCommand)
-
-  def list_processes(self):
-    result = []
-    for p in psutil.process_iter(['cmdline']):
-      if not p.info['cmdline']:
-        continue
-      if not p.info['cmdline'][0].startswith(OUT_DIR):
-        continue
-      result.append((p.pid, ' '.join(p.info['cmdline'])))
-    return result
 
   def terminate_process(self, process):
     taskkill_windows(process, verbose=True, force=False)
