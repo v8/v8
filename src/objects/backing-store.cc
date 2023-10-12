@@ -97,28 +97,6 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
       static_cast<int>(status));
 }
 
-inline void DebugCheckZero(void* start, size_t byte_length) {
-#ifdef DEBUG
-#ifdef V8_IS_TSAN
-  // TSan in debug mode is particularly slow. Skip this check for buffers >64MB.
-  if (byte_length > 64 * MB) return;
-#endif  // TSan debug build
-  // Double check memory is zero-initialized. Despite being DEBUG-only,
-  // this function is somewhat optimized for the benefit of test suite
-  // execution times (some tests allocate several gigabytes).
-  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(start);
-  const size_t kBaseCase = 32;
-  for (size_t i = 0; i < kBaseCase && i < byte_length; i++) {
-    DCHECK_EQ(0, bytes[i]);
-  }
-  // Having checked the first kBaseCase bytes to be zero, we can now use
-  // {memcmp} to compare the range against itself shifted by that amount,
-  // thereby inductively checking the remaining bytes.
-  if (byte_length > kBaseCase) {
-    DCHECK_EQ(0, memcmp(bytes, bytes + kBaseCase, byte_length - kBaseCase));
-  }
-#endif
-}
 }  // namespace
 
 // The backing store for a Wasm shared memory remembers all the isolates
@@ -248,18 +226,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
       if (initialized == InitializedFlag::kUninitialized) {
         return allocator->AllocateUninitialized(byte_length);
       }
-      void* buffer_start = allocator->Allocate(byte_length);
-      if (buffer_start) {
-        // TODO(wasm): node does not implement the zero-initialization API.
-        // Reenable this debug check when node does implement it properly.
-        constexpr bool
-            kDebugCheckZeroDisabledDueToNodeNotImplementingZeroInitAPI = true;
-        if ((!(kDebugCheckZeroDisabledDueToNodeNotImplementingZeroInitAPI)) &&
-            !v8_flags.mock_arraybuffer_allocator) {
-          DebugCheckZero(buffer_start, byte_length);
-        }
-      }
-      return buffer_start;
+      return allocator->Allocate(byte_length);
     };
 
     buffer_start = isolate->heap()->AllocateExternalBackingStore(
@@ -399,8 +366,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     // We return an empty result so that the caller can throw an exception.
     return {};
   }
-
-  DebugCheckZero(buffer_start, byte_length);  // touch the bytes.
 
   if (isolate != nullptr) {
     RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
