@@ -3954,7 +3954,8 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     BIND(&no_feedback);
     {
       TailCallBuiltin(Builtin::kKeyedStoreIC_Megamorphic, p->context(),
-                      p->receiver(), p->name(), p->value(), p->slot());
+                      p->receiver(), p->name(), p->value(), p->slot(),
+                      p->vector());
     }
 
     BIND(&try_polymorphic_name);

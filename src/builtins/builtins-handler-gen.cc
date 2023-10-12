@@ -55,7 +55,7 @@ TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
 
 void Builtins::Generate_KeyedStoreIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericGenerator::Generate(state);
+  KeyedStoreMegamorphicGenerator::Generate(state);
 }
 
 void Builtins::Generate_DefineKeyedOwnIC_Megamorphic(

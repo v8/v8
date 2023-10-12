@@ -2945,11 +2945,10 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+  FeedbackSlot vector_slot;
 
   // When the feedback vector is not valid the slot can only be of type
   // StoreKeyed. Storing in array literals falls back to
@@ -2962,6 +2961,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+    int slot = args.tagged_index_value_at(1);
+    vector_slot = FeedbackVector::ToSlot(slot);
     kind = vector->GetKind(vector_slot);
   }
 
