@@ -7344,17 +7344,19 @@ TNode<BoolT> CodeStubAssembler::IsUniqueName(TNode<HeapObject> object) {
 // characters, or is outside MAX_SAFE_INTEGER/size_t range). Note that for
 // non-TypedArray receivers, there are additional strings that must be treated
 // as named property keys, namely the range [0xFFFFFFFF, MAX_SAFE_INTEGER].
-// TODO(pthier): Handle forwarding indices correctly. The forwarded hash could
-// be an integer index. Consider using 1 bit of the forward index to indicate
-// the type of the forwarded hash.
+// The hash could be a forwarding index to an integer index.
+// For now we conservatively assume that all forwarded hashes could be integer
+// indices, allowing false negatives.
+// TODO(pthier): We could use 1 bit of the forward index to indicate whether the
+// forwarded hash contains an integer index, if this is turns out to be a
+// performance issue, at the cost of slowing down creating the forwarded string.
 TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
-        return IsNotEqualInWord32<Name::HashFieldTypeBits>(
-            LoadNameRawHashField(CAST(object)),
-            Name::HashFieldType::kIntegerIndex);
+        return IsSetWord32(LoadNameRawHashField(CAST(object)),
+                           Name::kDoesNotContainIntegerOrForwardingIndexMask);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
 }

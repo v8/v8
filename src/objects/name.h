@@ -177,6 +177,14 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
        << ArrayIndexLengthBits::kShift) |
       HashFieldTypeBits::kMask;
 
+  // When any of these bits is set then the hash field does not contain an
+  // integer or forwarding index.
+  static const unsigned int kDoesNotContainIntegerOrForwardingIndexMask = 0b10;
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) &
+                 kDoesNotContainIntegerOrForwardingIndexMask) == 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+                 kDoesNotContainIntegerOrForwardingIndexMask) == 0);
+
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.
   //
