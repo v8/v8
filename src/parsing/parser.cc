@@ -3475,7 +3475,7 @@ void Parser::UpdateStatistics(
   if (scanner_.SawMagicCommentCompileHintsAll()) {
     use_counts->emplace_back(v8::Isolate::kCompileHintsMagicAll);
   }
-  if (scanner_.SawMagicCommentCompileHintsAll()) {
+  if (scanner_.SawSourceMappingUrlMagicCommentAtSign()) {
     use_counts->emplace_back(v8::Isolate::kSourceMappingUrlMagicCommentAtSign);
   }
 
