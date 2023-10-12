@@ -8,6 +8,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -3736,6 +3737,24 @@ void LiftoffAssembler::CallCWithStackBuffer(
   }
 
   Daddu(sp, sp, stack_bytes);
+}
+
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             ExternalReference ext_ref) {
+  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
+  DCHECK_LE(args.size(), arraysize(kArgRegs));
+  const Register* next_arg_reg = kArgRegs;
+  ParallelMove parallel_move{this};
+  for (const VarState& arg : args) {
+    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
+    ++next_arg_reg;
+  }
+  parallel_move.Execute();
+
+  // Now call the C function.
+  int num_args = static_cast<int>(args.size());
+  PrepareCallCFunction(num_args, kScratchReg);
+  CallCFunction(ext_ref, num_args);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
