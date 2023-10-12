@@ -237,6 +237,8 @@ class BaseTestRunner(object):
                            "color, mono)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
+    parser.add_option("--log-test-schedule",
+                      help="Path to a file for streaming the test schedule to.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
     parser.add_option("--exit-after-n-failures", type="int", default=100,
@@ -300,6 +302,11 @@ class BaseTestRunner(object):
     if options.arch and ',' in options.arch:  # pragma: no cover
       print('Multiple architectures are deprecated')
       raise TestRunnerError()
+
+    # We write a test schedule by default alongside json test results on bots.
+    if options.json_test_results and not options.log_test_schedule:
+      result_dir = Path(options.json_test_results).parent
+      options.log_test_schedule = result_dir / 'test_schedule.log'
 
     return AugmentedOptions.augment(options), args
 
