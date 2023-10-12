@@ -6,7 +6,6 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
-#include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -23,6 +22,7 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
 }
 
 void MemoryAnalyzer::Run() {
+  if (allocation_folding == AllocationFolding::kDontAllocationFolding) return;
   block_states[current_block] = BlockState{};
   BlockIndex end = BlockIndex(input_graph.block_count());
   while (current_block < end) {
@@ -48,7 +48,7 @@ void MemoryAnalyzer::Process(const Operation& op) {
     return;
   }
   if (auto* store = op.TryCast<StoreOp>()) {
-    ProcessStore(*store);
+    ProcessStore(input_graph.Index(op), store->base());
     return;
   }
   if (op.Effects().can_allocate) {
@@ -109,8 +109,7 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   // If the new allocation has a static size and is of the same type, then we
   // can fold it into the previous allocation unless the folded allocation would
   // exceed `kMaxRegularHeapObjectSize`.
-  if (allocation_folding == AllocationFolding::kDoAllocationFolding &&
-      state.last_allocation && new_size.has_value() &&
+  if (state.last_allocation && new_size.has_value() &&
       state.reserved_size.has_value() &&
       alloc.type == state.last_allocation->type &&
       *new_size <= kMaxRegularHeapObjectSize - *state.reserved_size) {
@@ -132,15 +131,13 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   folded_into.erase(&alloc);
 }
 
-void MemoryAnalyzer::ProcessStore(const StoreOp& store) {
-  OpIndex store_op_index = input_graph.Index(store);
-  if (SkipWriteBarrier(store)) {
-    skipped_write_barriers.insert(store_op_index);
+void MemoryAnalyzer::ProcessStore(OpIndex store, OpIndex object) {
+  if (SkipWriteBarrier(input_graph.Get(object))) {
+    skipped_write_barriers.insert(store);
   } else {
     // We might be re-visiting the current block. In this case, we need to
     // still update the information.
-    DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
-    skipped_write_barriers.erase(store_op_index);
+    skipped_write_barriers.erase(store);
   }
 }
 

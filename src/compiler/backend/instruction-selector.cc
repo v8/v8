@@ -5022,8 +5022,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       UNREACHABLE();
     }
-    case Opcode::kComment:
-      return VisitComment(node);
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Opcode::kSimd128Constant: {
       const Simd128ConstantOp& constant = op.Cast<Simd128ConstantOp>();

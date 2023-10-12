@@ -30,16 +30,9 @@ namespace v8::internal::compiler::turboshaft {
 template <typename P>
 struct produces_printable_graph : public std::true_type {};
 
-enum class TurboshaftPipelineKind {
-  kJS,
-  kWasm,
-  kCSA,
-};
-
 class PipelineData : public base::ContextualClass<PipelineData> {
  public:
-  explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
-                        OptimizedCompilationInfo* const& info,
+  explicit PipelineData(OptimizedCompilationInfo* const& info,
                         Schedule*& schedule, Zone*& graph_zone,
                         JSHeapBroker*& broker, Isolate* const& isolate,
                         SourcePositionTable*& source_positions,
@@ -49,8 +42,7 @@ class PipelineData : public base::ContextualClass<PipelineData> {
                         size_t* address_of_max_unoptimized_frame_height,
                         size_t* address_of_max_pushed_argument_count,
                         Zone*& instruction_zone)
-      : pipeline_kind_(pipeline_kind),
-        info_(info),
+      : info_(info),
         schedule_(schedule),
         graph_zone_(graph_zone),
         broker_(broker),
@@ -70,7 +62,6 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   bool has_graph() const { return graph_ != nullptr; }
   turboshaft::Graph& graph() const { return *graph_; }
 
-  TurboshaftPipelineKind pipeline_kind() const { return pipeline_kind_; }
   OptimizedCompilationInfo* info() const { return info_; }
   Schedule* schedule() const { return schedule_; }
   Zone* graph_zone() const { return graph_zone_; }
@@ -126,7 +117,6 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   // to them.
   // TODO(v8:12783, nicohartmann@): Change this once Turbofan pipeline is fully
   // replaced.
-  TurboshaftPipelineKind pipeline_kind_;
   OptimizedCompilationInfo* const& info_;
   Schedule*& schedule_;
   Zone*& graph_zone_;
