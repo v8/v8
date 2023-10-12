@@ -188,20 +188,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
 template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
-  if (length == 0) return impl()->empty_fixed_array();
-  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
-    UNREACHABLE();
-  }
-  int size = FixedDoubleArray::SizeFor(length);
-  Tagged<Map> map = read_only_roots().fixed_double_array_map();
-  Tagged<HeapObject> result =
-      AllocateRawWithImmortalMap(size, allocation, map, kDoubleAligned);
-  DisallowGarbageCollection no_gc;
-  Tagged<FixedDoubleArray> array = Tagged<FixedDoubleArray>::cast(result);
-  array->set_length(length);
-  return handle(array, isolate());
+  return FixedDoubleArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
@@ -235,19 +222,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 template <typename Impl>
 Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
                                                   AllocationType allocation) {
-  if (length < 0 || length > ByteArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
-    UNREACHABLE();
-  }
-  if (length == 0) return impl()->empty_byte_array();
-  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(ByteArray::SizeFor(length));
-  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().byte_array_map());
-  DisallowGarbageCollection no_gc;
-  Tagged<ByteArray> array = Tagged<ByteArray>::cast(result);
-  array->set_length(length);
-  array->clear_padding();
-  return handle(array, isolate());
+  return ByteArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>

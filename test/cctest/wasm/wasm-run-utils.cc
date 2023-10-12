@@ -356,15 +356,13 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   uint32_t size = static_cast<uint32_t>(data_segment_sizes_.size());
   Handle<FixedAddressArray> data_segment_starts =
       FixedAddressArray::New(isolate_, size);
-  data_segment_starts->copy_in(
-      0, reinterpret_cast<uint8_t*>(data_segment_starts_.data()),
-      size * sizeof(Address));
+  MemCopy(data_segment_starts->begin(), data_segment_starts_.data(),
+          size * sizeof(Address));
   instance_object_->set_data_segment_starts(*data_segment_starts);
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate_, size);
-  data_segment_sizes->copy_in(
-      0, reinterpret_cast<uint8_t*>(data_segment_sizes_.data()),
-      size * sizeof(uint32_t));
+  MemCopy(data_segment_sizes->begin(), data_segment_sizes_.data(),
+          size * sizeof(uint32_t));
   instance_object_->set_data_segment_sizes(*data_segment_sizes);
   return index;
 }

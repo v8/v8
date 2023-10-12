@@ -1036,8 +1036,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
       Handle<ByteArray> bytecode = Handle<ByteArray>::cast(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
-      RegExpBytecodeDisassemble(bytecode->GetDataStartAddress(),
-                                bytecode->length(), pattern_cstring.get());
+      RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),
+                                pattern_cstring.get());
     }
   }
 

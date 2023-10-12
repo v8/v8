@@ -11,6 +11,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -261,51 +262,117 @@ class FixedArrayBase : public HeapObject {
   DECL_VERIFIER(FixedArrayBase)
 };
 
-// FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray : public FixedArrayBase {
+// Derived: must have a Smi slot at kCapacityOffset.
+template <class Derived, class ShapeT>
+class PrimitiveArrayBase : public HeapObject {
+  OBJECT_CONSTRUCTORS(PrimitiveArrayBase, HeapObject);
+
+  using ElementT = typename ShapeT::ElementT;
+  static_assert(!is_subtype_v<ElementT, Object>);
+
  public:
+  using Shape = ShapeT;
+
+  inline int length() const;
+  inline int length(AcquireLoadTag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag);
+
+  inline ElementT get(int index) const;
+  inline void set(int index, ElementT value);
+
+  inline int AllocatedSize() const;
+  static inline constexpr int SizeFor(int length) {
+    return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
+  }
+  static inline constexpr int OffsetOfElementAt(int index) {
+    return Shape::kHeaderSize + index * Shape::kElementSize;
+  }
+
+  // Gives access to raw memory which stores the array's data.
+  // Note that on 32-bit archs and on 64-bit platforms with pointer compression
+  // the pointers to 8-byte size elements are not guaranteed to be aligned.
+  inline ElementT* AddressOfElementAt(int index) const;
+  inline ElementT* begin() const;
+  inline ElementT* end() const;
+  inline int DataSize() const;
+
+  static inline Tagged<Derived> FromAddressOfFirstElement(Address address);
+
+  // Maximal allowed length, in number of elements. Chosen s.t. the size fits
+  // into a Smi which is necessary for being able to create a free space
+  // filler.
+  // TODO(jgruber): The kMaxLength could be larger (`(Smi::kMaxValue -
+  // Shape::kHeaderSize) / Shape::kElementSize`), but our tests rely on a
+  // smaller maximum to avoid timeouts.
+  static constexpr int kMaxLength =
+      (FixedArrayBase::kMaxSize - kHeaderSize) / Shape::kElementSize;
+  static_assert(Smi::IsValid(SizeFor(kMaxLength)));
+
+  // Maximally allowed length for regular (non large object space) object.
+  static constexpr int kMaxRegularLength =
+      (kMaxRegularHeapObjectSize - Shape::kHeaderSize) / Shape::kElementSize;
+  static_assert(kMaxRegularLength < kMaxLength);
+
+  // Object layout.
+  static constexpr int kLengthOffset = Shape::kLengthOffset;
+  static constexpr int kHeaderSize = Shape::kHeaderSize;
+
+ protected:
+  template <class IsolateT>
+  static Handle<Derived> Allocate(
+      IsolateT* isolate, int length,
+      base::Optional<DisallowGarbageCollection>* no_gc_out,
+      AllocationType allocation = AllocationType::kYoung);
+
+  inline bool IsInBounds(int index) const;
+};
+
+class FixedDoubleArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kDoubleSize;
+  using ElementT = double;
+  static constexpr int kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kFixedDoubleArrayMap;
+};
+
+// FixedDoubleArray describes fixed-sized arrays with element type double.
+class FixedDoubleArray
+    : public PrimitiveArrayBase<FixedDoubleArray, FixedDoubleArrayShape> {
+  using Super = PrimitiveArrayBase<FixedDoubleArray, FixedDoubleArrayShape>;
+  OBJECT_CONSTRUCTORS(FixedDoubleArray, Super);
+
+ public:
+  // Note this returns FixedArrayBase due to canonicalization to
+  // empty_fixed_array.
+  template <class IsolateT>
+  static inline Handle<FixedArrayBase> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
   static inline Handle<Object> get(Tagged<FixedDoubleArray> array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
+
   inline void set_the_hole(Isolate* isolate, int index);
   inline void set_the_hole(int index);
-
-  // Checking for the hole.
   inline bool is_the_hole(Isolate* isolate, int index);
   inline bool is_the_hole(int index);
 
-  // Garbage collection support.
-  inline static int SizeFor(int length) {
-    return kHeaderSize + length * kDoubleSize;
-  }
-
   inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
-                           int len, WriteBarrierMode mode);
+                           int len, WriteBarrierMode /* unused */);
 
   inline void FillWithHoles(int from, int to);
-
-  // Code Generation support.
-  static int OffsetOfElementAt(int index) { return SizeFor(index); }
-
-  // Start offset of elements.
-  static constexpr int kFloatsOffset = kHeaderSize;
-
-  // Maximally allowed length of a FixedDoubleArray.
-  static const int kMaxLength =
-      (FixedArrayBase::kMaxSize - kHeaderSize) / kDoubleSize;
-  static_assert(Internals::IsValidSmi(kMaxLength),
-                "FixedDoubleArray maxLength not a Smi");
 
   DECL_CAST(FixedDoubleArray)
   DECL_PRINTER(FixedDoubleArray)
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
-
-  OBJECT_CONSTRUCTORS(FixedDoubleArray, FixedArrayBase);
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
@@ -546,68 +613,51 @@ inline int Search(T* array, Tagged<Name> name, int valid_entries = 0,
                   int* out_insertion_index = nullptr,
                   bool concurrent_search = false);
 
+class ByteArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kUInt8Size;
+  using ElementT = uint8_t;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kByteArrayMap;
+
+#define FIELD_LIST(V)                                                   \
+  V(kLengthOffset, kTaggedSize)                                         \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
 // ByteArray represents fixed sized arrays containing raw bytes that will not
 // be scanned by the garbage collector.
-class ByteArray : public FixedArrayBase {
+class ByteArray : public PrimitiveArrayBase<ByteArray, ByteArrayShape> {
+  using Super = PrimitiveArrayBase<ByteArray, ByteArrayShape>;
+  OBJECT_CONSTRUCTORS(ByteArray, Super);
+
  public:
-  // Get/set the contents of this array.
-  inline uint8_t get(int offset) const;
-  inline void set(int offset, uint8_t value);
+  using Shape = ByteArrayShape;
 
-  inline int get_int(int offset) const;
-  inline void set_int(int offset, int value);
+  template <class IsolateT>
+  static inline Handle<ByteArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
 
-  // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, uint8_t* buffer, int slice_length);
-  inline void copy_in(int index, const uint8_t* buffer, int slice_length);
+  inline uint32_t get_int(int offset) const;
+  inline void set_int(int offset, uint32_t value);
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
-
-  inline int AllocatedSize() const;
-
-  static constexpr int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length);
-  }
-  // We use byte arrays for free blocks in the heap.  Given a desired size in
-  // bytes that is a multiple of the word size and big enough to hold a byte
-  // array, this function returns the number of elements a byte array should
-  // have.
-  static int LengthFor(int size_in_bytes) {
+  // Given the full object size in bytes, return the length that should be
+  // passed to New s.t. an object of the same size is created.
+  static constexpr int LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));
-    DCHECK_GE(size_in_bytes, kHeaderSize);
-    return size_in_bytes - kHeaderSize;
+    DCHECK_GE(size_in_bytes, Shape::kHeaderSize);
+    return size_in_bytes - Shape::kHeaderSize;
   }
-
-  // Returns data start address.
-  inline uint8_t* GetDataStartAddress();
-  // Returns address of the past-the-end element.
-  inline uint8_t* GetDataEndAddress();
-
-  inline int DataSize() const;
-
-  // Returns a pointer to the ByteArray object for a given data start address.
-  static inline Tagged<ByteArray> FromDataStartAddress(Address address);
-
-  // Code Generation support.
-  static int OffsetOfElementAt(int index) { return kHeaderSize + index; }
 
   DECL_CAST(ByteArray)
   DECL_PRINTER(ByteArray)
   DECL_VERIFIER(ByteArray)
 
-  // Layout description.
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
-
-  // Maximal length of a single ByteArray.
-  static const int kMaxLength = FixedArrayBase::kMaxSize - kHeaderSize;
-  static_assert(Internals::IsValidSmi(kMaxLength),
-                "ByteArray maxLength not a Smi");
-
   class BodyDescriptor;
-
-  OBJECT_CONSTRUCTORS(ByteArray, FixedArrayBase);
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
@@ -717,26 +767,23 @@ class PodArray : public ByteArray {
       AllocationType allocation = AllocationType::kOld);
 
   void copy_out(int index, T* result, int length) {
-    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<uint8_t*>(result),
-                        length * sizeof(T));
+    MemCopy(result, AddressOfElementAt(index * sizeof(T)), length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
-    ByteArray::copy_in(index * sizeof(T),
-                       reinterpret_cast<const uint8_t*>(buffer),
-                       length * sizeof(T));
+    MemCopy(AddressOfElementAt(index * sizeof(T)), buffer, length * sizeof(T));
   }
 
   bool matches(const T* buffer, int length) {
     DCHECK_LE(length, this->length());
-    return memcmp(GetDataStartAddress(), buffer, length * sizeof(T)) == 0;
+    return memcmp(begin(), buffer, length * sizeof(T)) == 0;
   }
 
   bool matches(int offset, const T* buffer, int length) {
     DCHECK_LE(offset, this->length());
     DCHECK_LE(offset + length, this->length());
-    return memcmp(GetDataStartAddress() + sizeof(T) * offset, buffer,
-                  length * sizeof(T)) == 0;
+    return memcmp(begin() + sizeof(T) * offset, buffer, length * sizeof(T)) ==
+           0;
   }
 
   T get(int index) {

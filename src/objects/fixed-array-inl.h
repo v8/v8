@@ -298,7 +298,7 @@ Handle<D> TaggedArrayBase<D, S>::Allocate(
       isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
 
   ReadOnlyRoots roots{isolate};
-  no_gc_out->emplace();
+  if (DEBUG_BOOL) no_gc_out->emplace();
   Tagged<Map> map = Map::cast(roots.object_at(S::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
@@ -346,6 +346,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 template <class D, class S>
 TaggedArrayBase<D, S>::TaggedArrayBase(Address ptr) : HeapObject(ptr) {}
+template <class D, class S>
+PrimitiveArrayBase<D, S>::PrimitiveArrayBase(Address ptr) : HeapObject(ptr) {}
 
 CAST_ACCESSOR(FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
@@ -354,10 +356,10 @@ CAST_ACCESSOR(FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
 CAST_ACCESSOR(FixedDoubleArray)
-OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
 
 CAST_ACCESSOR(ByteArray)
-OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
 
 CAST_ACCESSOR(ExternalPointerArray)
 OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
@@ -530,21 +532,132 @@ int Search(T* array, Tagged<Name> name, int valid_entries,
                                    out_insertion_index);
 }
 
+template <class D, class S>
+int PrimitiveArrayBase<D, S>::length() const {
+  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::load(*this));
+}
+
+template <class D, class S>
+int PrimitiveArrayBase<D, S>::length(AcquireLoadTag tag) const {
+  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::Acquire_Load(*this));
+}
+
+template <class D, class S>
+void PrimitiveArrayBase<D, S>::set_length(int value) {
+  TaggedField<Smi, D::kLengthOffset>::store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S>
+void PrimitiveArrayBase<D, S>::set_length(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, D::kLengthOffset>::Release_Store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S>
+bool PrimitiveArrayBase<D, S>::IsInBounds(int index) const {
+  return static_cast<unsigned>(index) < static_cast<unsigned>(length());
+}
+
+template <class D, class S>
+typename S::ElementT PrimitiveArrayBase<D, S>::get(int index) const {
+  DCHECK(IsInBounds(index));
+  return ReadField<typename S::ElementT>(OffsetOfElementAt(index));
+}
+
+template <class D, class S>
+void PrimitiveArrayBase<D, S>::set(int index, typename S::ElementT value) {
+  DCHECK(IsInBounds(index));
+  WriteField<typename S::ElementT>(OffsetOfElementAt(index), value);
+}
+
+template <class D, class S>
+int PrimitiveArrayBase<D, S>::AllocatedSize() const {
+  return SizeFor(length());
+}
+
+template <class D, class S>
+typename S::ElementT* PrimitiveArrayBase<D, S>::AddressOfElementAt(
+    int index) const {
+  return reinterpret_cast<ElementT*>(field_address(OffsetOfElementAt(index)));
+}
+
+template <class D, class S>
+typename S::ElementT* PrimitiveArrayBase<D, S>::begin() const {
+  return AddressOfElementAt(0);
+}
+
+template <class D, class S>
+typename S::ElementT* PrimitiveArrayBase<D, S>::end() const {
+  return AddressOfElementAt(length());
+}
+
+template <class D, class S>
+int PrimitiveArrayBase<D, S>::DataSize() const {
+  int data_size = SizeFor(length()) - S::kHeaderSize;
+  DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(length() * S::kElementSize));
+  return data_size;
+}
+
+// static
+template <class D, class S>
+inline Tagged<D> PrimitiveArrayBase<D, S>::FromAddressOfFirstElement(
+    Address address) {
+  DCHECK_TAG_ALIGNED(address);
+  return D::cast(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
+}
+
+// static
+template <class IsolateT>
+Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
+                                             AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  return Handle<FixedDoubleArray>::cast(
+      Allocate(isolate, length, &no_gc, allocation));
+}
+
+// static
+template <class D, class S>
+template <class IsolateT>
+Handle<D> PrimitiveArrayBase<D, S>::Allocate(
+    IsolateT* isolate, int length,
+    base::Optional<DisallowGarbageCollection>* no_gc_out,
+    AllocationType allocation) {
+  // Note 0-length is explicitly allowed since not all subtypes can be
+  // assumed to have canonical 0-length instances.
+  DCHECK_GE(length, 0);
+  DCHECK_LE(length, kMaxLength);
+  DCHECK(!no_gc_out->has_value());
+
+  Tagged<D> xs = D::unchecked_cast(
+      isolate->factory()->AllocateRawArray(SizeFor(length), allocation));
+
+  ReadOnlyRoots roots{isolate};
+  if (DEBUG_BOOL) no_gc_out->emplace();
+  Tagged<Map> map = Map::cast(roots.object_at(S::kMapRootIndex));
+  DCHECK(ReadOnlyHeap::Contains(map));
+
+  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_length(length);
+
+  return handle(xs, isolate);
+}
+
 double FixedDoubleArray::get_scalar(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(!is_the_hole(index));
-  return ReadField<double>(kHeaderSize + index * kDoubleSize);
+  return Super::get(index);
 }
 
 uint64_t FixedDoubleArray::get_representation(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
+  DCHECK(IsInBounds(index));
   // Bug(v8:8875): Doubles may be unaligned.
-  return base::ReadUnalignedValue<uint64_t>(field_address(offset));
+  return base::ReadUnalignedValue<uint64_t>(
+      field_address(OffsetOfElementAt(index)));
 }
 
 Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
@@ -557,15 +670,10 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
 }
 
 void FixedDoubleArray::set(int index, double value) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
-    WriteField<double>(offset, std::numeric_limits<double>::quiet_NaN());
-  } else {
-    WriteField<double>(offset, value);
+    value = std::numeric_limits<double>::quiet_NaN();
   }
+  Super::set(index, value);
   DCHECK(!is_the_hole(index));
 }
 
@@ -574,11 +682,9 @@ void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedDoubleArray::set_the_hole(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
-  base::WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
+  DCHECK(IsInBounds(index));
+  base::WriteUnalignedValue<uint64_t>(field_address(OffsetOfElementAt(index)),
+                                      kHoleNanInt64);
 }
 
 bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
@@ -593,8 +699,8 @@ void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
                                     int src_index, int len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  double* data_start = reinterpret_cast<double*>(field_address(kHeaderSize));
-  MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
+  MemMove(AddressOfElementAt(dst_index), AddressOfElementAt(src_index),
+          len * Shape::kElementSize);
 }
 
 void FixedDoubleArray::FillWithHoles(int from, int to) {
@@ -730,30 +836,36 @@ void ArrayList::Clear(int index, Tagged<Object> undefined) {
                                SKIP_WRITE_BARRIER);
 }
 
-int ByteArray::AllocatedSize() const { return SizeFor(length()); }
+// static
+template <class IsolateT>
+Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
+                                 AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_byte_array();
+  }
 
-uint8_t ByteArray::get(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_LT(offset, length());
-  return ReadField<uint8_t>(kHeaderSize + offset);
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<ByteArray> result =
+      Handle<ByteArray>::cast(Allocate(isolate, length, &no_gc, allocation));
+
+  int padding_size = SizeFor(length) - OffsetOfElementAt(length);
+  memset(result->AddressOfElementAt(length), 0, padding_size);
+
+  return result;
 }
 
-void ByteArray::set(int offset, uint8_t value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LT(offset, length());
-  WriteField<uint8_t>(kHeaderSize + offset, value);
+uint32_t ByteArray::get_int(int offset) const {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  return ReadField<uint32_t>(OffsetOfElementAt(offset));
 }
 
-int ByteArray::get_int(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(int), length());
-  return ReadField<int>(kHeaderSize + offset);
-}
-
-void ByteArray::set_int(int offset, int value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(int), length());
-  WriteField<int>(kHeaderSize + offset, value);
+void ByteArray::set_int(int offset, uint32_t value) {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  WriteField<uint32_t>(OffsetOfElementAt(offset), value);
 }
 
 Address FixedAddressArray::get_sandboxed_pointer(int offset) const {
@@ -783,46 +895,6 @@ FixedAddressArray::FixedAddressArray(Address ptr)
     : FixedIntegerArray<Address>(ptr) {}
 
 CAST_ACCESSOR(FixedAddressArray)
-
-void ByteArray::copy_in(int offset, const uint8_t* buffer, int slice_length) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - offset);
-  DCHECK_LE(offset + slice_length, length());
-  Address dst_addr = field_address(kHeaderSize + offset);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
-}
-
-void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - offset);
-  DCHECK_LE(offset + slice_length, length());
-  Address src_addr = field_address(kHeaderSize + offset);
-  memcpy(buffer, reinterpret_cast<void*>(src_addr), slice_length);
-}
-
-void ByteArray::clear_padding() {
-  int data_size = length() + kHeaderSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0,
-         AllocatedSize() - data_size);
-}
-
-Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {
-  DCHECK_TAG_ALIGNED(address);
-  return ByteArray::cast(
-      Tagged<Object>(address - kHeaderSize + kHeapObjectTag));
-}
-
-int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
-
-uint8_t* ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<uint8_t*>(address() + kHeaderSize);
-}
-
-uint8_t* ByteArray::GetDataEndAddress() {
-  return GetDataStartAddress() + length();
-}
 
 template <typename T>
 FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {

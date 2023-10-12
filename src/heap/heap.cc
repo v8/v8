@@ -5655,8 +5655,9 @@ void Heap::InitializeHashSeed() {
   } else {
     new_hash_seed = static_cast<uint64_t>(v8_flags.hash_seed);
   }
-  ReadOnlyRoots(this).hash_seed()->copy_in(
-      0, reinterpret_cast<uint8_t*>(&new_hash_seed), kInt64Size);
+  Tagged<ByteArray> hash_seed = ReadOnlyRoots(this).hash_seed();
+  MemCopy(hash_seed->begin(), reinterpret_cast<uint8_t*>(&new_hash_seed),
+          kInt64Size);
 }
 
 std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner() const {

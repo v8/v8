@@ -444,9 +444,8 @@ void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
   DCHECK_LE(value, std::numeric_limits<T>::max());
-  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
-            meta_table->GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
+  DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
+  T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   raw_data[field_index] = value;
 }
 
@@ -457,9 +456,8 @@ int SwissNameDictionary::GetMetaTableField(Tagged<ByteArray> meta_table,
   static_assert((std::is_same<T, uint8_t>::value) ||
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
-  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
-            meta_table->GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
+  DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
+  T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   return raw_data[field_index];
 }
 

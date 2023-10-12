@@ -751,7 +751,7 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
 }
 
 void ByteArray::ByteArrayVerify(Isolate* isolate) {
-  FixedArrayBase::FixedArrayBaseVerify(isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 }
 
 void ExternalPointerArray::ExternalPointerArrayVerify(Isolate* isolate) {
@@ -759,7 +759,7 @@ void ExternalPointerArray::ExternalPointerArrayVerify(Isolate* isolate) {
 }
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
-  FixedArrayBase::FixedArrayBaseVerify(isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);

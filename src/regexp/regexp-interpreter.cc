@@ -235,11 +235,11 @@ void UpdateCodeAndSubjectReferences(
     base::Vector<const Char>* subject_string_vector_out) {
   DisallowGarbageCollection no_gc;
 
-  if (*code_base_out != code_array->GetDataStartAddress()) {
+  if (*code_base_out != code_array->begin()) {
     *code_array_out = *code_array;
     const intptr_t pc_offset = *pc_out - *code_base_out;
     DCHECK_GT(pc_offset, 0);
-    *code_base_out = code_array->GetDataStartAddress();
+    *code_base_out = code_array->begin();
     *pc_out = *code_base_out + pc_offset;
   }
 
@@ -439,7 +439,7 @@ IrregexpInterpreter::Result RawMatch(
 
 #endif  // V8_USE_COMPUTED_GOTO
 
-  const uint8_t* pc = code_array->GetDataStartAddress();
+  const uint8_t* pc = code_array->begin();
   const uint8_t* code_base = pc;
 
   InterpreterRegisters registers(total_register_count, output_registers,

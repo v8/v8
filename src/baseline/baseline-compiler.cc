@@ -64,7 +64,7 @@ Handle<ByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);
-  MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());
+  MemCopy(table->begin(), bytes_.data(), bytes_.size());
   return table;
 }
 

@@ -299,8 +299,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
 void ByteArray::ByteArrayPrint(std::ostream& os) {
   PrintHeader(os, "ByteArray");
   os << "\n - length: " << length()
-     << "\n - data-start: " << static_cast<void*>(GetDataStartAddress())
-     << "\n";
+     << "\n - begin: " << static_cast<void*>(begin()) << "\n";
 }
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {

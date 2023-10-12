@@ -909,12 +909,12 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   }
   Handle<ByteArray> source_pos_table(code->source_position_table(),
                                      code->instruction_stream()->GetIsolate());
-  base::OwnedVector<uint8_t> source_pos =
-      base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_table->length());
-  if (source_pos_table->length() > 0) {
-    source_pos_table->copy_out(0, source_pos.begin(),
-                               source_pos_table->length());
+  int source_pos_len = source_pos_table->length();
+  auto source_pos = base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_len);
+  if (source_pos_len > 0) {
+    MemCopy(source_pos.begin(), source_pos_table->begin(), source_pos_len);
   }
+
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   base::Vector<const uint8_t> instructions(
       reinterpret_cast<uint8_t*>(code->body_start()),

@@ -1609,7 +1609,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
   auto utf8_variant = unibrow::Utf8Variant::kWtf8;
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {reinterpret_cast<char*>(array->GetDataStartAddress()),
+    return {reinterpret_cast<char*>(array->begin()),
             static_cast<size_t>(wtf8_length)};
   };
   EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, 0,
@@ -1642,8 +1642,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   }
 
   uint8_t* memory_start = reinterpret_cast<uint8_t*>(instance->memory0_start());
-  const uint8_t* src =
-      reinterpret_cast<const uint8_t*>(array->GetDataStartAddress() + start);
+  const uint8_t* src = reinterpret_cast<const uint8_t*>(array->begin() + start);
   uint8_t* dst = memory_start + addr;
 
   std::vector<size_t> surrogates;

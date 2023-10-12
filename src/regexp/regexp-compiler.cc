@@ -2872,7 +2872,7 @@ int BoyerMooreLookahead::GetSkipTable(int min_lookahead, int max_lookahead,
   const int kSkipArrayEntry = 0;
   const int kDontSkipArrayEntry = 1;
 
-  std::memset(boolean_skip_table->GetDataStartAddress(), kSkipArrayEntry,
+  std::memset(boolean_skip_table->begin(), kSkipArrayEntry,
               boolean_skip_table->length());
 
   for (int i = max_lookahead; i >= min_lookahead; i--) {

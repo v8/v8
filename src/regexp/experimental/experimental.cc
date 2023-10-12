@@ -52,7 +52,7 @@ Handle<ByteArray> VectorToByteArray(Isolate* isolate, base::Vector<T> data) {
   int byte_length = sizeof(T) * data.length();
   Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(byte_length);
   DisallowGarbageCollection no_gc;
-  MemCopy(byte_array->GetDataStartAddress(), data.begin(), byte_length);
+  MemCopy(byte_array->begin(), data.begin(), byte_length);
   return byte_array;
 }
 
@@ -126,7 +126,7 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
 base::Vector<RegExpInstruction> AsInstructionSequence(
     Tagged<ByteArray> raw_bytes) {
   RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
+      reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
   int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
   DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);

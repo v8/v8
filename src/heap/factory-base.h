@@ -395,6 +395,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   friend TorqueGeneratedFactory<Impl>;
   template <class Derived, class Shape>
   friend class TaggedArrayBase;
+  template <class Derived, class Shape>
+  friend class PrimitiveArrayBase;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

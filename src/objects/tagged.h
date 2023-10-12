@@ -87,6 +87,8 @@ class FixedArrayBase;
   template <>                            \
   struct is_subtype<Subtype, FixedArrayBase> : public std::true_type {};
 DEF_FIXED_ARRAY_SUBTYPE(FixedArray)
+DEF_FIXED_ARRAY_SUBTYPE(FixedDoubleArray)
+DEF_FIXED_ARRAY_SUBTYPE(ByteArray)
 DEF_FIXED_ARRAY_SUBTYPE(NameDictionary)
 DEF_FIXED_ARRAY_SUBTYPE(NumberDictionary)
 DEF_FIXED_ARRAY_SUBTYPE(OrderedHashMap)

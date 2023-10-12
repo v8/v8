@@ -132,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     if (bytes <= static_cast<unsigned>(
                      ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
       array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
-      data_copy_ptr = array_copy->GetDataStartAddress();
+      data_copy_ptr = array_copy->begin();
     } else {
       // Allocate copy in C++ heap.
       offheap_copy.resize(bytes);

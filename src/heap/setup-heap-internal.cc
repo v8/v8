@@ -811,8 +811,10 @@ bool Heap::CreateImportantReadOnlyObjects() {
   set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
   {
-    if (!AllocateRaw(ByteArray::SizeFor(0), AllocationType::kReadOnly).To(&obj))
+    if (!AllocateRaw(ByteArray::SizeFor(0), AllocationType::kReadOnly)
+             .To(&obj)) {
       return false;
+    }
     obj->set_map_after_allocation(roots.byte_array_map(), SKIP_WRITE_BARRIER);
     ByteArray::cast(obj)->set_length(0);
     set_empty_byte_array(ByteArray::cast(obj));

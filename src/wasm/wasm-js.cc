@@ -1769,9 +1769,9 @@ namespace {
 
 uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
   auto serialized_sig = tag_object->serialized_signature();
-  i::wasm::WasmTagSig sig{0, static_cast<size_t>(serialized_sig->length()),
-                          reinterpret_cast<i::wasm::ValueType*>(
-                              serialized_sig->GetDataStartAddress())};
+  i::wasm::WasmTagSig sig{
+      0, static_cast<size_t>(serialized_sig->length()),
+      reinterpret_cast<i::wasm::ValueType*>(serialized_sig->begin())};
   return i::WasmExceptionPackage::GetEncodedSize(&sig);
 }
 

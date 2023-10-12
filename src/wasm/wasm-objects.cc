@@ -694,8 +694,8 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
 
   Handle<FixedUInt32Array> new_sig_ids =
       FixedUInt32Array::New(isolate, new_capacity);
-  new_sig_ids->copy_in(0, old_sig_ids->GetDataStartAddress(),
-                       old_capacity * kUInt32Size);
+  MemCopy(new_sig_ids->begin(), old_sig_ids->begin(),
+          old_capacity * kUInt32Size);
   table->set_sig_ids(*new_sig_ids);
 
   Handle<ExternalPointerArray> new_targets =

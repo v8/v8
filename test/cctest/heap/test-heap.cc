@@ -5548,7 +5548,6 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
   result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
                                    SKIP_WRITE_BARRIER);
   ByteArray::cast(result)->set_length(length);
-  ByteArray::cast(result)->clear_padding();
   return AllocationResult::FromObject(result);
 }
 
@@ -7027,7 +7026,7 @@ TEST(Regress10698) {
   SimulateIncrementalMarking(heap, false);
   // Step 3. Allocate another byte array. It will be black.
   factory->NewByteArray(kTaggedSize, AllocationType::kOld);
-  Address address = reinterpret_cast<Address>(array->GetDataStartAddress());
+  Address address = reinterpret_cast<Address>(array->begin());
   Tagged<HeapObject> filler = HeapObject::FromAddress(address);
   // Step 4. Set the filler at the end of the first array.
   // It will have an impossible markbit pattern because the second markbit

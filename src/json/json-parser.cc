@@ -830,8 +830,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Address mutable_double_address =
         mutable_double_buffer.is_null()
             ? 0
-            : reinterpret_cast<Address>(
-                  mutable_double_buffer->GetDataStartAddress());
+            : reinterpret_cast<Address>(mutable_double_buffer->begin());
     Address filler_address = mutable_double_address;
     if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
       if (IsAligned(mutable_double_address, kDoubleAlignment)) {
@@ -881,8 +880,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     // Make all mutable HeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
 #ifdef DEBUG
-      Address end =
-          reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
+      Address end = reinterpret_cast<Address>(mutable_double_buffer->end());
       if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
         DCHECK_EQ(std::min(filler_address, mutable_double_address), end);
         DCHECK_GE(filler_address, end);
