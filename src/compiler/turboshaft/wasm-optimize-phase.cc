@@ -20,13 +20,7 @@ namespace v8::internal::compiler::turboshaft {
 void WasmOptimizePhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
-  // TODO(14108): Add more reducers as needed.
-  // Note: The MemoryOptimizationReducer should run after any optimization that
-  // might introduce new allocations. Therefore, if at any point in time the
-  // WasmLoweringReducer started to lower to allocations, it should be moved to
-  // a separate (prior) phase.
-  OptimizationPhase<LateEscapeAnalysisReducer,
-                    MachineOptimizationReducerSignallingNanPossible,
+  OptimizationPhase<LateEscapeAnalysisReducer, MachineOptimizationReducer,
                     MemoryOptimizationReducer, VariableReducer,
                     RequiredOptimizationReducer, BranchEliminationReducer,
                     LateLoadEliminationReducer,

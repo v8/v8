@@ -25,7 +25,7 @@ void OptimizePhase::Run(Zone* temp_zone) {
       turboshaft::LateEscapeAnalysisReducer,
       turboshaft::PretenuringPropagationReducer,
       turboshaft::MemoryOptimizationReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible,
+      turboshaft::MachineOptimizationReducer,
       turboshaft::RequiredOptimizationReducer,
       turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
