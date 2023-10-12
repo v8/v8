@@ -272,6 +272,13 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_CHECK(csa, x) (csa)->FastCheck(x)
 #endif
 
+#define CSA_CHECK_WITH_ABORT(csa, x) \
+  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
+
+// This is a check that always calls into the runtime if it aborts.
+// This also exits silently when --hole-fuzzing is enabled.
+#define CSA_HOLE_SECURITY_CHECK(csa, x) CSA_CHECK_WITH_ABORT(csa, x)
+
 #ifdef DEBUG
 // CSA_DCHECK_ARGS generates an
 // std::initializer_list<CodeStubAssembler::ExtraNode> from __VA_ARGS__. It

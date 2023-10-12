@@ -223,6 +223,8 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kVerifyType:
       return !v8_flags.allow_natives_for_differential_fuzzing &&
              !v8_flags.concurrent_recompilation;
+    case Runtime::kLeakHole:
+      return v8_flags.hole_fuzzing;
     case Runtime::kBaselineOsr:
     case Runtime::kCompileBaseline:
 #ifdef V8_ENABLE_SPARKPLUG

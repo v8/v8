@@ -3085,6 +3085,18 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
         memset(vec.data(), 42, 0x100);
         break;
       }
+      case 7: {
+        if (i::v8_flags.hole_fuzzing) {
+          // This should crash with a segmentation fault only
+          // when --hole-fuzzing is used.
+          char* ptr = reinterpret_cast<char*>(0x414141414141ull);
+          for (int i = 0; i < 1024; i++) {
+            *ptr = 'A';
+            ptr += 1 * i::GB;
+          }
+        }
+        break;
+      }
       default:
         break;
     }

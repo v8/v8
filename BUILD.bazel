@@ -624,6 +624,8 @@ filegroup(
 filegroup(
     name = "v8_libbase_files",
     srcs = [
+        "src/base/abort-mode.cc",
+        "src/base/abort-mode.h",
         "src/base/address-region.h",
         "src/base/atomic-utils.h",
         "src/base/atomicops.h",

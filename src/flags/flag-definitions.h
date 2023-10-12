@@ -2061,6 +2061,7 @@ DEFINE_BOOL(
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
+DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
 
 DEFINE_BOOL(experimental_value_unavailable, true,
             "enable experimental <value unavailable> in scopes")
@@ -2355,6 +2356,13 @@ DEFINE_BOOL(
 // avoids the need for bytecode aging to kick in to trigger the recomplication.
 DEFINE_WEAK_NEG_IMPLICATION(fuzzing, lazy)
 DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy_source_positions)
+
+DEFINE_BOOL(
+    hole_fuzzing, false,
+    "Fuzzers use this flag to turn DCHECKs into NOPs  and CHECK failures into "
+    "silent exits. This is useful if we want to find memory corruption "
+    "primitives with a leaked hole, where the engine is already in a weird "
+    "state")
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/abort-mode.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
@@ -105,11 +106,12 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG(condition, message)   \
-  do {                                        \
-    if (V8_UNLIKELY(!(condition))) {          \
-      V8_Dcheck(__FILE__, __LINE__, message); \
-    }                                         \
+#define DCHECK_WITH_MSG(condition, message)                       \
+  do {                                                            \
+    if (V8_UNLIKELY(!(condition)) &&                              \
+        (v8::base::g_abort_mode != v8::base::AbortMode::kSoft)) { \
+      V8_Dcheck(__FILE__, __LINE__, message);                     \
+    }                                                             \
   } while (false)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
