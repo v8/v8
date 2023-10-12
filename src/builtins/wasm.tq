@@ -34,6 +34,8 @@ extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceMemory(Context, Smi): JSAny;
 extern runtime WasmTraceEnter(Context): JSAny;
 extern runtime WasmTraceExit(Context, Smi): JSAny;
+extern runtime WasmAtomicNotify(
+    Context, WasmInstanceObject, Smi, Number, Number): Smi;
 extern runtime WasmI32AtomicWait(
     Context, WasmInstanceObject, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
@@ -515,6 +517,15 @@ builtin UintPtr53ToNumber(value: uintptr): Number {
 
 extern builtin I64ToBigInt(intptr): BigInt;
 extern builtin I32PairToBigInt(/*low*/ intptr, /*high*/ intptr): BigInt;
+
+builtin WasmAtomicNotify(memoryIndex: int32, offset: uintptr, count: uint32):
+    uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmAtomicNotify(
+      LoadContextFromInstance(instance), instance, SmiFromInt32(memoryIndex),
+      UintPtr53ToNumber(offset), WasmUint32ToNumber(count));
+  return Unsigned(SmiToInt32(result));
+}
 
 builtin WasmI32AtomicWait(
     memIndex: int32, offset: uintptr, expectedValue: int32,

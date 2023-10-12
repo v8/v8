@@ -5146,17 +5146,10 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
   Node* effective_offset = gasm_->IntAdd(gasm_->UintPtrConstant(offset), index);
 
   switch (opcode) {
-    case wasm::kExprAtomicNotify: {
-      Node* function =
-          gasm_->ExternalConstant(ExternalReference::wasm_atomic_notify());
-      auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                     .Params(MachineType::Pointer(), MachineType::Uint32());
-
-      Node* addr = gasm_->IntAdd(MemStart(memory->index), effective_offset);
-      Node* num_waiters_to_wake = inputs[1];
-
-      return BuildCCall(&sig, function, addr, num_waiters_to_wake);
-    }
+    case wasm::kExprAtomicNotify:
+      return gasm_->CallBuiltinThroughJumptable(
+          Builtin::kWasmAtomicNotify, Operator::kNoThrow, memory_index,
+          effective_offset, inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
       constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;

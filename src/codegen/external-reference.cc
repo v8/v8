@@ -522,8 +522,6 @@ FUNCTION_REFERENCE(wasm_array_copy, wasm::array_copy_wrapper)
 FUNCTION_REFERENCE(wasm_array_fill, wasm::array_fill_wrapper)
 FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
                              BUILTIN_FP_POINTER_CALL)
-int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
-FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
 
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
