@@ -170,7 +170,8 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const StoreOp& op) {
     return callback_(op.base(), op.index(), op.value(), op.kind, op.stored_rep,
                      op.write_barrier, op.offset, op.element_size_log2,
-                     op.maybe_initializing_or_transitioning);
+                     op.maybe_initializing_or_transitioning,
+                     op.indirect_pointer_tag());
   }
 
   OpIndex operator()(const AllocateOp& op) {
