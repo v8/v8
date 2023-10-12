@@ -284,6 +284,8 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list);
 
+  MainAllocator* main_allocator() { return allocator_; }
+
   void set_main_allocator(MainAllocator* allocator);
 
   virtual AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) = 0;

@@ -83,13 +83,13 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
   broker()->AttachCompilationInfo(this);
 
   // Heap broker initialization may already use IsPendingAllocation.
-  isolate->heap()->PublishMainThreadPendingAllocations();
+  isolate->heap()->PublishPendingAllocations();
   broker()->InitializeAndStartSerializing(
       handle(function->native_context(), isolate));
   broker()->StopSerializing();
 
   // Serialization may have allocated.
-  isolate->heap()->PublishMainThreadPendingAllocations();
+  isolate->heap()->PublishPendingAllocations();
 
   toplevel_compilation_unit_ =
       MaglevCompilationUnit::New(zone(), this, function);

@@ -284,7 +284,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   }
   bool another_ephemeron_iteration = false;
   MainAllocator* const new_space_allocator =
-      heap_->new_space() ? heap_->allocator()->new_space_allocator() : nullptr;
+      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
 
   {
     TimedScope scope(&time_ms);
@@ -446,7 +446,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   Isolate* isolate = heap_->isolate();
   minor_marking_state_->MarkerStarted();
   MainAllocator* const new_space_allocator =
-      heap_->allocator()->new_space_allocator();
+      heap_->new_space()->main_allocator();
   NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
 
   do {

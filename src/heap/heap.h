@@ -1469,7 +1469,7 @@ class Heap final {
   // Notifies that all previously allocated objects are properly initialized
   // and ensures that IsPendingAllocation returns false for them. This function
   // may be invoked only on the main thread.
-  V8_EXPORT_PRIVATE void PublishMainThreadPendingAllocations();
+  V8_EXPORT_PRIVATE void PublishPendingAllocations();
 
   // ===========================================================================
   // Heap object allocation tracking. ==========================================

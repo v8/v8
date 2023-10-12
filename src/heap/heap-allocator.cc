@@ -254,21 +254,6 @@ void HeapAllocator::FreeLinearAllocationAreas() {
   }
 }
 
-void HeapAllocator::PublishPendingAllocations() {
-  if (new_space_allocator_) {
-    new_space_allocator_->MarkLabStartInitialized();
-  }
-
-  old_space_allocator_->MoveOriginalTopForward();
-  trusted_space_allocator_->MoveOriginalTopForward();
-  code_space_allocator_->MoveOriginalTopForward();
-
-  lo_space()->ResetPendingObject();
-  if (new_lo_space()) new_lo_space()->ResetPendingObject();
-  code_lo_space()->ResetPendingObject();
-  trusted_lo_space()->ResetPendingObject();
-}
-
 void HeapAllocator::AddAllocationObserver(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   if (new_space_allocator_) {

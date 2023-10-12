@@ -395,19 +395,14 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
 
   switch (base_space->identity()) {
     case NEW_SPACE: {
-      return allocator()->new_space_allocator()->IsPendingAllocation(addr);
+      return new_space_->main_allocator()->IsPendingAllocation(addr);
     }
 
-    case OLD_SPACE: {
-      return allocator()->old_space_allocator()->IsPendingAllocation(addr);
-    }
-
-    case CODE_SPACE: {
-      return allocator()->code_space_allocator()->IsPendingAllocation(addr);
-    }
-
+    case OLD_SPACE:
+    case CODE_SPACE:
     case TRUSTED_SPACE: {
-      return allocator()->trusted_space_allocator()->IsPendingAllocation(addr);
+      PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
+      return paged_space->main_allocator()->IsPendingAllocation(addr);
     }
 
     case LO_SPACE:
