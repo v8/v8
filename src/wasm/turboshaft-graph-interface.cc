@@ -2582,7 +2582,7 @@ class TurboshaftGraphBuildingInterface {
       OpIndex segment_index = array_new.input(1);
       int32_t index_val;
       OperationMatcher(__ output_graph())
-          .MatchIntegralWord32Constant(segment_index, &index_val);
+          .MatchWord32Constant(segment_index, &index_val);
       V<Object> index_smi = __ SmiConstant(Smi::FromInt(index_val));
       // Arbitrary choice for the second tagged parameter: the segment offset.
       OpIndex segment_offset = array_new.input(2);

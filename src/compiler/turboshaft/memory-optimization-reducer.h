@@ -9,10 +9,8 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
-#include "src/compiler/write-barrier-kind.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -38,7 +36,6 @@ struct MemoryAnalyzer {
 
   Zone* phase_zone;
   const Graph& input_graph;
-  Isolate* isolate_ = PipelineData::Get().isolate();
   AllocationFolding allocation_folding;
   MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph,
                  AllocationFolding allocation_folding)
@@ -97,7 +94,7 @@ struct MemoryAnalyzer {
   void Process(const Operation& op);
   void ProcessBlockTerminator(const Operation& op);
   void ProcessAllocation(const AllocateOp& alloc);
-  void ProcessStore(const StoreOp& store);
+  void ProcessStore(OpIndex store, OpIndex object);
   void MergeCurrentStateIntoSuccessor(const Block* successor);
 };
 
@@ -216,7 +213,7 @@ class MemoryOptimizationReducer : public Next {
     // runtime call. This is needed because we cannot allocation-fold large and
     // normal-sized objects.
     uint64_t constant_size{};
-    if (!__ matcher().MatchIntegralWordConstant(
+    if (!__ matcher().MatchWordConstant(
             size, WordRepresentation::PointerSized(), &constant_size) ||
         constant_size > kMaxRegularHeapObjectSize) {
       Variable result =
