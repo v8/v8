@@ -223,6 +223,9 @@ class MainAllocator {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  V8_EXPORT_PRIVATE Address AlignTopForTesting(AllocationAlignment alignment,
+                                               int offset);
+
   V8_INLINE bool TryFreeLast(Address object_address, int object_size);
 
   // When allocation observers are active we may use a lower limit to allow the

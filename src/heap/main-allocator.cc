@@ -39,6 +39,20 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       allocation_info_(owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)) {}
 
+Address MainAllocator::AlignTopForTesting(AllocationAlignment alignment,
+                                          int offset) {
+  DCHECK(top());
+
+  int filler_size = Heap::GetFillToAlign(top(), alignment);
+
+  if (filler_size + offset) {
+    heap_->CreateFillerObjectAt(top(), filler_size + offset);
+    allocation_info().IncrementTop(filler_size + offset);
+  }
+
+  return top();
+}
+
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);

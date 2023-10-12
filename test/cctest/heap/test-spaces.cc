@@ -307,7 +307,6 @@ TEST(SemiSpaceNewSpace) {
                           MainAllocator::SupportsExtendingLAB::kNo,
                           allocation_info);
   new_space->set_main_allocator(&allocator);
-  new_space->UpdateLinearAllocationArea();
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;

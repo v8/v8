@@ -161,12 +161,14 @@ void HeapInternalsBase::SimulateFullSpace(
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
   if (v8_flags.minor_ms) {
+    auto* space = heap->paged_new_space()->paged_space();
     while (space->AddFreshPage()) {}
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
     DCHECK_IMPLIES(space->free_list(), space->free_list()->Available() == 0);
   } else {
+    SemiSpaceNewSpace* space = SemiSpaceNewSpace::From(heap->new_space());
     do {
       FillCurrentPage(space, out_handles);
     } while (space->AddFreshPage());
@@ -189,16 +191,6 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
 }
 
 namespace {
-int GetSpaceRemainingOnCurrentSemiSpacePage(v8::internal::NewSpace* space) {
-  const Address top = space->heap()->NewSpaceTop();
-  if ((top & kPageAlignmentMask) == 0) {
-    // `top` points to the start of a page signifies that there is not room in
-    // the current page.
-    return 0;
-  }
-  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
-}
-
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
                                               AllocationType allocation) {
   std::vector<Handle<FixedArray>> handles;
@@ -244,7 +236,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   return handles;
 }
 
-void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
+void FillCurrentSemiSpacePage(v8::internal::SemiSpaceNewSpace* space,
                               std::vector<Handle<FixedArray>>* out_handles) {
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
@@ -252,7 +244,8 @@ void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
   DCHECK_IMPLIES(
       !space->heap()->IsInlineAllocationEnabled(),
       space->heap()->NewSpaceTop() == space->heap()->NewSpaceLimit());
-  int space_remaining = GetSpaceRemainingOnCurrentSemiSpacePage(space);
+
+  int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
   if (space_remaining == 0) return;
   std::vector<Handle<FixedArray>> handles =
       CreatePadding(space->heap(), space_remaining, i::AllocationType::kYoung);
@@ -281,7 +274,7 @@ void HeapInternalsBase::FillCurrentPage(
   if (v8_flags.minor_ms)
     FillCurrentPagedSpacePage(space, out_handles);
   else
-    FillCurrentSemiSpacePage(space, out_handles);
+    FillCurrentSemiSpacePage(SemiSpaceNewSpace::From(space), out_handles);
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {

@@ -258,8 +258,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual Address first_allocatable_address() const = 0;
 
-  virtual bool AddFreshPage() = 0;
-
   virtual void Prologue() {}
 
   virtual void GarbageCollectionEpilogue() = 0;
@@ -307,12 +305,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Shrink();
 
   // Return the allocated bytes in the active semispace.
-  size_t Size() const final {
-    DCHECK_GE(allocator_->top(), to_space_.page_low());
-    return (to_space_.current_capacity() - Page::kPageSize) / Page::kPageSize *
-               MemoryChunkLayout::AllocatableMemoryInDataPage() +
-           static_cast<size_t>(allocator_->top() - to_space_.page_low());
-  }
+  size_t Size() const final;
 
   size_t SizeOfObjects() const final { return Size(); }
 
@@ -381,14 +374,15 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Get the age mark of the inactive semispace.
   Address age_mark() const { return from_space_.age_mark(); }
-  // Set the age mark in the active semispace.
-  void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
+
+  // Set the age mark in the active semispace to the current top pointer.
+  void set_age_mark_to_top();
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
   // if successful.
-  bool AddFreshPage() final;
+  bool AddFreshPage();
 
   bool AddParkedAllocationBuffer(int size_in_bytes,
                                  AllocationAlignment alignment);
@@ -444,10 +438,11 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final;
 
-  // Update linear allocation area to match the current to-space page.
-  void UpdateLinearAllocationArea(Address known_top = 0);
-
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
+
+  int GetSpaceRemainingOnCurrentPageForTesting();
+
+  bool AddFreshPageForTesting();
 
  private:
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
@@ -455,7 +450,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   SemiSpace* active_space() { return &to_space_; }
 
   // Reset the allocation pointer to the beginning of the active semispace.
-  void ResetLinearAllocationArea();
+  void ResetCurrentSpace();
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin);
@@ -469,16 +464,47 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit();
-  void UpdateInlineAllocationLimitForAllocation(size_t size_in_bytes);
 
   // Removes a page from the space. Assumes the page is in the `from_space` semi
   // space.
   void RemovePage(Page* page) final;
 
+  // Frees the given memory region. Will be resuable for allocation if this was
+  // the last allocation.
+  void Free(Address start, Address end);
+
+  void SetLinearAllocationArea(Address start, Address end, int size_in_bytes);
+
+  void ResetAllocationTopToCurrentPageStart() {
+    allocation_top_ = to_space_.page_low();
+  }
+
+  void SetAllocationTop(Address top) { allocation_top_ = top; }
+
+  void IncrementAllocationTop(Address new_top) {
+    DCHECK_LE(allocation_top_, new_top);
+    DCHECK_EQ(Page::FromAllocationAreaAddress(allocation_top_),
+              Page::FromAllocationAreaAddress(new_top));
+    allocation_top_ = new_top;
+  }
+
+  void DecrementAllocationTop(Address new_top) {
+    DCHECK_LE(new_top, allocation_top_);
+    DCHECK_EQ(Page::FromAllocationAreaAddress(allocation_top_),
+              Page::FromAllocationAreaAddress(new_top));
+    allocation_top_ = new_top;
+  }
+
+  Address allocation_top() const { return allocation_top_; }
+
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
+
+  // Bump pointer for allocation. to_space_.page_low() <= allocation_top_ <=
+  // to_space.page_high() always holds.
+  Address allocation_top_;
 
   ParkedAllocationBuffersVector parked_allocation_buffers_;
 
@@ -666,12 +692,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.first_allocatable_address();
   }
 
-  // Try to switch the active semispace to a new, empty, page.
-  // Returns false if this isn't possible or reasonable (i.e., there
-  // are no pages, or the current page is already empty), or true
-  // if successful.
-  bool AddFreshPage() final { return paged_space_.AddFreshPage(); }
-
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
   void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
@@ -738,10 +758,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
-#define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_DCHECK((space).page_low() <= (info).top() &&   \
-              (info).top() <= (space).page_high() &&  \
-              (info).limit() <= (space).page_high())
+#define DCHECK_SEMISPACE_ALLOCATION_TOP(top, space) \
+  SLOW_DCHECK((space).page_low() <= (top) && (top) <= (space).page_high())
 
 }  // namespace internal
 }  // namespace v8

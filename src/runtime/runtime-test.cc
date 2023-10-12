@@ -1126,21 +1126,11 @@ int FixedArrayLenFromSize(int size) {
                    FixedArray::kMaxRegularLength});
 }
 
-int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
-  const Address top = space->heap()->NewSpaceTop();
-  if ((top & kPageAlignmentMask) == 0) {
-    // `top` points to the start of a page signifies that there is not room in
-    // the current page.
-    return 0;
-  }
-  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
-}
-
-void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
+                           SemiSpaceNewSpace* space) {
   DCHECK(!v8_flags.single_generation);
   PauseAllocationObserversScope pause_observers(heap);
-  NewSpace* space = heap->new_space();
-  int space_remaining = GetSpaceRemainingOnCurrentPage(space);
+  int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
   while (space_remaining > 0) {
     int length = FixedArrayLenFromSize(space_remaining);
     if (length > 0) {
@@ -1173,9 +1163,9 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
     }
     space->ResetFreeList();
   } else {
-    NewSpace* space = heap->new_space();
+    SemiSpaceNewSpace* space = heap->semi_space_new_space();
     do {
-      FillUpOneNewSpacePage(isolate, heap);
+      FillUpOneNewSpacePage(isolate, heap, space);
     } while (space->AddFreshPage());
   }
   return ReadOnlyRoots(isolate).undefined_value();

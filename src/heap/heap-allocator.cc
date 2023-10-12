@@ -37,7 +37,6 @@ void HeapAllocator::Setup(LinearAllocationArea& new_allocation_info,
           heap_, heap_->new_space(), CompactionSpaceKind::kNone,
           MainAllocator::SupportsExtendingLAB::kNo, new_allocation_info);
       heap_->semi_space_new_space()->set_main_allocator(new_space_allocator());
-      heap_->semi_space_new_space()->UpdateLinearAllocationArea();
     }
   }
 

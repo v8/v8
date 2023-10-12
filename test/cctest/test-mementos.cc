@@ -75,30 +75,6 @@ TEST(Regress340063) {
 }
 
 
-TEST(Regress470390) {
-#ifdef VERIFY_HEAP
-  // With MinorMS, we may have object allocated after `new_space->top()`. If the
-  // next object after `new_space->top()` is an invalid memento, heap
-  // verification should fail.
-  if (v8_flags.minor_ms) return;
-#endif  // VERIFY_HEAP
-
-  CcTest::InitializeVM();
-  if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)
-    return;
-  v8::HandleScope scope(CcTest::isolate());
-
-  SetUpNewSpaceWithPoisonedMementoAtTop();
-
-  // Set the new space limit to be equal to the top.
-  Address top = CcTest::heap()->NewSpaceTop();
-  *(CcTest::heap()->NewSpaceAllocationLimitAddress()) = top;
-
-  // Call GC to see if we can handle a poisonous memento right after the
-  // current new space top pointer.
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
-}
-
 TEST(BadMementoAfterTopForceMinorGC) {
   CcTest::InitializeVM();
   if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)

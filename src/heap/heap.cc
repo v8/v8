@@ -1185,7 +1185,7 @@ void Heap::GarbageCollectionPrologue(
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
   if (new_space()) {
-    new_space()->main_allocator()->MakeLinearAllocationAreaIterable();
+    allocator()->new_space_allocator()->FreeLinearAllocationArea();
     DCHECK_NOT_NULL(minor_gc_job());
     minor_gc_job()->CancelTaskIfScheduled();
   }
@@ -1388,6 +1388,8 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
       semi_space_new_space->ZapUnusedMemory();
     }
+
+    DCHECK(!allocator()->new_space_allocator()->IsLabValid());
 
     {
       TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);

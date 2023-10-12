@@ -2092,78 +2092,67 @@ TEST(TestAlignmentCalculations) {
   CHECK_EQ(0, fill);
 }
 
-static Tagged<HeapObject> NewSpaceAllocateAligned(
-    int size, AllocationAlignment alignment) {
+static Tagged<HeapObject> AllocateAligned(MainAllocator* allocator, int size,
+                                          AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
-  AllocationResult allocation =
-      heap->new_space()->main_allocator()->AllocateRawForceAlignmentForTesting(
-          size, alignment, AllocationOrigin::kRuntime);
+  AllocationResult allocation = allocator->AllocateRawForceAlignmentForTesting(
+      size, alignment, AllocationOrigin::kRuntime);
   Tagged<HeapObject> obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size);
   return obj;
 }
 
-// Get new space allocation into the desired alignment.
-static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
-  Address* top_addr = CcTest::heap()->NewSpaceAllocationTopAddress();
-  int fill = Heap::GetFillToAlign(*top_addr, alignment);
-  int allocation = fill + offset;
-  if (allocation) {
-    NewSpaceAllocateAligned(allocation, kTaggedAligned);
-  }
-  return *top_addr;
-}
-
-
 TEST(TestAlignedAllocation) {
   if (v8_flags.single_generation) return;
   // Double misalignment is 4 on 32-bit platforms or when pointer compression
   // is enabled, 0 on 64-bit ones when pointer compression is disabled.
   const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
-  Address* top_addr = CcTest::heap()->NewSpaceAllocationTopAddress();
   Address start;
   Tagged<HeapObject> obj;
   Tagged<HeapObject> filler;
   if (double_misalignment) {
-    if (v8_flags.minor_ms) {
-      // Make one allocation to force allocating an allocation area. Using
-      // kDoubleSize to not change space alignment
-      USE(CcTest::heap()->allocator()->new_space_allocator()->AllocateRaw(
-          kDoubleSize, kDoubleAligned, AllocationOrigin::kRuntime));
-    }
+    MainAllocator* allocator =
+        CcTest::heap()->allocator()->new_space_allocator();
+
+    // Make one allocation to force allocating an allocation area. Using
+    // kDoubleSize to not change space alignment
+    USE(allocator->AllocateRaw(kDoubleSize, kDoubleAligned,
+                               AllocationOrigin::kRuntime));
+
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
-    start = AlignNewSpace(kDoubleAligned, 0);
-    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
+    start = allocator->AlignTopForTesting(kDoubleAligned, 0);
+    obj = AllocateAligned(allocator, kTaggedSize, kDoubleAligned);
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     // There is no filler.
-    CHECK_EQ(kTaggedSize, *top_addr - start);
+    CHECK_EQ(start, obj.address());
 
     // Allocate a second pointer sized object that must be double aligned at an
     // unaligned address.
-    start = AlignNewSpace(kDoubleAligned, kTaggedSize);
-    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
+    start = allocator->AlignTopForTesting(kDoubleAligned, kTaggedSize);
+    obj = AllocateAligned(allocator, kTaggedSize, kDoubleAligned);
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
-    CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
+    CHECK_EQ(start + double_misalignment, obj->address());
 
     // Similarly for kDoubleUnaligned.
-    start = AlignNewSpace(kDoubleUnaligned, 0);
-    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
+    start = allocator->AlignTopForTesting(kDoubleUnaligned, 0);
+    obj = AllocateAligned(allocator, kTaggedSize, kDoubleUnaligned);
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
-    CHECK_EQ(kTaggedSize, *top_addr - start);
-    start = AlignNewSpace(kDoubleUnaligned, kTaggedSize);
-    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
+    CHECK_EQ(start, obj->address());
+
+    start = allocator->AlignTopForTesting(kDoubleUnaligned, kTaggedSize);
+    obj = AllocateAligned(allocator, kTaggedSize, kDoubleUnaligned);
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
-    CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
+    CHECK_EQ(start + kTaggedSize, obj->address());
   }
 }
 
@@ -2262,7 +2251,8 @@ TEST(HeapNumberAlignment) {
 
   for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
     if (!v8_flags.single_generation) {
-      AlignNewSpace(required_alignment, offset);
+      heap->allocator()->new_space_allocator()->AlignTopForTesting(
+          required_alignment, offset);
       Handle<Object> number_new = factory->NewNumber(1.000123);
       CHECK(IsHeapNumber(*number_new));
       CHECK(Heap::InYoungGeneration(*number_new));
@@ -5355,21 +5345,25 @@ TEST(NewSpaceAllocationCounter) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  heap->FreeMainThreadLinearAllocationAreas();
   size_t counter1 = heap->NewSpaceAllocationCounter();
   heap::EmptyNewSpaceUsingGC(heap);  // Ensure new space is empty.
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, NEW_SPACE);
+  heap->FreeMainThreadLinearAllocationAreas();
   size_t counter2 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(kSize, counter2 - counter1);
   heap::InvokeMinorGC(heap);
   size_t counter3 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(0U, counter3 - counter2);
   // Test counter overflow.
+  heap->FreeMainThreadLinearAllocationAreas();
   size_t max_counter = static_cast<size_t>(-1);
   heap->set_new_space_allocation_counter(max_counter - 10 * kSize);
   size_t start = heap->NewSpaceAllocationCounter();
   for (int i = 0; i < 20; i++) {
     AllocateInSpace(isolate, kSize, NEW_SPACE);
+    heap->FreeMainThreadLinearAllocationAreas();
     size_t counter = heap->NewSpaceAllocationCounter();
     CHECK_EQ(kSize, counter - start);
     start = counter;
