@@ -180,6 +180,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeInt32ToTagged:
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
+          case IrOpcode::kTaggedIndexConstant:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
             break;
           case IrOpcode::kCompressedHeapConstant:

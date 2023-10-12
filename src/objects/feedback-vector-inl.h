@@ -229,6 +229,9 @@ base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
+  if (index == static_cast<intptr_t>(FeedbackSlot::Invalid().ToInt())) {
+    return FeedbackSlot();
+  }
   DCHECK_LE(static_cast<uintptr_t>(index),
             static_cast<uintptr_t>(std::numeric_limits<int>::max()));
   return FeedbackSlot(static_cast<int>(index));

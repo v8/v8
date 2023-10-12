@@ -3749,8 +3749,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     // be called here and below when !p->IsDefineNamedOwn().
     auto builtin = p->IsDefineNamedOwn() ? Builtin::kDefineNamedOwnIC_NoFeedback
                                          : Builtin::kStoreIC_NoFeedback;
-    TailCallBuiltin(builtin, p->context(), p->receiver(), p->name(), p->value(),
-                    p->slot());
+    TailCallBuiltin(builtin, p->context(), p->receiver(), p->name(),
+                    p->value());
   }
 
   BIND(&miss);
@@ -4047,7 +4047,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
     BIND(&no_feedback);
     {
       TailCallBuiltin(Builtin::kDefineKeyedOwnIC_Megamorphic, p->context(),
-                      p->receiver(), p->name(), p->value(), p->slot());
+                      p->receiver(), p->name(), p->value());
     }
 
     BIND(&try_polymorphic_name);

@@ -290,15 +290,15 @@ namespace internal {
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
-  TFH(DefineKeyedOwnIC_Megamorphic, Store)                                     \
+  TFH(DefineKeyedOwnIC_Megamorphic, StoreNoFeedback)                           \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
   TFH(LoadIC_NoFeedback, LoadNoFeedback)                                       \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
-  TFH(StoreIC_NoFeedback, Store)                                               \
-  TFH(DefineNamedOwnIC_NoFeedback, Store)                                      \
+  TFH(StoreIC_NoFeedback, StoreNoFeedback)                                     \
+  TFH(DefineNamedOwnIC_NoFeedback, StoreNoFeedback)                            \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
   TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \

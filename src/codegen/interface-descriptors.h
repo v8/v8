@@ -120,6 +120,7 @@ namespace internal {
   V(RunMicrotasksEntry)                              \
   V(SingleParameterOnStack)                          \
   V(Store)                                           \
+  V(StoreNoFeedback)                                 \
   V(StoreBaseline)                                   \
   V(StoreGlobal)                                     \
   V(StoreGlobalBaseline)                             \
@@ -972,6 +973,18 @@ class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {
   static constexpr inline Register NameRegister();
   static constexpr inline Register ValueRegister();
   static constexpr inline Register SlotRegister();
+
+  static constexpr auto registers();
+};
+
+class StoreNoFeedbackDescriptor
+    : public StaticCallInterfaceDescriptor<StoreNoFeedbackDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kValue)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+                         MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged())  // kValue
+  DECLARE_DESCRIPTOR(StoreNoFeedbackDescriptor)
 
   static constexpr auto registers();
 };

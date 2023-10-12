@@ -256,7 +256,7 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
 
 TNode<TaggedIndex> CodeAssembler::TaggedIndexConstant(intptr_t value) {
   DCHECK(TaggedIndex::IsValid(value));
-  return UncheckedCast<TaggedIndex>(raw_assembler()->IntPtrConstant(value));
+  return UncheckedCast<TaggedIndex>(jsgraph()->TaggedIndexConstant(value));
 }
 
 TNode<Number> CodeAssembler::NumberConstant(double value) {

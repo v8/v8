@@ -1212,8 +1212,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       DCHECK(IsDefineKeyedOwnInLiteral());
       TNode<Smi> flags =
           SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
-      // TODO(v8:10047): Use TaggedIndexConstant here once TurboFan supports it.
-      TNode<Smi> slot = SmiConstant(FeedbackSlot::Invalid().ToInt());
+      TNode<TaggedIndex> slot =
+          TaggedIndexConstant(FeedbackSlot::Invalid().ToInt());
       TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context,
                       receiver, key, value, flags, UndefinedConstant(), slot);
     }
@@ -1221,7 +1221,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 }
 
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
-  using Descriptor = StoreDescriptor;
+  using Descriptor = StoreNoFeedbackDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
@@ -1255,12 +1255,11 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
 }
 
 void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
-  using Descriptor = StoreDescriptor;
+  using Descriptor = StoreNoFeedbackDescriptor;
 
   auto receiver_maybe_smi = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   Label miss(this, Label::kDeferred), store_property(this);
@@ -1275,7 +1274,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
-      StoreICParameters p(context, receiver, name, value, base::nullopt, slot,
+      StoreICParameters p(context, receiver, name, value, base::nullopt, {},
                           UndefinedConstant(),
                           IsDefineNamedOwn() ? StoreICMode::kDefineNamedOwn
                                              : StoreICMode::kDefault);
@@ -1288,6 +1287,8 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   {
     auto runtime = IsDefineNamedOwn() ? Runtime::kDefineNamedOwnIC_Miss
                                       : Runtime::kStoreIC_Miss;
+    TNode<TaggedIndex> slot =
+        TaggedIndexConstant(FeedbackSlot::Invalid().ToInt());
     TailCallRuntime(runtime, context, value, slot, UndefinedConstant(),
                     receiver_maybe_smi, name);
   }
@@ -1319,8 +1320,8 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
     if (IsDefineKeyedOwnInLiteral()) {
       TNode<Smi> flags =
           SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
-      // TODO(v8:10047): Use TaggedIndexConstant here once TurboFan supports it.
-      TNode<Smi> slot = SmiConstant(FeedbackSlot::Invalid().ToInt());
+      TNode<TaggedIndex> slot =
+          TaggedIndexConstant(FeedbackSlot::Invalid().ToInt());
       CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context, receiver,
                   unique_name, value, flags, p.vector(), slot);
     } else {

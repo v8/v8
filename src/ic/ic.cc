@@ -2797,6 +2797,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
+    DCHECK(!vector_slot.IsInvalid());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
@@ -2825,6 +2826,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
+    DCHECK(!vector_slot.IsInvalid());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
