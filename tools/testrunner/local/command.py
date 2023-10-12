@@ -100,6 +100,14 @@ class BaseCommand(object):
   def _result_overrides(self, returncode):
     pass
 
+  @contextmanager
+  def log_errors(self):
+    try:
+      yield
+    except:
+      logging.exception(f'Error executing: {self}\n')
+      raise
+
   def execute(self):
     if self.verbose:
       print('# %s' % self)
@@ -114,7 +122,8 @@ class BaseCommand(object):
       timer.start()
 
       start_time = time.time()
-      stdout, stderr = process.communicate()
+      with self.log_errors():
+        stdout, stderr = process.communicate()
       end_time = time.time()
 
       timer.cancel()
@@ -131,16 +140,13 @@ class BaseCommand(object):
     )
 
   def _start_process(self):
-    try:
+    with self.log_errors():
       return subprocess.Popen(
         args=self._get_popen_args(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=self._get_env(),
       )
-    except Exception as e:
-      sys.stderr.write('Error executing: %s\n' % self)
-      raise e
 
   def _get_popen_args(self):
     return self._to_args_list()
