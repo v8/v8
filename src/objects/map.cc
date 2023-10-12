@@ -114,7 +114,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitEmbedderDataArray;
 
     case FIXED_ARRAY_TYPE:
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
@@ -128,6 +127,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
+
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      return kVisitObjectBoilerplateDescription;
 
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       return kVisitSloppyArgumentsElements;

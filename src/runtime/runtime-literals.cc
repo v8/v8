@@ -398,13 +398,11 @@ Handle<JSObject> CreateObjectLiteral(
   if (!use_fast_elements) JSObject::NormalizeElements(boilerplate);
 
   // Add the constant properties to the boilerplate.
-  int length = object_boilerplate_description->size();
+  int length = object_boilerplate_description->boilerplate_properties_count();
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index++) {
-    Handle<Object> key(object_boilerplate_description->name(isolate, index),
-                       isolate);
-    Handle<Object> value(object_boilerplate_description->value(isolate, index),
-                         isolate);
+    Handle<Object> key(object_boilerplate_description->name(index), isolate);
+    Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
     if (IsHeapObject(*value)) {
       if (IsArrayBoilerplateDescription(HeapObject::cast(*value), isolate)) {

@@ -54,6 +54,7 @@ namespace internal {
   V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
+  V(ObjectBoilerplateDescription)       \
   V(Oddball)                            \
   V(Hole)                               \
   V(PreparseData)                       \

@@ -1028,7 +1028,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return CALL_APPLY(EmbedderDataArray);
     case FIXED_ARRAY_TYPE:
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -1042,6 +1041,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return CALL_APPLY(FixedArray);
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      return CALL_APPLY(ObjectBoilerplateDescription);
     case REG_EXP_MATCH_INFO_TYPE:
       return CALL_APPLY(RegExpMatchInfo);
     case ARRAY_LIST_TYPE:
@@ -1447,6 +1448,15 @@ class ArrayList::BodyDescriptor final
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return ArrayList::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
+class ObjectBoilerplateDescription::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return ObjectBoilerplateDescription::unchecked_cast(raw_object)
+        ->AllocatedSize();
   }
 };
 

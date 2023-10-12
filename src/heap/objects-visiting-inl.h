@@ -14,6 +14,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
@@ -343,7 +344,6 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::VisitStringLocked(
       UNREACHABLE();
   }
   return static_cast<ResultType>(size);
-  ;
 }
 
 template <typename ConcreteVisitor>

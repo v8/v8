@@ -215,10 +215,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       String::cast(*this)->StringVerify(isolate);
     }
     break;
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      ObjectBoilerplateDescription::cast(*this)
-          ->ObjectBoilerplateDescriptionVerify(isolate);
-      break;
     // FixedArray types
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -2008,12 +2004,11 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
     Isolate* isolate) {
-  CHECK(IsObjectBoilerplateDescription(*this));
-  CHECK_GE(this->length(),
-           ObjectBoilerplateDescription::kDescriptionStartIndex);
-  this->FixedArrayVerify(isolate);
-  for (int i = 0; i < length(); ++i) {
-    // No ThinStrings in the boilerplate.
+  CHECK(IsSmi(TaggedField<Object>::load(*this, Shape::kCapacityOffset)));
+  CHECK(
+      IsSmi(TaggedField<Object>::load(*this, Shape::kBackingStoreSizeOffset)));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, Shape::kFlagsOffset)));
+  for (int i = 0; i < capacity(); ++i) {
     CHECK(!IsThinString(get(i), isolate));
   }
 }

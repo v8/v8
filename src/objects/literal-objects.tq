@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectDefinition
+extern class ObjectBoilerplateDescription extends HeapObject {
+  capacity: Smi;
+  backing_store_size: Smi;
+  flags: Smi;
+}
+
 extern class ArrayBoilerplateDescription extends Struct {
   flags: Smi;
   constant_elements: FixedArrayBase;

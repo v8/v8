@@ -333,6 +333,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsArrayList(object, cage_base) ||                          //
         IsFreeSpace(object, cage_base) ||                          //
         IsInstructionStream(object, cage_base) ||                  //
+        IsObjectBoilerplateDescription(object, cage_base) ||       //
         IsPreparseData(object, cage_base) ||                       //
         IsPropertyArray(object, cage_base) ||                      //
         IsRegExpMatchInfo(object, cage_base) ||                    //

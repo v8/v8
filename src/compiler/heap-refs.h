@@ -979,7 +979,7 @@ class ObjectBoilerplateDescriptionRef : public FixedArrayRef {
 
   Handle<ObjectBoilerplateDescription> object() const;
 
-  int size() const;
+  int boilerplate_properties_count() const;
 };
 
 class JSArrayRef : public JSObjectRef {

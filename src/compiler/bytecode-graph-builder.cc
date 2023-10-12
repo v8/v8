@@ -2335,7 +2335,7 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
-  int number_of_properties = constant_properties.size();
+  int number_of_properties = constant_properties.boilerplate_properties_count();
   static_assert(JSCreateLiteralObjectNode::FeedbackVectorIndex() == 0);
   const Operator* op = javascript()->CreateLiteralObject(
       constant_properties, pair, literal_flags, number_of_properties);

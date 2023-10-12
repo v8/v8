@@ -1894,6 +1894,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
                       LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::unchecked_cast(*this)->AllocatedSize();
   }
+  if (instance_type == OBJECT_BOILERPLATE_DESCRIPTION_TYPE) {
+    return ObjectBoilerplateDescription::unchecked_cast(*this)->AllocatedSize();
+  }
   if (instance_type == REG_EXP_MATCH_INFO_TYPE) {
     return RegExpMatchInfo::unchecked_cast(*this)->AllocatedSize();
   }

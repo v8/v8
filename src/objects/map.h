@@ -67,6 +67,7 @@ enum InstanceType : uint16_t;
   V(JSWeakCollection)                   \
   V(Map)                                \
   V(NativeContext)                      \
+  V(ObjectBoilerplateDescription)       \
   V(Oddball)                            \
   V(Hole)                               \
   V(PreparseData)                       \

@@ -174,10 +174,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case EPHEMERON_HASH_TABLE_TYPE:
       EphemeronHashTable::cast(*this)->EphemeronHashTablePrint(os);
       break;
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      ObjectBoilerplateDescription::cast(*this)
-          ->ObjectBoilerplateDescriptionPrint(os);
-      break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(*this)->TransitionArrayPrint(os);
       break;
@@ -817,7 +813,17 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
+  PrintHeader(os, "ObjectBoilerplateDescription");
+  os << "\n - capacity: " << capacity();
+  os << "\n - backing_store_size: " << backing_store_size();
+  os << "\n - flags: " << flags();
+  os << "\n - elements:";
+  PrintFixedArrayElements<ObjectBoilerplateDescription>(
+      os, *this, capacity(),
+      [](Tagged<ObjectBoilerplateDescription> xs, int i) {
+        return xs->get(i);
+      });
+  os << "\n";
 }
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
@@ -2952,7 +2958,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       os << "<ObjectBoilerplateDescription["
-         << FixedArray::cast(*this)->length() << "]>";
+         << ObjectBoilerplateDescription::cast(*this)->capacity() << "]>";
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       os << "<FixedDoubleArray[" << FixedDoubleArray::cast(*this)->length()

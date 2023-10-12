@@ -893,16 +893,15 @@ bool Heap::CreateReadOnlyObjects() {
   set_empty_array_list(ArrayList::unchecked_cast(obj));
 
   {
-    // Empty boilerplate needs a field for literal_flags
-    AllocationResult alloc =
-        AllocateRaw(FixedArray::SizeFor(1), AllocationType::kReadOnly);
+    AllocationResult alloc = AllocateRaw(
+        ObjectBoilerplateDescription::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.object_boilerplate_description_map(),
                                   SKIP_WRITE_BARRIER);
 
-    FixedArray::cast(obj)->set_length(1);
-    FixedArray::cast(obj)->set(ObjectBoilerplateDescription::kLiteralTypeOffset,
-                               Smi::zero());
+    ObjectBoilerplateDescription::cast(obj)->set_capacity(0);
+    ObjectBoilerplateDescription::cast(obj)->set_backing_store_size(0);
+    ObjectBoilerplateDescription::cast(obj)->set_flags(0);
   }
   set_empty_object_boilerplate_description(
       ObjectBoilerplateDescription::cast(obj));

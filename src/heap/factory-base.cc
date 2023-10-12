@@ -503,38 +503,9 @@ FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
                                                    int all_properties,
                                                    int index_keys,
                                                    bool has_seen_proto) {
-  DCHECK_GE(boilerplate, 0);
-  DCHECK_GE(all_properties, index_keys);
-  DCHECK_GE(index_keys, 0);
-
-  int backing_store_size =
-      all_properties - index_keys - (has_seen_proto ? 1 : 0);
-  DCHECK_GE(backing_store_size, 0);
-  bool has_different_size_backing_store = boilerplate != backing_store_size;
-
-  // Space for name and value for every boilerplate property + LiteralType flag.
-  int size =
-      2 * boilerplate + ObjectBoilerplateDescription::kDescriptionStartIndex;
-
-  if (has_different_size_backing_store) {
-    // An extra entry for the backing store size.
-    size++;
-  }
-
-  Handle<ObjectBoilerplateDescription> description =
-      Handle<ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
-          read_only_roots().object_boilerplate_description_map_handle(), size,
-          AllocationType::kOld));
-
-  if (has_different_size_backing_store) {
-    DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
-                   has_seen_proto);
-    description->set_backing_store_size(backing_store_size);
-  }
-
-  description->set_flags(0);
-
-  return description;
+  return ObjectBoilerplateDescription::New(
+      isolate(), boilerplate, all_properties, index_keys, has_seen_proto,
+      AllocationType::kOld);
 }
 
 template <typename Impl>
