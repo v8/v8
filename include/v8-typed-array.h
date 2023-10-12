@@ -37,7 +37,7 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
   /*
    * Deprecated: Use |kMaxByteLength| or the type-specific |kMaxLength| fields.
    */
-  V8_DEPRECATE_SOON("Use kMaxByteLength")
+  V8_DEPRECATED("Use kMaxByteLength")
   static constexpr size_t kMaxLength = kMaxByteLength;
 
   /**
