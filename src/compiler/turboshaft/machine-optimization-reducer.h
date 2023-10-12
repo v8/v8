@@ -671,8 +671,16 @@ class MachineOptimizationReducer : public Next {
                          matcher.MatchWordBinop(left, &a, &k1, kind, rep) &&
                          matcher.Is<ConstantOp>(k1)) {
         OpIndex k2 = right;
-        return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
-                               rep);
+        // This optimization allows to do constant folding of `k1` and `k2`.
+        // However, if (a <op> k1) has to be calculated anyways, then constant
+        // folding does not save any calculations during runtime, and it may
+        // increase register pressure because it extends the lifetime of `a`.
+        // Therefore we do the optimization only when `left = (a <op k1)` has no
+        // other uses.
+        if (matcher.Get(left).saturated_use_count.IsZero()) {
+          return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
+                                 rep);
+        }
       }
       switch (kind) {
         case Kind::kSub:
