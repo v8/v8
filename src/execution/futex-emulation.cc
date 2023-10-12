@@ -677,8 +677,12 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
 
 int FutexEmulation::Wake(Tagged<JSArrayBuffer> array_buffer, size_t addr,
                          uint32_t num_waiters_to_wake) {
-  int num_waiters_woken = 0;
   void* wait_location = FutexWaitList::ToWaitLocation(array_buffer, addr);
+  return Wake(wait_location, num_waiters_to_wake);
+}
+
+int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
+  int num_waiters_woken = 0;
   FutexWaitList* wait_list = GetWaitList();
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 

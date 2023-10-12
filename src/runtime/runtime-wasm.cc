@@ -606,25 +606,6 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  Tagged<WasmInstanceObject> instance = WasmInstanceObject::cast(args[0]);
-  int memory_index = args.smi_value_at(1);
-  double offset_double = args.number_value_at(2);
-  uintptr_t offset = static_cast<uintptr_t>(offset_double);
-  uint32_t count = NumberToUint32(args[3]);
-
-  Tagged<JSArrayBuffer> array_buffer =
-      instance->memory_object(memory_index)->array_buffer();
-  // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->byte_length());
-  if (!array_buffer->is_shared()) return Smi::zero();
-  int num_waiters_woken = FutexEmulation::Wake(array_buffer, offset, count);
-  return Smi::FromInt(num_waiters_woken);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
