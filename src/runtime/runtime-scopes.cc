@@ -904,9 +904,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   VariableLookupResult lookup_result;
   bool found = script_contexts->Lookup(name, &lookup_result);
   CHECK(found);
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      isolate, script_contexts, lookup_result.context_index);
-
+  Tagged<Context> script_context =
+      script_contexts->get(lookup_result.context_index);
   script_context->set(lookup_result.slot_index, *value);
   return *value;
 }

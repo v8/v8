@@ -227,7 +227,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
       FixedArray::cast(*this)->FixedArrayVerify(isolate);
       break;
     case AWAIT_CONTEXT_TYPE:
@@ -723,6 +722,21 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WeakFixedArrayVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
+  }
+}
+
+void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  int len = length(kAcquireLoad);
+  CHECK_LE(0, len);
+  CHECK_LE(len, capacity());
+  CHECK(IsNameToIndexHashTable(names_to_context_index()));
+  for (int i = 0; i < len; ++i) {
+    Tagged<Context> o = get(i);
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsContext(o));
+    CHECK(o->IsScriptContext());
   }
 }
 

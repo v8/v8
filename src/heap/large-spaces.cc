@@ -339,6 +339,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsPropertyArray(object, cage_base) ||                      //
         IsRegExpMatchInfo(object, cage_base) ||                    //
         IsScopeInfo(object) ||                                     //
+        IsScriptContextTable(object, cage_base) ||                 //
         IsSeqString(object, cage_base) ||                          //
         IsSloppyArgumentsElements(object, cage_base) ||            //
         IsSwissNameDictionary(object) ||                           //

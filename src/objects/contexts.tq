@@ -14,6 +14,14 @@ extern class Context extends HeapObject {
   elements[length]: Object;
 }
 
+@cppObjectDefinition
+extern class ScriptContextTable extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  names_to_context_index: NameToIndexHashTable;
+  objects[capacity]: Context;
+}
+
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
 extern class CatchContext extends Context generates 'TNode<Context>';

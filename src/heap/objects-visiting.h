@@ -64,6 +64,7 @@ namespace internal {
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(RegExpMatchInfo)                    \
+  V(ScriptContextTable)                 \
   V(SharedFunctionInfo)                 \
   V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \

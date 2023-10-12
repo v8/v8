@@ -212,8 +212,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
     VariableLookupResult lookup;
     if (script_context->Lookup(name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
-        Handle<Context> context = ScriptContextTable::GetContext(
-            isolate, script_context, lookup.context_index);
+        Handle<Context> context(script_context->get(lookup.context_index),
+                                isolate);
         // If we are trying to re-declare a REPL-mode let as a let or REPL-mode
         // const as a const, allow it.
         if (!(((mode == VariableMode::kLet &&
@@ -265,9 +265,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   // In REPL mode, we are allowed to add/modify let/const variables.
   // We use the previous defined script context for those.
   const bool ignore_duplicates = scope_info->IsReplModeScope();
-  Handle<ScriptContextTable> new_script_context_table =
-      ScriptContextTable::Extend(isolate, script_context, result,
-                                 ignore_duplicates);
+  Handle<ScriptContextTable> new_script_context_table = ScriptContextTable::Add(
+      isolate, script_context, result, ignore_duplicates);
   native_context->synchronized_set_script_context_table(
       *new_script_context_table);
   return result;

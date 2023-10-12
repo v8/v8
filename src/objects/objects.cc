@@ -1903,6 +1903,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == REG_EXP_MATCH_INFO_TYPE) {
     return RegExpMatchInfo::unchecked_cast(*this)->AllocatedSize();
   }
+  if (instance_type == SCRIPT_CONTEXT_TABLE_TYPE) {
+    return ScriptContextTable::unchecked_cast(*this)->AllocatedSize();
+  }
   if (instance_type == ARRAY_LIST_TYPE) {
     return ArrayList::unchecked_cast(*this)->AllocatedSize();
   }

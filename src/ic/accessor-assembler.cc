@@ -3395,9 +3395,8 @@ void AccessorAssembler::ScriptContextTableLookup(
       LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
   TVARIABLE(IntPtrT, context_index, IntPtrConstant(-1));
   Label loop(this, &context_index);
-  TNode<IntPtrT> num_script_contexts =
-      PositiveSmiUntag(CAST(LoadFixedArrayElement(
-          script_context_table, ScriptContextTable::kUsedSlotIndex)));
+  TNode<IntPtrT> num_script_contexts = PositiveSmiUntag(CAST(LoadObjectField(
+      script_context_table, ScriptContextTable::kLengthOffset)));
   Goto(&loop);
 
   BIND(&loop);
@@ -3406,9 +3405,8 @@ void AccessorAssembler::ScriptContextTableLookup(
     GotoIf(IntPtrGreaterThanOrEqual(context_index.value(), num_script_contexts),
            not_found);
 
-    TNode<Context> script_context = CAST(LoadFixedArrayElement(
-        script_context_table, context_index.value(),
-        ScriptContextTable::kFirstContextSlotIndex * kTaggedSize));
+    TNode<Context> script_context =
+        LoadArrayElement(script_context_table, context_index.value());
     TNode<ScopeInfo> scope_info =
         CAST(LoadContextElement(script_context, Context::SCOPE_INFO_INDEX));
 

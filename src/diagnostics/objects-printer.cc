@@ -135,9 +135,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case WITH_CONTEXT_TYPE:
       Context::cast(*this)->ContextPrint(os);
       break;
-    case SCRIPT_CONTEXT_TABLE_TYPE:
-      FixedArray::cast(*this)->FixedArrayPrint(os);
-      break;
     case NATIVE_CONTEXT_TYPE:
       NativeContext::cast(*this)->NativeContextPrint(os);
       break;
@@ -848,6 +845,20 @@ void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintFixedArrayElements<ArrayList>(
       os, *this, length(),
       [](Tagged<ArrayList> xs, int i) { return xs->get(i); });
+  os << "\n";
+}
+
+void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
+  PrintHeader(os, "ScriptContextTable");
+  os << "\n - capacity: " << capacity();
+  os << "\n - length: " << length(kAcquireLoad);
+  os << "\n - names_to_context_index: " << names_to_context_index();
+  os << "\n - elements:";
+  PrintFixedArrayElements<ScriptContextTable>(
+      os, *this, length(kAcquireLoad),
+      [](Tagged<ScriptContextTable> xs, int i) {
+        return Object::cast(xs->get(i));
+      });
   os << "\n";
 }
 
@@ -2922,7 +2933,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<WithContext[" << Context::cast(*this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
-      os << "<ScriptContextTable[" << FixedArray::cast(*this)->length() << "]>";
+      os << "<ScriptContextTable["
+         << ScriptContextTable::cast(*this)->capacity() << "]>";
       break;
     case HASH_TABLE_TYPE:
       os << "<HashTable[" << FixedArray::cast(*this)->length() << "]>";

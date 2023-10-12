@@ -2529,6 +2529,12 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
 
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<ScriptContextTable> array) {
+  return SmiUntag(LoadArrayCapacity(array));
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<RegExpMatchInfo> array) {
   return SmiUntag(LoadArrayCapacity(array));
 }
@@ -2586,6 +2592,9 @@ CodeStubAssembler::LoadArrayElement<ClosureFeedbackCellArray, UintPtrT>(
     TNode<ClosureFeedbackCellArray>, int, TNode<UintPtrT>, int);
 template V8_EXPORT_PRIVATE TNode<Smi> CodeStubAssembler::LoadArrayElement<
     RegExpMatchInfo, IntPtrT>(TNode<RegExpMatchInfo>, int, TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<Context>
+CodeStubAssembler::LoadArrayElement<ScriptContextTable, IntPtrT>(
+    TNode<ScriptContextTable>, int, TNode<IntPtrT>, int);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
@@ -11704,11 +11713,7 @@ TNode<Context> CodeStubAssembler::LoadScriptContext(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<ScriptContextTable> script_context_table = CAST(
       LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
-
-  TNode<Context> script_context = CAST(LoadFixedArrayElement(
-      script_context_table, context_index,
-      ScriptContextTable::kFirstContextSlotIndex * kTaggedSize));
-  return script_context;
+  return LoadArrayElement(script_context_table, context_index);
 }
 
 namespace {

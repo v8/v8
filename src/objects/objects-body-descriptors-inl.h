@@ -1038,8 +1038,9 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
       return CALL_APPLY(FixedArray);
+    case SCRIPT_CONTEXT_TABLE_TYPE:
+      return CALL_APPLY(ScriptContextTable);
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
       return CALL_APPLY(ClosureFeedbackCellArray);
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
@@ -1467,6 +1468,14 @@ class ClosureFeedbackCellArray::BodyDescriptor final
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return ClosureFeedbackCellArray::unchecked_cast(raw_object)
         ->AllocatedSize();
+  }
+};
+
+class ScriptContextTable::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return ScriptContextTable::unchecked_cast(raw_object)->AllocatedSize();
   }
 };
 

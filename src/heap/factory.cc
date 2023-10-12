@@ -1302,13 +1302,8 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
 }
 
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
-  Handle<ScriptContextTable> context_table = Handle<ScriptContextTable>::cast(
-      NewFixedArrayWithMap(read_only_roots().script_context_table_map_handle(),
-                           ScriptContextTable::kMinLength));
-  Handle<NameToIndexHashTable> names = NameToIndexHashTable::New(isolate(), 16);
-  context_table->set_used(0, kReleaseStore);
-  context_table->set_names_to_context_index(*names);
-  return context_table;
+  static constexpr int kInitialCapacity = 0;
+  return ScriptContextTable::New(isolate(), kInitialCapacity);
 }
 
 Handle<Context> Factory::NewModuleContext(Handle<SourceTextModule> module,

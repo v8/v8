@@ -124,11 +124,13 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
 
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
       return kVisitClosureFeedbackCellArray;
+
+    case SCRIPT_CONTEXT_TABLE_TYPE:
+      return kVisitScriptContextTable;
 
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       return kVisitObjectBoilerplateDescription;

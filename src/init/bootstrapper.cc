@@ -1319,8 +1319,6 @@ void Genesis::CreateRoots() {
 }
 
 void Genesis::InstallGlobalThisBinding() {
-  Handle<ScriptContextTable> script_contexts(
-      native_context()->script_context_table(), isolate());
   Handle<ScopeInfo> scope_info =
       ReadOnlyRoots(isolate()).global_this_binding_scope_info_handle();
   Handle<Context> context =
@@ -1331,8 +1329,10 @@ void Genesis::InstallGlobalThisBinding() {
   DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);
   context->set(slot, native_context()->global_proxy());
 
+  Handle<ScriptContextTable> script_contexts(
+      native_context()->script_context_table(), isolate());
   Handle<ScriptContextTable> new_script_contexts =
-      ScriptContextTable::Extend(isolate(), script_contexts, context);
+      ScriptContextTable::Add(isolate(), script_contexts, context, false);
   native_context()->set_script_context_table(*new_script_contexts);
 }
 
