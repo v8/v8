@@ -430,32 +430,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
       json.dump(result, f)
 
 
-class TestScheduleIndicator(ProgressIndicator):
-  """Indicator the logs the start:end interval as timestamps for each
-  executed test. Reruns and variants are accounted for separately.
-  """
-
-  def __init__(self, context, options, test_count):
-    super(TestScheduleIndicator, self).__init__(
-        context, options, test_count)
-    self._requirement = base.DROP_PASS_STDOUT
-    self.handle = open(self.options.log_test_schedule, 'w')
-
-  def on_test_result(self, test, result):
-    encoding = sys.stdout.encoding or 'utf-8'
-    for r in result.as_list:
-      # TODO(v8-infra): Ideally the full_name should already be encoded
-      # correctly. This takes care of one test with unicode characters in
-      # the file name.
-      name = test.full_name.encode(encoding, errors='replace').decode(encoding)
-      print(f'{name} {test.variant or "default"}: {r.status()} '
-            f'({r.output.start_time}:{r.output.end_time})',
-            file=self.handle)
-
-  def finished(self):
-    self.handle.close()
-
-
 PROGRESS_INDICATORS = {
     'verbose': VerboseProgressIndicator,
     'ci': CIProgressIndicator,

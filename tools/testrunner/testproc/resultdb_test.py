@@ -37,12 +37,9 @@ def mock_test262(is_fail, rdb_test_id):
               skip_if_expected)
 
 
-def mock_result(is_fail, duration=0):
+def mock_result(is_fail, duration=None):
   Result = namedtuple('Result', ['has_unexpected_output', 'output', 'cmd'])
-  return Result(
-      is_fail,
-      Output(start_time=100.0, end_time=100.0 + duration),
-      BaseCommand('echo'))
+  return Result(is_fail, Output(duration=duration), BaseCommand('echo'))
 
 
 class TestResultDBIndicator(unittest.TestCase):

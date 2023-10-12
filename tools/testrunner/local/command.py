@@ -115,7 +115,7 @@ class BaseCommand(object):
 
       start_time = time.time()
       stdout, stderr = process.communicate()
-      end_time = time.time()
+      duration = time.time() - start_time
 
       timer.cancel()
 
@@ -126,8 +126,7 @@ class BaseCommand(object):
       stdout.decode('utf-8', 'replace'),
       stderr.decode('utf-8', 'replace'),
       process.pid,
-      start_time,
-      end_time,
+      duration
     )
 
   def _start_process(self):
@@ -376,15 +375,14 @@ class AndroidCommand(BaseCommand):
       # Sadly the Android driver doesn't provide output on timeout.
       stdout = ''
 
-    end_time = time.time()
+    duration = time.time() - start_time
     return output.Output(
         return_code,
         timed_out,
         stdout,
         '',  # No stderr available.
         -1,  # No pid available.
-        start_time,
-        end_time,
+        duration,
     )
 
   def push_test_resources(self):

@@ -110,14 +110,6 @@ def clean_json_output(json_path, basedir):
   json_output['slowest_tests'].sort(key=sort_key)
   return json_output
 
-
-def test_schedule_log(json_path):
-  if not json_path:
-    return None
-  with open(json_path.parent / 'test_schedule.log') as f:
-    return f.read()
-
-
 def setup_build_config(basedir, outdir):
   """Ensure a build config file exists - default or from test root."""
   path = basedir / outdir / 'build' / 'v8_build_config.json'
@@ -153,7 +145,6 @@ class TestResult():
   stderr: str
   returncode: int
   json: str
-  test_schedule: str
   current_test_case: unittest.TestCase
 
   def __str__(self):
@@ -216,9 +207,7 @@ class TestRunnerTest(unittest.TestCase):
         runner = self.get_runner_class()(basedir=basedir)
         code = runner.execute(sys_args)
         json_out = clean_json_output(json_out_path, basedir)
-        test_schedule = test_schedule_log(json_out_path)
-        return TestResult(
-            stdout.getvalue(), stderr.getvalue(), code, json_out, test_schedule, self)
+        return TestResult(stdout.getvalue(), stderr.getvalue(), code, json_out, self)
 
   def get_runner_options(self, baseroot='testroot1'):
     """Returns a list of all flags parsed by the test runner."""
@@ -297,6 +286,5 @@ class FakeCommand(BaseCommand):
         f'fake stdout {FakeCommand.counter}',
         f'fake stderr {FakeCommand.counter}',
         -1,  # No pid available.
-        start_time=1,
-        end_time=100,
+        99,
     )

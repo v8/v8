@@ -20,7 +20,6 @@ with different test suite extensions and build configurations.
 from collections import deque
 from pathlib import Path
 
-import re
 import sys
 import unittest
 from mock import patch
@@ -223,12 +222,6 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('1 tests were flaky')
     result.has_returncode(1)
     result.json_content_equals('expected_test_results2.json')
-    self.assertTrue(re.search(
-        r'sweet/bananaflakes default: FAIL \(\d+\.\d+:\d+\.\d+\)',
-        result.test_schedule))
-    self.assertTrue(re.search(
-        r'sweet/bananaflakes default: PASS \(\d+\.\d+:\d+\.\d+\)',
-        result.test_schedule))
 
   def testAutoDetect(self):
     """Fake a build with several auto-detected options.

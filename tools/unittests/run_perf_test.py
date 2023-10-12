@@ -171,8 +171,7 @@ class PerfTest(unittest.TestCase):
             stdout=output,
             timed_out=kwargs.get('timed_out', False),
             exit_code=kwargs.get('exit_code', 0),
-            start_time=0,
-            end_time=42) for output in raw_outputs
+            duration=42) for output in raw_outputs
     ]
 
     def create_cmd(*args, **kwargs):
