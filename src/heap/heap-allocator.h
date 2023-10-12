@@ -87,10 +87,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   // Make all LABs iterable.
   void MakeLinearAllocationAreasIterable();
 
-#if DEBUG
-  void VerifyLinearAllocationAreas() const;
-#endif  // DEBUG
-
   // Mark/Unmark all LABs except for new and shared space. Use for black
   // allocation.
   void MarkLinearAllocationAreasBlack();

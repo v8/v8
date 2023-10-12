@@ -121,10 +121,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Give up all LABs. Used for e.g. full GCs.
   void FreeLinearAllocationAreas();
 
-#if DEBUG
-  void VerifyLinearAllocationAreas() const;
-#endif  // DEBUG
-
   // Make all LABs iterable.
   void MakeLinearAllocationAreasIterable();
 

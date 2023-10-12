@@ -402,6 +402,10 @@ void PagedSpaceBase::Verify(Isolate* isolate,
                             SpaceVerificationVisitor* visitor) const {
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
+  bool allocation_pointer_found_in_space =
+      allocator_ ? (allocator_->allocation_info().top() ==
+                    allocator_->allocation_info().limit())
+                 : true;
   size_t external_space_bytes[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
@@ -413,6 +417,10 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
 
+    if (allocator_ && page == Page::FromAllocationAreaAddress(
+                                  allocator_->allocation_info().top())) {
+      allocation_pointer_found_in_space = true;
+    }
     CHECK(page->SweepingDone());
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
@@ -452,6 +460,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
         }
         CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
       });
+  CHECK(allocation_pointer_found_in_space);
 
   if (!v8_flags.concurrent_array_buffer_sweeping) {
     if (identity() == OLD_SPACE) {

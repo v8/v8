@@ -648,6 +648,9 @@ void SemiSpaceNewSpace::FreeLinearAllocationArea() {
 // that it works (it depends on the invariants we are checking).
 void SemiSpaceNewSpace::Verify(Isolate* isolate,
                                SpaceVerificationVisitor* visitor) const {
+  // The allocation pointer should be in the space or at the very end.
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocator_->allocation_info(), to_space_);
+
   VerifyObjects(isolate, visitor);
 
   // Check semi-spaces.

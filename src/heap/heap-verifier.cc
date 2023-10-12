@@ -255,7 +255,6 @@ class HeapVerification final : public SpaceVerificationVisitor {
   void VerifySharedHeap(Isolate* initiator);
 
  private:
-  void VerifyLinearAllocationAreas();
   void VerifySpace(BaseSpace* space);
 
   void VerifyPage(const BasicMemoryChunk* chunk) final;
@@ -309,8 +308,6 @@ void HeapVerification::Verify() {
 
   heap()->MakeHeapIterable();
 
-  VerifyLinearAllocationAreas();
-
   // TODO(v8:13257): Currently we don't iterate through the stack conservatively
   // when verifying the heap.
   VerifyPointersVisitor visitor(heap());
@@ -355,15 +352,6 @@ void HeapVerification::Verify() {
 
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
-#endif  // DEBUG
-}
-
-void HeapVerification::VerifyLinearAllocationAreas() {
-#if DEBUG
-  heap()->allocator()->VerifyLinearAllocationAreas();
-
-  heap()->safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->VerifyLinearAllocationAreas(); });
 #endif  // DEBUG
 }
 
