@@ -2133,12 +2133,6 @@
   # https://crbug.com/1414292
   'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14342
-  'intl402/DateTimeFormat/prototype/format/offset-timezone-gmt-same': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatToParts/offset-timezone-correct': [FAIL],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-basic': [FAIL],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/offset-timezone-change': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=14315
   'intl402/NumberFormat/prototype/resolvedOptions/return-keys-order-default': [FAIL],
 
