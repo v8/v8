@@ -338,16 +338,19 @@ Address MainAllocator::ComputeLimit(Address start, Address end,
 
 #if DEBUG
 void MainAllocator::Verify() const {
-  // Ensure validity of LAB: start <= top <= limit
+  // Ensure validity of LAB: start <= top.
   DCHECK_LE(allocation_info().start(), allocation_info().top());
+
+  if (top()) {
+    Page* page = Page::FromAllocationAreaAddress(top());
+    // Can't compare owner directly because of new space semi spaces.
+    DCHECK_EQ(page->owner_identity(), identity());
+  }
+
+  // Ensure that original_top <= top <= limit <= original_limit.
+  DCHECK_LE(linear_area_original_data().get_original_top_acquire(),
+            allocation_info().top());
   DCHECK_LE(allocation_info().top(), allocation_info().limit());
-
-  // Ensure that original_top_ always >= LAB start. The delta between start_
-  // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(linear_area_original_data().get_original_top_acquire(),
-            allocation_info().start());
-
-  // Ensure that limit() is <= original_limit_.
   DCHECK_LE(allocation_info().limit(),
             linear_area_original_data().get_original_limit_relaxed());
 }

@@ -56,6 +56,10 @@ class ConcurrentAllocator {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+#if DEBUG
+  void Verify() const;
+#endif  // DEBUG
+
   // Checks whether the LAB is currently in use.
   V8_INLINE bool IsLabValid() { return lab_.top() != kNullAddress; }
 

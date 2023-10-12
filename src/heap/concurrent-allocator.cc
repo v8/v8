@@ -88,6 +88,17 @@ ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
   DCHECK_IMPLIES(!local_heap_, context_ == Context::kGC);
 }
 
+#if DEBUG
+void ConcurrentAllocator::Verify() const {
+  lab_.Verify();
+
+  if (lab_.top()) {
+    Page* page = Page::FromAllocationAreaAddress(lab_.top());
+    DCHECK_EQ(page->owner(), space_);
+  }
+}
+#endif  // DEBUG
+
 void ConcurrentAllocator::FreeLinearAllocationArea() {
   if (IsLabValid() && lab_.top() != lab_.limit()) {
     base::Optional<CodePageHeaderModificationScope> optional_scope;
