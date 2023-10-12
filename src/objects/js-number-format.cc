@@ -973,18 +973,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
           .FromJust());
 
   int32_t mnsd = 0, mxsd = 0, mnfd = 0, mxfd = 0;
-  bool has_significant_digits =
-      SignificantDigitsFromSkeleton(skeleton, &mnsd, &mxsd);
-  if (has_significant_digits) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->minimumSignificantDigits_string(),
-              factory->NewNumberFromInt(mnsd), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->maximumSignificantDigits_string(),
-              factory->NewNumberFromInt(mxsd), Just(kDontThrow))
-              .FromJust());
-  }
   if (FractionDigitsFromSkeleton(skeleton, &mnfd, &mxfd)) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->minimumFractionDigits_string(),
@@ -993,6 +981,16 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->maximumFractionDigits_string(),
               factory->NewNumberFromInt(mxfd), Just(kDontThrow))
+              .FromJust());
+  }
+  if (SignificantDigitsFromSkeleton(skeleton, &mnsd, &mxsd)) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->minimumSignificantDigits_string(),
+              factory->NewNumberFromInt(mnsd), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->maximumSignificantDigits_string(),
+              factory->NewNumberFromInt(mxsd), Just(kDontThrow))
               .FromJust());
   }
 

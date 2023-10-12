@@ -2133,9 +2133,6 @@
   # https://crbug.com/1414292
   'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14315
-  'intl402/NumberFormat/prototype/resolvedOptions/return-keys-order-default': [FAIL],
-
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
