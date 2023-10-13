@@ -325,7 +325,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      DCHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      // We must have a valid indirect pointer tag here. Otherwise, we risk not
+      // invoking the correct write barrier, which may lead to subtle issues.
+      CHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
       __ CallIndirectPointerBarrier(object_, offset_, save_fp_mode,
                                     indirect_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY

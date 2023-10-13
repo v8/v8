@@ -38,7 +38,7 @@ enum IndirectPointerTag : uint64_t {
 #undef INDIRECT_POINTER_TAG_ENUM_DECL
 };
 
-V8_INLINE bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
+V8_INLINE constexpr bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
 #define VALID_INDIRECT_POINTER_TAG_CASE(tag, instance_type) case tag:
   switch (tag) {
     INDIRECT_POINTER_TAG_LIST(VALID_INDIRECT_POINTER_TAG_CASE)
@@ -48,6 +48,10 @@ V8_INLINE bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
   }
 #undef VALID_INDIRECT_POINTER_TAG_CASE
 }
+
+// The null tag is also considered an invalid tag since no indirect pointer
+// field should be using this tag.
+static_assert(!IsValidIndirectPointerTag(kIndirectPointerNullTag));
 
 V8_INLINE IndirectPointerTag
 IndirectPointerTagFromInstanceType(InstanceType instance_type) {
