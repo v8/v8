@@ -770,8 +770,8 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (resume_on_exit_) {
-    DCHECK_EQ(concurrent_marking_->garbage_collector_,
-              GarbageCollector::MARK_COMPACTOR);
+    DCHECK_NE(concurrent_marking_->garbage_collector_,
+              GarbageCollector::SCAVENGER);
     concurrent_marking_->Resume();
   }
 }
