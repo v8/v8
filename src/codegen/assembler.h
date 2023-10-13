@@ -148,7 +148,7 @@ struct JumpOptimizationInfo {
   std::map<int, int> align_pos_size;
 
   int farjmp_num = 0;
-  // For collecting stage, should contains all far jump informatino after
+  // For collecting stage, should contains all far jump information after
   // collecting.
   std::vector<JumpInfo> farjmps;
 
@@ -204,7 +204,7 @@ enum class BuiltinCallJumpMode {
   // 1) we encode the target as an offset from the code range which is not
   // always available (32-bit architectures don't have it),
   // 2) serialization of RelocInfo::RUNTIME_ENTRY is not implemented yet.
-  // TODO(v8:11527): Address the resons above and remove the kForMksnapshot in
+  // TODO(v8:11527): Address the reasons above and remove the kForMksnapshot in
   // favor of kPCRelative or kIndirect.
   kForMksnapshot,
 };
