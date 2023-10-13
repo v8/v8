@@ -2160,8 +2160,10 @@ static Tagged<HeapObject> OldSpaceAllocateAligned(
     int size, AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
-      heap->old_space()->main_allocator()->AllocateRawForceAlignmentForTesting(
-          size, alignment, AllocationOrigin::kRuntime);
+      heap->allocator()
+          ->old_space_allocator()
+          ->AllocateRawForceAlignmentForTesting(size, alignment,
+                                                AllocationOrigin::kRuntime);
   Tagged<HeapObject> obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size);
@@ -7139,7 +7141,7 @@ TEST(IsPendingAllocationNewSpace) {
   Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kYoung);
   CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                 heap->IsPendingAllocation(*object));
-  heap->PublishPendingAllocations();
+  heap->PublishMainThreadPendingAllocations();
   CHECK(!heap->IsPendingAllocation(*object));
 }
 
@@ -7153,7 +7155,7 @@ TEST(IsPendingAllocationNewLOSpace) {
       FixedArray::kMaxRegularLength + 1, AllocationType::kYoung);
   CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                 heap->IsPendingAllocation(*object));
-  heap->PublishPendingAllocations();
+  heap->PublishMainThreadPendingAllocations();
   CHECK(!heap->IsPendingAllocation(*object));
 }
 
@@ -7166,7 +7168,7 @@ TEST(IsPendingAllocationOldSpace) {
   Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kOld);
   CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                 heap->IsPendingAllocation(*object));
-  heap->PublishPendingAllocations();
+  heap->PublishMainThreadPendingAllocations();
   CHECK(!heap->IsPendingAllocation(*object));
 }
 
@@ -7180,7 +7182,7 @@ TEST(IsPendingAllocationLOSpace) {
       FixedArray::kMaxRegularLength + 1, AllocationType::kOld);
   CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                 heap->IsPendingAllocation(*object));
-  heap->PublishPendingAllocations();
+  heap->PublishMainThreadPendingAllocations();
   CHECK(!heap->IsPendingAllocation(*object));
 }
 

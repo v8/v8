@@ -1283,12 +1283,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   // InitializeHeapBroker() and CreateGraph() may already use
   // IsPendingAllocation.
-  isolate->heap()->PublishPendingAllocations();
+  isolate->heap()->PublishMainThreadPendingAllocations();
 
   pipeline_.InitializeHeapBroker();
 
   // Serialization may have allocated.
-  isolate->heap()->PublishPendingAllocations();
+  isolate->heap()->PublishMainThreadPendingAllocations();
 
   return SUCCEEDED;
 }

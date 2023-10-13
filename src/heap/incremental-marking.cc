@@ -414,7 +414,6 @@ void IncrementalMarking::StartBlackAllocation() {
   black_allocation_ = true;
   heap()->allocator()->MarkLinearAllocationAreasBlack();
   if (isolate()->is_shared_space_isolate()) {
-    DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
         [](Isolate* client) {
           client->heap()->MarkSharedLinearAllocationAreasBlack();
@@ -433,7 +432,6 @@ void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMajorMarking());
   heap()->allocator()->UnmarkLinearAllocationsArea();
   if (isolate()->is_shared_space_isolate()) {
-    DCHECK_NULL(heap()->shared_space()->main_allocator());
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
         [](Isolate* client) {
           client->heap()->UnmarkSharedLinearAllocationAreas();
@@ -863,7 +861,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   if (step_origin == StepOrigin::kTask) {
     // We cannot publish the pending allocations for V8 step origin because the
     // last object was allocated before invoking the step.
-    heap()->PublishPendingAllocations();
+    heap()->PublishMainThreadPendingAllocations();
   }
 
   // Perform a single V8 and a single embedder step. In case both have been

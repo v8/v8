@@ -538,7 +538,7 @@ HEAP_TEST(Regress777177) {
         max_object_size, kTaggedAligned, AllocationOrigin::kRuntime);
     Tagged<HeapObject> obj = result.ToObjectChecked();
     // Simulate allocation folding moving the top pointer back.
-    old_space->main_allocator()->ResetLab(
+    old_space_allocator->ResetLab(
         obj.address(), heap->allocator()->old_space_allocator()->limit(),
         heap->allocator()->old_space_allocator()->limit());
   }

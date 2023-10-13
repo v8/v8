@@ -1892,8 +1892,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   heap->sweeper()->FinishMajorJobs();
 
   if (auto* new_space = heap->new_space()) {
-    new_space->main_allocator()->MakeLinearAllocationAreaIterable();
-
+    DCHECK(!heap->allocator()->new_space_allocator()->IsLabValid());
     for (Page* page : *new_space) {
       for (Tagged<HeapObject> obj : HeapObjectRange(page)) {
         obj->IterateFast(cage_base, &visitor);

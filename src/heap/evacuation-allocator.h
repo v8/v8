@@ -43,7 +43,7 @@ class EvacuationAllocator {
   inline AllocationResult AllocateInLAB(int object_size,
                                         AllocationAlignment alignment);
   void FreeLastInNewSpace(Tagged<HeapObject> object, int object_size);
-  void FreeLastInCompactionSpace(AllocationSpace space,
+  void FreeLastInCompactionSpace(MainAllocator* allocator,
                                  Tagged<HeapObject> object, int object_size);
 
   MainAllocator* new_space_allocator() { return new_space_allocator_; }

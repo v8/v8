@@ -1269,20 +1269,9 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
   allocator()->RemoveAllocationObserver(observer, new_space_observer);
 }
 
-void Heap::PublishPendingAllocations() {
+void Heap::PublishMainThreadPendingAllocations() {
   if (v8_flags.enable_third_party_heap) return;
-  if (new_space_) new_space_->main_allocator()->MarkLabStartInitialized();
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    if (space->main_allocator()) {
-      space->main_allocator()->MoveOriginalTopForward();
-    }
-  }
-  lo_space_->ResetPendingObject();
-  if (new_lo_space_) new_lo_space_->ResetPendingObject();
-  code_lo_space_->ResetPendingObject();
-  trusted_lo_space_->ResetPendingObject();
+  allocator()->PublishPendingAllocations();
 }
 
 void Heap::DeoptMarkedAllocationSites() {
