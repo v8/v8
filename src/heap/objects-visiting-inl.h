@@ -306,12 +306,7 @@ Tagged<T> ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Cast(
       ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(    \
           Tagged<Map> map, Tagged<TypeName> object) {                         \
     if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {            \
-      if (UnsafeTransitionsEnabled()) {                                       \
-        return VisitStringLocked(object);                                     \
-      } else {                                                                \
-        return HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(     \
-            map, object);                                                     \
-      }                                                                       \
+      return VisitStringLocked(object);                                       \
     }                                                                         \
     return HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(map,     \
                                                                      object); \
