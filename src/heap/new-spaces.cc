@@ -553,13 +553,13 @@ void SemiSpaceNewSpace::UpdateInlineAllocationLimit() {
   DCHECK_LE(new_limit, allocator_->limit());
 
   if (new_limit < allocator_->limit()) {
-    allocator_->allocation_info().SetLimit(new_limit);
-
+    Free(new_limit, allocator_->limit());
     // Add a filler object after the linear allocation area (if there is space
     // left), to ensure that the page will be iterable.
     heap()->CreateFillerObjectAt(
-        allocator_->limit(),
-        static_cast<int>(to_space_.page_high() - allocator_->limit()));
+        new_limit, static_cast<int>(allocator_->limit() - new_limit));
+
+    allocator_->allocation_info().SetLimit(new_limit);
   }
 
 #if DEBUG
