@@ -4,8 +4,16 @@
     "org": "tc39",
     "repo": "test262",
     "main_branch": "main",
-    "source_relative_tests": "test/test262/local-tests/test/staging",
-    "destination_relative_tests": "test/staging"
+    "patch_path_renames": [
+      {
+        "source": "test/test262/local-tests/test/staging",
+        "destination": "test/staging"
+      },
+      {
+        "source": "test/test262/local-tests/test/features.txt",
+        "destination": "features.txt"
+      }
+    ]
   },
   "gerrit": {
     "revision_footer": "Test262-Export-Revision: ",
