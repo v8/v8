@@ -3891,7 +3891,7 @@ TEST(Regress169928) {
   array_data->set(1, Smi::FromInt(2));
 
   heap::FillCurrentPageButNBytes(
-      CcTest::heap()->new_space(),
+      SemiSpaceNewSpace::From(CcTest::heap()->new_space()),
       JSArray::kHeaderSize + AllocationMemento::kSize + kTaggedSize);
 
   Handle<JSArray> array =

@@ -239,23 +239,12 @@ void FillCurrentPage(v8::internal::NewSpace* space,
         Heap::SweepingForcedFinalizationMode::kV8Only);
     FillPageInPagedSpace(page, out_handles);
   } else {
-    FillCurrentPageButNBytes(space, 0, out_handles);
+    FillCurrentPageButNBytes(SemiSpaceNewSpace::From(space), 0, out_handles);
   }
 }
 
-namespace {
-int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
-  const Address top = space->heap()->NewSpaceTop();
-  if ((top & kPageAlignmentMask) == 0) {
-    // `top` points to the start of a page signifies that there is not room in
-    // the current page.
-    return 0;
-  }
-  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
-}
-}  // namespace
-
-void FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
+void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
+                              int extra_bytes,
                               std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
   // We cannot rely on `space->limit()` to point to the end of the current page
@@ -264,7 +253,8 @@ void FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   DCHECK_IMPLIES(
       !space->heap()->IsInlineAllocationEnabled(),
       space->heap()->NewSpaceTop() == space->heap()->NewSpaceLimit());
-  int space_remaining = GetSpaceRemainingOnCurrentPage(space);
+  space->heap()->FreeMainThreadLinearAllocationAreas();
+  int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
