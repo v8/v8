@@ -198,6 +198,13 @@ class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
 
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
 
+  V8_INLINE void EnableUnsafeTransitions() {
+    unsafe_transitions_enabled_ = true;
+  }
+  V8_INLINE bool UnsafeTransitionsEnabled() const {
+    return unsafe_transitions_enabled_;
+  }
+
  protected:
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)     \
   V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
@@ -214,6 +221,7 @@ class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
   V8_INLINE ResultType VisitStringLocked(Tagged<T> object);
 
   friend class HeapVisitor<ResultType, ConcreteVisitor>;
+  bool unsafe_transitions_enabled_ = false;
 };
 
 template <typename ConcreteVisitor>
