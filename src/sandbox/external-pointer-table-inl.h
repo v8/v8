@@ -97,6 +97,11 @@ void ExternalPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
+bool ExternalPointerTableEntry::HasEvacuationEntry() const {
+  auto payload = payload_.load(std::memory_order_relaxed);
+  return payload.ContainsEvacuationEntry();
+}
+
 void ExternalPointerTableEntry::UnmarkAndMigrateInto(
     ExternalPointerTableEntry& other) {
   auto payload = payload_.load(std::memory_order_relaxed);

@@ -73,6 +73,9 @@ struct ExternalPointerTableEntry {
   // the entry being evacuated.
   inline void MakeEvacuationEntry(Address handle_location);
 
+  // Returns true if this entry contains an evacuation entry.
+  inline bool HasEvacuationEntry() const;
+
   // Move the content of this entry into the provided entry while also clearing
   // the marking bit. Used during table compaction. This invalidates the entry.
   inline void UnmarkAndMigrateInto(ExternalPointerTableEntry& other);
@@ -413,7 +416,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);
 
-  void ResolveEvacuationEntryDuringSweeping(
+  bool TryResolveEvacuationEntryDuringSweeping(
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 

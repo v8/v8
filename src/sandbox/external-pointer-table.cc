@@ -53,7 +53,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
       // be completely free.
       outcome = TableCompactionOutcome::kAborted;
       // Extract the original start_of_evacuation_area value so that the
-      // DCHECKs below and in ResolveEvacuationEntryDuringSweeping work.
+      // DCHECKs below and in TryResolveEvacuationEntryDuringSweeping work.
       start_of_evacuation_area &= ~Space::kCompactionAbortedMarker;
     } else {
       // Entry evacuation was successful so all segments inside the evacuation
@@ -79,6 +79,12 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // stopped.
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
+  auto AddToFreelist = [&](uint32_t entry_index) {
+    at(entry_index).MakeFreelistEntry(current_freelist_head);
+    current_freelist_head = entry_index;
+    current_freelist_length++;
+  };
+
   std::vector<Segment> segments_to_deallocate;
   for (auto segment : base::Reversed(space->segments_)) {
     // If we evacuated all live entries in this segment then we can skip it
@@ -110,17 +116,26 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
         ExternalPointerHandle* handle_location =
             reinterpret_cast<ExternalPointerHandle*>(
                 payload.ExtractEvacuationEntryHandleLocation());
-        ResolveEvacuationEntryDuringSweeping(i, handle_location,
-                                             start_of_evacuation_area);
+        bool entry_was_resolved = TryResolveEvacuationEntryDuringSweeping(
+            i, handle_location, start_of_evacuation_area);
+
+        // If the evacuation entry hasn't been resolved (for whatever reason),
+        // we must clear it now as we would otherwise have a stale evacuation
+        // entry that we'd try to process again during the next GC.
+        if (!entry_was_resolved) {
+          AddToFreelist(i);
+        }
       } else if (!payload.HasMarkBitSet()) {
-        at(i).MakeFreelistEntry(current_freelist_head);
-        current_freelist_head = i;
-        current_freelist_length++;
+        AddToFreelist(i);
       } else {
         auto new_payload = payload;
         new_payload.ClearMarkBit();
         at(i).SetRawPayload(new_payload);
       }
+
+      // We must have resolved all evacuation entries. Otherwise, we'll try to
+      // process them again during the next GC, which would cause problems.
+      DCHECK(!at(i).HasEvacuationEntry());
     }
 
     // If a segment is completely empty, free it.
@@ -184,7 +199,7 @@ void ExternalPointerTable::Space::StartCompactingIfNeeded() {
   }
 }
 
-void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
+bool ExternalPointerTable::TryResolveEvacuationEntryDuringSweeping(
     uint32_t new_index, ExternalPointerHandle* handle_location,
     uint32_t start_of_evacuation_area) {
   ExternalPointerHandle old_handle = *handle_location;
@@ -194,8 +209,9 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   // While external pointer slots should not be initialized twice (see below),
   // it is ok for a slot to be "de-initialized", i.e. set to the null handle,
   // as long as it is not re-initialized later. If a slot has been
-  // de-initialized in this way, no action is necessary here
-  if (old_handle == kNullExternalPointerHandle) return;
+  // de-initialized in this way, no action is necessary here, but we need to
+  // inform our caller that the evacuation entry has not been resolved.
+  if (old_handle == kNullExternalPointerHandle) return false;
 
   // For the compaction algorithm to work optimally, double initialization
   // of entries is forbidden, see below. This DCHECK can detect double
@@ -217,6 +233,7 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   auto& new_entry = at(new_index);
   at(old_index).UnmarkAndMigrateInto(new_entry);
   *handle_location = new_handle;
+  return true;
 }
 
 }  // namespace internal
