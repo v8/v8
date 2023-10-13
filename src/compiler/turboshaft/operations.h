@@ -702,6 +702,12 @@ struct OpEffects {
   bool can_write() const {
     return produces.store_heap_memory | produces.store_off_heap_memory;
   }
+  bool can_be_constant_folded() const {
+    // Operations that CanDependOnChecks can still be constant-folded. If they
+    // did indeed depend on a check, then their result will only be used after
+    // said check has been executed anyways.
+    return IsSubsetOf(OpEffects().CanDependOnChecks());
+  }
 };
 static_assert(sizeof(OpEffects) == sizeof(OpEffects::Bits));
 

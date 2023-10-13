@@ -328,12 +328,21 @@ class BranchEliminationReducer : public Next {
         // input is coming from the current block, then it still makes sense to
         // inline {destination_origin}: the condition will then be known.
         if (destination_origin->Contains(branch->condition())) {
-          const PhiOp* cond = __ input_graph()
-                                  .Get(branch->condition())
-                                  .template TryCast<PhiOp>();
-          if (!cond) goto no_change;
-          __ CloneAndInlineBlock(destination_origin);
-          return OpIndex::Invalid();
+          if (const PhiOp* cond = __ input_graph()
+                                      .Get(branch->condition())
+                                      .template TryCast<PhiOp>()) {
+            __ CloneAndInlineBlock(destination_origin);
+            return OpIndex::Invalid();
+          } else if (CanBeConstantFolded(branch->condition(),
+                                         destination_origin)) {
+            // If the {cond} only uses constant Phis that come from the current
+            // block, it's probably worth it to clone the block in order to
+            // constant-fold away the Branch.
+            __ CloneAndInlineBlock(destination_origin);
+            return OpIndex::Invalid();
+          } else {
+            goto no_change;
+          }
         }
       }
     } else if ([[maybe_unused]] const ReturnOp* return_op =
@@ -504,6 +513,49 @@ class BranchEliminationReducer : public Next {
         }
       }
     }
+  }
+
+  // Checks that {idx} only depends on Constants or on Phi whose input from the
+  // current block is a Constant. If it is the case and {idx} is used in a
+  // Branch, then the Branch's block could be cloned in the current block, and
+  // {idx} could then be constant-folded away such that the Branch becomes a
+  // Goto.
+  bool CanBeConstantFolded(OpIndex idx, const Block* cond_input_block,
+                           int depth = 0) {
+    // We limit the depth of the search to {kMaxDepth} in order to avoid
+    // potentially visiting a lot of nodes.
+    static constexpr int kMaxDepth = 4;
+    if (depth > kMaxDepth) return false;
+    const Operation& op = __ input_graph().Get(idx);
+    if (!cond_input_block->Contains(idx)) {
+      return op.Is<ConstantOp>();
+    }
+    if (op.Is<PhiOp>()) {
+      int curr_block_pred_idx = cond_input_block->GetPredecessorIndex(
+          __ current_block()->OriginForBlockEnd());
+      // There is no need to increment {depth} on this recursive call, because
+      // it will anyways exit early because {idx} won't be in
+      // {cond_input_block}.
+      return CanBeConstantFolded(op.input(curr_block_pred_idx),
+                                 cond_input_block, depth);
+    } else if (op.Is<ConstantOp>()) {
+      return true;
+    } else if (op.input_count == 0) {
+      // Any operation that has no input but is not a ConstantOp probably won't
+      // be able to be constant-folded away (eg, LoadRootRegister).
+      return false;
+    } else if (!op.Effects().can_be_constant_folded()) {
+      // Operations with side-effects won't be able to be constant-folded.
+      return false;
+    }
+
+    for (int i = 0; i < op.input_count; i++) {
+      if (!CanBeConstantFolded(op.input(i), cond_input_block, depth + 1)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   // TODO(dmercadier): use the SnapshotTable to replace {dominator_path_} and
