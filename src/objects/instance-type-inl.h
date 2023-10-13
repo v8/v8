@@ -78,43 +78,45 @@ constexpr RootIndex kUniqueMapOfInstanceType =
 // inclusive.
 
 using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
-using RootIndexRange = std::pair<RootIndex, RootIndex>;
-constexpr std::array<std::pair<InstanceTypeRange, RootIndexRange>, 6>
-    kUniqueMapRangeOfInstanceTypeRangeList = {
-        {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
-          {RootIndex::kAllocationSiteWithWeakNextMap,
-           RootIndex::kAllocationSiteWithoutWeakNextMap}},
-         {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
-          {RootIndex::kSeqTwoByteStringMap,
-           RootIndex::kSharedSeqOneByteStringMap}},
-         {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
-          {RootIndex::kSymbolMap, RootIndex::kSharedSeqOneByteStringMap}},
-         {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
-           LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
-          {RootIndex::kSmallOrderedHashMapMap,
-           RootIndex::kSmallOrderedNameDictionaryMap}},
-         {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
-           LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
-          {RootIndex::kAbstractInternalClassSubclass1Map,
-           RootIndex::kAbstractInternalClassSubclass2Map}},
-         {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
-          {RootIndex::kTurbofanBitsetTypeMap,
-           RootIndex::kTurbofanOtherNumberConstantTypeMap}}}};
-
-struct kUniqueMapRangeOfStringType {
-  static constexpr RootIndexRange kInternalizedString = {
-      RootIndex::kExternalInternalizedTwoByteStringMap,
-      RootIndex::kInternalizedOneByteStringMap};
-  static constexpr RootIndexRange kExternalString = {
-      RootIndex::kExternalTwoByteStringMap,
-      RootIndex::kUncachedExternalInternalizedOneByteStringMap};
-  static constexpr RootIndexRange kThinString = {
-      RootIndex::kThinTwoByteStringMap, RootIndex::kThinOneByteStringMap};
-};
+using TaggedAddressRange = std::pair<Tagged_t, Tagged_t>;
 
 #if V8_STATIC_ROOTS_BOOL
+constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 6>
+    kUniqueMapRangeOfInstanceTypeRangeList = {
+        {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
+          {StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
+           StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap}},
+         {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
+          {StaticReadOnlyRoot::kSeqTwoByteStringMap,
+           StaticReadOnlyRoot::kSharedSeqOneByteStringMap}},
+         {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
+          {StaticReadOnlyRoot::kSeqTwoByteStringMap,
+           StaticReadOnlyRoot::kSymbolMap}},
+         {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
+           LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
+          {StaticReadOnlyRoot::kSmallOrderedHashMapMap,
+           StaticReadOnlyRoot::kSmallOrderedNameDictionaryMap}},
+         {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
+           LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
+          {StaticReadOnlyRoot::kAbstractInternalClassSubclass1Map,
+           StaticReadOnlyRoot::kAbstractInternalClassSubclass2Map}},
+         {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
+          {StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
+           StaticReadOnlyRoot::kTurbofanOtherNumberConstantTypeMap}}}};
 
-inline constexpr base::Optional<RootIndexRange>
+struct kUniqueMapRangeOfStringType {
+  static constexpr TaggedAddressRange kInternalizedString = {
+      StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
+      StaticReadOnlyRoot::kInternalizedOneByteStringMap};
+  static constexpr TaggedAddressRange kExternalString = {
+      StaticReadOnlyRoot::kExternalTwoByteStringMap,
+      StaticReadOnlyRoot::kUncachedExternalInternalizedOneByteStringMap};
+  static constexpr TaggedAddressRange kThinString = {
+      StaticReadOnlyRoot::kThinTwoByteStringMap,
+      StaticReadOnlyRoot::kThinOneByteStringMap};
+};
+
+inline constexpr base::Optional<TaggedAddressRange>
 UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   // Doesn't use range based for loop due to LLVM <11 bug re. constexpr
   // functions.
@@ -132,13 +134,12 @@ constexpr bool kHasUniqueMapRangeOfInstanceTypeRange =
     UniqueMapRangeOfInstanceTypeRange(first, last).has_value();
 
 template <InstanceType first, InstanceType last>
-constexpr RootIndexRange kUniqueMapRangeOfInstanceTypeRange =
+constexpr TaggedAddressRange kUniqueMapRangeOfInstanceTypeRange =
     UniqueMapRangeOfInstanceTypeRange(first, last)
-        .value_or(RootIndexRange(RootIndex::kRootListLength,
-                                 RootIndex::kRootListLength));
+        .value_or(TaggedAddressRange(kNullAddress, kNullAddress));
 
-inline constexpr base::Optional<RootIndexRange> UniqueMapRangeOfInstanceType(
-    InstanceType type) {
+inline constexpr base::Optional<TaggedAddressRange>
+UniqueMapRangeOfInstanceType(InstanceType type) {
   return UniqueMapRangeOfInstanceTypeRange(type, type);
 }
 
@@ -147,9 +148,9 @@ constexpr bool kHasUniqueMapRangeOfInstanceType =
     UniqueMapRangeOfInstanceType(type).has_value();
 
 template <InstanceType type>
-constexpr RootIndexRange kUniqueMapRangeOfInstanceType =
+constexpr TaggedAddressRange kUniqueMapRangeOfInstanceType =
     UniqueMapRangeOfInstanceType(type).value_or(
-        RootIndexRange(RootIndex::kRootListLength, RootIndex::kRootListLength));
+        TaggedAddressRange(kNullAddress, kNullAddress));
 
 inline bool MayHaveMapCheckFastCase(InstanceType type) {
   if (UniqueMapOfInstanceType(type)) return true;
@@ -166,13 +167,10 @@ inline bool CheckInstanceMap(RootIndex expected, Tagged<Map> map) {
          StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected)];
 }
 
-inline bool CheckInstanceMapRange(RootIndexRange expected, Tagged<Map> map) {
+inline bool CheckInstanceMapRange(TaggedAddressRange expected,
+                                  Tagged<Map> map) {
   Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map.ptr());
-  Tagged_t first =
-      StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected.first)];
-  Tagged_t last =
-      StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected.second)];
-  return ptr >= first && ptr <= last;
+  return base::IsInRange(ptr, expected.first, expected.second);
 }
 
 #else

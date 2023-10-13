@@ -1731,7 +1731,7 @@ class Heap final {
 
   // For static-roots builds, pads the object to the required size.
   void StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj, int required);
-  bool CreateEarlyReadOnlyMaps();
+  bool CreateEarlyReadOnlyMapsAndObjects();
   bool CreateImportantReadOnlyObjects();
   bool CreateLateReadOnlyNonJSReceiverMaps();
   bool CreateLateReadOnlyJSReceiverMaps();

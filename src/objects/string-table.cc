@@ -859,6 +859,28 @@ void StringTable::InsertForIsolateDeserialization(
   DCHECK_EQ(NumberOfElements(), length);
 }
 
+void StringTable::InsertEmptyStringForBootstrapping(Isolate* isolate) {
+  DCHECK_EQ(NumberOfElements(), 0);
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+
+    Data* const data = EnsureCapacity(isolate, 1);
+
+    Handle<String> empty_string = ReadOnlyRoots(isolate).empty_string_handle();
+    uint32_t hash = empty_string->EnsureHash();
+
+    InternalIndex entry = data->FindInsertionEntry(isolate, hash);
+
+    // We're initializing, thus the entry must not exist yet.
+    DCHECK_EQ(data->Get(isolate, entry), empty_element());
+
+    DCHECK_IMPLIES(v8_flags.shared_string_table, empty_string->IsShared());
+    data->Set(entry, *empty_string);
+    data->ElementAdded();
+  }
+  DCHECK_EQ(NumberOfElements(), 1);
+}
+
 void StringTable::Print(PtrComprCageBase cage_base) const {
   data_.load(std::memory_order_acquire)->Print(cage_base);
 }

@@ -968,22 +968,22 @@ inline void MaglevAssembler::CompareInt32AndAssert(Register r1, int32_t value,
   Assert(cond, reason);
 }
 
-inline void MaglevAssembler::CompareInt32AndBranch(Register r1, int32_t value,
-                                                   Condition cond,
-                                                   BasicBlock* if_true,
-                                                   BasicBlock* if_false,
-                                                   BasicBlock* next_block) {
+inline void MaglevAssembler::CompareInt32AndBranch(
+    Register r1, int32_t value, Condition cond, Label* if_true,
+    Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
+    Label::Distance false_distance, bool fallthrough_when_false) {
   cmp(r1, Operand(value));
-  Branch(cond, if_true, if_false, next_block);
+  Branch(cond, if_true, true_distance, fallthrough_when_true, if_false,
+         false_distance, fallthrough_when_false);
 }
 
-inline void MaglevAssembler::CompareInt32AndBranch(Register r1, Register r2,
-                                                   Condition cond,
-                                                   BasicBlock* if_true,
-                                                   BasicBlock* if_false,
-                                                   BasicBlock* next_block) {
+inline void MaglevAssembler::CompareInt32AndBranch(
+    Register r1, Register r2, Condition cond, Label* if_true,
+    Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
+    Label::Distance false_distance, bool fallthrough_when_false) {
   cmp(r1, r2);
-  Branch(cond, if_true, if_false, next_block);
+  Branch(cond, if_true, true_distance, fallthrough_when_true, if_false,
+         false_distance, fallthrough_when_false);
 }
 
 inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,

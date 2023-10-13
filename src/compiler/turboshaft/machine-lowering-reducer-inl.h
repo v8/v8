@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
+#define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
@@ -28,6 +30,8 @@
 #include "src/execution/frame-constants.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type-checker.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
@@ -346,8 +350,44 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
-      case ObjectIsOp::Kind::kSymbol:
+
+#if V8_STATIC_ROOTS_BOOL
+      case ObjectIsOp::Kind::kString: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 0);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        GOTO(done, __ Uint32LessThanOrEqual(
+                       __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(map)),
+                       __ Word32Constant(InstanceTypeChecker::kLastStringMap)));
+
+        BIND(done, result);
+        return result;
+      }
+      case ObjectIsOp::Kind::kSymbol: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 0);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        GOTO(done, __ Word32Equal(
+                       __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(map)),
+                       __ Word32Constant(StaticReadOnlyRoot::kSymbolMap)));
+
+        BIND(done, result);
+        return result;
+      }
+#else
       case ObjectIsOp::Kind::kString:
+      case ObjectIsOp::Kind::kSymbol:
+#endif
       case ObjectIsOp::Kind::kArrayBufferView: {
         Label<Word32> done(this);
 
@@ -362,12 +402,14 @@ class MachineLoweringReducer : public Next {
 
         V<Word32> check;
         switch (kind) {
+#if !V8_STATIC_ROOTS_BOOL
           case ObjectIsOp::Kind::kSymbol:
             check = __ Word32Equal(instance_type, SYMBOL_TYPE);
             break;
           case ObjectIsOp::Kind::kString:
             check = __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
             break;
+#endif
           case ObjectIsOp::Kind::kArrayBufferView:
             check = __ Uint32LessThan(
                 __ Word32Sub(instance_type, FIRST_JS_ARRAY_BUFFER_VIEW_TYPE),
@@ -1151,10 +1193,17 @@ class MachineLoweringReducer : public Next {
             }
           }
           ELSE {
+#if V8_STATIC_ROOTS_BOOL
+            V<Word32> is_string_map = __ Uint32LessThanOrEqual(
+                __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(map)),
+                __ Word32Constant(InstanceTypeChecker::kLastStringMap));
+#else
             V<Word32> instance_type = __ LoadInstanceTypeField(map);
-            __ DeoptimizeIfNot(
-                __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE),
-                frame_state, DeoptimizeReason::kNotAString, feedback);
+            V<Word32> is_string_map =
+                __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
+#endif
+            __ DeoptimizeIfNot(is_string_map, frame_state,
+                               DeoptimizeReason::kNotAString, feedback);
 
             // TODO(nicohartmann@): We might introduce a Turboshaft way for
             // constructing call descriptors.
@@ -1238,7 +1287,7 @@ class MachineLoweringReducer : public Next {
         if (input_assumptions ==
             TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject) {
           // Perform Smi check.
-          IF(UNLIKELY(__ ObjectIsSmi(object))) {
+          IF (UNLIKELY(__ ObjectIsSmi(object))) {
             GOTO(done, __ Word32Equal(__ TaggedEqual(object, __ TagSmi(0)), 0));
           }
           END_IF
@@ -1249,26 +1298,50 @@ class MachineLoweringReducer : public Next {
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject);
         }
 
+#if V8_STATIC_ROOTS_BOOL
+        // Check if {object} is a falsey root or the true value.
+        // Undefined is the first root, so it's the smallest possible pointer
+        // value, which means we don't have to subtract it for the range check.
+        ReadOnlyRoots roots(isolate_);
+        static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+                      StaticReadOnlyRoot::kNullValue);
+        static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+                      StaticReadOnlyRoot::kempty_string);
+        static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
+                      StaticReadOnlyRoot::kFalseValue);
+        static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+                      StaticReadOnlyRoot::kTrueValue);
+        V<Word32> object_as_word32 =
+            __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(object));
+        V<Word32> true_as_word32 =
+            __ Word32Constant(StaticReadOnlyRoot::kTrueValue);
+        GOTO_IF(__ Uint32LessThan(object_as_word32, true_as_word32), done, 0);
+        GOTO_IF(__ Word32Equal(object_as_word32, true_as_word32), done, 1);
+#else
         // Check if {object} is false.
         GOTO_IF(
             __ TaggedEqual(object, __ HeapConstant(factory_->false_value())),
             done, 0);
 
+        // Check if {object} is true.
+        GOTO_IF(__ TaggedEqual(object, __ HeapConstant(factory_->true_value())),
+                done, 1);
+
         // Check if {object} is the empty string.
         GOTO_IF(
             __ TaggedEqual(object, __ HeapConstant(factory_->empty_string())),
             done, 0);
+#endif
 
         // Load the map of {object}.
         V<Map> map = __ LoadMapField(object);
 
         // Check if the {object} is undetectable and immediately return false.
-        // This includes undefined and null.
-        V<Word32> bitfield =
-            __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField());
-        GOTO_IF(
-            __ Word32BitwiseAnd(bitfield, Map::Bits1::IsUndetectableBit::kMask),
-            done, 0);
+        V<Word32> bitfield = __ template LoadField<Word32>(
+            map, AccessBuilder::ForMapBitField());
+        GOTO_IF(__ Word32BitwiseAnd(bitfield,
+                                    Map::Bits1::IsUndetectableBit::kMask),
+                done, 0);
 
         // Check if {object} is a HeapNumber.
         IF(UNLIKELY(__ TaggedEqual(
@@ -3144,4 +3217,4 @@ class MachineLoweringReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_

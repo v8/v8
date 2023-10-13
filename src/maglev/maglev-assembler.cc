@@ -162,13 +162,38 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   } else if (v8_flags.debug_code) {
     AssertNotSmi(value);
   }
+
+#if V8_STATIC_ROOTS_BOOL
+  // Check if {{value}} is a falsey root or the true value.
+  // Undefined is the first root, so it's the smallest possible pointer
+  // value, which means we don't have to subtract it for the range check.
+  ReadOnlyRoots roots(isolate_);
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+                StaticReadOnlyRoot::kNullValue);
+  static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+                StaticReadOnlyRoot::kempty_string);
+  static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
+                StaticReadOnlyRoot::kFalseValue);
+  static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+                StaticReadOnlyRoot::kTrueValue);
+  CompareInt32AndJumpIf(value, StaticReadOnlyRoot::kTrueValue,
+                        kUnsignedLessThan, *is_false);
+  // Reuse the condition flags from the above int32 compare to also check for
+  // the true value itself.
+  JumpIf(kEqual, *is_true);
+#else
   // Check if {{value}} is false.
   CompareRoot(value, RootIndex::kFalseValue);
   JumpIf(kEqual, *is_false);
 
+  // Check if {{value}} is true.
+  CompareRoot(value, RootIndex::kTrueValue);
+  JumpIf(kEqual, *is_true);
+
   // Check if {{value}} is empty string.
   CompareRoot(value, RootIndex::kempty_string);
   JumpIf(kEqual, *is_false);
+#endif
 
   // Check if {{value}} is undetectable.
   LoadMap(map, value);
@@ -293,15 +318,14 @@ void MaglevAssembler::TestTypeOf(
   // If both true and false are fallthroughs, we don't have to do anything.
   if (fallthrough_when_true && fallthrough_when_false) return;
 
-  MaglevAssembler::ScratchRegisterScope temps(this);
-  Register scratch = temps.GetDefaultScratchRegister();
-
   // IMPORTANT: Note that `object` could be a register that aliases registers in
   // the ScratchRegisterScope. Make sure that all reads of `object` are before
   // any writes to scratch registers
   using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   switch (literal) {
     case LiteralFlag::kNumber: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
       JumpIfSmi(object, is_true, true_distance);
       CompareMapWithRoot(object, RootIndex::kHeapNumberMap, scratch);
       Branch(kEqual, is_true, true_distance, fallthrough_when_true, is_false,
@@ -310,10 +334,9 @@ void MaglevAssembler::TestTypeOf(
     }
     case LiteralFlag::kString: {
       JumpIfSmi(object, is_false, false_distance);
-      CompareObjectTypeRange(object, scratch, FIRST_STRING_TYPE,
-                             LAST_STRING_TYPE);
-      Branch(kLessThanEqual, is_true, true_distance, fallthrough_when_true,
-             is_false, false_distance, fallthrough_when_false);
+      CheckJSAnyIsStringAndBranch(object, is_true, true_distance,
+                                  fallthrough_when_true, is_false,
+                                  false_distance, fallthrough_when_false);
       return;
     }
     case LiteralFlag::kSymbol: {
@@ -337,6 +360,8 @@ void MaglevAssembler::TestTypeOf(
       return;
     }
     case LiteralFlag::kUndefined: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
       // Make sure `object` isn't a valid temp here, since we re-use it.
       DCHECK(!temps.Available().has(object));
       JumpIfSmi(object, is_false, false_distance);
@@ -351,6 +376,8 @@ void MaglevAssembler::TestTypeOf(
       return;
     }
     case LiteralFlag::kFunction: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
       JumpIfSmi(object, is_false, false_distance);
       // Check if callable bit is set and not undetectable.
       LoadMap(scratch, object);
@@ -360,6 +387,8 @@ void MaglevAssembler::TestTypeOf(
       return;
     }
     case LiteralFlag::kObject: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
       JumpIfSmi(object, is_false, false_distance);
       // If the object is null then return true.
       JumpIfRoot(object, RootIndex::kNullValue, is_true, true_distance);

@@ -25,6 +25,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
@@ -1606,57 +1607,80 @@ TNode<BoolT> CodeStubAssembler::IsRegularHeapObjectSize(TNode<IntPtrT> size) {
 void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
                                                 Label* if_true,
                                                 Label* if_false) {
-  Label if_smi(this), if_notsmi(this), if_heapnumber(this, Label::kDeferred),
+  Label if_smi(this, Label::kDeferred), if_heapnumber(this, Label::kDeferred),
       if_bigint(this, Label::kDeferred);
+
+  // Check if {value} is a Smi.
+  GotoIf(TaggedIsSmi(value), &if_smi);
+
+  TNode<HeapObject> value_heapobject = CAST(value);
+
+#if V8_STATIC_ROOTS_BOOL
+  // Check if {object} is a falsey root or the true value.
+  // Undefined is the first root, so it's the smallest possible pointer
+  // value, which means we don't have to subtract it for the range check.
+  ReadOnlyRoots roots(isolate());
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+                StaticReadOnlyRoot::kNullValue);
+  static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+                StaticReadOnlyRoot::kempty_string);
+  static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
+                StaticReadOnlyRoot::kFalseValue);
+  static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+                StaticReadOnlyRoot::kTrueValue);
+  TNode<Word32T> object_as_word32 =
+      TruncateIntPtrToInt32(BitcastTaggedToWord(value_heapobject));
+  TNode<Word32T> true_as_word32 = Int32Constant(StaticReadOnlyRoot::kTrueValue);
+  GotoIf(Uint32LessThan(object_as_word32, true_as_word32), if_false);
+  GotoIf(Word32Equal(object_as_word32, true_as_word32), if_true);
+#else
   // Rule out false {value}.
   GotoIf(TaggedEqual(value, FalseConstant()), if_false);
 
-  // Check if {value} is a Smi or a HeapObject.
-  Branch(TaggedIsSmi(value), &if_smi, &if_notsmi);
+  // Fast path on true {value}.
+  GotoIf(TaggedEqual(value, TrueConstant()), if_true);
+
+  // Check if {value} is the empty string.
+  GotoIf(IsEmptyString(value_heapobject), if_false);
+#endif
+
+  // The {value} is a HeapObject, load its map.
+  TNode<Map> value_map = LoadMap(value_heapobject);
+
+  // Only null, undefined and document.all have the undetectable bit set,
+  // so we can return false immediately when that bit is set. With static roots
+  // we've already checked for null and undefined, but we need to check the
+  // undetectable bit for document.all anyway on the common path.
+  GotoIf(IsUndetectableMap(value_map), if_false);
+
+  // We still need to handle numbers specially, but all other {value}s
+  // that make it here yield true.
+  GotoIf(IsHeapNumberMap(value_map), &if_heapnumber);
+  Branch(IsBigInt(value_heapobject), &if_bigint, if_true);
 
   BIND(&if_smi);
   {
-    // The {value} is a Smi, only need to check against zero.
-    BranchIfSmiEqual(CAST(value), SmiConstant(0), if_false, if_true);
+    // Check if the Smi {value} is a zero.
+    Branch(TaggedEqual(value, SmiConstant(0)), if_false, if_true);
   }
 
-  BIND(&if_notsmi);
+  BIND(&if_heapnumber);
   {
-    TNode<HeapObject> value_heapobject = CAST(value);
+    // Load the floating point value of {value}.
+    TNode<Float64T> value_value =
+        LoadObjectField<Float64T>(value_heapobject, HeapNumber::kValueOffset);
 
-    // Check if {value} is the empty string.
-    GotoIf(IsEmptyString(value_heapobject), if_false);
+    // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
+    Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
+           if_true, if_false);
+  }
 
-    // The {value} is a HeapObject, load its map.
-    TNode<Map> value_map = LoadMap(value_heapobject);
-
-    // Only null, undefined and document.all have the undetectable bit set,
-    // so we can return false immediately when that bit is set.
-    GotoIf(IsUndetectableMap(value_map), if_false);
-
-    // We still need to handle numbers specially, but all other {value}s
-    // that make it here yield true.
-    GotoIf(IsHeapNumberMap(value_map), &if_heapnumber);
-    Branch(IsBigInt(value_heapobject), &if_bigint, if_true);
-
-    BIND(&if_heapnumber);
-    {
-      // Load the floating point value of {value}.
-      TNode<Float64T> value_value =
-          LoadObjectField<Float64T>(value_heapobject, HeapNumber::kValueOffset);
-
-      // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
-      Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
-             if_true, if_false);
-    }
-
-    BIND(&if_bigint);
-    {
-      TNode<BigInt> bigint = CAST(value);
-      TNode<Word32T> bitfield = LoadBigIntBitfield(bigint);
-      TNode<Uint32T> length = DecodeWord32<BigIntBase::LengthBits>(bitfield);
-      Branch(Word32Equal(length, Int32Constant(0)), if_false, if_true);
-    }
+  BIND(&if_bigint);
+  {
+    TNode<BigInt> bigint = CAST(value);
+    TNode<Word32T> bitfield = LoadBigIntBitfield(bigint);
+    TNode<Uint32T> length = DecodeWord32<BigIntBase::LengthBits>(bitfield);
+    Branch(Word32Equal(length, Int32Constant(0)), if_false, if_true);
   }
 }
 
@@ -7289,7 +7313,16 @@ TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsName(TNode<HeapObject> object) {
+#if V8_STATIC_ROOTS_BOOL
+  TNode<Map> map = LoadMap(object);
+  TNode<Word32T> map_as_word32 = ReinterpretCast<Word32T>(map);
+  static_assert(InstanceTypeChecker::kLastStringMap + Map::kSize ==
+                StaticReadOnlyRoot::kSymbolMap);
+  return Uint32LessThanOrEqual(map_as_word32,
+                               Int32Constant(StaticReadOnlyRoot::kSymbolMap));
+#else
   return IsNameInstanceType(LoadInstanceType(object));
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsNameInstanceType(
@@ -7298,7 +7331,15 @@ TNode<BoolT> CodeStubAssembler::IsNameInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsString(TNode<HeapObject> object) {
+#if V8_STATIC_ROOTS_BOOL
+  TNode<Map> map = LoadMap(object);
+  TNode<Word32T> map_as_word32 =
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map));
+  return Uint32LessThanOrEqual(
+      map_as_word32, Int32Constant(InstanceTypeChecker::kLastStringMap));
+#else
   return IsStringInstanceType(LoadInstanceType(object));
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsSeqOneByteString(TNode<HeapObject> object) {

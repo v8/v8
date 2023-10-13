@@ -408,6 +408,21 @@ class MaglevAssembler : public MacroAssembler {
       bool fallthrough_when_false);
   inline void JumpIfJSAnyIsNotPrimitive(Register heap_object, Label* target,
                                         Label::Distance distance = Label::kFar);
+
+  inline void JumpIfStringMap(Register map, Label* target,
+                              Label::Distance distance = Label::kFar,
+                              bool jump_if_true = true);
+  inline void JumpIfString(Register heap_object, Label* target,
+                           Label::Distance distance = Label::kFar);
+  inline void JumpIfNotString(Register heap_object, Label* target,
+                              Label::Distance distance = Label::kFar);
+  inline void CheckJSAnyIsStringAndBranch(Register heap_object, Label* if_true,
+                                          Label::Distance true_distance,
+                                          bool fallthrough_when_true,
+                                          Label* if_false,
+                                          Label::Distance false_distance,
+                                          bool fallthrough_when_false);
+
   inline void CompareObjectTypeRange(Register heap_object,
                                      InstanceType lower_limit,
                                      InstanceType higher_limit);
@@ -495,6 +510,18 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndBranch(Register r1, Register r2, Condition cond,
                                     BasicBlock* if_true, BasicBlock* if_false,
                                     BasicBlock* next_block);
+  inline void CompareInt32AndBranch(Register r1, int32_t value, Condition cond,
+                                    Label* if_true,
+                                    Label::Distance true_distance,
+                                    bool fallthrough_when_true, Label* if_false,
+                                    Label::Distance false_distance,
+                                    bool fallthrough_when_false);
+  inline void CompareInt32AndBranch(Register r1, Register r2, Condition cond,
+                                    Label* if_true,
+                                    Label::Distance true_distance,
+                                    bool fallthrough_when_true, Label* if_false,
+                                    Label::Distance false_distance,
+                                    bool fallthrough_when_false);
   inline void CompareInt32AndAssert(Register r1, Register r2, Condition cond,
                                     AbortReason reason);
   inline void CompareInt32AndAssert(Register r1, int32_t value, Condition cond,

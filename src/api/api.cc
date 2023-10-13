@@ -761,14 +761,11 @@ void v8::internal::HandleHelper::VerifyOnStack(const void* ptr) {
 // Initialize static root constants exposed in v8-internal.h.
 
 namespace {
-constexpr InstanceTypeChecker::RootIndexRange kStringMapRange =
+constexpr InstanceTypeChecker::TaggedAddressRange kStringMapRange =
     *InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(FIRST_STRING_TYPE,
                                                             LAST_STRING_TYPE);
-constexpr Tagged_t kFirstStringMapPtr =
-    StaticReadOnlyRootsPointerTable[static_cast<size_t>(kStringMapRange.first)];
-constexpr Tagged_t kLastStringMapPtr =
-    StaticReadOnlyRootsPointerTable[static_cast<size_t>(
-        kStringMapRange.second)];
+constexpr Tagged_t kFirstStringMapPtr = kStringMapRange.first;
+constexpr Tagged_t kLastStringMapPtr = kStringMapRange.second;
 }  // namespace
 
 #define EXPORTED_STATIC_ROOTS_MAPPING(V)                    \

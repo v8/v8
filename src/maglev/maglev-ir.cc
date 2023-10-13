@@ -1415,7 +1415,11 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
             MaglevAssembler::ScratchRegisterScope temps(masm);
             Register map = temps.GetDefaultScratchRegister();
             Label check_string;
+#ifdef V8_COMPRESS_POINTERS
+            __ LoadCompressedMap(map, object);
+#else
             __ LoadMap(map, object);
+#endif
             __ JumpIfNotRoot(
                 map, RootIndex::kHeapNumberMap, &check_string,
                 v8_flags.deopt_every_n_times > 0 ? Label::kFar : Label::kNear);
@@ -1427,12 +1431,13 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                   __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32));
             }
             __ bind(&check_string);
-            __ CompareInstanceTypeRange(map, map, FIRST_STRING_TYPE,
-                                        LAST_STRING_TYPE);
             // The IC will go generic if it encounters something other than a
             // Number or String key.
-            __ EmitEagerDeoptIf(kUnsignedGreaterThan,
-                                DeoptimizeReason::kNotInt32, node);
+            __ JumpIfStringMap(
+                map, __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32),
+                Label::kFar, false);
+            // map is clobbered after this call.
+
             {
               // TODO(verwaest): Load the cached number from the string hash.
               RegisterSnapshot snapshot = node->register_snapshot();
@@ -2530,11 +2535,7 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
 
     bool has_number_map = false;
     if (HasOnlyStringMaps(base::VectorOf(maps))) {
-      MaglevAssembler::ScratchRegisterScope temps(masm);
-      Register scratch = temps.GetDefaultScratchRegister();
-      __ CompareInstanceTypeRange(object_map, scratch, FIRST_STRING_TYPE,
-                                  LAST_STRING_TYPE);
-      __ JumpIf(kUnsignedGreaterThan, &next);
+      __ JumpIfStringMap(object_map, &next, Label::kFar, false);
       // Fallthrough... to map_found.
     } else {
       for (auto it = maps.begin(); it != maps.end(); ++it) {
@@ -2811,36 +2812,35 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
                             Label::kNear);
 
   __ EmitEagerDeoptIfSmi(this, target, DeoptimizeReason::kWrongValue);
-  __ CompareObjectTypeRange(target, FIRST_STRING_TYPE, LAST_STRING_TYPE);
-
-  __ JumpToDeferredIf(
-      kUnsignedLessThanEqual,
-      [](MaglevAssembler* masm, CheckValueEqualsString* node,
-         ZoneLabelRef end) {
-        Register target = D::GetRegisterParameter(D::kLeft);
-        Register string_length = D::GetRegisterParameter(D::kLength);
-        __ StringLength(string_length, target);
-        Label* fail = __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue);
-        __ CompareInt32AndJumpIf(string_length, node->value().length(),
-                                 kNotEqual, fail);
-        RegisterSnapshot snapshot = node->register_snapshot();
-        AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
-        {
-          SaveRegisterStateForCall save_register_state(masm, snapshot);
-          __ CallBuiltin<Builtin::kStringEqual>(
-              node->target_input(),    // left
-              node->value().object(),  // right
-              string_length            // length
-          );
-          save_register_state.DefineSafepoint();
-          // Compare before restoring registers, so that the deopt below has the
-          // correct register set.
-          __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
-        }
-        __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
-        __ Jump(*end);
-      },
-      this, end);
+  __ JumpIfString(
+      target,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, CheckValueEqualsString* node,
+             ZoneLabelRef end) {
+            Register target = D::GetRegisterParameter(D::kLeft);
+            Register string_length = D::GetRegisterParameter(D::kLength);
+            __ StringLength(string_length, target);
+            Label* fail = __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue);
+            __ CompareInt32AndJumpIf(string_length, node->value().length(),
+                                     kNotEqual, fail);
+            RegisterSnapshot snapshot = node->register_snapshot();
+            AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
+            {
+              SaveRegisterStateForCall save_register_state(masm, snapshot);
+              __ CallBuiltin<Builtin::kStringEqual>(
+                  node->target_input(),    // left
+                  node->value().object(),  // right
+                  string_length            // length
+              );
+              save_register_state.DefineSafepoint();
+              // Compare before restoring registers, so that the deopt below has
+              // the correct register set.
+              __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
+            }
+            __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
+            __ Jump(*end);
+          },
+          this, end));
 
   __ EmitEagerDeopt(this, DeoptimizeReason::kWrongValue);
 
@@ -2966,9 +2966,8 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
   } else {
     __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kNotAString);
   }
-  __ CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
-  __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotAString,
-                      this);
+  __ JumpIfNotString(object,
+                     __ GetDeoptLabel(this, DeoptimizeReason::kNotAString));
 }
 
 void CheckNotHole::SetValueLocationConstraints() {
@@ -4355,8 +4354,7 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   Label call_builtin, done;
   // Avoid the builtin call if {value} is a string.
   __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
-  __ CompareObjectTypeAndJumpIf(value, FIRST_NONSTRING_TYPE, kUnsignedLessThan,
-                                &done, Label::Distance::kNear);
+  __ JumpIfString(value, &done, Label::Distance::kNear);
   if (mode() == kConvertSymbol) {
     __ CompareObjectTypeAndJumpIf(value, SYMBOL_TYPE, kNotEqual, &call_builtin,
                                   Label::Distance::kNear);
