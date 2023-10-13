@@ -3940,6 +3940,10 @@ void Heap::NotifyObjectLayoutChange(
     const Address clear_range_end = object.address() + new_size;
 
     if (incremental_marking()->IsMarking()) {
+      if (!concurrent_marking()->unsafe_transitions_occured()) {
+        ConcurrentMarking::PauseScope pause_marking(concurrent_marking());
+        concurrent_marking()->notify_unsafe_transitions_occurred();
+      }
       ExclusiveObjectLock::Lock(object);
       DCHECK_EQ(pending_layout_change_object_address, kNullAddress);
       pending_layout_change_object_address = object.address();
