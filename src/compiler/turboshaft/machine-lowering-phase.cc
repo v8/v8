@@ -20,7 +20,8 @@ void MachineLoweringPhase::Run(Zone* temp_zone) {
         turboshaft::VariableReducer, turboshaft::MachineLoweringReducer,
         turboshaft::FastApiCallReducer, turboshaft::RequiredOptimizationReducer,
         turboshaft::SelectLoweringReducer,
-        turboshaft::MachineOptimizationReducer>::Run(temp_zone);
+        turboshaft::MachineOptimizationReducerSignallingNanImpossible>::
+        Run(temp_zone);
   } else {
     turboshaft::OptimizationPhase<
         turboshaft::VariableReducer, turboshaft::MachineLoweringReducer,

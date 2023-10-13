@@ -3769,10 +3769,6 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                      "Graph generation");
 
-    if (v8_flags.wasm_loop_unrolling) {
-      pipeline.Run<turboshaft::LoopUnrollingPhase>();
-    }
-
     // TODO(mliedtke): This phase could potentially be skipped for non-wasm-gc
     // functions.
     if (v8_flags.wasm_opt) {
