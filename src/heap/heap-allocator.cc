@@ -255,7 +255,7 @@ void HeapAllocator::FreeLinearAllocationAreas() {
 
 void HeapAllocator::PublishPendingAllocations() {
   if (new_space_allocator_) {
-    new_space_allocator_->MarkLabStartInitialized();
+    new_space_allocator_->MoveOriginalTopForward();
   }
 
   old_space_allocator_->MoveOriginalTopForward();

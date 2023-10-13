@@ -105,13 +105,9 @@ void MainAllocator::AdvanceAllocationObservers() {
 
 void MainAllocator::MarkLabStartInitialized() {
   allocation_info().ResetStart();
-  if (identity() == NEW_SPACE) {
-    MoveOriginalTopForward();
-
 #if DEBUG
-    Verify();
+  Verify();
 #endif
-  }
 }
 
 // Perform an allocation step when the step is reached. size_in_bytes is the
