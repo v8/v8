@@ -83,7 +83,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:15.20231007.2.1',
+  'fuchsia_version': 'version:15.20231015.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '36ee7af7d97b16d789070a9905deb99e541025e2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'eb1dd1f46868967ed0f4c835b6e11c88914b155a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2c4320e24b862b03aec92d4b24a009ec6956d477',
   'buildtools/linux64': {
