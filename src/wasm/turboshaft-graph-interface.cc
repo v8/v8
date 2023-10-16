@@ -4830,7 +4830,7 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, catch_block, 0, exception);
     } else {
       DCHECK_EQ(mode_, kInlinedWithCatch);
-      return_exception_phis_.push_back(exception);
+      if (exception.valid()) return_exception_phis_.push_back(exception);
     }
     __ Goto(catch_block);
 
@@ -5442,7 +5442,7 @@ class TurboshaftGraphBuildingInterface {
       if (handled_in_this_frame) {
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
       } else {
-        return_exception_phis_.emplace_back(exception);
+        if (exception.valid()) return_exception_phis_.emplace_back(exception);
       }
       __ Goto(catch_block);
     }
