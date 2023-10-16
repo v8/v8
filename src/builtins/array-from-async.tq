@@ -905,7 +905,7 @@ transitioning javascript builtin ArrayFromAsync(
     const iteratorRecord = (usingAsyncIterator != Undefined) ?
         iterator::GetIterator(items, usingAsyncIterator) :
         iterator::GetIteratorRecordAfterCreateAsyncFromSyncIterator(
-            iterator::GetIterator(items, usingSyncIterator));
+            context, iterator::GetIterator(items, usingSyncIterator));
 
     let arr: JSReceiver;
     //  h. If iteratorRecord is not undefined, then
