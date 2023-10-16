@@ -557,7 +557,7 @@ class Int64LoweringReducer : public Next {
     V<Word32> shift = right;
     uint32_t constant_shift = 0;
 
-    if (matcher_.MatchWord32Constant(shift, &constant_shift)) {
+    if (matcher_.MatchIntegralWord32Constant(shift, &constant_shift)) {
       // Precondition: 0 <= shift < 64.
       uint32_t shift_value = constant_shift & 0x3F;
       if (shift_value == 0) {

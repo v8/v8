@@ -659,24 +659,22 @@ Node* MemoryLowering::ComputeIndex(ElementAccess const& access, Node* index) {
 namespace {
 
 bool ValueNeedsWriteBarrier(Node* value, Isolate* isolate) {
-  while (true) {
-    switch (value->opcode()) {
-      case IrOpcode::kBitcastWordToTaggedSigned:
+  switch (value->opcode()) {
+    case IrOpcode::kBitcastWordToTaggedSigned:
+      return false;
+    case IrOpcode::kHeapConstant: {
+      RootIndex root_index;
+      if (isolate->roots_table().IsRootHandle(HeapConstantOf(value->op()),
+                                              &root_index) &&
+          RootsTable::IsImmortalImmovable(root_index)) {
         return false;
-      case IrOpcode::kHeapConstant: {
-        RootIndex root_index;
-        if (isolate->roots_table().IsRootHandle(HeapConstantOf(value->op()),
-                                                &root_index) &&
-            RootsTable::IsImmortalImmovable(root_index)) {
-          return false;
-        }
-        break;
       }
-      default:
-        break;
+      break;
     }
-    return true;
+    default:
+      break;
   }
+  return true;
 }
 
 }  // namespace
