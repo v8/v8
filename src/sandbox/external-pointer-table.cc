@@ -33,6 +33,8 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // allocate entries at this point, but some of the methods we call on the
   // space assert that the lock is held.
   base::MutexGuard guard(&space->mutex_);
+  // Same for the invalidated fields mutex.
+  base::MutexGuard invalidated_fields_guard(&space->invalidated_fields_mutex_);
 
   // There must not be any entry allocations while the table is being swept as
   // that would not be safe. Set the freelist to this special marker value to
@@ -104,6 +106,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
       auto payload = at(i).GetRawPayload();
       if (payload.ContainsEvacuationEntry()) {
+        bool entry_was_resolved = false;
         // Resolve the evacuation entry: take the pointer to the handle from the
         // evacuation entry, copy the entry to its new location, and finally
         // update the handle to point to the new entry.
@@ -113,11 +116,19 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
         // assume that the segments out of which entries are evacuated will all
         // be decommitted anyway after this loop, which is usually the case
         // unless compaction was already aborted during marking.
-        ExternalPointerHandle* handle_location =
-            reinterpret_cast<ExternalPointerHandle*>(
-                payload.ExtractEvacuationEntryHandleLocation());
-        bool entry_was_resolved = TryResolveEvacuationEntryDuringSweeping(
-            i, handle_location, start_of_evacuation_area);
+        Address handle_location =
+            payload.ExtractEvacuationEntryHandleLocation();
+
+        // The field may have been invalidated in the meantime (for example if
+        // the host object has been in-place converted to a different type of
+        // object). In that case, handle_location is invalid so we can't
+        // evacuate the old entry, but that is also not necessary since it is
+        // guaranteed to be dead.
+        if (!space->FieldWasInvalidated(handle_location)) {
+          entry_was_resolved = TryResolveEvacuationEntryDuringSweeping(
+              i, reinterpret_cast<ExternalPointerHandle*>(handle_location),
+              start_of_evacuation_area);
+        }
 
         // If the evacuation entry hasn't been resolved (for whatever reason),
         // we must clear it now as we would otherwise have a stale evacuation
@@ -154,6 +165,8 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     FreeTableSegment(segment);
     space->segments_.erase(segment);
   }
+
+  space->ClearInvalidatedFields();
 
   FreelistHead new_freelist(current_freelist_head, current_freelist_length);
   space->freelist_head_.store(new_freelist, std::memory_order_release);
@@ -203,6 +216,11 @@ bool ExternalPointerTable::TryResolveEvacuationEntryDuringSweeping(
     uint32_t new_index, ExternalPointerHandle* handle_location,
     uint32_t start_of_evacuation_area) {
   ExternalPointerHandle old_handle = *handle_location;
+  // We must have a valid handle here. If this fails, it might mean that an
+  // object with external pointers was in-place converted to another type of
+  // object without informing the external pointer table.
+  CHECK(IsValidHandle(old_handle));
+
   uint32_t old_index = HandleToIndex(old_handle);
   ExternalPointerHandle new_handle = IndexToHandle(new_index);
 

@@ -182,8 +182,9 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
     // Invalidate slots manually later in case we delete an in-object tagged
     // property. In this case we might later store an untagged value in the
     // recorded slot.
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_gc,
-                                              InvalidateRecordedSlots::kNo);
+    isolate->heap()->NotifyObjectLayoutChange(
+        *receiver, no_gc, InvalidateRecordedSlots::kNo,
+        InvalidateExternalPointerSlots::kNo);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.

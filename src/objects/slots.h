@@ -353,18 +353,18 @@ class ExternalPointerSlot
   ExternalPointerTag tag() const { return tag_; }
 #else
   ExternalPointerTag tag() const { return kExternalPointerNullTag; }
-#endif
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_SANDBOX
+  inline const ExternalPointerTable& GetOwningTable(const Isolate* isolate);
+  inline ExternalPointerTable& GetOwningTable(Isolate* isolate);
+  inline ExternalPointerTable::Space* GetOwningSpace(Isolate* isolate);
+#endif  // V8_ENABLE_SANDBOX
 
  private:
 #ifdef V8_ENABLE_SANDBOX
   // The tag associated with this slot.
   ExternalPointerTag tag_;
-
-  inline const ExternalPointerTable& GetExternalPointerTable(
-      const Isolate* isolate);
-  inline ExternalPointerTable& GetExternalPointerTable(Isolate* isolate);
-  inline ExternalPointerTable::Space* GetDefaultExternalPointerSpace(
-      Isolate* isolate);
 #endif  // V8_ENABLE_SANDBOX
 };
 

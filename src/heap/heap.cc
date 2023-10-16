@@ -3921,11 +3921,50 @@ void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
 
 namespace {
 thread_local Address pending_layout_change_object_address = kNullAddress;
+
+#ifdef V8_ENABLE_SANDBOX
+class ExternalPointerSlotInvalidator : public ObjectVisitor {
+ public:
+  explicit ExternalPointerSlotInvalidator(Isolate* isolate)
+      : isolate_(isolate) {}
+
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
+                     ObjectSlot end) override {}
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {}
+  void VisitInstructionStreamPointer(Tagged<Code> host,
+                                     InstructionStreamSlot slot) override {}
+  void VisitMapPointer(Tagged<HeapObject> host) override {}
+
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) override {
+    DCHECK_EQ(target_, host);
+    ExternalPointerTable::Space* space = slot.GetOwningSpace(isolate_);
+    space->NotifyExternalPointerFieldInvalidated(slot.address());
+    num_invalidated_slots++;
+  }
+
+  int Visit(Tagged<HeapObject> target) {
+    target_ = target;
+    num_invalidated_slots = 0;
+    target->IterateFast(isolate_, this);
+    return num_invalidated_slots;
+  }
+
+ private:
+  Isolate* isolate_;
+  Tagged<HeapObject> target_;
+  int num_invalidated_slots = 0;
+};
+#endif  // V8_ENABLE_SANDBOX
+
 }  // namespace
 
 void Heap::NotifyObjectLayoutChange(
     Tagged<HeapObject> object, const DisallowGarbageCollection&,
-    InvalidateRecordedSlots invalidate_recorded_slots, int new_size) {
+    InvalidateRecordedSlots invalidate_recorded_slots,
+    InvalidateExternalPointerSlots invalidate_external_pointer_slots,
+    int new_size) {
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
     MemoryChunk* const chunk = MemoryChunk::FromHeapObject(object);
@@ -3961,6 +4000,20 @@ void Heap::NotifyObjectLayoutChange(
           SlotSet::EmptyBucketMode::KEEP_EMPTY_BUCKETS);
     }
   }
+
+#ifdef V8_ENABLE_SANDBOX
+  // During external pointer table compaction, the external pointer table
+  // records addresses of fields containing external pointers. As such, it
+  // needs to be informed when such a field is invalidated.
+  if (invalidate_external_pointer_slots ==
+      InvalidateExternalPointerSlots::kYes) {
+    ExternalPointerSlotInvalidator external_pointer_slot_invalidator(isolate());
+    int num_invalidated_slots = external_pointer_slot_invalidator.Visit(object);
+    USE(num_invalidated_slots);
+    DCHECK_GT(num_invalidated_slots, 0);
+  }
+#endif
+
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     HeapVerifier::SetPendingLayoutChangeObject(this, object);

@@ -224,7 +224,8 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
     // ExternalString -> ThinString transitions can only happen on the
     // main-thread.
     isolate->AsIsolate()->heap()->NotifyObjectLayoutChange(
-        *this, no_gc, InvalidateRecordedSlots::kYes, ThinString::kSize);
+        *this, no_gc, InvalidateRecordedSlots::kYes,
+        InvalidateExternalPointerSlots::kYes, ThinString::kSize);
     MigrateExternalString(isolate->AsIsolate(), *this, internalized);
   }
 
@@ -449,7 +450,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   if (has_pointers) {
     isolate->heap()->NotifyObjectLayoutChange(
-        *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+        *this, no_gc, InvalidateRecordedSlots::kYes,
+        InvalidateExternalPointerSlots::kNo, new_size);
   }
 
   if (!isolate->heap()->IsLargeObject(*this)) {
@@ -539,7 +541,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     if (has_pointers) {
       DCHECK(!InWritableSharedSpace());
       isolate->heap()->NotifyObjectLayoutChange(
-          *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+          *this, no_gc, InvalidateRecordedSlots::kYes,
+          InvalidateExternalPointerSlots::kNo, new_size);
     }
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,

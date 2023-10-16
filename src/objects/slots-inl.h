@@ -166,9 +166,9 @@ void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
 
 void ExternalPointerSlot::init(Isolate* isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = GetExternalPointerTable(isolate);
-  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-      GetDefaultExternalPointerSpace(isolate), value, tag_);
+  ExternalPointerTable& table = GetOwningTable(isolate);
+  ExternalPointerHandle handle =
+      table.AllocateAndInitializeEntry(GetOwningSpace(isolate), value, tag_);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
@@ -196,7 +196,7 @@ void ExternalPointerSlot::Release_StoreHandle(
 
 Address ExternalPointerSlot::load(const Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  const ExternalPointerTable& table = GetExternalPointerTable(isolate);
+  const ExternalPointerTable& table = GetOwningTable(isolate);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
   return table.Get(handle, tag_);
 #else
@@ -206,7 +206,7 @@ Address ExternalPointerSlot::load(const Isolate* isolate) {
 
 void ExternalPointerSlot::store(Isolate* isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = GetExternalPointerTable(isolate);
+  ExternalPointerTable& table = GetOwningTable(isolate);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
   table.Set(handle, value, tag_);
 #else
@@ -258,7 +258,7 @@ uint32_t ExternalPointerSlot::GetContentAsIndexAfterDeserialization(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-const ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTable(
+const ExternalPointerTable& ExternalPointerSlot::GetOwningTable(
     const Isolate* isolate) {
   DCHECK_NE(tag_, kExternalPointerNullTag);
   return IsSharedExternalPointerType(tag_)
@@ -266,16 +266,15 @@ const ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTable(
              : isolate->external_pointer_table();
 }
 
-ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTable(
-    Isolate* isolate) {
+ExternalPointerTable& ExternalPointerSlot::GetOwningTable(Isolate* isolate) {
   DCHECK_NE(tag_, kExternalPointerNullTag);
   return IsSharedExternalPointerType(tag_)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
 }
 
-ExternalPointerTable::Space*
-ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate) {
+ExternalPointerTable::Space* ExternalPointerSlot::GetOwningSpace(
+    Isolate* isolate) {
   if (V8_UNLIKELY(IsSharedExternalPointerType(tag_))) {
     DCHECK(!ReadOnlyHeap::Contains(address()));
     return isolate->shared_external_pointer_space();

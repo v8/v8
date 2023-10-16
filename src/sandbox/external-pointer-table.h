@@ -319,6 +319,17 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // This is expected to be called at the start of the GC marking phase.
     void StartCompactingIfNeeded();
 
+    // During table compaction, we may record the addresses of fields
+    // containing external pointer handles (if they are evacuation candidates).
+    // As such, if such a field is invalidated (for example because the host
+    // object is converted to another object type), we need to be notified of
+    // that. Note that we do not need to care about "re-validated" fields here:
+    // if an external pointer field is first converted to different kind of
+    // field, then again converted to a external pointer field, then it will be
+    // re-initialized, at which point it will obtain a new entry in the
+    // external pointer table which cannot be a candidate for evacuation.
+    inline void NotifyExternalPointerFieldInvalidated(Address field_address);
+
    private:
     friend class ExternalPointerTable;
 
@@ -328,6 +339,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     inline void StopCompacting();
     inline void AbortCompacting(uint32_t start_of_evacuation_area);
     inline bool CompactingWasAborted();
+
+    inline bool FieldWasInvalidated(Address field_address) const;
+    inline void ClearInvalidatedFields();
 
     // This value indicates that this space is not currently being compacted. It
     // is set to uint32_t max so that determining whether an entry should be
@@ -356,6 +370,16 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     //   compaction has been aborted during marking. The original start of the
     //   evacuation area is still contained in the lower bits.
     std::atomic<uint32_t> start_of_evacuation_area_;
+
+    // List of external pointer fields that have been invalidated. See
+    // NotifyExternalPointerFieldInvalidated. Only used when table compaction
+    // is running.
+    // We expect very few (usually none at all) fields to be invalidated during
+    // a GC, so a std::vector is probably better than a std::set or similar.
+    std::vector<Address> invalidated_fields_;
+
+    // Mutex guarding access to the invalidated_fields_ set.
+    base::Mutex invalidated_fields_mutex_;
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.
@@ -409,9 +433,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   uint32_t SweepAndCompact(Space* space, Counters* counters);
 
  private:
-  inline bool IsValidHandle(ExternalPointerHandle handle) const;
-  inline uint32_t HandleToIndex(ExternalPointerHandle handle) const;
-  inline ExternalPointerHandle IndexToHandle(uint32_t index) const;
+  static inline bool IsValidHandle(ExternalPointerHandle handle);
+  static inline uint32_t HandleToIndex(ExternalPointerHandle handle);
+  static inline ExternalPointerHandle IndexToHandle(uint32_t index);
 
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);

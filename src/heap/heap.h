@@ -139,6 +139,8 @@ enum class ClearRecordedSlots { kYes, kNo };
 
 enum class InvalidateRecordedSlots { kYes, kNo };
 
+enum class InvalidateExternalPointerSlots { kYes, kNo };
+
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
@@ -1075,9 +1077,14 @@ class Heap final {
   // By default recorded slots in the object are invalidated. Pass
   // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
   // manually.
+  // If the object contains external pointer slots, then these need to be
+  // invalidated as well if a GC marker may have observed them previously. To
+  // do this, pass HasExernalPointerSlots::kYes.
   void NotifyObjectLayoutChange(
       Tagged<HeapObject> object, const DisallowGarbageCollection&,
-      InvalidateRecordedSlots invalidate_recorded_slots, int new_size = 0);
+      InvalidateRecordedSlots invalidate_recorded_slots,
+      InvalidateExternalPointerSlots invalidate_external_pointer_slots,
+      int new_size = 0);
   V8_EXPORT_PRIVATE static void NotifyObjectLayoutChangeDone(
       Tagged<HeapObject> object);
 
