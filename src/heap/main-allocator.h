@@ -218,7 +218,7 @@ class MainAllocator {
 
   void MarkLabStartInitialized();
 
-  void MakeLinearAllocationAreaIterable();
+  V8_EXPORT_PRIVATE void MakeLinearAllocationAreaIterable();
 
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
