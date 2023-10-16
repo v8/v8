@@ -60,18 +60,13 @@ class ConcurrentMarkingVisitor final
                            base::EnumSet<CodeFlushMode> code_flush_mode,
                            bool embedder_tracing_enabled,
                            bool should_keep_ages_unchanged,
-                           bool unsafe_transitions_occured,
                            uint16_t code_flushing_increase,
                            MemoryChunkDataMap* memory_chunk_data)
       : FullMarkingVisitorBase(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             should_keep_ages_unchanged, code_flushing_increase),
-        memory_chunk_data_(memory_chunk_data) {
-    if (unsafe_transitions_occured) {
-      EnableUnsafeTransitions();
-    }
-  }
+        memory_chunk_data_(memory_chunk_data) {}
 
   using FullMarkingVisitorBase<
       ConcurrentMarkingVisitor>::VisitMapPointerIfNeeded;
@@ -141,16 +136,14 @@ struct ConcurrentMarking::TaskState {
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
  public:
-  JobTaskMajor(
-      ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
-      base::EnumSet<CodeFlushMode> code_flush_mode,
-      ConcurrentMarking::ShouldKeepAgesUnchanged should_keep_ages_unchanged,
-      ConcurrentMarking::UnsafeTransitionsOccurred unsafe_transitions_occured)
+  JobTaskMajor(ConcurrentMarking* concurrent_marking,
+               unsigned mark_compact_epoch,
+               base::EnumSet<CodeFlushMode> code_flush_mode,
+               bool should_keep_ages_unchanged)
       : concurrent_marking_(concurrent_marking),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        unsafe_transitions_occurred_(unsafe_transitions_occured),
         trace_id_(reinterpret_cast<uint64_t>(concurrent_marking) ^
                   concurrent_marking->heap_->tracer()->CurrentEpoch(
                       GCTracer::Scope::MC_BACKGROUND_MARKING)) {}
@@ -168,17 +161,17 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
 
     if (delegate->IsJoiningThread()) {
       // TRACE_GC is not needed here because the caller opens the right scope.
-      concurrent_marking_->RunMajor(
-          delegate, code_flush_mode_, mark_compact_epoch_,
-          should_keep_ages_unchanged_, unsafe_transitions_occurred_);
+      concurrent_marking_->RunMajor(delegate, code_flush_mode_,
+                                    mark_compact_epoch_,
+                                    should_keep_ages_unchanged_);
     } else {
       TRACE_GC_EPOCH_WITH_FLOW(concurrent_marking_->heap_->tracer(),
                                GCTracer::Scope::MC_BACKGROUND_MARKING,
                                ThreadKind::kBackground, trace_id_,
                                TRACE_EVENT_FLAG_FLOW_IN);
-      concurrent_marking_->RunMajor(
-          delegate, code_flush_mode_, mark_compact_epoch_,
-          should_keep_ages_unchanged_, unsafe_transitions_occurred_);
+      concurrent_marking_->RunMajor(delegate, code_flush_mode_,
+                                    mark_compact_epoch_,
+                                    should_keep_ages_unchanged_);
     }
   }
 
@@ -192,9 +185,7 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
   base::EnumSet<CodeFlushMode> code_flush_mode_;
-  const ConcurrentMarking::ShouldKeepAgesUnchanged should_keep_ages_unchanged_;
-  const ConcurrentMarking::UnsafeTransitionsOccurred
-      unsafe_transitions_occurred_;
+  const bool should_keep_ages_unchanged_;
   const uint64_t trace_id_;
 };
 
@@ -264,11 +255,10 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
 
 ConcurrentMarking::~ConcurrentMarking() = default;
 
-void ConcurrentMarking::RunMajor(
-    JobDelegate* delegate, base::EnumSet<CodeFlushMode> code_flush_mode,
-    unsigned mark_compact_epoch,
-    ShouldKeepAgesUnchanged should_keep_ages_unchanged,
-    UnsafeTransitionsOccurred unsafe_transitions_occured) {
+void ConcurrentMarking::RunMajor(JobDelegate* delegate,
+                                 base::EnumSet<CodeFlushMode> code_flush_mode,
+                                 unsigned mark_compact_epoch,
+                                 bool should_keep_ages_unchanged) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterruptCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
@@ -281,9 +271,7 @@ void ConcurrentMarking::RunMajor(
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
-      code_flush_mode, heap_->cpp_heap(),
-      should_keep_ages_unchanged == ShouldKeepAgesUnchanged::kYes,
-      unsafe_transitions_occured == UnsafeTransitionsOccurred::kYes,
+      code_flush_mode, heap_->cpp_heap(), should_keep_ages_unchanged,
       heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
   NativeContextInferrer native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
@@ -591,11 +579,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     auto job = std::make_unique<JobTaskMajor>(
         this, heap_->mark_compact_collector()->epoch(),
         heap_->mark_compact_collector()->code_flush_mode(),
-        heap_->ShouldCurrentGCKeepAgesUnchanged()
-            ? ShouldKeepAgesUnchanged::kYes
-            : ShouldKeepAgesUnchanged::kNo,
-        unsafe_transitions_occurred_ ? UnsafeTransitionsOccurred::kYes
-                                     : UnsafeTransitionsOccurred::kNo);
+        heap_->ShouldCurrentGCKeepAgesUnchanged());
     current_job_trace_id_.emplace(job->trace_id());
     TRACE_GC_NOTE_WITH_FLOW("Major concurrent marking started", job->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);
@@ -765,13 +749,14 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
       resume_on_exit_(v8_flags.concurrent_marking &&
                       concurrent_marking_->Pause()) {
+  DCHECK(!v8_flags.minor_ms);
   DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (resume_on_exit_) {
-    DCHECK_NE(concurrent_marking_->garbage_collector_,
-              GarbageCollector::SCAVENGER);
+    DCHECK_EQ(concurrent_marking_->garbage_collector_,
+              GarbageCollector::MARK_COMPACTOR);
     concurrent_marking_->Resume();
   }
 }

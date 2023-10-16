@@ -712,7 +712,6 @@ void MarkCompactCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushMemoryChunkData();
     heap_->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
-    heap_->concurrent_marking()->reset_unsafe_transitions_occurred();
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
