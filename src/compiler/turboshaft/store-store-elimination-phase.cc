@@ -19,7 +19,7 @@ void StoreStoreEliminationPhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<
       turboshaft::StoreStoreEliminationReducer,
       turboshaft::LateLoadEliminationReducer, turboshaft::VariableReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible,
+      turboshaft::MachineOptimizationReducer,
       turboshaft::RequiredOptimizationReducer,
       turboshaft::BranchEliminationReducer,
       turboshaft::ValueNumberingReducer>::Run(temp_zone);

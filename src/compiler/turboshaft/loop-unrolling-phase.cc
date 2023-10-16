@@ -17,7 +17,7 @@ namespace v8::internal::compiler::turboshaft {
 void LoopUnrollingPhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<
       turboshaft::LoopUnrollingReducer, turboshaft::VariableReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible,
+      turboshaft::MachineOptimizationReducer,
       turboshaft::RequiredOptimizationReducer,
       turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }

@@ -36,16 +36,6 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-template <bool signalling_nan_possible, class Next>
-class MachineOptimizationReducer;
-
-template <class Next>
-using MachineOptimizationReducerSignallingNanPossible =
-    MachineOptimizationReducer<true, Next>;
-template <class Next>
-using MachineOptimizationReducerSignallingNanImpossible =
-    MachineOptimizationReducer<false, Next>;
-
 // The MachineOptimizationAssembler performs basic optimizations on low-level
 // operations that can be performed on-the-fly, without requiring type analysis
 // or analyzing uses. It largely corresponds to MachineOperatorReducer in
@@ -56,7 +46,7 @@ using MachineOptimizationReducerSignallingNanImpossible =
 //    1- Reducing Phis, whose all inputs are the same, replace
 //      them with their input.
 
-template <bool signalling_nan_possible, class Next>
+template <class Next>
 class MachineOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
@@ -2161,6 +2151,11 @@ class MachineOptimizationReducer : public Next {
 
   JSHeapBroker* broker = PipelineData::Get().broker();
   const OperationMatcher& matcher = __ matcher();
+#if V8_ENABLE_WEBASSEMBLY
+  const bool signalling_nan_possible = PipelineData::Get().is_wasm();
+#else
+  static constexpr bool signalling_nan_possible = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
