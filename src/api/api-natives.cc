@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
@@ -753,6 +754,10 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     // that is undetectable but not callable, we need to update the types.h
     // to allow encoding this.
     CHECK(!IsUndefined(obj->GetInstanceCallHandler(), isolate));
+
+    if (Protectors::IsNoUndetectableObjectsIntact(isolate)) {
+      Protectors::InvalidateNoUndetectableObjects(isolate);
+    }
     map->set_is_undetectable(true);
   }
 

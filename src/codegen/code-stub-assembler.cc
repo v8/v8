@@ -1650,7 +1650,9 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   // Only null, undefined and document.all have the undetectable bit set,
   // so we can return false immediately when that bit is set. With static roots
   // we've already checked for null and undefined, but we need to check the
-  // undetectable bit for document.all anyway on the common path.
+  // undetectable bit for document.all anyway on the common path and it doesn't
+  // help to check the undetectable object protector in builtins since we can't
+  // deopt.
   GotoIf(IsUndetectableMap(value_map), if_false);
 
   // We still need to handle numbers specially, but all other {value}s

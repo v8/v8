@@ -239,13 +239,21 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case ObjectIsOp::Kind::kUndetectable:
+        if (DependOnNoUndetectableObjectsProtector()) {
+          V<Word32> is_undefined = __ TaggedEqual(
+              input, __ HeapConstant(factory_->undefined_value()));
+          V<Word32> is_null =
+              __ TaggedEqual(input, __ HeapConstant(factory_->null_value()));
+          return __ Word32BitwiseOr(is_undefined, is_null);
+        }
+        V8_FALLTHROUGH;
       case ObjectIsOp::Kind::kCallable:
       case ObjectIsOp::Kind::kConstructor:
       case ObjectIsOp::Kind::kDetectableCallable:
       case ObjectIsOp::Kind::kNonCallable:
       case ObjectIsOp::Kind::kReceiver:
-      case ObjectIsOp::Kind::kReceiverOrNullOrUndefined:
-      case ObjectIsOp::Kind::kUndetectable: {
+      case ObjectIsOp::Kind::kReceiverOrNullOrUndefined: {
         Label<Word32> done(this);
 
         // Check for Smi if necessary.
@@ -1331,17 +1339,33 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(
             __ TaggedEqual(object, __ HeapConstant(factory_->empty_string())),
             done, 0);
+
+        // Only check null and undefined if we're not going to check the
+        // undetectable bit.
+        if (DependOnNoUndetectableObjectsProtector()) {
+          // Check if {object} is the null value.
+          GOTO_IF(
+              __ TaggedEqual(object, __ HeapConstant(factory_->null_value())),
+              done, 0);
+
+          // Check if {object} is the undefined value.
+          GOTO_IF(__ TaggedEqual(object,
+                                 __ HeapConstant(factory_->undefined_value())),
+                  done, 0);
+        }
 #endif
 
         // Load the map of {object}.
         V<Map> map = __ LoadMapField(object);
 
-        // Check if the {object} is undetectable and immediately return false.
-        V<Word32> bitfield = __ template LoadField<Word32>(
-            map, AccessBuilder::ForMapBitField());
-        GOTO_IF(__ Word32BitwiseAnd(bitfield,
-                                    Map::Bits1::IsUndetectableBit::kMask),
-                done, 0);
+        if (!DependOnNoUndetectableObjectsProtector()) {
+          // Check if the {object} is undetectable and immediately return false.
+          V<Word32> bitfield = __ template LoadField<Word32>(
+              map, AccessBuilder::ForMapBitField());
+          GOTO_IF(__ Word32BitwiseAnd(bitfield,
+                                      Map::Bits1::IsUndetectableBit::kMask),
+                  done, 0);
+        }
 
         // Check if {object} is a HeapNumber.
         IF(UNLIKELY(__ TaggedEqual(
@@ -3209,8 +3233,21 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  bool DependOnNoUndetectableObjectsProtector() {
+    if (!undetectable_objects_protector_) {
+      UnparkedScopeIfNeeded unpark(PipelineData::Get().broker());
+      undetectable_objects_protector_ =
+          PipelineData::Get()
+              .broker()
+              ->dependencies()
+              ->DependOnNoUndetectableObjectsProtector();
+    }
+    return *undetectable_objects_protector_;
+  }
+
   Isolate* isolate_ = PipelineData::Get().isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
+  base::Optional<bool> undetectable_objects_protector_ = {};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

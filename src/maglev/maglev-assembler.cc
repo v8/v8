@@ -193,12 +193,33 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   // Check if {{value}} is empty string.
   CompareRoot(value, RootIndex::kempty_string);
   JumpIf(kEqual, *is_false);
+
+  // Only check null and undefined if we're not going to check the
+  // undetectable bit.
+  if (compilation_info()
+          ->broker()
+          ->dependencies()
+          ->DependOnNoUndetectableObjectsProtector()) {
+    // Check if {{value}} is undefined.
+    CompareRoot(value, RootIndex::kUndefinedValue);
+    JumpIf(kEqual, *is_false);
+
+    // Check if {{value}} is null.
+    CompareRoot(value, RootIndex::kNullValue);
+    JumpIf(kEqual, *is_false);
+  }
 #endif
 
-  // Check if {{value}} is undetectable.
   LoadMap(map, value);
-  TestInt32AndJumpIfAnySet(FieldMemOperand(map, Map::kBitFieldOffset),
-                           Map::Bits1::IsUndetectableBit::kMask, *is_false);
+
+  if (!compilation_info()
+           ->broker()
+           ->dependencies()
+           ->DependOnNoUndetectableObjectsProtector()) {
+    // Check if {{value}} is undetectable.
+    TestInt32AndJumpIfAnySet(FieldMemOperand(map, Map::kBitFieldOffset),
+                             Map::Bits1::IsUndetectableBit::kMask, *is_false);
+  }
 
   // Check if {{value}} is a HeapNumber.
   CompareRoot(map, RootIndex::kHeapNumberMap);

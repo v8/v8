@@ -1172,6 +1172,12 @@ bool CompilationDependencies::DependOnNoProfilingProtector() {
       broker_, broker_->isolate()->factory()->no_profiling_protector()));
 }
 
+bool CompilationDependencies::DependOnNoUndetectableObjectsProtector() {
+  return DependOnProtector(MakeRef(
+      broker_,
+      broker_->isolate()->factory()->no_undetectable_objects_protector()));
+}
+
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
   return DependOnProtector(MakeRef(
       broker_,
