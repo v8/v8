@@ -48,8 +48,8 @@ class TaggedImpl {
 
   static const bool kCanBeWeak = kRefType == HeapObjectReferenceType::WEAK;
 
-  constexpr TaggedImpl() : ptr_{} {}
-  explicit constexpr TaggedImpl(StorageType ptr) : ptr_(ptr) {}
+  V8_INLINE constexpr TaggedImpl() : ptr_{} {}
+  V8_INLINE explicit constexpr TaggedImpl(StorageType ptr) : ptr_(ptr) {}
 
   // Make clang on Linux catch what MSVC complains about on Windows:
   explicit operator bool() const = delete;
@@ -113,7 +113,7 @@ class TaggedImpl {
     return static_cast<Tagged_t>(ptr_) < static_cast<Tagged_t>(other.ptr());
   }
 
-  constexpr StorageType ptr() const { return ptr_; }
+  V8_INLINE constexpr StorageType ptr() const { return ptr_; }
 
   // Returns true if this tagged value is a strong pointer to a HeapObject or
   // Smi.

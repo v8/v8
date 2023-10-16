@@ -59,7 +59,7 @@
                                                                                \
   /* Special constructor for constexpr construction which allows skipping type \
    * checks. */                                                                \
-  explicit constexpr inline Type(Address ptr, HeapObject::SkipTypeCheckTag)    \
+  explicit constexpr V8_INLINE Type(Address ptr, HeapObject::SkipTypeCheckTag) \
       : __VA_ARGS__(ptr, HeapObject::SkipTypeCheckTag()) {}                    \
                                                                                \
   explicit inline Type(Address ptr)

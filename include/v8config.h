@@ -297,6 +297,8 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
+//  V8_HAS_ATTRIBUTE_USED               - __attribute__((used)) supported
+//  V8_HAS_ATTRIBUTE_RETAIN             - __attribute__((retain)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
@@ -349,6 +351,8 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
+# define V8_HAS_ATTRIBUTE_USED (__has_attribute(used))
+# define V8_HAS_ATTRIBUTE_RETAIN (__has_attribute(retain))
 // Support for the "preserve_most" attribute is limited:
 // - 32-bit platforms do not implement it,
 // - component builds fail because _dl_runtime_resolve clobbers registers,
