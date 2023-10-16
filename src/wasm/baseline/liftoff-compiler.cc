@@ -1653,6 +1653,9 @@ class LiftoffCompiler {
   LiftoffRegister GenerateCCall(ValueKind return_kind,
                                 const std::initializer_list<VarState> args,
                                 ExternalReference ext_ref) {
+    SCOPED_CODE_COMMENT(std::string{"Call extref: "} +
+                        ExternalReferenceTable::NameOfIsolateIndependentAddress(
+                            ext_ref.address()));
     __ SpillAllRegisters();
     __ CallC(args, ext_ref);
     if (needs_gp_reg_pair(return_kind)) {
@@ -1666,6 +1669,10 @@ class LiftoffCompiler {
                                     ValueKind out_argument_kind,
                                     const std::initializer_list<VarState> args,
                                     ExternalReference ext_ref) {
+    SCOPED_CODE_COMMENT(std::string{"Call extref: "} +
+                        ExternalReferenceTable::NameOfIsolateIndependentAddress(
+                            ext_ref.address()));
+
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
@@ -3040,7 +3047,7 @@ class LiftoffCompiler {
       return index_ptrsize;
     }
 
-    CODE_COMMENT("bounds check memory");
+    SCOPED_CODE_COMMENT("bounds check memory");
 
     // Set {pc} of the OOL code to {0} to avoid generation of protected
     // instruction information (see {GenerateOutOfLineCode}.
@@ -3101,7 +3108,7 @@ class LiftoffCompiler {
   void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
                          uintptr_t offset, Register index,
                          LiftoffRegList pinned) {
-    CODE_COMMENT("alignment check");
+    SCOPED_CODE_COMMENT("alignment check");
     Label* trap_label =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess, 0);
     Register address = __ GetUnusedRegister(kGpReg, pinned).gp();
@@ -5074,7 +5081,8 @@ class LiftoffCompiler {
 
   void CallBuiltin(Builtin builtin, const ValueKindSig& sig,
                    std::initializer_list<VarState> params, int position) {
-    CODE_COMMENT((std::string{"call builtin: "} + Builtins::name(builtin)));
+    SCOPED_CODE_COMMENT(
+        (std::string{"Call builtin: "} + Builtins::name(builtin)));
     auto interface_descriptor = Builtins::CallInterfaceDescriptorFor(builtin);
     auto* call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         zone_,                                          // zone
