@@ -430,9 +430,6 @@ namespace internal {
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
   T(MustBePositive, "% must be positive")                                      \
-  T(WasmArgDoesntMatchSignature,                                               \
-    "The signature of the provided Callable does not match "                   \
-    "the specified signature.")                                                \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \

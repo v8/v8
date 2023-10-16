@@ -348,47 +348,68 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addFunction('func1', kSig_v_i).addBody([]).exportFunc();
-  builder.addFunction('func2', kSig_v_v).addBody([]).exportFunc();
+  builder.addFunction('func', kSig_i_i)
+      .addBody([...wasmI32Const(42)])
+      .exportFunc();
 
   const instance = builder.instantiate();
 
   assertDoesNotThrow(
       () => new WebAssembly.Function(
-          {parameters: [], results: []}, instance.exports.func2));
+          {parameters: [], results: []}, instance.exports.func));
 
-  assertDoesNotThrow(
-      () => new WebAssembly.Function(
-          {parameters: [], results: []}, instance.exports.func1));
+  assertDoesNotThrow(() => {
+    const rewrapped = new WebAssembly.Function(
+      {parameters: ['f32'], results: ['i32']}, instance.exports.func);
+    rewrapped(1)
+    rewrapped(NaN);
+  });
 
   assertThrows(
-      () => {
-        const rewrapped = new WebAssembly.Function(
-          {parameters: [], results: []}, instance.exports.func1);
-        rewrapped();
-      },
-      TypeError,
-      "The signature of the provided Callable does not match " +
-      "the specified signature.");
+    () => {
+      const rewrapped = new WebAssembly.Function(
+        {parameters: ['i64'], results: ['i32']}, instance.exports.func);
+      rewrapped(0n);
+    },
+    TypeError,
+    "Cannot convert a BigInt value to a number");
+  assertThrows(
+    () => {
+      const rewrapped = new WebAssembly.Function(
+        {parameters: ['i32'], results: ['i64']}, instance.exports.func);
+      rewrapped(0);
+    },
+    TypeError,
+    "Cannot convert 42 to a BigInt");
 })();
 
 (function TestFunctionConstructorWithWasmJSFunction() {
   print(arguments.callee.name);
-  const func = new WebAssembly.Function({parameters: [], results: []}, _ => 0);
+  const func = new WebAssembly.Function({parameters: ['i32'], results: ['i32']}, _ => 0);
 
   assertDoesNotThrow(
-      () => new WebAssembly.Function({parameters: [], results: []}, func));
-  assertDoesNotThrow(
-      () => new WebAssembly.Function({parameters: ['i32'], results: []}, func));
+      () => new WebAssembly.Function({parameters: ['i32'], results: ['i32']}, func));
+  assertDoesNotThrow(() => {
+    const rewrapped = new WebAssembly.Function({parameters: ['f32'], results: ['i32']}, func);
+    rewrapped(42);
+    rewrapped(NaN);
+  });
   assertThrows(
       () => {
         const rewrapped = new WebAssembly.Function(
-          {parameters: ['i32'], results: []}, func);
-        rewrapped();
+          {parameters: ['i64'], results: ['i32']}, func);
+        rewrapped(0n);
       },
       TypeError,
-      "The signature of the provided Callable does not match " +
-      "the specified signature.");
+      "Cannot convert a BigInt value to a number");
+  assertThrows(
+      () => {
+        const rewrapped = new WebAssembly.Function(
+          {parameters: ['i32'], results: ['i64']}, func);
+        rewrapped(0);
+      },
+      TypeError,
+      "Cannot convert 0 to a BigInt");
 })();
 
 (function TestFunctionConstructorNonArray1() {

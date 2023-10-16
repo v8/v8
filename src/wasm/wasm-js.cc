@@ -2115,32 +2115,6 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::WasmExportedFunction::IsWasmExportedFunction(*callable);
   bool is_wasm_js_function = i::WasmJSFunction::IsWasmJSFunction(*callable);
 
-  if (is_wasm_exported_function && !suspend && !promise) {
-    uint32_t canonical_sig_index =
-        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
-    if (!i::Handle<i::WasmExportedFunction>::cast(callable)->MatchesSignature(
-            canonical_sig_index)) {
-      i::Handle<i::JSFunction> result =
-        i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
-      result->set_code(*BUILTIN_CODE(i_isolate, ThrowSignatureMismatch));
-      info.GetReturnValue().Set(Utils::ToLocal(result));
-      return;
-    }
-  }
-
-  if (is_wasm_js_function && !suspend && !promise) {
-    uint32_t canonical_sig_index =
-        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
-    if (!i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(
-            canonical_sig_index)) {
-      i::Handle<i::JSFunction> result =
-        i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
-      result->set_code(*BUILTIN_CODE(i_isolate, ThrowSignatureMismatch));
-      info.GetReturnValue().Set(Utils::ToLocal(result));
-      return;
-    }
-  }
-
   if (is_wasm_exported_function && suspend) {
     // TODO(thibaudm): Support wasm-to-wasm calls with suspending behavior, and
     // also with combined promising+suspending behavior.
