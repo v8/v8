@@ -84,7 +84,9 @@ declare_args() {
   v8_enable_wasm_simd256_revec = false
 
   # Enable runtime call stats.
-  v8_enable_runtime_call_stats = !is_on_release_branch
+  # TODO(liviurau): Remove old name after Chromium config update
+  # https://crbug.com/1476977.
+  v8_enable_runtime_call_stats = !(is_on_release_branch || v8_is_on_release_branch)
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
