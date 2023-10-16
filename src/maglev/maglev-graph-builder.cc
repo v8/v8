@@ -258,6 +258,24 @@ class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
   MaglevGraphBuilder* builder_;
 };
 
+class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
+ public:
+  explicit SaveCallSpeculationScope(MaglevGraphBuilder* builder)
+      : builder_(builder) {
+    saved_ = builder_->current_speculation_feedback_;
+    builder_->current_speculation_feedback_ = compiler::FeedbackSource();
+  }
+  ~SaveCallSpeculationScope() {
+    builder_->current_speculation_feedback_ = saved_;
+  }
+
+  const compiler::FeedbackSource& value() { return saved_; }
+
+ private:
+  compiler::FeedbackSource saved_;
+  MaglevGraphBuilder* builder_;
+};
+
 class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
  public:
   DeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
@@ -5666,11 +5684,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
             : CallArguments(ConvertReceiverMode::kAny,
                             {this_arg, element, index_tagged, receiver});
 
-    compiler::FeedbackSource feedback_source = std::exchange(
-        current_speculation_feedback_, compiler::FeedbackSource());
-    result = ReduceCall(callback, call_args, feedback_source,
+    SaveCallSpeculationScope saved(this);
+    result = ReduceCall(callback, call_args, saved.value(),
                         SpeculationMode::kAllowSpeculation);
-    current_speculation_feedback_ = feedback_source;
   }
 
   // ```
@@ -7962,6 +7978,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
           this, Builtin::kToBooleanLazyDeoptContinuation);
 
       if (has_instance_field->IsJSFunction()) {
+        SaveCallSpeculationScope saved(this);
         ReduceResult result =
             ReduceCallForConstant(has_instance_field->AsJSFunction(), args);
         DCHECK(!result.IsDoneWithAbort());

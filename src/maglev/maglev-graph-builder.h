@@ -452,6 +452,7 @@ class MaglevGraphBuilder {
   static constexpr bool kLoopsMustBeEnteredThroughHeader = true;
 
   class CallSpeculationScope;
+  class SaveCallSpeculationScope;
   class DeoptFrameScope;
 
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
