@@ -8718,7 +8718,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       BIND(&check_string_hash);
       {
         Label if_thinstring(this), if_has_cached_index(this),
-            if_forwarding_index(this);
+            if_forwarding_index(this, Label::kDeferred);
 
         TNode<Uint32T> raw_hash_field = var_raw_hash.value();
         GotoIf(IsClearWord32(raw_hash_field,
