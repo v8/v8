@@ -628,7 +628,6 @@ namespace internal {
   F(ThrowWasmStackOverflow, 0, 1)             \
   F(WasmI32AtomicWait, 4, 1)                  \
   F(WasmI64AtomicWait, 5, 1)                  \
-  F(WasmAtomicNotify, 3, 1)                   \
   F(WasmMemoryGrow, 2, 1)                     \
   F(WasmStackGuard, 0, 1)                     \
   F(WasmThrow, 2, 1)                          \

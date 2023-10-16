@@ -1794,7 +1794,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
-                    OpIndex index, OpIndex value, Value* result) {
+                    OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
     V<WordPtr> converted_index;
     compiler::BoundsCheckResult bounds_check_result;
     std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
@@ -1802,10 +1802,12 @@ class TurboshaftGraphBuildingInterface {
         decoder->position(), compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
+    OpIndex addr = __ WordPtrAdd(MemStart(imm.mem_index), effective_offset);
 
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmAtomicNotify,
-        {__ Word32Constant(imm.memory->index), effective_offset, value});
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32());
+    result->op = CallC(&sig, ExternalReference::wasm_atomic_notify(),
+                       {addr, num_waiters_to_wake});
   }
 
   void AtomicWait(FullDecoder* decoder, WasmOpcode opcode,

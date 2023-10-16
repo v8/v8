@@ -309,6 +309,7 @@ class StatsCounter;
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
   IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
+  IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
   IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \

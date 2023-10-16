@@ -28,7 +28,6 @@ namespace v8::internal::wasm {
   V(WasmFloat64ToNumber)                   \
   V(WasmTaggedToFloat64)                   \
   V(WasmAllocateJSArray)                   \
-  V(WasmAtomicNotify)                      \
   V(WasmI32AtomicWait)                     \
   V(WasmI64AtomicWait)                     \
   V(WasmGetOwnProperty)                    \
