@@ -98,9 +98,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   }
 
   switch (instance_type) {
-    case BYTE_ARRAY_TYPE:
-      return kVisitByteArray;
-
     case BYTECODE_ARRAY_TYPE:
       return kVisitBytecodeArray;
 
@@ -113,7 +110,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return kVisitEmbedderDataArray;
 
-    case FIXED_ARRAY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case HASH_TABLE_TYPE:
@@ -126,23 +122,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       return kVisitFixedArray;
 
-    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
-      return kVisitClosureFeedbackCellArray;
-
-    case SCRIPT_CONTEXT_TABLE_TYPE:
-      return kVisitScriptContextTable;
-
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      return kVisitObjectBoilerplateDescription;
-
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       return kVisitSloppyArgumentsElements;
-
-    case REG_EXP_MATCH_INFO_TYPE:
-      return kVisitRegExpMatchInfo;
-
-    case ARRAY_LIST_TYPE:
-      return kVisitArrayList;
 
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
@@ -160,9 +141,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case EPHEMERON_HASH_TABLE_TYPE:
       return kVisitEphemeronHashTable;
-
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      return kVisitFixedDoubleArray;
 
     case PROPERTY_ARRAY_TYPE:
       return kVisitPropertyArray;
@@ -433,6 +411,12 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     return kVisit##Name;
       TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
 #undef MAKE_TQ_CASE
+
+#define CASE(TypeCamelCase, TYPE_UPPER_CASE) \
+  case TYPE_UPPER_CASE##_TYPE:               \
+    return kVisit##TypeCamelCase;
+      SIMPLE_HEAP_OBJECT_LIST2(CASE)
+#undef CASE
 
     default:
       UNREACHABLE();

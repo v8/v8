@@ -27,10 +27,12 @@ enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 class LookupIterator;
+class PropertyDescriptor;
 class PropertyKey;
 class NativeContext;
 class IsCompiledScope;
 class SwissNameDictionary;
+class ElementsAccessor;
 
 #include "torque-generated/src/objects/js-objects-tq.inc"
 

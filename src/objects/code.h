@@ -21,6 +21,8 @@ class Factory;
 template <typename Impl>
 class FactoryBase;
 class LocalFactory;
+class SafepointEntry;
+class RootVisitor;
 
 enum class Builtin;
 

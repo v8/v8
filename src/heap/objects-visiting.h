@@ -23,15 +23,12 @@ namespace internal {
 #define TYPED_VISITOR_ID_LIST(V)        \
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
-  V(ArrayList)                          \
   V(BigInt)                             \
-  V(ByteArray)                          \
   V(BytecodeArray)                      \
   V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
-  V(ClosureFeedbackCellArray)           \
   V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
@@ -40,8 +37,6 @@ namespace internal {
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
-  V(FixedArray)                         \
-  V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
@@ -55,7 +50,6 @@ namespace internal {
   V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
-  V(ObjectBoilerplateDescription)       \
   V(Oddball)                            \
   V(Hole)                               \
   V(PreparseData)                       \
@@ -63,8 +57,6 @@ namespace internal {
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
-  V(RegExpMatchInfo)                    \
-  V(ScriptContextTable)                 \
   V(SharedFunctionInfo)                 \
   V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
@@ -89,7 +81,8 @@ namespace internal {
   IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmTypeInfo)              \
   IF_WASM(V, WasmContinuationObject)    \
-  IF_WASM(V, WasmNull)
+  IF_WASM(V, WasmNull)                  \
+  SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

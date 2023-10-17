@@ -1027,7 +1027,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
   switch (type) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return CALL_APPLY(EmbedderDataArray);
-    case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -1039,16 +1038,11 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
       return CALL_APPLY(FixedArray);
-    case SCRIPT_CONTEXT_TABLE_TYPE:
-      return CALL_APPLY(ScriptContextTable);
-    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
-      return CALL_APPLY(ClosureFeedbackCellArray);
-    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      return CALL_APPLY(ObjectBoilerplateDescription);
-    case REG_EXP_MATCH_INFO_TYPE:
-      return CALL_APPLY(RegExpMatchInfo);
-    case ARRAY_LIST_TYPE:
-      return CALL_APPLY(ArrayList);
+#define CASE(TypeCamelCase, TYPE_UPPER_CASE) \
+  case TYPE_UPPER_CASE##_TYPE:               \
+    return CALL_APPLY(TypeCamelCase);
+      SIMPLE_HEAP_OBJECT_LIST2(CASE)
+#undef CASE
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
       return CALL_APPLY(SloppyArgumentsElements);
     case EPHEMERON_HASH_TABLE_TYPE:
@@ -1065,8 +1059,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Context);
     case NATIVE_CONTEXT_TYPE:
       return CALL_APPLY(NativeContext);
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      return CALL_APPLY(FixedDoubleArray);
     case FEEDBACK_METADATA_TYPE:
       return CALL_APPLY(FeedbackMetadata);
     case PROPERTY_ARRAY_TYPE:
@@ -1257,8 +1249,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SharedFunctionInfo);
     case HEAP_NUMBER_TYPE:
       return CALL_APPLY(HeapNumber);
-    case BYTE_ARRAY_TYPE:
-      return CALL_APPLY(ByteArray);
     case EXTERNAL_POINTER_ARRAY_TYPE:
       return CALL_APPLY(ExternalPointerArray);
     case BIGINT_TYPE:

@@ -64,6 +64,7 @@ class JSFinalizationRegistry;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
+class OSROptimizedCodeCache;
 class ProfileDataFromFile;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;

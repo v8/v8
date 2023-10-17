@@ -5,88 +5,104 @@
 #ifndef V8_OBJECTS_OBJECT_LIST_MACROS_H_
 #define V8_OBJECTS_OBJECT_LIST_MACROS_H_
 
+#include "src/base/macros.h"  // For IF_WASM.
 #include "torque-generated/instance-types.h"
 
 namespace v8 {
 namespace internal {
 
-class AbstractCode;
-class AccessorPair;
-class AccessCheckInfo;
-class AllocationSite;
-class ByteArray;
-class ExternalPointerArray;
-class Cell;
-class ClosureFeedbackCellArray;
-class ConsString;
-class DependentCode;
-class ElementsAccessor;
-class EnumCache;
-class FixedArrayBase;
-class FixedDoubleArray;
-class FreeSpace;
-class FunctionLiteral;
-class FunctionTemplateInfo;
-class JSAsyncGeneratorObject;
-class JSGlobalProxy;
-class SourceTextModule;
-class JSPromise;
-class JSProxy;
-class JSProxyRevocableResult;
-class KeyAccumulator;
-class LookupIterator;
-class FieldType;
-class Module;
-class SourceTextModuleInfoEntry;
-class HeapNumber;
-class ObjectHashTable;
-class ObjectTemplateInfo;
-class ObjectVisitor;
-class OSROptimizedCodeCache;
-class PreparseData;
-class PropertyArray;
-class PropertyCell;
-class PropertyDescriptor;
-class PrototypeInfo;
-class ReadOnlyRoots;
-class RegExpMatchInfo;
-class RootVisitor;
-class SafepointEntry;
-class ScriptContextTable;
-class SharedFunctionInfo;
-class StringStream;
-class Symbol;
-class SyntheticModule;
-class FeedbackCell;
-class FeedbackMetadata;
-class FeedbackVector;
-class UncompiledData;
-class TemplateInfo;
-class TransitionArray;
-class WasmInstanceObject;
-class WasmMemoryObject;
-template <typename T>
-class ZoneForwardList;
+// SIMPLE_HEAP_OBJECT_LIST1 and SIMPLE_HEAP_OBJECT_LIST2 are intended to
+// simplify type-related boilerplate. How to use these lists: add types here,
+// and don't add them in other related macro lists below (e.g.
+// HEAP_OBJECT_ORDINARY_TYPE_LIST), and don't add them in various other spots
+// (e.g. Map::GetVisitorId). Easy.
+//
+// All types in these lists, the 'simple' types, must satisfy the following
+// conditions. They:
+//
+// - are an 'ordinary type' (HEAP_OBJECT_ORDINARY_TYPE_LIST)
+// - define TypeCamelCase::AllocatedSize()
+// - define TypeCamelCase::BodyDescriptor
+// - have an associated visitor id kVisit##TypeCamelCase
+// - have an associated instance type TYPE_UPPER_CASE##_TYPE
+//
+// Also don't forget about DYNAMICALLY_SIZED_HEAP_OBJECT_LIST.
+//
+// Note these lists are split into multiple lists for historic/pragmatic
+// reasons since many users pass a macro `V` that expects exactly one argument.
+//
+// TODO(jgruber): Extend this list. There's more we can move here from
+// HEAP_OBJECT_ORDINARY_TYPE_LIST.
+// TODO(jgruber): Consider merging this file with objects-definitions.h.
+#define SIMPLE_HEAP_OBJECT_LIST_GENERATOR(APPLY, V)                      \
+  APPLY(V, ArrayList, ARRAY_LIST)                                        \
+  APPLY(V, ByteArray, BYTE_ARRAY)                                        \
+  APPLY(V, ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY)        \
+  APPLY(V, FixedArray, FIXED_ARRAY)                                      \
+  APPLY(V, FixedDoubleArray, FIXED_DOUBLE_ARRAY)                         \
+  APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
+  APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
+  APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)
 
-#define OBJECT_TYPE_LIST(V) \
-  V(Primitive)              \
-  V(Number)                 \
-  V(Numeric)
+// The SIMPLE_HEAP_OBJECT_LIST1 format is:
+//   V(TypeCamelCase)
+//
+#define SIMPLE_HEAP_OBJECT_LIST1_ADAPTER(V, Name, NAME) V(Name)
+#define SIMPLE_HEAP_OBJECT_LIST1(V) \
+  SIMPLE_HEAP_OBJECT_LIST_GENERATOR(SIMPLE_HEAP_OBJECT_LIST1_ADAPTER, V)
 
+// The SIMPLE_HEAP_OBJECT_LIST2 format is:
+//   V(TypeCamelCase, TYPE_UPPER_CASE)
+//
+#define SIMPLE_HEAP_OBJECT_LIST2_ADAPTER(V, Name, NAME) V(Name, NAME)
+#define SIMPLE_HEAP_OBJECT_LIST2(V) \
+  SIMPLE_HEAP_OBJECT_LIST_GENERATOR(SIMPLE_HEAP_OBJECT_LIST2_ADAPTER, V)
+
+// Types in this list may be allocated in large object spaces.
+#define DYNAMICALLY_SIZED_HEAP_OBJECT_LIST(V) \
+  V(ArrayList)                                \
+  V(BigInt)                                   \
+  V(ByteArray)                                \
+  V(BytecodeArray)                            \
+  V(ClosureFeedbackCellArray)                 \
+  V(Code)                                     \
+  V(Context)                                  \
+  V(ExternalPointerArray)                     \
+  V(ExternalString)                           \
+  V(FeedbackMetadata)                         \
+  V(FeedbackVector)                           \
+  V(FixedArray)                               \
+  V(FixedDoubleArray)                         \
+  V(FreeSpace)                                \
+  V(InstructionStream)                        \
+  V(ObjectBoilerplateDescription)             \
+  V(PreparseData)                             \
+  V(PropertyArray)                            \
+  V(RegExpMatchInfo)                          \
+  V(ScopeInfo)                                \
+  V(ScriptContextTable)                       \
+  V(SeqString)                                \
+  V(SloppyArgumentsElements)                  \
+  V(SwissNameDictionary)                      \
+  V(ThinString)                               \
+  V(UncompiledDataWithoutPreparseData)        \
+  V(WeakArrayList)                            \
+  V(WeakFixedArray)                           \
+  IF_WASM(V, WasmArray)                       \
+  IF_WASM(V, WasmStruct)
+
+// TODO(jgruber): Move more types to SIMPLE_HEAP_OBJECT_LIST_GENERATOR.
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
   V(AccessCheckNeeded)                          \
   V(AccessorInfo)                               \
   V(AllocationSite)                             \
   V(AlwaysSharedSpaceJSObject)                  \
-  V(ArrayList)                                  \
   V(BigInt)                                     \
   V(BigIntBase)                                 \
   V(BigIntWrapper)                              \
-  V(ObjectBoilerplateDescription)               \
   V(Boolean)                                    \
   V(BooleanWrapper)                             \
-  V(ByteArray)                                  \
   V(ExternalPointerArray)                       \
   V(BytecodeArray)                              \
   V(CallHandlerInfo)                            \
@@ -99,7 +115,6 @@ class ZoneForwardList;
   V(Constructor)                                \
   V(Context)                                    \
   V(CoverageInfo)                               \
-  V(ClosureFeedbackCellArray)                   \
   V(DataHandler)                                \
   V(DeoptimizationData)                         \
   V(DependentCode)                              \
@@ -113,13 +128,10 @@ class ZoneForwardList;
   V(FeedbackMetadata)                           \
   V(FeedbackVector)                             \
   V(Filler)                                     \
-  V(FixedArray)                                 \
   V(FixedArrayBase)                             \
   V(FixedArrayExact)                            \
-  V(FixedDoubleArray)                           \
   V(Foreign)                                    \
   V(FreeSpace)                                  \
-  V(Function)                                   \
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
   V(HandlerTable)                               \
@@ -223,9 +235,7 @@ class ZoneForwardList;
   V(PromiseReactionJobTask)                     \
   V(PropertyArray)                              \
   V(PropertyCell)                               \
-  V(RegExpMatchInfo)                            \
   V(ScopeInfo)                                  \
-  V(ScriptContextTable)                         \
   V(ScriptWrapper)                              \
   V(SeqOneByteString)                           \
   V(SeqString)                                  \
@@ -296,7 +306,8 @@ class ZoneForwardList;
   V(WeakFixedArray)                             \
   V(WeakArrayList)                              \
   V(WeakCell)                                   \
-  TORQUE_DEFINED_CLASS_LIST(V)
+  TORQUE_DEFINED_CLASS_LIST(V)                  \
+  SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
@@ -392,6 +403,17 @@ class ZoneForwardList;
   V(TheHole, the_hole_value, TheHoleValue)                             \
   V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
   V(HashTableHole, hash_table_hole_value, HashTableHoleValue)
+
+#define OBJECT_TYPE_LIST(V) \
+  V(Primitive)              \
+  V(Number)                 \
+  V(Numeric)
+
+// These forward-declarations expose heap object types to most of our codebase.
+#define DEF_FWD_DECLARATION(Type) class Type;
+HEAP_OBJECT_ORDINARY_TYPE_LIST(DEF_FWD_DECLARATION)
+HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
+#undef DEF_FWD_DECLARATION
 
 }  // namespace internal
 }  // namespace v8

@@ -498,7 +498,9 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
 
 Tagged<String> JSReceiver::class_name() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (IsFunction(*this)) return roots.Function_string();
+  if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*this)) {
+    return roots.Function_string();
+  }
   if (IsJSArgumentsObject(*this)) return roots.Arguments_string();
   if (IsJSArray(*this)) return roots.Array_string();
   if (IsJSArrayBuffer(*this)) {

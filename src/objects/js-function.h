@@ -15,6 +15,9 @@
 namespace v8 {
 namespace internal {
 
+class AbstractCode;
+class ClosureFeedbackCellArray;
+
 #include "torque-generated/src/objects/js-function-tq.inc"
 
 // An abstract superclass for classes representing JavaScript function values.

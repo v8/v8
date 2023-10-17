@@ -22,6 +22,7 @@ class PrimitiveHeapObject;
 class ExternalPointerSlot;
 class IndirectPointerSlot;
 class ExposedTrustedObject;
+class ObjectVisitor;
 
 V8_OBJECT class HeapObjectLayout {
  private:

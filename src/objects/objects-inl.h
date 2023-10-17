@@ -276,10 +276,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
   return IsInternalizedString(obj, cage_base) || IsSymbol(obj, cage_base);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsFunction) {
-  return IsJSFunctionOrBoundFunctionOrWrappedFunction(obj);
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallable) {
   return obj->map(cage_base)->is_callable();
 }

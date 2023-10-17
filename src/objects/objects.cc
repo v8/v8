@@ -502,7 +502,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     return NoSideEffectsToString(isolate, currInput);
   } else if (IsBigInt(*input)) {
     return BigInt::NoSideEffectsToString(isolate, Handle<BigInt>::cast(input));
-  } else if (IsFunction(*input)) {
+  } else if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*input)) {
     // -- F u n c t i o n
     Handle<String> fun_str;
     if (IsJSBoundFunction(*input)) {
@@ -567,7 +567,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     } else if (*to_string == *isolate->object_to_string()) {
       Handle<Object> ctor = JSReceiver::GetDataProperty(
           isolate, receiver, isolate->factory()->constructor_string());
-      if (IsFunction(*ctor)) {
+      if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*ctor)) {
         Handle<String> ctor_name;
         if (IsJSBoundFunction(*ctor)) {
           ctor_name = JSBoundFunction::GetName(
@@ -1894,21 +1894,12 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
                       LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::unchecked_cast(*this)->AllocatedSize();
   }
-  if (instance_type == OBJECT_BOILERPLATE_DESCRIPTION_TYPE) {
-    return ObjectBoilerplateDescription::unchecked_cast(*this)->AllocatedSize();
+#define CASE(TypeCamelCase, TYPE_UPPER_CASE)                      \
+  if (instance_type == TYPE_UPPER_CASE##_TYPE) {                  \
+    return TypeCamelCase::unchecked_cast(*this)->AllocatedSize(); \
   }
-  if (instance_type == CLOSURE_FEEDBACK_CELL_ARRAY_TYPE) {
-    return ClosureFeedbackCellArray::unchecked_cast(*this)->AllocatedSize();
-  }
-  if (instance_type == REG_EXP_MATCH_INFO_TYPE) {
-    return RegExpMatchInfo::unchecked_cast(*this)->AllocatedSize();
-  }
-  if (instance_type == SCRIPT_CONTEXT_TABLE_TYPE) {
-    return ScriptContextTable::unchecked_cast(*this)->AllocatedSize();
-  }
-  if (instance_type == ARRAY_LIST_TYPE) {
-    return ArrayList::unchecked_cast(*this)->AllocatedSize();
-  }
+  SIMPLE_HEAP_OBJECT_LIST2(CASE)
+#undef CASE
   if (instance_type == SLOPPY_ARGUMENTS_ELEMENTS_TYPE) {
     return SloppyArgumentsElements::unchecked_cast(*this)->AllocatedSize();
   }
@@ -1923,10 +1914,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     // length synchronized.
     return SeqOneByteString::SizeFor(
         SeqOneByteString::unchecked_cast(*this)->length(kAcquireLoad));
-  }
-  if (instance_type == BYTE_ARRAY_TYPE) {
-    return ByteArray::SizeFor(
-        ByteArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(

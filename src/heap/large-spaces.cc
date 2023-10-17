@@ -318,39 +318,11 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     Page* page = Page::FromHeapObject(object);
     CHECK(object.address() == page->area_start());
 
-    // We have only the following types in the large object space:
-    const bool is_valid_lo_space_object =                          //
-        IsAbstractCode(object, cage_base) ||                       //
-        IsBigInt(object, cage_base) ||                             //
-        IsByteArray(object, cage_base) ||                          //
-        IsExternalPointerArray(object, cage_base) ||               //
-        IsClosureFeedbackCellArray(object, cage_base) ||           //
-        IsContext(object, cage_base) ||                            //
-        IsExternalString(object, cage_base) ||                     //
-        IsFeedbackMetadata(object, cage_base) ||                   //
-        IsFeedbackVector(object, cage_base) ||                     //
-        IsFixedArray(object, cage_base) ||                         //
-        IsFixedDoubleArray(object, cage_base) ||                   //
-        IsArrayList(object, cage_base) ||                          //
-        IsFreeSpace(object, cage_base) ||                          //
-        IsInstructionStream(object, cage_base) ||                  //
-        IsObjectBoilerplateDescription(object, cage_base) ||       //
-        IsPreparseData(object, cage_base) ||                       //
-        IsPropertyArray(object, cage_base) ||                      //
-        IsRegExpMatchInfo(object, cage_base) ||                    //
-        IsScopeInfo(object) ||                                     //
-        IsScriptContextTable(object, cage_base) ||                 //
-        IsSeqString(object, cage_base) ||                          //
-        IsSloppyArgumentsElements(object, cage_base) ||            //
-        IsSwissNameDictionary(object) ||                           //
-        IsThinString(object, cage_base) ||                         //
-        IsUncompiledDataWithoutPreparseData(object, cage_base) ||  //
-#if V8_ENABLE_WEBASSEMBLY                                         //
-        IsWasmArray(object) ||                                    //
-        IsWasmStruct(object) ||                                   //
-#endif                                                            //
-        IsWeakArrayList(object, cage_base) ||                     //
-        IsWeakFixedArray(object, cage_base);
+    // Only certain types may be in the large object space:
+#define V(Name) Is##Name(object, cage_base) ||
+    const bool is_valid_lo_space_object =
+        DYNAMICALLY_SIZED_HEAP_OBJECT_LIST(V) false;
+#undef V
     if (!is_valid_lo_space_object) {
       i::Print(object);
       FATAL("Found invalid Object (instance_type=%i) in large object space.",

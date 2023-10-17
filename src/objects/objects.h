@@ -34,15 +34,14 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-//
-// Most object types in the V8 JavaScript are described in this file.
-//
-
 namespace v8 {
 namespace internal {
 
 struct InliningPosition;
+class LookupIterator;
 class PropertyDescriptorObject;
+class ReadOnlyRoots;
+class RootVisitor;
 
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
