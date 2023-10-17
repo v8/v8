@@ -2639,6 +2639,7 @@ filegroup(
             "src/wasm/function-compiler.h",
             "src/wasm/graph-builder-interface.cc",
             "src/wasm/graph-builder-interface.h",
+            "src/wasm/inlining-tree.h",
             "src/wasm/jump-table-assembler.cc",
             "src/wasm/jump-table-assembler.h",
             "src/wasm/leb-helper.h",

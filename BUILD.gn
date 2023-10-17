@@ -4139,6 +4139,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/function-body-decoder.h",
       "src/wasm/function-compiler.h",
       "src/wasm/graph-builder-interface.h",
+      "src/wasm/inlining-tree.h",
       "src/wasm/jump-table-assembler.h",
       "src/wasm/leb-helper.h",
       "src/wasm/local-decl-encoder.h",

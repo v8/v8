@@ -17,6 +17,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/inlining-tree.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -201,6 +202,51 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
+    if (inlining_enabled(decoder)) {
+      if (mode_ == kRegular) {
+        if (v8_flags.liftoff) {
+          inlining_decisions_ = decoder->zone_->New<InliningTree>(
+              decoder->zone_, decoder->module_, func_index_,
+              0,  // call count
+              0   // wire byte size. We pass 0 so that the initial node is
+                  // always expanded, regardless of budget.
+          );
+          // TODO(14108): Improve budget.
+          inlining_decisions_->FullyExpand(
+              2 * decoder->module_->functions[func_index_].code.length());
+        } else {
+          set_no_liftoff_inlining_budget(std::max(
+              100,
+              static_cast<int>(
+                  2 * decoder->module_->functions[func_index_].code.length())));
+        }
+      } else {
+#if DEBUG
+        if (v8_flags.liftoff && inlining_decisions_) {
+          // DCHECK that `inlining_decisions_` is consistent.
+          DCHECK(inlining_decisions_->is_inlined());
+          DCHECK_EQ(inlining_decisions_->function_index(), func_index_);
+          base::SharedMutexGuard<base::kShared> mutex_guard(
+              &decoder->module_->type_feedback.mutex);
+          if (inlining_decisions_->feedback_found()) {
+            DCHECK_NE(
+                decoder->module_->type_feedback.feedback_for_function.find(
+                    func_index_),
+                decoder->module_->type_feedback.feedback_for_function.end());
+            DCHECK_EQ(inlining_decisions_->function_calls()->size(),
+                      decoder->module_->type_feedback.feedback_for_function
+                          .find(func_index_)
+                          ->second.feedback_vector.size());
+            DCHECK_EQ(inlining_decisions_->function_calls()->size(),
+                      decoder->module_->type_feedback.feedback_for_function
+                          .find(func_index_)
+                          ->second.call_targets.size());
+          }
+        }
+#endif
+      }
+    }
+
     if (mode_ == kRegular) {
       StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
     }
@@ -220,6 +266,12 @@ class TurboshaftGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
+    if (v8_flags.liftoff && inlining_decisions_ &&
+        inlining_decisions_->feedback_found()) {
+      DCHECK_EQ(
+          feedback_slot_,
+          static_cast<int>(inlining_decisions_->function_calls()->size()) - 1);
+    }
     if (mode_ == kRegular) {
       for (OpIndex index : __ output_graph().AllOperationIndices()) {
         SourcePosition position = OpIndexToSourcePosition(
@@ -1283,6 +1335,7 @@ class TurboshaftGraphBuildingInterface {
 
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
+    feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
       if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
         return;
@@ -1291,9 +1344,9 @@ class TurboshaftGraphBuildingInterface {
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
     } else {
       // Locally defined function.
-      if ((decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc) &&
-          should_inline()) {
-        inlining_budget_--;
+      if (inlining_enabled(decoder) &&
+          should_inline(feedback_slot_,
+                        decoder->module_->functions[imm.index].code.length())) {
         InlineWasmCall(decoder, imm, args, returns);
       } else {
         V<WordPtr> callee =
@@ -1305,6 +1358,7 @@ class TurboshaftGraphBuildingInterface {
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
+    feedback_slot_++;
     auto [target, ref] =
         imm.index < decoder->module_->num_imported_functions
             ? BuildImportedFunctionTargetAndRef(imm.index)
@@ -1330,6 +1384,7 @@ class TurboshaftGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
+    feedback_slot_++;
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
     BuildWasmCall(decoder, sig, target, ref, args, returns);
@@ -1338,6 +1393,7 @@ class TurboshaftGraphBuildingInterface {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
+    feedback_slot_++;
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
     BuildWasmMaybeReturnCall(decoder, sig, target, ref, args);
@@ -5400,7 +5456,6 @@ class TurboshaftGraphBuildingInterface {
                         decoder->detected_, inlinee_body, asm_, assumptions_,
                         inlining_positions_, imm.index, wire_bytes_,
                         &inlinee_args, callee_return_block, callee_catch_block);
-    inlinee_decoder.interface().set_inlining_budget(inlining_budget_);
     size_t inlining_id = inlining_positions_->size();
     SourcePosition call_position = SourcePosition(
         decoder->position(), inlining_id_ == kNoInliningId ? -1 : inlining_id_);
@@ -5409,16 +5464,21 @@ class TurboshaftGraphBuildingInterface {
     inlinee_decoder.interface().set_inlining_id(
         static_cast<uint8_t>(inlining_id));
     inlinee_decoder.interface().set_parent_position(call_position);
+    if (v8_flags.liftoff) {
+      if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+        inlinee_decoder.interface().set_inlining_decisions(
+            (*inlining_decisions_->function_calls())[feedback_slot_]);
+      }
+    } else {
+      no_liftoff_inlining_budget_ -= inlinee.code.length();
+      inlinee_decoder.interface().set_no_liftoff_inlining_budget(
+          no_liftoff_inlining_budget_);
+    }
     inlinee_decoder.Decode();
     // Turboshaft runs with validation, but the function should already be
     // validated, so graph building must always succeed, unless we bailed out.
     DCHECK_IMPLIES(!inlinee_decoder.ok(),
                    inlinee_decoder.interface().did_bailout());
-
-    // Set the inlining budget to the remaining budget of the inlinee decoder.
-    // TODO(14108): Implement proper ahead-of-time analysis of feedback and
-    // inlining heuristics.
-    inlining_budget_ = inlinee_decoder.interface().inlining_budget();
 
     DCHECK_IMPLIES(inlinee_mode == kInlinedUnhandled,
                    inlinee_decoder.interface().return_exception_phis().empty());
@@ -5453,6 +5513,11 @@ class TurboshaftGraphBuildingInterface {
       returns[i].op =
           MaybePhi(return_phis.phi_inputs[i], return_phis.phi_types[i]);
     }
+
+    if (!v8_flags.liftoff) {
+      set_no_liftoff_inlining_budget(
+          inlinee_decoder.interface().no_liftoff_inlining_budget());
+    }
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
@@ -5480,6 +5545,8 @@ class TurboshaftGraphBuildingInterface {
   static constexpr int kInliningIdFieldSize = 6;
   static constexpr uint8_t kNoInliningId = 63;
   static_assert((1 << kInliningIdFieldSize) - 1 == kNoInliningId);
+  // We need to assign inlining_ids to inlined nodes.
+  static_assert(kNoInliningId > InliningTree::kMaxInlinedCount);
 
   // We encode the wasm code position and the inlining index in an OpIndex
   // stored in the output graph's node origins.
@@ -5515,9 +5582,28 @@ class TurboshaftGraphBuildingInterface {
 
   Assembler& Asm() { return asm_; }
 
-  bool should_inline() { return inlining_budget_ > 0; }
-  int inlining_budget() { return inlining_budget_; }
-  void set_inlining_budget(int new_budget) { inlining_budget_ = new_budget; }
+  bool inlining_enabled(FullDecoder* decoder) {
+    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
+  }
+
+  bool should_inline(int feedback_slot, int size) {
+    if (v8_flags.liftoff) {
+      if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+        DCHECK_GT(inlining_decisions_->function_calls()->size(), feedback_slot);
+        return (*inlining_decisions_->function_calls())[feedback_slot]
+            ->is_inlined();
+      } else {
+        return false;
+      }
+    } else {
+      return size < no_liftoff_inlining_budget_;
+    }
+  }
+
+  void set_inlining_decisions(InliningTree* inlining_decisions) {
+    inlining_decisions_ = inlining_decisions;
+  }
+
   BlockPhis& return_phis() { return return_phis_; }
   std::vector<OpIndex>& return_exception_phis() {
     return return_exception_phis_;
@@ -5528,6 +5614,10 @@ class TurboshaftGraphBuildingInterface {
   }
   void set_parent_position(SourcePosition position) {
     parent_position_ = position;
+  }
+  int no_liftoff_inlining_budget() { return no_liftoff_inlining_budget_; }
+  void set_no_liftoff_inlining_budget(int no_liftoff_inlining_budget) {
+    no_liftoff_inlining_budget_ = no_liftoff_inlining_budget;
   }
 
   Mode mode_;
@@ -5546,7 +5636,10 @@ class TurboshaftGraphBuildingInterface {
   int func_index_;
   const WireBytesStorage* wire_bytes_;
   const BranchHintMap* branch_hints_ = nullptr;
-  int inlining_budget_ = 2;
+  InliningTree* inlining_decisions_ = nullptr;
+  int feedback_slot_ = -1;
+  // Inlining budget in case of --no-liftoff.
+  int no_liftoff_inlining_budget_ = 0;
 
   /* Used for inlining modes */
   // Contains real parameters for this inlined function, including the instance.
