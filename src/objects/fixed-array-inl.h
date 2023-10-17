@@ -242,8 +242,18 @@ void TaggedArrayBase<D, S>::CopyElements(Isolate* isolate, Tagged<D> dst,
   isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
 }
 
-// Due to left- and right-trimming, concurrent visitors need to read the length
-// with acquire semantics.
+template <class D, class S>
+void TaggedArrayBase<D, S>::RightTrim(Isolate* isolate, int new_capacity) {
+  int old_capacity = capacity();
+  CHECK_GT(new_capacity, 0);  // Due to possible canonicalization.
+  CHECK_LE(new_capacity, old_capacity);
+  if (new_capacity == old_capacity) return;
+  isolate->heap()->RightTrimTaggedArray(D::cast(*this), new_capacity,
+                                        old_capacity);
+}
+
+// Due to left- and right-trimming, concurrent visitors need to read the
+// capacity with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
 template <class D, class S>
 int TaggedArrayBase<D, S>::AllocatedSize() const {

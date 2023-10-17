@@ -242,7 +242,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
     }
     result->set(i, key);
   }
-  return FixedArray::ShrinkOrEmpty(isolate, result, length);
+  return FixedArray::RightTrimOrEmpty(isolate, result, length);
 }
 
 Tagged<HeapObject> OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {

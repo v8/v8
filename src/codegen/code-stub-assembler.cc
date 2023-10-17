@@ -9311,7 +9311,7 @@ void CodeStubAssembler::NameDictionaryLookup(
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
     GotoIf(TaggedEqual(current, undefined), if_not_found);
     if (mode == kFindExisting) {
-      if (Dictionary::ShapeT::kMatchNeedsHoleCheck) {
+      if (Dictionary::TodoShape::kMatchNeedsHoleCheck) {
         GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
       }
       current = LoadName<Dictionary>(current);

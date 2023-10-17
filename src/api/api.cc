@@ -7262,7 +7262,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* i_isolate,
       // empty FixedArray).
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(i_isolate, last)) last--;
-      if (last != -1) list->Shrink(i_isolate, last + 1);
+      if (last != -1) list->RightTrim(i_isolate, last + 1);
       return i::Handle<i::Object>(object, i_isolate).location();
     }
   }
@@ -8332,7 +8332,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
   }
   DCHECK_GE(max_length, result_index);
   if (result_index == 0) return factory->NewJSArray(0);
-  result->Shrink(i_isolate, result_index);
+  result->RightTrim(i_isolate, result_index);
   return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
                                          result_index);
 }
@@ -8438,7 +8438,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
   }
   DCHECK_GE(max_length, result_index);
   if (result_index == 0) return factory->NewJSArray(0);
-  result->Shrink(i_isolate, result_index);
+  result->RightTrim(i_isolate, result_index);
   return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
                                          result_index);
 }

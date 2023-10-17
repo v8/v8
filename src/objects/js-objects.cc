@@ -2275,7 +2275,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   }
 
   DCHECK_LE(count, values_or_entries->length());
-  *result = FixedArray::ShrinkOrEmpty(isolate, values_or_entries, count);
+  *result = FixedArray::RightTrimOrEmpty(isolate, values_or_entries, count);
   return Just(true);
 }
 
@@ -2333,7 +2333,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
     length++;
   }
   DCHECK_LE(length, values_or_entries->length());
-  return FixedArray::ShrinkOrEmpty(isolate, values_or_entries, length);
+  return FixedArray::RightTrimOrEmpty(isolate, values_or_entries, length);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Isolate* isolate,

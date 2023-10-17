@@ -479,6 +479,10 @@ class Heap final {
                                              int elements_to_trim);
   void RightTrimWeakFixedArray(Tagged<WeakFixedArray> obj,
                                int elements_to_trim);
+  template <typename Array>
+  V8_EXPORT_PRIVATE void RightTrimTaggedArray(Tagged<Array> object,
+                                              int new_capacity,
+                                              int old_capacity);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Tagged<Boolean> ToBoolean(bool condition);

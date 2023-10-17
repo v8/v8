@@ -13805,8 +13805,8 @@ MaybeHandle<JSTemporalPlainDate> PlainMonthDayOrYearMonthToPlainDate(
       added = StringSet::Add(isolate, added, string);
     }
   }
-  merged_field_names = FixedArray::ShrinkOrEmpty(isolate, merged_field_names,
-                                                 added->NumberOfElements());
+  merged_field_names = FixedArray::RightTrimOrEmpty(isolate, merged_field_names,
+                                                    added->NumberOfElements());
 
   // 11. Set mergedFields to ? PrepareTemporalFields(mergedFields,
   // mergedFieldNames, «»).
@@ -15981,7 +15981,7 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
     // e. Append "offset" to fieldNames.
     field_names = FixedArray::SetAndGrow(isolate, field_names, field_length++,
                                          factory->offset_string());
-    field_names->Shrink(isolate, field_length);
+    field_names->RightTrim(isolate, field_length);
 
     // f. Let fields be ? PrepareTemporalFields(item, fieldNames, « "timeZone"
     // »).
@@ -16442,7 +16442,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   int32_t field_length = field_names->length();
   field_names = FixedArray::SetAndGrow(isolate, field_names, field_length++,
                                        factory->offset_string());
-  field_names->Shrink(isolate, field_length);
+  field_names->RightTrim(isolate, field_length);
 
   // 8. Let partialZonedDateTime be ?
   // PreparePartialTemporalFields(temporalZonedDateTimeLike, fieldNames).
@@ -16479,7 +16479,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   field_length = field_names->length();
   field_names = FixedArray::SetAndGrow(isolate, field_names, field_length++,
                                        factory->timeZone_string());
-  field_names->Shrink(isolate, field_length);
+  field_names->RightTrim(isolate, field_length);
 
   // 14. Let fields be ? PrepareTemporalFields(zonedDateTime, fieldNames, «
   // "timeZone", "offset"»).

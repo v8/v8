@@ -22,12 +22,12 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Derived: must have a Smi slot at kCapacityOffset.
-template <class Derived, class Shape>
+template <class Derived, class ShapeT>
 class TaggedArrayBase : public HeapObject {
   OBJECT_CONSTRUCTORS(TaggedArrayBase, HeapObject);
 
-  using ElementT = typename Shape::ElementT;
-  static_assert(Shape::kElementSize == kTaggedSize);
+  using ElementT = typename ShapeT::ElementT;
+  static_assert(ShapeT::kElementSize == kTaggedSize);
   static_assert(is_subtype_v<ElementT, Object>);
 
   static constexpr bool kSupportsSmiElements =
@@ -36,10 +36,7 @@ class TaggedArrayBase : public HeapObject {
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
-  // TODO(jgruber): The names should be swapped ('ShapeT' as the template
-  // argument and 'Shape' as the exposed name), but that conflicts with
-  // existing names in hash-table.h. Fix it.
-  using ShapeT = Shape;
+  using Shape = ShapeT;
 
   inline int capacity() const;
   inline int capacity(AcquireLoadTag) const;
@@ -96,6 +93,10 @@ class TaggedArrayBase : public HeapObject {
                                   int dst_index, Tagged<Derived> src,
                                   int src_index, int len,
                                   WriteBarrierMode mode = kDefaultMode);
+
+  // Right-trim the array.
+  // Invariant: 0 < new_length <= length()
+  inline void RightTrim(Isolate* isolate, int new_capacity);
 
   inline int AllocatedSize() const;
   static inline constexpr int SizeFor(int capacity) {
@@ -184,15 +185,11 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
-  // TODO(jgruber): Support right-trimming for all types that derive from
-  // TaggedArrayBase.
-  // TODO(jgruber): Clarify that this method mutates the current object
-  // (in contrast to many other resizing methods which always return copies).
-  V8_EXPORT_PRIVATE void Shrink(Isolate* isolate, int new_length);
-  // As above, but canonicalizes length 0 to empty_fixed_array.
-  static Handle<FixedArray> ShrinkOrEmpty(Isolate* isolate,
-                                          Handle<FixedArray> array,
-                                          int new_length);
+  V8_EXPORT_PRIVATE void RightTrim(Isolate* isolate, int new_capacity);
+  // Right-trims the array, and canonicalizes length 0 to empty_fixed_array.
+  static Handle<FixedArray> RightTrimOrEmpty(Isolate* isolate,
+                                             Handle<FixedArray> array,
+                                             int new_length);
 
   // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
   inline void FillWithHoles(int from, int to);
@@ -211,7 +208,7 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = FixedArray::ShapeT::kCapacityOffset;
+  static constexpr int kLengthOffset = FixedArray::Shape::kCapacityOffset;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -582,6 +579,10 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   V8_EXPORT_PRIVATE static Handle<FixedArray> ToFixedArray(
       Isolate* isolate, Handle<ArrayList> array,
       AllocationType allocation = AllocationType::kYoung);
+
+  // Right-trim the array.
+  // Invariant: 0 < new_length <= length()
+  void RightTrim(Isolate* isolate, int new_capacity);
 
   DECL_CAST(ArrayList)
   DECL_PRINTER(ArrayList)

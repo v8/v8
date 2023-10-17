@@ -5052,7 +5052,7 @@ TEST(Regress507979) {
 
   // Replace parts of an object placed before a live object with a filler. This
   // way the filler object shares the mark bits with the following live object.
-  o1->Shrink(isolate, kFixedArrayLen - 1);
+  o1->RightTrim(isolate, kFixedArrayLen - 1);
 
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     // Let's not optimize the loop away.
@@ -5832,7 +5832,7 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
       heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld);
   size_t size_after_allocation = heap->SizeOfObjects();
   CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
-  array->Shrink(heap->isolate(), 1);
+  array->RightTrim(heap->isolate(), 1);
   size_t size_after_shrinking = heap->SizeOfObjects();
   // Shrinking does not change the space size immediately.
   CHECK_EQ(size_after_allocation, size_after_shrinking);
@@ -6143,7 +6143,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   intptr_t size_before = array->Size();
   size_t committed_memory_before = chunk->CommittedPhysicalMemory();
 
-  array->Shrink(isolate, 1);
+  array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);

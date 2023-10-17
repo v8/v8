@@ -1323,8 +1323,8 @@ static Tagged<Object> SearchRegExpMultiple(
       for (int i = 0; i < capture_registers; i++) {
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
-      Handle<FixedArray> result_fixed_array =
-          FixedArray::ShrinkOrEmpty(isolate, builder.array(), builder.length());
+      Handle<FixedArray> result_fixed_array = FixedArray::RightTrimOrEmpty(
+          isolate, builder.array(), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1625,7 +1625,7 @@ Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
                                        Handle<FixedArray> elems,
                                        int num_elems) {
   return isolate->factory()->NewJSArrayWithElements(
-      FixedArray::ShrinkOrEmpty(isolate, elems, num_elems));
+      FixedArray::RightTrimOrEmpty(isolate, elems, num_elems));
 }
 
 }  // namespace

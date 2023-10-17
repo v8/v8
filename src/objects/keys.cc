@@ -85,7 +85,8 @@ static Handle<FixedArray> CombineKeys(Isolate* isolate,
     target_keys_length += AddKey(prototype_chain_keys->get(i), combined_keys,
                                  descs, nof_descriptors, target_keys_length);
   }
-  return FixedArray::ShrinkOrEmpty(isolate, combined_keys, target_keys_length);
+  return FixedArray::RightTrimOrEmpty(isolate, combined_keys,
+                                      target_keys_length);
 }
 
 }  // namespace
@@ -219,7 +220,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
     }
     store_position++;
   }
-  return FixedArray::ShrinkOrEmpty(isolate, keys, store_position);
+  return FixedArray::RightTrimOrEmpty(isolate, keys, store_position);
 }
 
 // Returns "nothing" in case of exception, "true" on success.

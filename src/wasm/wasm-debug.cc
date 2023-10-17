@@ -1251,7 +1251,7 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
     }
   }
   if (break_points_hit_count == 0) return {};
-  break_points_hit->Shrink(isolate, break_points_hit_count);
+  break_points_hit->RightTrim(isolate, break_points_hit_count);
   return break_points_hit;
 }
 

@@ -3442,8 +3442,9 @@ namespace {
 bool MayContainRecordedSlots(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   // New space object do not have recorded slots.
-  if (BasicMemoryChunk::FromHeapObject(object)->InYoungGeneration())
+  if (BasicMemoryChunk::FromHeapObject(object)->InYoungGeneration()) {
     return false;
+  }
   // Allowlist objects that definitely do not have pointers.
   if (IsByteArray(object) || IsFixedDoubleArray(object)) return false;
   // Conservatively return true for other objects.
@@ -3588,6 +3589,71 @@ void Heap::RightTrimWeakFixedArray(Tagged<WeakFixedArray> object,
                                        elements_to_trim * kTaggedSize);
 }
 
+template <typename Array>
+void Heap::RightTrimTaggedArray(Tagged<Array> object, int new_capacity,
+                                int old_capacity) {
+  DCHECK_EQ(old_capacity, object->capacity());
+  DCHECK_LT(new_capacity, old_capacity);
+  DCHECK_GE(new_capacity, 0);
+
+  static_assert(Array::Shape::kElementSize == kTaggedSize);
+  const int bytes_to_trim = (old_capacity - new_capacity) * kTaggedSize;
+
+  // TODO(jgruber): This is copied from CreateFillerForArray. Remove that
+  // function once all arraylike types have been ported to TaggedArray.
+  //
+  // Calculate location of new array end.
+  const int old_size = Array::SizeFor(old_capacity);
+  DCHECK_EQ(object->AllocatedSize(), old_size);
+  Address old_end = object.address() + old_size;
+  Address new_end = old_end - bytes_to_trim;
+
+  const bool clear_slots = MayContainRecordedSlots(object);
+
+  // Technically in new space this write might be omitted (except for debug
+  // mode which iterates through the heap), but to play safer we still do it.
+  // We do not create a filler for objects in a large object space.
+  if (!IsLargeObject(object)) {
+    NotifyObjectSizeChange(
+        object, old_size, old_size - bytes_to_trim,
+        clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+    Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
+    // Clear the mark bits of the black area that belongs now to the filler.
+    // This is an optimization. The sweeper will release black fillers anyway.
+    if (incremental_marking()->black_allocation() &&
+        marking_state()->IsMarked(filler)) {
+      Page* page = Page::FromAddress(new_end);
+      page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
+          MarkingBitmap::AddressToIndex(new_end),
+          MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
+    }
+  } else if (clear_slots) {
+    // Large objects are not swept, so it is not necessary to clear the
+    // recorded slot.
+    MemsetTagged(ObjectSlot(new_end), Tagged<Object>(kClearedFreeMemoryValue),
+                 (old_end - new_end) / kTaggedSize);
+  }
+
+  // Initialize header of the trimmed array. We are storing the new capacity
+  // using release store after creating a filler for the left-over space to
+  // avoid races with the sweeper thread.
+  object->set_capacity(new_capacity, kReleaseStore);
+
+  // Notify the heap object allocation tracker of change in object layout. The
+  // array may not be moved during GC, and size has to be adjusted nevertheless.
+  for (auto& tracker : allocation_trackers_) {
+    tracker->UpdateObjectSizeEvent(object.address(),
+                                   Array::SizeFor(new_capacity));
+  }
+}
+
+template void Heap::RightTrimTaggedArray<FixedArray>(Tagged<FixedArray> object,
+                                                     int new_capacity,
+                                                     int old_capacity);
+template void Heap::RightTrimTaggedArray<ArrayList>(Tagged<ArrayList> object,
+                                                    int new_capacity,
+                                                    int old_capacity);
+
 template <typename T>
 void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
                                 int bytes_to_trim) {
@@ -3595,7 +3661,7 @@ void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
          IsWeakFixedArray(object));
 
   // For now this trick is only applied to objects in new and paged space.
-  DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
+  DCHECK_NE(object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
 
   if (bytes_to_trim == 0) {
     DCHECK_EQ(elements_to_trim, 0);

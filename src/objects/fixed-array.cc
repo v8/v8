@@ -35,23 +35,19 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   return array;
 }
 
-Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
-                                             Handle<FixedArray> array,
-                                             int new_length) {
+void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
+  DCHECK_NE(map(), ReadOnlyRoots{isolate}.fixed_cow_array_map());
+  Super::RightTrim(isolate, new_capacity);
+}
+
+Handle<FixedArray> FixedArray::RightTrimOrEmpty(Isolate* isolate,
+                                                Handle<FixedArray> array,
+                                                int new_length) {
   if (new_length == 0) {
     return ReadOnlyRoots{isolate}.empty_fixed_array_handle();
   }
-  array->Shrink(isolate, new_length);
+  array->RightTrim(isolate, new_length);
   return array;
-}
-
-void FixedArray::Shrink(Isolate* isolate, int new_length) {
-  CHECK_GT(new_length, 0);
-  DCHECK_LE(new_length, length());
-  if (new_length < length()) {
-    isolate->heap()->RightTrimFixedArray(FixedArrayBase::cast(*this),
-                                         length() - new_length);
-  }
 }
 
 // static
@@ -113,6 +109,11 @@ Handle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
   ObjectSlot src_slot(array->RawFieldOfElementAt(0));
   isolate->heap()->CopyRange(*result, dst_slot, src_slot, length, mode);
   return result;
+}
+
+void ArrayList::RightTrim(Isolate* isolate, int new_capacity) {
+  Super::RightTrim(isolate, new_capacity);
+  if (new_capacity < length()) set_length(new_capacity);
 }
 
 // static

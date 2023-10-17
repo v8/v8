@@ -729,7 +729,7 @@ MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
     }
   }
   if (length != 2) {
-    wi = wi->ShrinkOrEmpty(isolate, wi, length);
+    wi = wi->RightTrimOrEmpty(isolate, wi, length);
   }
   Handle<JSArray> we = factory->NewJSArrayWithElements(wi);
 

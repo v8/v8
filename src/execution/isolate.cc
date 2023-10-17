@@ -893,7 +893,7 @@ class CallSiteBuilder {
   bool Full() { return index_ >= limit_; }
 
   Handle<FixedArray> Build() {
-    return FixedArray::ShrinkOrEmpty(isolate_, elements_, index_);
+    return FixedArray::RightTrimOrEmpty(isolate_, elements_, index_);
   }
 
  private:
@@ -1400,7 +1400,7 @@ class StackFrameBuilder {
   }
 
   Handle<FixedArray> Build() {
-    return FixedArray::ShrinkOrEmpty(isolate_, frames_, index_);
+    return FixedArray::RightTrimOrEmpty(isolate_, frames_, index_);
   }
 
  private:

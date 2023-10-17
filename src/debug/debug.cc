@@ -206,7 +206,7 @@ MaybeHandle<FixedArray> Debug::CheckBreakPointsForLocations(
   *has_break_points = has_break_points_at_all;
   if (break_points_hit_count == 0) return {};
 
-  break_points_hit->Shrink(isolate_, break_points_hit_count);
+  break_points_hit->RightTrim(isolate_, break_points_hit_count);
   return break_points_hit;
 }
 
@@ -1228,7 +1228,7 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
     }
   }
   if (break_points_hit_count == 0) return {};
-  break_points_hit->Shrink(isolate_, break_points_hit_count);
+  break_points_hit->RightTrim(isolate_, break_points_hit_count);
   return break_points_hit;
 }
 
@@ -2302,7 +2302,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }
-  return FixedArray::ShrinkOrEmpty(isolate_, results, length);
+  return FixedArray::RightTrimOrEmpty(isolate_, results, length);
 }
 
 base::Optional<Tagged<DebugInfo>> Debug::TryGetDebugInfo(
