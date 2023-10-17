@@ -1347,7 +1347,7 @@ class TurboshaftGraphBuildingInterface {
       if (inlining_enabled(decoder) &&
           should_inline(feedback_slot_,
                         decoder->module_->functions[imm.index].code.length())) {
-        InlineWasmCall(decoder, imm, args, returns);
+        InlineWasmCall(decoder, imm.index, imm.sig, args, returns);
       } else {
         V<WordPtr> callee =
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
@@ -1385,9 +1385,45 @@ class TurboshaftGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     feedback_slot_++;
-    auto [target, ref] =
-        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-    BuildWasmCall(decoder, sig, target, ref, args, returns);
+    if (inlining_enabled(decoder) &&
+        should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
+      uint32_t inlined_index =
+          (*inlining_decisions_->function_calls())[feedback_slot_]
+              ->function_index();
+      V<FixedArray> internal_functions =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, WasmInternalFunctions,
+                                        MemoryRepresentation::TaggedPointer());
+      V<Tagged> inlined_func_ref =
+          __ LoadFixedArrayElement(internal_functions, inlined_index);
+      TSBlock* inline_block = __ NewBlock();
+      TSBlock* no_inline_block = __ NewBlock();
+      TSBlock* merge = __ NewBlock();
+      __ Branch(
+          {__ TaggedEqual(func_ref.op, inlined_func_ref), BranchHint::kTrue},
+          inline_block, no_inline_block);
+
+      __ Bind(inline_block);
+      base::SmallVector<Value, 2> direct_returns(sig->return_count());
+      InlineWasmCall(decoder, inlined_index, sig, args, direct_returns.data());
+      __ Goto(merge);
+
+      __ Bind(no_inline_block);
+      auto [target, ref] =
+          BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+      base::SmallVector<Value, 2> ref_returns(sig->return_count());
+      BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
+      __ Goto(merge);
+
+      __ Bind(merge);
+      for (size_t i = 0; i < direct_returns.size(); i++) {
+        returns[i].op = __ Phi({direct_returns[i].op, ref_returns[i].op},
+                               RepresentationFor(sig->GetReturn(i)));
+      }
+    } else {
+      auto [target, ref] =
+          BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+      BuildWasmCall(decoder, sig, target, ref, args, returns);
+    }
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
@@ -5406,9 +5442,10 @@ class TurboshaftGraphBuildingInterface {
     return stack_slot;
   }
 
-  void InlineWasmCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
-                      const Value args[], Value returns[]) {
-    const WasmFunction& inlinee = decoder->module_->functions[imm.index];
+  void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
+                      const FunctionSig* sig, const Value args[],
+                      Value returns[]) {
+    const WasmFunction& inlinee = decoder->module_->functions[func_index];
 
     std::vector<OpIndex> inlinee_args(inlinee.sig->parameter_count() + 1);
     inlinee_args[0] = instance_node_;
@@ -5424,7 +5461,7 @@ class TurboshaftGraphBuildingInterface {
                                           function_bytes.end()};
 
     // If the inlinee was not validated before, do that now.
-    if (V8_UNLIKELY(!decoder->module_->function_was_validated(imm.index))) {
+    if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
       if (ValidateFunctionBody(decoder->enabled_, decoder->module_,
                                decoder->detected_, inlinee_body)
               .failed()) {
@@ -5433,11 +5470,11 @@ class TurboshaftGraphBuildingInterface {
         // inlinee, emit a regular call, and move on. The same validation error
         // will be triggered again when actually compiling the invalid function.
         V<WordPtr> callee =
-            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+            __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
+        BuildWasmCall(decoder, sig, callee, instance_node_, args, returns);
         return;
       }
-      decoder->module_->set_function_validated(imm.index);
+      decoder->module_->set_function_validated(func_index);
     }
 
     Mode inlinee_mode =
@@ -5454,13 +5491,13 @@ class TurboshaftGraphBuildingInterface {
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
                         decoder->detected_, inlinee_body, asm_, assumptions_,
-                        inlining_positions_, imm.index, wire_bytes_,
+                        inlining_positions_, func_index, wire_bytes_,
                         &inlinee_args, callee_return_block, callee_catch_block);
     size_t inlining_id = inlining_positions_->size();
     SourcePosition call_position = SourcePosition(
         decoder->position(), inlining_id_ == kNoInliningId ? -1 : inlining_id_);
     inlining_positions_->push_back(
-        {static_cast<int>(imm.index), call_position});
+        {static_cast<int>(func_index), call_position});
     inlinee_decoder.interface().set_inlining_id(
         static_cast<uint8_t>(inlining_id));
     inlinee_decoder.interface().set_parent_position(call_position);
@@ -5590,8 +5627,9 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
         DCHECK_GT(inlining_decisions_->function_calls()->size(), feedback_slot);
-        return (*inlining_decisions_->function_calls())[feedback_slot]
-            ->is_inlined();
+        InliningTree* tree =
+            (*inlining_decisions_->function_calls())[feedback_slot];
+        return tree && tree->is_inlined();
       } else {
         return false;
       }
