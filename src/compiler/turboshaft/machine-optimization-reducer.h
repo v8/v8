@@ -2085,6 +2085,8 @@ class MachineOptimizationReducer : public Next {
 
   base::Optional<OpIndex> ReduceBranchCondition(OpIndex condition,
                                                 bool* negated) {
+    // TODO(dmercadier): consider generalizing this function both Word32 and
+    // Word64.
     bool reduced = false;
     while (true) {
       condition = TryRemoveWord32ToWord64Conversion(condition);
@@ -2121,6 +2123,24 @@ class MachineOptimizationReducer : public Next {
           continue;
         }
       }
+      // (x >> k1) & k2   =>   x & (k2 << k1)
+      {
+        OpIndex shift, k2_index, x;
+        int k1_int;
+        uint32_t k1, k2;
+        if (matcher.MatchBitwiseAnd(condition, &shift, &k2_index,
+                                    WordRepresentation::Word32()) &&
+            matcher.MatchConstantRightShift(
+                shift, &x, WordRepresentation::Word32(), &k1_int) &&
+            matcher.MatchIntegralWord32Constant(k2_index, &k2)) {
+          k1 = static_cast<uint32_t>(k1_int);
+          if (k1 <= base::bits::CountLeadingZeros(k2) &&
+              (static_cast<uint64_t>(k2) << k1 <=
+               std::numeric_limits<uint32_t>::max())) {
+            return __ Word32BitwiseAnd(x, k2 << k1);
+          }
+        }
+      }
       // Select(x, true, false) => x
       if (const SelectOp* select = matcher.TryCast<SelectOp>(condition)) {
         auto left_val = MatchBoolConstant(select->vtrue());
@@ -2136,6 +2156,7 @@ class MachineOptimizationReducer : public Next {
           }
           condition = select->cond();
           reduced = true;
+          continue;
         }
       }
       break;
