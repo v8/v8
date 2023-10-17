@@ -81,6 +81,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
     handles.push_back(array);
   } while (allocated <
            static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()));
+  heap->FreeMainThreadLinearAllocationAreas();
   return handles;
 }
 
@@ -127,6 +128,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
           v8_flags.single_generation);
     free_memory -= handles.back()->Size();
   }
+  heap->FreeMainThreadLinearAllocationAreas();
   return handles;
 }
 
@@ -225,19 +227,22 @@ void FillPageInPagedSpace(Page* page,
                            GCTracer::Scope::ScopeId::MARK_COMPACTOR));
   CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
                             GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
+  heap->FreeLinearAllocationAreas();
 }
 }  // namespace
 
 void FillCurrentPage(v8::internal::NewSpace* space,
                      std::vector<Handle<FixedArray>>* out_handles) {
   if (v8_flags.minor_ms) {
-    PauseAllocationObserversScope pause_observers(space->heap());
     const Address top = space->heap()->NewSpaceTop();
+    space->heap()->FreeMainThreadLinearAllocationAreas();
+    PauseAllocationObserversScope pause_observers(space->heap());
     if (top == kNullAddress) return;
     Page* page = Page::FromAllocationAreaAddress(top);
     space->heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
     FillPageInPagedSpace(page, out_handles);
+    space->heap()->FreeMainThreadLinearAllocationAreas();
   } else {
     FillCurrentPageButNBytes(SemiSpaceNewSpace::From(space), 0, out_handles);
   }
@@ -246,6 +251,7 @@ void FillCurrentPage(v8::internal::NewSpace* space,
 void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
                               int extra_bytes,
                               std::vector<Handle<FixedArray>>* out_handles) {
+  space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
@@ -253,7 +259,6 @@ void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
   DCHECK_IMPLIES(
       !space->heap()->IsInlineAllocationEnabled(),
       space->heap()->NewSpaceTop() == space->heap()->NewSpaceLimit());
-  space->heap()->FreeMainThreadLinearAllocationAreas();
   int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
@@ -263,6 +268,7 @@ void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
   if (out_handles != nullptr) {
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
   }
+  space->heap()->FreeMainThreadLinearAllocationAreas();
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {

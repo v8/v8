@@ -664,11 +664,6 @@ void MarkCompactCollector::Prepare() {
 
   DCHECK(!sweeper_->sweeping_in_progress());
 
-  // LABs do not survive a GC. Free them here before selecting evacuation
-  // candidates (freeing LABs may give memory back to the free list which does
-  // not exist for evacuation candidates anymore).
-  heap_->FreeLinearAllocationAreas();
-
   // Unmapper tasks needs to be stopped during the GC, otherwise pages queued
   // for freeing might get unmapped during the GC.
   DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());

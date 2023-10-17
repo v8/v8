@@ -144,6 +144,7 @@ void FillPageInPagedSpace(Page* page,
                            GCTracer::Scope::ScopeId::MARK_COMPACTOR));
   CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
                             GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
+  heap->FreeLinearAllocationAreas();
 }
 
 }  // namespace
@@ -270,11 +271,14 @@ void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
-  space->heap()->allocator()->new_space_allocator()->FreeLinearAllocationArea();
-  if (v8_flags.minor_ms)
+  MainAllocator* allocator = space->heap()->allocator()->new_space_allocator();
+  allocator->FreeLinearAllocationArea();
+  if (v8_flags.minor_ms) {
     FillCurrentPagedSpacePage(space, out_handles);
-  else
+  } else {
     FillCurrentSemiSpacePage(SemiSpaceNewSpace::From(space), out_handles);
+  }
+  allocator->FreeLinearAllocationArea();
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {

@@ -37,7 +37,6 @@ class AllocatorPolicy {
                                 AllocationAlignment alignment,
                                 AllocationOrigin origin) = 0;
   virtual void FreeLinearAllocationArea() = 0;
-  virtual void UpdateInlineAllocationLimit() = 0;
 
  protected:
   Heap* heap() const { return heap_; }
@@ -55,7 +54,6 @@ class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
-  void UpdateInlineAllocationLimit() final;
 
  private:
   SemiSpaceNewSpace* const space_;
@@ -69,7 +67,6 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
-  void UpdateInlineAllocationLimit() final;
 
  private:
   bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
@@ -102,7 +99,6 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
-  void UpdateInlineAllocationLimit() final;
 
  private:
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
@@ -241,8 +237,6 @@ class MainAllocator {
 
   // Checks whether the LAB is currently in use.
   V8_INLINE bool IsLabValid() { return allocation_info_.top() != kNullAddress; }
-
-  void UpdateInlineAllocationLimit();
 
   V8_EXPORT_PRIVATE void FreeLinearAllocationArea();
 

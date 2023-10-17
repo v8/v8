@@ -346,6 +346,7 @@ class Observer : public AllocationObserver {
 template <typename T, typename A>
 void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
   Observer observer1(128);
+  i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   allocator->AddAllocationObserver(&observer1);
 
   // The observer should not get notified if we have only allocated less than
@@ -374,6 +375,7 @@ void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
 
   // Multiple observers should work.
   Observer observer2(96);
+  i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   allocator->AddAllocationObserver(&observer2);
 
   AllocateUnaligned(allocator, space, 2048);
@@ -395,10 +397,12 @@ void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
   AllocateUnaligned(allocator, space, 48);
   CHECK_EQ(observer2.count(), 3);
   {
+    i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
     PauseAllocationObserversScope pause_observers(i_isolate->heap());
     CHECK_EQ(observer2.count(), 3);
     AllocateUnaligned(allocator, space, 384);
     CHECK_EQ(observer2.count(), 3);
+    i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   }
   CHECK_EQ(observer2.count(), 3);
   // Coupled with the 48 bytes allocated before the pause, another 48 bytes

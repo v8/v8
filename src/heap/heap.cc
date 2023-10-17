@@ -1184,7 +1184,6 @@ void Heap::GarbageCollectionPrologue(
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
   if (new_space()) {
-    allocator()->new_space_allocator()->FreeLinearAllocationArea();
     DCHECK_NOT_NULL(minor_gc_job());
     minor_gc_job()->CancelTaskIfScheduled();
   }
@@ -1259,6 +1258,7 @@ size_t Heap::UsedGlobalHandlesSize() {
 void Heap::AddAllocationObserversToAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
+  FreeMainThreadLinearAllocationAreas();
   allocator()->AddAllocationObserver(observer, new_space_observer);
 }
 
@@ -2361,6 +2361,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
+
+  FreeLinearAllocationAreas();
 
   tracer()->StartInSafepoint(atomic_pause_start_time);
 

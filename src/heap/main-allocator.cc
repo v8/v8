@@ -66,31 +66,24 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
 }
 
 void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {
-  if (!allocation_counter().IsStepInProgress()) {
-    AdvanceAllocationObservers();
-    allocation_counter().AddAllocationObserver(observer);
-    UpdateInlineAllocationLimit();
-  } else {
-    allocation_counter().AddAllocationObserver(observer);
-  }
+  // Adding an allocation observer may decrease the inline allocation limit, so
+  // we check here that we don't have an existing LAB.
+  CHECK(!allocation_counter().IsStepInProgress());
+  DCHECK(!IsLabValid());
+  allocation_counter().AddAllocationObserver(observer);
 }
 
 void MainAllocator::RemoveAllocationObserver(AllocationObserver* observer) {
-  if (!allocation_counter().IsStepInProgress()) {
-    AdvanceAllocationObservers();
-    allocation_counter().RemoveAllocationObserver(observer);
-    UpdateInlineAllocationLimit();
-  } else {
-    allocation_counter().RemoveAllocationObserver(observer);
-  }
+  // AllocationObserver can remove themselves. So we can't CHECK here that no
+  // allocation step is in progress. It is also okay if there are existing LABs
+  // because removing an allocation observer can only increase the distance to
+  // the next step.
+  allocation_counter().RemoveAllocationObserver(observer);
 }
 
-void MainAllocator::PauseAllocationObservers() { AdvanceAllocationObservers(); }
+void MainAllocator::PauseAllocationObservers() { DCHECK(!IsLabValid()); }
 
-void MainAllocator::ResumeAllocationObservers() {
-  MarkLabStartInitialized();
-  UpdateInlineAllocationLimit();
-}
+void MainAllocator::ResumeAllocationObservers() { DCHECK(!IsLabValid()); }
 
 void MainAllocator::AdvanceAllocationObservers() {
   if (allocation_info().top() &&
@@ -295,10 +288,6 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
   return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
-void MainAllocator::UpdateInlineAllocationLimit() {
-  return allocator_policy_->UpdateInlineAllocationLimit();
-}
-
 void MainAllocator::FreeLinearAllocationArea() {
   BasicMemoryChunk::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
@@ -374,12 +363,7 @@ bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
     optional_scope.emplace("Slow allocation path writes to the page header.");
   }
 
-  if (EnsureAllocation(size_in_bytes, alignment, origin)) {
-    UpdateInlineAllocationLimit();
-    return true;
-  } else {
-    return false;
-  }
+  return EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
 int MainAllocator::ObjectAlignment() const {
@@ -404,10 +388,6 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
 
 void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   space_->FreeLinearAllocationArea();
-}
-
-void SemiSpaceNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  space_->UpdateInlineAllocationLimit();
 }
 
 PagedNewSpaceAllocatorPolicy::PagedNewSpaceAllocatorPolicy(
@@ -498,17 +478,6 @@ void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   Page::FromAllocationAreaAddress(allocator_->top())
       ->DecreaseAllocatedLabSize(allocator_->limit() - allocator_->top());
   paged_space_allocator_policy_->FreeLinearAllocationAreaUnsynchronized();
-}
-
-void PagedNewSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  Address old_limit = allocator_->limit();
-  paged_space_allocator_policy_->UpdateInlineAllocationLimit();
-  Address new_limit = allocator_->limit();
-  DCHECK_LE(new_limit, old_limit);
-  if (new_limit != old_limit) {
-    Page::FromAllocationAreaAddress(allocator_->top())
-        ->DecreaseAllocatedLabSize(old_limit - new_limit);
-  }
 }
 
 bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
@@ -838,18 +807,6 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
                      HeapObject::FromAddress(current_top)));
   space_->Free(current_top, current_max_limit - current_top,
                SpaceAccountingMode::kSpaceAccounted);
-}
-
-void PagedSpaceAllocatorPolicy::UpdateInlineAllocationLimit() {
-  // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocator_->allocation_info().start(),
-            allocator_->allocation_info().top());
-
-  Address new_limit =
-      allocator_->ComputeLimit(allocator_->top(), allocator_->limit(), 0);
-  DCHECK_LE(allocator_->top(), new_limit);
-  DCHECK_LE(new_limit, allocator_->limit());
-  DecreaseLimit(new_limit);
 }
 
 }  // namespace internal

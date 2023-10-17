@@ -546,27 +546,6 @@ void SemiSpaceNewSpace::ResetCurrentSpace() {
   ResetAllocationTopToCurrentPageStart();
 }
 
-void SemiSpaceNewSpace::UpdateInlineAllocationLimit() {
-  Address new_limit =
-      allocator_->ComputeLimit(allocator_->top(), allocator_->limit(), 0);
-  DCHECK_LE(allocator_->top(), new_limit);
-  DCHECK_LE(new_limit, allocator_->limit());
-
-  if (new_limit < allocator_->limit()) {
-    Free(new_limit, allocator_->limit());
-    // Add a filler object after the linear allocation area (if there is space
-    // left), to ensure that the page will be iterable.
-    heap()->CreateFillerObjectAt(
-        new_limit, static_cast<int>(allocator_->limit() - new_limit));
-
-    allocator_->allocation_info().SetLimit(new_limit);
-  }
-
-#if DEBUG
-  allocator_->Verify();
-#endif  // DEBUG
-}
-
 bool SemiSpaceNewSpace::AddFreshPage() {
   DCHECK_EQ(allocation_top(), to_space_.page_high());
 

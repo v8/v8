@@ -458,13 +458,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Creates a filler object in the linear allocation area and closes it.
   void FreeLinearAllocationArea();
 
-  // When inline allocation stepping is active, either because of incremental
-  // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
-  // inline allocation every once in a while. This is done by setting
-  // allocation_info_.limit to be lower than the actual limit and and increasing
-  // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit();
-
   // Removes a page from the space. Assumes the page is in the `from_space` semi
   // space.
   void RemovePage(Page* page) final;

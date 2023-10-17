@@ -1145,6 +1145,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
       break;
     }
   }
+  heap->FreeMainThreadLinearAllocationAreas();
 }
 
 }  // namespace

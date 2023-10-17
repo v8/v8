@@ -515,6 +515,7 @@ HEAP_TEST(Regress777177) {
   OldSpace* old_space = heap->old_space();
   MainAllocator* old_space_allocator = heap->allocator()->old_space_allocator();
   Observer observer(128);
+  old_space_allocator->FreeLinearAllocationArea();
   old_space_allocator->AddAllocationObserver(&observer);
 
   int area_size = old_space->AreaSize();
@@ -573,6 +574,7 @@ HEAP_TEST(Regress791582) {
   }
 
   Observer observer(128);
+  new_space_allocator->FreeLinearAllocationArea();
   new_space_allocator->AddAllocationObserver(&observer);
 
   {
