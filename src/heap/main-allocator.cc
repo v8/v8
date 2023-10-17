@@ -289,6 +289,12 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
 }
 
 void MainAllocator::FreeLinearAllocationArea() {
+  if (!IsLabValid()) return;
+
+#if DEBUG
+  Verify();
+#endif  // DEBUG
+
   BasicMemoryChunk::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
@@ -383,11 +389,47 @@ AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  return space_->EnsureAllocation(size_in_bytes, alignment, origin);
+  FreeLinearAllocationArea();
+
+  base::Optional<std::pair<Address, Address>> allocation_result =
+      space_->Allocate(size_in_bytes, alignment);
+  if (!allocation_result) return false;
+
+  Address start = allocation_result->first;
+  Address end = allocation_result->second;
+
+  int filler_size = Heap::GetFillToAlign(start, alignment);
+  int aligned_size_in_bytes = size_in_bytes + filler_size;
+  DCHECK_LE(start + aligned_size_in_bytes, end);
+
+  Address limit = allocator_->ComputeLimit(start, end, aligned_size_in_bytes);
+  CHECK_LE(limit, end);
+
+  if (limit != end) {
+    space_->Free(limit, end);
+  }
+
+  allocator_->ResetLab(start, limit, limit);
+
+  space_->to_space().AddRangeToActiveSystemPages(allocator_->top(),
+                                                 allocator_->limit());
+  return true;
 }
 
 void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  space_->FreeLinearAllocationArea();
+  if (!allocator_->IsLabValid()) return;
+
+#if DEBUG
+  allocator_->Verify();
+#endif  // DEBUG
+
+  Address current_top = allocator_->top();
+  Address current_limit = allocator_->limit();
+
+  allocator_->AdvanceAllocationObservers();
+  allocator_->ResetLab(kNullAddress, kNullAddress, kNullAddress);
+
+  space_->Free(current_top, current_limit);
 }
 
 PagedNewSpaceAllocatorPolicy::PagedNewSpaceAllocatorPolicy(
@@ -471,10 +513,7 @@ bool PagedNewSpaceAllocatorPolicy::AddPageBeyondCapacity(
 }
 
 void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  if (allocator_->top() == kNullAddress) {
-    DCHECK_EQ(kNullAddress, allocator_->limit());
-    return;
-  }
+  if (!allocator_->IsLabValid()) return;
   Page::FromAllocationAreaAddress(allocator_->top())
       ->DecreaseAllocatedLabSize(allocator_->limit() - allocator_->top());
   paged_space_allocator_policy_->FreeLinearAllocationAreaUnsynchronized();
@@ -761,26 +800,22 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
 }
 
 void PagedSpaceAllocatorPolicy::FreeLinearAllocationArea() {
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.
-  Address current_top = allocator_->top();
-  if (current_top == kNullAddress) {
-    DCHECK_EQ(kNullAddress, allocator_->limit());
-    return;
-  }
+  if (!allocator_->IsLabValid()) return;
+
   base::MutexGuard guard(space_->mutex());
   FreeLinearAllocationAreaUnsynchronized();
 }
 
 void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.
+  if (!allocator_->IsLabValid()) return;
+
+#if DEBUG
+  allocator_->Verify();
+#endif  // DEBUG
+
   Address current_top = allocator_->top();
   Address current_limit = allocator_->limit();
-  if (current_top == kNullAddress) {
-    DCHECK_EQ(kNullAddress, current_limit);
-    return;
-  }
+
   Address current_max_limit = allocator_->original_limit_relaxed();
   DCHECK_IMPLIES(!allocator_->supports_extending_lab(),
                  current_max_limit == current_limit);

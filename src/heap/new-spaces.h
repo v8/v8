@@ -452,11 +452,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetCurrentSpace();
 
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin);
-
-  // Creates a filler object in the linear allocation area and closes it.
-  void FreeLinearAllocationArea();
+  base::Optional<std::pair<Address, Address>> Allocate(
+      int size_in_bytes, AllocationAlignment alignment);
 
   // Removes a page from the space. Assumes the page is in the `from_space` semi
   // space.
@@ -465,8 +462,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Frees the given memory region. Will be resuable for allocation if this was
   // the last allocation.
   void Free(Address start, Address end);
-
-  void SetLinearAllocationArea(Address start, Address end, int size_in_bytes);
 
   void ResetAllocationTopToCurrentPageStart() {
     allocation_top_ = to_space_.page_low();

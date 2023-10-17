@@ -772,17 +772,10 @@ bool SemiSpaceNewSpace::IsPromotionCandidate(const MemoryChunk* page) const {
   return !page->Contains(age_mark());
 }
 
-bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
-                                         AllocationAlignment alignment,
-                                         AllocationOrigin origin) {
+base::Optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
+    int size_in_bytes, AllocationAlignment alignment) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_TOP(allocation_top(), to_space_);
-
-#if DEBUG
-  allocator_->Verify();
-#endif  // DEBUG
-
-  FreeLinearAllocationArea();
 
   Address top = allocation_top();
   Address high = to_space_.page_high();
@@ -790,8 +783,8 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
   if (top + aligned_size_in_bytes <= high) {
-    SetLinearAllocationArea(top, high, aligned_size_in_bytes);
-    return true;
+    IncrementAllocationTop(high);
+    return std::pair(top, high);
   }
 
   int remaining_in_page = static_cast<int>(high - top);
@@ -811,8 +804,8 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
     Address start = allocation_top();
     Address end = to_space_.page_high();
     DCHECK_EQ(0, Heap::GetFillToAlign(start, alignment));
-    SetLinearAllocationArea(start, end, size_in_bytes);
-    return true;
+    IncrementAllocationTop(end);
+    return std::pair(start, end);
   }
 
   if (v8_flags.allocation_buffer_parking &&
@@ -820,48 +813,17 @@ bool SemiSpaceNewSpace::EnsureAllocation(int size_in_bytes,
     Address start = allocation_top();
     Address end = to_space_.page_high();
     DCHECK_LT(start, end);
-    int filler_size = Heap::GetFillToAlign(top, alignment);
-    int aligned_size_in_bytes = size_in_bytes + filler_size;
-    DCHECK_LE(aligned_size_in_bytes, end - start);
-    SetLinearAllocationArea(start, end, aligned_size_in_bytes);
-    return true;
+    IncrementAllocationTop(end);
+    return std::pair(start, end);
   }
 
-  return false;
-}
-
-void SemiSpaceNewSpace::FreeLinearAllocationArea() {
-  if (!allocator_->IsLabValid()) return;
-
-  Address current_top = allocator_->top();
-  Address current_limit = allocator_->limit();
-
-  allocator_->AdvanceAllocationObservers();
-  allocator_->ResetLab(kNullAddress, kNullAddress, kNullAddress);
-
-  Free(current_top, current_limit);
-  heap()->CreateFillerObjectAt(current_top,
-                               static_cast<int>(current_limit - current_top));
-}
-
-void SemiSpaceNewSpace::SetLinearAllocationArea(Address start, Address end,
-                                                int size_in_bytes) {
-  Address limit = allocator_->ComputeLimit(start, end, size_in_bytes);
-  DCHECK_LE(limit, end);
-
-  if (limit != end) {
-    Free(limit, end);
-    heap()->CreateFillerObjectAt(limit, static_cast<int>(end - limit));
-  }
-
-  allocator_->ResetLab(start, limit, limit);
-  IncrementAllocationTop(limit);
-
-  to_space_.AddRangeToActiveSystemPages(allocator_->top(), allocator_->limit());
+  return base::nullopt;
 }
 
 void SemiSpaceNewSpace::Free(Address start, Address end) {
   DCHECK_LE(start, end);
+  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
+
   if (end == allocation_top()) {
     DecrementAllocationTop(start);
   }
