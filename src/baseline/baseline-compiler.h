@@ -204,6 +204,8 @@ class BaselineCompiler {
     bool safe_to_skip = false;
 
     void MayDeopt() {
+      // If this check fails, you might need to update `BuiltinMayDeopt` if
+      // applicable.
       DCHECK(!accumulator_on_stack);
       may_have_deopted = true;
     }
