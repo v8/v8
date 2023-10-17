@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "v8-handle-base.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"     // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -472,14 +473,36 @@ class StrongRootAllocator<LocalUnchecked<T>> : public StrongRootAllocatorBase {
 
 template <typename T>
 class LocalVector {
+ private:
+  using element_type = internal::LocalUnchecked<T>;
+
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  using allocator_type = internal::StrongRootAllocator<element_type>;
+
+  static allocator_type make_allocator(Isolate* isolate) noexcept {
+    return allocator_type(isolate);
+  }
+#else
+  using allocator_type = std::allocator<element_type>;
+
+  static allocator_type make_allocator(Isolate* isolate) noexcept {
+    return allocator_type();
+  }
+#endif  // V8_ENABLE_DIRECT_LOCAL
+
+  using vector_type = std::vector<element_type, allocator_type>;
+
  public:
   using value_type = Local<T>;
   using reference = value_type&;
   using const_reference = const value_type&;
   using size_type = size_t;
   using difference_type = ptrdiff_t;
-  using iterator = Local<T>*;
-  using const_iterator = const Local<T>*;
+  using iterator =
+      internal::WrappedIterator<typename vector_type::iterator, Local<T>>;
+  using const_iterator =
+      internal::WrappedIterator<typename vector_type::const_iterator,
+                                const Local<T>>;
 
   explicit LocalVector(Isolate* isolate) : backing_(make_allocator(isolate)) {}
   LocalVector(Isolate* isolate, size_t n)
@@ -491,10 +514,12 @@ class LocalVector {
     backing_.insert(backing_.end(), init.begin(), init.end());
   }
 
-  iterator begin() noexcept { return to_iter(backing_.begin()); }
-  const_iterator begin() const noexcept { return to_iter(backing_.begin()); }
-  iterator end() noexcept { return to_iter(backing_.end()); }
-  const_iterator end() const noexcept { return to_iter(backing_.end()); }
+  iterator begin() noexcept { return iterator(backing_.begin()); }
+  const_iterator begin() const noexcept {
+    return const_iterator(backing_.begin());
+  }
+  iterator end() noexcept { return iterator(backing_.end()); }
+  const_iterator end() const noexcept { return const_iterator(backing_.end()); }
 
   size_t size() const noexcept { return backing_.size(); }
   bool empty() const noexcept { return backing_.empty(); }
@@ -516,16 +541,16 @@ class LocalVector {
   const Local<T>* data() const noexcept { return backing_.data(); }
 
   iterator insert(const_iterator pos, const Local<T>& value) {
-    return to_iter(backing_.insert(from_iter(pos), value));
+    return iterator(backing_.insert(pos.base(), value));
   }
 
-  template <class InputIt>
+  template <typename InputIt>
   iterator insert(const_iterator pos, InputIt first, InputIt last) {
-    return to_iter(backing_.insert(from_iter(pos), first, last));
+    return iterator(backing_.insert(pos.base(), first, last));
   }
 
   iterator insert(const_iterator pos, std::initializer_list<Local<T>> init) {
-    return to_iter(backing_.insert(from_iter(pos), init.begin(), init.end()));
+    return iterator(backing_.insert(pos.base(), init.begin(), init.end()));
   }
 
   LocalVector<T>& operator=(std::initializer_list<Local<T>> init) {
@@ -562,38 +587,6 @@ class LocalVector {
   }
 
  private:
-  using element_type = internal::LocalUnchecked<T>;
-
-#ifdef V8_ENABLE_DIRECT_LOCAL
-  using allocator_type = internal::StrongRootAllocator<element_type>;
-
-  static allocator_type make_allocator(Isolate* isolate) noexcept {
-    return allocator_type(isolate);
-  }
-#else
-  using allocator_type = std::allocator<element_type>;
-
-  static allocator_type make_allocator(Isolate* isolate) noexcept {
-    return allocator_type();
-  }
-#endif  // V8_ENABLE_DIRECT_LOCAL
-
-  using vector_type = std::vector<element_type, allocator_type>;
-
-  static constexpr iterator to_iter(typename vector_type::iterator it) {
-    return &*it;
-  }
-  static constexpr const_iterator to_iter(
-      typename vector_type::const_iterator it) {
-    return &*it;
-  }
-  constexpr typename vector_type::iterator from_iter(iterator it) {
-    return backing_.begin() + (it - begin());
-  }
-  constexpr typename vector_type::const_iterator from_iter(const_iterator it) {
-    return backing_.begin() + (it - begin());
-  }
-
   vector_type backing_;
 };
 
