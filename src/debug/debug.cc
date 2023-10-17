@@ -50,27 +50,39 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   TemporaryObjectsTracker(const TemporaryObjectsTracker&) = delete;
   TemporaryObjectsTracker& operator=(const TemporaryObjectsTracker&) = delete;
 
-  void AllocationEvent(Address addr, int) override {
+  void AllocationEvent(Address addr, int size) override {
     if (disabled) return;
-    objects_.insert(addr);
+    auto existing_region = GetAllocationRegion(addr);
+    if (IsEmpty(existing_region)) {
+      AddAllocationRegion(addr, size);
+    } else {
+      // If we allocate into a region we already know (e.g. because part of the
+      // region is dead) we merge the new allocation into the existing one.
+      Address region_end = std::max(
+          existing_region->first + existing_region->second, addr + size);
+      existing_region->second =
+          static_cast<int>(region_end - existing_region->first);
+    }
   }
 
-  void MoveEvent(Address from, Address to, int) override {
+  void MoveEvent(Address from, Address to, int size) override {
     if (from == to) return;
     base::MutexGuard guard(&mutex_);
-    auto it = objects_.find(from);
-    if (it == objects_.end()) {
+    auto from_region = GetAllocationRegion(from);
+    auto to_region = GetAllocationRegion(to);
+    if (IsEmpty(from_region)) {
       // If temporary object was collected we can get MoveEvent which moves
       // existing non temporary object to the address where we had temporary
       // object. So we should mark new address as non temporary.
-      objects_.erase(to);
+      if (!IsEmpty(to_region)) RemoveFromAllocationRegion(to_region, to, size);
       return;
     }
-    objects_.erase(it);
-    objects_.insert(to);
+    RemoveFromAllocationRegion(from_region, from, size);
+    DCHECK(IsEmpty(to_region));
+    AddAllocationRegion(to, size);
   }
 
-  bool HasObject(Handle<HeapObject> obj) const {
+  bool HasObject(Handle<HeapObject> obj) {
     if (IsJSObject(*obj) &&
         Handle<JSObject>::cast(obj)->GetEmbedderFieldCount()) {
       // Embedder may store any pointers using embedder fields and implements
@@ -79,13 +91,59 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
       // with embedder fields as non temporary.
       return false;
     }
-    return objects_.find(obj->address()) != objects_.end();
+    return !IsEmpty(GetAllocationRegion(obj->address()));
   }
 
   bool disabled = false;
 
  private:
-  std::unordered_set<Address> objects_;
+  using AllocationRegion = std::map<Address, int>::iterator;
+  bool IsEmpty(AllocationRegion region) const {
+    return region == allocations_.end();
+  }
+  void AddAllocationRegion(Address addr, int size) {
+    allocations_.emplace(addr, size);
+  }
+  AllocationRegion GetAllocationRegion(Address addr) {
+    if (allocations_.empty()) return allocations_.end();
+    auto it = allocations_.lower_bound(addr);
+    if (it->first == addr) return it;
+    // Check the next smaller address in case this is a folded allocation.
+    if (it == allocations_.begin()) return allocations_.end();
+    it = std::prev(it);
+    DCHECK_LT(it->first, addr);
+    return addr < (it->first + it->second) ? it : allocations_.end();
+  }
+  void RemoveFromAllocationRegion(AllocationRegion region, Address address,
+                                  int size) {
+    DCHECK_LE(region->first, address);
+    DCHECK_LE(address + size, region->first + region->second);
+
+    int region_size = region->second;
+    if (address == region->first) {
+      // Object is at the start of the allocated region.
+      allocations_.erase(region);
+      if (region_size > size) {
+        allocations_.emplace(address + size, region_size - size);
+      }
+    } else {
+      // Object is in the middle or end of the allocated region.
+      int region_before_object_size = static_cast<int>(address - region->first);
+      int region_after_object_size =
+          region_size - region_before_object_size - size;
+      region->second = region_before_object_size;
+      if (region_after_object_size > 0) {
+        allocations_.emplace(
+            region->first + region_size - region_after_object_size,
+            region_after_object_size);
+      }
+    }
+  }
+  // Tracking addresses is not enough, because a single allocation may combine
+  // multiple objects due to allocation folding. Track start address of an
+  // allocation and the size to figure out if a given object is contained in
+  // such an allocation block.
+  std::map<Address, int> allocations_;
   base::Mutex mutex_;
 };
 
