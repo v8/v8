@@ -1614,6 +1614,7 @@ class MaglevGraphBuilder {
   V(ArrayPrototypePush)            \
   V(ArrayPrototypePop)             \
   V(MathRound)                     \
+  V(RegExpPrototypeTest)           \
   V(StringConstructor)             \
   V(StringFromCharCode)            \
   V(StringPrototypeCharCodeAt)     \

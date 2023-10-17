@@ -199,7 +199,7 @@ class NodeInfo {
 
   const PossibleMaps& possible_maps() const {
     // If !possible_maps_are_known_ then every map is possible and using the
-    // (probably empty) possible_maps_ set is definetly wrong.
+    // (probably empty) possible_maps_ set is definitely wrong.
     CHECK(possible_maps_are_known_);
     return possible_maps_;
   }
