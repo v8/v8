@@ -129,9 +129,9 @@ class IndirectHandleBase {
 
   // Returns the handler's "value" (direct or indirect pointer, depending on
   // whether direct local support is enabled).
-  template <typename T>
+  template <typename T, bool check_null = false>
   V8_INLINE T* value() const {
-    return internal::ValueHelper::SlotAsValue<T, false>(slot());
+    return internal::ValueHelper::SlotAsValue<T, check_null>(slot());
   }
 
  private:
@@ -169,7 +169,7 @@ class DirectHandleBase {
 
   // Returns the handler's "value" (direct pointer, as direct local support
   // is guaranteed to be enabled here).
-  template <typename T>
+  template <typename T, bool check_null = false>
   V8_INLINE T* value() const {
     return reinterpret_cast<T*>(ptr_);
   }

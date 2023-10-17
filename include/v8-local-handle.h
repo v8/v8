@@ -327,17 +327,17 @@ class Local : public LocalBase<T> {
    * the original handle is destroyed/disposed.
    */
   V8_INLINE static Local<T> New(Isolate* isolate, Local<T> that) {
-    return New(isolate, that.template value<T>());
+    return New(isolate, that.template value<T, true>());
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that) {
-    return New(isolate, that.template value<T>());
+    return New(isolate, that.template value<T, true>());
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const BasicTracedReference<T>& that) {
-    return New(isolate, that.template value<T>());
+    return New(isolate, that.template value<T, true>());
   }
 
  private:
