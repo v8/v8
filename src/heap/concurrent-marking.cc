@@ -575,7 +575,9 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
       garbage_collector_.has_value() &&
           (*garbage_collector_ == garbage_collector) &&
           (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER));
-  DCHECK(
+  DCHECK_IMPLIES(
+      !garbage_collector_.has_value() ||
+          *garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
       std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
         return task_state->local_pretenuring_feedback.empty();
       }));
