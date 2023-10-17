@@ -38,6 +38,22 @@ void sanitizer_cov_reset_edgeguards() {
 
 extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
                                                     uint32_t* stop) {
+  // We should initialize the shared memory region only once. We can initialize
+  // it multiple times if it's the same region, which is something that appears
+  // to happen on e.g. macOS. If we ever see a different region, we will likely
+  // overwrite the previous one, which is probably not intended and as such we
+  // fail with an error.
+  if (shmem) {
+    if (!(edges_start == start && edges_stop == stop)) {
+      fprintf(stderr,
+              "[COV] Multiple initialization of shmem!"
+              " This is probably not intended! Currently only one edge"
+              " region is supported\n");
+      _exit(-1);
+    }
+    // Already initialized.
+    return;
+  }
   // Map the shared memory region
   const char* shm_key = getenv("SHM_ID");
   if (!shm_key) {
