@@ -83,29 +83,22 @@ int ObjectBoilerplateDescription::boilerplate_properties_count() const {
 // ClassBoilerplate
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, Struct)
 CAST_ACCESSOR(ClassBoilerplate)
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count,
-              FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
-
+SMI_ACCESSORS(ClassBoilerplate, arguments_count, kArgumentsCountOffset)
 ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))
-
+          kStaticPropertiesTemplateOffset)
 ACCESSORS(ClassBoilerplate, static_elements_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex))
-
+          kStaticElementsTemplateOffset)
 ACCESSORS(ClassBoilerplate, static_computed_properties, Tagged<FixedArray>,
-          FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex))
-
+          kStaticComputedPropertiesOffset)
 ACCESSORS(ClassBoilerplate, instance_properties_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex))
-
+          kInstancePropertiesTemplateOffset)
 ACCESSORS(ClassBoilerplate, instance_elements_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex))
-
+          kInstanceElementsTemplateOffset)
 ACCESSORS(ClassBoilerplate, instance_computed_properties, Tagged<FixedArray>,
-          FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex))
+          kInstanceComputedPropertiesOffset)
 
 //
 // ArrayBoilerplateDescription

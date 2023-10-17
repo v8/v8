@@ -77,10 +77,6 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsClassBoilerplate) {
-  return IsFixedArrayExact(obj, cage_base);
-}
-
 // static
 bool Object::InSharedHeap(Tagged<Object> obj) {
   return IsHeapObject(obj) && HeapObject::cast(obj).InAnySharedSpace();

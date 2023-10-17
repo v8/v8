@@ -19,3 +19,14 @@ extern class RegExpBoilerplateDescription extends Struct {
   source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }
+
+@cppObjectDefinition
+extern class ClassBoilerplate extends Struct {
+  arguments_count: Smi;
+  static_properties_template: Object;
+  static_elements_template: Object;
+  static_computed_properties: FixedArray;
+  instance_properties_template: Object;
+  instance_elements_template: Object;
+  instance_computed_properties: FixedArray;
+}

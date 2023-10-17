@@ -1438,7 +1438,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   for (std::pair<ClassLiteral*, size_t> literal : class_literals_) {
     ClassLiteral* class_literal = literal.first;
     Handle<ClassBoilerplate> class_boilerplate =
-        ClassBoilerplate::BuildClassBoilerplate(isolate, class_literal);
+        ClassBoilerplate::New(isolate, class_literal, AllocationType::kOld);
     builder()->SetDeferredConstantPoolEntry(literal.second, class_boilerplate);
   }
 

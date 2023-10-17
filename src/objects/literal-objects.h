@@ -117,7 +117,9 @@ class RegExpBoilerplateDescription
   TQ_OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription)
 };
 
-class ClassBoilerplate : public FixedArray {
+class ClassBoilerplate : public Struct {
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, Struct);
+
  public:
   enum ValueKind { kData, kGetter, kSetter };
 
@@ -141,9 +143,11 @@ class ClassBoilerplate : public FixedArray {
   static const int kMinimumClassPropertiesCount = 6;
   static const int kMinimumPrototypePropertiesCount = 1;
 
-  DECL_CAST(ClassBoilerplate)
+  template <typename IsolateT>
+  static Handle<ClassBoilerplate> New(
+      IsolateT* isolate, ClassLiteral* expr,
+      AllocationType allocation = AllocationType::kYoung);
 
-  DECL_BOOLEAN_ACCESSORS(install_class_name_accessor)
   DECL_INT_ACCESSORS(arguments_count)
   DECL_ACCESSORS(static_properties_template, Tagged<Object>)
   DECL_ACCESSORS(static_elements_template, Tagged<Object>)
@@ -164,25 +168,25 @@ class ClassBoilerplate : public FixedArray {
                                     uint32_t key, int key_index,
                                     ValueKind value_kind, Tagged<Smi> value);
 
-  template <typename IsolateT>
-  static Handle<ClassBoilerplate> BuildClassBoilerplate(IsolateT* isolate,
-                                                        ClassLiteral* expr);
+#define FIELD_LIST(V)                                                   \
+  V(kArgumentsCountOffset, kTaggedSize)                                 \
+  V(kStaticPropertiesTemplateOffset, kTaggedSize)                       \
+  V(kStaticElementsTemplateOffset, kTaggedSize)                         \
+  V(kStaticComputedPropertiesOffset, kTaggedSize)                       \
+  V(kInstancePropertiesTemplateOffset, kTaggedSize)                     \
+  V(kInstanceElementsTemplateOffset, kTaggedSize)                       \
+  V(kInstanceComputedPropertiesOffset, kTaggedSize)                     \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)                                                     \
+  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
 
-  enum {
-    kArgumentsCountIndex,
-    kClassPropertiesTemplateIndex,
-    kClassElementsTemplateIndex,
-    kClassComputedPropertiesIndex,
-    kPrototypePropertiesTemplateIndex,
-    kPrototypeElementsTemplateIndex,
-    kPrototypeComputedPropertiesIndex,
-    kBoilerplateLength  // last element
-  };
+  DECL_CAST(ClassBoilerplate)
+  DECL_PRINTER(ClassBoilerplate)
+  DECL_VERIFIER(ClassBoilerplate)
 
- private:
-  DECL_INT_ACCESSORS(flags)
-
-  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray);
+  using BodyDescriptor = StructBodyDescriptor;
 };
 
 }  // namespace internal

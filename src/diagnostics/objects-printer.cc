@@ -820,6 +820,18 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+void ClassBoilerplate::ClassBoilerplatePrint(std::ostream& os) {
+  PrintHeader(os, "ClassBoilerplate");
+  os << "\n - arguments_count: " << arguments_count();
+  os << "\n - static_properties_template: " << static_properties_template();
+  os << "\n - static_elements_template: " << static_elements_template();
+  os << "\n - static_computed_properties: " << static_computed_properties();
+  os << "\n - instance_properties_template: " << instance_properties_template();
+  os << "\n - instance_elements_template: " << instance_elements_template();
+  os << "\n - instance_computed_properties: " << instance_computed_properties();
+  os << "\n";
+}
+
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   PrintHeader(os, "EmbedderDataArray");

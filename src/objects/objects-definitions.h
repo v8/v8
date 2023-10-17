@@ -158,6 +158,7 @@ namespace internal {
   V(_, BREAK_POINT_TYPE, BreakPoint, break_point)                              \
   V(_, BREAK_POINT_INFO_TYPE, BreakPointInfo, break_point_info)                \
   V(_, CALL_SITE_INFO_TYPE, CallSiteInfo, call_site_info)                      \
+  V(_, CLASS_BOILERPLATE_TYPE, ClassBoilerplate, class_boilerplate)            \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
