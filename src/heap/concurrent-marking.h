@@ -164,38 +164,18 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   bool IsWorkLeft() const;
 
-  bool unsafe_transitions_occured() const {
-    return unsafe_transitions_occurred_;
-  }
-  void notify_unsafe_transitions_occurred() {
-    unsafe_transitions_occurred_ = true;
-  }
-  void reset_unsafe_transitions_occurred() {
-    unsafe_transitions_occurred_ = false;
-  }
-
  private:
   struct TaskState;
   class JobTaskMinor;
   class JobTaskMajor;
   class MinorMarkingState;
 
-  enum class ShouldKeepAgesUnchanged : uint8_t {
-    kNo,
-    kYes,
-  };
-  enum class UnsafeTransitionsOccurred : uint8_t {
-    kNo,
-    kYes,
-  };
-
   void RunMinor(JobDelegate* delegate);
   template <YoungGenerationMarkingVisitationMode marking_mode>
   size_t RunMinorImpl(JobDelegate* delegate, TaskState* task_state);
   void RunMajor(JobDelegate* delegate,
                 base::EnumSet<CodeFlushMode> code_flush_mode,
-                unsigned mark_compact_epoch, ShouldKeepAgesUnchanged,
-                UnsafeTransitionsOccurred);
+                unsigned mark_compact_epoch, bool should_keep_ages_unchanged);
   size_t GetMajorMaxConcurrency(size_t worker_count);
   size_t GetMinorMaxConcurrency(size_t worker_count);
   void Resume();
@@ -210,7 +190,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   std::atomic<bool> another_ephemeron_iteration_{false};
   base::Optional<uint64_t> current_job_trace_id_;
   std::unique_ptr<MinorMarkingState> minor_marking_state_;
-  bool unsafe_transitions_occurred_ = false;
 
   friend class Heap;
 };
