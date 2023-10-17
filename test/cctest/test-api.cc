@@ -29695,7 +29695,7 @@ class AllowEmbedderObjects : public v8::Context::DeepFreezeDelegate {
  public:
   bool FreezeEmbedderObjectAndGetChildren(
       v8::Local<v8::Object> obj,
-      std::vector<v8::Local<v8::Object>>& children_out) override {
+      v8::LocalVector<v8::Object>& children_out) override {
     return true;
   }
 };
@@ -29789,7 +29789,7 @@ class HiddenDataDelegate : public v8::Context::DeepFreezeDelegate {
 
   bool FreezeEmbedderObjectAndGetChildren(
       v8::Local<v8::Object> obj,
-      std::vector<v8::Local<v8::Object>>& children_out) override {
+      v8::LocalVector<v8::Object>& children_out) override {
     int fields = obj->InternalFieldCount();
     for (int idx = 0; idx < fields; idx++) {
       v8::Local<v8::Value> child_value =
@@ -29809,7 +29809,7 @@ class HiddenDataDelegate : public v8::Context::DeepFreezeDelegate {
 
  private:
   bool FreezeExternal(v8::Local<v8::External> ext,
-                      std::vector<v8::Local<v8::Object>>& children_out) {
+                      v8::LocalVector<v8::Object>& children_out) {
     if (ext->Value() == my_object_->Value()) {
       MyObject* my_obj = static_cast<MyObject*>(ext->Value());
       if (my_obj->Freeze()) {

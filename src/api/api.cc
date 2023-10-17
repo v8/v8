@@ -6902,7 +6902,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
 
   bool FreezeEmbedderObjectAndVisitChildren(i::Handle<i::JSObject> obj) {
     DCHECK(delegate_);
-    std::vector<Local<Object>> children;
+    LocalVector<Object> children(reinterpret_cast<Isolate*>(isolate_));
     if (!delegate_->FreezeEmbedderObjectAndGetChildren(Utils::ToLocal(obj),
                                                        children)) {
       return false;
