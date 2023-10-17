@@ -290,6 +290,7 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
                        GarbageCollector::MINOR_MARK_SWEEPER);
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushPretenuringFeedback();
+    heap_->concurrent_marking()->reset_unsafe_transitions_occurred();
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
