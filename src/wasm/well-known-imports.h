@@ -22,8 +22,9 @@ enum class WellKnownImport : uint8_t {
   // Generic:
   kUninstantiated,
   kGeneric,
+  kLinkError,
 
-  // Functions:
+  // DataView methods:
   kDataViewGetBigInt64,
   kDataViewGetBigUint64,
   kDataViewGetFloat32,
@@ -44,9 +45,14 @@ enum class WellKnownImport : uint8_t {
   kDataViewSetUint8,
   kDataViewSetUint16,
   kDataViewSetUint32,
+
+  // String-related functions:
   kDoubleToString,
   kIntToString,
   kParseFloat,
+
+  // JS String Builtins
+  // https://github.com/WebAssembly/js-string-builtins
   kStringCharCodeAt,
   kStringCodePointAt,
   kStringCompare,

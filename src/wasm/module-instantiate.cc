@@ -366,6 +366,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
                                         Handle<JSReceiver> callable,
                                         const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
+  WellKnownImport kLinkError = WellKnownImport::kLinkError;
   if (instance.is_null()) return kGeneric;
   static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
   // Check for plain JS functions.
@@ -377,20 +378,26 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
     // recognize receiver-requiring methods even when they're (erroneously)
     // being imported such that they don't get a receiver.
     switch (sfi->builtin_id()) {
+      // =================================================================
+      // WebAssembly.String.* imports. See:
+      // https://github.com/WebAssembly/js-string-builtins
+      // Contrary to the optional/unobservable internal optimizations
+      // handled by this function, the JS String Builtins spec wants us
+      // to throw a LinkError when the signature was incorrect.
       case Builtin::kWebAssemblyStringCharCodeAt:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
             sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringCharCodeAt;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringCodePointAt:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
             sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringCodePointAt;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringCompare:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
@@ -398,7 +405,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringCompare;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringConcat:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
@@ -406,7 +413,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringConcat;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringEquals:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
@@ -414,19 +421,19 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringEquals;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringFromCharCode:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromCharCode;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringFromCodePoint:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromCodePoint;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringFromWtf16Array:
         // i16array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
@@ -435,7 +442,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf16Array;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringFromWtf8Array:
         // i8array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
@@ -444,14 +451,14 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf8Array;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringLength:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
             sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringLength;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringSubstring:
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
@@ -459,7 +466,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringSubstring;
         }
-        break;
+        return kLinkError;
       case Builtin::kWebAssemblyStringToWtf16Array:
         // string, i16array, i32 -> i32
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
@@ -468,7 +475,11 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
             sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringToWtf16Array;
         }
-        break;
+        return kLinkError;
+
+        // =================================================================
+        // String-related imports that aren't part of the JS String Builtins
+        // proposal.
       case Builtin::kNumberParseFloat:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             IsStringRef(sig->GetParam(0)) &&
@@ -716,6 +727,9 @@ ImportCallKind WasmImportData::ComputeKind(
   }
   well_known_status_ =
       CheckForWellKnownImport(instance, func_index, callable_, expected_sig);
+  if (well_known_status_ == WellKnownImport::kLinkError) {
+    return ImportCallKind::kLinkError;
+  }
   // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable_);

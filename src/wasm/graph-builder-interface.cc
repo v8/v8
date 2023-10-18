@@ -762,6 +762,7 @@ class WasmGraphBuildingInterface {
     switch (import) {
       case WKI::kUninstantiated:
       case WKI::kGeneric:
+      case WKI::kLinkError:
         return false;
 
       // WebAssembly.String.* imports.

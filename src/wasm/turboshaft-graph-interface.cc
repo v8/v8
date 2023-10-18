@@ -1136,6 +1136,7 @@ class TurboshaftGraphBuildingInterface {
     switch (imported_op) {
       case WKI::kUninstantiated:
       case WKI::kGeneric:
+      case WKI::kLinkError:
         return false;
 
       // WebAssembly.String.* imports.

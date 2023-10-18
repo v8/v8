@@ -1184,6 +1184,35 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
     return *result;                                                            \
   } while (false)
 
+// "Special" because the type must be in a recgroup of its own.
+// Used by WebAssembly.String.* builtins.
+RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  int bits = args.smi_value_at(1);
+  DCHECK(bits == 8 || bits == 16);
+
+  if (args[0] == ReadOnlyRoots(isolate).null_value()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapNullDereference);
+  }
+  MessageTemplate illegal_cast = MessageTemplate::kWasmTrapIllegalCast;
+  if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
+  Tagged<WasmArray> obj = WasmArray::cast(args[0]);
+  Tagged<WasmTypeInfo> wti = obj->map()->wasm_type_info();
+  const wasm::WasmModule* module =
+      WasmInstanceObject::cast(wti->instance())->module();
+  DCHECK(module->has_array(wti->type_index()));
+  uint32_t expected = bits == 8
+                          ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
+                          : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
+  if (module->isorecursive_canonical_type_ids[wti->type_index()] != expected) {
+    return ThrowWasmError(isolate, illegal_cast);
+  }
+  return obj;
+}
+
 // Returns the new string if the operation succeeds.  Otherwise throws an
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {

@@ -15,8 +15,10 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "uninstantiated";
     case WellKnownImport::kGeneric:
       return "generic";
+    case WellKnownImport::kLinkError:
+      return "LinkError";
 
-    // Functions:
+    // DataView methods:
     case WellKnownImport::kDataViewGetBigInt64:
       return "DataView.getBigInt64";
     case WellKnownImport::kDataViewGetBigUint64:
@@ -57,12 +59,16 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "DataView.setUint16";
     case WellKnownImport::kDataViewSetUint32:
       return "DataView.setUint32";
+
+      // String-related functions:
     case WellKnownImport::kDoubleToString:
       return "DoubleToString";
     case WellKnownImport::kIntToString:
       return "IntToString";
     case WellKnownImport::kParseFloat:
       return "ParseFloat";
+
+      // JS String Builtins:
     case WellKnownImport::kStringCharCodeAt:
       return "String.charCodeAt";
     case WellKnownImport::kStringCodePointAt:

@@ -736,39 +736,6 @@ builtin ThrowWasmTrapStringOffsetOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapStringOffsetOutOfBounds));
 }
 
-macro WasmTypeInfo(map: Map): WasmTypeInfo {
-  return UnsafeCast<WasmTypeInfo>(
-      map.constructor_or_back_pointer_or_native_context);
-}
-
-const kWasmI16ValueType: constexpr int32
-    generates 'wasm::ValueType::Primitive(wasm::kI16).raw_bit_field()';
-const kWasmI8ValueType: constexpr int32
-    generates 'wasm::ValueType::Primitive(wasm::kI8).raw_bit_field()';
-
-const kWasmArrayTypeRepOffset:
-    constexpr intptr generates 'wasm::ArrayType::kRepOffset';
-const kWasmValueTypeBitFieldOffset:
-    constexpr intptr generates 'wasm::ValueType::kBitFieldOffset';
-
-macro IsWord16WasmArrayMap(map: Map): bool {
-  const arrayTypePtr: RawPtr<int32> = %RawDownCast<RawPtr<int32>>(
-      WasmTypeInfo(map).native_type_ptr + kWasmArrayTypeRepOffset +
-      kWasmValueTypeBitFieldOffset);
-  const arrayTypeRef: &int32 =
-      torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);
-  return *arrayTypeRef == kWasmI16ValueType;
-}
-
-macro IsWord8WasmArrayMap(map: Map): bool {
-  const arrayTypePtr: RawPtr<int32> = %RawDownCast<RawPtr<int32>>(
-      WasmTypeInfo(map).native_type_ptr + kWasmArrayTypeRepOffset +
-      kWasmValueTypeBitFieldOffset);
-  const arrayTypeRef: &int32 =
-      torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);
-  return *arrayTypeRef == kWasmI8ValueType;
-}
-
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
   return torque_internal::unsafe::NewOffHeapReference<T>(
       %RawDownCast<RawPtr<T>>(base + offset));

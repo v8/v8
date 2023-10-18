@@ -2144,7 +2144,7 @@ class WasmModuleBuilder {
 }
 
 function wasmSignedLeb(val, max_len = 5) {
-  if (val == null) throw new Error("Leb value many not be null/undefined");
+  if (val == null) throw new Error("Leb value may not be null/undefined");
   let res = [];
   for (let i = 0; i < max_len; ++i) {
     let v = val & 0x7f;
@@ -2161,7 +2161,7 @@ function wasmSignedLeb(val, max_len = 5) {
 }
 
 function wasmSignedLeb64(val, max_len = 10) {
-  if (val == null) throw new Error("Leb value many not be null/undefined");
+  if (val == null) throw new Error("Leb value may not be null/undefined");
   if (typeof val != "bigint") {
     if (val < Math.pow(2, 31)) {
       return wasmSignedLeb(val, max_len);

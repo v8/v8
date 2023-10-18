@@ -9,53 +9,38 @@ macro Trap(context: Context, error: constexpr MessageTemplate): never {
   runtime::ThrowWasmError(context, SmiConstant(error));
 }
 
+extern runtime WasmCastToSpecialPrimitiveArray(Context, Object, Smi): WasmArray;
+
 transitioning javascript builtin WebAssemblyStringFromWtf16Array(
     js-implicit context: Context)(...arguments): JSAny {
-  try {
-    const array = Cast<WasmArray>(arguments[0]) otherwise goto IllegalCast;
-    if (!wasm::IsWord16WasmArrayMap(array.map)) goto IllegalCast;
-    const start = ChangeNumberToUint32(ToInteger_Inline(arguments[1]));
-    const end = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
-    return wasm::WasmStringNewWtf16Array(array, start, end);
-  } label IllegalCast deferred {
-    if (arguments[0] == Null) {
-      Trap(context, MessageTemplate::kWasmTrapNullDereference);
-    }
-    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
-  }
+  const array =
+      WasmCastToSpecialPrimitiveArray(context, arguments[0], SmiConstant(16));
+  const start = ChangeNumberToUint32(ToInteger_Inline(arguments[1]));
+  const end = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
+  return wasm::WasmStringNewWtf16Array(array, start, end);
 }
 
 const kWtf8: constexpr int31 generates 'unibrow::Utf8Variant::kWtf8';
 
 transitioning javascript builtin WebAssemblyStringFromWtf8Array(
     js-implicit context: Context)(...arguments): JSAny {
-  try {
-    const array = Cast<WasmArray>(arguments[0]) otherwise goto IllegalCast;
-    if (!wasm::IsWord8WasmArrayMap(array.map)) goto IllegalCast;
-    const start = ChangeNumberToUint32(ToInteger_Inline(arguments[1]));
-    const end = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
-    return wasm::WasmStringNewWtf8Array(start, end, array, SmiConstant(kWtf8));
-  } label IllegalCast deferred {
-    if (arguments[0] == Null) {
-      Trap(context, MessageTemplate::kWasmTrapNullDereference);
-    }
-    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
-  }
+  const array =
+      WasmCastToSpecialPrimitiveArray(context, arguments[0], SmiConstant(8));
+  const start = ChangeNumberToUint32(ToInteger_Inline(arguments[1]));
+  const end = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
+  return wasm::WasmStringNewWtf8Array(start, end, array, SmiConstant(kWtf8));
 }
 
 transitioning javascript builtin WebAssemblyStringToWtf16Array(
     js-implicit context: Context)(...arguments): JSAny {
   try {
     const string = Cast<String>(arguments[0]) otherwise goto IllegalCast;
-    const array = Cast<WasmArray>(arguments[1]) otherwise goto IllegalCast;
-    if (!wasm::IsWord16WasmArrayMap(array.map)) goto IllegalCast;
+    const array =
+        WasmCastToSpecialPrimitiveArray(context, arguments[1], SmiConstant(16));
     const start = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
     const written = wasm::WasmStringEncodeWtf16Array(string, array, start);
     return Convert<Smi>(written);
   } label IllegalCast deferred {
-    if (arguments[1] == Null) {
-      Trap(context, MessageTemplate::kWasmTrapNullDereference);
-    }
     Trap(context, MessageTemplate::kWasmTrapIllegalCast);
   }
 }
