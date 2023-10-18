@@ -11,9 +11,8 @@ namespace internal {
 Handle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
                                              int capture_count,
                                              AllocationType allocation) {
-  DCHECK_GE(capture_count, kMinCapacity);
-
   int capacity = JSRegExp::RegistersForCaptureCount(capture_count);
+  DCHECK_GE(capacity, kMinCapacity);
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<RegExpMatchInfo> result =
       Allocate(isolate, capacity, &no_gc, allocation);
