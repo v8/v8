@@ -1181,7 +1181,9 @@ Response V8DebuggerAgentImpl::restartFrame(
     return Response::ServerError(
         "Restarting frame without 'mode' not supported");
   }
-  CHECK_EQ(mode.value(), protocol::Debugger::RestartFrame::ModeEnum::StepInto);
+  if (mode.value() != protocol::Debugger::RestartFrame::ModeEnum::StepInto) {
+    return Response::InvalidParams("'StepInto' is the only valid mode");
+  }
 
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
