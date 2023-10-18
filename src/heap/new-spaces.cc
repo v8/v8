@@ -1017,6 +1017,10 @@ size_t PagedSpaceForNewSpace::AllocatedSinceLastGC() const {
   return Size() - size_at_last_gc_;
 }
 
+size_t PagedSpaceForNewSpace::Available() const {
+  return PagedSpaceBase::Available();
+}
+
 #ifdef VERIFY_HEAP
 void PagedSpaceForNewSpace::Verify(Isolate* isolate,
                                    SpaceVerificationVisitor* visitor) const {

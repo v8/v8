@@ -579,10 +579,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   bool IsPromotionCandidate(const MemoryChunk* page) const;
 
   // Return the available bytes without growing.
-  size_t Available() const final {
-    return PagedSpaceBase::Available() + allocator_->limit() -
-           allocator_->top();
-  }
+  size_t Available() const final;
 
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
