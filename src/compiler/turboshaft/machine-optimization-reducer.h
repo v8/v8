@@ -1713,13 +1713,15 @@ class MachineOptimizationReducer : public Next {
           // Only few loads should be loading the map from a ConstantOp
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
-          UnparkedScopeIfNeeded scope(broker);
-          AllowHandleDereference allow_handle_dereference;
+          if (broker != nullptr) {
+            UnparkedScopeIfNeeded scope(broker);
+            AllowHandleDereference allow_handle_dereference;
 
-          OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
-          if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
-            broker->dependencies()->DependOnStableMap(*map);
-            return __ HeapConstant(map->object());
+            OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
+            if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
+              broker->dependencies()->DependOnStableMap(*map);
+              return __ HeapConstant(map->object());
+            }
           }
         }
         // TODO(dmercadier): consider constant-folding other accesses, in
@@ -1742,7 +1744,8 @@ class MachineOptimizationReducer : public Next {
                        uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized()) {
+    if (constant.rep != WordRepresentation::PointerSized() ||
+        !constant.IsIntegral()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `__ Unreachable()`. However, this is difficult to
       // do from within this helper, so we just don't perform the reduction.
