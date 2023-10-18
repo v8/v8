@@ -254,6 +254,12 @@ class Utils {
     return OpenHandle(*handle);
   }
 
+  template <class From, class To>
+  static inline v8::internal::DirectHandle<To> OpenDirectHandle(
+      v8::Local<From> handle) {
+    return OpenDirectHandle(*handle);
+  }
+
  private:
   static void ReportApiFailure(const char* location, const char* message);
 };
