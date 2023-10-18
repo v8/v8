@@ -241,8 +241,6 @@ class MemoryOptimizationReducer : public Next {
     Block* done = __ NewBlock();
 
     OpIndex limit_address = GetLimitAddress(type);
-    OpIndex limit =
-        __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
 
     // If the allocation size is not statically known or is known to be larger
     // than kMaxRegularHeapObjectSize, do not update {top(type)} in case of a
@@ -261,6 +259,8 @@ class MemoryOptimizationReducer : public Next {
                        __ BitcastWordPtrToTagged(__ WordPtrAdd(
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
         OpIndex new_top = __ PointerAdd(top_value, size);
+        OpIndex limit =
+            __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
                          size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
@@ -293,6 +293,8 @@ class MemoryOptimizationReducer : public Next {
                      call_runtime, BranchHint::kTrue) !=
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
+      OpIndex limit =
+          __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
       __ Branch(__ UintPtrLessThan(
                     __ PointerAdd(__ GetVariable(top(type)), reservation_size),
                     limit),
