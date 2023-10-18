@@ -1082,11 +1082,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfSmi(Register value, Label* smi_label,
                  Label::Distance distance = Label::kFar);
 
+  // AssembleArchBinarySearchSwitchRange Use JumpIfEqual and JumpIfLessThan.
+  // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
+  // input.
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
+#ifdef V8_COMPRESS_POINTERS
+    Sll32(a, a, 0);
+#endif
     Branch(dest, eq, a, Operand(b));
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+#ifdef V8_COMPRESS_POINTERS
+    Sll32(a, a, 0);
+#endif
     Branch(dest, lt, a, Operand(b));
   }
 
