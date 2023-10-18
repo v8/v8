@@ -5,6 +5,8 @@
 #ifndef V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_
 #define V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_
 
+#include <vector>
+
 #include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
