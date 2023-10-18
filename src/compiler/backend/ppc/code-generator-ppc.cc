@@ -2624,46 +2624,60 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kPPC_F64x2ReplaceLane: {
+    case kPPC_FReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
-                          kScratchSimd128Reg);
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ F32x4ReplaceLane(
+              i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
+              kScratchDoubleReg, kScratchSimd128Reg);
+          break;
+        }
+        case 64: {
+          __ F64x2ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0),
+                              i.InputDoubleRegister(2), i.InputInt8(1),
+                              kScratchReg, kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_F32x4ReplaceLane: {
+    case kPPC_IReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ F32x4ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
-                          kScratchDoubleReg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I64x2ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ I64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputRegister(2), i.InputInt8(1),
-                          kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ I32x4ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputRegister(2), i.InputInt8(1),
-                          kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ I16x8ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputRegister(2), i.InputInt8(1),
-                          kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ I8x16ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputRegister(2), i.InputInt8(1),
-                          kScratchSimd128Reg);
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.InputRegister(2),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 16: {
+          __ I16x8ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.InputRegister(2),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 32: {
+          __ I32x4ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.InputRegister(2),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 64: {
+          __ I64x2ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.InputRegister(2),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
     case kPPC_I64x2Mul: {
