@@ -211,9 +211,8 @@ class TurboshaftGraphBuildingInterface {
               0   // wire byte size. We pass 0 so that the initial node is
                   // always expanded, regardless of budget.
           );
-          // TODO(14108): Improve budget.
           inlining_decisions_->FullyExpand(
-              2 * decoder->module_->functions[func_index_].code.length());
+              decoder->module_->functions[func_index_].code.length());
         } else {
           set_no_liftoff_inlining_budget(std::max(
               100,

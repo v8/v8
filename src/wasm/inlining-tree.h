@@ -50,7 +50,7 @@ class InliningTree : public ZoneObject {
   // Nodes are prioritized by their `score`. Expansion continues until
   // `kMaxInlinedCount` nodes are expanded or `budget` (in wire-bytes size) is
   // depleted.
-  void FullyExpand(int budget);
+  void FullyExpand(const size_t initial_graph_size);
   ZoneVector<InliningTree*>* function_calls() { return function_calls_; }
   bool feedback_found() { return function_calls_ != nullptr; }
   bool is_inlined() { return is_inlined_; }
@@ -60,6 +60,8 @@ class InliningTree : public ZoneObject {
   // Mark this function call as inline and initialize `function_calls_` based
   // on the `module_->type_feedback`.
   void Inline();
+  bool SmallEnoughToInline(size_t initial_graph_size,
+                           size_t inlined_wire_byte_count);
 
   // TODO(14108): Do not store these in every tree node.
   Zone* zone_;
@@ -102,7 +104,8 @@ struct TreeNodeOrdering {
   }
 };
 
-void InliningTree::FullyExpand(int budget) {
+void InliningTree::FullyExpand(const size_t initial_graph_size) {
+  size_t inlined_wire_byte_count = 0;
   std::priority_queue<InliningTree*, std::vector<InliningTree*>,
                       TreeNodeOrdering>
       queue;
@@ -110,19 +113,44 @@ void InliningTree::FullyExpand(int budget) {
   int inlined_count = 0;
   base::SharedMutexGuard<base::kShared> mutex_guard(
       &module_->type_feedback.mutex);
-  while (budget > 0 && !queue.empty() && inlined_count < kMaxInlinedCount) {
+  while (!queue.empty() && inlined_count < kMaxInlinedCount) {
     InliningTree* top = queue.top();
     queue.pop();
-    if (top->wire_byte_size_ > budget) continue;
+    if (!top->SmallEnoughToInline(initial_graph_size,
+                                  inlined_wire_byte_count)) {
+      continue;
+    }
     top->Inline();
     inlined_count++;
-    budget -= top->wire_byte_size_;
+    inlined_wire_byte_count += top->wire_byte_size_;
     if (top->feedback_found()) {
       for (InliningTree* call : *top->function_calls_) {
         if (call != nullptr) queue.push(call);
       }
     }
   }
+}
+
+bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
+                                       size_t inlined_wire_byte_count) {
+  if (wire_byte_size_ > static_cast<int>(v8_flags.wasm_inlining_max_size)) {
+    return false;
+  }
+  // For tiny functions, let's be a bit more generous.
+  if (wire_byte_size_ < 12) {
+    if (inlined_wire_byte_count > 100) {
+      inlined_wire_byte_count -= 100;
+    } else {
+      inlined_wire_byte_count = 0;
+    }
+  }
+  size_t budget =
+      std::max<size_t>(v8_flags.wasm_inlining_min_budget,
+                       v8_flags.wasm_inlining_factor * initial_graph_size);
+  size_t full_budget =
+      std::max<size_t>(v8_flags.wasm_inlining_budget, initial_graph_size * 1.1);
+  return inlined_wire_byte_count + static_cast<size_t>(wire_byte_size_) <
+         std::min<size_t>(budget, full_budget);
 }
 
 }  // namespace v8::internal::wasm
