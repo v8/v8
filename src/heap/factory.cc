@@ -2424,16 +2424,11 @@ Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
                                    MessageTemplate template_index,
-                                   Handle<Object> arg0, Handle<Object> arg1,
-                                   Handle<Object> arg2) {
+                                   base::Vector<const Handle<Object>> args) {
   HandleScope scope(isolate());
 
-  if (arg0.is_null()) arg0 = undefined_value();
-  if (arg1.is_null()) arg1 = undefined_value();
-  if (arg2.is_null()) arg2 = undefined_value();
-
   return scope.CloseAndEscape(ErrorUtils::MakeGenericError(
-      isolate(), constructor, template_index, arg0, arg1, arg2, SKIP_NONE));
+      isolate(), constructor, template_index, args, SKIP_NONE));
 }
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
@@ -2461,12 +2456,11 @@ Handle<Object> Factory::NewInvalidStringLengthError() {
   return NewRangeError(MessageTemplate::kInvalidStringLength);
 }
 
-#define DEFINE_ERROR(NAME, name)                                              \
-  Handle<JSObject> Factory::New##NAME(                                        \
-      MessageTemplate template_index, Handle<Object> arg0,                    \
-      Handle<Object> arg1, Handle<Object> arg2) {                             \
-    return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
-                    arg2);                                                    \
+#define DEFINE_ERROR(NAME, name)                                         \
+  Handle<JSObject> Factory::New##NAME(                                   \
+      MessageTemplate template_index,                                    \
+      base::Vector<const Handle<Object>> args) {                         \
+    return NewError(isolate()->name##_function(), template_index, args); \
   }
 DEFINE_ERROR(Error, error)
 DEFINE_ERROR(EvalError, eval_error)

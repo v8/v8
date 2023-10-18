@@ -203,8 +203,9 @@ void MessageHandler::ReportMessageNoExceptions(
 Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
-  Handle<Object> arg = Handle<Object>(message->argument(), isolate);
-  return MessageFormatter::Format(isolate, message->type(), arg);
+  Handle<Object> arg{message->argument(), isolate};
+  return MessageFormatter::Format(isolate, message->type(),
+                                  base::VectorOf({arg}));
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -406,30 +407,24 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   return builder.Finish();
 }
 
-Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
-                                        Handle<Object> arg0,
-                                        Handle<Object> arg1,
-                                        Handle<Object> arg2) {
-  Factory* factory = isolate->factory();
-  Handle<String> arg0_string = factory->empty_string();
-  if (!arg0.is_null()) {
-    arg0_string = Object::NoSideEffectsToString(isolate, arg0);
-  }
-  Handle<String> arg1_string = factory->empty_string();
-  if (!arg1.is_null()) {
-    arg1_string = Object::NoSideEffectsToString(isolate, arg1);
-  }
-  Handle<String> arg2_string = factory->empty_string();
-  if (!arg2.is_null()) {
-    arg2_string = Object::NoSideEffectsToString(isolate, arg2);
+Handle<String> MessageFormatter::Format(
+    Isolate* isolate, MessageTemplate index,
+    base::Vector<const Handle<Object>> args) {
+  constexpr size_t kMaxArgs = 3;
+  Handle<String> arg_strings[kMaxArgs];
+  DCHECK_LE(args.size(), kMaxArgs);
+  for (size_t i = 0; i < args.size(); ++i) {
+    DCHECK(!args[i].is_null());
+    arg_strings[i] = Object::NoSideEffectsToString(isolate, args[i]);
   }
   MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
-      isolate, index, arg0_string, arg1_string, arg2_string);
+      isolate, index, base::VectorOf(arg_strings, args.size()));
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    return factory->InternalizeString(base::StaticCharVector("<error>"));
+    return isolate->factory()->InternalizeString(
+        base::StaticCharVector("<error>"));
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it
@@ -447,26 +442,63 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
     MESSAGE_TEMPLATES(CASE)
 #undef CASE
     case MessageTemplate::kMessageCount:
-    default:
-      return nullptr;
+      UNREACHABLE();
   }
 }
 
-MaybeHandle<String> MessageFormatter::TryFormat(Isolate* isolate,
-                                                MessageTemplate index,
-                                                Handle<String> arg0,
-                                                Handle<String> arg1,
-                                                Handle<String> arg2) {
+MaybeHandle<String> MessageFormatter::TryFormat(
+    Isolate* isolate, MessageTemplate index,
+    base::Vector<const Handle<String>> args) {
   const char* template_string = TemplateString(index);
-  if (template_string == nullptr) {
-    isolate->ThrowIllegalOperation();
-    return MaybeHandle<String>();
-  }
 
   IncrementalStringBuilder builder(isolate);
 
-  unsigned int i = 0;
-  Handle<String> args[] = {arg0, arg1, arg2};
+  // TODO(14386): Get this list empty.
+  static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
+      MessageTemplate::kBadSortComparisonFunction,
+      MessageTemplate::kConstAssign,
+      MessageTemplate::kConstructorNotReceiver,
+      MessageTemplate::kDataCloneErrorDetachedArrayBuffer,
+      MessageTemplate::kDataCloneErrorOutOfMemory,
+      MessageTemplate::kIncompatibleMethodReceiver,
+      MessageTemplate::kInvalidArgument,
+      MessageTemplate::kInvalidArrayLength,
+      MessageTemplate::kInvalidAtomicAccessIndex,
+      MessageTemplate::kInvalidDataViewLength,
+      MessageTemplate::kInvalidIndex,
+      MessageTemplate::kInvalidLhsInAssignment,
+      MessageTemplate::kInvalidLhsInFor,
+      MessageTemplate::kInvalidLhsInPostfixOp,
+      MessageTemplate::kInvalidLhsInPrefixOp,
+      MessageTemplate::kInvalidPrivateBrandReinitialization,
+      MessageTemplate::kInvalidPrivateFieldReinitialization,
+      MessageTemplate::kInvalidPrivateMemberWrite,
+      MessageTemplate::kInvalidRegExpExecResult,
+      MessageTemplate::kInvalidTimeValue,
+      MessageTemplate::kInvalidWeakMapKey,
+      MessageTemplate::kInvalidWeakSetValue,
+      MessageTemplate::kIteratorReduceNoInitial,
+      MessageTemplate::kJsonParseShortString,
+      MessageTemplate::kJsonParseUnexpectedEOS,
+      MessageTemplate::kJsonParseUnexpectedTokenEndStringWithContext,
+      MessageTemplate::kJsonParseUnexpectedTokenShortString,
+      MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext,
+      MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext,
+      MessageTemplate::kMustBePositive,
+      MessageTemplate::kNotIterable,
+      MessageTemplate::kNotTypedArray,
+      MessageTemplate::kProxyPrivate,
+      MessageTemplate::kProxyRevoked,
+      MessageTemplate::kProxyTrapReturnedFalsishFor,
+      MessageTemplate::kReduceNoInitial,
+      MessageTemplate::kSpreadIteratorSymbolNonCallable,
+      MessageTemplate::kSymbolIteratorInvalid,
+      MessageTemplate::kTopLevelAwaitStalled,
+      MessageTemplate::kUndefinedOrNullToObject,
+      MessageTemplate::kUnexpectedStrictReserved,
+      MessageTemplate::kWeakRefsCleanupMustBeCallable};
+
+  base::Vector<const Handle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
       // %% results in verbatim %.
@@ -474,13 +506,30 @@ MaybeHandle<String> MessageFormatter::TryFormat(Isolate* isolate,
         c++;
         builder.AppendCharacter('%');
       } else {
-        DCHECK(i < arraysize(args));
-        Handle<String> arg = args[i++];
-        builder.AppendString(arg);
+        // TODO(14386): Remove this fallback.
+        if (remaining_args.empty()) {
+          if (std::count(std::begin(kTemplatesWithMismatchedArguments),
+                         std::end(kTemplatesWithMismatchedArguments), index)) {
+            builder.AppendCString("undefined");
+          } else {
+            FATAL("Missing argument to template (got %zu): %s", args.size(),
+                  template_string);
+          }
+        } else {
+          Handle<String> arg = remaining_args[0];
+          remaining_args += 1;
+          builder.AppendString(arg);
+        }
       }
     } else {
       builder.AppendCharacter(*c);
     }
+  }
+  if (!remaining_args.empty() &&
+      std::count(std::begin(kTemplatesWithMismatchedArguments),
+                 std::end(kTemplatesWithMismatchedArguments), index) == 0) {
+    FATAL("Too many arguments to template (expected %zu, got %zu): %s",
+          args.size() - remaining_args.size(), args.size(), template_string);
   }
 
   return builder.Finish();
@@ -667,43 +716,17 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
   return result;
 }
 
-namespace {
-
-Handle<String> DoFormatMessage(Isolate* isolate, MessageTemplate index,
-                               Handle<Object> arg0, Handle<Object> arg1,
-                               Handle<Object> arg2) {
-  Handle<String> arg0_str = Object::NoSideEffectsToString(isolate, arg0);
-  Handle<String> arg1_str = Object::NoSideEffectsToString(isolate, arg1);
-  Handle<String> arg2_str = Object::NoSideEffectsToString(isolate, arg2);
-
-  isolate->native_context()->IncrementErrorsThrown();
-
-  Handle<String> msg;
-  if (!MessageFormatter::TryFormat(isolate, index, arg0_str, arg1_str, arg2_str)
-           .ToHandle(&msg)) {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
-    isolate->set_external_caught_exception(false);
-    return isolate->factory()->NewStringFromAsciiChecked("<error>");
-  }
-
-  return msg;
-}
-
-}  // namespace
-
 // static
 Handle<JSObject> ErrorUtils::MakeGenericError(
     Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-    Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
-    FrameSkipMode mode) {
+    base::Vector<const Handle<Object>> args, FrameSkipMode mode) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
     // clears any pending exceptions - so whenever we'd call this from C++,
     // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
-  Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
+  Handle<String> msg = MessageFormatter::Format(isolate, index, args);
   Handle<Object> options = isolate->factory()->undefined_value();
 
   DCHECK(mode != SKIP_UNTIL_SEEN);

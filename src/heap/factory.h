@@ -807,15 +807,28 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index,
-                            Handle<Object> arg0 = Handle<Object>(),
-                            Handle<Object> arg1 = Handle<Object>(),
-                            Handle<Object> arg2 = Handle<Object>());
+                            base::Vector<const Handle<Object>> args);
 
-#define DECLARE_ERROR(NAME)                                          \
-  Handle<JSObject> New##NAME(MessageTemplate template_index,         \
-                             Handle<Object> arg0 = Handle<Object>(), \
-                             Handle<Object> arg1 = Handle<Object>(), \
-                             Handle<Object> arg2 = Handle<Object>());
+  template <typename... Args,
+            typename = std::enable_if_t<std::conjunction_v<
+                std::is_convertible<Args, Handle<Object>>...>>>
+  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+                            MessageTemplate template_index, Args... args) {
+    return NewError(constructor, template_index,
+                    base::VectorOf<Handle<Object>>({args...}));
+  }
+
+#define DECLARE_ERROR(NAME)                                                  \
+  Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
+                             base::Vector<const Handle<Object>> args);       \
+                                                                             \
+  template <typename... Args,                                                \
+            typename = std::enable_if_t<std::conjunction_v<                  \
+                std::is_convertible<Args, Handle<Object>>...>>>              \
+  Handle<JSObject> New##NAME(MessageTemplate template_index, Args... args) { \
+    return New##NAME(template_index,                                         \
+                     base::VectorOf<Handle<Object>>({args...}));             \
+  }
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)
   DECLARE_ERROR(RangeError)
