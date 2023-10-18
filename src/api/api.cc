@@ -9769,6 +9769,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();
 
+  heap->FreeMainThreadLinearAllocationAreas();
+
   // The order of acquiring memory statistics is important here. We query in
   // this order because of concurrent allocation: 1) used memory 2) comitted
   // physical memory 3) committed memory. Therefore the condition used <=

@@ -4143,6 +4143,8 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   double start_ms = MonotonicallyIncreasingTimeInMs();
   double idle_time_in_ms = deadline_in_ms - start_ms;
 
+  FreeMainThreadLinearAllocationAreas();
+
   tracer()->SampleAllocation(
       base::TimeTicks::Now(), NewSpaceAllocationCounter(),
       OldGenerationAllocationCounter(), EmbedderAllocationCounter());
