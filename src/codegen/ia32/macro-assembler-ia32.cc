@@ -1341,16 +1341,10 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 void MacroAssembler::CompareStackLimit(Register with, StackLimitKind kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(root_array_available());
-  Isolate* isolate = this->isolate();
-  // Address through the root register. No load is needed.
-  ExternalReference limit =
-      kind == StackLimitKind::kRealStackLimit
-          ? ExternalReference::address_of_real_jslimit(isolate)
-          : ExternalReference::address_of_jslimit(isolate);
-  DCHECK(MacroAssembler::IsAddressableThroughRootRegister(isolate, limit));
+  intptr_t offset = kind == StackLimitKind::kRealStackLimit
+                        ? IsolateData::real_jslimit_offset()
+                        : IsolateData::jslimit_offset();
 
-  intptr_t offset =
-      MacroAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
   cmp(with, Operand(kRootRegister, offset));
 }
 

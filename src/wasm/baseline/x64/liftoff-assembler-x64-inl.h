@@ -256,9 +256,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Label continuation;
   if (frame_size < v8_flags.stack_size * 1024) {
     movq(kScratchRegister,
-         FieldOperand(kWasmInstanceRegister,
-                      WasmInstanceObject::kRealStackLimitAddressOffset));
-    movq(kScratchRegister, Operand(kScratchRegister, 0));
+         StackLimitAsOperand(StackLimitKind::kRealStackLimit));
     addq(kScratchRegister, Immediate(frame_size));
     cmpq(rsp, kScratchRegister);
     j(above_equal, &continuation, Label::kNear);
@@ -4171,8 +4169,8 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   F64x2Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(), kScratchDoubleReg);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  cmpq(rsp, Operand(limit_address, 0));
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  cmpq(rsp, StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
   j(below_equal, ool_code);
 }
 

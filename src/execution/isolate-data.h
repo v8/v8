@@ -125,6 +125,14 @@ class IsolateData final {
            Builtins::ToInt(id) * kSystemPointerSize;
   }
 
+  static constexpr int jslimit_offset() {
+    return stack_guard_offset() + StackGuard::jslimit_offset();
+  }
+
+  static constexpr int real_jslimit_offset() {
+    return stack_guard_offset() + StackGuard::real_jslimit_offset();
+  }
+
 #define V(Offset, Size, Name) \
   Address Name##_address() { return reinterpret_cast<Address>(&Name##_); }
   ISOLATE_DATA_FIELDS(V)
@@ -296,6 +304,7 @@ class IsolateData final {
 // issues because of different compilers used for snapshot generator and
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
+  static_assert(std::is_standard_layout<StackGuard>::value);
   static_assert(std::is_standard_layout<RootsTable>::value);
   static_assert(std::is_standard_layout<ThreadLocalTop>::value);
   static_assert(std::is_standard_layout<ExternalReferenceTable>::value);

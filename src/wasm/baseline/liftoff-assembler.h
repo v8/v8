@@ -1488,7 +1488,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_f64x2_qfms(LiftoffRegister dst, LiftoffRegister src1,
                               LiftoffRegister src2, LiftoffRegister src3);
 
-  inline void StackCheck(Label* ool_code, Register limit_address);
+  inline void StackCheck(Label* ool_code);
 
   inline void AssertUnreachable(AbortReason reason);
 

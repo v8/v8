@@ -727,12 +727,6 @@ class LiftoffCompiler {
     CODE_COMMENT("stack check");
     if (!v8_flags.wasm_stack_checks) return;
 
-    // Loading the limit address can change the stack state, hence do this
-    // before storing information about registers.
-    Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
-    LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize,
-                        {});
-
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     // The cached instance will be reloaded separately.
     if (__ cache_state()->cached_instance != no_reg) {
@@ -764,7 +758,7 @@ class LiftoffCompiler {
         zone_, position, regs_to_save, __ cache_state()->cached_instance,
         spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
-    __ StackCheck(ool.label.get(), limit_address);
+    __ StackCheck(ool.label.get());
     __ bind(ool.continuation.get());
   }
 

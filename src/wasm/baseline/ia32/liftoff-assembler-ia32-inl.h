@@ -304,12 +304,9 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     // We do not have a scratch register, so pick any and push it first.
     Register stack_limit = eax;
     push(stack_limit);
-    mov(stack_limit,
-        FieldOperand(kWasmInstanceRegister,
-                     WasmInstanceObject::kRealStackLimitAddressOffset));
-    mov(stack_limit, Operand(stack_limit, 0));
-    add(stack_limit, Immediate(frame_size));
-    cmp(esp, stack_limit);
+    mov(stack_limit, esp);
+    sub(stack_limit, Immediate(frame_size));
+    CompareStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
     pop(stack_limit);
     j(above_equal, &continuation, Label::kNear);
   }
@@ -4652,8 +4649,8 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
             liftoff::kScratchDoubleReg);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  cmp(esp, Operand(limit_address, 0));
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  CompareStackLimit(esp, StackLimitKind::kInterruptStackLimit);
   j(below_equal, ool_code);
 }
 

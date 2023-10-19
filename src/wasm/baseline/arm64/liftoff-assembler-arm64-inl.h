@@ -342,10 +342,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   if (frame_size < v8_flags.stack_size * 1024) {
     UseScratchRegisterScope temps(this);
     Register stack_limit = temps.AcquireX();
-    Ldr(stack_limit,
-        FieldMemOperand(kWasmInstanceRegister,
-                        WasmInstanceObject::kRealStackLimitAddressOffset));
-    Ldr(stack_limit, MemOperand(stack_limit));
+    LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
     Add(stack_limit, stack_limit, Operand(frame_size));
     Cmp(sp, stack_limit);
     B(hs /* higher or same */, &continuation);
@@ -3428,8 +3425,10 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 #undef EMIT_QFMOP
 
-void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  Ldr(limit_address, MemOperand(limit_address));
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  UseScratchRegisterScope temps(this);
+  Register limit_address = temps.AcquireX();
+  LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);
   Cmp(sp, limit_address);
   B(ool_code, ls);
 }
