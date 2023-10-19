@@ -106,12 +106,13 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   }
   AllocationRegion GetAllocationRegion(Address addr) {
     if (allocations_.empty()) return allocations_.end();
-    auto it = allocations_.lower_bound(addr);
-    if (it->first == addr) return it;
-    // Check the next smaller address in case this is a folded allocation.
+    auto it = allocations_.upper_bound(addr);
+    // {it} points to the first region after {addr}, if any.
     if (it == allocations_.begin()) return allocations_.end();
+    // Consider the region before that as the one that contains the object at
+    // {addr}.
     it = std::prev(it);
-    DCHECK_LT(it->first, addr);
+    DCHECK_LE(it->first, addr);
     return addr < (it->first + it->second) ? it : allocations_.end();
   }
   void RemoveFromAllocationRegion(AllocationRegion region, Address address,
