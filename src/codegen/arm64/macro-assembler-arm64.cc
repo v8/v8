@@ -1177,6 +1177,10 @@ void MacroAssembler::Switch(Register scratch, Register value,
   Ldr(table, MemOperand(table, value, LSL, kSystemPointerSizeLog2));
   Br(table);
   // Emit the jump table inline, under the assumption that it's not too big.
+  // Make sure there are no veneer pool entries in the middle of the table.
+  const int jump_table_size = num_labels * kSystemPointerSize;
+  CheckVeneerPool(false, false, jump_table_size);
+  BlockPoolsScope no_pool_inbetween(this, jump_table_size);
   Align(kSystemPointerSize);
   bind(&jump_table);
   for (int i = 0; i < num_labels; ++i) {
