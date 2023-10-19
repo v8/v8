@@ -70,4 +70,5 @@ extern class PromiseResolveThenableJobTask extends Microtask {
   promise_to_resolve: JSPromise;
   thenable: JSReceiver;
   then: JSReceiver;
+  continuation_preserved_embedder_data: Object|Undefined;
 }

@@ -319,7 +319,10 @@ macro NewPromiseResolveThenableJobTask(
     context: nativeContext,
     promise_to_resolve: promiseToResolve,
     thenable,
-    then
+    then,
+    continuation_preserved_embedder_data:
+        *ContextSlot(
+        nativeContext, ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
   };
 }
 
