@@ -1084,12 +1084,12 @@ class Platform {
    * Schedules a task to be invoked on a worker thread.
    * Embedders should override PostTaskOnWorkerThreadImpl() instead of
    * CallOnWorkerThread().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * PostTaskOnWorkerThreadImpl().
    */
-  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) {
+  void CallOnWorkerThread(
+      std::unique_ptr<Task> task,
+      const SourceLocation& location = SourceLocation::Current()) {
     PostTaskOnWorkerThreadImpl(TaskPriority::kUserVisible, std::move(task),
-                               SourceLocation::Current());
+                               location);
   }
 
   /**
@@ -1097,28 +1097,28 @@ class Platform {
    * high-priority on a worker thread.
    * Embedders should override PostTaskOnWorkerThreadImpl() instead of
    * CallBlockingTaskOnWorkerThread().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * PostTaskOnWorkerThreadImpl().
    */
-  virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
+  void CallBlockingTaskOnWorkerThread(
+      std::unique_ptr<Task> task,
+      const SourceLocation& location = SourceLocation::Current()) {
     // Embedders may optionally override this to process these tasks in a high
     // priority pool.
     PostTaskOnWorkerThreadImpl(TaskPriority::kUserBlocking, std::move(task),
-                               SourceLocation::Current());
+                               location);
   }
 
   /**
    * Schedules a task to be invoked with low-priority on a worker thread.
    * Embedders should override PostTaskOnWorkerThreadImpl() instead of
    * CallLowPriorityTaskOnWorkerThread().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * PostTaskOnWorkerThreadImpl().
    */
-  virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
+  void CallLowPriorityTaskOnWorkerThread(
+      std::unique_ptr<Task> task,
+      const SourceLocation& location = SourceLocation::Current()) {
     // Embedders may optionally override this to process these tasks in a low
     // priority pool.
     PostTaskOnWorkerThreadImpl(TaskPriority::kBestEffort, std::move(task),
-                               SourceLocation::Current());
+                               location);
   }
 
   /**
@@ -1126,14 +1126,13 @@ class Platform {
    * expires.
    * Embedders should override PostDelayedTaskOnWorkerThreadImpl() instead of
    * CallDelayedOnWorkerThread().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * PostDelayedTaskOnWorkerThreadImpl().
    */
-  virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                         double delay_in_seconds) {
+  void CallDelayedOnWorkerThread(
+      std::unique_ptr<Task> task, double delay_in_seconds,
+      const SourceLocation& location = SourceLocation::Current()) {
     PostDelayedTaskOnWorkerThreadImpl(TaskPriority::kUserVisible,
                                       std::move(task), delay_in_seconds,
-                                      SourceLocation::Current());
+                                      location);
   }
 
   /**
@@ -1185,12 +1184,11 @@ class Platform {
    * JobTask::GetMaxConcurrency may be invoked synchronously from JobHandle
    * (B=>JobHandle::foo=>B deadlock).
    * Embedders should override CreateJobImpl() instead of PostJob().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * CreateJobImpl().
    */
-  virtual std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    auto handle = CreateJob(priority, std::move(job_task));
+  std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location = SourceLocation::Current()) {
+    auto handle = CreateJob(priority, std::move(job_task), location);
     handle->NotifyConcurrencyIncrease();
     return handle;
   }
@@ -1209,13 +1207,11 @@ class Platform {
    * }
    *
    * Embedders should override CreateJobImpl() instead of CreateJob().
-   * TODO(chromium:1424158): Make non-virtual once embedders are migrated to
-   * CreateJobImpl().
    */
-  virtual std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    return CreateJobImpl(priority, std::move(job_task),
-                         SourceLocation::Current());
+  std::unique_ptr<JobHandle> CreateJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location = SourceLocation::Current()) {
+    return CreateJobImpl(priority, std::move(job_task), location);
   }
 
   /**
@@ -1297,32 +1293,25 @@ class Platform {
 
   /**
    * Creates and returns a JobHandle associated with a Job.
-   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
    */
   virtual std::unique_ptr<JobHandle> CreateJobImpl(
       TaskPriority priority, std::unique_ptr<JobTask> job_task,
-      const SourceLocation& location) {
-    return nullptr;
-  }
+      const SourceLocation& location) = 0;
 
   /**
    * Schedules a task with |priority| to be invoked on a worker thread.
-   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
    */
   virtual void PostTaskOnWorkerThreadImpl(TaskPriority priority,
                                           std::unique_ptr<Task> task,
-                                          const SourceLocation& location) {
-    CallOnWorkerThread(std::move(task));
-  }
+                                          const SourceLocation& location) = 0;
 
   /**
    * Schedules a task with |priority| to be invoked on a worker thread after
    * |delay_in_seconds| expires.
-   * TODO(chromium:1424158): Make pure virtual once embedders implement it.
    */
   virtual void PostDelayedTaskOnWorkerThreadImpl(
       TaskPriority priority, std::unique_ptr<Task> task,
-      double delay_in_seconds, const SourceLocation& location) {}
+      double delay_in_seconds, const SourceLocation& location) = 0;
 };
 
 }  // namespace v8

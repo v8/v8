@@ -27,7 +27,9 @@ class MockPlatformForUnmapper : public TestPlatform {
     worker_tasks_.clear();
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
     worker_tasks_.push_back(std::move(task));
   }
 
