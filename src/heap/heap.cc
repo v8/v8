@@ -1232,8 +1232,12 @@ void Heap::UpdateNewSpaceAllocationCounter() {
 }
 
 size_t Heap::NewSpaceAllocationCounter() {
-  return new_space_allocation_counter_ +
-         (new_space_ ? new_space()->AllocatedSinceLastGC() : 0);
+  size_t counter = new_space_allocation_counter_;
+  if (new_space_) {
+    DCHECK(!allocator()->new_space_allocator()->IsLabValid());
+    counter += new_space()->AllocatedSinceLastGC();
+  }
+  return counter;
 }
 
 size_t Heap::SizeOfObjects() {

@@ -704,7 +704,6 @@ size_t SemiSpaceNewSpace::Size() const {
 }
 
 size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
-  DCHECK(!allocator_->IsLabValid());
   const Address age_mark = to_space_.age_mark();
   DCHECK_NE(age_mark, kNullAddress);
   DCHECK_NE(allocation_top(), kNullAddress);
@@ -749,7 +748,6 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
 }
 
 void SemiSpaceNewSpace::GarbageCollectionEpilogue() {
-  DCHECK(!allocator_->IsLabValid());
   set_age_mark_to_top();
 }
 
@@ -975,7 +973,6 @@ bool PagedSpaceForNewSpace::IsPromotionCandidate(
 }
 
 size_t PagedSpaceForNewSpace::AllocatedSinceLastGC() const {
-  DCHECK(!allocator_->IsLabValid());
   return Size() - size_at_last_gc_;
 }
 
@@ -993,7 +990,6 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
   auto sum_allocated_labs = [](size_t sum, const Page* page) {
     return sum + page->AllocatedLabSize();
   };
-  CHECK(!allocator_->IsLabValid());
   CHECK_EQ(AllocatedSinceLastGC(),
            std::accumulate(begin(), end(), 0, sum_allocated_labs));
 }

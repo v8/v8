@@ -23,25 +23,18 @@ EvacuationAllocator::EvacuationAllocator(
   old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE),
                                compaction_space_kind,
                                MainAllocator::SupportsExtendingLAB::kNo);
-  compaction_spaces_.Get(OLD_SPACE)->set_main_allocator(old_space_allocator());
 
   code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
                                 compaction_space_kind,
                                 MainAllocator::SupportsExtendingLAB::kNo);
-  compaction_spaces_.Get(CODE_SPACE)
-      ->set_main_allocator(code_space_allocator());
 
   shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
                                   compaction_space_kind,
                                   MainAllocator::SupportsExtendingLAB::kNo);
-  compaction_spaces_.Get(SHARED_SPACE)
-      ->set_main_allocator(shared_space_allocator());
 
   trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE),
                                    compaction_space_kind,
                                    MainAllocator::SupportsExtendingLAB::kNo);
-  compaction_spaces_.Get(TRUSTED_SPACE)
-      ->set_main_allocator(trusted_space_allocator());
 }
 
 AllocationResult EvacuationAllocator::AllocateInNewSpaceSynchronized(

@@ -42,10 +42,6 @@ SpaceWithLinearArea::SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                                          std::unique_ptr<FreeList> free_list)
     : Space(heap, id, std::move(free_list)) {}
 
-void SpaceWithLinearArea::set_main_allocator(MainAllocator* allocator) {
-  allocator_ = allocator;
-}
-
 LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
   if (IsValid()) {
     MakeIterable();

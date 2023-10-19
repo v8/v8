@@ -306,7 +306,6 @@ TEST(SemiSpaceNewSpace) {
   MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
                           MainAllocator::SupportsExtendingLAB::kNo,
                           allocation_info);
-  new_space->set_main_allocator(&allocator);
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
@@ -339,8 +338,6 @@ TEST(PagedNewSpace) {
   MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
                           MainAllocator::SupportsExtendingLAB::kYes,
                           allocation_info);
-  new_space->set_main_allocator(&allocator);
-  new_space->paged_space()->set_main_allocator(&allocator);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
   CHECK_LT(0, new_space->TotalCapacity());
@@ -378,7 +375,6 @@ TEST(OldSpace) {
   MainAllocator allocator(heap, old_space.get(), CompactionSpaceKind::kNone,
                           MainAllocator::SupportsExtendingLAB::kNo,
                           allocation_info);
-  old_space->set_main_allocator(&allocator);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;

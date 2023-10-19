@@ -801,7 +801,10 @@ void MarkCompactCollector::Finish() {
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_FINISH);
 
-  if (heap_->new_space()) heap_->new_space()->GarbageCollectionEpilogue();
+  if (heap_->new_space()) {
+    DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
+    heap_->new_space()->GarbageCollectionEpilogue();
+  }
 
   auto* isolate = heap_->isolate();
   isolate->global_handles()->ClearListOfYoungNodes();

@@ -284,13 +284,7 @@ class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list);
 
-  void set_main_allocator(MainAllocator* allocator);
-
   virtual AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) = 0;
-
- protected:
-  // TODO(chromium:1480975): Move the LAB out of the space.
-  MainAllocator* allocator_ = nullptr;
 
   friend class MainAllocator;
 };
