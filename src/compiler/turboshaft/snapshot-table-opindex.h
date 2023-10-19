@@ -28,6 +28,12 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     return Base::Get(it->second);
   }
 
+  Value GetPredecessorValue(OpIndex idx, int predecessor_index) {
+    auto it = indices_to_keys_.find(idx);
+    if (it == indices_to_keys_.end()) return Value{};
+    return Base::GetPredecessorValue(it->second, predecessor_index);
+  }
+
   using Base::Set;
   bool Set(OpIndex idx, Value new_value) {
     Key key = GetOrCreateKey(idx);

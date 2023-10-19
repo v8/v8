@@ -808,9 +808,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_sub = builder.addArray(kWasmI32, true, array_base);
   let array_other = builder.addArray(kWasmI64, true);
 
-  let fct = builder.addFunction('dummy', makeSig([], []))
-      .addBody([]).exportFunc();
-
   builder.addFunction('arrayNewRefTest',
       makeSig([], [kWasmI32, kWasmI32, kWasmI32]))
     .addLocals(kWasmAnyRef, 1)
@@ -829,4 +826,37 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wasm = instance.exports;
 
   assertEquals([1, 1, 0], wasm.arrayNewRefTest());
+})();
+
+(function TypePropagationPhi() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array_base = builder.addArray(kWasmI32, true);
+  let array_sub = builder.addArray(kWasmI32, true, array_base);
+
+  builder.addFunction('typePhi',
+      makeSig([kWasmI32], [kWasmI32]))
+    .addLocals(kWasmArrayRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kArrayRefCode,
+        kExprLocalGet, 0,
+        kGCPrefix, kExprArrayNewFixed, array_base, 1,
+      kExprElse,
+        kExprLocalGet, 0,
+        kGCPrefix, kExprArrayNewFixed, array_sub, 1,
+      kExprEnd,
+      // While the two inputs to the phi have different types (ref $array_base)
+      // and (ref $array_sub), they both share the information of being not
+      // null, so the ref.is_null can be optimized away. Due to escape analysis,
+      // the whole function can be simplified to just returning 0.
+      kExprRefIsNull,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  assertEquals(0, wasm.typePhi(0));
+  assertEquals(0, wasm.typePhi(1));
 })();

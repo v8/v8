@@ -18,12 +18,14 @@ void WasmGCTypeAnalyzer::Run() {
 }
 
 void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
+  is_in_loop_header_ = false;
   // Start new snapshot based on predecessor information.
   if (block.HasPredecessors() == 0) {
     // The first block just starts with an empty snapshot.
     DCHECK_EQ(block.index().id(), 0);
     types_table_.StartNewSnapshot();
   } else if (block.IsLoop()) {
+    is_in_loop_header_ = true;
     // TODO(mliedtke): Once we want to propagate type information on LoopPhis,
     // we will need to revisit loops to also evaluate the backedge.
     Snapshot forward_edge_snap =
@@ -88,6 +90,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
         break;
       case Opcode::kWasmAllocateStruct:
         ProcessAllocateStruct(op.Cast<WasmAllocateStructOp>());
+        break;
+      case Opcode::kPhi:
+        ProcessPhi(op.Cast<PhiOp>());
         break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
@@ -177,6 +182,27 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
                       wasm::ValueType::Ref(type_index));
 }
 
+void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
+  // The result type of a phi is the union of all its input types.
+  // If any of the inputs is the default value ValueType(), there isn't any type
+  // knowledge inferrable.
+  DCHECK_GT(phi.input_count, 0);
+  if (is_in_loop_header_) {
+    // TODO(mliedtke): Loop phis require a revisitation of the loop.
+    return;
+  }
+  wasm::ValueType union_type =
+      types_table_.GetPredecessorValue(phi.input(0), 0);
+  if (union_type == wasm::ValueType()) return;
+  for (int i = 1; i < phi.input_count; ++i) {
+    wasm::ValueType input_type =
+        types_table_.GetPredecessorValue(phi.input(i), i);
+    if (input_type == wasm::ValueType()) return;
+    union_type = wasm::Union(union_type, input_type, module_, module_).type;
+  }
+  RefineTypeKnowledge(graph_.Index(phi), union_type);
+}
+
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
                                                const Block& target) {
   const Operation& condition = graph_.Get(branch.condition());
@@ -218,6 +244,10 @@ void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
                  std::back_insert_iterator(snapshots), [this](Block* pred) {
                    return block_to_snapshot_[pred->index()].value();
                  });
+  // The predecessor snapshots need to be reversed to restore the "original"
+  // order of predecessors. (This is used to map phi inputs to their
+  // corresponding predecessor.)
+  std::reverse(snapshots.begin(), snapshots.end());
   types_table_.StartNewSnapshot(
       base::VectorOf(snapshots),
       [this](TypeSnapshotTable::Key,
