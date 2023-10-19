@@ -234,14 +234,14 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 
 namespace {
 
-// The megamorphic load builtin can be used as a performance optimization in
-// some cases - unlike the full builtin, the megamorphic builtin does fewer
+// The megamorphic load/store builtin can be used as a performance optimization
+// in some cases - unlike the full builtin, the megamorphic builtin does fewer
 // checks and does not collect feedback.
-bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
-                                     OptionalNameRef name,
-                                     JSHeapBroker* broker) {
+bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
+                                       OptionalNameRef name, AccessMode mode,
+                                       JSHeapBroker* broker) {
   ProcessedFeedback const& feedback =
-      broker->GetFeedbackForPropertyAccess(source, AccessMode::kLoad, name);
+      broker->GetFeedbackForPropertyAccess(source, mode, name);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
     return feedback.AsElementAccess().transition_groups().empty();
@@ -280,14 +280,16 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kLoad, broker())
                   ? Builtin::kKeyedLoadICTrampoline_Megamorphic
                   : Builtin::kKeyedLoadICTrampoline);
   } else {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kLoad, broker())
                   ? Builtin::kKeyedLoadIC_Megamorphic
                   : Builtin::kKeyedLoadIC);
   }
@@ -309,7 +311,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), p.name(), broker())
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), p.name(),
+                                                AccessMode::kLoad, broker())
                   ? Builtin::kLoadICTrampoline_Megamorphic
                   : Builtin::kLoadICTrampoline);
   } else {
@@ -317,7 +320,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), p.name(), broker())
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), p.name(),
+                                                AccessMode::kLoad, broker())
                   ? Builtin::kLoadIC_Megamorphic
                   : Builtin::kLoadIC);
   }
@@ -414,11 +418,19 @@ void JSGenericLowering::LowerJSSetKeyedProperty(Node* node) {
     // the paths are controlled by feedback.
     // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
     // can be called here.
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedStoreICTrampoline);
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kKeyedStoreICTrampoline_Megamorphic
+                  : Builtin::kKeyedStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedStoreIC);
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kKeyedStoreIC_Megamorphic
+                  : Builtin::kKeyedStoreIC);
   }
 }
 

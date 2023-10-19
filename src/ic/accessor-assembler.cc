@@ -4735,6 +4735,20 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
                   vector);
 }
 
+void AccessorAssembler::GenerateKeyedStoreICTrampoline_Megamorphic() {
+  using Descriptor = StoreDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtin::kKeyedStoreIC_Megamorphic, context, receiver, name,
+                  value, slot, vector);
+}
+
 void AccessorAssembler::GenerateKeyedStoreICBaseline() {
   using Descriptor = StoreBaselineDescriptor;
 

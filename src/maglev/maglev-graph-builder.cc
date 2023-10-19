@@ -4373,11 +4373,15 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   const compiler::KeyedAccessMode& keyed_mode = feedback.keyed_mode();
   // Check for the megamorphic case.
   if (feedback.transition_groups().empty()) {
-    if (keyed_mode.access_mode() != compiler::AccessMode::kLoad) {
-      return ReduceResult::Fail();
+    if (keyed_mode.access_mode() == compiler::AccessMode::kLoad) {
+      return BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
+          {object, GetTaggedValue(index_object)}, feedback_source);
+    } else if (keyed_mode.access_mode() == compiler::AccessMode::kStore) {
+      return BuildCallBuiltin<Builtin::kKeyedStoreIC_Megamorphic>(
+          {object, GetTaggedValue(index_object), GetAccumulatorTagged()},
+          feedback_source);
     }
-    return BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
-        {object, GetTaggedValue(index_object)}, feedback_source);
+    return ReduceResult::Fail();
   }
 
   // TODO(leszeks): Add non-deopting bounds check (has to support undefined
@@ -4902,7 +4906,7 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+          feedback_source, compiler::AccessMode::kStore, base::nullopt);
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
