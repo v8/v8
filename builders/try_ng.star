@@ -640,7 +640,7 @@ trybot_pair(
 trybot_pair(
     name = "v8_win64_msvc_rel",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     build_timeout = 3600,
 )
 

@@ -312,7 +312,7 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"]},
 )
@@ -322,7 +322,7 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"]},
 )
