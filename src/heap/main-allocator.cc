@@ -4,6 +4,7 @@
 
 #include "src/heap/main-allocator.h"
 
+#include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -19,25 +20,21 @@ namespace v8 {
 namespace internal {
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             CompactionSpaceKind compaction_space_kind,
-                             SupportsExtendingLAB supports_extending_lab,
                              LinearAllocationArea& allocation_info)
     : heap_(heap),
       space_(space),
-      compaction_space_kind_(compaction_space_kind),
-      supports_extending_lab_(supports_extending_lab),
       allocation_info_(allocation_info),
-      allocator_policy_(space->CreateAllocatorPolicy(this)) {}
+      allocator_policy_(space->CreateAllocatorPolicy(this)),
+      compaction_space_kind_(allocator_policy_->GetCompactionSpaceKind()),
+      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {}
 
-MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             CompactionSpaceKind compaction_space_kind,
-                             SupportsExtendingLAB supports_extending_lab)
+MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space)
     : heap_(heap),
       space_(space),
-      compaction_space_kind_(compaction_space_kind),
-      supports_extending_lab_(supports_extending_lab),
       allocation_info_(owned_allocation_info_),
-      allocator_policy_(space->CreateAllocatorPolicy(this)) {}
+      allocator_policy_(space->CreateAllocatorPolicy(this)),
+      compaction_space_kind_(allocator_policy_->GetCompactionSpaceKind()),
+      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {}
 
 Address MainAllocator::AlignTopForTesting(AllocationAlignment alignment,
                                           int offset) {
@@ -517,6 +514,10 @@ void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   Page::FromAllocationAreaAddress(allocator_->top())
       ->DecreaseAllocatedLabSize(allocator_->limit() - allocator_->top());
   paged_space_allocator_policy_->FreeLinearAllocationAreaUnsynchronized();
+}
+
+CompactionSpaceKind PagedSpaceAllocatorPolicy::GetCompactionSpaceKind() const {
+  return space_->compaction_space_kind();
 }
 
 bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,

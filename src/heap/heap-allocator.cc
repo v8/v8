@@ -25,28 +25,13 @@ void HeapAllocator::Setup(LinearAllocationArea& new_allocation_info,
   }
 
   if (heap_->new_space()) {
-    if (v8_flags.minor_ms) {
-      new_space_allocator_.emplace(
-          heap_, heap_->new_space(), CompactionSpaceKind::kNone,
-          MainAllocator::SupportsExtendingLAB::kYes, new_allocation_info);
-    } else {
-      new_space_allocator_.emplace(
-          heap_, heap_->new_space(), CompactionSpaceKind::kNone,
-          MainAllocator::SupportsExtendingLAB::kNo, new_allocation_info);
-    }
+    new_space_allocator_.emplace(heap_, heap_->new_space(),
+                                 new_allocation_info);
   }
 
-  old_space_allocator_.emplace(
-      heap_, heap_->old_space(), CompactionSpaceKind::kNone,
-      MainAllocator::SupportsExtendingLAB::kNo, old_allocation_info);
-
-  trusted_space_allocator_.emplace(heap_, heap_->trusted_space(),
-                                   CompactionSpaceKind::kNone,
-                                   MainAllocator::SupportsExtendingLAB::kNo);
-
-  code_space_allocator_.emplace(heap_, heap_->code_space(),
-                                CompactionSpaceKind::kNone,
-                                MainAllocator::SupportsExtendingLAB::kNo);
+  old_space_allocator_.emplace(heap_, heap_->old_space(), old_allocation_info);
+  trusted_space_allocator_.emplace(heap_, heap_->trusted_space());
+  code_space_allocator_.emplace(heap_, heap_->code_space());
 
   if (heap_->isolate()->has_shared_space()) {
     Heap* heap = heap_->isolate()->shared_space_isolate()->heap();

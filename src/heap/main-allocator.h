@@ -38,6 +38,12 @@ class AllocatorPolicy {
                                 AllocationOrigin origin) = 0;
   virtual void FreeLinearAllocationArea() = 0;
 
+  virtual bool SupportsExtendingLAB() const { return false; }
+
+  virtual CompactionSpaceKind GetCompactionSpaceKind() const {
+    return CompactionSpaceKind::kNone;
+  }
+
  protected:
   Heap* heap() const { return heap_; }
 
@@ -67,6 +73,8 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
+
+  CompactionSpaceKind GetCompactionSpaceKind() const final;
 
  private:
   bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
@@ -99,6 +107,8 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
+
+  bool SupportsExtendingLAB() const final { return true; }
 
  private:
   bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
@@ -139,16 +149,10 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  enum class SupportsExtendingLAB { kYes, kNo };
-
-  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                                  CompactionSpaceKind compaction_space_kind,
-                                  SupportsExtendingLAB supports_extending_lab);
+  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                                  CompactionSpaceKind compaction_space_kind,
-                                  SupportsExtendingLAB supports_extending_lab,
                                   LinearAllocationArea& allocation_info);
 
   // Returns the allocation pointer in this space.
@@ -242,10 +246,6 @@ class MainAllocator {
 
   void ExtendLAB(Address limit);
 
-  bool supports_extending_lab() const {
-    return supports_extending_lab_ == SupportsExtendingLAB::kYes;
-  }
-
   V8_EXPORT_PRIVATE bool EnsureAllocationForTesting(
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin);
@@ -301,12 +301,12 @@ class MainAllocator {
     return compaction_space_kind_ != CompactionSpaceKind::kNone;
   }
 
+  bool supports_extending_lab() const { return supports_extending_lab_; }
+
   Heap* heap() const { return heap_; }
 
   Heap* const heap_;
   SpaceWithLinearArea* const space_;
-  const CompactionSpaceKind compaction_space_kind_;
-  const SupportsExtendingLAB supports_extending_lab_;
 
   AllocationCounter allocation_counter_;
   LinearAllocationArea& allocation_info_;
@@ -314,6 +314,9 @@ class MainAllocator {
   LinearAllocationArea owned_allocation_info_;
   LinearAreaOriginalData linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
+
+  const CompactionSpaceKind compaction_space_kind_;
+  const bool supports_extending_lab_;
 
   friend class AllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;

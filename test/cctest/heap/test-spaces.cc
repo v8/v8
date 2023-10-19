@@ -39,6 +39,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
@@ -303,9 +304,7 @@ TEST(SemiSpaceNewSpace) {
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
-                          MainAllocator::SupportsExtendingLAB::kNo,
-                          allocation_info);
+  MainAllocator allocator(heap, new_space.get(), allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
@@ -335,9 +334,7 @@ TEST(PagedNewSpace) {
 
   auto new_space = std::make_unique<PagedNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator allocator(heap, new_space.get(), CompactionSpaceKind::kNone,
-                          MainAllocator::SupportsExtendingLAB::kYes,
-                          allocation_info);
+  MainAllocator allocator(heap, new_space.get(), allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
   CHECK_LT(0, new_space->TotalCapacity());
@@ -372,9 +369,7 @@ TEST(OldSpace) {
   LinearAllocationArea allocation_info;
 
   auto old_space = std::make_unique<OldSpace>(heap);
-  MainAllocator allocator(heap, old_space.get(), CompactionSpaceKind::kNone,
-                          MainAllocator::SupportsExtendingLAB::kNo,
-                          allocation_info);
+  MainAllocator allocator(heap, old_space.get(), allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;

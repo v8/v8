@@ -52,9 +52,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
                           CompactionSpaceKind::kCompactionSpaceForMarkCompact);
-  MainAllocator allocator(heap, compaction_space,
-                          CompactionSpaceKind::kCompactionSpaceForMarkCompact,
-                          MainAllocator::SupportsExtendingLAB::kNo);
+  MainAllocator allocator(heap, compaction_space);
   EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {
