@@ -144,11 +144,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Label continuation;
   if (frame_size < v8_flags.stack_size * 1024) {
     Register stack_limit = ip;
-    LoadU64(stack_limit,
-            FieldMemOperand(kWasmInstanceRegister,
-                            WasmInstanceObject::kRealStackLimitAddressOffset),
-            r0);
-    LoadU64(stack_limit, MemOperand(stack_limit), r0);
+    LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
     AddU64(stack_limit, Operand(frame_size));
     CmpU64(sp, stack_limit);
     bge(&continuation);
@@ -2934,8 +2930,9 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
   emit_s128_select(dst, src1, src2, mask);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  LoadU64(limit_address, MemOperand(limit_address));
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  Register limit_address = ip;
+  LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);
   CmpU64(sp, limit_address);
   b(le, ool_code);
 }
