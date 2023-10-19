@@ -487,6 +487,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kMustBePositive,
       MessageTemplate::kNotIterable,
       MessageTemplate::kNotTypedArray,
+      MessageTemplate::kProxyNonObject,
       MessageTemplate::kProxyPrivate,
       MessageTemplate::kProxyRevoked,
       MessageTemplate::kProxyTrapReturnedFalsishFor,
