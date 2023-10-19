@@ -996,11 +996,6 @@ class WasmTypeInfo
 };
 
 class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
- public:
-  // Prepares given value for being stored into a field of given Wasm type.
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToWasmValue(
-      Isolate* isolate, wasm::ValueType type, Handle<Object> value);
-
  protected:
   // Returns boxed value of the object's field/element with given type and
   // offset.
@@ -1008,11 +1003,6 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
                                            Handle<HeapObject> obj,
                                            wasm::ValueType type,
                                            uint32_t offset);
-
-  static inline void WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
-                                  wasm::ValueType type, uint32_t offset,
-                                  Handle<Object> value);
-
  private:
   template <typename ElementType>
   static ElementType FromNumber(Tagged<Object> value);
@@ -1038,11 +1028,6 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   inline ObjectSlot RawField(int raw_offset);
 
   wasm::WasmValue GetFieldValue(uint32_t field_index);
-
-  // Returns boxed value of the object's field.
-  static inline Handle<Object> GetField(Isolate* isolate,
-                                        Handle<WasmStruct> obj,
-                                        uint32_t field_index);
 
   static inline void SetField(Isolate* isolate, Handle<WasmStruct> obj,
                               uint32_t field_index, Handle<Object> value);
