@@ -455,7 +455,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
 
   // TODO(14386): Get this list empty.
   static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
-      MessageTemplate::kBadSortComparisonFunction,
       MessageTemplate::kConstAssign,
       MessageTemplate::kConstructorNotReceiver,
       MessageTemplate::kDataCloneErrorDetachedArrayBuffer,

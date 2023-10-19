@@ -52,7 +52,7 @@ namespace internal {
   T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
-    "The comparison function must be either a function or undefined")          \
+    "The comparison function must be either a function or undefined: %")       \
   T(BigIntFromNumber,                                                          \
     "The number % cannot be converted to a BigInt because it is not an "       \
     "integer")                                                                 \
