@@ -2012,12 +2012,63 @@ void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
     case Builtin::kThrowDataViewGetBigInt64DetachedError:
     case Builtin::kThrowDataViewGetBigInt64OutOfBounds:
     case Builtin::kThrowDataViewGetBigInt64TypeError:
+    case Builtin::kThrowDataViewGetBigUint64DetachedError:
+    case Builtin::kThrowDataViewGetBigUint64OutOfBounds:
+    case Builtin::kThrowDataViewGetBigUint64TypeError:
+    case Builtin::kThrowDataViewGetFloat32DetachedError:
+    case Builtin::kThrowDataViewGetFloat32OutOfBounds:
+    case Builtin::kThrowDataViewGetFloat32TypeError:
+    case Builtin::kThrowDataViewGetFloat64DetachedError:
+    case Builtin::kThrowDataViewGetFloat64OutOfBounds:
+    case Builtin::kThrowDataViewGetFloat64TypeError:
+    case Builtin::kThrowDataViewGetInt8DetachedError:
+    case Builtin::kThrowDataViewGetInt8OutOfBounds:
+    case Builtin::kThrowDataViewGetInt8TypeError:
+    case Builtin::kThrowDataViewGetInt16DetachedError:
+    case Builtin::kThrowDataViewGetInt16OutOfBounds:
+    case Builtin::kThrowDataViewGetInt16TypeError:
     case Builtin::kThrowDataViewGetInt32DetachedError:
     case Builtin::kThrowDataViewGetInt32OutOfBounds:
     case Builtin::kThrowDataViewGetInt32TypeError:
+    case Builtin::kThrowDataViewGetUint8DetachedError:
+    case Builtin::kThrowDataViewGetUint8OutOfBounds:
+    case Builtin::kThrowDataViewGetUint8TypeError:
+    case Builtin::kThrowDataViewGetUint16DetachedError:
+    case Builtin::kThrowDataViewGetUint16OutOfBounds:
+    case Builtin::kThrowDataViewGetUint16TypeError:
+    case Builtin::kThrowDataViewGetUint32DetachedError:
+    case Builtin::kThrowDataViewGetUint32OutOfBounds:
+    case Builtin::kThrowDataViewGetUint32TypeError:
+    case Builtin::kThrowDataViewSetBigInt64DetachedError:
+    case Builtin::kThrowDataViewSetBigInt64OutOfBounds:
+    case Builtin::kThrowDataViewSetBigInt64TypeError:
+    case Builtin::kThrowDataViewSetBigUint64DetachedError:
+    case Builtin::kThrowDataViewSetBigUint64OutOfBounds:
+    case Builtin::kThrowDataViewSetBigUint64TypeError:
+    case Builtin::kThrowDataViewSetFloat32DetachedError:
+    case Builtin::kThrowDataViewSetFloat32OutOfBounds:
+    case Builtin::kThrowDataViewSetFloat32TypeError:
+    case Builtin::kThrowDataViewSetFloat64DetachedError:
+    case Builtin::kThrowDataViewSetFloat64OutOfBounds:
+    case Builtin::kThrowDataViewSetFloat64TypeError:
+    case Builtin::kThrowDataViewSetInt8DetachedError:
+    case Builtin::kThrowDataViewSetInt8OutOfBounds:
+    case Builtin::kThrowDataViewSetInt8TypeError:
+    case Builtin::kThrowDataViewSetInt16DetachedError:
+    case Builtin::kThrowDataViewSetInt16OutOfBounds:
+    case Builtin::kThrowDataViewSetInt16TypeError:
     case Builtin::kThrowDataViewSetInt32DetachedError:
     case Builtin::kThrowDataViewSetInt32OutOfBounds:
     case Builtin::kThrowDataViewSetInt32TypeError:
+    case Builtin::kThrowDataViewSetUint8DetachedError:
+    case Builtin::kThrowDataViewSetUint8OutOfBounds:
+    case Builtin::kThrowDataViewSetUint8TypeError:
+    case Builtin::kThrowDataViewSetUint16DetachedError:
+    case Builtin::kThrowDataViewSetUint16OutOfBounds:
+    case Builtin::kThrowDataViewSetUint16TypeError:
+    case Builtin::kThrowDataViewSetUint32DetachedError:
+    case Builtin::kThrowDataViewSetUint32OutOfBounds:
+    case Builtin::kThrowDataViewSetUint32TypeError:
     case Builtin::kThrowIndexOfCalledOnNull:
     case Builtin::kThrowToLowerCaseCalledOnNull:
     case Builtin::kWasmIntToString: {
