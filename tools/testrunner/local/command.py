@@ -15,8 +15,9 @@ import threading
 import time
 
 from ..local.android import (Driver, CommandFailedException, TimeoutException)
-from ..objects import output
 from ..local.pool import AbortException
+from ..objects import output
+from .process_utils import ProcessStats, EMPTY_PROCESS_LOGGER, PROCESS_LOGGER
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -72,7 +73,8 @@ def handle_sigterm(process, abort_fun, enabled):
 
 class BaseCommand(object):
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, test_case=None, handle_sigterm=False):
+               verbose=False, test_case=None, handle_sigterm=False,
+               log_process_stats=False):
     """Initialize the command.
 
     Args:
@@ -86,6 +88,8 @@ class BaseCommand(object):
       handle_sigterm: Flag indicating if SIGTERM will be used to terminate the
           underlying process. Should not be used from the main thread, e.g. when
           using a command to list tests.
+      log_process_stats: Indicate if we want to probe for process statistics like
+          memory consumption.
     """
     assert(timeout > 0)
 
@@ -97,6 +101,11 @@ class BaseCommand(object):
     self.verbose = verbose
     self.handle_sigterm = handle_sigterm
 
+    if log_process_stats:
+      self.process_logger = self.get_process_logger()
+    else:
+      self.process_logger = EMPTY_PROCESS_LOGGER
+
   def _result_overrides(self, returncode):
     pass
 
@@ -107,6 +116,9 @@ class BaseCommand(object):
     except:
       logging.exception(f'Error executing: {self}\n')
       raise
+
+  def get_process_logger(self):
+    return EMPTY_PROCESS_LOGGER
 
   def execute(self):
     if self.verbose:
@@ -123,7 +135,8 @@ class BaseCommand(object):
 
       start_time = time.time()
       with self.log_errors():
-        stdout, stderr = process.communicate()
+        with self.process_logger.log_stats(process) as stats:
+          stdout, stderr = process.communicate()
       end_time = time.time()
 
       timer.cancel()
@@ -137,6 +150,7 @@ class BaseCommand(object):
       process.pid,
       start_time,
       end_time,
+      stats=stats,
     )
 
   def _start_process(self):
@@ -195,7 +209,12 @@ class BaseCommand(object):
     return list(map(str, self.cmd_prefix + [self.shell])) + self.args
 
 
-class PosixCommand(BaseCommand):
+class DesktopCommand(BaseCommand):
+  def get_process_logger(self):
+    return PROCESS_LOGGER
+
+
+class PosixCommand(DesktopCommand):
   # TODO(machenbach): Use base process start without shell once
   # https://crbug.com/v8/8889 is resolved.
   def _start_process(self):
@@ -253,7 +272,8 @@ class IOSCommand(BaseCommand):
                env=None,
                verbose=False,
                test_case=None,
-               handle_sigterm=False):
+               handle_sigterm=False,
+               log_process_stats=False):
     """Initialize the command and set a large enough timeout required for runs
     through the iOS Simulator.
     """
@@ -264,7 +284,8 @@ class IOSCommand(BaseCommand):
         timeout=timeout,
         env=env,
         verbose=verbose,
-        handle_sigterm=handle_sigterm)
+        handle_sigterm=handle_sigterm,
+        log_process_stats=log_process_stats)
 
   def _result_overrides(self, process):
     # TODO(crbug.com/1445694): if iossim returns with code 65, force a
@@ -301,7 +322,7 @@ class IOSCommand(BaseCommand):
     return list(map(str, self.cmd_prefix + [self.shell]))
 
 
-class WindowsCommand(BaseCommand):
+class WindowsCommand(DesktopCommand):
   def _start_process(self, **kwargs):
     # Try to change the error mode to avoid dialogs on fatal errors. Don't
     # touch any existing error mode flags by merging the existing error mode.
@@ -338,13 +359,15 @@ class AndroidCommand(BaseCommand):
   driver = None
 
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, test_case=None, handle_sigterm=False):
+               verbose=False, test_case=None, handle_sigterm=False,
+               log_process_stats=False):
     """Initialize the command and all files that need to be pushed to the
     Android device.
     """
     super(AndroidCommand, self).__init__(
         shell, args=args, cmd_prefix=cmd_prefix, timeout=timeout, env=env,
-        verbose=verbose, handle_sigterm=handle_sigterm)
+        verbose=verbose, handle_sigterm=handle_sigterm,
+        log_process_stats=log_process_stats)
 
     rel_args, files_from_args = args_with_relative_paths(args)
 

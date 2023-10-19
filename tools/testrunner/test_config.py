@@ -11,6 +11,7 @@ class TestConfig(object):
                extra_flags,
                framework_name,
                isolates,
+               log_process_stats,
                mode_flags,
                no_harness,
                noi18n,
@@ -27,6 +28,7 @@ class TestConfig(object):
     self.extra_flags = extra_flags
     self.framework_name = framework_name
     self.isolates = isolates
+    self.log_process_stats = log_process_stats
     self.mode_flags = mode_flags
     self.no_harness = no_harness
     self.noi18n = noi18n

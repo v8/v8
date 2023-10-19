@@ -29,6 +29,7 @@ class TestSuiteTest(unittest.TestCase):
         extra_flags=[],
         framework_name='standard_runner',
         isolates=False,
+        log_process_stats=False,
         mode_flags=[],
         no_harness=False,
         noi18n=False,

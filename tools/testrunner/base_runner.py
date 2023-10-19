@@ -616,6 +616,7 @@ class BaseTestRunner(object):
         extra_flags=self.options.extra_flags,
         framework_name=self.framework_name,
         isolates=self.options.isolates,
+        log_process_stats=self.options.json_test_results,
         mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=self.options.no_harness,
         noi18n=not self.build_config.i18n,
