@@ -131,4 +131,10 @@
   'wasm-inlining-into-js': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
+##############################################################################
+['verify_predictable', {
+  # https://crbug.com/v8/14397
+  'wasm-finish-compilation': [PASS, FAIL],
+}],  # 'verify_predictable'
+
 ]
