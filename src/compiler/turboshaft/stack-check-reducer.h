@@ -72,11 +72,29 @@ class StackCheckReducer : public Next {
       return OpIndex::Invalid();
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    // TODO(turboshaft): Implement stack checks for JavaScript.
-    UNIMPLEMENTED();
+    DCHECK_EQ(origin, StackCheckOp::CheckOrigin::kFromJS);
+    if (kind == StackCheckOp::CheckKind::kFunctionHeaderCheck) {
+      if (!isolate_) isolate_ = PipelineData::Get().isolate();
+      V<WordPtr> limit = __ LoadOffHeap(
+          __ ExternalConstant(ExternalReference::address_of_jslimit(isolate_)),
+          MemoryRepresentation::PointerSized());
+      V<Word32> check =
+          __ StackPointerGreaterThan(limit, StackCheckKind::kJSFunctionEntry);
+
+      IF_NOT (LIKELY(check)) {
+        __ CallRuntime_StackGuardWithGap(isolate_, __ NoContextConstant(),
+                                         __ StackCheckOffset());
+      }
+      END_IF
+      return OpIndex::Invalid();
+    } else {
+      DCHECK_EQ(kind, StackCheckOp::CheckKind::kLoopCheck);
+      UNIMPLEMENTED();
+    }
   }
 
  private:
+  Isolate* isolate_ = nullptr;
   // We cache the instance because we need it to load the limit_address used to
   // lower stack checks.
   OpIndex instance_ = OpIndex::Invalid();

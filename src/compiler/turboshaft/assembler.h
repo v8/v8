@@ -2343,6 +2343,11 @@ class AssemblerOpInterface {
     return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
         isolate, context, {});
   }
+  V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate, V<Context> context,
+                                          V<Smi> gap) {
+    return CallRuntime<typename RuntimeCallDescriptor::StackGuardWithGap>(
+        isolate, context, {gap});
+  }
   V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
                                          V<String> string, V<Number> index) {
     return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(

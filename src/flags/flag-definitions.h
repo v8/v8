@@ -1253,6 +1253,8 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
                             "enable MachineOptimization during MachineLowering")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_unrolling,
                             "enable Turboshaft's loop unrolling")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
+                            "run (parts of) the frontend in Turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")

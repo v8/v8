@@ -17,7 +17,8 @@ namespace v8::internal::compiler::turboshaft {
 void DeadCodeEliminationPhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(), DEBUG_BOOL);
 
-  turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer
+  turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer,
+                                turboshaft::StackCheckReducer
 #if V8_ENABLE_WEBASSEMBLY
                                 ,
                                 turboshaft::WasmJSLoweringReducer

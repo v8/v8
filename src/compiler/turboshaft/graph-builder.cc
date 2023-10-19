@@ -148,7 +148,14 @@ struct GraphBuilder {
     ProcessStateValues(builder, frame_state.parameters());
     ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
     ProcessStateValues(builder, frame_state.locals());
-    ProcessStateValues(builder, frame_state.stack());
+    Node* stack = frame_state.stack();
+    if (stack->opcode() == IrOpcode::kHeapConstant &&
+        HeapConstantOf(stack->op())->map() ==
+            ReadOnlyRoots(isolate->heap()).optimized_out_map()) {
+      // Nothing to do in this case.
+    } else {
+      ProcessStateValues(builder, stack);
+    }
   }
 
   Block::Kind BlockKind(BasicBlock* block) {
@@ -2417,6 +2424,13 @@ OpIndex GraphBuilder::Process(
       SIMD128_REPLACE_LANE(F64x2)
 #undef SIMD128_REPLACE_LANE
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+    case IrOpcode::kJSStackCheck: {
+      DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
+                StackCheckKind::kJSFunctionEntry);
+      return __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
+                           StackCheckOp::CheckKind::kFunctionHeaderCheck);
+    }
 
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
