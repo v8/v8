@@ -27,6 +27,8 @@ namespace v8::internal::wasm {
 // only represent one speculative call per call_ref.
 class InliningTree : public ZoneObject {
  public:
+  using CasesPerCallSite = base::Vector<InliningTree*>;
+
   InliningTree(Zone* zone, const WasmModule* module, uint32_t function_index,
                int call_count, int wire_byte_size)
       : zone_(zone),
@@ -51,8 +53,8 @@ class InliningTree : public ZoneObject {
   // `kMaxInlinedCount` nodes are expanded or `budget` (in wire-bytes size) is
   // depleted.
   void FullyExpand(const size_t initial_graph_size);
-  ZoneVector<InliningTree*>* function_calls() { return function_calls_; }
-  bool feedback_found() { return function_calls_ != nullptr; }
+  base::Vector<CasesPerCallSite> function_calls() { return function_calls_; }
+  bool feedback_found() { return feedback_found_; }
   bool is_inlined() { return is_inlined_; }
   uint32_t function_index() { return function_index_; }
 
@@ -71,9 +73,9 @@ class InliningTree : public ZoneObject {
   int call_count_;
   int wire_byte_size_;
   bool is_inlined_ = false;
+  bool feedback_found_ = false;
 
-  // TODO(14108): These vectors never grow; use pointers instead.
-  ZoneVector<InliningTree*>* function_calls_ = nullptr;
+  base::Vector<CasesPerCallSite> function_calls_{};
 };
 
 void InliningTree::Inline() {
@@ -85,13 +87,19 @@ void InliningTree::Inline() {
           feedback->second.call_targets.size()) {
     std::vector<CallSiteFeedback>& type_feedback =
         feedback->second.feedback_vector;
+    feedback_found_ = true;
     function_calls_ =
-        zone_->New<ZoneVector<InliningTree*>>(type_feedback.size(), zone_);
+        zone_->AllocateVector<CasesPerCallSite>(type_feedback.size());
     for (size_t i = 0; i < type_feedback.size(); i++) {
-      if (type_feedback[i].num_cases() > 0) {
-        uint32_t callee_index = type_feedback[i].function_index(0);
-        (*function_calls_)[i] = zone_->New<InliningTree>(
-            zone_, module_, callee_index, type_feedback[i].call_count(0),
+      function_calls_[i] =
+          zone_->AllocateVector<InliningTree*>(type_feedback[i].num_cases());
+      for (int the_case = 0; the_case < type_feedback[i].num_cases();
+           the_case++) {
+        uint32_t callee_index = type_feedback[i].function_index(the_case);
+        // TODO(jkummerow): Experiment with propagating relative call counts
+        // into the nested InliningTree, and weighting scores there accordingly.
+        function_calls_[i][the_case] = zone_->New<InliningTree>(
+            zone_, module_, callee_index, type_feedback[i].call_count(the_case),
             module_->functions[callee_index].code.length());
       }
     }
@@ -124,8 +132,10 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
     inlined_count++;
     inlined_wire_byte_count += top->wire_byte_size_;
     if (top->feedback_found()) {
-      for (InliningTree* call : *top->function_calls_) {
-        if (call != nullptr) queue.push(call);
+      for (CasesPerCallSite cases : top->function_calls_) {
+        for (InliningTree* call : cases) {
+          if (call != nullptr) queue.push(call);
+        }
       }
     }
   }

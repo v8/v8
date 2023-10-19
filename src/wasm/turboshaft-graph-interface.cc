@@ -232,11 +232,11 @@ class TurboshaftGraphBuildingInterface {
                 decoder->module_->type_feedback.feedback_for_function.find(
                     func_index_),
                 decoder->module_->type_feedback.feedback_for_function.end());
-            DCHECK_EQ(inlining_decisions_->function_calls()->size(),
+            DCHECK_EQ(inlining_decisions_->function_calls().size(),
                       decoder->module_->type_feedback.feedback_for_function
                           .find(func_index_)
                           ->second.feedback_vector.size());
-            DCHECK_EQ(inlining_decisions_->function_calls()->size(),
+            DCHECK_EQ(inlining_decisions_->function_calls().size(),
                       decoder->module_->type_feedback.feedback_for_function
                           .find(func_index_)
                           ->second.call_targets.size());
@@ -269,7 +269,7 @@ class TurboshaftGraphBuildingInterface {
         inlining_decisions_->feedback_found()) {
       DCHECK_EQ(
           feedback_slot_,
-          static_cast<int>(inlining_decisions_->function_calls()->size()) - 1);
+          static_cast<int>(inlining_decisions_->function_calls().size()) - 1);
     }
     if (mode_ == kRegular) {
       for (OpIndex index : __ output_graph().AllOperationIndices()) {
@@ -1347,7 +1347,7 @@ class TurboshaftGraphBuildingInterface {
       if (inlining_enabled(decoder) &&
           should_inline(feedback_slot_,
                         decoder->module_->functions[imm.index].code.length())) {
-        InlineWasmCall(decoder, imm.index, imm.sig, args, returns);
+        InlineWasmCall(decoder, imm.index, imm.sig, 0, args, returns);
       } else {
         V<WordPtr> callee =
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
@@ -1387,36 +1387,58 @@ class TurboshaftGraphBuildingInterface {
     feedback_slot_++;
     if (inlining_enabled(decoder) &&
         should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
-      uint32_t inlined_index =
-          (*inlining_decisions_->function_calls())[feedback_slot_]
-              ->function_index();
       V<FixedArray> internal_functions =
           LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node_, WasmInternalFunctions,
                                         MemoryRepresentation::TaggedPointer());
-      V<Tagged> inlined_func_ref =
-          __ LoadFixedArrayElement(internal_functions, inlined_index);
-      TSBlock* inline_block = __ NewBlock();
-      TSBlock* no_inline_block = __ NewBlock();
+      size_t return_count = sig->return_count();
+      base::Vector<InliningTree*> feedback_cases =
+          inlining_decisions_->function_calls()[feedback_slot_];
+      std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
+      base::SmallVector<TSBlock*, 5> case_blocks;
+      for (size_t i = 0; i < feedback_cases.size() + 1; i++) {
+        case_blocks.push_back(__ NewBlock());
+      }
       TSBlock* merge = __ NewBlock();
-      __ Branch(
-          {__ TaggedEqual(func_ref.op, inlined_func_ref), BranchHint::kTrue},
-          inline_block, no_inline_block);
+      __ Goto(case_blocks[0]);
+      for (size_t i = 0; i < feedback_cases.size(); i++) {
+        __ Bind(case_blocks[i]);
+        InliningTree* tree = feedback_cases[i];
+        if (!tree || !tree->is_inlined()) {
+          __ Goto(case_blocks[i + 1]);
+          continue;
+        }
+        uint32_t inlined_index = tree->function_index();
+        V<Tagged> inlined_func_ref =
+            __ LoadFixedArrayElement(internal_functions, inlined_index);
+        TSBlock* inline_block = __ NewBlock();
+        __ Branch(
+            {__ TaggedEqual(func_ref.op, inlined_func_ref), BranchHint::kTrue},
+            inline_block, case_blocks[i + 1]);
 
-      __ Bind(inline_block);
-      base::SmallVector<Value, 2> direct_returns(sig->return_count());
-      InlineWasmCall(decoder, inlined_index, sig, args, direct_returns.data());
-      __ Goto(merge);
+        __ Bind(inline_block);
+        base::SmallVector<Value, 2> direct_returns(return_count);
+        InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
+                       args, direct_returns.data());
+        for (size_t ret = 0; ret < direct_returns.size(); ret++) {
+          case_returns[ret].push_back(direct_returns[ret].op);
+        }
+        __ Goto(merge);
+      }
 
+      TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
       __ Bind(no_inline_block);
       auto [target, ref] =
           BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-      base::SmallVector<Value, 2> ref_returns(sig->return_count());
+      base::SmallVector<Value, 2> ref_returns(return_count);
       BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
+      for (size_t ret = 0; ret < ref_returns.size(); ret++) {
+        case_returns[ret].push_back(ref_returns[ret].op);
+      }
       __ Goto(merge);
 
       __ Bind(merge);
-      for (size_t i = 0; i < direct_returns.size(); i++) {
-        returns[i].op = __ Phi({direct_returns[i].op, ref_returns[i].op},
+      for (size_t i = 0; i < case_returns.size(); i++) {
+        returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
                                RepresentationFor(sig->GetReturn(i)));
       }
     } else {
@@ -5443,8 +5465,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
-                      const FunctionSig* sig, const Value args[],
-                      Value returns[]) {
+                      const FunctionSig* sig, uint32_t feedback_case,
+                      const Value args[], Value returns[]) {
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
 
     std::vector<OpIndex> inlinee_args(inlinee.sig->parameter_count() + 1);
@@ -5504,7 +5526,8 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
         inlinee_decoder.interface().set_inlining_decisions(
-            (*inlining_decisions_->function_calls())[feedback_slot_]);
+            inlining_decisions_
+                ->function_calls()[feedback_slot_][feedback_case]);
       }
     } else {
       no_liftoff_inlining_budget_ -= inlinee.code.length();
@@ -5626,10 +5649,14 @@ class TurboshaftGraphBuildingInterface {
   bool should_inline(int feedback_slot, int size) {
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
-        DCHECK_GT(inlining_decisions_->function_calls()->size(), feedback_slot);
-        InliningTree* tree =
-            (*inlining_decisions_->function_calls())[feedback_slot];
-        return tree && tree->is_inlined();
+        DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
+        // We should inline if at least one case for this feedback slot needs
+        // to be inlined.
+        for (InliningTree* tree :
+             inlining_decisions_->function_calls()[feedback_slot]) {
+          if (tree && tree->is_inlined()) return true;
+        }
+        return false;
       } else {
         return false;
       }
