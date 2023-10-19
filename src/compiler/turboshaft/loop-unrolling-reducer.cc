@@ -44,13 +44,19 @@ bool LoopUnrollingAnalyzer::CanFullyUnrollLoop(const LoopFinder::LoopInfo& info,
   // Checking that one of the successor of the loop header is indeed not in the
   // loop (otherwise, the Branch that ends the loop header is not the Branch
   // that decides to exit the loop).
-  if (loop_finder_.GetLoopHeader(branch->if_true) ==
-      loop_finder_.GetLoopHeader(branch->if_false)) {
+  const Block* if_true_header = loop_finder_.GetLoopHeader(branch->if_true);
+  const Block* if_false_header = loop_finder_.GetLoopHeader(branch->if_false);
+  if (if_true_header == if_false_header) {
     return false;
   }
 
+  // If {if_true} is in the loop, then we're looping if the condition is true,
+  // but if {if_false} is in the loop, then we're looping if the condition is
+  // false.
+  bool loop_if_cond_is = if_true_header == start;
+
   return canonical_loop_matcher_.MatchStaticCanonicalForLoop(
-      branch->condition(), iter_count);
+      branch->condition(), loop_if_cond_is, iter_count);
 }
 
 // Tries to match `phi cmp cst` (or `cst cmp phi`).
@@ -115,7 +121,7 @@ bool StaticCanonicalForLoopMatcher::MatchWordBinop(
 }
 
 bool StaticCanonicalForLoopMatcher::MatchStaticCanonicalForLoop(
-    OpIndex cond_idx, int* iter_count) const {
+    OpIndex cond_idx, bool loop_if_cond_is, int* iter_count) const {
   CmpOp cmp_op;
   OpIndex phi_idx;
   uint64_t cmp_cst;
@@ -146,7 +152,7 @@ bool StaticCanonicalForLoopMatcher::MatchStaticCanonicalForLoop(
           // We have: phi(phi_cst, phi binop_op binop_cst) cmp_op cmp_cst
           // eg, for (i = 0; i < 42; i = i + 2)
           return HasFewIterations(cmp_cst, cmp_op, phi_cst, binop_cst, binop_op,
-                                  binop_rep, iter_count);
+                                  binop_rep, loop_if_cond_is, iter_count);
         }
       } else if (right == phi_idx) {
         // We have: phi(phi_cst, ... binop_op phi) cmp_op cmp_cst
@@ -156,7 +162,7 @@ bool StaticCanonicalForLoopMatcher::MatchStaticCanonicalForLoop(
           // We have: phi(phi_cst, binop_cst binop_op phi) cmp_op cmp_cst
           // eg, for (i = 0; i < 42; i = 2 + i)
           return HasFewIterations(cmp_cst, cmp_op, phi_cst, binop_cst, binop_op,
-                                  binop_rep, iter_count);
+                                  binop_rep, loop_if_cond_is, iter_count);
         }
       }
     }
@@ -288,7 +294,7 @@ template <class Int>
 bool HasFewerIterationsThan(Int init, Int max, CmpOp cmp_op, Int binop_cst,
                             StaticCanonicalForLoopMatcher::BinOp binop_op,
                             WordRepresentation binop_rep, const int max_iter_,
-                            int* iter_count) {
+                            bool loop_if_cond_is, int* iter_count) {
   static_assert(std::is_integral_v<Int>);
   DCHECK_EQ(std::is_unsigned_v<Int>,
             (cmp_op == CmpOp::kUnsignedLessThan ||
@@ -304,7 +310,7 @@ bool HasFewerIterationsThan(Int init, Int max, CmpOp cmp_op, Int binop_cst,
 
   Int curr = init;
   for (int i = 0; i < max_iter_; i++) {
-    if (!Cmp(curr, max, cmp_op)) {
+    if (Cmp(curr, max, cmp_op) != loop_if_cond_is) {
       *iter_count = i;
       return true;
     }
@@ -324,7 +330,7 @@ bool HasFewerIterationsThan(Int init, Int max, CmpOp cmp_op, Int binop_cst,
 bool StaticCanonicalForLoopMatcher::HasFewIterations(
     uint64_t cmp_cst, CmpOp cmp_op, uint64_t initial_input, uint64_t binop_cst,
     StaticCanonicalForLoopMatcher::BinOp binop_op, WordRepresentation binop_rep,
-    int* iter_count) const {
+    bool loop_if_cond_is, int* iter_count) const {
   switch (cmp_op) {
     case CmpOp::kSignedLessThan:
     case CmpOp::kSignedLessThanOrEqual:
@@ -335,13 +341,13 @@ bool StaticCanonicalForLoopMatcher::HasFewIterations(
         return HasFewerIterationsThan<int32_t>(
             static_cast<int32_t>(initial_input), static_cast<int32_t>(cmp_cst),
             cmp_op, static_cast<int32_t>(binop_cst), binop_op, binop_rep,
-            max_iter_, iter_count);
+            max_iter_, loop_if_cond_is, iter_count);
       } else {
         DCHECK_EQ(binop_rep, WordRepresentation::Word64());
         return HasFewerIterationsThan<int64_t>(
             static_cast<int64_t>(initial_input), static_cast<int64_t>(cmp_cst),
             cmp_op, static_cast<int64_t>(binop_cst), binop_op, binop_rep,
-            max_iter_, iter_count);
+            max_iter_, loop_if_cond_is, iter_count);
       }
     case CmpOp::kUnsignedLessThan:
     case CmpOp::kUnsignedLessThanOrEqual:
@@ -352,12 +358,12 @@ bool StaticCanonicalForLoopMatcher::HasFewIterations(
             static_cast<uint32_t>(initial_input),
             static_cast<uint32_t>(cmp_cst), cmp_op,
             static_cast<uint32_t>(binop_cst), binop_op, binop_rep, max_iter_,
-            iter_count);
+            loop_if_cond_is, iter_count);
       } else {
         DCHECK_EQ(binop_rep, WordRepresentation::Word64());
-        return HasFewerIterationsThan<uint64_t>(initial_input, cmp_cst, cmp_op,
-                                                binop_cst, binop_op, binop_rep,
-                                                max_iter_, iter_count);
+        return HasFewerIterationsThan<uint64_t>(
+            initial_input, cmp_cst, cmp_op, binop_cst, binop_op, binop_rep,
+            max_iter_, loop_if_cond_is, iter_count);
       }
   }
 }

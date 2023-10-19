@@ -42,7 +42,8 @@ class StaticCanonicalForLoopMatcher {
                                 const int max_iter)
       : max_iter_(max_iter), matcher_(matcher) {}
 
-  bool MatchStaticCanonicalForLoop(OpIndex cond_idx, int* iter_count) const;
+  bool MatchStaticCanonicalForLoop(OpIndex cond_idx, bool loop_if_cond_is,
+                                   int* iter_count) const;
 
   enum class CmpOp {
     kEqual,
@@ -85,7 +86,7 @@ class StaticCanonicalForLoopMatcher {
   bool HasFewIterations(uint64_t equal_cst, CmpOp cmp_op,
                         uint64_t initial_input, uint64_t binop_cst,
                         BinOp binop_op, WordRepresentation binop_rep,
-                        int* iter_count) const;
+                        bool loop_if_cond_is, int* iter_count) const;
 
   const int max_iter_;
   const OperationMatcher& matcher_;
