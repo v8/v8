@@ -49,9 +49,6 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
 void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
   for (OpIndex op_idx : graph_.OperationIndices(block)) {
     Operation& op = graph_.Get(op_idx);
-    // TODO(mliedtke): We need a typeguard mechanism. Otherwise, how are we
-    // going to figure out the type of an ArrayNew that already got lowered to
-    // some __ Allocate?
     switch (op.opcode) {
       case Opcode::kWasmTypeCast:
         ProcessTypeCast(op.Cast<WasmTypeCastOp>());
@@ -89,12 +86,13 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kWasmAllocateArray:
         ProcessAllocateArray(op.Cast<WasmAllocateArrayOp>());
         break;
+      case Opcode::kWasmAllocateStruct:
+        ProcessAllocateStruct(op.Cast<WasmAllocateStructOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
       default:
-        // TODO(mliedtke): Make sure that we handle all relevant operations
-        // above.
         break;
     }
   }
@@ -168,6 +166,14 @@ void WasmGCTypeAnalyzer::ProcessAllocateArray(
   uint32_t type_index =
       graph_.Get(allocate_array.rtt()).Cast<RttCanonOp>().type_index;
   RefineTypeKnowledge(graph_.Index(allocate_array),
+                      wasm::ValueType::Ref(type_index));
+}
+
+void WasmGCTypeAnalyzer::ProcessAllocateStruct(
+    const WasmAllocateStructOp& allocate_struct) {
+  uint32_t type_index =
+      graph_.Get(allocate_struct.rtt()).Cast<RttCanonOp>().type_index;
+  RefineTypeKnowledge(graph_.Index(allocate_struct),
                       wasm::ValueType::Ref(type_index));
 }
 

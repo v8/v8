@@ -2926,6 +2926,11 @@ class AssemblerOpInterface {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 
+  V<HeapObject> WasmAllocateStruct(V<Map> rtt,
+                                   const wasm::StructType* struct_type) {
+    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type);
+  }
+
   V<Tagged> WasmRefFunc(V<Tagged> wasm_instance, uint32_t function_index) {
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }

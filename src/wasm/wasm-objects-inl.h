@@ -545,15 +545,6 @@ wasm::StructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   return reinterpret_cast<wasm::StructType*>(type_info->native_type());
 }
 
-int WasmStruct::Size(const wasm::StructType* type) {
-  // Object size must fit into a Smi (because of filler objects), and its
-  // computation must not overflow.
-  static_assert(Smi::kMaxValue <= kMaxInt);
-  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
-  return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
-                  Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
-}
-
 // static
 void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   // WasmStructs can be bigger than the {map.instance_size_in_words} field

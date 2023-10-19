@@ -312,6 +312,20 @@ class WasmLoweringReducer : public Next {
     return array;
   }
 
+  OpIndex REDUCE(WasmAllocateStruct)(V<Map> rtt,
+                                     const wasm::StructType* struct_type) {
+    int size = WasmStruct::Size(struct_type);
+    Uninitialized<HeapObject> s = __ Allocate(size, AllocationType::kYoung);
+    __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                       rtt);
+    __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                       LOAD_ROOT(EmptyFixedArray));
+    // Note: Struct initialization isn't finished here, the user defined fields
+    // still need to be initialized by other operations.
+    V<HeapObject> struct_value = __ FinishInitialization(std::move(s));
+    return struct_value;
+  }
+
   OpIndex REDUCE(WasmRefFunc)(V<Tagged> wasm_instance,
                               uint32_t function_index) {
     V<FixedArray> functions =

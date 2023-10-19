@@ -1244,6 +1244,12 @@ class GraphVisitor {
         MapToNewGraph(op.rtt()), MapToNewGraph(op.length()), op.array_type);
   }
 
+  OpIndex AssembleOutputGraphWasmAllocateStruct(
+      const WasmAllocateStructOp& op) {
+    return assembler().ReduceWasmAllocateStruct(MapToNewGraph(op.rtt()),
+                                                op.struct_type);
+  }
+
   OpIndex AssembleOutputGraphWasmRefFunc(const WasmRefFuncOp& op) {
     return assembler().ReduceWasmRefFunc(MapToNewGraph(op.instance()),
                                          op.function_index);

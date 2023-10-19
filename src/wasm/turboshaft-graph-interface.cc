@@ -5352,16 +5352,9 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<HeapObject> StructNewImpl(const StructIndexImmediate& imm, OpIndex args[]) {
-    int size = WasmStruct::Size(imm.struct_type);
-    Uninitialized<HeapObject> s = __ Allocate(size, AllocationType::kYoung);
     V<Map> rtt = __ RttCanon(instance_node_, imm.index);
-    __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    // TODO(14108): Struct initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> struct_value = __ FinishInitialization(std::move(s));
+
+    V<HeapObject> struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
       __ StructSet(struct_value, args[i], imm.struct_type, i,
                    compiler::kWithoutNullCheck);

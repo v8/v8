@@ -114,6 +114,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ArraySet)                             \
   V(ArrayLength)                          \
   V(WasmAllocateArray)                    \
+  V(WasmAllocateStruct)                   \
   V(WasmRefFunc)                          \
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)
@@ -6466,6 +6467,30 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{array_type}; }
   void PrintOptions(std::ostream& os) const;
+};
+
+struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
+  static constexpr OpEffects effects =
+      OpEffects().CanAllocate().CanLeaveCurrentFunction();
+
+  const wasm::StructType* struct_type;
+
+  explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type)
+      : Base(rtt), struct_type(struct_type) {}
+
+  V<Map> rtt() const { return Base::input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{struct_type}; }
 };
 
 struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {

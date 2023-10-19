@@ -1054,6 +1054,15 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmStruct)
 };
 
+int WasmStruct::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of filler objects), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
+                  Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
+}
+
 class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
  public:
   static inline wasm::ArrayType* type(Tagged<Map> map);
