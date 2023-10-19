@@ -821,6 +821,18 @@ class ArrayBufferViewAccessBuilder {
     TNode<Word32T> backed_by_rab_bit = a.Word32And(
         bitfield, a.Uint32Constant(JSArrayBufferView::kIsBackedByRab));
 
+    auto RabLengthTracking = [&]() {
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      TNode<UintPtrT> underlying_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+
+      return a.Word32Or(detached_bit,
+                        a.UintPtrLessThan(underlying_byte_length, byte_offset));
+    };
+
     auto RabFixed = [&]() {
       TNode<UintPtrT> unchecked_byte_length = MachineLoadField<UintPtrT>(
           AccessBuilder::ForJSArrayBufferViewByteLength(), view,
@@ -839,14 +851,14 @@ class ArrayBufferViewAccessBuilder {
     };
 
     // Dispatch depending on rab/gsab and length tracking.
-    return a.MachineSelectIf<Word32T>(length_tracking_bit)
-        .Then([&]() { return detached_bit; })
-        .Else([&]() {
-          return a.MachineSelectIf<Word32T>(backed_by_rab_bit)
-              .Then(RabFixed)
-              .Else([&]() { return detached_bit; })
+    return a.MachineSelectIf<Word32T>(backed_by_rab_bit)
+        .Then([&]() {
+          return a.MachineSelectIf<Word32T>(length_tracking_bit)
+              .Then(RabLengthTracking)
+              .Else(RabFixed)
               .Value();
         })
+        .Else([&]() { return detached_bit; })
         .Value();
   }
 
