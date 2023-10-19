@@ -117,7 +117,7 @@ class Digits {
       return digits_[i];
     } else {
       digit_t result;
-      memcpy(&result, digits_ + i, sizeof(result));
+      memcpy(&result, static_cast<void*>(digits_ + i), sizeof(result));
       return result;
     }
   }
