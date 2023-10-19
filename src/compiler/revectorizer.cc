@@ -339,7 +339,7 @@ bool MaybePackSignExtensionOp(const ZoneVector<Node*>& node_group) {
 
 class EffectChainIterator {
  public:
-  explicit EffectChainIterator(Node* node) : node_(node) {}
+  explicit EffectChainIterator(Node* node) : node_(node), prev_(nullptr) {}
 
   Node* Advance() {
     prev_ = node_;
