@@ -7469,6 +7469,30 @@ V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   return op.saturated_use_count.IsZero();
 }
 
+namespace detail {
+// Computes the number of inputs of an operation, ignoring non-OpIndex inputs
+// (which are always inlined in the operation) and `base::Vector<OpIndex>`
+// inputs.
+template <typename T>
+constexpr size_t input_count(T) {
+  return 0;
+}
+constexpr size_t input_count() { return 0; }
+constexpr size_t input_count(OpIndex) { return 1; }
+constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
+  return inputs.size();
+}
+}  // namespace detail
+
+template <typename Op, typename... Args>
+Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
+                    Args... args) {
+  size_t size = Operation::StorageSlotCount(
+      Op::opcode, (0 + ... + detail::input_count(args)));
+  storage.resize_no_init(size);
+  return new (storage.data()) Op(args...);
+}
+
 #undef FIELD
 
 }  // namespace v8::internal::compiler::turboshaft

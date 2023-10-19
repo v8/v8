@@ -130,6 +130,12 @@ class ValueNumberingReducer : public Next {
     }
   }
 
+  template <class Op>
+  bool WillGVNOp(const Op& op) {
+    Entry* entry = Find(op);
+    return !entry->IsEmpty();
+  }
+
  private:
   // TODO(dmercadier): Once the mapping from Operations to Blocks has been added
   // to turboshaft, remove the `block` field from the `Entry` structure.
@@ -138,6 +144,8 @@ class ValueNumberingReducer : public Next {
     BlockIndex block;
     size_t hash = 0;
     Entry* depth_neighboring_entry = nullptr;
+
+    bool IsEmpty() const { return hash == 0; }
   };
 
   template <class Op>
@@ -152,18 +160,35 @@ class ValueNumberingReducer : public Next {
     }
     RehashIfNeeded();
 
+    size_t hash;
+    Entry* entry = Find(op, &hash);
+    if (entry->IsEmpty()) {
+      // {op} is not present in the state, inserting it.
+      *entry = Entry{op_idx, Asm().current_block()->index(), hash,
+                     depths_heads_.back()};
+      depths_heads_.back() = entry;
+      ++entry_count_;
+      return op_idx;
+    } else {
+      // {op} is already present, removing it from the graph and returning the
+      // previous one.
+      Next::RemoveLast(op_idx);
+      return entry->value;
+    }
+  }
+
+  template <class Op>
+  Entry* Find(const Op& op, size_t* hash_ret = nullptr) {
     constexpr bool same_block_only = std::is_same<Op, PhiOp>::value;
     size_t hash = ComputeHash<same_block_only>(op);
     size_t start_index = hash & mask_;
     for (size_t i = start_index;; i = NextEntryIndex(i)) {
       Entry& entry = table_[i];
-      if (entry.hash == 0) {
-        // We didn't find {op} in {table_}. Inserting it and returning.
-        table_[i] = Entry{op_idx, Asm().current_block()->index(), hash,
-                          depths_heads_.back()};
-        depths_heads_.back() = &table_[i];
-        ++entry_count_;
-        return op_idx;
+      if (entry.IsEmpty()) {
+        // We didn't find {op} in {table_}. Returning where it could be
+        // inserted.
+        if (hash_ret) *hash_ret = hash;
+        return &entry;
       }
       if (entry.hash == hash) {
         const Operation& entry_op = Asm().output_graph().Get(entry.value);
@@ -171,8 +196,7 @@ class ValueNumberingReducer : public Next {
             (!same_block_only ||
              entry.block == Asm().current_block()->index()) &&
             entry_op.Cast<Op>().EqualsForGVN(op)) {
-          Next::RemoveLast(op_idx);
-          return entry.value;
+          return &entry;
         }
       }
       // Making sure that we don't have an infinite loop.
