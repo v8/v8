@@ -215,11 +215,9 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
 void FutexWaitList::AddNode(FutexWaitListNode* node) {
   DCHECK_NULL(node->prev_);
   DCHECK_NULL(node->next_);
-  auto it = location_lists_.find(node->wait_location_);
-  if (it == location_lists_.end()) {
-    location_lists_.insert(
-        std::make_pair(node->wait_location_, HeadAndTail{node, node}));
-  } else {
+  auto [it, inserted] =
+      location_lists_.insert({node->wait_location_, HeadAndTail{node, node}});
+  if (!inserted) {
     it->second.tail->next_ = node;
     node->prev_ = it->second.tail;
     it->second.tail = node;
@@ -229,30 +227,38 @@ void FutexWaitList::AddNode(FutexWaitListNode* node) {
 }
 
 void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
-  auto it = location_lists_.find(node->wait_location_);
-  DCHECK_NE(location_lists_.end(), it);
-  DCHECK(NodeIsOnList(node, it->second.head));
-
-  if (node->prev_) {
+  if (!node->prev_ && !node->next_) {
+    // If the node was the last one on its list, delete the whole list.
+    size_t erased = location_lists_.erase(node->wait_location_);
+    DCHECK_EQ(1, erased);
+    USE(erased);
+  } else if (node->prev_ && node->next_) {
+    // If we have both a successor and a predecessor, skip the lookup in the
+    // list and just update those two nodes directly.
     node->prev_->next_ = node->next_;
-  } else {
-    DCHECK_EQ(node, it->second.head);
-    it->second.head = node->next_;
-  }
-
-  if (node->next_) {
     node->next_->prev_ = node->prev_;
+    node->prev_ = node->next_ = nullptr;
   } else {
-    DCHECK_EQ(node, it->second.tail);
-    it->second.tail = node->prev_;
-  }
+    // Otherwise we have to lookup in the list to find the head and tail
+    // pointers.
+    auto it = location_lists_.find(node->wait_location_);
+    DCHECK_NE(location_lists_.end(), it);
+    DCHECK(NodeIsOnList(node, it->second.head));
 
-  // If the node was the last one on its list, delete the whole list.
-  if (node->prev_ == nullptr && node->next_ == nullptr) {
-    location_lists_.erase(it);
+    if (node->prev_) {
+      DCHECK(!node->next_);
+      node->prev_->next_ = nullptr;
+      DCHECK_EQ(node, it->second.tail);
+      it->second.tail = node->prev_;
+      node->prev_ = nullptr;
+    } else {
+      DCHECK_EQ(node, it->second.head);
+      it->second.head = node->next_;
+      DCHECK(node->next_);
+      node->next_->prev_ = nullptr;
+      node->next_ = nullptr;
+    }
   }
-
-  node->prev_ = node->next_ = nullptr;
 
   Verify();
 }
