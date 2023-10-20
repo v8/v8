@@ -261,10 +261,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Label continuation;
   if (frame_size < v8_flags.stack_size * 1024) {
     Register stack_limit = kScratchReg;
-    Ld_d(stack_limit,
-         FieldMemOperand(kWasmInstanceRegister,
-                         WasmInstanceObject::kRealStackLimitAddressOffset));
-    Ld_d(stack_limit, MemOperand(stack_limit, 0));
+    LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
     Add_d(stack_limit, stack_limit, Operand(frame_size));
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
@@ -3039,9 +3036,10 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   bailout(kRelaxedSimd, "emit_f64x2_qfms");
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  MacroAssembler::Ld_d(limit_address, MemOperand(limit_address, 0));
-  MacroAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  Register limit_address = kScratchReg;
+  LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);
+  Branch(ool_code, ule, sp, Operand(limit_address));
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
