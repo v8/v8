@@ -149,10 +149,17 @@ struct GraphBuilder {
     ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
     ProcessStateValues(builder, frame_state.locals());
     Node* stack = frame_state.stack();
-    if (stack->opcode() == IrOpcode::kHeapConstant &&
-        *HeapConstantOf(stack->op()) ==
-            ReadOnlyRoots(isolate->heap()).optimized_out()) {
-      // Nothing to do in this case.
+    if (v8_flags.turboshaft_frontend) {
+      // If we run graph building before Turbofan's SimplifiedLowering, the
+      // `stack` input of frame states is still a single deopt input, rather
+      // than a StateValues node.
+      if (stack->opcode() == IrOpcode::kHeapConstant &&
+          *HeapConstantOf(stack->op()) ==
+              ReadOnlyRoots(isolate->heap()).optimized_out()) {
+        // Nothing to do in this case.
+      } else {
+        ProcessDeoptInput(builder, stack, MachineType::AnyTagged());
+      }
     } else {
       ProcessStateValues(builder, stack);
     }
