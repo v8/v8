@@ -1668,10 +1668,6 @@ int AddImportWrapperUnits(NativeModule* native_module,
     const WasmFunction& function =
         native_module->module()->functions[func_index];
     if (!IsJSCompatibleSignature(function.sig)) continue;
-    if (UseGenericWasmToJSWrapper(kDefaultImportCallKind, function.sig,
-                                  kNoSuspend)) {
-      continue;
-    }
     uint32_t canonical_type_index =
         native_module->module()
             ->isorecursive_canonical_type_ids[function.sig_index];
@@ -1695,7 +1691,13 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
-  int num_import_wrappers = AddImportWrapperUnits(native_module, builder.get());
+  // Assume that if the generic wasm-to-js wrapper is enabled, we won't compile
+  // too many wrappers at instantiation time, so add no units here
+  // speculatively.
+  int num_import_wrappers =
+      v8_flags.wasm_to_js_generic_wrapper
+          ? 0
+          : AddImportWrapperUnits(native_module, builder.get());
   // Assume that the generic js-to-wasm wrapper can be used if it is enabled and
   // skip eager compilation of any export wrapper.
   int num_export_wrappers =
