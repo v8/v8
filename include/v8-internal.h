@@ -563,11 +563,11 @@ using CodePointerHandle = IndirectPointerHandle;
 // The size of the virtual memory reservation for the code pointer table.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
-constexpr size_t kCodePointerTableReservationSize = 1 * GB;
+constexpr size_t kCodePointerTableReservationSize = 16 * MB;
 
 // Code pointer handles are shifted by a different amount than indirect pointer
 // handles as the tables have a different maximum size.
-constexpr uint32_t kCodePointerHandleShift = 6;
+constexpr uint32_t kCodePointerHandleShift = 12;
 
 // A null handle always references an entry that contains nullptr.
 constexpr CodePointerHandle kNullCodePointerHandle = kNullIndirectPointerHandle;
