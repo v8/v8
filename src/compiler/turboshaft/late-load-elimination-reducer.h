@@ -225,7 +225,7 @@ class MemoryContentTable
   explicit MemoryContentTable(
       Zone* zone, SparseOpIndexSnapshotTable<bool>& non_aliasing_objects,
       SparseOpIndexSnapshotTable<MapMaskAndOr>& object_maps,
-      FixedSidetable<OpIndex>& replacements)
+      FixedOpIndexSidetable<OpIndex>& replacements)
       : ChangeTrackingSnapshotTable(zone),
         non_aliasing_objects_(non_aliasing_objects),
         object_maps_(object_maps),
@@ -517,7 +517,7 @@ class MemoryContentTable
 
   SparseOpIndexSnapshotTable<bool>& non_aliasing_objects_;
   SparseOpIndexSnapshotTable<MapMaskAndOr>& object_maps_;
-  FixedSidetable<OpIndex>& replacements_;
+  FixedOpIndexSidetable<OpIndex>& replacements_;
 
   // TODO(dmercadier): consider using a faster datastructure than
   // ZoneUnorderedMap for {all_keys_}, {base_keys_} and {offset_keys_}.
@@ -552,7 +552,7 @@ class LateLoadEliminationAnalyzer {
       : graph_(graph),
         phase_zone_(phase_zone),
         broker_(broker),
-        replacements_(graph.op_id_count(), phase_zone),
+        replacements_(graph.op_id_count(), phase_zone, &graph),
         non_aliasing_objects_(phase_zone),
         object_maps_(phase_zone),
         memory_(phase_zone, non_aliasing_objects_, object_maps_, replacements_),
@@ -653,7 +653,7 @@ class LateLoadEliminationAnalyzer {
   bool is_wasm_ = PipelineData::Get().is_wasm();
 #endif
 
-  FixedSidetable<OpIndex> replacements_;
+  FixedOpIndexSidetable<OpIndex> replacements_;
 
   // TODO(dmercadier): {non_aliasing_objects_} tends to be weak for
   // backing-stores, because they are often stored into an object right after
@@ -672,8 +672,7 @@ class LateLoadEliminationAnalyzer {
     MapSnapshot maps_snapshot;
     MemorySnapshot memory_snapshot;
   };
-  FixedSidetable<base::Optional<Snapshot>, BlockIndex>
-      block_to_snapshot_mapping_;
+  FixedBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
 
   // {predecessor_alias_napshots_}, {predecessor_maps_snapshots_} and
   // {predecessor_memory_snapshots_} are used as temporary vectors when starting

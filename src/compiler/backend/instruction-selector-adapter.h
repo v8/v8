@@ -555,7 +555,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   using inputs_t = base::Vector<const node_t>;
   using opcode_t = turboshaft::Opcode;
   using id_t = uint32_t;
-  using source_position_table_t = turboshaft::GrowingSidetable<SourcePosition>;
+  using source_position_table_t =
+      turboshaft::GrowingOpIndexSidetable<SourcePosition>;
 
   explicit TurboshaftAdapter(turboshaft::Graph* graph)
       : turboshaft::OperationMatcher(*graph), graph_(graph) {}

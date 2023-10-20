@@ -178,13 +178,14 @@ class DeadCodeAnalysis {
  public:
   explicit DeadCodeAnalysis(Graph& graph, Zone* phase_zone)
       : graph_(graph),
-        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone),
+        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone,
+                  &graph),
         entry_control_state_(graph.block_count(), ControlState::Unreachable(),
                              phase_zone),
         rewritable_branch_targets_(phase_zone) {}
 
   template <bool trace_analysis>
-  std::pair<FixedSidetable<OperationState::Liveness>,
+  std::pair<FixedOpIndexSidetable<OperationState::Liveness>,
             ZoneMap<uint32_t, BlockIndex>>
   Run() {
     if constexpr (trace_analysis) {
@@ -411,7 +412,7 @@ class DeadCodeAnalysis {
 
  private:
   Graph& graph_;
-  FixedSidetable<OperationState::Liveness> liveness_;
+  FixedOpIndexSidetable<OperationState::Liveness> liveness_;
   FixedBlockSidetable<ControlState> entry_control_state_;
   ZoneMap<uint32_t, BlockIndex> rewritable_branch_targets_;
   // The stack check at function entry of leaf functions can be eliminated, as
@@ -457,7 +458,7 @@ class DeadCodeEliminationReducer
   bool IsLeafFunction() const { return analyzer_.is_leaf_function(); }
 
  private:
-  base::Optional<FixedSidetable<OperationState::Liveness>> liveness_;
+  base::Optional<FixedOpIndexSidetable<OperationState::Liveness>> liveness_;
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_{Asm().phase_zone()};
   DeadCodeAnalysis analyzer_{Asm().modifiable_input_graph(),
                              Asm().phase_zone()};

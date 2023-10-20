@@ -55,7 +55,7 @@ struct MemoryAnalyzer {
              reserved_size != other.reserved_size;
     }
   };
-  FixedSidetable<base::Optional<BlockState>, BlockIndex> block_states{
+  FixedBlockSidetable<base::Optional<BlockState>> block_states{
       input_graph.block_count(), phase_zone};
   ZoneUnorderedMap<const AllocateOp*, const AllocateOp*> folded_into{
       phase_zone};

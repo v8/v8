@@ -92,8 +92,8 @@ class WasmGCTypeAnalyzer {
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge
   // at the end of the block.
-  FixedSidetable<MaybeSnapshot, BlockIndex> block_to_snapshot_{
-      graph_.block_count(), phase_zone_};
+  FixedBlockSidetable<MaybeSnapshot> block_to_snapshot_{graph_.block_count(),
+                                                        phase_zone_};
   // For any operation that could potentially refined, this map stores an entry
   // to the inferred input type based on the analysis.
   ZoneUnorderedMap<OpIndex, wasm::ValueType> input_type_map_{phase_zone_};

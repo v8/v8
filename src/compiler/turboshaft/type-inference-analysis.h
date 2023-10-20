@@ -41,15 +41,15 @@ class TypeInferenceAnalysis {
       : graph_(graph),
         // TODO(nicohartmann@): Might put types back into phase_zone once we
         // don't store them in the graph anymore.
-        types_(graph.op_id_count(), Type{}, graph.graph_zone()),
+        types_(graph.op_id_count(), Type{}, graph.graph_zone(), &graph),
         table_(phase_zone),
-        op_to_key_mapping_(phase_zone),
+        op_to_key_mapping_(phase_zone, &graph),
         block_to_snapshot_mapping_(graph.block_count(), base::nullopt,
                                    phase_zone),
         predecessors_(phase_zone),
         graph_zone_(graph.graph_zone()) {}
 
-  GrowingSidetable<Type> Run(
+  GrowingOpIndexSidetable<Type> Run(
       GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>*
           block_refinements = nullptr) {
 #ifdef DEBUG
@@ -640,11 +640,11 @@ class TypeInferenceAnalysis {
 
  private:
   const Graph& graph_;
-  GrowingSidetable<Type> types_;
+  GrowingOpIndexSidetable<Type> types_;
   using table_t = SnapshotTable<Type>;
   table_t table_;
   const Block* current_block_ = nullptr;
-  GrowingSidetable<base::Optional<table_t::Key>> op_to_key_mapping_;
+  GrowingOpIndexSidetable<base::Optional<table_t::Key>> op_to_key_mapping_;
   GrowingBlockSidetable<base::Optional<table_t::Snapshot>>
       block_to_snapshot_mapping_;
   // {predecessors_} is used during merging, but we use an instance variable for

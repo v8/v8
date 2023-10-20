@@ -115,7 +115,7 @@ class AnalyzerIterator {
   // {visited_} maps BlockIndex to the generation they were visited with. If a
   // Block has been visited with a generation `n`, then we never want to revisit
   // it with a generation `k` when `k <= n`.
-  FixedSidetable<uint64_t, BlockIndex> visited_;
+  FixedBlockSidetable<uint64_t> visited_;
 
   // The stack of blocks that are left to visit. We maintain the invariant that
   // the .back() of {stack_} is never out-dated (ie, its generation is always

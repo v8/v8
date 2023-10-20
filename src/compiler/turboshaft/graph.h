@@ -528,9 +528,9 @@ class Graph {
         all_blocks_(graph_zone),
         block_permutation_(graph_zone),
         graph_zone_(graph_zone),
-        source_positions_(graph_zone),
-        operation_origins_(graph_zone),
-        operation_types_(graph_zone)
+        source_positions_(graph_zone, this),
+        operation_origins_(graph_zone, this),
+        operation_types_(graph_zone, this)
 #ifdef DEBUG
         ,
         block_type_refinement_(graph_zone)
@@ -905,23 +905,26 @@ class Graph {
 
   bool IsValid(OpIndex i) const { return i < next_operation_index(); }
 
-  const GrowingSidetable<SourcePosition>& source_positions() const {
+  const GrowingOpIndexSidetable<SourcePosition>& source_positions() const {
     return source_positions_;
   }
-  GrowingSidetable<SourcePosition>& source_positions() {
+  GrowingOpIndexSidetable<SourcePosition>& source_positions() {
     return source_positions_;
   }
 
-  const GrowingSidetable<OpIndex>& operation_origins() const {
+  const GrowingOpIndexSidetable<OpIndex>& operation_origins() const {
     return operation_origins_;
   }
-  GrowingSidetable<OpIndex>& operation_origins() { return operation_origins_; }
+  GrowingOpIndexSidetable<OpIndex>& operation_origins() {
+    return operation_origins_;
+  }
 
   uint32_t DominatorTreeDepth() const { return dominator_tree_depth_; }
-  const GrowingSidetable<Type>& operation_types() const {
+
+  const GrowingOpIndexSidetable<Type>& operation_types() const {
     return operation_types_;
   }
-  GrowingSidetable<Type>& operation_types() { return operation_types_; }
+  GrowingOpIndexSidetable<Type>& operation_types() { return operation_types_; }
 #ifdef DEBUG
   // Store refined types per block here for --trace-turbo printing.
   // TODO(nicohartmann@): Remove this once we have a proper way to print
@@ -968,9 +971,9 @@ class Graph {
     std::swap(block_permutation_, companion.block_permutation_);
     std::swap(next_block_, companion.next_block_);
     std::swap(graph_zone_, companion.graph_zone_);
-    std::swap(source_positions_, companion.source_positions_);
-    std::swap(operation_origins_, companion.operation_origins_);
-    std::swap(operation_types_, companion.operation_types_);
+    source_positions_.SwapData(companion.source_positions_);
+    operation_origins_.SwapData(companion.operation_origins_);
+    operation_types_.SwapData(companion.operation_types_);
 #ifdef DEBUG
     std::swap(block_type_refinement_, companion.block_type_refinement_);
     // Update generation index.
@@ -1019,10 +1022,10 @@ class Graph {
   ZoneVector<Block*> block_permutation_;
   size_t next_block_ = 0;
   Zone* graph_zone_;
-  GrowingSidetable<SourcePosition> source_positions_;
-  GrowingSidetable<OpIndex> operation_origins_;
+  GrowingOpIndexSidetable<SourcePosition> source_positions_;
+  GrowingOpIndexSidetable<OpIndex> operation_origins_;
   uint32_t dominator_tree_depth_ = 0;
-  GrowingSidetable<Type> operation_types_;
+  GrowingOpIndexSidetable<Type> operation_types_;
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
 #endif

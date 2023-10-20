@@ -3615,7 +3615,8 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   OpIndex current_operation_origin_ = OpIndex::Invalid();
   OperationMatcher matcher_;
 #ifdef DEBUG
-  GrowingSidetable<Block*> op_to_block_{this->phase_zone()};
+  GrowingOpIndexSidetable<Block*> op_to_block_{this->phase_zone(),
+                                               &this->output_graph()};
 
   bool ValidInputs(OpIndex op_idx) {
     const Operation& op = this->output_graph().Get(op_idx);

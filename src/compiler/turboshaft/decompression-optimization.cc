@@ -25,13 +25,13 @@ struct DecompressionAnalyzer {
   Zone* phase_zone;
   // We use `uint8_t` instead of `bool` here to avoid the bitvector optimization
   // of std::vector.
-  FixedSidetable<uint8_t> needs_decompression;
+  FixedOpIndexSidetable<uint8_t> needs_decompression;
   ZoneVector<OpIndex> candidates;
 
   DecompressionAnalyzer(const Graph& graph, Zone* phase_zone)
       : graph(graph),
         phase_zone(phase_zone),
-        needs_decompression(graph.op_id_count(), phase_zone),
+        needs_decompression(graph.op_id_count(), phase_zone, &graph),
         candidates(phase_zone) {
     candidates.reserve(graph.op_id_count() / 8);
   }

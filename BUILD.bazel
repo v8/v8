@@ -3083,6 +3083,7 @@ filegroup(
         "src/compiler/turboshaft/required-optimization-reducer.h",
         "src/compiler/turboshaft/runtime-call-descriptors.h",
         "src/compiler/turboshaft/select-lowering-reducer.h",
+        "src/compiler/turboshaft/sidetable.cc",
         "src/compiler/turboshaft/sidetable.h",
         "src/compiler/turboshaft/simplified-lowering-phase.cc",
         "src/compiler/turboshaft/simplified-lowering-phase.h",

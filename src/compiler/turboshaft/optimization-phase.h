@@ -81,10 +81,12 @@ class GraphVisitor {
         phase_zone_(phase_zone),
         origins_(origins),
         current_input_block_(nullptr),
-        op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone),
+        op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone,
+                    &input_graph),
         block_mapping_(input_graph.block_count(), nullptr, phase_zone),
         blocks_needing_variables_(phase_zone),
-        old_opindex_to_variables(input_graph.op_id_count(), phase_zone) {
+        old_opindex_to_variables(input_graph.op_id_count(), phase_zone,
+                                 &input_graph) {
     output_graph_.Reset();
   }
 
@@ -1405,7 +1407,7 @@ class GraphVisitor {
   const Block* current_input_block_;
 
   // Mappings from old OpIndices to new OpIndices.
-  FixedSidetable<OpIndex> op_mapping_;
+  FixedOpIndexSidetable<OpIndex> op_mapping_;
 
   // Mappings from old blocks to new blocks.
   FixedBlockSidetable<Block*> block_mapping_;
@@ -1426,7 +1428,7 @@ class GraphVisitor {
   ZoneSet<BlockIndex> blocks_needing_variables_;
 
   // Mapping from old OpIndex to Variables.
-  FixedSidetable<MaybeVariable> old_opindex_to_variables;
+  FixedOpIndexSidetable<MaybeVariable> old_opindex_to_variables;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

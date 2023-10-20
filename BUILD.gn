@@ -4955,6 +4955,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/recreate-schedule-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
     "src/compiler/turboshaft/representations.cc",
+    "src/compiler/turboshaft/sidetable.cc",
     "src/compiler/turboshaft/simplified-lowering-phase.cc",
     "src/compiler/turboshaft/simplify-tf-loops.cc",
     "src/compiler/turboshaft/store-store-elimination-phase.cc",

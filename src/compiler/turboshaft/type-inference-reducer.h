@@ -547,13 +547,14 @@ class TypeInferenceReducer
   }
 
   TypeInferenceReducerArgs args_{TypeInferenceReducerArgs::Get()};
-  GrowingSidetable<Type> input_graph_types_{Asm().graph_zone()};
-  GrowingSidetable<Type>& output_graph_types_{
+  GrowingOpIndexSidetable<Type> input_graph_types_{Asm().graph_zone(),
+                                                   &Asm().input_graph()};
+  GrowingOpIndexSidetable<Type>& output_graph_types_{
       Asm().output_graph().operation_types()};
   table_t table_{Asm().phase_zone()};
   const Block* current_block_ = nullptr;
-  GrowingSidetable<base::Optional<table_t::Key>> op_to_key_mapping_{
-      Asm().phase_zone()};
+  GrowingOpIndexSidetable<base::Optional<table_t::Key>> op_to_key_mapping_{
+      Asm().phase_zone(), &Asm().output_graph()};
   GrowingBlockSidetable<base::Optional<table_t::Snapshot>>
       block_to_snapshot_mapping_{Asm().input_graph().block_count(),
                                  base::nullopt, Asm().phase_zone()};
