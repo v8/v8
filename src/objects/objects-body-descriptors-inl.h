@@ -152,11 +152,10 @@ void BodyDescriptorBase::IterateCustomWeakPointer(Tagged<HeapObject> obj,
 }
 
 template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateMaybeIndirectPointer(Tagged<HeapObject> obj,
-                                                     int offset,
-                                                     ObjectVisitor* v,
-                                                     IndirectPointerMode mode,
-                                                     IndirectPointerTag tag) {
+void BodyDescriptorBase::IterateTrustedPointer(Tagged<HeapObject> obj,
+                                               int offset, ObjectVisitor* v,
+                                               IndirectPointerMode mode,
+                                               IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag), mode);
 #else
@@ -166,6 +165,13 @@ void BodyDescriptorBase::IterateMaybeIndirectPointer(Tagged<HeapObject> obj,
     IterateCustomWeakPointer(obj, offset, v);
   }
 #endif
+}
+
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
+                                            ObjectVisitor* v,
+                                            IndirectPointerMode mode) {
+  IterateTrustedPointer(obj, offset, v, mode, kCodeIndirectPointerTag);
 }
 
 template <typename ObjectVisitor>
@@ -333,9 +339,7 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     // and the bytecode array corresponding to this function is old. In the rest
     // of the cases this field is treated as strong pointer.
     // See MarkingVisitorBase::VisitJSFunction.
-    IterateMaybeIndirectPointer(obj, kCodeOffset, v,
-                                IndirectPointerMode::kCustom,
-                                kCodeIndirectPointerTag);
+    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kCustom);
     DCHECK_GE(header_size, kCodeOffset);
     // Iterate rest of the header fields
     IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);

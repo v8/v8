@@ -540,8 +540,8 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
 #endif
 }
 
-void MacroAssembler::StoreMaybeIndirectPointerField(Operand dst_field_operand,
-                                                    Register value) {
+void MacroAssembler::StoreTrustedPointerField(Operand dst_field_operand,
+                                              Register value) {
 #ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerField(dst_field_operand, value);
 #else
@@ -549,8 +549,8 @@ void MacroAssembler::StoreMaybeIndirectPointerField(Operand dst_field_operand,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
-    Register destination, Operand field_operand) {
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
+                                                      Operand field_operand) {
   DCHECK(!AreAliased(destination, kScratchRegister));
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
@@ -1047,17 +1047,16 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK_EQ(closure, kJSFunctionRegister);
   // Store the optimized code in the closure.
   AssertCode(optimized_code);
-  StoreMaybeIndirectPointerField(FieldOperand(closure, JSFunction::kCodeOffset),
-                                 optimized_code);
+  StoreCodePointerField(FieldOperand(closure, JSFunction::kCodeOffset),
+                        optimized_code);
 
   // Write barrier clobbers scratch1 below.
   Register value = scratch1;
   movq(value, optimized_code);
 
-  RecordWriteField(
-      closure, JSFunction::kCodeOffset, value, slot_address,
-      SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-      SlotDescriptor::ForMaybeIndirectPointerSlot(kCodeIndirectPointerTag));
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
+                   SlotDescriptor::ForCodePointerSlot());
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -2709,7 +2708,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset));
 #else
   movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
@@ -2740,7 +2739,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   call(rcx);
 #else
@@ -2756,7 +2755,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);

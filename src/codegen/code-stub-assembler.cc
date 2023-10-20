@@ -1851,7 +1851,7 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
 }
 #endif  // V8_ENABLE_SANDBOX
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
 #ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
@@ -1865,7 +1865,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
-    TNode<HeapObject> object, int field_offset) {
+    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
@@ -1884,13 +1884,19 @@ TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TNode<HeapObject> CodeStubAssembler::LoadMaybeIndirectPointerFromObject(
-    TNode<HeapObject> object, int field_offset) {
+TNode<HeapObject> CodeStubAssembler::LoadTrustedPointerFromObject(
+    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  return LoadIndirectPointerFromObject(object, field_offset);
+  return LoadIndirectPointerFromObject(object, field_offset, tag);
 #else
   return LoadObjectField<HeapObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
+    TNode<HeapObject> object, int field_offset) {
+  return UncheckedCast<Code>(LoadTrustedPointerFromObject(
+      object, field_offset, kCodeIndirectPointerTag));
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -3348,8 +3354,7 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
 }
 
 TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
-  return UncheckedCast<Code>(
-      LoadMaybeIndirectPointerFromObject(function, JSFunction::kCodeOffset));
+  return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
 }
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
@@ -3446,7 +3451,7 @@ void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
   OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
-void CodeStubAssembler::StoreMaybeIndirectPointerField(
+void CodeStubAssembler::StoreTrustedPointerField(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
@@ -3456,7 +3461,7 @@ void CodeStubAssembler::StoreMaybeIndirectPointerField(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void CodeStubAssembler::StoreMaybeIndirectPointerFieldNoWriteBarrier(
+void CodeStubAssembler::StoreTrustedPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, IndirectPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
@@ -16212,7 +16217,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
 #ifdef V8_ENABLE_SANDBOX
   // In this case, the entrypoint is stored in the code pointer table entry
   // referenced via the Code object's 'self' indirect pointer.
-  return LoadCodeEntrypointViaIndirectPointerField(
+  return LoadCodeEntrypointViaCodePointerField(
       code, Code::kSelfIndirectPointerOffset);
 #else
   return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
@@ -16247,8 +16252,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreMaybeIndirectPointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset,
-                                               kCodeIndirectPointerTag, code);
+  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
   return CAST(fun);
 }
 

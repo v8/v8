@@ -1583,23 +1583,32 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());
 
-  // Loads an indirect pointer from the heap.
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled.
   void LoadIndirectPointerField(Register destination, MemOperand field_operand,
                                 IndirectPointerTag tag);
 
-  // Store an indirect pointer to the given object in the destination field.
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled.
   void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
 
-  // Store an indirect (if the sandbox is enabled) or direct/tagged (otherwise)
-  // pointer to the given object in the destination field.
-  void StoreMaybeIndirectPointerField(Register value,
-                                      MemOperand dst_field_operand);
+  // Store a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
 
-  // Load the pointer to a Code's entrypoint via an indirect pointer to the
-  // Code object.
-  // Only available when the sandbox is enabled.
-  void LoadCodeEntrypointViaIndirectPointer(Register destination,
-                                            MemOperand field_operand);
+  // Store a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
+    StoreTrustedPointerField(value, dst_field_operand);
+  }
+
+  // Load the pointer to a Code's entrypoint via a code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  void LoadCodeEntrypointViaCodePointer(Register destination,
+                                        MemOperand field_operand);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.

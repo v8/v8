@@ -292,12 +292,16 @@ class SlotDescriptor {
     return SlotDescriptor(tag);
   }
 
-  static SlotDescriptor ForMaybeIndirectPointerSlot(IndirectPointerTag tag) {
+  static SlotDescriptor ForTrustedPointerSlot(IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
     return ForIndirectPointerSlot(tag);
 #else
     return ForDirectPointerSlot();
 #endif
+  }
+
+  static SlotDescriptor ForCodePointerSlot() {
+    return ForTrustedPointerSlot(kCodeIndirectPointerTag);
   }
 
  private:

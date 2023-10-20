@@ -181,8 +181,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   TNode<Smi> builtin_id = LoadObjectField<Smi>(
       shared_info, SharedFunctionInfo::kFunctionDataOffset);
   TNode<Code> code = LoadBuiltin(builtin_id);
-  StoreMaybeIndirectPointerFieldNoWriteBarrier(
-      function, JSFunction::kCodeOffset, kCodeIndirectPointerTag, code);
+  StoreCodePointerFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(

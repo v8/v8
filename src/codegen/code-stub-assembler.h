@@ -1191,24 +1191,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     ExternalPointerTag tag);
 
   // Load an indirect pointer field.
-  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                  int offset);
-
-  // Load a field that contains either an indirect pointer (if the sandbox is
-  // enabled) or a regular/tagged pointer (otherwise).
-  TNode<HeapObject> LoadMaybeIndirectPointerFromObject(TNode<HeapObject> object,
-                                                       int offset);
-
-  // Load the pointer to a Code's entrypoint via an indirect pointer to the
-  // Code object.
   // Only available when the sandbox is enabled.
-  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
-      TNode<HeapObject> object, int offset) {
-    return LoadCodeEntrypointViaIndirectPointerField(object,
-                                                     IntPtrConstant(offset));
+  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
+                                                  int offset,
+                                                  IndirectPointerTag tag);
+
+  // Load a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  TNode<HeapObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
+                                                 int offset,
+                                                 IndirectPointerTag tag);
+
+  // Load a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  TNode<Code> LoadCodePointerFromObject(TNode<HeapObject> object, int offset);
+
+  // Load the pointer to a Code's entrypoint via code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
+                                                       int offset) {
+    return LoadCodeEntrypointViaCodePointerField(object,
+                                                 IntPtrConstant(offset));
   }
-  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
-      TNode<HeapObject> object, TNode<IntPtrT> offset);
+  TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
+                                                       TNode<IntPtrT> offset);
 
 #ifdef V8_ENABLE_SANDBOX
   // Helper function to load a CodePointerHandle from an object and compute the
@@ -1844,14 +1853,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<HeapObject> object, int offset, IndirectPointerTag tag,
       TNode<ExposedTrustedObject> value);
 
-  // Store to a field that either contains an indirect pointer (when the
-  // sandbox is enabled) or a regular (tagged) pointer otherwise.
-  void StoreMaybeIndirectPointerField(TNode<HeapObject> object, int offset,
-                                      IndirectPointerTag tag,
-                                      TNode<ExposedTrustedObject> value);
-  void StoreMaybeIndirectPointerFieldNoWriteBarrier(
+  // Store a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void StoreTrustedPointerField(TNode<HeapObject> object, int offset,
+                                IndirectPointerTag tag,
+                                TNode<ExposedTrustedObject> value);
+  void StoreTrustedPointerFieldNoWriteBarrier(
       TNode<HeapObject> object, int offset, IndirectPointerTag tag,
       TNode<ExposedTrustedObject> value);
+
+  // Store a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void StoreCodePointerField(TNode<HeapObject> object, int offset,
+                             TNode<Code> value) {
+    StoreTrustedPointerField(object, offset, kCodeIndirectPointerTag, value);
+  }
+  void StoreCodePointerFieldNoWriteBarrier(TNode<HeapObject> object, int offset,
+                                           TNode<Code> value) {
+    StoreTrustedPointerFieldNoWriteBarrier(object, offset,
+                                           kCodeIndirectPointerTag, value);
+  }
 
   template <class T>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,

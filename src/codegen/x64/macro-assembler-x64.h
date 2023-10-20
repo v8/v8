@@ -721,23 +721,32 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                 IsolateRootLocation isolateRootLocation =
                                     IsolateRootLocation::kInRootRegister);
 
-  // Loads an indirect pointer from the heap.
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled.
   void LoadIndirectPointerField(Register destination, Operand field_operand,
                                 IndirectPointerTag tag, Register scratch);
 
-  // Store an indirect pointer to the given object in the destination field.
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled.
   void StoreIndirectPointerField(Operand dst_field_operand, Register value);
 
-  // Store an indirect (if the sandbox is enabled) or direct/tagged (otherwise)
-  // pointer to the given object in the destination field.
-  void StoreMaybeIndirectPointerField(Operand dst_field_operand,
-                                      Register value);
+  // Store a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void StoreTrustedPointerField(Operand dst_field_operand, Register value);
 
-  // Load the pointer to a Code's entrypoint via an indirect pointer to the
-  // Code object.
-  // Only available when the sandbox is enabled.
-  void LoadCodeEntrypointViaIndirectPointer(Register destination,
-                                            Operand field_operand);
+  // Store a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void StoreCodePointerField(Operand dst_field_operand, Register value) {
+    StoreTrustedPointerField(dst_field_operand, value);
+  }
+
+  // Load the pointer to a Code's entrypoint via a code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  void LoadCodeEntrypointViaCodePointer(Register destination,
+                                        Operand field_operand);
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of

@@ -1467,12 +1467,11 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
   AssertCode(optimized_code);
-  StoreMaybeIndirectPointerField(
-      optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  RecordWriteField(
-      closure, JSFunction::kCodeOffset, optimized_code, kLRHasNotBeenSaved,
-      SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-      SlotDescriptor::ForMaybeIndirectPointerSlot(kCodeIndirectPointerTag));
+  StoreCodePointerField(optimized_code,
+                        FieldMemOperand(closure, JSFunction::kCodeOffset));
+  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
+                   SlotDescriptor::ForCodePointerSlot());
 }
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
@@ -2455,7 +2454,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       destination,
       FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset));
 #else
@@ -2488,7 +2487,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   Call(code);
 #else
@@ -2505,7 +2504,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaIndirectPointer(
+  LoadCodeEntrypointViaCodePointer(
       code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   // We jump through x17 here because for Branch Identification (BTI) we use
@@ -3588,8 +3587,8 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
 #endif
 }
 
-void MacroAssembler::StoreMaybeIndirectPointerField(
-    Register value, MemOperand dst_field_operand) {
+void MacroAssembler::StoreTrustedPointerField(Register value,
+                                              MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerField(value, dst_field_operand);
 #else
@@ -3597,7 +3596,7 @@ void MacroAssembler::StoreMaybeIndirectPointerField(
 #endif
 }
 
-void MacroAssembler::LoadCodeEntrypointViaIndirectPointer(
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(
     Register destination, MemOperand field_operand) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
