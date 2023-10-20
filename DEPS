@@ -55,7 +55,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.116.1.9128bc4-gomaip',
+  'reclient_version': 're_client_version:0.117.1.21520c6-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd1c8d9f9cc4f1326a09ae23910af79162f844c7f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4aeae8636a9aa43e3fec0b92ff32e69869a42ece',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f2b9d057fbef6eeed860af0ec8e7edcf8213fb1d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5660ea0c027365f5c6a326f1bdcc45dbd34d502f',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f496845cb9f8db416fc711747fe8594364109465',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1b8f00c217165e49030eaab272385a2745c11444',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,9 +239,9 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8f761f57958a1affcc2752f48ba5e5edf8dc1042',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ce4aac950f17cd460c4c8bbb15b0e5011810aa0c',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '55ab36fdbd5da2d899318354bf461267ddcc184a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '3f588d789b567e53fa284be308db4dbf3787d8f3',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
@@ -276,9 +276,9 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8d4b8a60c23515932186285479fe1e9c073cc513',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6433a1d6755957002d0962da182f416d55a1a0f2',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'cbc5f2b0cdd7de12e105368fe4d5bb4109278998',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '7a1763f1b297e0573b7a7ff2914434395f74de90',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '11d9f3e05511a24c9ecbabbc64fc5b15923aeb40',
   'third_party/logdog/logdog':
@@ -306,7 +306,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fef58692c1d7bec94c4ed3d030a45a1832a9615d',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1e1a32112cd638ae0c43c39d2d88361ebd085ea8',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ceb8145f558999832ded3df3232f49f1dec0bdfd',
   'tools/luci-go': {
       'packages': [
         {
