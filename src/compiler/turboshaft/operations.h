@@ -845,6 +845,9 @@ struct alignas(OpIndex) Operation {
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
   void PrintOptions(std::ostream& os) const;
 
+  // Returns true if {this} is the only operation using {value}.
+  bool IsOnlyUserOf(const Operation& value, const Graph& graph) const;
+
  protected:
   // Operation objects store their inputs behind the object. Therefore, they can
   // only be constructed as part of a Graph.

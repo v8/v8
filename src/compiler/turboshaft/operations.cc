@@ -1649,4 +1649,12 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
   }
 }
 
+bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
+  DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
+            1);
+  if (value.saturated_use_count.IsOne()) return true;
+  return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
+         value.saturated_use_count.Get();
+}
+
 }  // namespace v8::internal::compiler::turboshaft

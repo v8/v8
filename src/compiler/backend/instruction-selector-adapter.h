@@ -710,7 +710,15 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
 
     LoadRepresentation loaded_rep() const {
-      return op_->loaded_rep.ToMachineType();
+      MachineType loaded_rep = op_->loaded_rep.ToMachineType();
+      if (op_->result_rep == turboshaft::RegisterRepresentation::Compressed()) {
+        if (loaded_rep == MachineType::AnyTagged()) {
+          return MachineType::AnyCompressed();
+        } else if (loaded_rep == MachineType::TaggedPointer()) {
+          return MachineType::CompressedPointer();
+        }
+      }
+      return loaded_rep;
     }
     bool is_protected(bool* traps_on_null) const {
       if (op_->kind.with_trap_handler) {

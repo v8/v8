@@ -740,7 +740,18 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
   auto m = TryMatchBaseWithScaledIndexAndDisplacement64(selector(), operand);
   DCHECK(m.has_value());
   if (IsCompressed(selector(), m->base)) {
-    UNIMPLEMENTED();
+    DCHECK(!m->index.valid());
+    DCHECK(m->displacement == 0 || ValueFitsIntoImmediate(m->displacement));
+    AddressingMode mode = kMode_MCR;
+    inputs[(*input_count)++] = UseRegister(m->base, reg_kind);
+    if (m->displacement != 0) {
+      inputs[(*input_count)++] =
+          m->displacement_mode == kNegativeDisplacement
+              ? UseImmediate(static_cast<int>(-m->displacement))
+              : UseImmediate(static_cast<int>(m->displacement));
+      mode = kMode_MCRI;
+    }
+    return mode;
   }
   if (TurboshaftAdapter::valid(m->base) &&
       this->Get(m->base).Is<turboshaft::LoadRootRegisterOp>()) {
