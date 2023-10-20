@@ -353,6 +353,18 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 }
 
 void MarkCompactCollector::StartMarking() {
+  // The state for background thread is saved here and maintained for the whole
+  // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
+  use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
+
+  // CppHeap's marker must be initialized before the V8 marker to allow
+  // exchanging of worklists.
+  if (heap_->cpp_heap()) {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
+    CppHeap::From(heap_->cpp_heap())
+        ->InitializeMarking(CppHeap::CollectionType::kMajor);
+  }
+
   std::vector<Address> contexts =
       heap_->memory_measurement()->StartProcessing();
   if (v8_flags.stress_per_context_marking_worklist) {
@@ -364,7 +376,6 @@ void MarkCompactCollector::StartMarking() {
   }
   heap_->tracer()->NotifyMarkingStart();
   code_flush_mode_ = Heap::GetCodeFlushMode(heap_->isolate());
-  use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
   marking_worklists_.CreateContextWorklists(contexts);
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
@@ -671,20 +682,13 @@ void MarkCompactCollector::Prepare() {
   DCHECK_IMPLIES(heap_->incremental_marking()->IsMarking(),
                  heap_->incremental_marking()->IsMajorMarking());
   if (!heap_->incremental_marking()->IsMarking()) {
-    if (heap_->cpp_heap_) {
-      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // InitializeTracing should be called before visitor initialization in
-      // StartMarking.
-      CppHeap::From(heap_->cpp_heap_)
-          ->InitializeTracing(CppHeap::CollectionType::kMajor);
-    }
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
     if (heap_->cpp_heap_) {
       TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // StartTracing immediately starts marking which requires V8 worklists to
       // be set up.
-      CppHeap::From(heap_->cpp_heap_)->StartTracing();
+      CppHeap::From(heap_->cpp_heap_)->StartMarking();
     }
 #ifdef V8_COMPRESS_POINTERS
     heap_->external_pointer_space()->StartCompactingIfNeeded();

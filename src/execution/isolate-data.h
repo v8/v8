@@ -198,10 +198,10 @@ class IsolateData final {
   StackGuard stack_guard_;
 
   //
-  // Hot flags that are regularily checked.
+  // Hot flags that are regularly checked.
   //
 
-  // These flags are regularily checked by write barriers.
+  // These flags are regularly checked by write barriers.
   // Only valid values are 0 or 1.
   uint8_t is_marking_flag_ = false;
   uint8_t is_minor_marking_flag_ = false;

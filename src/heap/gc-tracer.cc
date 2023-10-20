@@ -1003,7 +1003,6 @@ void GCTracer::PrintNVP() const {
           "incremental.layout_change=%.1f "
           "incremental.sweep_array_buffers=%.1f "
           "incremental.sweeping=%.1f "
-          "incremental.embedder_prologue=%.1f "
           "incremental.embedder_tracing=%.1f "
           "incremental_wrapper_tracing_longest_step=%.1f "
           "incremental_longest_step=%.1f "
@@ -1093,7 +1092,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
           current_scope(Scope::MC_INCREMENTAL_START),
           current_scope(Scope::MC_INCREMENTAL_SWEEPING),
-          current_scope(Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE),
           current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING),
           incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
               .longest_step.InMillisecondsF(),

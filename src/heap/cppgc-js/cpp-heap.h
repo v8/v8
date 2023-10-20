@@ -138,10 +138,10 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinishAtomicSweepingIfRunning();
   void FinishSweepingIfOutOfWork();
 
-  void InitializeTracing(
+  void InitializeMarking(
       CollectionType,
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
-  void StartTracing();
+  void StartMarking();
   bool AdvanceTracing(v8::base::TimeDelta max_duration);
   bool IsTracingDone() const;
   void FinishMarkingAndStartSweeping();

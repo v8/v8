@@ -318,15 +318,6 @@ void IncrementalMarking::StartMarkingMajor() {
   heap_->external_pointer_space()->StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
 
-  if (heap_->cpp_heap()) {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    // PrepareForTrace should be called before visitor initialization in
-    // StartMarking.
-    CppHeap::From(heap_->cpp_heap())
-        ->InitializeTracing(CppHeap::CollectionType::kMajor);
-  }
-
   major_collector_->StartMarking();
   current_local_marking_worklists_ =
       major_collector_->local_marking_worklists();
@@ -357,9 +348,8 @@ void IncrementalMarking::StartMarkingMajor() {
   if (heap()->cpp_heap()) {
     // StartTracing may call back into V8 in corner cases, requiring that
     // marking (including write barriers) is fully set up.
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    CppHeap::From(heap()->cpp_heap())->StartTracing();
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
+    CppHeap::From(heap()->cpp_heap())->StartMarking();
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();

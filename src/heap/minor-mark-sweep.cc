@@ -306,11 +306,11 @@ void MinorMarkSweepCollector::StartMarking() {
 #endif  // VERIFY_HEAP
 
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
+  // CppHeap's marker must be initialized before the V8 marker to allow
+  // exchanging of worklists.
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_PROLOGUE);
-    // InitializeTracing should be called before visitor initialization in
-    // StartMarking.
-    cpp_heap->InitializeTracing(CppHeap::CollectionType::kMinor);
+    cpp_heap->InitializeMarking(CppHeap::CollectionType::kMinor);
   }
   DCHECK_NULL(ephemeron_table_list_);
   ephemeron_table_list_ = std::make_unique<EphemeronRememberedSet::TableList>();
@@ -330,7 +330,7 @@ void MinorMarkSweepCollector::StartMarking() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_PROLOGUE);
     // StartTracing immediately starts marking which requires V8 worklists to
     // be set up.
-    cpp_heap->StartTracing();
+    cpp_heap->StartMarking();
   }
 }
 
