@@ -75,14 +75,15 @@ class TrustedObject : public HeapObject {
 // document the potential pitfalls when doing so.
 class ExposedTrustedObject : public TrustedObject {
  public:
-  // Initializes this object by creating its indirect pointer table entry. As
-  // these objects can be created on background threads, this method requires a
+  // Initializes this object by creating its pointer table entry. As these
+  // objects can be created on background threads, this method requires a
   // LocalIsolate* instead of an Isolate*.
   inline void init_self_indirect_pointer(LocalIsolate* isolate);
 
-  // Returns the 'self' indirect pointer of this object. This indirect pointer
-  // references the indirect pointer table (IPT) entry through which this
-  // object can be referenced from inside the sandbox.
+  // Returns the 'self' indirect pointer of this object.
+  // This indirect pointer references a pointer table entry (either in the
+  // trusted pointer table or the code pointer table for Code objects) through
+  // which this object can be referenced from inside the sandbox.
   inline IndirectPointerHandle self_indirect_pointer() const;
 
   DECL_CAST(ExposedTrustedObject)

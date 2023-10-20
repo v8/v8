@@ -182,8 +182,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   ReadOnlySpace* read_only_space() { return heap_->read_only_space(); }
 
 #ifdef V8_COMPRESS_POINTERS
-  IndirectPointerTable::Space* indirect_pointer_space() {
-    return heap_->indirect_pointer_space();
+  TrustedPointerTable::Space* trusted_pointer_space() {
+    return heap_->trusted_pointer_space();
   }
 #endif
 

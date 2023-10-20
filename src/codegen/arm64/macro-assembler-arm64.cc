@@ -3564,10 +3564,10 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
   } else {
     CHECK(root_array_available_);
     Mov(table,
-        ExternalReference::indirect_pointer_table_base_address(isolate()));
-    Mov(destination, Operand(destination, LSR, kIndirectPointerHandleShift));
-    Ldr(destination, MemOperand(table, destination, LSL,
-                                kIndirectPointerTableEntrySizeLog2));
+        ExternalReference::trusted_pointer_table_base_address(isolate()));
+    Mov(destination, Operand(destination, LSR, kTrustedPointerHandleShift));
+    Ldr(destination,
+        MemOperand(table, destination, LSL, kTrustedPointerTableEntrySizeLog2));
   }
   Orr(destination, destination, Immediate(kHeapObjectTag));
 #else

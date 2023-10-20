@@ -72,7 +72,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
             &heap->isolate()->shared_external_pointer_table()),
         shared_external_pointer_space_(
             heap->isolate()->shared_external_pointer_space()),
-        indirect_pointer_table_(&heap->isolate()->indirect_pointer_table())
+        trusted_pointer_table_(&heap->isolate()->trusted_pointer_table())
 #endif  // V8_ENABLE_SANDBOX
   {
   }
@@ -141,8 +141,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                                       IndirectPointerSlot slot,
                                       IndirectPointerMode mode) final;
 
-  void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                      IndirectPointerSlot slot) final;
+  void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                     IndirectPointerSlot slot) final;
 
   void SynchronizePageAccess(Tagged<HeapObject> heap_object) {
 #ifdef THREAD_SANITIZER
@@ -231,7 +231,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
   ExternalPointerTable::Space* const shared_external_pointer_space_;
-  IndirectPointerTable* const indirect_pointer_table_;
+  TrustedPointerTable* const trusted_pointer_table_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

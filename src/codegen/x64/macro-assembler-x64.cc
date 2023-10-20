@@ -514,10 +514,10 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
                               kCodePointerTableEntryCodeObjectOffset));
   } else {
     CHECK(root_array_available_);
-    LoadAddress(scratch, ExternalReference::indirect_pointer_table_base_address(
+    LoadAddress(scratch, ExternalReference::trusted_pointer_table_base_address(
                              isolate()));
-    shrl(destination, Immediate(kIndirectPointerHandleShift));
-    static_assert(kIndirectPointerTableEntrySize == 8);
+    shrl(destination, Immediate(kTrustedPointerHandleShift));
+    static_assert(kTrustedPointerTableEntrySize == 8);
     movq(destination, Operand(scratch, destination, times_8, 0));
   }
 

@@ -185,8 +185,8 @@ class ObjectVisitor {
                                     IndirectPointerSlot slot,
                                     IndirectPointerMode mode) {}
 
-  virtual void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                              IndirectPointerSlot slot) {}
+  virtual void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                             IndirectPointerSlot slot) {}
 
   virtual void VisitMapPointer(Tagged<HeapObject> host) { UNREACHABLE(); }
 };

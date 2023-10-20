@@ -384,10 +384,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                               IndirectPointerMode mode) final {}
-    void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                        IndirectPointerSlot slot) final {
+    void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                       IndirectPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
-      // When an object owning an indirect pointer table entry is relocated, it
+      // When an object owning an pointer table entry is relocated, it
       // needs to update the entry to point to its new location.
 
       // Check if the host object was promoted and moved to RO space. Due to
@@ -425,7 +425,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
         }
       } else {
         // If we ever need to handle objects other than Code here, we would
-        // simply need to use the indirect pointer table for them instead.
+        // simply need to use the trusted pointer table for them instead.
         UNREACHABLE();
       }
 

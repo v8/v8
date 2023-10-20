@@ -195,7 +195,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 }
 
 template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
+void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
@@ -207,8 +207,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
     return;
   }
 
-  IndirectPointerTable* table = indirect_pointer_table_;
-  IndirectPointerTable::Space* space = heap_->indirect_pointer_space();
+  TrustedPointerTable* table = trusted_pointer_table_;
+  TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
   table->Mark(space, handle);
 #else
   UNREACHABLE();

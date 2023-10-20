@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SANDBOX_INDIRECT_POINTER_TABLE_H_
-#define V8_SANDBOX_INDIRECT_POINTER_TABLE_H_
+#ifndef V8_SANDBOX_TRUSTED_POINTER_TABLE_H_
+#define V8_SANDBOX_TRUSTED_POINTER_TABLE_H_
 
 #include "include/v8config.h"
 #include "src/base/atomicops.h"
@@ -21,14 +21,13 @@ class Isolate;
 class Counters;
 
 /**
- * The entries of an IndirectPointerTable.
+ * The entries of a TrustedPointerTable.
  *
- * Each entry contains an (absolute) pointer to a HeapObject.
+ * Each entry contains an (absolute) pointer to a TrustedObject.
  */
-struct IndirectPointerTableEntry {
-  // Make this entry a "regular" entry, containing an absolute pointer to a
-  // HeapObject.
-  inline void MakeIndirectPointerEntry(Address value);
+struct TrustedPointerTableEntry {
+  // Make this entry a "regular" entry, containing an absolute pointer to a TrustedObject.
+  inline void MakeTrustedPointerEntry(Address value);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -61,7 +60,7 @@ struct IndirectPointerTableEntry {
   inline bool IsMarked() const;
 
  private:
-  friend class IndirectPointerTable;
+  friend class TrustedPointerTable;
 
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and this tag in the upper 32 bits.
@@ -70,7 +69,7 @@ struct IndirectPointerTableEntry {
   // The marking bit is stored in the content_ field, see below.
   static constexpr Address kMarkingBit = 1;
 
-  // The pointer to the HeapObject stored in this entry. Also contains the
+  // The pointer to the TrustedObject stored in this entry. Also contains the
   // marking bit: since this is a tagged pointer to a V8 HeapObject, we know
   // that it will be 4-byte aligned and that the LSB should always be set. We
   // therefore use the LSB as marking bit. In this way:
@@ -82,66 +81,60 @@ struct IndirectPointerTableEntry {
   std::atomic<Address> content_;
 };
 
-static_assert(sizeof(IndirectPointerTableEntry) ==
-              kIndirectPointerTableEntrySize);
+static_assert(sizeof(TrustedPointerTableEntry) ==
+              kTrustedPointerTableEntrySize);
 
 /**
- * A table containing (full) pointers to HeapObjects.
+ * A table containing (full) pointers to TrustedObjects.
  *
- * When the sandbox is enabled, an indirect pointer table (IPT) is used to
- * safely reference HeapObjects located outside of the sandbox via indirect
- * pointers (indices into this table). In particular, it is used to reference
- * objects in one of the trusted heap spaces. The IPT then guarantees that
- * every access to an object via an indirect pointer either results in an
- * invalid pointer or a valid pointer to a valid (live) HeapObject of the
- * expected instance type.
+ * When the sandbox is enabled, a trusted pointer table (TPT) is used to safely
+ * reference trusted heap objects located in one of the trusted spaces outside
+ * of the sandbox. The TPT guarantees that every access to an object via a
+ * trusted pointer (an index into the table) either results in an invalid
+ * pointer or a valid pointer to a valid (live) object of the expected type.
  *
- * So in short, the IPT provides a mechanism for memory-safe access to
- * HeapObjects located outside of the sandbox.
- *
- * The IPT is very similar to the external pointer table (EPT), but is used to
+ * The TPT is very similar to the external pointer table (EPT), but is used to
  * reference V8 HeapObjects (located inside a V8 heap) rather than C++ objects
  * (typically located on one of the system heaps). As such, the garbage
- * collector needs to be aware of the IPT mechanism and must be able to mark
- * objects referenced through indirect pointers.
+ * collector needs to be aware of the table indirection.
  */
-class V8_EXPORT_PRIVATE IndirectPointerTable
-    : public ExternalEntityTable<IndirectPointerTableEntry,
-                                 kIndirectPointerTableReservationSize> {
+class V8_EXPORT_PRIVATE TrustedPointerTable
+    : public ExternalEntityTable<TrustedPointerTableEntry,
+                                 kTrustedPointerTableReservationSize> {
  public:
-  // Size of a IndirectPointerTable, for layout computation in IsolateData.
+  // Size of a TrustedPointerTable, for layout computation in IsolateData.
   static int constexpr kSize = 2 * kSystemPointerSize;
-  static_assert(kMaxIndirectPointers == kMaxCapacity);
+  static_assert(kMaxTrustedPointers == kMaxCapacity);
 
-  IndirectPointerTable() = default;
-  IndirectPointerTable(const IndirectPointerTable&) = delete;
-  IndirectPointerTable& operator=(const IndirectPointerTable&) = delete;
+  TrustedPointerTable() = default;
+  TrustedPointerTable(const TrustedPointerTable&) = delete;
+  TrustedPointerTable& operator=(const TrustedPointerTable&) = delete;
 
-  // The Spaces used by a IndirectPointerTable.
+  // The Spaces used by a TrustedPointerTable.
   using Space =
-      ExternalEntityTable<IndirectPointerTableEntry,
-                          kIndirectPointerTableReservationSize>::Space;
+      ExternalEntityTable<TrustedPointerTableEntry,
+                          kTrustedPointerTableReservationSize>::Space;
 
   // Retrieves the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline Address Get(IndirectPointerHandle handle) const;
+  inline Address Get(TrustedPointerHandle handle) const;
 
   // Sets the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline void Set(IndirectPointerHandle handle, Address value);
+  inline void Set(TrustedPointerHandle handle, Address value);
 
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
-  inline IndirectPointerHandle AllocateAndInitializeEntry(Space* space,
+  inline TrustedPointerHandle AllocateAndInitializeEntry(Space* space,
                                                           Address value);
 
   // Marks the specified entry as alive.
   //
   // This method is atomic and can be called from background threads.
-  inline void Mark(Space* space, IndirectPointerHandle handle);
+  inline void Mark(Space* space, TrustedPointerHandle handle);
 
   // Frees all unmarked entries in the given space.
   //
@@ -155,15 +148,15 @@ class V8_EXPORT_PRIVATE IndirectPointerTable
   Address base_address() const { return base(); }
 
  private:
-  inline uint32_t HandleToIndex(IndirectPointerHandle handle) const;
-  inline IndirectPointerHandle IndexToHandle(uint32_t index) const;
+  inline uint32_t HandleToIndex(TrustedPointerHandle handle) const;
+  inline TrustedPointerHandle IndexToHandle(uint32_t index) const;
 };
 
-static_assert(sizeof(IndirectPointerTable) == IndirectPointerTable::kSize);
+static_assert(sizeof(TrustedPointerTable) == TrustedPointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8
 
 #endif  // V8_COMPRESS_POINTERS
 
-#endif  // V8_SANDBOX_INDIRECT_POINTER_TABLE_H_
+#endif  // V8_SANDBOX_TRUSTED_POINTER_TABLE_H_

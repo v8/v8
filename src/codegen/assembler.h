@@ -267,8 +267,8 @@ class AssemblerBuffer {
 
 // Describes a HeapObject slot containing a pointer to another HeapObject. Such
 // a slot can either contain a direct/tagged pointer, or an indirect pointer
-// (i.e. an index into an indirect pointer table, which then contains the
-// actual pointer to the object) together with a specific IndirectPointerTag.
+// (i.e. an index into a pointer table, which then contains the actual pointer
+// to the object) together with a specific IndirectPointerTag.
 class SlotDescriptor {
  public:
   bool contains_direct_pointer() const {

@@ -15,10 +15,10 @@ namespace internal {
 //
 // When accessing an indirect pointer, an IndirectPointerTag must be provided
 // which expresses the expected instance type of the pointed-to object. When
-// the sandbox is enabled, this tag is used by the indirect pointer table to
-// ensure type-safe access to objects referenced via indirect pointers. As
-// IndirectPointerTags are derived from instance types, conversion between the
-// two types is possible and supported through routines defined in this file.
+// the sandbox is enabled, this tag is used to ensure type-safe access to
+// objects referenced via indirect pointers. As IndirectPointerTags are derived
+// from instance types, conversion between the two types is possible and
+// supported through routines defined in this file.
 
 constexpr int kIndirectPointerTagShift = 48;
 constexpr uint64_t kIndirectPointerTagMask = 0xffff000000000000;

@@ -96,7 +96,7 @@ static_assert(sizeof(CodePointerTableEntry) == kCodePointerTableEntrySize);
 /**
  * A table containing pointers to Code.
  *
- * Essentially a specialized version of the indirect pointer table (IPT). A
+ * Essentially a specialized version of the trusted pointer table (TPT). A
  * code pointer table entry contains both a pointer to a Code object as well as
  * a pointer to the entrypoint. This way, the performance sensitive code paths
  * that for example call a JSFunction can directly load the entrypoint from the

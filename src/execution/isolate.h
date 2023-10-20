@@ -45,7 +45,7 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
-#include "src/sandbox/indirect-pointer-table.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG
@@ -2048,16 +2048,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
 
-  IndirectPointerTable& indirect_pointer_table() {
-    return isolate_data_.indirect_pointer_table_;
+  TrustedPointerTable& trusted_pointer_table() {
+    return isolate_data_.trusted_pointer_table_;
   }
 
-  const IndirectPointerTable& indirect_pointer_table() const {
-    return isolate_data_.indirect_pointer_table_;
+  const TrustedPointerTable& trusted_pointer_table() const {
+    return isolate_data_.trusted_pointer_table_;
   }
 
-  Address indirect_pointer_table_base_address() const {
-    return isolate_data_.indirect_pointer_table_.base_address();
+  Address trusted_pointer_table_base_address() const {
+    return isolate_data_.trusted_pointer_table_.base_address();
   }
 #endif  // V8_COMPRESS_POINTERS
 

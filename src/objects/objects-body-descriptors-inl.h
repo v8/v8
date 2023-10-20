@@ -173,7 +173,7 @@ void BodyDescriptorBase::IterateSelfIndirectPointer(Tagged<HeapObject> obj,
                                                     IndirectPointerTag tag,
                                                     ObjectVisitor* v) {
 #ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointerTableEntry(
+  v->VisitTrustedPointerTableEntry(
       obj, obj->RawIndirectPointerField(
                ExposedTrustedObject::kSelfIndirectPointerOffset, tag));
 #endif

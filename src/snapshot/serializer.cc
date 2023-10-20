@@ -1143,7 +1143,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
 #endif
 }
 
-void Serializer::ObjectSerializer::VisitIndirectPointerTableEntry(
+void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   // These slots will be recreated during deserialization. We zero them out in

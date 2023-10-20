@@ -18,13 +18,14 @@ namespace internal {
 // the sandbox is enabled to reference objects _outside_ of the sandbox in a
 // memory-safe way. For that, each indirect pointer has an associated
 // IndirectPointerTag which encodes the type of the referenced object. The
-// indirect pointer table (IPT) then ensures that the tag of the pointer
-// matches the type of the referenced object, or else the pointer will be
+// pointer table indirection then ensures that the tag of the entry in the
+// table matches the type of the referenced object, or else the pointer will be
 // invalid (it cannot be dereferenced).
 
-// Initialize the 'self' indirect pointer that stores a reference back to the
-// owning object. Must not be used for Code objects, as these use the code
-// pointer table instead of the indirect pointer table.
+// Initialize the 'self' indirect pointer that contains a reference back to the
+// owning object through the trusted pointer table. Must not be used for Code
+// objects, as these use the code pointer table instead of the trusted pointer
+// table.
 //
 // Only available when the sandbox is enabled.
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
@@ -32,8 +33,10 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
                                             Tagged<HeapObject> object);
 
 // Reads the IndirectPointerHandle from the field and loads the Object
-// referenced by this handle from the pointer table. The given
-// IndirectPointerTag specifies the expected type of object.
+// referenced by this handle from the appropriate pointer table. The given
+// IndirectPointerTag specifies the expected type of object and determines
+// which pointer table is used: the code pointer table for Code objects and the
+// trusted pointer table for all other trusted objects.
 //
 // Only available when the sandbox is enabled.
 template <IndirectPointerTag tag>

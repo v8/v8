@@ -359,7 +359,7 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
     return Tagged<Object>(addr);
   }
 
-  const IndirectPointerTable& table = isolate->indirect_pointer_table();
+  const TrustedPointerTable& table = isolate->trusted_pointer_table();
   return Tagged<Object>(table.Get(handle));
 #else
   UNREACHABLE();

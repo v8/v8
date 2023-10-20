@@ -10,8 +10,8 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/sandbox/code-pointer-table-inl.h"
-#include "src/sandbox/indirect-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer.h"
+#include "src/sandbox/trusted-pointer-table-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,10 +25,9 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   // kCodeIndirectPointerTag here.
   // TODO(saelo): in the future, we might want to CHECK here or in
   // AllocateAndInitializeEntry that the object lives in trusted space.
-  IndirectPointerTable::Space* space =
-      isolate->heap()->indirect_pointer_space();
+  TrustedPointerTable::Space* space = isolate->heap()->trusted_pointer_space();
   IndirectPointerHandle handle =
-      isolate->indirect_pointer_table()->AllocateAndInitializeEntry(
+      isolate->trusted_pointer_table()->AllocateAndInitializeEntry(
           space, object->ptr());
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads
@@ -59,7 +58,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
     return Tagged<Object>(table->GetCodeObject(handle));
   }
 
-  const IndirectPointerTable& table = isolate->indirect_pointer_table();
+  const TrustedPointerTable& table = isolate->trusted_pointer_table();
   return Tagged<Object>(table.Get(handle));
 #else
   UNREACHABLE();
