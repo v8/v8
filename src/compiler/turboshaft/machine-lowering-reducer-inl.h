@@ -1799,6 +1799,12 @@ class MachineLoweringReducer : public Next {
                              StringAtOp::Kind kind) {
     if (kind == StringAtOp::Kind::kCharCode) {
       Label<Word32> done(this);
+      // TODO(dmercadier): the runtime label should be deferred, and because
+      // Labels/Blocks don't have deferred annotation, we achieve this by
+      // marking all branches to this Label as UNLIKELY, but 1) it's easy to
+      // forget one, and 2) it makes the code less clear: `if(x) {} else
+      // if(likely(y)) {} else {}` looks like `y` is more likely than `x`, but
+      // it just means that `y` is more likely than `!y`.
       Label<> runtime(this);
       // We need a loop here to properly deal with indirect strings
       // (SlicedString, ConsString and ThinString).
@@ -1881,7 +1887,7 @@ class MachineLoweringReducer : public Next {
               }
               END_IF
             }
-            ELSE_IF(__ Word32Equal(representation, kSlicedStringTag)) {
+            ELSE_IF (LIKELY(__ Word32Equal(representation, kSlicedStringTag))) {
               // if_slicedstring
               V<Tagged> offset = __ template LoadField<Tagged>(
                   *receiver, AccessBuilder::ForSlicedStringOffset());
