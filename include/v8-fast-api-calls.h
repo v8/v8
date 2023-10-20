@@ -344,7 +344,8 @@ struct FastApiTypedArray : public FastApiTypedArrayBase {
     ValidateIndex(index);
 #endif  // DEBUG
     T tmp;
-    memcpy(&tmp, reinterpret_cast<T*>(data_) + index, sizeof(T));
+    memcpy(&tmp, static_cast<void*>(reinterpret_cast<T*>(data_) + index),
+           sizeof(T));
     return tmp;
   }
 
