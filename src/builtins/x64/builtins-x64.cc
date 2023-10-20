@@ -3156,17 +3156,24 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
 }
 
 void SyncStackLimit(MacroAssembler* masm, const Register& keep1,
-                    const Register& keep2 = no_reg) {
+                    const Register& keep2 = no_reg,
+                    const Register& keep3 = no_reg) {
   using ER = ExternalReference;
   __ Push(keep1);
   if (keep2 != no_reg) {
     __ Push(keep2);
+  }
+  if (keep3 != no_reg) {
+    __ Push(keep3);
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Move(arg_reg_1, ExternalReference::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
+  }
+  if (keep3 != no_reg) {
+    __ Pop(keep3);
   }
   if (keep2 != no_reg) {
     __ Pop(keep2);
@@ -3175,6 +3182,7 @@ void SyncStackLimit(MacroAssembler* masm, const Register& keep1,
 }
 
 void ReloadParentContinuation(MacroAssembler* masm, Register promise,
+                              Register return_value, Register context,
                               Register tmp1, Register tmp2) {
   Register active_continuation = tmp1;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
@@ -3203,7 +3211,7 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
 
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf, false);
-  SyncStackLimit(masm, promise);
+  SyncStackLimit(masm, promise, return_value, context);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -3300,8 +3308,12 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   // The return value of the wasm function becomes the parameter of the
   // FulfillPromise builtin, and the promise is the return value of this
   // wrapper.
-  __ movq(tmp1, kReturnRegister0);
-  Register promise = kReturnRegister0;
+  static const Builtin_FulfillPromise_InterfaceDescriptor desc;
+  static_assert(kReturnRegister0 == desc.GetRegisterParameter(0));
+
+  Register promise = desc.GetRegisterParameter(0);
+  Register return_value = desc.GetRegisterParameter(1);
+  __ movq(return_value, kReturnRegister0);
   __ LoadRoot(promise, RootIndex::kActiveSuspender);
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
@@ -3310,6 +3322,11 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   __ LoadTaggedField(
       kContextRegister,
       FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
+
+  ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp1,
+                           tmp2);
+  RestoreParentSuspender(masm, tmp1, tmp2);
+
   __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
           1);
   __ Push(promise);
@@ -3317,8 +3334,6 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   __ Pop(promise);
 
   __ bind(return_promise);
-  ReloadParentContinuation(masm, promise, tmp1, tmp2);
-  RestoreParentSuspender(masm, tmp1, tmp2);
 }
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
@@ -3337,8 +3352,11 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
-  __ movq(rbx, kReturnRegister0);
-  Register promise = rax;
+  static const Builtin_RejectPromise_InterfaceDescriptor desc;
+  Register promise = desc.GetRegisterParameter(0);
+  Register reason = desc.GetRegisterParameter(1);
+  Register debug_event = desc.GetRegisterParameter(2);
+  __ movq(reason, kReturnRegister0);
   __ LoadRoot(promise, RootIndex::kActiveSuspender);
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
@@ -3348,15 +3366,13 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
       kContextRegister,
       FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
 
+  ReloadParentContinuation(masm, promise, reason, kContextRegister, r8, rdi);
+  RestoreParentSuspender(masm, r8, rdi);
+
   __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
           1);
   __ Push(promise);
-  static const Builtin_RejectPromise_InterfaceDescriptor desc;
-  static_assert(desc.GetRegisterParameter(0) == rax &&  // promise
-                desc.GetRegisterParameter(1) == rbx &&  // reason
-                desc.GetRegisterParameter(2) == rcx     // debugEvent
-  );
-  __ LoadRoot(rcx, RootIndex::kTrueValue);
+  __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
   __ Pop(promise);
 
@@ -3525,7 +3541,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Label return_promise;
   if (stack_switch) {
-    SwitchBackAndReturnPromise(masm, rbx, rcx, &return_promise);
+    SwitchBackAndReturnPromise(masm, r8, rdi, &return_promise);
   }
   __ bind(&suspend);
 
