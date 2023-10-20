@@ -338,7 +338,8 @@ void MemoryMeasurement::ReportResults() {
     done_.pop_front();
     HandleScope handle_scope(isolate_);
     v8::LocalVector<v8::Context> contexts(
-        reinterpret_cast<v8::Isolate*>(isolate_), request.contexts->length());
+        reinterpret_cast<v8::Isolate*>(isolate_));
+    std::vector<size_t> size_in_bytes;
     // TODO(chromium:1454114): The vector of pairs will be removed when
     // deprecation is complete.
     std::vector<std::pair<v8::Local<v8::Context>, size_t>> sizes;
@@ -349,9 +350,11 @@ void MemoryMeasurement::ReportResults() {
       if (!request.contexts->Get(i).GetHeapObject(&raw_context)) {
         continue;
       }
-      contexts[i] = Utils::Convert<HeapObject, v8::Context>(
-          handle(raw_context, isolate_));
-      sizes.emplace_back(contexts[i], request.sizes[i]);
+      Local<v8::Context> context = Utils::Convert<HeapObject, v8::Context>(
+          direct_handle(raw_context, isolate_), isolate_);
+      contexts.push_back(context);
+      size_in_bytes.push_back(request.sizes[i]);
+      sizes.emplace_back(context, request.sizes[i]);
     }
     // Temporarily call both old and new callbacks.
     START_ALLOW_USE_DEPRECATED()
@@ -360,7 +363,7 @@ void MemoryMeasurement::ReportResults() {
         {sizes,  // TODO(chromium:1454114): This will be removed when
                  // deprecation is complete.
          {contexts.begin(), contexts.end()},
-         {request.sizes.begin(), request.sizes.end()},
+         {size_in_bytes.begin(), size_in_bytes.end()},
          request.shared,
          request.wasm_code,
          request.wasm_metadata});
