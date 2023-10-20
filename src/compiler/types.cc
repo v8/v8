@@ -186,10 +186,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
           return kNull;
         case OddballType::kUndefined:
           return kUndefined;
-        case OddballType::kUninitialized:
-        case OddballType::kOther:
-          // TODO(neis): We should add a kOtherOddball type.
-          return kOtherInternal;
       }
       UNREACHABLE();
     case HOLE_TYPE:

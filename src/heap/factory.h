@@ -125,18 +125,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
   inline ReadOnlyRoots read_only_roots() const;
 
-  Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
-                             Handle<Object> to_number, const char* type_of,
-                             uint8_t kind);
-
   Handle<Hole> NewHole();
-
-  // Marks self references within code generation.
-  Handle<Oddball> NewSelfReferenceMarker();
-
-  // Marks references to a function's basic-block usage counters array during
-  // code generation.
-  Handle<Oddball> NewBasicBlockCountersMarker();
 
   // Allocates a property array initialized with undefined values.
   Handle<PropertyArray> NewPropertyArray(

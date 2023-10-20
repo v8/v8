@@ -733,7 +733,7 @@ class Internals {
   static const int kFirstJSApiObjectType = 0x422;
   static const int kLastJSApiObjectType = 0x80A;
 
-  static const int kUndefinedOddballKind = 5;
+  static const int kUndefinedOddballKind = 4;
   static const int kNullOddballKind = 3;
 
   // Constants used by PropertyCallbackInfo to check if we should throw when an

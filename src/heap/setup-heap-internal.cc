@@ -522,7 +522,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   set_the_hole_value(Hole::cast(obj));
 
   // Set preliminary exception sentinel value before actually initializing it.
-  set_exception(roots.null_value());
+  set_exception(Hole::cast(obj));
 
   // Allocate the empty enum cache.
   {
@@ -603,15 +603,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
     ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, MegaDomHandler::kSize, mega_dom_handler)
-
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, self_reference_marker);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, basic_block_counters_marker);
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map()->set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
@@ -1058,40 +1049,17 @@ bool Heap::CreateReadOnlyObjects() {
                    factory->hole_nan_value());
 
   set_property_cell_hole_value(*factory->NewHole());
-
   set_hash_table_hole_value(*factory->NewHole());
-
-  set_uninitialized_value(
-      *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
-                           handle(Smi::FromInt(-1), isolate()), "undefined",
-                           Oddball::kUninitialized));
-
-  set_arguments_marker(
-      *factory->NewOddball(factory->arguments_marker_map(), "arguments_marker",
-                           handle(Smi::FromInt(-4), isolate()), "undefined",
-                           Oddball::kArgumentsMarker));
-
-  set_termination_exception(*factory->NewOddball(
-      factory->termination_exception_map(), "termination_exception",
-      handle(Smi::FromInt(-3), isolate()), "undefined", Oddball::kOther));
-
-  set_exception(*factory->NewOddball(factory->exception_map(), "exception",
-                                     handle(Smi::FromInt(-5), isolate()),
-                                     "undefined", Oddball::kException));
-
-  set_optimized_out(*factory->NewOddball(factory->optimized_out_map(),
-                                         "optimized_out",
-                                         handle(Smi::FromInt(-6), isolate()),
-                                         "undefined", Oddball::kOptimizedOut));
-
-  set_stale_register(
-      *factory->NewOddball(factory->stale_register_map(), "stale_register",
-                           handle(Smi::FromInt(-7), isolate()), "undefined",
-                           Oddball::kStaleRegister));
+  set_uninitialized_value(*factory->NewHole());
+  set_arguments_marker(*factory->NewHole());
+  set_termination_exception(*factory->NewHole());
+  set_exception(*factory->NewHole());
+  set_optimized_out(*factory->NewHole());
+  set_stale_register(*factory->NewHole());
 
   // Initialize marker objects used during compilation.
-  set_self_reference_marker(*factory->NewSelfReferenceMarker());
-  set_basic_block_counters_marker(*factory->NewBasicBlockCountersMarker());
+  set_self_reference_marker(*factory->NewHole());
+  set_basic_block_counters_marker(*factory->NewHole());
 
   {
     HandleScope handle_scope(isolate());

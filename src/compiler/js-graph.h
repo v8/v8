@@ -113,12 +113,13 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(FixedDoubleArrayMapConstant, Map)            \
   V(WeakFixedArrayMapConstant, Map)              \
   V(HeapNumberMapConstant, Map)                  \
-  V(OptimizedOutConstant, Oddball)               \
-  V(StaleRegisterConstant, Oddball)              \
   V(UndefinedConstant, Undefined)                \
   V(TheHoleConstant, Hole)                       \
   V(PropertyCellHoleConstant, Hole)              \
   V(HashTableHoleConstant, Hole)                 \
+  V(UninitializedConstant, Hole)                 \
+  V(OptimizedOutConstant, Hole)                  \
+  V(StaleRegisterConstant, Hole)                 \
   V(TrueConstant, True)                          \
   V(FalseConstant, False)                        \
   V(NullConstant, Null)                          \

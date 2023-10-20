@@ -223,24 +223,8 @@ consts_misc = [
         'value': 'Oddball::kNull'
     },
     {
-        'name': 'OddballArgumentsMarker',
-        'value': 'Oddball::kArgumentsMarker'
-    },
-    {
         'name': 'OddballUndefined',
         'value': 'Oddball::kUndefined'
-    },
-    {
-        'name': 'OddballUninitialized',
-        'value': 'Oddball::kUninitialized'
-    },
-    {
-        'name': 'OddballOther',
-        'value': 'Oddball::kOther'
-    },
-    {
-        'name': 'OddballException',
-        'value': 'Oddball::kException'
     },
     {
         'name': 'ContextRegister',

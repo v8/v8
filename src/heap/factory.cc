@@ -199,9 +199,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       // point to the newly allocated InstructionStream object.
       Handle<Object> self_reference;
       if (self_reference_.ToHandle(&self_reference)) {
-        DCHECK(IsOddball(*self_reference));
-        DCHECK_EQ(Oddball::cast(*self_reference)->kind(),
-                  Oddball::kSelfReferenceMarker);
+        DCHECK_EQ(*self_reference,
+                  ReadOnlyRoots(isolate_).self_reference_marker());
         DCHECK_NE(kind_, CodeKind::BASELINE);
         if (isolate_->IsGeneratingEmbeddedBuiltins()) {
           isolate_->builtins_constants_table_builder()->PatchSelfReference(
@@ -396,28 +395,6 @@ Handle<Hole> Factory::NewHole() {
                     isolate());
   Hole::Initialize(isolate(), hole, hole_nan_value());
   return hole;
-}
-
-Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
-                                    Handle<Object> to_number,
-                                    const char* type_of, uint8_t kind) {
-  Handle<Oddball> oddball(Oddball::cast(New(map, AllocationType::kReadOnly)),
-                          isolate());
-  Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
-  return oddball;
-}
-
-Handle<Oddball> Factory::NewSelfReferenceMarker() {
-  return NewOddball(self_reference_marker_map(), "self_reference_marker",
-                    handle(Smi::FromInt(-1), isolate()), "undefined",
-                    Oddball::kSelfReferenceMarker);
-}
-
-Handle<Oddball> Factory::NewBasicBlockCountersMarker() {
-  return NewOddball(basic_block_counters_marker_map(),
-                    "basic_block_counters_marker",
-                    handle(Smi::FromInt(-1), isolate()), "undefined",
-                    Oddball::kBasicBlockCountersMarker);
 }
 
 Handle<PropertyArray> Factory::NewPropertyArray(int length,

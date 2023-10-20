@@ -150,8 +150,8 @@ struct GraphBuilder {
     ProcessStateValues(builder, frame_state.locals());
     Node* stack = frame_state.stack();
     if (stack->opcode() == IrOpcode::kHeapConstant &&
-        HeapConstantOf(stack->op())->map() ==
-            ReadOnlyRoots(isolate->heap()).optimized_out_map()) {
+        *HeapConstantOf(stack->op()) ==
+            ReadOnlyRoots(isolate->heap()).optimized_out()) {
       // Nothing to do in this case.
     } else {
       ProcessStateValues(builder, stack);

@@ -70,10 +70,22 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       break;
     case HoleType::kGeneric:
       return TheHoleConstant();
-    case HoleType::kPropertyCell:
+    case HoleType::kPropertyCellHole:
       return PropertyCellHoleConstant();
-    case HoleType::kHashTable:
+    case HoleType::kHashTableHole:
       return HashTableHoleConstant();
+    case HoleType::kOptimizedOut:
+      return OptimizedOutConstant();
+    case HoleType::kStaleRegister:
+      return StaleRegisterConstant();
+    case HoleType::kUninitialized:
+      return UninitializedConstant();
+    case HoleType::kException:
+    case HoleType::kTerminationException:
+    case HoleType::kArgumentsMarker:
+    case HoleType::kSelfReferenceMarker:
+    case HoleType::kBasicBlockCountersMarker:
+      UNREACHABLE();
   }
 
   OddballType oddball_type =
@@ -199,12 +211,6 @@ DEFINE_GETTER(WeakFixedArrayMapConstant, Map,
 DEFINE_GETTER(HeapNumberMapConstant, Map,
               HeapConstantNoHole(factory()->heap_number_map()))
 
-DEFINE_GETTER(OptimizedOutConstant, Oddball,
-              HeapConstantNoHole(factory()->optimized_out()))
-
-DEFINE_GETTER(StaleRegisterConstant, Oddball,
-              HeapConstantNoHole(factory()->stale_register()))
-
 DEFINE_GETTER(UndefinedConstant, Undefined,
               HeapConstantNoHole(factory()->undefined_value()))
 
@@ -216,6 +222,15 @@ DEFINE_GETTER(PropertyCellHoleConstant, Hole,
 
 DEFINE_GETTER(HashTableHoleConstant, Hole,
               HeapConstantHole(factory()->hash_table_hole_value()))
+
+DEFINE_GETTER(UninitializedConstant, Hole,
+              HeapConstantHole(factory()->uninitialized_value()))
+
+DEFINE_GETTER(OptimizedOutConstant, Hole,
+              HeapConstantHole(factory()->optimized_out()))
+
+DEFINE_GETTER(StaleRegisterConstant, Hole,
+              HeapConstantHole(factory()->stale_register()))
 
 DEFINE_GETTER(TrueConstant, True, HeapConstantNoHole(factory()->true_value()))
 

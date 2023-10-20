@@ -12,6 +12,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/object-list-macros.h"
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-compact-set.h"
 
@@ -72,15 +73,16 @@ enum class OddballType : uint8_t {
   kBoolean,  // True or False.
   kUndefined,
   kNull,
-  kUninitialized,
-  kOther  // Oddball, but none of the above.
 };
 
 enum class HoleType : uint8_t {
   kNone,  // Not a Hole.
-  kGeneric,
-  kPropertyCell,
-  kHashTable,
+
+#define FOR_HOLE(Name, name, Root) k##Name,
+  HOLE_LIST(FOR_HOLE)
+#undef FOR_HOLE
+
+      kGeneric = kTheHole,
 };
 
 enum class RefSerializationKind {

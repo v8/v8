@@ -61,15 +61,7 @@ class Oddball : public PrimitiveHeapObject {
   static const uint8_t kTrue = 1;
   static const uint8_t kNotBooleanMask = static_cast<uint8_t>(~1);
   static const uint8_t kNull = 3;
-  static const uint8_t kArgumentsMarker = 4;
-  static const uint8_t kUndefined = 5;
-  static const uint8_t kUninitialized = 6;
-  static const uint8_t kOther = 7;
-  static const uint8_t kException = 8;
-  static const uint8_t kOptimizedOut = 9;
-  static const uint8_t kStaleRegister = 10;
-  static const uint8_t kSelfReferenceMarker = 10;
-  static const uint8_t kBasicBlockCountersMarker = 11;
+  static const uint8_t kUndefined = 4;
 
   using BodyDescriptor =
       FixedBodyDescriptor<kToStringOffset, kKindOffset, kSize>;

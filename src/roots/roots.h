@@ -58,7 +58,7 @@ class RootVisitor;
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
-  V(Oddball, uninitialized_value, UninitializedValue)                          \
+  V(Hole, uninitialized_value, UninitializedValue)                             \
   V(Undefined, undefined_value, UndefinedValue)                                \
   V(Hole, the_hole_value, TheHoleValue)                                        \
   V(Null, null_value, NullValue)                                               \
@@ -89,13 +89,12 @@ class RootVisitor;
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
-  /* Oddballs */                                                               \
-  V(Oddball, arguments_marker, ArgumentsMarker)                                \
-  V(Oddball, exception, Exception)                                             \
-  V(Oddball, termination_exception, TerminationException)                      \
-  V(Oddball, optimized_out, OptimizedOut)                                      \
-  V(Oddball, stale_register, StaleRegister)                                    \
   /* Holes */                                                                  \
+  V(Hole, arguments_marker, ArgumentsMarker)                                   \
+  V(Hole, exception, Exception)                                                \
+  V(Hole, termination_exception, TerminationException)                         \
+  V(Hole, optimized_out, OptimizedOut)                                         \
+  V(Hole, stale_register, StaleRegister)                                       \
   V(Hole, property_cell_hole_value, PropertyCellHoleValue)                     \
   V(Hole, hash_table_hole_value, HashTableHoleValue)                           \
   /* Maps */                                                                   \
@@ -184,17 +183,9 @@ class RootVisitor;
     SharedUncachedExternalTwoByteStringMap)                                    \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
-  V(Map, hole_map, HoleMap)                                                    \
   V(Map, null_map, NullMap)                                                    \
   V(Map, boolean_map, BooleanMap)                                              \
-  V(Map, uninitialized_map, UninitializedMap)                                  \
-  V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
-  V(Map, exception_map, ExceptionMap)                                          \
-  V(Map, termination_exception_map, TerminationExceptionMap)                   \
-  V(Map, optimized_out_map, OptimizedOutMap)                                   \
-  V(Map, stale_register_map, StaleRegisterMap)                                 \
-  V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
-  V(Map, basic_block_counters_marker_map, BasicBlockCountersMarkerMap)         \
+  V(Map, hole_map, HoleMap)                                                    \
   /* Shared space object maps */                                               \
   V(Map, js_shared_array_map, JSSharedArrayMap)                                \
   V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
@@ -230,9 +221,9 @@ class RootVisitor;
   /* Table of strings of one-byte single characters */                         \
   V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Marker for self-references during code-generation */                      \
-  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
+  V(Hole, self_reference_marker, SelfReferenceMarker)                          \
   /* Marker for basic-block usage counters array during code-generation */     \
-  V(Oddball, basic_block_counters_marker, BasicBlockCountersMarker)            \
+  V(Hole, basic_block_counters_marker, BasicBlockCountersMarker)               \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \

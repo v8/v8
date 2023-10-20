@@ -1756,7 +1756,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     // via the boilerplate_migration_access lock.
     ObjectRef boilerplate_value = maybe_boilerplate_value.value();
 
-    // Uninitialized fields are marked through the `uninitialized_value` Oddball
+    // Uninitialized fields are marked through the `uninitialized_value` marker
     // (even for Smi representation!), or in the case of Double representation
     // through a HeapNumber containing the hole-NaN. Since Double-to-Tagged
     // representation changes are done in-place, we may even encounter these
@@ -1764,8 +1764,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     // Note that although we create nodes to write `uninitialized_value` into
     // the object, the field should be overwritten immediately with a real
     // value, and `uninitialized_value` should never be exposed to JS.
-    ObjectRef uninitialized_oddball = broker()->uninitialized_value();
-    if (boilerplate_value.equals(uninitialized_oddball) ||
+    ObjectRef uninitialized_marker = broker()->uninitialized_value();
+    if (boilerplate_value.equals(uninitialized_marker) ||
         (boilerplate_value.IsHeapNumber() &&
          boilerplate_value.AsHeapNumber().value_as_bits() == kHoleNanInt64)) {
       access.const_field_info = ConstFieldInfo::None();
@@ -1789,13 +1789,13 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                     jsgraph()->ConstantNoHole(number));
       value = effect = builder.Finish();
     } else {
-      // It's fine to store the 'uninitialized' Oddball into a Smi field since
+      // It's fine to store the 'uninitialized' marker into a Smi field since
       // it will get overwritten anyways and the store's MachineType (AnyTagged)
       // is compatible with it.
       DCHECK_IMPLIES(property_details.representation().IsSmi() &&
                          !boilerplate_value.IsSmi(),
-                     boilerplate_value.equals(uninitialized_oddball));
-      value = jsgraph()->ConstantNoHole(boilerplate_value, broker());
+                     boilerplate_value.equals(uninitialized_marker));
+      value = jsgraph()->ConstantMaybeHole(boilerplate_value, broker());
     }
     inobject_fields.push_back(std::make_pair(access, value));
   }

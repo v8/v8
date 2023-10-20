@@ -1202,23 +1202,6 @@ void Oddball::OddballVerify(Isolate* isolate) {
     CHECK(*this == roots.null_value());
   } else if (map() == roots.boolean_map()) {
     CHECK(*this == roots.true_value() || *this == roots.false_value());
-  } else if (map() == roots.uninitialized_map()) {
-    CHECK(*this == roots.uninitialized_value());
-  } else if (map() == roots.arguments_marker_map()) {
-    CHECK(*this == roots.arguments_marker());
-  } else if (map() == roots.termination_exception_map()) {
-    CHECK(*this == roots.termination_exception());
-  } else if (map() == roots.exception_map()) {
-    CHECK(*this == roots.exception());
-  } else if (map() == roots.optimized_out_map()) {
-    CHECK(*this == roots.optimized_out());
-  } else if (map() == roots.stale_register_map()) {
-    CHECK(*this == roots.stale_register());
-  } else if (map() == roots.self_reference_marker_map()) {
-    // Multiple instances of this oddball may exist at once.
-    CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
-  } else if (map() == roots.basic_block_counters_marker_map()) {
-    CHECK(*this == roots.basic_block_counters_marker());
   } else {
     UNREACHABLE();
   }

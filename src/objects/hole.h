@@ -21,8 +21,6 @@ class Hole : public HeapObject {
  public:
   inline void set_raw_numeric_value(uint64_t bits);
 
-  inline uint8_t kind() const;
-
   DECL_CAST(Hole)
 
   DECL_VERIFIER(Hole)

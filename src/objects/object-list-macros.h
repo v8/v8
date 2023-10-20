@@ -388,21 +388,25 @@ namespace internal {
   HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
-#define ODDBALL_LIST(V)                                     \
-  V(Undefined, undefined_value, UndefinedValue)             \
-  V(Null, null_value, NullValue)                            \
-  V(Exception, exception, Exception)                        \
-  V(Uninitialized, uninitialized_value, UninitializedValue) \
-  V(True, true_value, TrueValue)                            \
-  V(False, false_value, FalseValue)                         \
-  V(ArgumentsMarker, arguments_marker, ArgumentsMarker)     \
-  V(OptimizedOut, optimized_out, OptimizedOut)              \
-  V(StaleRegister, stale_register, StaleRegister)
+#define ODDBALL_LIST(V)                         \
+  V(Undefined, undefined_value, UndefinedValue) \
+  V(Null, null_value, NullValue)                \
+  V(True, true_value, TrueValue)                \
+  V(False, false_value, FalseValue)
 
 #define HOLE_LIST(V)                                                   \
   V(TheHole, the_hole_value, TheHoleValue)                             \
   V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
-  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)
+  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)          \
+  V(Exception, exception, Exception)                                   \
+  V(TerminationException, termination_exception, TerminationException) \
+  V(Uninitialized, uninitialized_value, UninitializedValue)            \
+  V(ArgumentsMarker, arguments_marker, ArgumentsMarker)                \
+  V(OptimizedOut, optimized_out, OptimizedOut)                         \
+  V(StaleRegister, stale_register, StaleRegister)                      \
+  V(SelfReferenceMarker, self_reference_marker, SelfReferenceMarker)   \
+  V(BasicBlockCountersMarker, basic_block_counters_marker,             \
+    BasicBlockCountersMarker)
 
 #define OBJECT_TYPE_LIST(V) \
   V(Primitive)              \

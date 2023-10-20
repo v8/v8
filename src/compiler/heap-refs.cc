@@ -1207,17 +1207,7 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   if (equals(broker->boolean_map())) {
     return OddballType::kBoolean;
   }
-  if (equals(broker->uninitialized_map())) {
-    return OddballType::kUninitialized;
-  }
-  DCHECK(equals(broker->termination_exception_map()) ||
-         equals(broker->arguments_marker_map()) ||
-         equals(broker->optimized_out_map()) ||
-         equals(broker->exception_map()) ||
-         equals(broker->self_reference_marker_map()) ||
-         equals(broker->basic_block_counters_marker_map()) ||
-         equals(broker->stale_register_map()));
-  return OddballType::kOther;
+  UNREACHABLE();
 }
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(JSHeapBroker* broker,
@@ -1874,15 +1864,15 @@ bool ObjectRef::IsHashTableHole() const {
 }
 
 HoleType ObjectRef::HoleType() const {
-  if (i::IsTheHole(*object())) {
-    return HoleType::kGeneric;
-  } else if (i::IsPropertyCellHole(*object())) {
-    return HoleType::kPropertyCell;
-  } else if (i::IsHashTableHole(*object())) {
-    return HoleType::kHashTable;
-  } else {
-    return HoleType::kNone;
+#define IF_HOLE_THEN_RETURN(Name, name, Root) \
+  if (i::Is##Name(*object())) {               \
+    return HoleType::k##Name;                 \
   }
+
+  HOLE_LIST(IF_HOLE_THEN_RETURN)
+#undef IF_HOLE_THEN_RETURN
+
+  return HoleType::kNone;
 }
 
 bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
@@ -2089,13 +2079,7 @@ OddballType GetOddballType(Isolate* isolate, Tagged<Map> map) {
   if (map == roots.boolean_map()) {
     return OddballType::kBoolean;
   }
-  if (map == roots.uninitialized_map()) {
-    return OddballType::kUninitialized;
-  }
-  DCHECK(map == roots.termination_exception_map() ||
-         map == roots.arguments_marker_map() ||
-         map == roots.optimized_out_map() || map == roots.stale_register_map());
-  return OddballType::kOther;
+  UNREACHABLE();
 }
 
 }  // namespace
