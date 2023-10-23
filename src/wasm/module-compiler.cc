@@ -2725,8 +2725,9 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       size_t code_size_estimate =
           wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
               module.get(), include_liftoff, job->dynamic_tiering_);
-      job->DoSync<PrepareAndStartCompile>(std::move(module), true,
-                                          code_size_estimate);
+      job->DoSync<PrepareAndStartCompile>(
+          std::move(module), true /* start_compilation */,
+          true /* lazy_functions_are_validated */, code_size_estimate);
     }
   }
 
@@ -2741,9 +2742,12 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
   PrepareAndStartCompile(std::shared_ptr<const WasmModule> module,
-                         bool start_compilation, size_t code_size_estimate)
+                         bool start_compilation,
+                         bool lazy_functions_are_validated,
+                         size_t code_size_estimate)
       : module_(std::move(module)),
         start_compilation_(start_compilation),
+        lazy_functions_are_validated_(lazy_functions_are_validated),
         code_size_estimate_(code_size_estimate) {}
 
  private:
@@ -2758,7 +2762,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                                             code_size_estimate_)) {
       job->FinishCompile(true);
       return;
-    } else {
+    } else if (!lazy_functions_are_validated_) {
       // If we are not streaming and did not get a cache hit, we might have hit
       // the path where the streaming decoder got a prefix cache hit, but the
       // module then turned out to be invalid, and we are running it through
@@ -2811,6 +2815,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
   const std::shared_ptr<const WasmModule> module_;
   const bool start_compilation_;
+  const bool lazy_functions_are_validated_;
   const size_t code_size_estimate_;
 };
 
@@ -2944,7 +2949,11 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
           num_functions, num_imported_functions, code_section_length,
           include_liftoff, job_->dynamic_tiering_);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
-      decoder_.shared_module(), false, code_size_estimate);
+      decoder_.shared_module(),
+      // start_compilation: false; triggered when we receive the bodies.
+      false,
+      // lazy_functions_are_validated: false (bodies not received yet).
+      false, code_size_estimate);
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetWireBytesStorage(std::move(wire_bytes_storage));
@@ -3080,7 +3089,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
             module.get(), include_liftoff, job_->dynamic_tiering_);
     job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
-        std::move(module), true, code_size_estimate);
+        std::move(module), true /* start_compilation */,
+        false /* lazy_functions_are_validated_ */, code_size_estimate);
     return;
   }
 
