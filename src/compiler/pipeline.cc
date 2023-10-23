@@ -381,10 +381,8 @@ class PipelineData {
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
-  turboshaft::PipelineData CreateTurboshaftPipeline(
-      turboshaft::TurboshaftPipelineKind kind) {
-    return turboshaft::PipelineData{kind,
-                                    info_,
+  turboshaft::PipelineData CreateTurboshaftPipeline() {
+    return turboshaft::PipelineData{info_,
                                     schedule_,
                                     graph_zone_,
                                     broker_,
@@ -766,8 +764,7 @@ class PipelineImpl final {
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
-  turboshaft::PipelineData CreateTurboshaftPipeline(
-      turboshaft::TurboshaftPipelineKind kind);
+  turboshaft::PipelineData CreateTurboshaftPipeline();
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void Revectorize();
@@ -3068,8 +3065,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
                                 v8_flags.turboshaft_trace_reduction);
 
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data->CreateTurboshaftPipeline(
-            turboshaft::TurboshaftPipelineKind::kJS));
+        data->CreateTurboshaftPipeline());
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
     if (base::Optional<BailoutReason> bailout =
@@ -3305,50 +3301,25 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.Run<CsaEarlyOptimizationPhase>();
   pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
 
-  if (!v8_flags.turboshaft_csa) {
-    // Optimize memory access and allocation operations.
-    pipeline.Run<MemoryOptimizationPhase>();
-    pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+  // Optimize memory access and allocation operations.
+  pipeline.Run<MemoryOptimizationPhase>();
+  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
-    pipeline.Run<CsaOptimizationPhase>();
-    pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
+  pipeline.Run<CsaOptimizationPhase>();
+  pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
 
-    pipeline.Run<DecompressionOptimizationPhase>();
-    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
-                               true);
+  pipeline.Run<DecompressionOptimizationPhase>();
+  pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
+                             true);
 
-    pipeline.Run<BranchConditionDuplicationPhase>();
-    pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
-                               true);
+  pipeline.Run<BranchConditionDuplicationPhase>();
+  pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
+                             true);
 
-    pipeline.Run<VerifyGraphPhase>(true);
-  }
+  pipeline.Run<VerifyGraphPhase>(true);
 
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
-
-  if (v8_flags.turboshaft_csa) {
-    UnparkedScopeIfNeeded scope(data.broker(),
-                                v8_flags.turboshaft_trace_reduction);
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data.CreateTurboshaftPipeline(
-            turboshaft::TurboshaftPipelineKind::kCSA));
-    turboshaft::Tracing::Scope tracing_scope(data.info());
-
-    Linkage linkage(call_descriptor);
-    base::Optional<BailoutReason> bailout =
-        pipeline.Run<turboshaft::BuildGraphPhase>(&linkage);
-    CHECK(!bailout.has_value());
-
-    pipeline.Run<turboshaft::OptimizePhase>();
-
-    auto [new_graph, new_schedule] =
-        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
-    data.set_graph(new_graph);
-    data.set_schedule(new_schedule);
-    TraceSchedule(data.info(), &data, data.schedule(),
-                  turboshaft::RecreateSchedulePhase::phase_name());
-  }
 
   // First run code generation on a copy of the pipeline, in order to be able to
   // repeat it for jump optimization. The first run has to happen on a temporary
@@ -3781,8 +3752,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   {
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
-        pipeline.CreateTurboshaftPipeline(
-            turboshaft::TurboshaftPipelineKind::kWasm));
+        pipeline.CreateTurboshaftPipeline());
     auto& turboshaft_pipeline = turboshaft_scope.value();
     turboshaft_pipeline.Value().SetIsWasm(env->module,
                                           compilation_data.func_body.sig);
@@ -4051,9 +4021,8 @@ void PipelineImpl::ComputeScheduledGraph() {
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
 }
 
-turboshaft::PipelineData PipelineImpl::CreateTurboshaftPipeline(
-    turboshaft::TurboshaftPipelineKind kind) {
-  return data_->CreateTurboshaftPipeline(kind);
+turboshaft::PipelineData PipelineImpl::CreateTurboshaftPipeline() {
+  return data_->CreateTurboshaftPipeline();
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC

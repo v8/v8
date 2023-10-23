@@ -9,10 +9,8 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
-#include "src/compiler/write-barrier-kind.h"
 
 namespace v8::internal::compiler::turboshaft {
 

@@ -14,7 +14,6 @@
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/turboshaft/wasm-lowering-reducer.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 

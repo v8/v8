@@ -1162,10 +1162,6 @@ class GraphVisitor {
         MapToNewGraph(op.right_low()), MapToNewGraph(op.right_high()), op.kind);
   }
 
-  OpIndex AssembleOutputGraphComment(const CommentOp& op) {
-    return assembler().ReduceComment(op.message);
-  }
-
 #ifdef V8_ENABLE_WEBASSEMBLY
   OpIndex AssembleOutputGraphGlobalGet(const GlobalGetOp& op) {
     return assembler().ReduceGlobalGet(MapToNewGraph(op.instance()), op.global);
