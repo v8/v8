@@ -68,15 +68,14 @@ BytecodeIterator::BytecodeIterator(const uint8_t* start, const uint8_t* end,
   if (pc_ > end_) pc_ = end_;
 }
 
-DecodeResult ValidateFunctionBody(WasmFeatures enabled,
+DecodeResult ValidateFunctionBody(Zone* zone, WasmFeatures enabled,
                                   const WasmModule* module,
                                   WasmFeatures* detected,
                                   const FunctionBody& body) {
   // Asm.js functions should never be validated; they are valid by design.
   DCHECK_EQ(kWasmOrigin, module->origin);
-  Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, EmptyInterface> decoder(
-      &zone, module, enabled, detected, body);
+      zone, module, enabled, detected, body);
   decoder.Decode();
   return decoder.toResult(nullptr);
 }

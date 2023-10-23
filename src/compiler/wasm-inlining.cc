@@ -189,8 +189,8 @@ void WasmInliner::Finalize() {
     // If the inlinee was not validated before, do that now.
     if (V8_UNLIKELY(
             !module()->function_was_validated(candidate.inlinee_index))) {
-      if (ValidateFunctionBody(env_->enabled_features, module(), detected_,
-                               inlinee_body)
+      if (ValidateFunctionBody(zone(), env_->enabled_features, module(),
+                               detected_, inlinee_body)
               .failed()) {
         Trace(candidate, "function is invalid");
         // At this point we cannot easily raise a compilation error any more.

@@ -16,6 +16,7 @@
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::wasm {
 
@@ -91,8 +92,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
            v8_flags.experimental_wasm_pgo_from_file ||
            v8_flags.experimental_wasm_compilation_hints);
-    if (ValidateFunctionBody(env->enabled_features, env->module, detected,
-                             func_body)
+    Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
+    if (ValidateFunctionBody(&validation_zone, env->enabled_features,
+                             env->module, detected, func_body)
             .failed()) {
       return {};
     }

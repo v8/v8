@@ -1739,7 +1739,7 @@ class ModuleDecoderImpl : public Decoder {
     FunctionBody body{function.sig, off(pc_), pc_, end_};
 
     WasmFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+    DecodeResult result = ValidateFunctionBody(zone, enabled_features_, module,
                                                &unused_detected_features, body);
 
     if (result.failed()) return FunctionResult{std::move(result).error()};

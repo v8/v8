@@ -480,8 +480,9 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   WasmFeatures unused_detected_features;
   // Validate Wasm modules; asm.js is assumed to be always valid.
   if (env.module->origin == kWasmOrigin) {
-    DecodeResult validation_result = ValidateFunctionBody(
-        env.enabled_features, env.module, &unused_detected_features, func_body);
+    DecodeResult validation_result =
+        ValidateFunctionBody(zone_, env.enabled_features, env.module,
+                             &unused_detected_features, func_body);
     if (validation_result.failed()) {
       FATAL("Validation failed: %s",
             validation_result.error().message().c_str());

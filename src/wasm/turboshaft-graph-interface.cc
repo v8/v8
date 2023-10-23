@@ -5672,8 +5672,9 @@ class TurboshaftGraphBuildingInterface {
 
     // If the inlinee was not validated before, do that now.
     if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
-      if (ValidateFunctionBody(decoder->enabled_, decoder->module_,
-                               decoder->detected_, inlinee_body)
+      if (ValidateFunctionBody(decoder->zone_, decoder->enabled_,
+                               decoder->module_, decoder->detected_,
+                               inlinee_body)
               .failed()) {
         // At this point we cannot easily raise a compilation error any more.
         // Since this situation is highly unlikely though, we just ignore this

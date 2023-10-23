@@ -1111,7 +1111,8 @@ class CompilationUnitBuilder {
       js_to_wasm_wrapper_units_;
 };
 
-DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
+DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
+                                    int func_index,
                                     base::Vector<const uint8_t> code,
                                     WasmFeatures enabled_features) {
   // Sometimes functions get validated unpredictably in the background, for
@@ -1121,8 +1122,8 @@ DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
   const WasmFunction* func = &module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
   WasmFeatures detected_features;
-  DecodeResult result =
-      ValidateFunctionBody(enabled_features, module, &detected_features, body);
+  DecodeResult result = ValidateFunctionBody(zone, enabled_features, module,
+                                             &detected_features, body);
   if (result.ok()) module->set_function_validated(func_index);
   return result;
 }
@@ -1240,8 +1241,11 @@ void ThrowLazyCompilationError(Isolate* isolate,
       compilation_state->GetWireBytesStorage()->GetCode(func->code);
 
   auto enabled_features = native_module->enabled_features();
-  DecodeResult decode_result =
-      ValidateSingleFunction(module, func_index, code, enabled_features);
+  // This path is unlikely, so the overhead for creating an extra Zone is
+  // not important.
+  Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
+  DecodeResult decode_result = ValidateSingleFunction(
+      &validation_zone, module, func_index, code, enabled_features);
 
   CHECK(decode_result.failed());
   wasm::ErrorThrower thrower(isolate, nullptr);
@@ -2244,9 +2248,12 @@ class ValidateFunctionsStreamingJob final : public JobTask {
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
     using Unit = ValidateFunctionsStreamingJobData::Unit;
+    Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     while (Unit unit = data_->GetUnit()) {
-      DecodeResult result = ValidateSingleFunction(
-          module_, unit.func_index, unit.code, enabled_features_);
+      validation_zone.Reset();
+      DecodeResult result =
+          ValidateSingleFunction(&validation_zone, module_, unit.func_index,
+                                 unit.code, enabled_features_);
 
       if (result.failed()) {
         data_->found_error.store(true, std::memory_order_relaxed);

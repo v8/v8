@@ -200,7 +200,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   // If the inlinee was not validated before, do that now.
   if (V8_UNLIKELY(!module->function_was_validated(fct_index))) {
     wasm::WasmFeatures unused_detected_features;
-    if (ValidateFunctionBody(enabled_features_, module,
+    if (ValidateFunctionBody(graph()->zone(), enabled_features_, module,
                              &unused_detected_features, inlinee_body)
             .failed()) {
       // At this point we cannot easily raise a compilation error any more.
