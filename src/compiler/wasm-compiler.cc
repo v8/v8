@@ -8179,12 +8179,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         },
         // Initialize wasm-specific callback options fields
         [this](Node* options_stack_slot) {
-          // TODO(14260): Do we need to support multiple memories for the fast
-          // API?
-          Node* mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-              Memory0Start, kMaybeSandboxedPointer);
-          Node* mem_size = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-              Memory0Size, MachineType::UintPtr());
+          Node* mem_start;
+          Node* mem_size;
+          if (module_->memories.empty()) {
+            mem_start = gasm_->UintPtrConstant(0);
+            mem_size = gasm_->UintPtrConstant(0);
+          } else if (module_->memories.size() == 1) {
+            mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
+                Memory0Start, kMaybeSandboxedPointer);
+            mem_size = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
+                Memory0Size, MachineType::UintPtr());
+          } else {
+            FATAL(
+                "Fast API does not support multiple memories yet "
+                "(https://crbug.com/v8/14260)");
+          }
 
           constexpr int kSize = sizeof(FastApiTypedArray<uint8_t>);
           constexpr int kAlign = alignof(FastApiTypedArray<uint8_t>);
