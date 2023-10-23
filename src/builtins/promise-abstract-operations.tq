@@ -448,6 +448,7 @@ transitioning macro PerformPromiseThenImpl(
     const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
     const promiseReactions =
         UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
+
     const reaction = NewPromiseReaction(
         handlerContext, promiseReactions, resultPromiseOrCapability,
         onFulfilled, onRejected);

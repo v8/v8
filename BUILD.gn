@@ -366,6 +366,9 @@ declare_args() {
   # Allow for JS promise hooks (instead of just C++).
   v8_enable_javascript_promise_hooks = false
 
+  # Allow for JS promise hooks (instead of just C++).
+  v8_enable_continuation_preserved_embedder_data = true
+
   # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
   # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
   v8_enable_allocation_folding = true
@@ -1174,6 +1177,9 @@ config("features") {
   }
   if (v8_enable_javascript_promise_hooks) {
     defines += [ "V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS" ]
+  }
+  if (v8_enable_continuation_preserved_embedder_data) {
+    defines += [ "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA" ]
   }
   if (v8_enable_allocation_folding) {
     defines += [ "V8_ALLOCATION_FOLDING" ]
