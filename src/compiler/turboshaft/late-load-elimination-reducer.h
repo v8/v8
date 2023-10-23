@@ -691,8 +691,8 @@ class LateLoadEliminationReducer : public Next {
     if (v8_flags.turboshaft_load_elimination) {
       DCHECK(AllowHandleDereference::IsAllowed());
       analyzer_.Run();
-      Next::Analyze();
     }
+    Next::Analyze();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
