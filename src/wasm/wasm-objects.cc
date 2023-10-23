@@ -1531,6 +1531,9 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   // {entry} can be cleared, {undefined}, or a ready {Code}.
   if (entry.IsStrongOrWeak() && IsCode(entry.GetHeapObject())) {
     wrapper = handle(Code::cast(entry.GetHeapObject()), isolate);
+  } else if (!function.imported &&
+             CanUseGenericJsToWasmWrapper(module, function.sig)) {
+    wrapper = isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for

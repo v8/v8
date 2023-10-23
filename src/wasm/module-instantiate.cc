@@ -1805,9 +1805,9 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     default: {
       // The imported function is a callable.
-      if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend()) &&
-          (kind == ImportCallKind::kJSFunctionArityMatch ||
-           kind == ImportCallKind::kJSFunctionArityMismatch)) {
+      if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
+        DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
+               kind == ImportCallKind::kJSFunctionArityMismatch);
         ImportedFunctionEntry entry(instance, func_index);
         entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
                           expected_sig);

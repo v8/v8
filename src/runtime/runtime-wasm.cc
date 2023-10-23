@@ -419,9 +419,14 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  // This runtime function is called for wrapper tier up, but wrapper tierup
+  // never happens for imports.
+  bool imported = function.imported;
+  V8_ASSUME(!imported);
+
   Handle<Code> wrapper_code =
-      wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-          isolate, sig, canonical_sig_index, module);
+      wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+          isolate, sig, canonical_sig_index, module, imported);
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to verify that the wrapper is replaced, even if the function

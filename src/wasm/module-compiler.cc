@@ -1624,13 +1624,15 @@ using JSToWasmWrapperKey = std::pair<bool, uint32_t>;
 // Returns the number of units added.
 int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
                           CompilationUnitBuilder* builder) {
+  // Remember units already triggered for compilation.
   std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
-  for (auto exp : native_module->module()->export_table) {
+
+  const WasmModule* module = native_module->module();
+  for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    auto& function = native_module->module()->functions[exp.index];
+    auto& function = module->functions[exp.index];
     uint32_t canonical_type_index =
-        native_module->module()
-            ->isorecursive_canonical_type_ids[function.sig_index];
+        module->isorecursive_canonical_type_ids[function.sig_index];
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
     if (wrapper_index < isolate->heap()->js_to_wasm_wrappers()->length()) {
@@ -1645,13 +1647,11 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
       }
     }
     JSToWasmWrapperKey key(function.imported, canonical_type_index);
-    if (keys.insert(key).second) {
-      auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, canonical_type_index, native_module->module(),
-          function.imported, native_module->enabled_features(),
-          JSToWasmWrapperCompilationUnit::kAllowGeneric);
-      builder->AddJSToWasmWrapperUnit(std::move(unit));
-    }
+    if (!keys.insert(key).second) continue;  // Already triggered.
+    auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
+        isolate, function.sig, canonical_type_index, module, function.imported,
+        native_module->enabled_features());
+    builder->AddJSToWasmWrapperUnit(std::move(unit));
   }
 
   return static_cast<int>(keys.size());
@@ -1696,8 +1696,12 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
       Impl(native_module->compilation_state());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
   int num_import_wrappers = AddImportWrapperUnits(native_module, builder.get());
+  // Assume that the generic js-to-wasm wrapper can be used if it is enabled and
+  // skip eager compilation of any export wrapper.
   int num_export_wrappers =
-      AddExportWrapperUnits(isolate, native_module, builder.get());
+      v8_flags.wasm_generic_wrapper
+          ? 0
+          : AddExportWrapperUnits(isolate, native_module, builder.get());
   compilation_state->InitializeCompilationProgress(
       num_import_wrappers, num_export_wrappers, pgo_info);
   return builder;
@@ -2050,6 +2054,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
       module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
+    // Ensure that we have the right wrappers in this isolate.
     CompileJsToWasmWrappers(isolate, module.get());
     return native_module;
   }
@@ -3589,10 +3594,6 @@ CompilationStateImpl::GetJSToWasmWrapperCompilationUnit(size_t index) {
 
 void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
                                                     const WasmModule* module) {
-  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
-  // optimization we create a code memory modification scope that avoids
-  // changing the page permissions back-and-forth between RWX and RX, because
-  // many such wrapper are allocated in sequence below.
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinalizeJSToWasmWrappers", "wrappers",
                js_to_wasm_wrapper_units_.size());
@@ -3601,18 +3602,16 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
                                                1);
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit->isolate());
-    // Note: The code is either the compiled signature-specific wrapper or the
-    // generic wrapper built-in.
     Handle<Code> code = unit->Finalize();
-    if (!code->is_builtin()) {
-      uint32_t index =
-          GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
-      isolate->heap()->js_to_wasm_wrappers()->Set(
-          index, MaybeObject::FromObject(*code));
-      // Do not increase code stats for non-jitted wrappers.
-      RecordStats(*code, isolate->counters());
-      isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
-    }
+    // Each JSToWasmWrapperCompilationUnit compiles an actual wrappers and never
+    // returns the generic builtin.
+    DCHECK(!code->is_builtin());
+    uint32_t index =
+        GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
+    isolate->heap()->js_to_wasm_wrappers()->Set(index,
+                                                MaybeObject::FromObject(*code));
+    RecordStats(*code, isolate->counters());
+    isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
   }
 }
 
@@ -3992,6 +3991,10 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     if (exp.kind != kExternalFunction) continue;
 
     auto& function = module->functions[exp.index];
+    bool use_generic_wrapper =
+        !function.imported &&
+        CanUseGenericJsToWasmWrapper(module, function.sig);
+    if (use_generic_wrapper) continue;  // Nothing to compile.
     uint32_t canonical_type_index =
         module->isorecursive_canonical_type_ids[function.sig_index];
     int wrapper_index =
@@ -4005,14 +4008,14 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
 
     JSToWasmWrapperKey key(function.imported, canonical_type_index);
     const auto [it, inserted] = set.insert(key);
-    if (inserted) {
-      auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, canonical_type_index, module,
-          function.imported, enabled_features,
-          JSToWasmWrapperCompilationUnit::kAllowGeneric);
-      compilation_units.emplace_back(key, std::move(unit));
-    }
+    if (!inserted) continue;  // Compilation already triggered.
+    auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
+        isolate, function.sig, canonical_type_index, module, function.imported,
+        enabled_features);
+    compilation_units.emplace_back(key, std::move(unit));
   }
+
+  if (compilation_units.empty()) return;
 
   {
     // This is nested inside the event above, so the name can be less
@@ -4020,7 +4023,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     TRACE_EVENT1("v8.wasm", "wasm.JsToWasmWrapperCompilation", "num_wrappers",
                  compilation_units.size());
     auto job = std::make_unique<CompileJSToWasmWrapperJob>(&compilation_units);
-    if (v8_flags.wasm_num_compilation_tasks > 0) {
+    if (V8_LIKELY(v8_flags.wasm_num_compilation_tasks > 0)) {
       auto job_handle = V8::GetCurrentPlatform()->CreateJob(
           TaskPriority::kUserVisible, std::move(job));
 
@@ -4031,24 +4034,19 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     }
   }
 
-  // Finalize compilation jobs in the main thread.
-  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
-  // optimization we create a code memory modification scope that avoids
-  // changing the page permissions back-and-forth between RWX and RX, because
-  // many such wrapper are allocated in sequence below.
+  // Finalize compilation jobs on the main thread.
   for (auto& pair : compilation_units) {
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
     Handle<Code> code = unit->Finalize();
-    if (!code->is_builtin()) {
-      int wrapper_index = GetExportWrapperIndex(key.second, key.first);
-      isolate->heap()->js_to_wasm_wrappers()->Set(
-          wrapper_index, HeapObjectReference::Strong(*code));
-      // Do not increase code stats for non-jitted wrappers.
-      RecordStats(*code, isolate->counters());
-      isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
-    }
+    DCHECK(!code->is_builtin());
+    int wrapper_index = GetExportWrapperIndex(key.second, key.first);
+    isolate->heap()->js_to_wasm_wrappers()->Set(
+        wrapper_index, HeapObjectReference::Strong(*code));
+    // Do not increase code stats for non-jitted wrappers.
+    RecordStats(*code, isolate->counters());
+    isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
   }
 }
 
