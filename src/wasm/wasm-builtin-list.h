@@ -23,6 +23,8 @@ namespace v8::internal::wasm {
   V(WasmLiftoffFrameSetup)                                                     \
   V(WasmDebugBreak)                                                            \
   V(WasmInt32ToHeapNumber)                                                     \
+  V(WasmFloat64ToString)                                                       \
+  V(WasmIntToString)                                                           \
   V(WasmTaggedNonSmiToInt32)                                                   \
   V(WasmFloat32ToNumber)                                                       \
   V(WasmFloat64ToNumber)                                                       \

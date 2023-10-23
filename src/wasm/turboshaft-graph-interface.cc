@@ -998,6 +998,39 @@ class TurboshaftGraphBuildingInterface {
     return __ WasmTypeCast(value.op, rtt, config);
   }
 
+  void BuildModifyThreadInWasmFlagHelper(OpIndex thread_in_wasm_flag_address,
+                                         bool new_value) {
+    if (v8_flags.debug_code) {
+      V<Word32> flag_value =
+          __ Load(thread_in_wasm_flag_address, LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::Int32(), 0);
+
+      IF (UNLIKELY(__ Word32Equal(flag_value, new_value))) {
+        OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
+            new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                      : AbortReason::kUnexpectedThreadInWasmUnset));
+        CallRuntime(Runtime::kAbort, {message_id});
+        __ Unreachable();
+      }
+      END_IF
+    }
+
+    __ Store(thread_in_wasm_flag_address, __ Word32Constant(new_value),
+             LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
+             compiler::kNoWriteBarrier);
+  }
+
+  void BuildModifyThreadInWasmFlag(bool new_value) {
+    if (!trap_handler::IsTrapHandlerEnabled()) return;
+
+    OpIndex isolate_root = __ LoadRootRegister();
+    OpIndex thread_in_wasm_flag_address =
+        __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::PointerSized(),
+                Isolate::thread_in_wasm_flag_address_offset());
+    BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
+  }
+
   void TypeCheckDataView(FullDecoder* decoder, V<Tagged> dataview,
                          DataViewOp op_type) {
     Builtin builtin_to_call;
@@ -1400,9 +1433,23 @@ class TurboshaftGraphBuildingInterface {
       }
 
       // Other string-related imports.
-      // TODO(14108): Implement the other string-related imports.
       case WKI::kDoubleToString:
+        BuildModifyThreadInWasmFlag(false);
+        result =
+            CallBuiltinThroughJumptable(decoder, Builtin::kWasmFloat64ToString,
+                                        {args[0].op}, Operator::kEliminatable);
+        BuildModifyThreadInWasmFlag(true);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
       case WKI::kIntToString:
+        BuildModifyThreadInWasmFlag(false);
+        result = CallBuiltinThroughJumptable(decoder, Builtin::kWasmIntToString,
+                                             {args[0].op, args[1].op},
+                                             Operator::kNoDeopt);
+        BuildModifyThreadInWasmFlag(true);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      // TODO(14108): Implement the other string-related imports.
       case WKI::kParseFloat:
       case WKI::kStringIndexOf:
       case WKI::kStringToLocaleLowerCaseStringref:
