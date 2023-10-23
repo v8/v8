@@ -1699,9 +1699,10 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
           ? 0
           : AddImportWrapperUnits(native_module, builder.get());
   // Assume that the generic js-to-wasm wrapper can be used if it is enabled and
-  // skip eager compilation of any export wrapper.
+  // skip eager compilation of any export wrapper. Note that the generic
+  // js-to-wasm wrapper does not support asm.js (yet).
   int num_export_wrappers =
-      v8_flags.wasm_generic_wrapper
+      v8_flags.wasm_generic_wrapper && !is_asmjs_module(native_module->module())
           ? 0
           : AddExportWrapperUnits(isolate, native_module, builder.get());
   compilation_state->InitializeCompilationProgress(
