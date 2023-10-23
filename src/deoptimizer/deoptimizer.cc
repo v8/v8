@@ -1024,7 +1024,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   base::Optional<Tagged<DebugInfo>> debug_info =
       shared->TryGetDebugInfo(isolate());
   if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-    bytecode_array = debug_info.value()->DebugBytecodeArray();
+    bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
   } else {
     bytecode_array = shared->GetBytecodeArray(isolate());
   }

@@ -14,10 +14,9 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitCodePointerTableEntryField(Address field_address,
-                                              Isolate* isolate,
-                                              Tagged<HeapObject> owning_code,
-                                              Address entrypoint) {
+V8_INLINE void InitSelfCodePointerField(Address field_address, Isolate* isolate,
+                                        Tagged<HeapObject> owning_code,
+                                        Address entrypoint) {
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* space =
       ReadOnlyHeap::Contains(field_address)
@@ -36,8 +35,7 @@ V8_INLINE void InitCodePointerTableEntryField(Address field_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-V8_INLINE Address
-ReadCodeEntrypointViaIndirectPointerField(Address field_address) {
+V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address) {
 #ifdef V8_ENABLE_SANDBOX
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
@@ -52,8 +50,8 @@ ReadCodeEntrypointViaIndirectPointerField(Address field_address) {
 #endif  // V8_ENABLE_SANDBOX
 }
 
-V8_INLINE void WriteCodeEntrypointViaIndirectPointerField(Address field_address,
-                                                          Address value) {
+V8_INLINE void WriteCodeEntrypointViaCodePointerField(Address field_address,
+                                                      Address value) {
 #ifdef V8_ENABLE_SANDBOX
   // See comment above for why this is a Relaxed_Load.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);

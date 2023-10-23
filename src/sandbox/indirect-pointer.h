@@ -28,6 +28,9 @@ namespace internal {
 // table.
 //
 // Only available when the sandbox is enabled.
+// TODO(saelo): we might want to move this method into trusted-pointer.h and
+// name it InitSelfTrustedPointerField to be consistent with
+// InitSelfCodePointerField.
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
                                             LocalIsolate* isolate,
                                             Tagged<HeapObject> object);

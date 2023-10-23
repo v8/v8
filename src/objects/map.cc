@@ -361,6 +361,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       if (instance_type == PROTOTYPE_INFO_TYPE) {
         return kVisitPrototypeInfo;
       }
+      if (instance_type == DEBUG_INFO_TYPE) {
+        return kVisitDebugInfo;
+      }
 #if V8_ENABLE_WEBASSEMBLY
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;

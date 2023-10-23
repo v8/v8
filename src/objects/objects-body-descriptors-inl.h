@@ -584,6 +584,26 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+    IterateTrustedPointer(obj, kDebugBytecodeArrayOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kBytecodeArrayIndirectPointerTag);
+    IterateTrustedPointer(obj, kOriginalBytecodeArrayOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kBytecodeArrayIndirectPointerTag);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return obj->SizeFromMap(map);
+  }
+};
+
 class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

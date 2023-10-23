@@ -522,6 +522,31 @@
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
+#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                        \
+  inline Tagged<type> name(const Isolate* isolate, AcquireLoadTag) const; \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,             \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);   \
+  inline bool has_##name(AcquireLoadTag) const;                           \
+  inline void clear_##name(ReleaseStoreTag);
+
+#define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)         \
+  inline Tagged<type> holder::name(const Isolate* isolate, AcquireLoadTag) \
+      const {                                                              \
+    DCHECK(has_##name(kAcquireLoad));                                      \
+    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));      \
+  }                                                                        \
+  inline void holder::set_##name(Tagged<type> value, ReleaseStoreTag,      \
+                                 WriteBarrierMode mode) {                  \
+    WriteTrustedPointerField<tag>(offset, value);                          \
+    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,   \
+                                              mode);                       \
+  }                                                                        \
+  inline bool holder::has_##name(AcquireLoadTag) const {                   \
+    return !IsTrustedPointerFieldCleared(offset);                          \
+  }                                                                        \
+  inline void holder::clear_##name(ReleaseStoreTag) {                      \
+    ClearTrustedPointerField(offset);                                      \
+  }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
@@ -678,6 +703,19 @@
         object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
   } while (false)
 #endif
+
+#ifdef V8_ENABLE_SANDBOX
+#define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                  mode)                       \
+  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, mode)
+#else
+#define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                  mode)                       \
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+#endif
+#define CONDITIONAL_CODE_POINTER_WRITE_BARRIER(object, offset, value, mode) \
+  CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(                                \
+      object, offset, kCodeIndirectPointerTag, value, mode)
 
 #define ACQUIRE_READ_INT8_FIELD(p, offset) \
   static_cast<int8_t>(base::Acquire_Load(  \

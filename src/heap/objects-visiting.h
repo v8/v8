@@ -32,6 +32,7 @@ namespace internal {
   V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
+  V(DebugInfo)                          \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
   V(ExternalString)                     \

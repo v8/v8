@@ -231,10 +231,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void ResetLazilyInitializedExternalPointerField(size_t offset);
 
   //
-  // IndirectPointer field accessors.
+  // Indirect pointers.
   //
   // Indirect pointer fields can be initialized on background threads, so take a
   // LocalIsolate instead of an Isolate as parameter.
+  //
+  // These are only available when the sandbox is enabled.
   inline void InitSelfIndirectPointerField(size_t offset,
                                            LocalIsolate* isolate);
 
@@ -246,15 +248,43 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteIndirectPointerField(size_t offset,
                                         Tagged<ExposedTrustedObject> value);
 
+  // Trusted pointers.
   //
-  // CodePointer field accessors.
+  // A pointer to a trusted object. When the sandbox is enabled, these are
+  // indirect pointers using the the TrustedPointerTable (TPT). When the sandbox
+  // is disabled, they are regular tagged pointers. They must always point to an
+  // ExposedTrustedObject as (only) these objects can be referenced through the
+  // trusted pointer table.
+  template <IndirectPointerTag tag>
+  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
+      size_t offset, const Isolate* isolate) const;
+  template <IndirectPointerTag tag>
+  inline void WriteTrustedPointerField(size_t offset,
+                                       Tagged<ExposedTrustedObject> value);
+
+  // Trusted pointer fields can be cleared, in which case they no longer point
+  // to any object. When the sandbox is enabled, this will set the fields
+  // indirect pointer handle to the null handle (referencing the zeroth entry in
+  // the TrustedPointerTable which just contains nullptr). When the sandbox is
+  // disabled, this will set the field to Smi::zero().
+  inline bool IsTrustedPointerFieldCleared(size_t offset) const;
+  inline void ClearTrustedPointerField(size_t offest);
+
+  // Code pointers.
   //
-  inline void InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
-                                             Tagged<Code> owning_code,
-                                             Address entrypoint);
-  inline Address ReadCodeEntrypointViaIndirectPointerField(size_t offset) const;
-  inline void WriteCodeEntrypointViaIndirectPointerField(size_t offset,
-                                                         Address value);
+  // These are special versions of trusted pointers that always point to Code
+  // objects. When the sandbox is enabled, they are indirect pointers using the
+  // code pointer table (CPT) instead of the TrustedPointerTable. When the
+  // sandbox is disabled, they are regular tagged pointers.
+  inline Tagged<Code> ReadCodePointerField(size_t offset) const;
+  inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
+
+  inline void InitSelfCodePointerField(size_t offset, Isolate* isolate,
+                                       Tagged<Code> owning_code,
+                                       Address entrypoint);
+  inline Address ReadCodeEntrypointViaCodePointerField(size_t offset) const;
+  inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
+                                                     Address value);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.

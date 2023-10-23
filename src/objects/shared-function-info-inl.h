@@ -618,7 +618,8 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
       TryGetDebugInfo(isolate->GetMainThreadIsolateUnsafe());
   if (debug_info.has_value() &&
       debug_info.value()->HasInstrumentedBytecodeArray()) {
-    return debug_info.value()->OriginalBytecodeArray();
+    return debug_info.value()->OriginalBytecodeArray(
+        isolate->GetMainThreadIsolateUnsafe());
   }
 
   return GetActiveBytecodeArray();

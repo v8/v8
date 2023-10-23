@@ -44,6 +44,7 @@ enum InstanceType : uint16_t;
   V(InstructionStream)                  \
   V(Code)                               \
   V(DataHandler)                        \
+  V(DebugInfo)                          \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
   V(ExternalString)                     \

@@ -306,7 +306,7 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
     : debug_info_(debug_info),
       break_index_(-1),
       source_position_iterator_(
-          debug_info->DebugBytecodeArray()->SourcePositionTable()) {
+          debug_info->DebugBytecodeArray(isolate())->SourcePositionTable()) {
   position_ = debug_info->shared()->StartPosition();
   statement_position_ = position_;
   // There is at least one break location.
@@ -351,7 +351,8 @@ void BreakIterator::Next() {
 }
 
 DebugBreakType BreakIterator::GetDebugBreakType() {
-  Tagged<BytecodeArray> bytecode_array = debug_info_->OriginalBytecodeArray();
+  Tagged<BytecodeArray> bytecode_array =
+      debug_info_->OriginalBytecodeArray(isolate());
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
@@ -390,8 +391,8 @@ void BreakIterator::SetDebugBreak() {
   if (debug_break_type == DEBUGGER_STATEMENT) return;
   HandleScope scope(isolate());
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  Handle<BytecodeArray> bytecode_array(debug_info_->DebugBytecodeArray(),
-                                       isolate());
+  Handle<BytecodeArray> bytecode_array(
+      debug_info_->DebugBytecodeArray(isolate()), isolate());
   interpreter::BytecodeArrayIterator(bytecode_array, code_offset())
       .ApplyDebugBreak();
 }
@@ -400,14 +401,17 @@ void BreakIterator::ClearDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   if (debug_break_type == DEBUGGER_STATEMENT) return;
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  Tagged<BytecodeArray> bytecode_array = debug_info_->DebugBytecodeArray();
-  Tagged<BytecodeArray> original = debug_info_->OriginalBytecodeArray();
+  Tagged<BytecodeArray> bytecode_array =
+      debug_info_->DebugBytecodeArray(isolate());
+  Tagged<BytecodeArray> original =
+      debug_info_->OriginalBytecodeArray(isolate());
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
 BreakLocation BreakIterator::GetBreakLocation() {
   Handle<AbstractCode> code(
-      AbstractCode::cast(debug_info_->DebugBytecodeArray()), isolate());
+      AbstractCode::cast(debug_info_->DebugBytecodeArray(isolate())),
+      isolate());
   DebugBreakType type = GetDebugBreakType();
   int generator_object_reg_index = -1;
   int generator_suspend_id = -1;
@@ -417,7 +421,8 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // index that holds the generator object by reading it directly off the
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
-    Tagged<BytecodeArray> bytecode_array = debug_info_->OriginalBytecodeArray();
+    Tagged<BytecodeArray> bytecode_array =
+        debug_info_->OriginalBytecodeArray(isolate());
     interpreter::BytecodeArrayIterator iterator(
         handle(bytecode_array, isolate()), code_offset());
 
@@ -3006,7 +3011,7 @@ void Debug::StopSideEffectCheckMode() {
 void Debug::ApplySideEffectChecks(Handle<DebugInfo> debug_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
-  Handle<BytecodeArray> debug_bytecode(debug_info->DebugBytecodeArray(),
+  Handle<BytecodeArray> debug_bytecode(debug_info->DebugBytecodeArray(isolate_),
                                        isolate_);
   DebugEvaluate::ApplySideEffectChecks(debug_bytecode);
   debug_info->SetDebugExecutionMode(DebugInfo::kSideEffects);
@@ -3015,9 +3020,10 @@ void Debug::ApplySideEffectChecks(Handle<DebugInfo> debug_info) {
 void Debug::ClearSideEffectChecks(Handle<DebugInfo> debug_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
-  Handle<BytecodeArray> debug_bytecode(debug_info->DebugBytecodeArray(),
+  Handle<BytecodeArray> debug_bytecode(debug_info->DebugBytecodeArray(isolate_),
                                        isolate_);
-  Handle<BytecodeArray> original(debug_info->OriginalBytecodeArray(), isolate_);
+  Handle<BytecodeArray> original(debug_info->OriginalBytecodeArray(isolate_),
+                                 isolate_);
   for (interpreter::BytecodeArrayIterator it(debug_bytecode); !it.done();
        it.Advance()) {
     // Restore from original. This may copy only the scaling prefix, which is

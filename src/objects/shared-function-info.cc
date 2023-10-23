@@ -812,13 +812,11 @@ void SharedFunctionInfo::UninstallDebugBytecode(
       isolate->shared_function_info_access());
   Tagged<DebugInfo> debug_info = shared->GetDebugInfo(isolate);
   Tagged<BytecodeArray> original_bytecode_array =
-      debug_info->OriginalBytecodeArray();
+      debug_info->OriginalBytecodeArray(isolate);
   DCHECK(!shared->HasBaselineCode());
   shared->SetActiveBytecodeArray(original_bytecode_array);
-  debug_info->set_original_bytecode_array(
-      ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);
-  debug_info->set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
-                                       kReleaseStore);
+  debug_info->clear_original_bytecode_array(kReleaseStore);
+  debug_info->clear_debug_bytecode_array(kReleaseStore);
 }
 
 // static
