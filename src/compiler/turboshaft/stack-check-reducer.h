@@ -20,39 +20,29 @@ class StackCheckReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  OpIndex REDUCE(Parameter)(int32_t parameter_index, RegisterRepresentation rep,
-                            const char* debug_name = "") {
-    OpIndex result = Next::ReduceParameter(parameter_index, rep, debug_name);
-    if (parameter_index == 0) {
-      // Parameter 0 is the instance.
-      instance_ = result;
-    }
-    return result;
-  }
-
   OpIndex REDUCE(StackCheck)(StackCheckOp::CheckOrigin origin,
                              StackCheckOp::CheckKind kind) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-    if (origin == StackCheckOp::CheckOrigin::kFromWasm) {
-      if (kind == StackCheckOp::CheckKind::kFunctionHeaderCheck) {
-        // We now load once and for all the address of the "limit" field, so
-        // that we don't have to reload it for every stack check.
-        DCHECK(!limit_address_.valid());
-        limit_address_ =
-            __ Load(instance_, LoadOp::Kind::TaggedBase().Immutable(),
-                    MemoryRepresentation::PointerSized(),
-                    WasmInstanceObject::kStackLimitAddressOffset);
-        if (__ IsLeafFunction()) {
-          // We skip the initial stack check of leaf functions.
-          return OpIndex::Invalid();
+    V<WordPtr> limit = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::PointerSized(), IsolateData::jslimit_offset());
+    compiler::StackCheckKind check_kind =
+        origin == StackCheckOp::CheckOrigin::kFromJS
+            ? compiler::StackCheckKind::kJSFunctionEntry
+            : compiler::StackCheckKind::kWasm;
+    V<Word32> check = __ StackPointerGreaterThan(limit, check_kind);
+    IF_NOT (LIKELY(check)) {
+      if (origin == StackCheckOp::CheckOrigin::kFromJS) {
+        if (kind == StackCheckOp::CheckKind::kLoopCheck) {
+          UNIMPLEMENTED();
         }
+        DCHECK_EQ(kind, StackCheckOp::CheckKind::kFunctionHeaderCheck);
+
+        if (!isolate_) isolate_ = PipelineData::Get().isolate();
+        __ CallRuntime_StackGuardWithGap(isolate_, __ NoContextConstant(),
+                                         __ StackCheckOffset());
       }
-      DCHECK(limit_address_.valid());
-      V<WordPtr> limit = __ Load(limit_address_, LoadOp::Kind::RawAligned(),
-                                 MemoryRepresentation::PointerSized(), 0);
-      V<Word32> check =
-          __ StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
-      IF_NOT (LIKELY(check)) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+      else if (origin == StackCheckOp::CheckOrigin::kFromWasm) {
         // TODO(14108): Cache descriptor.
         V<WordPtr> builtin =
             __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
@@ -68,39 +58,16 @@ class StackCheckReducer : public Next {
             call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
         __ Call(builtin, {}, ts_call_descriptor);
       }
-      END_IF
-      return OpIndex::Invalid();
-    }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    DCHECK_EQ(origin, StackCheckOp::CheckOrigin::kFromJS);
-    if (kind == StackCheckOp::CheckKind::kFunctionHeaderCheck) {
-      if (!isolate_) isolate_ = PipelineData::Get().isolate();
-      V<WordPtr> limit = __ LoadOffHeap(
-          __ ExternalConstant(ExternalReference::address_of_jslimit(isolate_)),
-          MemoryRepresentation::PointerSized());
-      V<Word32> check =
-          __ StackPointerGreaterThan(limit, StackCheckKind::kJSFunctionEntry);
-
-      IF_NOT (LIKELY(check)) {
-        __ CallRuntime_StackGuardWithGap(isolate_, __ NoContextConstant(),
-                                         __ StackCheckOffset());
-      }
-      END_IF
-      return OpIndex::Invalid();
-    } else {
-      DCHECK_EQ(kind, StackCheckOp::CheckKind::kLoopCheck);
-      UNIMPLEMENTED();
     }
+    END_IF
+    return OpIndex::Invalid();
   }
 
  private:
   Isolate* isolate_ = nullptr;
   // We cache the instance because we need it to load the limit_address used to
   // lower stack checks.
-  OpIndex instance_ = OpIndex::Invalid();
-  // We cache the limit_address_ operation, which loads the address of the
-  // "limit" field on the instance.
-  V<WordPtr> limit_address_ = OpIndex::Invalid();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
