@@ -1230,14 +1230,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   uint32_t offset = NumberToUint32(args[3]);
   uint32_t size = NumberToUint32(args[4]);
 
-  DCHECK_EQ(memory, 0);
-  USE(memory);
+  // TODO(14261): Support multiple memories.
+  CHECK_EQ(memory, 0);
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
 
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  // TODO(14261): Support multiple memories.
   uint64_t mem_size = instance->memory0_size();
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
@@ -1291,10 +1290,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   uint32_t offset = NumberToUint32(args[2]);
   uint32_t size_in_codeunits = NumberToUint32(args[3]);
 
-  DCHECK_EQ(memory, 0);
-  USE(memory);
-
   // TODO(14261): Support multiple memories.
+  CHECK_EQ(memory, 0);
+
   uint64_t mem_size = instance->memory0_size();
   if (size_in_codeunits > kMaxUInt32 / 2 ||
       !base::IsInBounds<uint64_t>(offset, size_in_codeunits * 2, mem_size)) {
@@ -1533,12 +1531,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
   Handle<String> string(String::cast(args[3]), isolate);
   uint32_t offset = NumberToUint32(args[4]);
 
-  DCHECK_EQ(memory, 0);
-  USE(memory);
+  // TODO(14261): Support multiple memories.
+  CHECK_EQ(memory, 0);
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
 
-  // TODO(14261): Support multiple memories.
   char* memory_start = reinterpret_cast<char*>(instance->memory0_start());
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   auto get_writable_bytes =
@@ -1580,11 +1577,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   uint32_t start = args.positive_smi_value_at(4);
   uint32_t length = args.positive_smi_value_at(5);
 
-  DCHECK_EQ(memory, 0);
-  USE(memory);
+  // TODO(14261): Support multiple memories.
+  CHECK_EQ(memory, 0);
   DCHECK(base::IsInBounds<uint32_t>(start, length, string->length()));
 
-  // TODO(14261): Support multiple memories.
   size_t mem_size = instance->memory0_size();
   static_assert(String::kMaxLength <=
                 (std::numeric_limits<size_t>::max() / sizeof(base::uc16)));
@@ -1652,6 +1648,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   size_t length = end - start;
 
   // TODO(14261): Support multiple memories.
+  CHECK_EQ(1, instance->module()->memories.size());
+
   if (!base::IsInBounds<size_t>(addr, length, instance->memory0_size())) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
