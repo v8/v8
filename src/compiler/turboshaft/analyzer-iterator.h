@@ -91,7 +91,12 @@ class AnalyzerIterator {
     return !stack_.empty();
   }
   Block* Next();
+  // Schedule the loop pointed to by the current block (as a backedge)
+  // to be revisited on the next iteration.
   void MarkLoopForRevisit();
+  // Schedule the loop pointed to by the current block (as a backedge) to be
+  // revisited on the next iteration but skip the loop header.
+  void MarkLoopForRevisitSkipHeader();
 
  private:
   struct StackNode {

@@ -4,35 +4,82 @@
 
 #include "src/compiler/turboshaft/wasm-gc-type-reducer.h"
 
+#include "src/compiler/turboshaft/analyzer-iterator.h"
+#include "src/compiler/turboshaft/loop-finder.h"
+
 namespace v8::internal::compiler::turboshaft {
 
 void WasmGCTypeAnalyzer::Run() {
-  for (uint32_t block_index = 0; block_index < graph_.block_count();
-       block_index++) {
-    const Block& block = graph_.Get(BlockIndex{block_index});
+  LoopFinder loop_finder(phase_zone_, &graph_);
+  AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
+  while (iterator.HasNext()) {
+    const Block& block = *iterator.Next();
     StartNewSnapshotFor(block);
     ProcessOperations(block);
+
     // Finish snapshot.
-    block_to_snapshot_[block.index()] = MaybeSnapshot(types_table_.Seal());
+    Snapshot snapshot = types_table_.Seal();
+    block_to_snapshot_[block.index()] = MaybeSnapshot(snapshot);
+
+    // Consider re-processing for loops.
+    if (const GotoOp* last = block.LastOperation(graph_).TryCast<GotoOp>()) {
+      if (last->destination->IsLoop() &&
+          last->destination->LastPredecessor() == &block) {
+        const Block& loop_header = *last->destination;
+        // Create a merged snapshot state for the forward- and backedge.
+        StartNewSnapshotFor(loop_header);
+        // Revisit the loop header and compare the new snapshot with the
+        // existing one.
+        ProcessOperations(loop_header);
+        Snapshot old_snapshot = block_to_snapshot_[loop_header.index()].value();
+        Snapshot snapshot = types_table_.Seal();
+        // TODO(14108): The snapshot isn't needed at all, we only care about the
+        // information if two snapshots are equivalent. Unfortunately, currently
+        // this can only be answered by creating a merge snapshot.
+        bool needs_revisit =
+            CreateMergeSnapshot(base::VectorOf({old_snapshot, snapshot}));
+        types_table_.Seal();  // Discard the snapshot.
+
+        // TODO(14108): This currently encodes a fixed point analysis where the
+        // analysis is finished once the backedge doesn't provide updated type
+        // information any more compared to the previous iteration. This could
+        // be stopped in cases where the backedge only refines types (i.e. only
+        // defines more precise types than the previous iteration).
+        if (needs_revisit) {
+          block_to_snapshot_[loop_header.index()] = MaybeSnapshot(snapshot);
+          // This will push the successors of the loop header to the iterator
+          // stack, so the loop body will be visited in the next iteration.
+          iterator.MarkLoopForRevisitSkipHeader();
+        }
+      }
+    }
   }
 }
 
 void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
-  is_in_loop_header_ = false;
+  is_first_loop_header_evaluation_ = false;
   // Start new snapshot based on predecessor information.
   if (block.HasPredecessors() == 0) {
     // The first block just starts with an empty snapshot.
     DCHECK_EQ(block.index().id(), 0);
     types_table_.StartNewSnapshot();
   } else if (block.IsLoop()) {
-    is_in_loop_header_ = true;
-    // TODO(mliedtke): Once we want to propagate type information on LoopPhis,
-    // we will need to revisit loops to also evaluate the backedge.
-    Snapshot forward_edge_snap =
-        block_to_snapshot_
-            [block.LastPredecessor()->NeighboringPredecessor()->index()]
-                .value();
-    types_table_.StartNewSnapshot(forward_edge_snap);
+    MaybeSnapshot back_edge_snap =
+        block_to_snapshot_[block.LastPredecessor()->index()];
+    if (back_edge_snap.has_value()) {
+      // The loop was already visited at least once. In this case use the
+      // available information from the backedge.
+      CreateMergeSnapshot(block);
+    } else {
+      // The loop wasn't visited yet. There isn't any type information available
+      // for the backedge.
+      is_first_loop_header_evaluation_ = true;
+      Snapshot forward_edge_snap =
+          block_to_snapshot_
+              [block.LastPredecessor()->NeighboringPredecessor()->index()]
+                  .value();
+      types_table_.StartNewSnapshot(forward_edge_snap);
+    }
   } else if (block.IsBranchTarget()) {
     DCHECK_EQ(block.PredecessorCount(), 1);
     types_table_.StartNewSnapshot(
@@ -114,8 +161,8 @@ void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
 }
 
 void WasmGCTypeAnalyzer::ProcessTypeCheck(const WasmTypeCheckOp& type_check) {
-  input_type_map_[graph_.Index(type_check)] =
-      types_table_.Get(type_check.object());
+  wasm::ValueType type = types_table_.Get(type_check.object());
+  input_type_map_[graph_.Index(type_check)] = type;
 }
 
 void WasmGCTypeAnalyzer::ProcessAssertNotNull(
@@ -187,8 +234,11 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   // If any of the inputs is the default value ValueType(), there isn't any type
   // knowledge inferrable.
   DCHECK_GT(phi.input_count, 0);
-  if (is_in_loop_header_) {
-    // TODO(mliedtke): Loop phis require a revisitation of the loop.
+  if (is_first_loop_header_evaluation_) {
+    // We don't know anything about the backedge yet, so we only use the
+    // forward edge. We will revisit the loop header again once the block with
+    // the back edge is evaluated.
+    RefineTypeKnowledge(graph_.Index(phi), types_table_.Get((phi.input(0))));
     return;
   }
   wasm::ValueType union_type =
@@ -237,7 +287,6 @@ void WasmGCTypeAnalyzer::ProcessNull(const NullOp& null) {
 }
 
 void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
-  DCHECK(!block_to_snapshot_[block.index()].has_value());
   base::SmallVector<Snapshot, 8> snapshots;
   NeighboringPredecessorIterable iterable = block.PredecessorsIterable();
   std::transform(iterable.begin(), iterable.end(),
@@ -248,20 +297,34 @@ void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
   // order of predecessors. (This is used to map phi inputs to their
   // corresponding predecessor.)
   std::reverse(snapshots.begin(), snapshots.end());
+  CreateMergeSnapshot(base::VectorOf(snapshots));
+}
+
+bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
+    base::Vector<const Snapshot> predecessors) {
+  // The merging logic is also used to evaluate if two snapshots are
+  // "identical", i.e. the known types for all operations are the same.
+  bool types_are_equivalent = true;
   types_table_.StartNewSnapshot(
-      base::VectorOf(snapshots),
-      [this](TypeSnapshotTable::Key,
-             base::Vector<const wasm::ValueType> predecessors) {
+      predecessors, [this, &types_are_equivalent](
+                        TypeSnapshotTable::Key,
+                        base::Vector<const wasm::ValueType> predecessors) {
         DCHECK_GT(predecessors.size(), 1);
-        wasm::ValueType res = predecessors[0];
-        if (res == wasm::ValueType()) return wasm::ValueType();
+        wasm::ValueType first = predecessors[0];
+
+        wasm::ValueType res = first;
         for (auto iter = predecessors.begin() + 1; iter != predecessors.end();
              ++iter) {
-          if (*iter == wasm::ValueType()) return wasm::ValueType();
-          res = wasm::Union(res, *iter, module_, module_).type;
+          types_are_equivalent &= first == *iter;
+          if (res == wasm::ValueType() || *iter == wasm::ValueType()) {
+            res = wasm::ValueType();
+          } else {
+            res = wasm::Union(res, *iter, module_, module_).type;
+          }
         }
         return res;
       });
+  return !types_are_equivalent;
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(

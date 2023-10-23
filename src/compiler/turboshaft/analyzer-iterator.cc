@@ -65,4 +65,15 @@ void AnalyzerIterator::MarkLoopForRevisit() {
   stack_.push_back({header, curr_.generation + 1});
 }
 
+void AnalyzerIterator::MarkLoopForRevisitSkipHeader() {
+  DCHECK_NOT_NULL(curr_.block);
+  DCHECK_NE(curr_.generation, kNotVisitedGeneration);
+  DCHECK(curr_.block->HasBackedge(graph_));
+  Block* header = curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
+  for (Block* child = header->LastChild(); child != nullptr;
+       child = child->NeighboringChild()) {
+    stack_.push_back({child, curr_.generation + 1});
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft
