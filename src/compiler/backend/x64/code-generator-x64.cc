@@ -7001,9 +7001,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         __ movq(kScratchRegister,
-                FieldOperand(kWasmInstanceRegister,
-                             WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ movq(kScratchRegister, Operand(kScratchRegister, 0));
+                __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
         __ addq(kScratchRegister,
                 Immediate(required_slots * kSystemPointerSize));
         __ cmpq(rsp, kScratchRegister);

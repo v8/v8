@@ -1246,8 +1246,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
     instance->set_data_segment_sizes(*data_segment_sizes);
     instance->set_element_segments(empty_fixed_array);
     instance->set_imported_function_refs(*imported_function_refs);
-    instance->set_real_stack_limit_address(
-        isolate->stack_guard()->address_of_real_jslimit());
     instance->set_new_allocation_limit_address(
         isolate->heap()->NewSpaceAllocationLimitAddress());
     instance->set_new_allocation_top_address(

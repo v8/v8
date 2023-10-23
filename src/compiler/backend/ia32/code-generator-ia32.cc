@@ -4074,12 +4074,9 @@ void CodeGenerator::AssembleConstructFrame() {
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         Register scratch = esi;
         __ push(scratch);
-        __ mov(scratch,
-               FieldOperand(kWasmInstanceRegister,
-                            WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ mov(scratch, Operand(scratch, 0));
-        __ add(scratch, Immediate(required_slots * kSystemPointerSize));
-        __ cmp(esp, scratch);
+        __ mov(scratch, esp);
+        __ sub(scratch, Immediate(required_slots * kSystemPointerSize));
+        __ CompareStackLimit(scratch, StackLimitKind::kRealStackLimit);
         __ pop(scratch);
         __ j(above_equal, &done, Label::kNear);
       }

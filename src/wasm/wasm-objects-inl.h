@@ -185,8 +185,6 @@ SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, memory0_start, uint8_t*,
                             kMemory0StartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory0_size, size_t,
                     kMemory0SizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, real_stack_limit_address, Address,
-                    kRealStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_limit_address, Address*,
                     kNewAllocationLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_top_address, Address*,

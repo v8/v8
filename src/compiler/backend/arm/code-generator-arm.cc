@@ -3789,13 +3789,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        __ ldr(scratch, FieldMemOperand(
-                            kWasmInstanceRegister,
-                            WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ ldr(scratch, MemOperand(scratch));
-        __ add(scratch, scratch, Operand(required_slots * kSystemPointerSize));
-        __ cmp(sp, scratch);
+        Register stack_limit = temps.Acquire();
+        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+        __ add(stack_limit, stack_limit,
+               Operand(required_slots * kSystemPointerSize));
+        __ cmp(sp, stack_limit);
         __ b(cs, &done);
       }
 

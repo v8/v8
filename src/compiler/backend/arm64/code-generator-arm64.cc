@@ -3307,14 +3307,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
-        UseScratchRegisterScope scope(masm());
-        Register scratch = scope.AcquireX();
-        __ Ldr(scratch, FieldMemOperand(
-                            kWasmInstanceRegister,
-                            WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ Ldr(scratch, MemOperand(scratch));
-        __ Add(scratch, scratch, required_slots * kSystemPointerSize);
-        __ Cmp(sp, scratch);
+        UseScratchRegisterScope temps(masm());
+        Register stack_limit = temps.AcquireX();
+        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+        __ Add(stack_limit, stack_limit, required_slots * kSystemPointerSize);
+        __ Cmp(sp, stack_limit);
         __ B(hs, &done);
       }
 
