@@ -2337,7 +2337,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
-  PRINT_WASM_INSTANCE_FIELD(stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(real_stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);

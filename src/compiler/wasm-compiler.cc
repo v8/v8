@@ -427,11 +427,9 @@ void WasmGraphBuilder::StackCheck(
   DCHECK_NOT_NULL(env_);  // Wrappers don't get stack checks.
   if (!v8_flags.wasm_stack_checks) return;
 
-  Node* limit_address =
-      LOAD_INSTANCE_FIELD(StackLimitAddress, MachineType::Pointer());
-  // Since the limit can be mutated by a trap handler, we cannot use load
-  // elimination.
-  Node* limit = gasm_->Load(MachineType::Pointer(), limit_address, 0);
+  Node* limit =
+      gasm_->Load(MachineType::Pointer(), gasm_->LoadRootRegister(),
+                  mcgraph()->IntPtrConstant(IsolateData::jslimit_offset()));
 
   Node* check = SetEffect(graph()->NewNode(
       mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
