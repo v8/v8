@@ -102,6 +102,8 @@
   'debugger/wasm-step-after-trap': [SKIP],
   'debugger/wasm-stepping-no-opcode-merging': [SKIP],
   'debugger/wasm-stepping-with-source-map': [SKIP],
+  # Generic wasm-to-js wrapper must be enabled.
+  'cpu-profiler/console-profile-wasm': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
