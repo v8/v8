@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:5d8727f3fbf420538ff753ebc3ce96da28e12c22',
+  'gn_version': 'git_revision:e4702d7409069c4f12d45ea7b7f0890717ca3f4b',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c77f325ee5317a57d3e8c250c3da2406c9354889',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ee3b50d92d9393782299f8968517b20b938a5494',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '81ea7a128c0f16c2f7769177ee672df8a1b972b6',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '75a40ee29d53279403c27f43db4850128a1179ee',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '30b6ccb366ee09d690b2e8bdd9ff096e71d08992',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'eb43f0d41efb8e2766be9c3c70eb30cf64fa37e5',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -276,7 +276,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e1129faa9f6f292e1216291489f3b4ca882fc611',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '58c1757391c030f2876c11102f9cd58c18ffac4a',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '5acf60c8b985bffe197e2ffc2169850dec89348e',
   'third_party/libunwind/src':
