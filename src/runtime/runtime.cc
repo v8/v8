@@ -211,6 +211,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kPrepareFunctionForOptimization:
     case Runtime::kPretenureAllocationSite:
     case Runtime::kSetAllocationTimeout:
+    case Runtime::kSetForceSlowPath:
     case Runtime::kSimulateNewspaceFull:
     case Runtime::kWaitForBackgroundOptimization:
       return true;
