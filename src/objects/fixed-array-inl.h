@@ -579,9 +579,12 @@ void PrimitiveArrayBase<D, S>::set(int index, typename S::ElementT value) {
   WriteField<typename S::ElementT>(OffsetOfElementAt(index), value);
 }
 
+// Due to left- and right-trimming, concurrent visitors need to read the length
+// with acquire semantics.
+// TODO(ulan): Acquire should not be needed anymore.
 template <class D, class S>
 int PrimitiveArrayBase<D, S>::AllocatedSize() const {
-  return SizeFor(length());
+  return SizeFor(length(kAcquireLoad));
 }
 
 template <class D, class S>
