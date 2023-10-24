@@ -31,8 +31,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
   // TODO(manoskouk): Investigate if we can fine-grain the synchronization.
   base::MutexGuard mutex_guard(&mutex_);
   DCHECK_GE(module->types.size(), start_index + size);
-  CanonicalGroup group;
-  group.types.resize(size);
+  CanonicalGroup group{&zone_, size};
   for (uint32_t i = 0; i < size; i++) {
     group.types[i] = CanonicalizeTypeDef(module, module->types[start_index + i],
                                          start_index);
@@ -45,6 +44,9 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
       module->isorecursive_canonical_type_ids[start_index + i] =
           canonical_index + i;
     }
+    // TODO(clemensb): Avoid leaking the zone storage allocated for {group}
+    // (both for the {Vector} in {CanonicalGroup}, but also the storage
+    // allocated in {CanonicalizeTypeDef{).
   } else {
     // Identical group not found. Add new canonical representatives for the new
     // types.
@@ -72,8 +74,7 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
 #if DEBUG
   for (ValueType type : sig->all()) DCHECK(!type.has_index());
 #endif
-  CanonicalGroup group;
-  group.types.resize(1);
+  CanonicalGroup group{&zone_, 1};
   group.types[0].type_def =
       TypeDefinition(sig, kNoSuperType, v8_flags.wasm_final_types);
   group.types[0].is_relative_supertype = false;
@@ -99,8 +100,7 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
 void TypeCanonicalizer::AddPredefinedArrayType(uint32_t index,
                                                ValueType element_type) {
   DCHECK_EQ(index, canonical_groups_.size());
-  CanonicalGroup group;
-  group.types.resize(1);
+  CanonicalGroup group{&zone_, 1};
   static constexpr bool kMutable = true;
   // TODO(jkummerow): Decide whether this should be final or nonfinal.
   static constexpr bool kFinal = true;
@@ -207,7 +207,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 
 // Returns the index of the canonical representative of the first type in this
 // group, or -1 if an identical group does not exist.
-int TypeCanonicalizer::FindCanonicalGroup(CanonicalGroup& group) const {
+int TypeCanonicalizer::FindCanonicalGroup(const CanonicalGroup& group) const {
   auto element = canonical_groups_.find(group);
   return element == canonical_groups_.end() ? -1 : element->second;
 }
@@ -215,10 +215,9 @@ int TypeCanonicalizer::FindCanonicalGroup(CanonicalGroup& group) const {
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 232);
   size_t result = ContentSize(canonical_supertypes_);
+  // The storage of the canonical group's types is accounted for via the
+  // allocator below (which tracks the zone memory).
   result += ContentSize(canonical_groups_);
-  for (auto& entry : canonical_groups_) {
-    result += ContentSize(entry.first.types);
-  }
   result += allocator_.GetCurrentMemoryUsage();
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("TypeCanonicalizer: %zu\n", result);

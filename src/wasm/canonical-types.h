@@ -101,6 +101,9 @@ class TypeCanonicalizer {
       }
     };
 
+    CanonicalGroup(Zone* zone, size_t size)
+        : types(zone->AllocateVector<CanonicalType>(size)) {}
+
     bool operator==(const CanonicalGroup& other) const {
       return types == other.types;
     }
@@ -117,12 +120,13 @@ class TypeCanonicalizer {
       return result;
     }
 
-    std::vector<CanonicalType> types;
+    // The storage of this vector is the TypeCanonicalizer's zone_.
+    base::Vector<CanonicalType> types;
   };
 
   void AddPredefinedArrayType(uint32_t index, ValueType element_type);
 
-  int FindCanonicalGroup(CanonicalGroup&) const;
+  int FindCanonicalGroup(const CanonicalGroup&) const;
 
   // Canonicalize all types present in {type} (including supertype) according to
   // {CanonicalizeValueType}.
