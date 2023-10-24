@@ -124,6 +124,8 @@ namespace v8::internal::wasm {
   V(ThrowDataViewSetUint32OutOfBounds)                                         \
   V(ThrowDataViewSetUint32TypeError)                                           \
   V(ThrowIndexOfCalledOnNull)                                                  \
+  V(ThrowToLowerCaseCalledOnNull)                                              \
+  IF_INTL(V, StringToLowerCaseIntl)                                            \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \

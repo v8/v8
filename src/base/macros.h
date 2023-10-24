@@ -430,7 +430,16 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TSAN(V, ...)
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_IS_TSAN
+
+// Defines IF_INTL, to be used in macro lists for elements that should only be
+// there if INTL is enabled.
+#ifdef V8_INTL_SUPPORT
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_INTL(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_INTL(V, ...)
+#endif  // V8_INTL_SUPPORT
 
 // Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
 // should only be there if the target architecture is a 64-bit one.

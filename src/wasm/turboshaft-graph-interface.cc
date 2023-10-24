@@ -1455,7 +1455,6 @@ class TurboshaftGraphBuildingInterface {
                 ? kFeature_stringref
                 : kFeature_imported_strings);
         break;
-      // TODO(14108): Implement the other string-related imports.
       case WKI::kParseFloat: {
         if (args[0].type.is_nullable()) {
           Label<Float64> done(&asm_);
@@ -1530,8 +1529,31 @@ class TurboshaftGraphBuildingInterface {
         break;
       }
       case WKI::kStringToLocaleLowerCaseStringref:
-      case WKI::kStringToLowerCaseStringref:
+        // TODO(14108): Implement.
         return false;
+      case WKI::kStringToLowerCaseStringref: {
+#if V8_INTL_SUPPORT
+        V<Tagged> string = args[0].op;
+        if (args[0].type.is_nullable()) {
+          IF (__ IsNull(string, wasm::kWasmStringRef)) {
+            CallBuiltinThroughJumptable(decoder,
+                                        Builtin::kThrowToLowerCaseCalledOnNull,
+                                        {}, Operator::kNoWrite);
+            __ Unreachable();
+          }
+          END_IF
+          BuildModifyThreadInWasmFlag(false);
+          result = CallBuiltinThroughJumptable(
+              decoder, Builtin::kStringToLowerCaseIntl,
+              {string, __ NoContextConstant()}, Operator::kEliminatable);
+          BuildModifyThreadInWasmFlag(true);
+        }
+        decoder->detected_->Add(kFeature_stringref);
+        break;
+#else
+        return false;
+#endif
+      }
 
       // DataView related imports.
       case WKI::kDataViewGetBigInt64: {
