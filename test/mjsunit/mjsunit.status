@@ -320,6 +320,7 @@
   'getters-on-elements': [SKIP],
   'es6/block-let-crankshaft': [SKIP],
   'maglev/osr-to-tf': [SKIP],
+  'maglev/unstable-map-transition': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'compiler/number-divide': [SKIP],
