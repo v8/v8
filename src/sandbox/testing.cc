@@ -487,6 +487,8 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
   sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
   sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 }
 #endif  // V8_OS_LINUX
 
