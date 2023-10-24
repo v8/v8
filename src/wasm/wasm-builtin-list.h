@@ -24,6 +24,7 @@ namespace v8::internal::wasm {
   V(WasmDebugBreak)                                                            \
   V(WasmInt32ToHeapNumber)                                                     \
   V(WasmFloat64ToString)                                                       \
+  V(WasmStringToDouble)                                                        \
   V(WasmIntToString)                                                           \
   V(WasmTaggedNonSmiToInt32)                                                   \
   V(WasmFloat32ToNumber)                                                       \
