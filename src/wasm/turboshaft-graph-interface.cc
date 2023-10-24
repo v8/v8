@@ -4945,7 +4945,7 @@ class TurboshaftGraphBuildingInterface {
     V<Word32> external_pointer_handle = __ Load(
         ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
         MemoryRepresentation::Uint32(), ExternalPointerArray::kHeaderSize, 2);
-    V<WordPtr> target = BuildDecodeExternalPointer(
+    V<WordPtr> target = __ DecodeExternalPointer(
         external_pointer_handle, kWasmIndirectFunctionTargetTag);
 #else
     V<WordPtr> target =
@@ -4980,7 +4980,7 @@ class TurboshaftGraphBuildingInterface {
     V<Word32> target_handle = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
                                       MemoryRepresentation::Uint32(),
                                       WasmInternalFunction::kCallTargetOffset);
-    V<WordPtr> target = BuildDecodeExternalPointer(
+    V<WordPtr> target = __ DecodeExternalPointer(
         target_handle, kWasmInternalFunctionCallTargetTag);
 #else
     V<WordPtr> target = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
@@ -5305,30 +5305,6 @@ class TurboshaftGraphBuildingInterface {
       return __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
           V<WordPtr>::Cast(value), kSmiShiftSize + kSmiTagSize));
     }
-  }
-
-  // TODO(mliedtke): Emit __DecodeExternalPointer instead if sandbox enabled.
-  V<WordPtr> BuildDecodeExternalPointer(V<Word32> handle,
-                                        ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-    // Decode loaded external pointer.
-    V<WordPtr> isolate_root = __ LoadRootRegister();
-    DCHECK(!IsSharedExternalPointerType(tag));
-    V<WordPtr> table =
-        __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::PointerSized(),
-                IsolateData::external_pointer_table_offset() +
-                    Internals::kExternalPointerTableBasePointerOffset);
-    V<Word32> index =
-        __ Word32ShiftRightLogical(handle, kExternalPointerIndexShift);
-    V<WordPtr> pointer =
-        __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
-                       MemoryRepresentation::PointerSized());
-    pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
-    return pointer;
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
   }
 
   V<WordPtr> BuildDecodeExternalCodePointer(V<Word32> handle) {
