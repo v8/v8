@@ -1863,7 +1863,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (count > maximum) {
       errorf(p, "%s of %u exceeds internal limit of %zu", name, count, maximum);
-      return static_cast<uint32_t>(maximum);
+      return 0;
     }
     return count;
   }
@@ -2175,35 +2175,32 @@ class ModuleDecoderImpl : public Decoder {
     // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
-    if (failed()) return nullptr;
-    std::vector<ValueType> params;
-    for (uint32_t i = 0; ok() && i < param_count; ++i) {
-      params.push_back(consume_value_type());
+    // We don't know the return count yet, so decode the parameters into a
+    // temporary SmallVector. This needs to be copied over into the permanent
+    // storage later.
+    base::SmallVector<ValueType, 8> params{param_count};
+    for (uint32_t i = 0; i < param_count; ++i) {
+      params[i] = consume_value_type();
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
-    if (failed()) return nullptr;
 
     // Parse return types.
-    std::vector<ValueType> returns;
     uint32_t return_count =
         consume_count("return count", kV8MaxWasmFunctionReturns);
-    if (failed()) return nullptr;
-    for (uint32_t i = 0; ok() && i < return_count; ++i) {
-      returns.push_back(consume_value_type());
+    // Now that we know the param count and the return count, we can allocate
+    // the permanent storage.
+    ValueType* sig_storage =
+        zone->AllocateArray<ValueType>(param_count + return_count);
+    // Note: Returns come first in the signature storage.
+    std::copy_n(params.begin(), param_count, sig_storage + return_count);
+    for (uint32_t i = 0; i < return_count; ++i) {
+      sig_storage[i] = consume_value_type();
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
-    if (failed()) return nullptr;
 
-    // FunctionSig stores the return types first.
-    ValueType* buffer =
-        zone->AllocateArray<ValueType>(param_count + return_count);
-    uint32_t b = 0;
-    for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
-    for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
-
-    return zone->New<FunctionSig>(return_count, param_count, buffer);
+    return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
   const StructType* consume_struct(Zone* zone) {
