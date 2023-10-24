@@ -7235,7 +7235,15 @@ bool Heap::PageFlagsAreConsistent(Tagged<HeapObject> object) {
     // find a heap. The exception is when the ReadOnlySpace is writeable, during
     // bootstrapping, so explicitly allow this case.
     Heap* heap = Heap::FromWritableHeapObject(object);
-    CHECK_EQ(slim_chunk->IsMarking(), heap->incremental_marking()->IsMarking());
+    if (slim_chunk->InWritableSharedSpace()) {
+      // The marking bit is not set for chunks in shared spaces during MinorMS
+      // concurrent marking.
+      CHECK_EQ(slim_chunk->IsMarking(),
+               heap->incremental_marking()->IsMajorMarking());
+    } else {
+      CHECK_EQ(slim_chunk->IsMarking(),
+               heap->incremental_marking()->IsMarking());
+    }
   } else {
     // Non-writable RO_SPACE must never have marking flag set.
     CHECK(!slim_chunk->IsMarking());
