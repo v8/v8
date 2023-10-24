@@ -638,6 +638,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Returns true if this object is an Api object which can, if unmodified, be
   // dropped during minor GC because the embedder can recreate it again later.
+  static inline bool IsDroppableApiObject(Tagged<Map>);
   inline bool IsDroppableApiObject() const;
 
   // Returns a new map with all transitions dropped from the object's current
