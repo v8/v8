@@ -284,7 +284,7 @@ bool Cmp(Int val, Int max, CmpOp cmp_op) {
     case CmpOp::kUnsignedGreaterThanOrEqual:
       return val >= max;
     case CmpOp::kEqual:
-      return val != max;
+      return val == max;
   }
 }
 

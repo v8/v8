@@ -88,14 +88,14 @@ class PipelineData : public base::ContextualClass<PipelineData> {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  bool is_wasm() const { return is_wasm_; }
-
   void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig) {
     wasm_module_ = module;
     wasm_sig_ = sig;
     is_wasm_ = true;
   }
 #endif
+
+  bool is_wasm() const { return is_wasm_; }
 
   void reset_schedule() { schedule_ = nullptr; }
 
@@ -137,6 +137,8 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   const wasm::FunctionSig* wasm_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool is_wasm_ = false;
+#else
+  static constexpr bool is_wasm_ = false;
 #endif
 
   std::unique_ptr<turboshaft::Graph> graph_;

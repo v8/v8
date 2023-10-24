@@ -115,6 +115,12 @@ class VariableReducer : public Next {
           // If any of the predecessors' value is Invalid, then we shouldn't
           // merge {var}.
           return OpIndex::Invalid();
+        } else if (__ output_graph()
+                       .Get(idx)
+                       .template Is<LoadRootRegisterOp>()) {
+          // Variables that once contain the root register never contain another
+          // value.
+          return __ LoadRootRegister();
         }
       }
       return MergeOpIndices(predecessors, var.data().rep);

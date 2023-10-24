@@ -158,7 +158,8 @@ class LoopUnrollingAnalyzer {
   // trade-off. In particular, having the number of iterations to unroll be a
   // function of the loop's size and a MaxLoopSize could make sense.
   static constexpr size_t kMaxLoopSizeForFullUnrolling = 150;
-  static constexpr size_t kMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;
   static constexpr size_t kPartialUnrollingCount = 4;
 
@@ -176,12 +177,19 @@ class LoopUnrollingAnalyzer {
   // iterations.
   ZoneUnorderedMap<Block*, int> loop_iteration_count_;
   const StaticCanonicalForLoopMatcher canonical_loop_matcher_;
+  const size_t kMaxLoopSizeForPartialUnrolling =
+      PipelineData::Get().is_wasm() ? kWasmMaxLoopSizeForPartialUnrolling
+                                    : kJSMaxLoopSizeForPartialUnrolling;
 };
 
 template <class Next>
 class LoopUnrollingReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+
+#if defined(__clang__)
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+#endif
 
   OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" are placed in the parts of
@@ -254,6 +262,26 @@ class LoopUnrollingReducer : public Next {
     if (unrolling_ == UnrollingStatus::kUnrolling) {
       if (call.IsStackCheck(__ input_graph(), broker_,
                             StackCheckKind::kJSIterationBody)) {
+        // When we unroll a loop, we get rid of its stack checks. (note that we
+        // don't do this for the 1st folded body of partially unrolled loops so
+        // that the loop keeps a stack check).
+        DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
+        return OpIndex::Invalid();
+      }
+    }
+
+    goto no_change;
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(StackCheck)(OpIndex ig_idx,
+                                         const StackCheckOp& check) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphStackCheck(ig_idx, check);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (unrolling_ == UnrollingStatus::kUnrolling) {
+      if (check.check_kind == StackCheckOp::CheckKind::kLoopCheck) {
         // When we unroll a loop, we get rid of its stack checks. (note that we
         // don't do this for the 1st folded body of partially unrolled loops so
         // that the loop keeps a stack check).
