@@ -3867,9 +3867,11 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       json_of << AsEscapedUC16ForJSON(c);
     }
 #endif  // ENABLE_DISASSEMBLER
-    json_of << "\"}\n]";
-    // TODO(mliedtke): Add sources of inlined wasm functions once inlining is
-    // supported.
+    json_of << "\"}\n],\n";
+    JsonPrintAllSourceWithPositionsWasm(json_of, module,
+                                        compilation_data.wire_bytes_storage,
+                                        base::VectorOf(inlining_positions));
+    json_of << "}";
     json_of << "\n}";
   }
 
