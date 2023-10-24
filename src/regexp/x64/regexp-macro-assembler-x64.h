@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // returning.
   // {raw_code} is an Address because this is called via ExternalReference.
   static int CheckStackGuardState(Address* return_address, Address raw_code,
-                                  Address re_frame);
+                                  Address re_frame, uintptr_t extra_space);
 
  private:
   // Offsets from rbp of function parameters and stored registers.
@@ -198,7 +198,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  void CallCheckStackGuardState();
+  void CallCheckStackGuardState(Immediate extra_space = Immediate(0));
   void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The rbp-relative location of a regexp register.
