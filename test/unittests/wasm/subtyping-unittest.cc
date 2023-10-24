@@ -32,7 +32,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
-  module->add_struct_type(builder.Build(), supertype, is_final);
+  module->AddStructTypeForTesting(builder.Build(), supertype, is_final);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
@@ -41,9 +41,9 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
 void DefineArray(WasmModule* module, FieldInit element_type,
                  uint32_t supertype = kNoSuperType, bool is_final = false,
                  bool in_singleton_rec_group = true) {
-  module->add_array_type(module->signature_zone.New<ArrayType>(
-                             element_type.first, element_type.second),
-                         supertype, is_final);
+  module->AddArrayTypeForTesting(module->signature_zone.New<ArrayType>(
+                                     element_type.first, element_type.second),
+                                 supertype, is_final);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
@@ -54,7 +54,7 @@ void DefineSignature(WasmModule* module,
                      std::initializer_list<ValueType> returns,
                      uint32_t supertype = kNoSuperType, bool is_final = false,
                      bool in_singleton_rec_group = true) {
-  module->add_signature(
+  module->AddSignatureForTesting(
       FunctionSig::Build(&module->signature_zone, returns, params), supertype,
       is_final);
   if (in_singleton_rec_group) {

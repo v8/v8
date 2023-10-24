@@ -124,7 +124,8 @@ class TestingModuleBuilder {
 
   // TODO(14034): Allow selecting type finality.
   uint8_t AddSignature(const FunctionSig* sig) {
-    test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
+    test_module_->AddSignatureForTesting(sig, kNoSuperType,
+                                         v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     instance_object_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());

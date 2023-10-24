@@ -661,8 +661,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WasmModule(const WasmModule&) = delete;
   WasmModule& operator=(const WasmModule&) = delete;
 
-  // ================ Accessors ================================================
-  void add_type(TypeDefinition type) {
+  // ================ Interface for tests ======================================
+  // Tests sometimes add times iteratively instead of all at once via module
+  // decoding.
+  void AddTypeForTesting(TypeDefinition type) {
     types.push_back(type);
     if (type.supertype != kNoSuperType) {
       // Set the subtyping depth. Outside of unit tests this is done by the
@@ -675,13 +677,27 @@ struct V8_EXPORT_PRIVATE WasmModule {
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
 
+  void AddSignatureForTesting(const FunctionSig* sig, uint32_t supertype,
+                              bool is_final) {
+    DCHECK_NOT_NULL(sig);
+    AddTypeForTesting(TypeDefinition(sig, supertype, is_final));
+  }
+
+  void AddStructTypeForTesting(const StructType* type, uint32_t supertype,
+                               bool is_final) {
+    DCHECK_NOT_NULL(type);
+    AddTypeForTesting(TypeDefinition(type, supertype, is_final));
+  }
+
+  void AddArrayTypeForTesting(const ArrayType* type, uint32_t supertype,
+                              bool is_final) {
+    DCHECK_NOT_NULL(type);
+    AddTypeForTesting(TypeDefinition(type, supertype, is_final));
+  }
+
+  // ================ Accessors ================================================
   bool has_type(uint32_t index) const { return index < types.size(); }
 
-  void add_signature(const FunctionSig* sig, uint32_t supertype,
-                     bool is_final) {
-    DCHECK_NOT_NULL(sig);
-    add_type(TypeDefinition(sig, supertype, is_final));
-  }
   bool has_signature(uint32_t index) const {
     return index < types.size() &&
            types[index].kind == TypeDefinition::kFunction;
@@ -693,14 +709,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return types[index].function_sig;
   }
 
-  void add_struct_type(const StructType* type, uint32_t supertype,
-                       bool is_final) {
-    DCHECK_NOT_NULL(type);
-    add_type(TypeDefinition(type, supertype, is_final));
-  }
   bool has_struct(uint32_t index) const {
     return index < types.size() && types[index].kind == TypeDefinition::kStruct;
   }
+
   const StructType* struct_type(uint32_t index) const {
     DCHECK(has_struct(index));
     size_t num_types = types.size();
@@ -708,11 +720,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return types[index].struct_type;
   }
 
-  void add_array_type(const ArrayType* type, uint32_t supertype,
-                      bool is_final) {
-    DCHECK_NOT_NULL(type);
-    add_type(TypeDefinition(type, supertype, is_final));
-  }
   bool has_array(uint32_t index) const {
     return index < types.size() && types[index].kind == TypeDefinition::kArray;
   }
