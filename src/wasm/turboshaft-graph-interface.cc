@@ -1481,7 +1481,54 @@ class TurboshaftGraphBuildingInterface {
         decoder->detected_->Add(kFeature_stringref);
         break;
       }
-      case WKI::kStringIndexOf:
+      case WKI::kStringIndexOf: {
+        V<Tagged> string = args[0].op;
+        V<Tagged> search = args[1].op;
+        V<Word32> start = args[2].op;
+
+        // If string is null, throw.
+        if (args[0].type.is_nullable()) {
+          IF (__ IsNull(string, wasm::kWasmStringRef)) {
+            CallBuiltinThroughJumptable(decoder,
+                                        Builtin::kThrowIndexOfCalledOnNull, {},
+                                        Operator::kNoWrite);
+            __ Unreachable();
+          }
+          END_IF
+        }
+
+        // If search is null, replace it with "null".
+        if (args[1].type.is_nullable()) {
+          Label<Tagged> search_done_label(&asm_);
+          GOTO_IF_NOT(__ IsNull(search, wasm::kWasmStringRef),
+                      search_done_label, search);
+          GOTO(search_done_label, LOAD_ROOT(null_string));
+          BIND(search_done_label, search_value);
+          search = search_value;
+        }
+
+        // Clamp the start index.
+        Label<Word32> clamped_start_label(&asm_);
+        GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label,
+                __ Word32Constant(0));
+        V<Word32> length = __ template LoadField<Word32>(
+            string, compiler::AccessBuilder::ForStringLength());
+        GOTO_IF(__ Int32LessThan(start, length), clamped_start_label, start);
+        GOTO(clamped_start_label, length);
+        BIND(clamped_start_label, clamped_start);
+        start = clamped_start;
+
+        // This can't overflow because we've clamped `start` above.
+        V<Smi> start_smi = __ TagSmi(start);
+        BuildModifyThreadInWasmFlag(false);
+        V<Smi> result_value = CallBuiltinThroughJumptable(
+            decoder, Builtin::kStringIndexOf, {string, search, start_smi},
+            Operator::kEliminatable);
+        BuildModifyThreadInWasmFlag(true);
+        result = __ UntagSmi(result_value);
+        decoder->detected_->Add(kFeature_stringref);
+        break;
+      }
       case WKI::kStringToLocaleLowerCaseStringref:
       case WKI::kStringToLowerCaseStringref:
         return false;

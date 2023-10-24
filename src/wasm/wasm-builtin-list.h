@@ -123,6 +123,7 @@ namespace v8::internal::wasm {
   V(ThrowDataViewSetUint32DetachedError)                                       \
   V(ThrowDataViewSetUint32OutOfBounds)                                         \
   V(ThrowDataViewSetUint32TypeError)                                           \
+  V(ThrowIndexOfCalledOnNull)                                                  \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \
@@ -180,6 +181,7 @@ namespace v8::internal::wasm {
   V(WasmStringViewIterRewind)                                                  \
   V(WasmStringViewIterSlice)                                                   \
   V(StringCompare)                                                             \
+  V(StringIndexOf)                                                             \
   V(WasmStringFromCodePoint)                                                   \
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
