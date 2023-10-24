@@ -1890,6 +1890,23 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
         FunctionTemplate::New(isolate, FastCApiObject::ResetCounts,
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
+
+    CFunction add_all_32bit_int_5args_enforce_range_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
+            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<5, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_5args_enforce_range",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasNoSideEffect,
+            &add_all_32bit_int_5args_enforce_range_c_func));
   }
   api_obj_ctor->InstanceTemplate()->SetInternalFieldCount(
       FastCApiObject::kV8WrapperObjectIndex + 1);

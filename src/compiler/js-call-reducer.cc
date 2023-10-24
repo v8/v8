@@ -3848,6 +3848,19 @@ FastApiCallFunctionVector CanOptimizeFastCall(
         fast_api_call::CanOptimizeFastSignature(c_signature);
 
     if (optimize_to_fast_call) {
+      // TODO(nicohartmann@): {Flags::kEnforceRangeBit} is currently only
+      // supported on 64 bit architectures. We should support this on 32 bit
+      // architectures.
+#if defined(V8_TARGET_ARCH_32_BIT)
+      for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+        const uint8_t flags =
+            static_cast<uint8_t>(c_signature->ArgumentInfo(i).GetFlags());
+        if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
+          // Bailout
+          return FastApiCallFunctionVector(zone);
+        }
+      }
+#endif
       result.push_back({functions[i], c_signature});
     }
   }
