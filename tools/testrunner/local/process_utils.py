@@ -6,6 +6,8 @@
 Tools for tracking process statistics like memory consumption.
 """
 
+import platform
+
 from contextlib import contextmanager
 from threading import Thread, Event
 
@@ -53,10 +55,13 @@ class PSUtilProcessLogger(EmptyProcessLogger):
   def __init__(self, probing_interval_sec=PROBING_INTERVAL_SEC):
     self.probing_interval_sec = probing_interval_sec
 
+  def get_pid(self, pid):
+    return pid
+
   @contextmanager
   def log_stats(self, process):
     try:
-      process_handle = psutil.Process(process.pid)
+      process_handle = psutil.Process(self.get_pid(process.pid))
     except psutil.NoSuchProcess:
       # Fetching process stats has an expected race condition with the
       # running process, which might just have ended already.
@@ -86,11 +91,36 @@ class PSUtilProcessLogger(EmptyProcessLogger):
     logger.join()
 
 
+class LinuxPSUtilProcessLogger(PSUtilProcessLogger):
+
+  def get_pid(self, pid):
+    """Try to get the correct PID on Linux.
+
+    On Linux, we call subprocesses using shell, which on some systems (Debian)
+    has an optimization using exec and reusing the parent PID, while others
+    (Ubuntu) create a child process with its own PID. We don't want to log
+    memory stats of the shell parent.
+    """
+    try:
+      with open(f'/proc/{pid}/task/{pid}/children') as f:
+        children = f.read().strip().split(' ')
+        if children and children[0]:
+          # On Debian, we don't have child processes here.
+          return int(children[0])
+    except FileNotFoundError:
+      # A quick process might already have finished.
+      pass
+    return pid
+
+
 EMPTY_PROCESS_LOGGER = EmptyProcessLogger()
 try:
   # Process utils are only supported when we use vpython or when psutil is
   # installed.
   import psutil
-  PROCESS_LOGGER = PSUtilProcessLogger()
+  if platform.system() == 'Linux':
+    PROCESS_LOGGER = LinuxPSUtilProcessLogger()
+  else:
+    PROCESS_LOGGER = PSUtilProcessLogger()
 except:
   PROCESS_LOGGER = EMPTY_PROCESS_LOGGER
