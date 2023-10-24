@@ -631,7 +631,7 @@ class ModuleDecoderImpl : public Decoder {
             const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
             module_->types[i] = {sig, kNoSuperType, v8_flags.wasm_final_types};
-            type_canon->AddRecursiveGroup(module_.get(), 1, i);
+            type_canon->AddRecursiveSingletonGroup(module_.get(), i);
             break;
           }
           case kWasmArrayTypeCode:
@@ -679,12 +679,10 @@ class ModuleDecoderImpl : public Decoder {
         for (uint32_t j = 0; j < group_size; j++) {
           if (tracer_) tracer_->TypeOffset(pc_offset());
           TypeDefinition type = consume_subtype_definition();
-          if (ok()) module_->types[initial_size + j] = type;
+          module_->types[initial_size + j] = type;
         }
-        if (ok()) {
-          type_canon->AddRecursiveGroup(module_.get(), group_size,
-                                        static_cast<uint32_t>(initial_size));
-        }
+        if (failed()) return;
+        type_canon->AddRecursiveGroup(module_.get(), group_size);
         if (tracer_) {
           tracer_->Description("end of rec. group");
           tracer_->NextLine();
@@ -697,7 +695,7 @@ class ModuleDecoderImpl : public Decoder {
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
           module_->types[initial_size] = type;
-          type_canon->AddRecursiveGroup(module_.get(), 1);
+          type_canon->AddRecursiveSingletonGroup(module_.get());
         }
       }
     }

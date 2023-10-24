@@ -51,6 +51,14 @@ class TypeCanonicalizer {
   // Same as above, except it registers the last {size} types in the module.
   V8_EXPORT_PRIVATE void AddRecursiveGroup(WasmModule* module, uint32_t size);
 
+  // Same as above, but for a group of size 1 (using the last type in the
+  // module).
+  V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module);
+
+  // Same as above, but receives an explicit start index.
+  V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module,
+                                                    uint32_t start_index);
+
   // Adds a module-independent signature as a recursive group, and canonicalizes
   // it if an identical is found. Returns the canonical index of the added
   // signature.
@@ -123,10 +131,26 @@ class TypeCanonicalizer {
     // The storage of this vector is the TypeCanonicalizer's zone_.
     base::Vector<CanonicalType> types;
   };
+  struct CanonicalSingletonGroup {
+    struct hash {
+      size_t operator()(const CanonicalSingletonGroup& group) const {
+        return group.hash_value();
+      }
+    };
+
+    bool operator==(const CanonicalSingletonGroup& other) const {
+      return type == other.type;
+    }
+
+    size_t hash_value() const { return type.hash_value(); }
+
+    CanonicalType type;
+  };
 
   void AddPredefinedArrayType(uint32_t index, ValueType element_type);
 
   int FindCanonicalGroup(const CanonicalGroup&) const;
+  int FindCanonicalGroup(const CanonicalSingletonGroup&) const;
 
   // Canonicalize all types present in {type} (including supertype) according to
   // {CanonicalizeValueType}.
@@ -141,9 +165,13 @@ class TypeCanonicalizer {
                                   uint32_t recursive_group_start) const;
 
   std::vector<uint32_t> canonical_supertypes_;
-  // group -> canonical id of first type
+  // Maps groups of size >=2 to the canonical id of the first type.
   std::unordered_map<CanonicalGroup, uint32_t, CanonicalGroup::hash>
       canonical_groups_;
+  // Maps group of size 1 to the canonical id of the type.
+  std::unordered_map<CanonicalSingletonGroup, uint32_t,
+                     CanonicalSingletonGroup::hash>
+      canonical_singleton_groups_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   base::Mutex mutex_;

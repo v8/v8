@@ -34,7 +34,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
   }
   module->add_struct_type(builder.Build(), supertype, is_final);
   if (in_singleton_rec_group) {
-    GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
 }
 
@@ -45,7 +45,7 @@ void DefineArray(WasmModule* module, FieldInit element_type,
                              element_type.first, element_type.second),
                          supertype, is_final);
   if (in_singleton_rec_group) {
-    GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
 }
 

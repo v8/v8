@@ -87,7 +87,7 @@ class TestModuleBuilder {
                        uint32_t supertype = kNoSuperType) {
     mod.add_signature(sig, supertype, v8_flags.wasm_final_types);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
-    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
   uint8_t AddFunction(const FunctionSig* sig, bool declared = true) {
@@ -131,14 +131,14 @@ class TestModuleBuilder {
     }
     mod.add_struct_type(type_builder.Build(), supertype,
                         v8_flags.wasm_final_types);
-    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
 
   uint8_t AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     mod.add_array_type(array, kNoSuperType, v8_flags.wasm_final_types);
-    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
 
