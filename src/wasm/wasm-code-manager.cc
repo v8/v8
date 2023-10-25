@@ -2206,6 +2206,8 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   size_t code_size = code_allocator_.committed_code_space();
   int code_size_mb = static_cast<int>(code_size / MB);
   counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
+  int code_size_kb = static_cast<int>(code_size / KB);
+  counters->wasm_module_code_size_kb()->AddSample(code_size_kb);
   // If this is a wasm module of >= 2MB, also sample the freed code size,
   // absolute and relative. Code GC does not happen on asm.js
   // modules, and small modules will never trigger GC anyway.
