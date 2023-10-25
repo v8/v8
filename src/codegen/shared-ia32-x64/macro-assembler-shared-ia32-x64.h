@@ -747,26 +747,6 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
     }
   }
 
-  void I32x4TruncF64x2UZero(XMMRegister dst, XMMRegister src, Register tmp,
-                            XMMRegister scratch) {
-    // TODO(zhin): call this from I32x4TruncSatF64x2UZero.
-    ASM_CODE_COMMENT(this);
-    if (dst != src && !CpuFeatures::IsSupported(AVX)) {
-      movaps(dst, src);
-      src = dst;
-    }
-    // Same as I32x4TruncSatF64x2UZero but without the saturation.
-    Roundpd(dst, src, kRoundToZero);
-    // Add to special double where significant bits == uint32.
-    Addpd(dst, dst,
-          ExternalReferenceAsOperand(
-              ExternalReference::address_of_wasm_double_2_power_52(), tmp));
-    // Extract low 32 bits of each double's significand, zero top lanes.
-    // dst = [dst[0], dst[2], 0, 0]
-    Xorps(scratch, scratch, scratch);
-    Shufps(dst, dst, scratch, 0x88);
-  }
-
   void I32x4TruncF32x4U(XMMRegister dst, XMMRegister src, Register scratch,
                         XMMRegister tmp) {
     ASM_CODE_COMMENT(this);
