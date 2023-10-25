@@ -311,6 +311,7 @@ class TypeInferenceAnalysis {
         case Opcode::kWasmTypeCast:
         case Opcode::kAnyConvertExtern:
         case Opcode::kExternConvertAny:
+        case Opcode::kWasmTypeAnnotation:
         case Opcode::kStructGet:
         case Opcode::kStructSet:
         case Opcode::kArrayGet:

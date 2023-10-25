@@ -1208,6 +1208,12 @@ class GraphVisitor {
     return assembler().ReduceExternConvertAny(MapToNewGraph(op.object()));
   }
 
+  OpIndex AssembleOutputGraphWasmTypeAnnotation(
+      const WasmTypeAnnotationOp& op) {
+    return assembler().ReduceWasmTypeAnnotation(MapToNewGraph(op.value()),
+                                                op.type);
+  }
+
   OpIndex AssembleOutputGraphStructGet(const StructGetOp& op) {
     return assembler().ReduceStructGet(MapToNewGraph(op.object()), op.type,
                                        op.field_index, op.is_signed,

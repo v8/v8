@@ -2897,6 +2897,10 @@ class AssemblerOpInterface {
     return ReduceIfReachableExternConvertAny(input);
   }
 
+  OpIndex AnnotateWasmType(OpIndex value, const wasm::ValueType type) {
+    return ReduceIfReachableWasmTypeAnnotation(value, type);
+  }
+
   OpIndex StructGet(V<HeapObject> object, const wasm::StructType* type,
                     int field_index, bool is_signed, CheckForNull null_check) {
     return ReduceIfReachableStructGet(object, type, field_index, is_signed,

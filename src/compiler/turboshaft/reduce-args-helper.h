@@ -575,6 +575,10 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const AnyConvertExternOp& op) {
     return callback_(op.object());
   }
+
+  OpIndex operator()(const WasmTypeAnnotationOp& op) {
+    return callback_(op.value(), op.type);
+  }
 #endif
 
  private:

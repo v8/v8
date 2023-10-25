@@ -141,6 +141,9 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kPhi:
         ProcessPhi(op.Cast<PhiOp>());
         break;
+      case Opcode::kWasmTypeAnnotation:
+        ProcessTypeAnnotation(op.Cast<WasmTypeAnnotationOp>());
+        break;
       case Opcode::kBranch:
         // Handling branch conditions implying special values is handled on the
         // beginning of the successor block.
@@ -250,6 +253,11 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   RefineTypeKnowledge(graph_.Index(phi), union_type);
 }
 
+void WasmGCTypeAnalyzer::ProcessTypeAnnotation(
+    const WasmTypeAnnotationOp& type_annotation) {
+  RefineTypeKnowledge(type_annotation.value(), type_annotation.type);
+}
+
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
                                                const Block& target) {
   const Operation& condition = graph_.Get(branch.condition());
@@ -352,6 +360,9 @@ OpIndex WasmGCTypeAnalyzer::ResolveAliases(OpIndex object) const {
         break;
       case Opcode::kAssertNotNull:
         object = op->Cast<AssertNotNullOp>().object();
+        break;
+      case Opcode::kWasmTypeAnnotation:
+        object = op->Cast<WasmTypeAnnotationOp>().value();
         break;
       default:
         return object;

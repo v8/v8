@@ -998,3 +998,46 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, wasm.loopPhiCheckRequiredUnrelated(1));
   assertEquals(1, wasm.loopPhiCheckRequiredUnrelated(2));
 })();
+
+(function TypePropagationCallRef() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let sig = builder.addType(makeSig([kWasmI32], [wasmRefNullType(struct)]));
+
+  builder.addFunction('callee', sig)
+  .addBody([
+    // local.get[0] ? null : new struct();
+    kExprLocalGet, 0,
+    kExprIf, kWasmVoid,
+      kExprRefNull, struct,
+      kExprReturn,
+    kExprEnd,
+    kGCPrefix, kExprStructNewDefault, struct,
+  ])
+  .exportFunc();
+
+  builder.addFunction('callTypedWasm',
+      makeSig([kWasmI32, wasmRefType(sig)], []))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallRef, sig,
+      kExprLocalSet, 2,
+      kExprLocalGet, 2,
+      // Can be optimized away based on the signature of the callee.
+      kGCPrefix, kExprRefCastNull, kStructRefCode,
+      // Can be converted into a check for not null.
+      kGCPrefix, kExprRefCast, struct,
+      kExprDrop,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  wasm.callTypedWasm(0, wasm.callee);
+  assertTraps(kTrapIllegalCast, () => wasm.callTypedWasm(1, wasm.callee));
+})();

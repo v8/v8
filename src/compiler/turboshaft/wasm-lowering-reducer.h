@@ -196,6 +196,11 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
+  OpIndex REDUCE(WasmTypeAnnotation)(OpIndex value, wasm::ValueType type) {
+    // Remove type annotation operations as they are not needed any more.
+    return value;
+  }
+
   OpIndex REDUCE(StructGet)(OpIndex object, const wasm::StructType* type,
                             int field_index, bool is_signed,
                             CheckForNull null_check) {

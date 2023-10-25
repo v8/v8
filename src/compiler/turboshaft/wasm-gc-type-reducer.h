@@ -74,6 +74,7 @@ class WasmGCTypeAnalyzer {
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
   void ProcessAllocateStruct(const WasmAllocateStructOp& allocate_struct);
   void ProcessPhi(const PhiOp& phi);
+  void ProcessTypeAnnotation(const WasmTypeAnnotationOp& type_annotation);
 
   void CreateMergeSnapshot(const Block& block);
   bool CreateMergeSnapshot(base::Vector<const Snapshot> predecessors);
@@ -246,6 +247,12 @@ class WasmGCTypeReducer : public Next {
       return __ Word32Constant(1);
     }
     goto no_change;
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
+      OpIndex op_idx, const WasmTypeAnnotationOp& type_annotation) {
+    // Remove type annotation operations as they are not needed any more.
+    return __ MapToNewGraph(type_annotation.value());
   }
 
   OpIndex REDUCE_INPUT_GRAPH(StructGet)(OpIndex op_idx,

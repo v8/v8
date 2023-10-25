@@ -108,6 +108,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmTypeCast)                         \
   V(AnyConvertExtern)                     \
   V(ExternConvertAny)                     \
+  V(WasmTypeAnnotation)                   \
   V(StructGet)                            \
   V(StructSet)                            \
   V(ArrayGet)                             \
@@ -6180,6 +6181,37 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
+};
+
+// Annotate a value with a wasm type.
+// This is a helper operation to propagate type information from the graph
+// builder to type-based optimizations and will then be removed.
+struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
+  static constexpr OpEffects effects = OpEffects();
+  wasm::ValueType type;
+
+  explicit WasmTypeAnnotationOp(OpIndex value, wasm::ValueType type)
+      : Base(value), type(type) {}
+
+  V<Tagged> value() const { return Base::input(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    // In theory, the operation could be used for non-reference types as well.
+    // This would require updating inputs_rep and outputs_rep to be based on
+    // the wasm type.
+    DCHECK(type.is_object_reference());
+  }
+
+  auto options() const { return std::tuple(type); }
 };
 
 struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
