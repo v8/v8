@@ -7095,6 +7095,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kExn:
+          case wasm::HeapType::kNoExn:
             return node;
           case wasm::HeapType::kBottom:
           case wasm::HeapType::kStringViewWtf8:
@@ -7129,6 +7131,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kExn:
+          case wasm::HeapType::kNoExn:
             return node;
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
@@ -7262,6 +7266,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return input;
           case wasm::HeapType::kString:
             return BuildCheckString(input, js_context, type);
+          case wasm::HeapType::kExn:
+          case wasm::HeapType::kNoExn:
+            return input;
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kI31:

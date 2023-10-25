@@ -91,7 +91,13 @@
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
   /* V8 side owner: clemensb */                                                \
-  V(multi_memory, "multi-memory", false)
+  V(multi_memory, "multi-memory", false)                                       \
+                                                                               \
+  /* Exnref */                                                                 \
+  /* This flag enables the new exception handling proposal discussed here: */  \
+  /* https://github.com/WebAssembly/exception-handling/issues/281 */           \
+  /* V8 side owner: thibaudm */                                                \
+  V(exnref, "exnref", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit

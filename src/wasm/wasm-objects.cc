@@ -2545,6 +2545,10 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       *error_message = "null is not allowed for (ref any)";
       return {};
     }
+    case HeapType::kExn:
+      if (!IsNull(*value, isolate)) return value;
+      *error_message = "null is not allowed for (ref exn)";
+      return {};
     case HeapType::kStruct: {
       if (IsWasmStruct(*value)) {
         return value;

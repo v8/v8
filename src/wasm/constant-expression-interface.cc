@@ -199,7 +199,8 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
       return WasmValue(Simd128());
     case kRefNull:
       return WasmValue(
-          type == kWasmExternRef || type == kWasmNullExternRef
+          type == kWasmExternRef || type == kWasmNullExternRef ||
+                  type == kWasmExnRef
               ? Handle<Object>::cast(isolate->factory()->null_value())
               : Handle<Object>::cast(isolate->factory()->wasm_null()),
           type);

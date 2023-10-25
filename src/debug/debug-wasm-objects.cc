@@ -920,7 +920,11 @@ Handle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       Handle<Object> ref = value.to_ref();
-      if (IsWasmStruct(*ref)) {
+      if (value.type().heap_type().representation() == wasm::HeapType::kExn) {
+        t = isolate->factory()->InternalizeString(
+            base::StaticCharVector("exnref"));
+        v = ref;
+      } else if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             HeapObject::cast(*ref)->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(

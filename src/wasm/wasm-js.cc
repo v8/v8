@@ -1463,6 +1463,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "i31ref"))) {
     *type = i::wasm::kWasmI31Ref;
+  } else if (enabled_features.has_exnref() &&
+             string->StringEquals(v8_str(isolate, "exnref"))) {
+    *type = i::wasm::kWasmExnRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmVoid;

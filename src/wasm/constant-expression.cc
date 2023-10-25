@@ -36,7 +36,8 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
       return WasmValue(expr.i32_value());
     case ConstantExpression::kRefNull:
       return WasmValue(
-          expected == kWasmExternRef || expected == kWasmNullExternRef
+          expected == kWasmExternRef || expected == kWasmNullExternRef ||
+                  expected == kWasmNullExnRef || expected == kWasmExnRef
               ? Handle<Object>::cast(isolate->factory()->null_value())
               : Handle<Object>::cast(isolate->factory()->wasm_null()),
           ValueType::RefNull(expr.repr()));
