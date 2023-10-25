@@ -85,6 +85,10 @@ bool CallOp::IsStackCheck(const Graph& graph, JSHeapBroker* broker,
   return is_this_builtin(2) || is_this_builtin(3);
 }
 
+void CallOp::PrintOptions(std::ostream& os) const {
+  os << '[' << *descriptor->descriptor << ']';
+}
+
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,

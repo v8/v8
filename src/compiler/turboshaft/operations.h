@@ -3509,6 +3509,7 @@ struct CallOp : OperationT<CallOp> {
                      frame_state, arguments, descriptor, effects);
   }
   auto options() const { return std::tuple{descriptor}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 // Catch an exception from the first operation of the `successor` block and
