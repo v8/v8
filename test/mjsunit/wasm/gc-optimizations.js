@@ -452,7 +452,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let addToLocal = [kExprLocalGet, 1, kExprI32Add, kExprLocalSet, 1];
 
   builder.addFunction(
-      "main", makeSig([wasmRefNullType(super_struct)], [kWasmI32]))
+      "pathBasedTypes", makeSig([wasmRefNullType(super_struct)], [kWasmI32]))
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLocalGet, 0,
@@ -486,13 +486,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprEnd,
         kExprDrop,
       kExprElse,
-        // This (always trapping) cast should be preserved.
+        // This (always trapping) cast should be optimized away.
+        // (If the ref.test in the start block returns 0 the cast to sub_struct
+        // in that block will already fail.)
         kExprLocalGet, 0,
         kGCPrefix, kExprRefCast, sub_struct,
         kGCPrefix, kExprStructGet, sub_struct, 1,
         ...addToLocal,
       kExprEnd,
-      // This cast should be preserved.
+      // This cast should be optimized away.
       kExprLocalGet, 0,
       kGCPrefix, kExprRefCast, sub_struct,
       kGCPrefix, kExprStructGet, sub_struct, 1,
@@ -500,7 +502,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ])
     .exportFunc();
 
-  builder.instantiate();
+  let wasm = builder.instantiate().exports;
+  assertTraps(kTrapIllegalCast, () => wasm.pathBasedTypes(null));
 })();
 
 (function IndependentCastNullRefType() {

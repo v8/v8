@@ -154,14 +154,11 @@ void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
   OpIndex object = type_cast.object();
   wasm::ValueType target_type = type_cast.config.to;
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, target_type);
-  // The cast also returns the input itself, so we also need to update its
-  // result type.
-  RefineTypeKnowledge(graph_.Index(type_cast), target_type);
   input_type_map_[graph_.Index(type_cast)] = known_input_type;
 }
 
 void WasmGCTypeAnalyzer::ProcessTypeCheck(const WasmTypeCheckOp& type_check) {
-  wasm::ValueType type = types_table_.Get(type_check.object());
+  wasm::ValueType type = GetResolvedType(type_check.object());
   input_type_map_[graph_.Index(type_check)] = type;
 }
 
@@ -171,12 +168,10 @@ void WasmGCTypeAnalyzer::ProcessAssertNotNull(
   wasm::ValueType new_type = assert_not_null.type.AsNonNull();
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, new_type);
   input_type_map_[graph_.Index(assert_not_null)] = known_input_type;
-  // AssertNotNull also returns the input.
-  RefineTypeKnowledge(graph_.Index(assert_not_null), new_type);
 }
 
 void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
-  input_type_map_[graph_.Index(is_null)] = types_table_.Get(is_null.object());
+  input_type_map_[graph_.Index(is_null)] = GetResolvedType(is_null.object());
 }
 
 void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {
@@ -190,6 +185,8 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
   // struct.get performs a null check.
   wasm::ValueType type = RefineTypeKnowledgeNotNull(struct_get.object());
   input_type_map_[graph_.Index(struct_get)] = type;
+  RefineTypeKnowledge(graph_.Index(struct_get),
+                      struct_get.type->field(struct_get.field_index));
 }
 
 void WasmGCTypeAnalyzer::ProcessStructSet(const StructSetOp& struct_set) {
@@ -238,15 +235,15 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
     // We don't know anything about the backedge yet, so we only use the
     // forward edge. We will revisit the loop header again once the block with
     // the back edge is evaluated.
-    RefineTypeKnowledge(graph_.Index(phi), types_table_.Get((phi.input(0))));
+    RefineTypeKnowledge(graph_.Index(phi), GetResolvedType((phi.input(0))));
     return;
   }
   wasm::ValueType union_type =
-      types_table_.GetPredecessorValue(phi.input(0), 0);
+      types_table_.GetPredecessorValue(ResolveAliases(phi.input(0)), 0);
   if (union_type == wasm::ValueType()) return;
   for (int i = 1; i < phi.input_count; ++i) {
     wasm::ValueType input_type =
-        types_table_.GetPredecessorValue(phi.input(i), i);
+        types_table_.GetPredecessorValue(ResolveAliases(phi.input(i)), i);
     if (input_type == wasm::ValueType()) return;
     union_type = wasm::Union(union_type, input_type, module_, module_).type;
   }
@@ -329,6 +326,7 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
 
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
     OpIndex object, wasm::ValueType new_type) {
+  object = ResolveAliases(object);
   wasm::ValueType previous_value = types_table_.Get(object);
   wasm::ValueType intersection_type =
       previous_value == wasm::ValueType()
@@ -339,9 +337,30 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledgeNotNull(OpIndex object) {
+  object = ResolveAliases(object);
   wasm::ValueType previous_value = types_table_.Get(object);
   types_table_.Set(object, previous_value.AsNonNull());
   return previous_value;
+}
+
+OpIndex WasmGCTypeAnalyzer::ResolveAliases(OpIndex object) const {
+  while (true) {
+    const Operation* op = &graph_.Get(object);
+    switch (op->opcode) {
+      case Opcode::kWasmTypeCast:
+        object = op->Cast<WasmTypeCastOp>().object();
+        break;
+      case Opcode::kAssertNotNull:
+        object = op->Cast<AssertNotNullOp>().object();
+        break;
+      default:
+        return object;
+    }
+  }
+}
+
+wasm::ValueType WasmGCTypeAnalyzer::GetResolvedType(OpIndex object) const {
+  return types_table_.Get(ResolveAliases(object));
 }
 
 }  // namespace v8::internal::compiler::turboshaft

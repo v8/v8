@@ -85,6 +85,9 @@ class WasmGCTypeAnalyzer {
   // {object}, returning the previous known type.
   wasm::ValueType RefineTypeKnowledgeNotNull(OpIndex object);
 
+  OpIndex ResolveAliases(OpIndex object) const;
+  wasm::ValueType GetResolvedType(OpIndex object) const;
+
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
