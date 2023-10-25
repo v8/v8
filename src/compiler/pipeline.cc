@@ -3109,6 +3109,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     Run<turboshaft::DecompressionOptimizationPhase>();
 
+#if defined(V8_TARGET_ARCH_X64)
     if (v8_flags.turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!SelectInstructionsTurboshaft(linkage)) {
@@ -3119,6 +3120,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       data->DeleteGraphZone();
       return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
     }
+#endif  // defined(V8_TARGET_ARCH_X64)
 
     // Otherwise, translate back to Turbofan and run instruction selection on
     // the sea of nodes graph.
