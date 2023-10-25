@@ -1870,13 +1870,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kPPC_DoubleToInt32:
-    case kPPC_DoubleToUint32:
+#define DOUBLE_TO_INT32(op)                                                \
+  bool check_conversion = i.OutputCount() > 1;                             \
+  CRegister cr = cr7;                                                      \
+  FPSCRBit fps_bit = VXCVI;                                                \
+  int cr_bit = v8::internal::Assembler::encode_crbit(                      \
+      cr, static_cast<CRBit>(fps_bit % CRWIDTH));                          \
+  __ mtfsb0(fps_bit); /* clear FPSCR:VXCVI bit */                          \
+  __ op(kScratchDoubleReg, i.InputDoubleRegister(0));                      \
+  __ MovDoubleLowToInt(i.OutputRegister(0), kScratchDoubleReg);            \
+  __ mcrfs(cr, VXCVI); /* extract FPSCR field containing VXCVI into cr7 */ \
+  if (check_conversion) {                                                  \
+    __ li(i.OutputRegister(1), Operand(1));                                \
+    __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), cr_bit);         \
+  } else {                                                                 \
+    __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), cr_bit);         \
+  }
+    case kPPC_DoubleToInt32: {
+      DOUBLE_TO_INT32(fctiwz)
+      break;
+    }
+    case kPPC_DoubleToUint32: {
+      DOUBLE_TO_INT32(fctiwuz)
+      break;
+    }
+#undef DOUBLE_TO_INT32
     case kPPC_DoubleToInt64: {
 #if V8_TARGET_ARCH_PPC64
-      bool check_conversion =
-          (opcode == kPPC_DoubleToInt64 && i.OutputCount() > 1);
-        __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      bool check_conversion = i.OutputCount() > 1;
+      __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
 #endif
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
 #if !V8_TARGET_ARCH_PPC64
