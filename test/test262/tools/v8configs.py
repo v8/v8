@@ -89,7 +89,7 @@ def local_repo_factory(config):
       mirror_url=None,
       default_committer_email=config.export.committer_email,
       default_committer_name=config.export.committer_name,
-      patch_path_renames = config.github.patch_path_renames,
+      patch_path_renames = [(r.source, r.destination) for r in config.github.patch_path_renames],
       host=host,
       gh_token=gh_token,
       main_branch=config.github.main_branch,
