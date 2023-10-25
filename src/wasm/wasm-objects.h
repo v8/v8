@@ -416,7 +416,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
-  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
