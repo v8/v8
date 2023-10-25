@@ -1166,9 +1166,6 @@ Node* ScheduleBuilder::ProcessOperation(const RetainOp& op) {
   return AddNode(common.Retain(), {GetNode(op.retained())});
 }
 Node* ScheduleBuilder::ProcessOperation(const ParameterOp& op) {
-  // DeadCodeElimination does not eliminate unused parameter operations, so we
-  // just eliminate them here.
-  if (op.saturated_use_count.IsZero()) return nullptr;
   // Parameters need to be cached because the register allocator assumes that
   // there are no duplicate nodes for the same parameter.
   if (parameters.count(op.parameter_index)) {

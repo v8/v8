@@ -28,7 +28,6 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/roots/roots-inl.h"
-#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -3388,16 +3387,30 @@ Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
 template <>
 turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
     turboshaft::OpIndex node, size_t projection_index) {
-  // TODO(nicohartmann@): We need to make sure to emit canoncial projections
-  // right after all operations with multiple outputs for this to work
-  // correctly.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const turboshaft::Graph* graph = this->turboshaft_graph();
+  // Projections are always emitted right after the operation.
+  for (OpIndex next = graph->NextIndex(node); next.valid();
+       next = graph->NextIndex(next)) {
+    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
+    if (projection == nullptr) break;
+    if (projection->index == projection_index) return next;
+  }
+
+  // If there is no Projection with index {projection_index} following the
+  // operation, then there shouldn't be any such Projection in the graph. We
+  // verify this in Debug mode.
+#ifdef DEBUG
   for (turboshaft::OpIndex use : turboshaft_uses(node)) {
     if (const turboshaft::ProjectionOp* projection =
             this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
       DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) return use;
+      if (projection->index == projection_index) {
+        UNREACHABLE();
+      }
     }
   }
+#endif  // DEBUG
   return turboshaft::OpIndex::Invalid();
 }
 

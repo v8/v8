@@ -3355,11 +3355,7 @@ struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
   RegisterRepresentation rep;
   const char* debug_name;
 
-  // Parameters are marked as RequiredWhenUnused to make sure that parameters
-  // are at the beginning of the Turboshaft graph. Without RequiredWhenUnused
-  // it can happen that a parameter gets eliminated and later inserted again
-  // in a later location in the graph.
-  static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
+  static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return {&rep, 1};
   }
@@ -3881,6 +3877,13 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   }
   auto options() const { return std::tuple{index}; }
 };
+
+using ProjectionMask = MaskBuilder<ProjectionOp, FIELD(ProjectionOp, index)>;
+
+namespace Opmask {
+using kProjection0 = ProjectionMask::For<0>;
+using kProjection1 = ProjectionMask::For<1>;
+}  // namespace Opmask
 
 struct CheckTurboshaftTypeOfOp
     : FixedArityOperationT<1, CheckTurboshaftTypeOfOp> {

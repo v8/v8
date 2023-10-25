@@ -8,11 +8,42 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/diagnostics/code-tracer.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+namespace {
+
+void TraceSequence(OptimizedCompilationInfo* info,
+                   InstructionSequence* sequence, JSHeapBroker* broker,
+                   CodeTracer* code_tracer, const char* phase_name) {
+  if (info->trace_turbo_json()) {
+    UnparkedScopeIfNeeded scope(broker);
+    AllowHandleDereference allow_deref;
+    TurboJsonFile json_of(info, std::ios_base::app);
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\""
+            << ",\"blocks\":" << InstructionSequenceAsJSON{sequence}
+            << ",\"register_allocation\":{"
+            << "\"fixed_double_live_ranges\": {}"
+            << ",\"fixed_live_ranges\": {}"
+            << ",\"live_ranges\": {}"
+            << "}},\n";
+  }
+  if (info->trace_turbo_graph()) {
+    UnparkedScopeIfNeeded scope(broker);
+    AllowHandleDereference allow_deref;
+    CodeTracer::StreamScope tracing_scope(code_tracer);
+    tracing_scope.stream() << "----- Instruction sequence " << phase_name
+                           << " -----\n"
+                           << *sequence;
+  }
+}
+
+}  // namespace
 
 // Compute the special reverse-post-order block ordering, which is essentially
 // a RPO of the graph where loop bodies are contiguous. Properties:
@@ -385,13 +416,8 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
   if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
     return bailout;
   }
-  if (data->info()->trace_turbo_json()) {
-    TurboJsonFile json_of(data->info(), std::ios_base::app);
-    json_of << "{\"name\":\"" << phase_name() << "\",\"type\":\"instructions\""
-            << InstructionRangesAsJSON{data->sequence(),
-                                       &selector.instr_origins()}
-            << "},\n";
-  }
+  TraceSequence(data->info(), data->sequence(), data->broker(), code_tracer,
+                "after instruction selection");
   return base::nullopt;
 }
 

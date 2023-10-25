@@ -1239,9 +1239,8 @@ DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_load_elimination)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_instruction_selection,
-    "run instruction selection on Turboshaft IR directly")
+DEFINE_BOOL(turboshaft_instruction_selection, false,
+            "run instruction selection on Turboshaft IR directly")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_instruction_selection,
     "run instruction selection on Turboshaft IR directly for wasm")
