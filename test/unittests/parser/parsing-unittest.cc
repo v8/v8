@@ -517,6 +517,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -543,6 +544,7 @@ bool TokenIsCallable(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -569,6 +571,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
       return true;
     case Token::YIELD:
@@ -10219,6 +10222,7 @@ TEST_F(ParsingTest, EscapedKeywords) {
     "({\\u0067et get(){}})",
     "({\\u0073et set(){}})",
     "(async ()=>{var \\u0061wait = 100})()",
+    "for (var x o\\u0066 [])",
     nullptr
   };
   // clang-format on
