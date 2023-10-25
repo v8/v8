@@ -6,8 +6,8 @@
 
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/dataview-reducer.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -32,7 +32,7 @@ namespace v8::internal::wasm {
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
         compiler::turboshaft::SelectLoweringReducer,
-        compiler::turboshaft::MachineLoweringReducer,
+        compiler::turboshaft::DataViewReducer,
         compiler::turboshaft::VariableReducer,
         compiler::turboshaft::RequiredOptimizationReducer>>;
 using compiler::AccessBuilder;

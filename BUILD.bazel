@@ -3019,6 +3019,7 @@ filegroup(
         "src/compiler/turboshaft/build-graph-phase.cc",
         "src/compiler/turboshaft/build-graph-phase.h",
         "src/compiler/turboshaft/builtin-call-descriptors.h",
+        "src/compiler/turboshaft/dataview-reducer.h",
         "src/compiler/turboshaft/dead-code-elimination-phase.cc",
         "src/compiler/turboshaft/dead-code-elimination-phase.h",
         "src/compiler/turboshaft/dead-code-elimination-reducer.h",
