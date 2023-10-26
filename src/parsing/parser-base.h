@@ -991,7 +991,9 @@ class ParserBase {
     return false;
   }
 
-  bool PeekInOrOf() { return peek() == Token::IN || peek() == Token::OF; }
+  bool PeekInOrOf() {
+    return peek() == Token::IN || PeekContextualKeyword(Token::OF);
+  }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
   // Only called for strict mode strings.
