@@ -446,7 +446,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   using TorqueGeneratedContext::length;      // Non-atomic.
   using TorqueGeneratedContext::set_length;  // Non-atomic.
-  DECL_RELAXED_SMI_ACCESSORS(length)
+  DECL_RELAXED_INT_ACCESSORS(length)
 
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.

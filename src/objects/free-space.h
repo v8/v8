@@ -33,7 +33,7 @@ namespace internal {
 class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
  public:
   // [size]: size of the free space including the header.
-  DECL_RELAXED_SMI_ACCESSORS(size)
+  DECL_RELAXED_INT_ACCESSORS(size)
 
   inline int Size();
 

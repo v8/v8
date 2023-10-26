@@ -252,9 +252,9 @@ void TaggedArrayBase<D, S>::RightTrim(Isolate* isolate, int new_capacity) {
                                         old_capacity);
 }
 
-// Due to left- and right-trimming, concurrent visitors need to read the
-// capacity with acquire semantics.
-// TODO(ulan): Acquire should not be needed anymore.
+// Due to right-trimming (which creates a filler object before publishing the
+// length through a release-store, see Heap::RightTrimArray), concurrent
+// visitors need to read the length with acquire semantics.
 template <class D, class S>
 int TaggedArrayBase<D, S>::AllocatedSize() const {
   return SizeFor(capacity(kAcquireLoad));
@@ -422,9 +422,9 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate, Handle<FixedArray> xs,
   return ys;
 }
 
-// Due to left- and right-trimming, concurrent visitors need to read the length
-// with acquire semantics.
-// TODO(ulan): Acquire should not be needed anymore.
+// Due to right-trimming (which creates a filler object before publishing the
+// length through a release-store, see Heap::RightTrimArray), concurrent
+// visitors need to read the length with acquire semantics.
 inline int WeakFixedArray::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));
 }
@@ -579,9 +579,9 @@ void PrimitiveArrayBase<D, S>::set(int index, typename S::ElementT value) {
   WriteField<typename S::ElementT>(OffsetOfElementAt(index), value);
 }
 
-// Due to left- and right-trimming, concurrent visitors need to read the length
-// with acquire semantics.
-// TODO(ulan): Acquire should not be needed anymore.
+// Due to right-trimming (which creates a filler object before publishing the
+// length through a release-store, see Heap::RightTrimArray), concurrent
+// visitors need to read the length with acquire semantics.
 template <class D, class S>
 int PrimitiveArrayBase<D, S>::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));

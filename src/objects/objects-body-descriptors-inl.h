@@ -467,8 +467,7 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {}
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return ByteArray::SizeFor(
-        ByteArray::unchecked_cast(obj)->length(kAcquireLoad));
+    return ByteArray::unchecked_cast(obj)->AllocatedSize();
   }
 };
 
@@ -534,8 +533,7 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {}
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::unchecked_cast(obj)->length(kAcquireLoad));
+    return FixedDoubleArray::unchecked_cast(obj)->AllocatedSize();
   }
 };
 

@@ -442,7 +442,7 @@
     TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
-#define DECL_RELAXED_SMI_ACCESSORS(name) \
+#define DECL_RELAXED_INT_ACCESSORS(name) \
   inline int name(RelaxedLoadTag) const; \
   inline void set_##name(int value, RelaxedStoreTag);
 
