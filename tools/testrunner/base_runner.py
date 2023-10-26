@@ -237,6 +237,8 @@ class BaseTestRunner(object):
                            "color, mono)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
+    parser.add_option("--log-system-memory",
+                      help="Path to a file for storing system memory stats.")
     parser.add_option("--log-test-schedule",
                       help="Path to a file for streaming the test schedule to.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
@@ -303,10 +305,14 @@ class BaseTestRunner(object):
       print('Multiple architectures are deprecated')
       raise TestRunnerError()
 
-    # We write a test schedule by default alongside json test results on bots.
-    if options.json_test_results and not options.log_test_schedule:
+    # We write a test schedule and the system memory stats by default
+    # alongside json test results on bots.
+    if options.json_test_results:
       result_dir = Path(options.json_test_results).parent
-      options.log_test_schedule = result_dir / 'test_schedule.log'
+      if not options.log_test_schedule:
+        options.log_test_schedule = result_dir / 'test_schedule.log'
+      if not options.log_system_memory:
+        options.log_system_memory = result_dir / 'memory_stats.log'
 
     return AugmentedOptions.augment(options), args
 
