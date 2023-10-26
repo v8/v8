@@ -76,7 +76,7 @@ class PSUtilProcessLogger(EmptyProcessLogger):
   def log_stats(self, process):
     try:
       process_handle = psutil.Process(self.get_pid(process.pid))
-    except psutil.NoSuchProcess:
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
       # Fetching process stats has an expected race condition with the
       # running process, which might just have ended already.
       yield ProcessStats()
@@ -90,7 +90,7 @@ class PSUtilProcessLogger(EmptyProcessLogger):
           stats.update(process_handle.memory_info())
           if finished.wait(self.probing_interval_sec):
             break
-      except psutil.NoSuchProcess:
+      except (psutil.AccessDenied, psutil.NoSuchProcess):
         pass
 
     logger = Thread(target=run_logger)
