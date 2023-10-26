@@ -49,6 +49,8 @@ class Test262GitHub(GitHubRepo):
         # is an effective reland.
         "f4e862d29f6aeaa66b5e8e755dc70fe7cb2bc243",
         "44702d6ea9c1bce9c95316e3aca41c14e0e8533f",
+        "87437c41113c2b41aaf5bcbc7fee996df0ab1711",
+        "b8d49712ab12dd13bee5da34849f8ab7f5309715",
     ]
 
 

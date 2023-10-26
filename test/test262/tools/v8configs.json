@@ -6,12 +6,12 @@
     "main_branch": "main",
     "patch_path_renames": [
       {
-        "source": "test/test262/local-tests/test/staging",
-        "destination": "test/staging"
+        "source": "test/test262/local-tests/test/staging/features.txt",
+        "destination": "features.txt"
       },
       {
-        "source": "test/test262/local-tests/test/features.txt",
-        "destination": "features.txt"
+        "source": "test/test262/local-tests/test/staging",
+        "destination": "test/staging"
       }
     ]
   },
