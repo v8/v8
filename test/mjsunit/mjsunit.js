@@ -236,6 +236,22 @@ var isMaglevved;
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
 
+// Returns true if the top frame in interpreted according to the status
+// passed as a parameter.
+var topFrameIsInterpreted;
+
+// Returns true if the top frame in baseline according to the status
+// passed as a parameter.
+var topFrameIsBaseline;
+
+// Returns true if the top frame in compiled by Maglev according to the
+// status passed as a parameter.
+var topFrameIsMaglevved;
+
+// Returns true if the top frame in compiled by Turbofan according to the
+// status passed as a parameter.
+var topFrameIsTurboFanned;
+
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
@@ -891,6 +907,26 @@ var prettyPrinted;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
            (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
+  }
+
+  topFrameIsInterpreted = function topFrameIsInterpreted(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsInterpreted) !== 0;
+  }
+
+  topFrameIsBaseline = function topFrameIsBaseline(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsBaseline) !== 0;
+  }
+
+  topFrameIsMaglevved = function topFrameIsMaglevved(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsMaglev) !== 0;
+  }
+
+  topFrameIsTurboFanned = function topFrameIsTurboFanned(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0;
   }
 
   // Custom V8-specific stack trace formatter that is temporarily installed on

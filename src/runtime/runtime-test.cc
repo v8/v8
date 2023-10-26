@@ -975,6 +975,15 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   return Smi::FromInt(status);
 }
 
+RUNTIME_FUNCTION(Runtime_GetFunctionForCurrentFrame) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 0);
+
+  JavaScriptStackFrameIterator it(isolate);
+  DCHECK(!it.done());
+  return it.frame()->function();
+}
+
 RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   if (args.length() != 0) {
     return CrashUnlessFuzzing(isolate);
