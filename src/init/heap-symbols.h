@@ -622,7 +622,6 @@
 #define SCAVENGER_MAIN_THREAD_SCOPES(F)              \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
-  F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
   F(SCAVENGER_SCAVENGE)                              \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
@@ -634,8 +633,7 @@
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
-  F(SCAVENGER_VERIFY_ROOTS)
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
 
 #define MC_MAIN_THREAD_SCOPES(F)              \
   F(MARK_COMPACTOR)                           \

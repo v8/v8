@@ -4,8 +4,10 @@
 
 #include "src/heap/main-allocator.h"
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/execution/vm-state.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap.h"
@@ -282,6 +284,13 @@ void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
 bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin) {
+#ifdef V8_RUNTIME_CALL_STATS
+  base::Optional<RuntimeCallTimerScope> rcs_scope;
+  if (!is_compaction_space()) {
+    rcs_scope.emplace(heap()->isolate(),
+                      RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
+  }
+#endif  // V8_RUNTIME_CALL_STATS
   return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
@@ -550,14 +559,11 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
 
 bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
                                               AllocationOrigin origin) {
-  if (allocator_->is_compaction_space()) {
-    return RawRefillLabMain(size_in_bytes, origin);
-  } else {
-    VMState<GC> state(heap()->isolate());
-    RCS_SCOPE(heap()->isolate(),
-              RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
-    return RawRefillLabMain(size_in_bytes, origin);
+  base::Optional<VMState<GC>> vmstate;
+  if (!allocator_->is_compaction_space()) {
+    vmstate.emplace(heap()->isolate());
   }
+  return RawRefillLabMain(size_in_bytes, origin);
 }
 
 bool PagedSpaceAllocatorPolicy::RawRefillLabMain(int size_in_bytes,

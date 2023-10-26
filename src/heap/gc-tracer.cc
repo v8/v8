@@ -773,7 +773,6 @@ void GCTracer::PrintNVP() const {
           "heap.external.prologue=%.2f "
           "heap.external.epilogue=%.2f "
           "heap.external_weak_global_handles=%.2f "
-          "fast_promote=%.2f "
           "complete.sweep_array_buffers=%.2f "
           "scavenge=%.2f "
           "scavenge.free_remembered_set=%.2f "
@@ -815,7 +814,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::SCAVENGER_FAST_PROMOTE),
           current_scope(Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::SCAVENGER_SCAVENGE),
           current_scope(Scope::SCAVENGER_FREE_REMEMBERED_SET),

@@ -1090,23 +1090,27 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
   if (!sweeping_in_progress() || page->SweepingDone()) return;
   AllocationSpace space = page->owner_identity();
 
-  if (IsValidSweepingSpace(space)) {
-    if (TryRemoveSweepingPageSafe(space, page)) {
-      // Page was successfully removed and can now be swept.
-      main_thread_local_sweeper_.ParallelSweepPage(
-          page, space, SweepingMode::kLazyOrConcurrent);
-    } else if (TryRemovePromotedPageSafe(page)) {
-      // Page was successfully removed and can now be swept.
-      main_thread_local_sweeper_.ParallelIterateAndSweepPromotedPage(page);
-    }
-    {
-      // Some sweeper task already took ownership of that page, wait until
-      // sweeping is finished.
-      WaitForPageToBeSwept(page);
-    }
-  } else {
-    DCHECK(page->InNewSpace() && !v8_flags.minor_ms);
+  if (!IsValidSweepingSpace(space)) {
+    DCHECK(page->SweepingDone());
+    return;
   }
+
+  auto scope_id = GetTracingScope(space, true);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap_->tracer(), scope_id, ThreadKind::kMain,
+      GetTraceIdForFlowEvent(scope_id),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  if (TryRemoveSweepingPageSafe(space, page)) {
+    // Page was successfully removed and can now be swept.
+    main_thread_local_sweeper_.ParallelSweepPage(
+        page, space, SweepingMode::kLazyOrConcurrent);
+  } else if (TryRemovePromotedPageSafe(page)) {
+    // Page was successfully removed and can now be swept.
+    main_thread_local_sweeper_.ParallelIterateAndSweepPromotedPage(page);
+  }
+  // Some sweeper task already took ownership of that page, wait until
+  // sweeping is finished.
+  WaitForPageToBeSwept(page);
 
   CHECK(page->SweepingDone());
 }
