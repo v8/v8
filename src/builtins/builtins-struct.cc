@@ -233,12 +233,6 @@ BUILTIN(SharedStructConstructor) {
                                                 elements_template);
 }
 
-BUILTIN(SharedArrayIsSharedArray) {
-  HandleScope scope(isolate);
-  return isolate->heap()->ToBoolean(
-      IsJSSharedArray(*args.atOrUndefined(isolate, 1)));
-}
-
 BUILTIN(SharedStructTypeIsSharedStruct) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(

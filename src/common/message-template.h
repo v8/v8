@@ -419,8 +419,7 @@ namespace internal {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(SharedArraySizeOutOfRange,                                                 \
-    "SharedArray length out of range (maximum of 2**14-2 allowed)")            \
+  T(SharedArraySizeOutOfRange, "SharedArray length out of range")              \
   T(StructFieldCountOutOfRange,                                                \
     "Struct field count out of range (maximum of 999 allowed)")                \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
