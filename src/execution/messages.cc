@@ -496,6 +496,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kTopLevelAwaitStalled,
       MessageTemplate::kUndefinedOrNullToObject,
       MessageTemplate::kUnexpectedStrictReserved,
+      MessageTemplate::kUnexpectedTokenIdentifier,
       MessageTemplate::kWeakRefsCleanupMustBeCallable};
 
   base::Vector<const Handle<String>> remaining_args = args;
