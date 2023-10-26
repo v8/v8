@@ -2426,7 +2426,9 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
     ValueType entry_type = ValueType::Ref(func->sig_index);
-    if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
+    if (V8_LIKELY(expected == kWasmFuncRef)) {
+      DCHECK(IsSubtypeOf(entry_type, expected, module));
+    } else if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
       errorf(initial_pc,
              "Invalid type in element entry: expected %s, got %s instead.",
              expected.name().c_str(), entry_type.name().c_str());
