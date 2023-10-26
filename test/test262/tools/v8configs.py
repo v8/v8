@@ -44,7 +44,12 @@ class Test262GitHub(GitHubRepo):
 
   @property
   def skipped_revisions(self):
-    return []
+    return [
+        # Revisions below would choke on github checks. Next revision in v8 repo
+        # is an effective reland.
+        "f4e862d29f6aeaa66b5e8e755dc70fe7cb2bc243",
+        "44702d6ea9c1bce9c95316e3aca41c14e0e8533f",
+    ]
 
 
 class V8Test262Config(ProjectConfig):
