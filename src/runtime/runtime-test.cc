@@ -469,7 +469,7 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
 }
 #else
 RUNTIME_FUNCTION(Runtime_BenchMaglev) {
-  if (!v8_flags.fuzzing) PrintF("Maglev is not enabled.\n");
+  PrintF("Maglev is not enabled.\n");
   return ReadOnlyRoots(isolate).undefined_value();
 }
 #endif  // V8_ENABLE_MAGLEV
@@ -551,7 +551,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
 }
 #else
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
-  PrintF("Maglev is not enabled.\n");
+  if (!v8_flags.fuzzing) PrintF("Maglev is not enabled.\n");
   return ReadOnlyRoots(isolate).undefined_value();
 }
 #endif  // V8_ENABLE_MAGLEV
