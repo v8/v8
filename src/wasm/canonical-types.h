@@ -79,7 +79,6 @@ class TypeCanonicalizer {
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:
-  using TypeInModule = std::pair<const WasmModule*, uint32_t>;
   struct CanonicalType {
     TypeDefinition type_def;
     bool is_relative_supertype;
@@ -90,16 +89,22 @@ class TypeCanonicalizer {
     }
 
     bool operator!=(const CanonicalType& other) const {
-      return type_def != other.type_def ||
-             is_relative_supertype != other.is_relative_supertype;
+      return !operator==(other);
     }
 
-    // TODO(manoskouk): Improve this.
     size_t hash_value() const {
-      return base::hash_combine(base::hash_value(type_def.kind),
-                                base::hash_value(type_def.supertype),
-                                base::hash_value(type_def.is_final),
-                                base::hash_value(is_relative_supertype));
+      uint32_t metadata = (type_def.supertype << 2) |
+                          (type_def.is_final ? 2 : 0) |
+                          (is_relative_supertype ? 1 : 0);
+      size_t hash = base::hash_value(metadata);
+      if (type_def.kind == TypeDefinition::kFunction) {
+        return base::hash_combine(hash, *type_def.function_sig);
+      }
+      if (type_def.kind == TypeDefinition::kStruct) {
+        return base::hash_combine(hash, *type_def.struct_type);
+      }
+      DCHECK_EQ(TypeDefinition::kArray, type_def.kind);
+      return base::hash_combine(hash, *type_def.array_type);
     }
   };
   struct CanonicalGroup {
