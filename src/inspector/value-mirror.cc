@@ -886,31 +886,34 @@ class FunctionMirror final : public ValueMirror {
 
 bool isArrayLike(v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                  size_t* length) {
-  if (!value->IsObject()) return false;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::MicrotasksScope microtasksScope(context,
-                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Local<v8::Object> object = value.As<v8::Object>();
-  v8::Local<v8::Value> spliceValue;
-  if (!object->IsArgumentsObject() &&
-      (!object->GetRealNamedProperty(context, toV8String(isolate, "splice"))
-            .ToLocal(&spliceValue) ||
-       !spliceValue->IsFunction())) {
-    return false;
+  if (value->IsArray()) {
+    *length = value.As<v8::Array>()->Length();
+    return true;
   }
-  v8::Local<v8::Value> lengthValue;
-  v8::Maybe<bool> result =
-      object->HasOwnProperty(context, toV8String(isolate, "length"));
-  if (result.IsNothing()) return false;
-  if (!result.FromJust() ||
-      !object->Get(context, toV8String(isolate, "length"))
-           .ToLocal(&lengthValue) ||
-      !lengthValue->IsUint32()) {
-    return false;
+  if (value->IsArgumentsObject()) {
+    v8::Isolate* isolate = context->GetIsolate();
+    v8::TryCatch tryCatch(isolate);
+    v8::MicrotasksScope microtasksScope(
+        context, v8::MicrotasksScope::kDoNotRunMicrotasks);
+    v8::Local<v8::Object> object = value.As<v8::Object>();
+    v8::Local<v8::Value> lengthDescriptor;
+    if (!object
+             ->GetOwnPropertyDescriptor(context, toV8String(isolate, "length"))
+             .ToLocal(&lengthDescriptor)) {
+      return false;
+    }
+    v8::Local<v8::Value> lengthValue;
+    if (!lengthDescriptor->IsObject() ||
+        !lengthDescriptor.As<v8::Object>()
+             ->Get(context, toV8String(isolate, "value"))
+             .ToLocal(&lengthValue) ||
+        !lengthValue->IsUint32()) {
+      return false;
+    }
+    *length = lengthValue.As<v8::Uint32>()->Value();
+    return true;
   }
-  *length = lengthValue.As<v8::Uint32>()->Value();
-  return true;
+  return false;
 }
 
 struct EntryMirror {
@@ -1000,8 +1003,7 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
                              std::vector<PropertyMirror>* properties) {
   std::vector<String16> blocklist;
   size_t length = 0;
-  if (object->IsArray() || isArrayLike(context, object, &length) ||
-      object->IsStringObject()) {
+  if (isArrayLike(context, object, &length) || object->IsStringObject()) {
     blocklist.push_back("length");
 #if V8_ENABLE_WEBASSEMBLY
   } else if (v8::debug::WasmValueObject::IsWasmValueObject(object)) {
@@ -1902,8 +1904,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         descriptionForPrivateMethod(context, value.As<v8::Object>()));
   }
   size_t length = 0;
-  if (value->IsArray() || isArrayLike(context, value, &length)) {
-    length = value->IsArray() ? value.As<v8::Array>()->Length() : length;
+  if (isArrayLike(context, value, &length)) {
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Array,
         descriptionForCollection(isolate, value.As<v8::Object>(), length));
