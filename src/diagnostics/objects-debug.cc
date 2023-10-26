@@ -719,9 +719,9 @@ void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::WeakFixedArrayVerify(*this, isolate);
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
-    MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
+    MaybeObject::VerifyMaybeObjectPointer(isolate, get(i));
   }
 }
 
@@ -2131,7 +2131,7 @@ void Script::ScriptVerify(Isolate* isolate) {
   CHECK(CanHaveLineEnds());
 #endif  // V8_ENABLE_WEBASSEMBLY
   for (int i = 0; i < shared_function_info_count(); ++i) {
-    MaybeObject maybe_object = shared_function_infos()->Get(i);
+    MaybeObject maybe_object = shared_function_infos()->get(i);
     Tagged<HeapObject> heap_object;
     CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
@@ -2143,7 +2143,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   WeakFixedArray::cast(*this)->WeakFixedArrayVerify(isolate);
   if (v8_flags.enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      MaybeObject e = WeakFixedArray::Get(i);
+      MaybeObject e = WeakFixedArray::get(i);
       Tagged<HeapObject> heap_object;
       if (e.GetHeapObjectIfWeak(&heap_object)) {
         Map::cast(heap_object)->DictionaryMapVerify(isolate);

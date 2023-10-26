@@ -956,10 +956,10 @@ void FeedbackNexus::ConfigureCloneObject(
             CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
         DisallowGarbageCollection no_gc;
         Tagged<WeakFixedArray> raw_array = *array;
-        raw_array->Set(0, HeapObjectReference::Weak(*feedback));
-        raw_array->Set(1, GetFeedbackExtra());
-        raw_array->Set(2, HeapObjectReference::Weak(*source_map));
-        raw_array->Set(3, GetHandler());
+        raw_array->set(0, HeapObjectReference::Weak(*feedback));
+        raw_array->set(1, GetFeedbackExtra());
+        raw_array->set(2, HeapObjectReference::Weak(*source_map));
+        raw_array->set(3, GetHandler());
         SetFeedback(raw_array, UPDATE_WRITE_BARRIER,
                     HeapObjectReference::ClearedValue(isolate));
       }
@@ -970,7 +970,7 @@ void FeedbackNexus::ConfigureCloneObject(
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
-        MaybeObject feedback_map = array->Get(i);
+        MaybeObject feedback_map = array->get(i);
         if (feedback_map->IsCleared()) break;
         Handle<Map> cached_map(Map::cast(feedback_map.GetHeapObject()),
                                isolate);
@@ -992,14 +992,14 @@ void FeedbackNexus::ConfigureCloneObject(
         Handle<WeakFixedArray> new_array = CreateArrayOfSize(
             array->length() + kCloneObjectPolymorphicEntrySize);
         for (int j = 0; j < array->length(); ++j) {
-          new_array->Set(j, array->Get(j));
+          new_array->set(j, array->get(j));
         }
         SetFeedback(*new_array);
         array = new_array;
       }
 
-      array->Set(i, HeapObjectReference::Weak(*source_map));
-      array->Set(i + 1, GetHandler());
+      array->set(i, HeapObjectReference::Weak(*source_map));
+      array->set(i + 1, GetHandler());
       break;
     }
 
@@ -1073,8 +1073,8 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                   UPDATE_WRITE_BARRIER, *handler);
     } else {
       Handle<WeakFixedArray> array = CreateArrayOfSize(2);
-      array->Set(0, HeapObjectReference::Weak(*receiver_map));
-      array->Set(1, *handler);
+      array->set(0, HeapObjectReference::Weak(*receiver_map));
+      array->set(1, *handler);
       SetFeedback(*name, UPDATE_WRITE_BARRIER, *array);
     }
   }
@@ -1088,10 +1088,10 @@ void FeedbackNexus::ConfigurePolymorphic(
 
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps_and_handlers[current].first;
-    array->Set(current * 2, HeapObjectReference::Weak(*map));
+    array->set(current * 2, HeapObjectReference::Weak(*map));
     MaybeObjectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
-    array->Set(current * 2 + 1, *handler);
+    array->set(current * 2 + 1, *handler);
   }
 
   if (name.is_null()) {
@@ -1430,8 +1430,8 @@ void FeedbackIterator::AdvancePolymorphic() {
   Tagged<HeapObject> heap_object;
 
   while (index_ < length) {
-    if (polymorphic_feedback_->Get(index_).GetHeapObjectIfWeak(&heap_object)) {
-      MaybeObject handler = polymorphic_feedback_->Get(index_ + kHandlerOffset);
+    if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
+      MaybeObject handler = polymorphic_feedback_->get(index_ + kHandlerOffset);
       map_ = Map::cast(heap_object);
       handler_ = handler;
       index_ += kEntrySize;

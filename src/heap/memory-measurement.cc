@@ -196,7 +196,7 @@ bool MemoryMeasurement::EnqueueRequest(
   Handle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    weak_contexts->Set(i, HeapObjectReference::Weak(*contexts[i]));
+    weak_contexts->set(i, HeapObjectReference::Weak(*contexts[i]));
   }
   Handle<WeakFixedArray> global_weak_contexts =
       isolate_->global_handles()->Create(*weak_contexts);
@@ -222,7 +222,7 @@ std::vector<Address> MemoryMeasurement::StartProcessing() {
     Handle<WeakFixedArray> contexts = request.contexts;
     for (int i = 0; i < contexts->length(); i++) {
       Tagged<HeapObject> context;
-      if (contexts->Get(i).GetHeapObject(&context)) {
+      if (contexts->get(i).GetHeapObject(&context)) {
         unique_contexts.insert(context.ptr());
       }
     }
@@ -245,7 +245,7 @@ void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
     processing_.pop_front();
     for (int i = 0; i < static_cast<int>(request.sizes.size()); i++) {
       Tagged<HeapObject> context;
-      if (!request.contexts->Get(i).GetHeapObject(&context)) {
+      if (!request.contexts->get(i).GetHeapObject(&context)) {
         continue;
       }
       request.sizes[i] = stats.Get(context.ptr());
@@ -347,7 +347,7 @@ void MemoryMeasurement::ReportResults() {
               static_cast<size_t>(request.contexts->length()));
     for (int i = 0; i < request.contexts->length(); i++) {
       Tagged<HeapObject> raw_context;
-      if (!request.contexts->Get(i).GetHeapObject(&raw_context)) {
+      if (!request.contexts->get(i).GetHeapObject(&raw_context)) {
         continue;
       }
       Local<v8::Context> context = Utils::Convert<HeapObject, v8::Context>(

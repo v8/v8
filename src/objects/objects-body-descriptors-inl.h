@@ -1491,6 +1491,14 @@ class ScriptContextTable::BodyDescriptor final
   }
 };
 
+class WeakFixedArray::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return WeakFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
 #include "torque-generated/objects-body-descriptors-inl.inc"
 
 }  // namespace internal

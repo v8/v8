@@ -32,8 +32,8 @@ int SearchLiteralsMapEntry(Tagged<CompilationCacheTable> cache,
     Tagged<WeakFixedArray> literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      DCHECK(literals_map->Get(i + kLiteralContextOffset)->IsWeakOrCleared());
-      if (literals_map->Get(i + kLiteralContextOffset) ==
+      DCHECK(literals_map->get(i + kLiteralContextOffset)->IsWeakOrCleared());
+      if (literals_map->get(i + kLiteralContextOffset) ==
           HeapObjectReference::Weak(native_context)) {
         return i;
       }
@@ -66,7 +66,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
     entry = SearchLiteralsMapEntry(*cache, cache_entry, *native_context);
     if (entry >= 0) {
       // Just set the code of the entry.
-      old_literals_map->Set(entry + kLiteralLiteralsOffset,
+      old_literals_map->set(entry + kLiteralLiteralsOffset,
                             HeapObjectReference::Weak(*feedback_cell));
       return;
     }
@@ -75,7 +75,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
     DCHECK_LT(entry, 0);
     int length = old_literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (old_literals_map->Get(i + kLiteralContextOffset)->IsCleared()) {
+      if (old_literals_map->get(i + kLiteralContextOffset)->IsCleared()) {
         new_literals_map = old_literals_map;
         entry = i;
         break;
@@ -90,17 +90,17 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
     }
   }
 
-  new_literals_map->Set(entry + kLiteralContextOffset,
+  new_literals_map->set(entry + kLiteralContextOffset,
                         HeapObjectReference::Weak(*native_context));
-  new_literals_map->Set(entry + kLiteralLiteralsOffset,
+  new_literals_map->set(entry + kLiteralLiteralsOffset,
                         HeapObjectReference::Weak(*feedback_cell));
 
 #ifdef DEBUG
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
-    MaybeObject object = new_literals_map->Get(i + kLiteralContextOffset);
+    MaybeObject object = new_literals_map->get(i + kLiteralContextOffset);
     DCHECK(object->IsCleared() ||
            IsNativeContext(object.GetHeapObjectAssumeWeak()));
-    object = new_literals_map->Get(i + kLiteralLiteralsOffset);
+    object = new_literals_map->get(i + kLiteralLiteralsOffset);
     DCHECK(object->IsCleared() ||
            IsFeedbackCell(object.GetHeapObjectAssumeWeak()));
   }
@@ -121,7 +121,7 @@ Tagged<FeedbackCell> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
     Tagged<WeakFixedArray> literals_map =
         WeakFixedArray::cast(cache->EvalFeedbackValueAt(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
-    MaybeObject object = literals_map->Get(entry + kLiteralLiteralsOffset);
+    MaybeObject object = literals_map->get(entry + kLiteralLiteralsOffset);
 
     if (!object->IsCleared()) {
       result = FeedbackCell::cast(object.GetHeapObjectAssumeWeak());
@@ -330,11 +330,11 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
   // A hash check can quickly reject many non-matches, even though this step
   // isn't strictly necessary.
   uint32_t other_hash =
-      static_cast<uint32_t>(other_array->Get(kHash).ToSmi().value());
+      static_cast<uint32_t>(other_array->get(kHash).ToSmi().value());
   if (other_hash != Hash()) return false;
 
   Tagged<HeapObject> other_script_object;
-  if (!other_array->Get(kWeakScript)
+  if (!other_array->get(kWeakScript)
            .GetHeapObjectIfWeak(&other_script_object)) {
     return false;
   }
@@ -349,9 +349,9 @@ Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(IsScript(shared->script()));
-  array->Set(kHash,
+  array->set(kHash,
              MaybeObject::FromObject(Smi::FromInt(static_cast<int>(Hash()))));
-  array->Set(kWeakScript,
+  array->set(kWeakScript,
              MaybeObject::MakeWeak(MaybeObject::FromObject(shared->script())));
   return array;
 }
@@ -396,7 +396,7 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
   DisallowGarbageCollection no_gc;
   Tagged<Object> key_in_table = table->KeyAt(entry);
   Tagged<Script> script = Script::cast(WeakFixedArray::cast(key_in_table)
-                                           ->Get(ScriptCacheKey::kWeakScript)
+                                           ->get(ScriptCacheKey::kWeakScript)
                                            .GetHeapObjectAssumeWeak());
 
   Tagged<Object> obj = table->PrimaryValueAt(entry);
@@ -454,7 +454,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
       Tagged<Object> key;
       if (!cache->ToKey(isolate, entry, &key)) continue;
       if (WeakFixedArray::cast(key)
-              ->Get(ScriptCacheKey::kWeakScript)
+              ->get(ScriptCacheKey::kWeakScript)
               .IsCleared()) {
         DCHECK(IsUndefined(cache->PrimaryValueAt(entry)));
         cache->RemoveEntry(entry);

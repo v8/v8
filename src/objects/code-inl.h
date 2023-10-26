@@ -499,7 +499,7 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   Tagged<DeoptimizationLiteralArray> literals = deopt_data->LiteralArray();
   const int literals_length = literals->length();
   for (int i = 0; i < literals_length; ++i) {
-    MaybeObject maybe_literal = literals->Get(i);
+    MaybeObject maybe_literal = literals->get_raw(i);
     Tagged<HeapObject> heap_literal;
     if (maybe_literal.GetHeapObject(&heap_literal)) {
       v->VisitRootPointer(Root::kStackRoots, "deoptimization literal",

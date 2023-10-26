@@ -782,12 +782,12 @@ template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   MaybeObject previous_value =
-      array->length() > 0 ? array->Get(0) : MaybeObject(kNullAddress);
+      array->length() > 0 ? array->get(0) : MaybeObject(kNullAddress);
   MaybeObject value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->Get(i);
+    if (i < array->length()) value = array->get(i);
     if (previous_value == value && i != array->length()) {
       continue;
     }
@@ -1409,7 +1409,7 @@ void FeedbackNexus::Print(std::ostream& os) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
         if (IsWeakFixedArray(handler)) {
-          handler = WeakFixedArray::cast(handler)->Get(0).GetHeapObjectOrSmi();
+          handler = WeakFixedArray::cast(handler)->get(0).GetHeapObjectOrSmi();
         }
         LoadHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
@@ -1422,8 +1422,8 @@ void FeedbackNexus::Print(std::ostream& os) {
           array = WeakFixedArray::cast(feedback);
         }
         for (int i = 0; i < array->length(); i += 2) {
-          os << "\n   " << Brief(array->Get(i)) << ": ";
-          LoadHandler::PrintHandler(array->Get(i + 1).GetHeapObjectOrSmi(), os);
+          os << "\n   " << Brief(array->get(i)) << ": ";
+          LoadHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(), os);
         }
       }
       break;
@@ -1439,8 +1439,8 @@ void FeedbackNexus::Print(std::ostream& os) {
           os << " with name " << Brief(feedback);
           Tagged<WeakFixedArray> array =
               WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
-          os << "\n   " << Brief(array->Get(0)) << ": ";
-          Tagged<Object> handler = array->Get(1).GetHeapObjectOrSmi();
+          os << "\n   " << Brief(array->get(0)) << ": ";
+          Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
           StoreHandler::PrintHandler(handler, os);
         } else {
           os << "\n   " << Brief(feedback) << ": ";
@@ -1457,9 +1457,9 @@ void FeedbackNexus::Print(std::ostream& os) {
           array = WeakFixedArray::cast(feedback);
         }
         for (int i = 0; i < array->length(); i += 2) {
-          os << "\n   " << Brief(array->Get(i)) << ": ";
-          if (!array->Get(i + 1).IsCleared()) {
-            StoreHandler::PrintHandler(array->Get(i + 1).GetHeapObjectOrSmi(),
+          os << "\n   " << Brief(array->get(i)) << ": ";
+          if (!array->get(i + 1).IsCleared()) {
+            StoreHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
                                        os);
           }
         }

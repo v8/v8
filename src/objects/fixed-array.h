@@ -8,6 +8,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
@@ -28,12 +29,26 @@ class TaggedArrayBase : public HeapObject {
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(ShapeT::kElementSize == kTaggedSize);
-  static_assert(is_subtype_v<ElementT, Object>);
+  static_assert(is_subtype_v<ElementT, Object> ||
+                is_subtype_v<ElementT, MaybeObject>);
 
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
   static constexpr WriteBarrierMode kDefaultMode =
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+
+ public:
+  static constexpr bool kElementsAreMaybeObject =
+      std::is_base_of_v<MaybeObject, ElementT>;
+
+ private:
+  // Usually the PtrType is Tagged<T>, but for MaybeObject it's just the raw
+  // MaybeObject.
+  // TODO(leszeks): Clean this up to be more uniform.
+  using PtrType =
+      std::conditional_t<is_taggable_v<ElementT>, Tagged<ElementT>, ElementT>;
+  using SlotType =
+      std::conditional_t<kElementsAreMaybeObject, MaybeObjectSlot, ObjectSlot>;
 
  public:
   using Shape = ShapeT;
@@ -54,34 +69,33 @@ class TaggedArrayBase : public HeapObject {
   template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline void set_length(int value, ReleaseStoreTag tag);
 
-  inline Tagged<ElementT> get(int index) const;
-  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
-  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
-  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
+  inline PtrType get(int index) const;
+  inline PtrType get(int index, RelaxedLoadTag) const;
+  inline PtrType get(int index, AcquireLoadTag) const;
+  inline PtrType get(int index, SeqCstAccessTag) const;
 
-  inline void set(int index, Tagged<ElementT> value,
+  inline void set(int index, PtrType value,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value);
-  inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
+  inline void set(int index, PtrType value, RelaxedStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
-  inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
+  inline void set(int index, PtrType value, ReleaseStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
+  inline void set(int index, PtrType value, SeqCstAccessTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
-  inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
-                               SeqCstAccessTag,
-                               WriteBarrierMode mode = kDefaultMode);
-  inline Tagged<ElementT> compare_and_swap(
-      int index, Tagged<ElementT> expected, Tagged<ElementT> value,
-      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
+  inline PtrType swap(int index, PtrType value, SeqCstAccessTag,
+                      WriteBarrierMode mode = kDefaultMode);
+  inline PtrType compare_and_swap(int index, PtrType expected, PtrType value,
+                                  SeqCstAccessTag,
+                                  WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.
@@ -107,8 +121,8 @@ class TaggedArrayBase : public HeapObject {
   }
 
   // Gives access to raw memory which stores the array's data.
-  inline ObjectSlot RawFieldOfFirstElement() const;
-  inline ObjectSlot RawFieldOfElementAt(int index) const;
+  inline SlotType RawFieldOfFirstElement() const;
+  inline SlotType RawFieldOfElementAt(int index) const;
 
   // Maximal allowed capacity, in number of elements. Chosen s.t. the size fits
   // into a Smi which is necessary for being able to create a free space
@@ -137,6 +151,9 @@ class TaggedArrayBase : public HeapObject {
       AllocationType allocation = AllocationType::kYoung);
 
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
+
+  inline void ConditionalWriteBarrier(Tagged<HeapObject> object, int offset,
+                                      PtrType value, WriteBarrierMode mode);
 
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
@@ -269,11 +286,18 @@ class PrimitiveArrayBase : public HeapObject {
 
  public:
   using Shape = ShapeT;
+  static constexpr bool kElementsAreMaybeObject = false;
 
   inline int length() const;
   inline int length(AcquireLoadTag) const;
   inline void set_length(int value);
   inline void set_length(int value, ReleaseStoreTag);
+
+  // For compatibility with TaggedArrayBase:
+  inline int capacity() const;
+  inline int capacity(AcquireLoadTag) const;
+  inline void set_capacity(int value);
+  inline void set_capacity(int value, ReleaseStoreTag);
 
   inline ElementT get(int index) const;
   inline void set(int index, ElementT value);
@@ -372,59 +396,40 @@ class FixedDoubleArray
   class BodyDescriptor;
 };
 
-// WeakFixedArray describes fixed-sized arrays with element type
-// MaybeObject.
-class WeakFixedArray
-    : public TorqueGeneratedWeakFixedArray<WeakFixedArray, HeapObject> {
+class WeakFixedArrayShape final : public AllStatic {
  public:
-  inline MaybeObject Get(int index) const;
-  inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = MaybeObject;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kWeakFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
 
-  inline void Set(
-      int index, MaybeObject value,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
 
-  static inline Handle<WeakFixedArray> EnsureSpace(Isolate* isolate,
-                                                   Handle<WeakFixedArray> array,
-                                                   int length);
+// WeakFixedArray describes fixed-sized arrays with element type MaybeObject.
+class WeakFixedArray
+    : public TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape> {
+  using Super = TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape>;
+  OBJECT_CONSTRUCTORS(WeakFixedArray, Super);
 
-  // Forward declare the non-atomic (set_)length defined in torque.
-  using TorqueGeneratedWeakFixedArray::length;
-  using TorqueGeneratedWeakFixedArray::set_length;
-  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
+ public:
+  template <class IsolateT>
+  static inline Handle<WeakFixedArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
 
-  // Gives access to raw memory which stores the array's data.
-  inline MaybeObjectSlot data_start();
-
-  inline MaybeObjectSlot RawFieldOfElementAt(int index);
-
-  inline void CopyElements(Isolate* isolate, int dst_index,
-                           Tagged<WeakFixedArray> src, int src_index, int len,
-                           WriteBarrierMode mode);
-
+  DECL_CAST(WeakFixedArray)
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
   class BodyDescriptor;
 
-  static const int kMaxLength =
-      (FixedArrayBase::kMaxSize - kHeaderSize) / kTaggedSize;
-  static_assert(Internals::IsValidSmi(kMaxLength),
-                "WeakFixedArray maxLength not a Smi");
-
-  inline int AllocatedSize() const;
-
-  static int OffsetOfElementAt(int index) {
-    static_assert(kHeaderSize == SizeFor(0));
-    return SizeFor(index);
-  }
-
- private:
-  friend class Heap;
-
-  static const int kFirstIndex = 1;
-
-  TQ_OBJECT_CONSTRUCTORS(WeakFixedArray)
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -459,6 +464,9 @@ class WeakArrayList
 
   inline MaybeObject Get(int index) const;
   inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
+  // TODO(jgruber): Remove this once it's no longer needed for compatibility
+  // with WeakFixedArray.
+  inline MaybeObject get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method

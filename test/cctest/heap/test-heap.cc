@@ -1743,7 +1743,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     Handle<Script> script(Script::cast(lazy_sfi->script()), isolate);
     bool root_sfi_still_exists = false;
     MaybeObject maybe_root_sfi =
-        script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
+        script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
     if (Tagged<HeapObject> sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
       root_sfi_still_exists = !IsUndefined(sfi_or_undefined);
@@ -5192,9 +5192,9 @@ TEST(Regress3877) {
     v8::Local<v8::Value> result = CompileRun("cls.prototype");
     Handle<JSReceiver> proto =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-    weak_prototype_holder->Set(0, HeapObjectReference::Weak(*proto));
+    weak_prototype_holder->set(0, HeapObjectReference::Weak(*proto));
   }
-  CHECK(!weak_prototype_holder->Get(0)->IsCleared());
+  CHECK(!weak_prototype_holder->get(0)->IsCleared());
   CompileRun(
       "var a = { };"
       "a.x = new cls();"
@@ -5203,13 +5203,13 @@ TEST(Regress3877) {
     heap::InvokeMajorGC(CcTest::heap());
   }
   // The map of a.x keeps prototype alive
-  CHECK(!weak_prototype_holder->Get(0)->IsCleared());
+  CHECK(!weak_prototype_holder->get(0)->IsCleared());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
     heap::InvokeMajorGC(CcTest::heap());
   }
-  CHECK(weak_prototype_holder->Get(0)->IsCleared());
+  CHECK(weak_prototype_holder->get(0)->IsCleared());
 }
 
 Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
@@ -5225,7 +5225,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   maps.Push(*map);
   isolate->heap()->AddRetainedMaps(context, std::move(maps));
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
-  array->Set(0, HeapObjectReference::Weak(*map));
+  array->set(0, HeapObjectReference::Weak(*map));
   return inner_scope.CloseAndEscape(array);
 }
 
@@ -5246,15 +5246,15 @@ void CheckMapRetainingFor(int n) {
   ctx->Enter();
   Handle<WeakFixedArray> array_with_map =
       AddRetainedMap(isolate, native_context);
-  CHECK(array_with_map->Get(0)->IsWeak());
+  CHECK(array_with_map->get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
     heap::InvokeMajorGC(heap);
   }
-  CHECK(array_with_map->Get(0)->IsWeak());
+  CHECK(array_with_map->get(0)->IsWeak());
   heap::SimulateIncrementalMarking(heap);
   heap::InvokeMajorGC(heap);
-  CHECK(array_with_map->Get(0)->IsCleared());
+  CHECK(array_with_map->get(0)->IsCleared());
 
   ctx->Exit();
 }
@@ -5286,7 +5286,7 @@ TEST(RetainedMapsCleanup) {
   ctx->Enter();
   Handle<WeakFixedArray> array_with_map =
       AddRetainedMap(isolate, native_context);
-  CHECK(array_with_map->Get(0)->IsWeak());
+  CHECK(array_with_map->get(0)->IsWeak());
   heap->NotifyContextDisposed(true);
   heap::InvokeMajorGC(heap);
   ctx->Exit();
@@ -5576,7 +5576,7 @@ HEAP_TEST(Regress587004) {
   }
   heap::InvokeMajorGC(heap);
   heap::SimulateFullSpace(heap->old_space());
-  heap->RightTrimFixedArray(*array, N - 1);
+  heap->RightTrimArray(*array, 1, N);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   Tagged<ByteArray> byte_array;
   const int M = 256;
@@ -5690,7 +5690,7 @@ HEAP_TEST(Regress589413) {
     CHECK(heap->incremental_marking()->IsStopped());
     heap::SimulateIncrementalMarking(heap);
     for (size_t j = 0; j < arrays.size(); j++) {
-      heap->RightTrimFixedArray(arrays[j], N - 1);
+      heap->RightTrimArray(arrays[j], 1, N);
     }
   }
 
@@ -6005,7 +6005,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   // Trim it once by one word to make checking for white marking color uniform.
   Address previous = end_address - kTaggedSize;
-  isolate->heap()->RightTrimFixedArray(*array, 1);
+  isolate->heap()->RightTrimArray(*array, 99, 100);
 
   Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
   CHECK(IsFreeSpaceOrFiller(filler));
@@ -6014,7 +6014,9 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kTaggedSize * i;
-      isolate->heap()->RightTrimFixedArray(*array, i);
+      int old_capacity = array->capacity();
+      int new_capacity = old_capacity - i;
+      isolate->heap()->RightTrimArray(*array, new_capacity, old_capacity);
       filler = HeapObject::FromAddress(previous);
       CHECK(IsFreeSpaceOrFiller(filler));
       CHECK(marking_state->IsUnmarked(filler));

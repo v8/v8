@@ -2113,7 +2113,7 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
   {
     DisallowGarbageCollection no_gc;
     MaybeObject maybe_old_toplevel_sfi =
-        old_script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
+        old_script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
     if (maybe_old_toplevel_sfi.IsWeak()) {
       Tagged<SharedFunctionInfo> old_toplevel_sfi = SharedFunctionInfo::cast(
           maybe_old_toplevel_sfi.GetHeapObjectAssumeWeak());
@@ -2128,11 +2128,11 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
            new_script->shared_function_infos()->length());
   for (int i = 0; i < old_script->shared_function_infos()->length(); ++i) {
     DisallowGarbageCollection no_gc;
-    MaybeObject maybe_new_sfi = new_script->shared_function_infos()->Get(i);
+    MaybeObject maybe_new_sfi = new_script->shared_function_infos()->get(i);
     if (maybe_new_sfi.IsWeak()) {
       Tagged<SharedFunctionInfo> new_sfi =
           SharedFunctionInfo::cast(maybe_new_sfi.GetHeapObjectAssumeWeak());
-      MaybeObject maybe_old_sfi = old_script->shared_function_infos()->Get(i);
+      MaybeObject maybe_old_sfi = old_script->shared_function_infos()->get(i);
       if (maybe_old_sfi.IsWeak()) {
         // The old script and the new script both have SharedFunctionInfos for
         // this function literal.
@@ -2204,7 +2204,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   for (Handle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
     DisallowGarbageCollection no_gc;
     DCHECK_GE(new_sfi->function_literal_id(), 0);
-    MaybeObject maybe_old_sfi = old_script->shared_function_infos()->Get(
+    MaybeObject maybe_old_sfi = old_script->shared_function_infos()->get(
         new_sfi->function_literal_id());
     if (maybe_old_sfi.IsWeak()) {
       // The old script's SFI didn't exist during the background work, but
@@ -2214,7 +2214,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
           SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
       forwarder.Forward(*new_sfi, old_sfi);
     } else {
-      old_script->shared_function_infos()->Set(
+      old_script->shared_function_infos()->set(
           new_sfi->function_literal_id(),
           MaybeObject::MakeWeak(MaybeObject::FromObject(*new_sfi)));
     }
@@ -2239,7 +2239,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   }
 
   MaybeObject maybe_toplevel_sfi =
-      old_script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
+      old_script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
   CHECK(maybe_toplevel_sfi.IsWeak());
   Handle<SharedFunctionInfo> result = handle(
       SharedFunctionInfo::cast(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),

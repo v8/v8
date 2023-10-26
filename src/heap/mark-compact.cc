@@ -3254,10 +3254,14 @@ bool MarkCompactCollector::CompactTransitionArray(
   // such that number_of_transitions() == 0. If this assumption changes,
   // TransitionArray::Insert() will need to deal with the case that a transition
   // array disappeared during GC.
-  int trim = transitions->Capacity() - transition_index;
-  if (trim > 0) {
-    heap_->RightTrimWeakFixedArray(transitions,
-                                   trim * TransitionArray::kEntrySize);
+  int old_capacity_in_entries = transitions->Capacity();
+  if (transition_index < old_capacity_in_entries) {
+    int old_capacity = transitions->length();
+    static_assert(TransitionArray::kEntryKeyIndex == 0);
+    DCHECK_EQ(TransitionArray::ToKeyIndex(old_capacity_in_entries),
+              old_capacity);
+    int new_capacity = TransitionArray::ToKeyIndex(transition_index);
+    heap_->RightTrimArray(transitions, new_capacity, old_capacity);
     transitions->SetNumberOfTransitions(transition_index);
   }
   return descriptors_owner_died;
@@ -3350,14 +3354,14 @@ void MarkCompactCollector::TrimEnumCache(Tagged<Map> map,
   Tagged<EnumCache> enum_cache = descriptors->enum_cache();
 
   Tagged<FixedArray> keys = enum_cache->keys();
-  int to_trim = keys->length() - live_enum;
-  if (to_trim <= 0) return;
-  heap_->RightTrimFixedArray(keys, to_trim);
+  int keys_length = keys->length();
+  if (live_enum >= keys_length) return;
+  heap_->RightTrimArray(keys, live_enum, keys_length);
 
   Tagged<FixedArray> indices = enum_cache->indices();
-  to_trim = indices->length() - live_enum;
-  if (to_trim <= 0) return;
-  heap_->RightTrimFixedArray(indices, to_trim);
+  int indices_length = indices->length();
+  if (live_enum >= indices_length) return;
+  heap_->RightTrimArray(indices, live_enum, indices_length);
 }
 
 void MarkCompactCollector::ClearWeakCollections() {

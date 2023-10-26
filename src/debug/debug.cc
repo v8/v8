@@ -1467,9 +1467,9 @@ void Debug::PrepareStep(StepAction step_action) {
             Handle<WeakFixedArray> weak_fixed_array =
                 Handle<WeakFixedArray>::cast(awaited_by_holder);
             if (weak_fixed_array->length() == 1 &&
-                weak_fixed_array->Get(0).IsWeak()) {
+                weak_fixed_array->get(0).IsWeak()) {
               Handle<HeapObject> awaited_by(
-                  weak_fixed_array->Get(0).GetHeapObjectAssumeWeak(isolate_),
+                  weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
                   isolate_);
               if (IsJSGeneratorObject(*awaited_by)) {
                 DCHECK(!has_suspended_generator());
@@ -2075,7 +2075,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
         script->shared_function_info_count() > 0) {
       DCHECK_LE(script->shared_function_info_count(),
                 script->shared_function_infos()->length());
-      MaybeObject maybeToplevel = script->shared_function_infos()->Get(0);
+      MaybeObject maybeToplevel = script->shared_function_infos()->get(0);
       Tagged<HeapObject> heap_object;
       const bool topLevelInfoExists =
           maybeToplevel.GetHeapObject(&heap_object) &&

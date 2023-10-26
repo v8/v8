@@ -2947,7 +2947,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
   Handle<HeapObject> retained_toplevel_sfi;
   if (retain_toplevel_sfi) {
     retained_toplevel_sfi = handle(
-        script->shared_function_infos()->Get(0).GetHeapObjectAssumeWeak(),
+        script->shared_function_infos()->get(0).GetHeapObjectAssumeWeak(),
         isolate);
   }
 
@@ -4949,7 +4949,7 @@ void CheckSFIsAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
-    MaybeObject maybe_object = sfis->Get(i);
+    MaybeObject maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
     CHECK(maybe_object->IsWeakOrCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&

@@ -141,15 +141,16 @@ void PropertyArray::SetHash(int hash) {
   set_length_and_hash(value, kReleaseStore);
 }
 
-void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
-                                 Tagged<PropertyArray> src, int src_index,
-                                 int len, WriteBarrierMode mode) {
+// static
+void PropertyArray::CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,
+                                 int dst_index, Tagged<PropertyArray> src,
+                                 int src_index, int len,
+                                 WriteBarrierMode mode) {
   if (len == 0) return;
   DisallowGarbageCollection no_gc;
-
-  ObjectSlot dst_slot(data_start() + dst_index);
+  ObjectSlot dst_slot(dst->data_start() + dst_index);
   ObjectSlot src_slot(src->data_start() + src_index);
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+  isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
 }
 
 }  // namespace internal

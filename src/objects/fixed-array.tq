@@ -21,10 +21,10 @@ extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
-@generateBodyDescriptor
+@cppObjectDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  @cppRelaxedLoad objects[length]: MaybeObject;
+  objects[length]: MaybeObject;
 }
 
 @cppObjectDefinition

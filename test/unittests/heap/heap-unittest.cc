@@ -466,7 +466,7 @@ TEST_F(HeapTest, Regress978156) {
   // 3. Trim the last array by one word thus creating a one-word filler.
   Handle<FixedArray> last = arrays.back();
   CHECK_GT(last->length(), 0);
-  heap->RightTrimFixedArray(*last, 1);
+  heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
       MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);

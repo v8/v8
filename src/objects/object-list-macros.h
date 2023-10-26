@@ -42,7 +42,8 @@ namespace internal {
   APPLY(V, FixedDoubleArray, FIXED_DOUBLE_ARRAY)                         \
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
-  APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)
+  APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)                     \
+  APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)
 
 // The SIMPLE_HEAP_OBJECT_LIST1 format is:
 //   V(TypeCamelCase)
@@ -303,7 +304,6 @@ namespace internal {
   IF_WASM(V, WasmSuspenderObject)               \
   IF_WASM(V, WasmContinuationObject)            \
   IF_WASM(V, WasmNull)                          \
-  V(WeakFixedArray)                             \
   V(WeakArrayList)                              \
   V(WeakCell)                                   \
   TORQUE_DEFINED_CLASS_LIST(V)                  \

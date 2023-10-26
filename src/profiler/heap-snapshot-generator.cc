@@ -1940,7 +1940,7 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
                                                 HeapEntry* entry,
                                                 Tagged<T> array) {
   for (int i = 0; i < array->length(); ++i) {
-    MaybeObject object = array->Get(i);
+    MaybeObject object = array->get(i);
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, header_size + i * kTaggedSize);

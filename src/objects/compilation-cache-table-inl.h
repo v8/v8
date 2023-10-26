@@ -81,7 +81,7 @@ class ScriptCacheKey : public HashTableKey {
     Tagged<WeakFixedArray> array = WeakFixedArray::cast(obj);
     DCHECK_EQ(array->length(), kEnd);
 
-    MaybeObject maybe_script = array->Get(kWeakScript);
+    MaybeObject maybe_script = array->get(kWeakScript);
     if (Tagged<HeapObject> script; maybe_script.GetHeapObjectIfWeak(&script)) {
       Tagged<PrimitiveHeapObject> source_or_undefined =
           Script::cast(script)->source();
@@ -140,9 +140,8 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
 
   // Script.
   if (IsWeakFixedArray(object)) {
-    uint32_t result = static_cast<uint32_t>(Smi::ToInt(
-        WeakFixedArray::cast(object)->Get(ScriptCacheKey::kHash).ToSmi()));
-    return result;
+    return static_cast<uint32_t>(Smi::ToInt(
+        WeakFixedArray::cast(object)->get(ScriptCacheKey::kHash).ToSmi()));
   }
 
   // Eval: See EvalCacheKey::ToHandle for the encoding.

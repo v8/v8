@@ -922,7 +922,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
     sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
-    new_script->shared_function_infos()->Set(
+    new_script->shared_function_infos()->set(
         mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
@@ -1015,7 +1015,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // already been updated in in the unchanged pass.
       Tagged<SharedFunctionInfo> old_unchanged_inner_sfi =
           SharedFunctionInfo::cast(new_script->shared_function_infos()
-                                       ->Get(unchanged_it->second)
+                                       ->get(unchanged_it->second)
                                        .GetHeapObject());
       if (old_unchanged_inner_sfi == inner_sfi) continue;
       DCHECK_NE(old_unchanged_inner_sfi, inner_sfi);
@@ -1058,7 +1058,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
             SharedFunctionInfo::cast(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
-                                 ->Get(inner_sfi->function_literal_id())
+                                 ->get(inner_sfi->function_literal_id())
                                  .GetHeapObject());
       }
     }

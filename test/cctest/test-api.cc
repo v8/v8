@@ -19632,7 +19632,7 @@ static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
   int length = map_cache->length();
   int count = 0;
   for (int i = 0; i < length; i++) {
-    if (map_cache->Get(i)->IsWeak()) count++;
+    if (map_cache->get(i)->IsWeak()) count++;
   }
   return count;
 }

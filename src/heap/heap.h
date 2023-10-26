@@ -459,10 +459,6 @@ class Heap final {
   // slots since the sweeper can run concurrently.
   void CreateFillerObjectAtSweeper(Address addr, int size);
 
-  template <typename T>
-  void CreateFillerForArray(Tagged<T> object, int elements_to_trim,
-                            int bytes_to_trim);
-
   bool CanMoveObjectStart(Tagged<HeapObject> object);
 
   bool IsImmovable(Tagged<HeapObject> object);
@@ -474,15 +470,17 @@ class Heap final {
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(
       Tagged<FixedArrayBase> obj, int elements_to_trim);
 
+#define RIGHT_TRIMMABLE_ARRAY_LIST(V) \
+  V(ArrayList)                        \
+  V(ByteArray)                        \
+  V(FixedArray)                       \
+  V(FixedDoubleArray)                 \
+  V(TransitionArray)                  \
+  V(WeakFixedArray)
+
   // Trim the given array from the right.
-  V8_EXPORT_PRIVATE void RightTrimFixedArray(Tagged<FixedArrayBase> obj,
-                                             int elements_to_trim);
-  void RightTrimWeakFixedArray(Tagged<WeakFixedArray> obj,
-                               int elements_to_trim);
   template <typename Array>
-  V8_EXPORT_PRIVATE void RightTrimTaggedArray(Tagged<Array> object,
-                                              int new_capacity,
-                                              int old_capacity);
+  void RightTrimArray(Tagged<Array> object, int new_capacity, int old_capacity);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Tagged<Boolean> ToBoolean(bool condition);
@@ -2446,6 +2444,13 @@ class Heap final {
   FRIEND_TEST(SpacesTest, AllocationObserver);
   friend class HeapInternalsBase;
 };
+
+#define DECL_RIGHT_TRIM(T)                                        \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void \
+  Heap::RightTrimArray<T>(Tagged<T> object, int new_capacity,     \
+                          int old_capacity);
+RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
+#undef DECL_RIGHT_TRIM
 
 class HeapStats {
  public:

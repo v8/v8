@@ -4504,7 +4504,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // triggers the mismatch.
   CHECK_LT(function_literal_id, script->shared_function_info_count());
   MaybeObject shared =
-      script->shared_function_infos()->Get(function_literal_id);
+      script->shared_function_infos()->get(function_literal_id);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||
       IsUndefined(heap_object, isolate)) {

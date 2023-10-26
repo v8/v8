@@ -835,14 +835,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // Do not trim from short arrays to prevent frequent trimming on
         // repeated pop operations.
         // Leave some space to allow for subsequent push operations.
-        int elements_to_trim = length + 1 == old_length
-                                   ? (capacity - length) / 2
-                                   : capacity - length;
-        isolate->heap()->RightTrimFixedArray(*backing_store, elements_to_trim);
+        uint32_t new_capacity =
+            length + 1 == old_length ? (capacity + length) / 2 : length;
+        DCHECK_LT(new_capacity, capacity);
+        isolate->heap()->RightTrimArray(BackingStore::cast(*backing_store),
+                                        new_capacity, capacity);
         // Fill the non-trimmed elements with holes.
         BackingStore::cast(*backing_store)
-            ->FillWithHoles(length,
-                            std::min(old_length, capacity - elements_to_trim));
+            ->FillWithHoles(length, std::min(old_length, new_capacity));
       } else {
         // Otherwise, fill the unused tail with holes.
         BackingStore::cast(*backing_store)->FillWithHoles(length, old_length);
@@ -2069,6 +2069,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
   static void DeleteAtEnd(Handle<JSObject> obj,
                           Handle<BackingStore> backing_store, uint32_t entry) {
     uint32_t length = static_cast<uint32_t>(backing_store->length());
+    DCHECK_LT(entry, length);
     Isolate* isolate = obj->GetIsolate();
     for (; entry > 0; entry--) {
       if (!backing_store->is_the_hole(isolate, entry - 1)) break;
@@ -2085,7 +2086,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       return;
     }
 
-    isolate->heap()->RightTrimFixedArray(*backing_store, length - entry);
+    isolate->heap()->RightTrimArray(*backing_store, entry, length);
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,

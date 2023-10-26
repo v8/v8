@@ -78,6 +78,28 @@ struct is_subtype<Base, Object,
                   std::enable_if_t<std::is_base_of_v<HeapObject, Base>>>
     : public std::true_type {};
 
+// For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
+// to be part of the MaybeObject hierarchy wrt is_subtype.
+// But `Tagged<MaybeObject>` is invalid. Currently, just `MaybeObject` should
+// be used instead. This specialization ensures that no such instances are
+// constructed.
+//
+// The UnionT and is_union_t definitions have to be pulled in as well,
+// unfortunately.
+//
+// TODO(leszeks): Clean this up once MaybeObject is supported in Tagged land,
+// and move UnionT and is_union_t back to tnode.h
+template <class T1, class T2>
+struct UnionT;
+template <typename T>
+struct is_union_t : public std::false_type {};
+template <typename T1, typename T2>
+struct is_union_t<UnionT<T1, T2>> : public std::true_type {};
+template <typename Base>
+struct is_subtype<Base, MaybeObject, std::enable_if_t<!is_union_t<Base>::value>>
+    : public std::disjunction<std::is_base_of<MaybeObject, Base>,
+                              is_subtype<Base, Object>> {};
+
 // TODO(jgruber): Clean up this artificial FixedArrayBase hierarchy. Only types
 // that can be used as elements should be in it.
 // TODO(jgruber): Replace FixedArrayBase with a union type, once they exist.
@@ -357,6 +379,17 @@ class Tagged<HeapObject> : public TaggedBase {
 };
 
 static_assert(Tagged<HeapObject>().is_null());
+
+// For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
+// to be part of the MaybeObject hierarchy wrt is_subtype.
+// But `Tagged<MaybeObject>` is invalid. Currently, just `MaybeObject` should
+// be used instead. This specialization ensures that no such instances are
+// constructed.
+// TODO(leszeks): Clean this up once MaybeObject is supported in Tagged land.
+template <>
+class Tagged<MaybeObject> : public TaggedBase {
+  constexpr explicit Tagged(Address ptr) = delete;
+};
 
 // Generic Tagged<T> for any T that is a subclass of HeapObject. There are
 // separate Tagged<T> specializations for T==Smi and T==Object, so we know that

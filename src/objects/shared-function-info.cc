@@ -148,7 +148,7 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
-    MaybeObject raw = shared_function_infos_->Get(index_++);
+    MaybeObject raw = shared_function_infos_->get(index_++);
     Tagged<HeapObject> heap_object;
     if (!raw.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
       continue;
@@ -186,13 +186,13 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     Tagged<WeakFixedArray> list = script->shared_function_infos();
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
-    MaybeObject maybe_object = list->Get(function_literal_id);
+    MaybeObject maybe_object = list->get(function_literal_id);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *this);
     }
 #endif
-    list->Set(function_literal_id, HeapObjectReference::Weak(*this));
+    list->set(function_literal_id, HeapObjectReference::Weak(*this));
   } else {
     DCHECK(IsScript(script()));
 
@@ -204,10 +204,10 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     Tagged<WeakFixedArray> infos = old_script->shared_function_infos();
     if (function_literal_id < infos->length()) {
       MaybeObject raw =
-          old_script->shared_function_infos()->Get(function_literal_id);
+          old_script->shared_function_infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
-        old_script->shared_function_infos()->Set(
+        old_script->shared_function_infos()->set(
             function_literal_id,
             HeapObjectReference::Strong(roots.undefined_value()));
       }

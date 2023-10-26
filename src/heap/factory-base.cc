@@ -204,7 +204,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> array = Tagged<WeakFixedArray>::cast(result);
   array->set_length(length);
-  MemsetTagged(ObjectSlot(array->data_start()),
+  MemsetTagged(ObjectSlot(array->RawFieldOfFirstElement()),
                read_only_roots().undefined_value(), length);
 
   return handle(array, isolate());
@@ -213,10 +213,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 template <typename Impl>
 Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
     int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
-  if (length == 0) return impl()->empty_weak_fixed_array();
-  return NewWeakFixedArrayWithMap(read_only_roots().weak_fixed_array_map(),
-                                  length, allocation);
+  return WeakFixedArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>

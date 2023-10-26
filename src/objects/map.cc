@@ -2370,7 +2370,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          ElementsKind elements_kind,
                                          PropertyNormalizationMode mode) {
   DisallowGarbageCollection no_gc;
-  MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
+  MaybeObject value = WeakFixedArray::get(GetIndex(fast_map));
   Tagged<HeapObject> heap_object;
   if (!value.GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
@@ -2387,7 +2387,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
 void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map) {
   DisallowGarbageCollection no_gc;
   DCHECK(normalized_map->is_dictionary_map());
-  WeakFixedArray::Set(GetIndex(fast_map),
+  WeakFixedArray::set(GetIndex(fast_map),
                       HeapObjectReference::Weak(*normalized_map));
 }
 
