@@ -88,11 +88,6 @@
   /* V8 side owner: mliedtke */                                                \
   V(js_inlining, "inline small wasm functions into JS", false)                 \
                                                                                \
-  /* Multi-memory Proposal. */                                                 \
-  /* https://github.com/WebAssembly/multi-memory */                            \
-  /* V8 side owner: clemensb */                                                \
-  V(multi_memory, "multi-memory", false)                                       \
-                                                                               \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal discussed here: */  \
   /* https://github.com/WebAssembly/exception-handling/issues/281 */           \
@@ -140,7 +135,16 @@
   /* V8 side owner: jkummerow */                                               \
   /* Staged in v11.7. */                                                       \
   /* Shipped in v11.9. */                                                      \
-  V(gc, "garbage collection", true)
+  V(gc, "garbage collection", true)                                            \
+                                                                               \
+  /* Multi-memory Proposal. */                                                 \
+  /* https://github.com/WebAssembly/multi-memory */                            \
+  /* V8 side owner: clemensb */                                                \
+  /* Staged in v11.7. */                                                       \
+  /* Shipped in v12.0. */                                                      \
+  /* ITS: */                                                                   \
+  /* https://groups.google.com/a/chromium.org/g/blink-dev/c/WSrXwhKeSas */     \
+  V(multi_memory, "multi-memory", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
