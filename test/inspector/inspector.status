@@ -117,6 +117,8 @@
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
   'debugger/wasm-step-after-trap': [SKIP],
+  # Generic wasm-to-js wrapper must be enabled.
+  'cpu-profiler/console-profile-wasm': [SKIP],
 
 }],  # 'arch == riscv64 or arch == riscv32 or arch == loong64'
 
