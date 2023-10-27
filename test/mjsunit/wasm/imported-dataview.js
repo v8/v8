@@ -219,8 +219,15 @@ function CheckStackTrace(thrower, reference, topmost_wasm_func) {
 function CheckDataViewErrorMessages(dataview_op, array, set_to_value) {
   let dataview = new DataView(array.buffer);
 
-  // Incompatible receiver.
-  let params = ['test_string', 0];
+  // Incompatible receiver (number).
+  let params = [123, 0];
+  if (set_to_value != undefined) params.push(set_to_value);
+  CheckStackTrace(
+      () => instance.exports[dataview_op](...params),
+      () => DataView.prototype[dataview_op].call(...params), dataview_op);
+
+  // Incompatible receiver (string).
+  params = ['test_string', 0];
   if (set_to_value != undefined) params.push(set_to_value);
   CheckStackTrace(
       () => instance.exports[dataview_op](...params),
