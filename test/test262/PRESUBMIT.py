@@ -15,7 +15,8 @@ def _CheckLint(input_api, output_api):
   vpython_spec = root / '.lint-vpython3'
   workdir = root / 'data'
   lint_exe = workdir / 'tools' / 'lint' / 'lint.py'
-  test_path = (workdir / '..' / 'local-tests' / 'test').relative_to(workdir)
+  test_path = workdir / '..' / 'local-tests' / 'test'
+  staging_path = (test_path / 'staging').relative_to(workdir)
   lint_exceptions = root / 'lint.exceptions'
   command = [
       'vpython3',
@@ -24,7 +25,9 @@ def _CheckLint(input_api, output_api):
       lint_exe,
       '--exceptions',
       lint_exceptions,
-      test_path,
+      '--features',
+      staging_path / 'features.txt',
+      staging_path,
   ]
   proc = Popen(command, cwd=workdir, stderr=STDOUT, stdout=PIPE)
   output, exit_code = proc.communicate()[0], proc.returncode

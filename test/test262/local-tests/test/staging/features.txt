@@ -257,3 +257,7 @@ __setter__
 
 IsHTMLDDA
 host-gc-required
+
+# Set methods
+# https://github.com/tc39/proposal-set-methods
+set-methods
