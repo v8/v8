@@ -5958,7 +5958,12 @@ class TurboshaftGraphBuildingInterface {
         return false;
       }
     } else {
-      return size < no_liftoff_inlining_budget_;
+      // We check the flag here because we want the ability to force inlining
+      // off in unit tests, whereas {inlining_enabled()} turns it on for all
+      // WasmGC modules.
+      return v8_flags.experimental_wasm_inlining &&
+             size < no_liftoff_inlining_budget_ &&
+             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
     }
   }
 
