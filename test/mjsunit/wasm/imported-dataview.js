@@ -282,6 +282,35 @@ let instance = MakeInstance();
       'getBigInt64');
 })();
 
+(function TestDataViewSharedArrayBuffer() {
+  print(arguments.callee.name);
+  let buffer = new SharedArrayBuffer(16);
+  let array = new Int32Array(buffer);
+  let dataview = new DataView(buffer);
+
+  instance.exports.setInt32(dataview, 0, 100, 1);
+  assertEquals(100, array[0]);
+  assertEquals(100, instance.exports.getInt32(dataview, 0, 1));
+
+  // Incompatible receiver.
+  CheckStackTrace(
+      () => instance.exports.setInt32('test_string', 0, 100, 1),
+      () => DataView.prototype.setInt32.call('test_string', 0, 100, 1),
+      'setInt32');
+
+  // Offset bounds check.
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, -1, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, -1, 100, 1), 'setInt32');
+
+  // Dataview bounds check.
+  CheckStackTrace(
+      () => instance.exports.setInt32(dataview, 16, 100, 1),
+      () => DataView.prototype.setInt32.call(dataview, 16, 100, 1), 'setInt32');
+
+  // Note: `SharedArrayBuffer` cannot become detached.
+})();
+
 (function TestGetBigInt64() {
   print(arguments.callee.name);
   let array = new BigInt64Array(2);
