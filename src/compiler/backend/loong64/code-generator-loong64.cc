@@ -269,7 +269,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 
   void Generate() override {
     DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
-    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+    gen_->RecordProtectedInstruction(pc_, __ pc_offset());
     GenerateWithTrapId(trap_id_);
   }
 

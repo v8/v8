@@ -1578,6 +1578,31 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
       case IrOpcode::kProtectedStore:
       case IrOpcode::kLoadTrapOnNull:
       case IrOpcode::kStoreTrapOnNull:
+      case IrOpcode::kLoadTransform:
+      case IrOpcode::kLoadLane:
+      case IrOpcode::kLoad:
+      case IrOpcode::kStore:
+      case IrOpcode::kStoreLane:
+      case IrOpcode::kWord32AtomicLoad:
+      case IrOpcode::kWord32AtomicStore:
+      case IrOpcode::kWord32AtomicAdd:
+      case IrOpcode::kWord32AtomicSub:
+      case IrOpcode::kWord32AtomicAnd:
+      case IrOpcode::kWord32AtomicOr:
+      case IrOpcode::kWord32AtomicXor:
+      case IrOpcode::kWord32AtomicExchange:
+      case IrOpcode::kWord32AtomicCompareExchange:
+      case IrOpcode::kWord64AtomicLoad:
+      case IrOpcode::kWord64AtomicStore:
+      case IrOpcode::kWord64AtomicAdd:
+      case IrOpcode::kWord64AtomicSub:
+      case IrOpcode::kWord64AtomicAnd:
+      case IrOpcode::kWord64AtomicOr:
+      case IrOpcode::kWord64AtomicXor:
+      case IrOpcode::kWord64AtomicExchange:
+      case IrOpcode::kWord64AtomicCompareExchange:
+      case IrOpcode::kUnalignedLoad:
+      case IrOpcode::kUnalignedStore:
         return true;
       default:
         return false;

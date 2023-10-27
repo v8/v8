@@ -3638,6 +3638,25 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
 
   InitializeDefaultEmbeddedBlob();
 
+#if V8_ENABLE_WEBASSEMBLY
+  // If we are in production V8 and not in mksnapshot we have to pass the
+  // landing pad builtin to the WebAssembly TrapHandler.
+  // TODO(ahaas): Isolate creation is the earliest point in time when builtins
+  // are available, so we cannot set the landing pad earlier at the moment.
+  // However, if builtins ever get loaded during process initialization time,
+  // then the initialization of the trap handler landing pad should also go
+  // there.
+  // TODO(ahaas): The code of the landing pad does not have to be a builtin,
+  // we could also just move it to the trap handler, and implement it e.g. with
+  // inline assembly. It's not clear if that's worth it.
+  if (Isolate::CurrentEmbeddedBlobCodeSize()) {
+    EmbeddedData embedded_data = EmbeddedData::FromBlob();
+    Address landing_pad =
+        embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
+    i::trap_handler::SetLandingPad(landing_pad);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
 }
 
