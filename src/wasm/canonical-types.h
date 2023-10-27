@@ -11,11 +11,10 @@
 
 #include <unordered_map>
 
+#include "src/base/functional.h"
 #include "src/wasm/wasm-module.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 // A singleton class, responsible for isorecursive canonicalization of wasm
 // types.
@@ -96,24 +95,20 @@ class TypeCanonicalizer {
       uint32_t metadata = (type_def.supertype << 2) |
                           (type_def.is_final ? 2 : 0) |
                           (is_relative_supertype ? 1 : 0);
-      size_t hash = base::hash_value(metadata);
+      base::Hasher hasher;
+      hasher.Add(metadata);
       if (type_def.kind == TypeDefinition::kFunction) {
-        return base::hash_combine(hash, *type_def.function_sig);
+        hasher.Add(*type_def.function_sig);
+      } else if (type_def.kind == TypeDefinition::kStruct) {
+        hasher.Add(*type_def.struct_type);
+      } else {
+        DCHECK_EQ(TypeDefinition::kArray, type_def.kind);
+        hasher.Add(*type_def.array_type);
       }
-      if (type_def.kind == TypeDefinition::kStruct) {
-        return base::hash_combine(hash, *type_def.struct_type);
-      }
-      DCHECK_EQ(TypeDefinition::kArray, type_def.kind);
-      return base::hash_combine(hash, *type_def.array_type);
+      return hasher.hash();
     }
   };
   struct CanonicalGroup {
-    struct hash {
-      size_t operator()(const CanonicalGroup& group) const {
-        return group.hash_value();
-      }
-    };
-
     CanonicalGroup(Zone* zone, size_t size)
         : types(zone->AllocateVector<CanonicalType>(size)) {}
 
@@ -126,16 +121,13 @@ class TypeCanonicalizer {
     }
 
     size_t hash_value() const {
-      size_t result = 0;
-      for (const CanonicalType& type : types) {
-        result = base::hash_combine(result, type.hash_value());
-      }
-      return result;
+      return base::Hasher{}.AddRange(types.begin(), types.end()).hash();
     }
 
     // The storage of this vector is the TypeCanonicalizer's zone_.
     base::Vector<CanonicalType> types;
   };
+
   struct CanonicalSingletonGroup {
     struct hash {
       size_t operator()(const CanonicalSingletonGroup& group) const {
@@ -171,11 +163,11 @@ class TypeCanonicalizer {
 
   std::vector<uint32_t> canonical_supertypes_;
   // Maps groups of size >=2 to the canonical id of the first type.
-  std::unordered_map<CanonicalGroup, uint32_t, CanonicalGroup::hash>
+  std::unordered_map<CanonicalGroup, uint32_t, base::hash<CanonicalGroup>>
       canonical_groups_;
   // Maps group of size 1 to the canonical id of the type.
   std::unordered_map<CanonicalSingletonGroup, uint32_t,
-                     CanonicalSingletonGroup::hash>
+                     base::hash<CanonicalSingletonGroup>>
       canonical_singleton_groups_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
@@ -185,8 +177,6 @@ class TypeCanonicalizer {
 // Returns a reference to the TypeCanonicalizer shared by the entire process.
 V8_EXPORT_PRIVATE TypeCanonicalizer* GetTypeCanonicalizer();
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_CANONICAL_TYPES_H_
