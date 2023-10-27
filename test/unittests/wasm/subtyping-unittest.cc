@@ -490,6 +490,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     INTERSECTION(kWasmFuncRef, array_type, kWasmBottom);
     INTERSECTION_M(kWasmFuncRef, function_type, function_type, module);
 
+    UNION(kWasmExnRef, struct_type, kWasmBottom);
+    UNION(kWasmExnRef, array_type, kWasmBottom);
+    UNION(kWasmExnRef, function_type, kWasmBottom);
+    INTERSECTION(kWasmExnRef, struct_type, kWasmBottom);
+    INTERSECTION(kWasmExnRef, array_type, kWasmBottom);
+    INTERSECTION(kWasmExnRef, function_type, kWasmBottom);
+
     UNION(kWasmNullFuncRef, function_type, function_type.AsNullable());
     UNION(kWasmNullFuncRef, struct_type, kWasmBottom);
     UNION(kWasmNullFuncRef, array_type, kWasmBottom);

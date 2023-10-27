@@ -273,6 +273,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     case HeapType::kI31:
       return false;
     case HeapType::kExtern:
+    case HeapType::kExn:
       return false;
     case HeapType::kString:
     case HeapType::kStringViewWtf8:
