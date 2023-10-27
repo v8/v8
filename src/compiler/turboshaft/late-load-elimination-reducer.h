@@ -315,7 +315,7 @@ class MemoryContentTable
   // Invalidates all Keys that are not known as non-aliasing.
   void InvalidateMaybeAliasing() {
     // We find current active keys through {base_keys_} so that we can bail out
-    // for whole buckets non-aliasing buckets (if we had gone through
+    // for whole buckets non-aliasing bases (if we had gone through
     // {offset_keys_} instead, then for each key we would've had to check
     // whether it was non-aliasing or not).
     for (auto& base_keys : base_keys_) {
@@ -402,6 +402,14 @@ class MemoryContentTable
 #endif
 
  private:
+  // To avoid pathological execution times, we cap the maximum number of
+  // keys we track. This is safe, because *not* tracking objects (even
+  // though we could) only makes us miss out on possible optimizations.
+  // TODO(dmercadier/jkummerow): Find a more elegant solution to keep
+  // execution time in check. One example of a test case can be found in
+  // crbug.com/v8/14370.
+  static constexpr size_t kMaxKeys = 10000;
+
   void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
               uint8_t element_size_log2, uint8_t size, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
@@ -412,6 +420,8 @@ class MemoryContentTable
       Set(existing_key->second, value);
       return;
     }
+
+    if (all_keys_.size() > kMaxKeys) return;
 
     // Creating a new key.
     Key key = NewKey({mem});
@@ -429,6 +439,8 @@ class MemoryContentTable
       SetNoNotify(existing_key->second, value);
       return;
     }
+
+    if (all_keys_.size() > kMaxKeys) return;
 
     // Creating a new key.
     Key key = NewKey({mem});
