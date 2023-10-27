@@ -861,9 +861,7 @@ class CallSiteBuilder {
       }
     }
 
-    auto code = Managed<wasm::GlobalWasmCodeRef>::Allocate(
-        isolate_, 0, summary.code(),
-        instance->module_object()->shared_native_module());
+    Handle<HeapObject> code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
                 summary.code_offset(), flags,
