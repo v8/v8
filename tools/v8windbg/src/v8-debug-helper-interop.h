@@ -5,7 +5,9 @@
 #ifndef V8_TOOLS_V8WINDBG_SRC_V8_DEBUG_HELPER_INTEROP_H_
 #define V8_TOOLS_V8WINDBG_SRC_V8_DEBUG_HELPER_INTEROP_H_
 
-#include <wrl/client.h>
+// Must be included before DbgModel.h.
+#include <new>
+#include <wrl.h>
 
 #include <DbgModel.h>
 
