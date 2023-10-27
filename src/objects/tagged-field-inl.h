@@ -49,9 +49,6 @@ template <typename T, int kFieldOffset, typename CompressionScheme>
 Tagged_t TaggedField<T, kFieldOffset, CompressionScheme>::full_to_tagged(
     Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  if (std::is_base_of<MaybeObject, T>::value) {
-    return CompressionScheme::CompressAny(value);
-  }
   return CompressionScheme::CompressObject(value);
 #else
   return value;

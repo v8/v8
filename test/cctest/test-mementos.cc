@@ -54,10 +54,10 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   memento->set_map_after_allocation(
       ReadOnlyRoots(heap).allocation_memento_map(), SKIP_WRITE_BARRIER);
 
-  // Using this accessor because set_memento expects an Object and not a
-  // MaybeObject.
-  TaggedField<MaybeObject, AllocationMemento::kAllocationSiteOffset>::store(
-      memento, MaybeObject(kHeapObjectTag));
+  // Using this accessor as we're writing an invalid tagged pointer.
+  Tagged_t poison = kHeapObjectTag;
+  memento->WriteField<Tagged_t>(AllocationMemento::kAllocationSiteOffset,
+                                poison);
 }
 
 
