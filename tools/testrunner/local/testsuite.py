@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import imp
+import importlib.machinery
 import itertools
 import os
 
@@ -34,7 +34,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from . import statusfile
-from . import utils
 from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 
@@ -232,11 +231,12 @@ class TestGenerator(object):
 def _load_testsuite_module(name, root):
   f = None
   try:
-    (f, pathname, description) = imp.find_module("testcfg", [root])
-    yield imp.load_module(name + "_testcfg", f, pathname, description)
+    yield importlib.machinery.SourceFileLoader(
+        name + "_testcfg", f"{root}/testcfg.py").load_module()
   finally:
     if f:
       f.close()
+
 
 class TestSuite(object):
   @staticmethod
