@@ -4486,7 +4486,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       FPURegister src = g.ToDoubleRegister(source);
       if (destination->IsFPRegister()) {
         FPURegister dst = g.ToDoubleRegister(destination);
-        __ Move(dst, src);
+        if (rep == MachineRepresentation::kFloat32) {
+          // In src/builtins/wasm-to-js.tq:193
+          //*toRef =
+          //Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal))); so
+          // high 32 of src is 0. fmv.s can't NaNBox src.
+          __ fmv_x_w(kScratchReg, src);
+          __ fmv_w_x(dst, kScratchReg);
+        } else {
+          __ MoveDouble(dst, src);
+        }
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (rep == MachineRepresentation::kFloat32) {

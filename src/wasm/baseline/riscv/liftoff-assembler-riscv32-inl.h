@@ -9,7 +9,6 @@
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h"
 #include "src/wasm/wasm-objects.h"
-
 namespace v8::internal::wasm {
 
 namespace liftoff {
@@ -421,16 +420,17 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Register dst_addr,
                           Register offset_reg, uintptr_t offset_imm,
                           LiftoffRegister value, LiftoffRegister result,
                           StoreType type, Binop op) {
+  ASM_CODE_COMMENT(lasm);
   FrameScope scope(lasm, StackFrame::MANUAL);
   RegList c_params = {arg_reg_1, arg_reg_2, arg_reg_3};
   RegList result_list = {result.low_gp(), result.high_gp()};
-
   // Result registers does not need to be pushed.
   __ MultiPush(c_params - result_list);
   liftoff::CalculateActualAddress(lasm, dst_addr, offset_reg, offset_imm,
-                                  arg_reg_1);
+                                  kScratchReg);
   __ Mv(arg_reg_2, value.low_gp());
   __ Mv(arg_reg_3, value.high_gp());
+  __ Mv(arg_reg_1, kScratchReg);
   __ MultiPush(kJSCallerSaved - c_params - result_list);
   __ PrepareCallCFunction(3, 0, kScratchReg);
   ExternalReference extern_func_ref;
@@ -869,11 +869,11 @@ void LiftoffAssembler::AtomicCompareExchange(
     RegList result_list = {result.low_gp(), result.high_gp()};
     MultiPush(c_params - result_list);
 
-    Mv(a0, actual_addr);
     Mv(a1, expected.low_gp());
     Mv(a2, expected.high_gp());
     Mv(a3, new_value.low_gp());
     Mv(a4, new_value.high_gp());
+    Mv(a0, actual_addr);
 
     MultiPush(kJSCallerSaved - c_params - result_list);
     PrepareCallCFunction(5, 0, kScratchReg);

@@ -2540,9 +2540,12 @@ float Simulator::get_fpu_register_float(int fpureg) const {
   return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
-Float32 Simulator::get_fpu_register_Float32(int fpureg) const {
+// Fix NaN boxing error according to
+// https://github.com/riscv/riscv-isa-manual/blob/main/src/d-st-ext.adoc#nan-boxing-of-narrower-values"
+Float32 Simulator::get_fpu_register_Float32(int fpureg,
+                                            bool check_nanbox) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  if (!is_boxed_float(FPUregisters_[fpureg])) {
+  if (check_nanbox && !is_boxed_float(FPUregisters_[fpureg])) {
     std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
     return Float32::FromBits(0x7fc00000);
   }
@@ -5082,7 +5085,8 @@ void Simulator::DecodeRVSType() {
 #endif /*V8_TARGET_ARCH_RISCV64*/
     // TODO(riscv): use F Extension macro block
     case RO_FSW: {
-      WriteMem<Float32>(rs1() + s_imm12(), get_fpu_register_Float32(rs2_reg()),
+      WriteMem<Float32>(rs1() + s_imm12(),
+                        get_fpu_register_Float32(rs2_reg(), false),
                         instr_.instr());
       break;
     }
@@ -5328,7 +5332,7 @@ void Simulator::DecodeCSSType() {
 #if V8_TARGET_ARCH_RISCV32
     case RO_C_FSWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
-      WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg()),
+      WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg(), false),
                         instr_.instr());
       break;
     }

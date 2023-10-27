@@ -3227,7 +3227,27 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
-void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  int required_stack_space = arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+  __ SubWord(sp, sp, Operand(required_stack_space));
+  for (int i = 0; i < static_cast<int>(arraysize(wasm::kFpParamRegisters));
+       ++i) {
+    __ StoreDouble(wasm::kFpParamRegisters[i], MemOperand(sp, i * kDoubleSize));
+  }
+
+  constexpr int num_gp = arraysize(wasm::kGpParamRegisters) - 1;
+  required_stack_space = num_gp * kSystemPointerSize;
+  __ SubWord(sp, sp, Operand(required_stack_space));
+  for (int i = 1; i < static_cast<int>(arraysize(wasm::kGpParamRegisters));
+       ++i) {
+    __ StoreWord(wasm::kGpParamRegisters[i],
+                 MemOperand(sp, (i - 1) * kSystemPointerSize));
+  }
+  // Decrement the stack to allocate a stack slot. The signature gets written
+  // into the slot in Torque.
+  __ Push(zero_reg);
+  __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
+}
 
 void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ Trap();
