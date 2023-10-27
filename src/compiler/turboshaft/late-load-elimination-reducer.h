@@ -84,10 +84,10 @@ namespace v8::internal::compiler::turboshaft {
 //     not: 2 objects with different maps cannot alias.
 //
 //   - When a loop contains a Store or a Call, it could invalidate previously
-//     eliminated loads in the begining of the loop. Thus, once we reach the end
-//     of a loop, we recompute the header's snapshot using {header, backedge} as
-//     predecessors, and if anything is invalidated by the backedge, we revisit
-//     the loop.
+//     eliminated loads in the beginning of the loop. Thus, once we reach the
+//     end of a loop, we recompute the header's snapshot using {header,
+//     backedge} as predecessors, and if anything is invalidated by the
+//     backedge, we revisit the loop.
 //
 // How we "keep track" of objects:
 //
@@ -95,9 +95,9 @@ namespace v8::internal::compiler::turboshaft {
 //     1. Load the value for a {base, index, offset}.
 //     2. Store that {base, index, offset} = value
 //     3. Invalidate everything at a given offset + everything at an index (for
-//       when storing to a base that could alias with other things).
+//        when storing to a base that could alias with other things).
 //     4. Invalidate everything in a base (for when said base is passed to a
-//       function, or when their is an indexed store in this base).
+//        function, or when there is an indexed store in this base).
 //     5. Invalidate everything (for an indexed store into an arbitrary base)
 //
 // To have 1. in constant time, we maintain a global hashmap (`all_keys`) from
@@ -108,7 +108,7 @@ namespace v8::internal::compiler::turboshaft {
 // To have 4. efficiently, we have a similar map from bases to lists of every
 // MemoryAddress at this base (`base_keys_`).
 // For 5., we can use either `offset_keys_` or `base_keys_`. In practice, we use
-// the later because it allows us to efficiently skip bases that are known to
+// the latter because it allows us to efficiently skip bases that are known to
 // have no aliases.
 
 // MapMask and related functions are an attempt to avoid having to store sets of
@@ -251,8 +251,7 @@ class MemoryContentTable
     }
   }
 
-  // Invalidate all previous known memory that could alias with {store}. Returns
-  // the number of invalidated keys.
+  // Invalidate all previous known memory that could alias with {store}.
   void Invalidate(const StoreOp& store) {
     Invalidate(store.base(), store.index(), store.offset);
   }
@@ -493,7 +492,7 @@ class MemoryContentTable
     }
 
     if (key.data().mem.index.valid()) {
-      // Inserting in {index_keys_}
+      // Inserting in {index_keys_}.
       index_keys_.Add(key);
     } else {
       // Inserting in {offset_keys_}.
@@ -586,7 +585,7 @@ class LateLoadEliminationAnalyzer {
             // is guaranteed to end with a Goto, and we are now visiting the
             // loop, which means that we don't really care about this
             // predecessor anymore.
-            // The reason for saving this snapshot is to prevent inifinite
+            // The reason for saving this snapshot is to prevent infinite
             // looping, since the next time we reach this point, the backedge
             // snapshot could still invalidate things from the forward edge
             // snapshot. By restricting the forward edge snapshot, we prevent
@@ -618,11 +617,6 @@ class LateLoadEliminationAnalyzer {
   }
 
  private:
-  // During the 1st visit of a loop, we set its status to kFirstVisit. If it
-  // needs revisiting, we set it to kNeedsRevisit. During the 2nd visit, we set
-  // it to kSecondVisit. We never move status from kSecondVisit to kNeedsRevisit
-  // (= we only visit loops at most twice) or from kNeedsRevisit to kFirstVisit.
-  enum LoopStatus { kFirstVisit, kNeedsRevisit, kSecondVisit };
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
   void ProcessStore(OpIndex op_idx, const StoreOp& op);

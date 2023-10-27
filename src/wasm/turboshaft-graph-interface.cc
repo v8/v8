@@ -2608,17 +2608,17 @@ class TurboshaftGraphBuildingInterface {
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, bool is_signed, Value* result) {
-    result->op = __ StructGet(struct_object.op, field.struct_imm.struct_type,
-                              field.field_imm.index, is_signed,
-                              struct_object.type.is_nullable()
-                                  ? compiler::kWithNullCheck
-                                  : compiler::kWithoutNullCheck);
+    result->op = __ StructGet(
+        struct_object.op, field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index, is_signed,
+        struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                         : compiler::kWithoutNullCheck);
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, const Value& field_value) {
     __ StructSet(struct_object.op, field_value.op, field.struct_imm.struct_type,
-                 field.field_imm.index,
+                 field.struct_imm.index, field.field_imm.index,
                  struct_object.type.is_nullable()
                      ? compiler::kWithNullCheck
                      : compiler::kWithoutNullCheck);
@@ -5659,7 +5659,7 @@ class TurboshaftGraphBuildingInterface {
 
     V<HeapObject> struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
-      __ StructSet(struct_value, args[i], imm.struct_type, i,
+      __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
                    compiler::kWithoutNullCheck);
     }
     // If this assert fails then initialization of padding field might be

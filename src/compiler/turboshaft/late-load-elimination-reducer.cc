@@ -83,10 +83,10 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
 namespace {
 
-// Returns true if replacing a Load with a RegisterReprsentation
+// Returns true if replacing a Load with a RegisterRepresentation
 // {expected_reg_rep} and MemoryRepresentation of {expected_loaded_repr} with an
 // operation with RegisterRepresentation {actual} is valid. For instance,
-// replacing a operation that returns a Float64 by one that returns a Word64 is
+// replacing an operation that returns a Float64 by one that returns a Word64 is
 // not valid. Similarly, replacing a Tagged with an untagged value is probably
 // not valid because of the GC.
 bool RepIsCompatible(RegisterRepresentation actual,
@@ -101,7 +101,7 @@ bool RepIsCompatible(RegisterRepresentation actual,
     // truncation), we just prevent load elimination in this case.
 
     // TODO(dmercadier): add more truncations operators to Turboshaft, and
-    // insert the correct truncation when there is a missmatch between
+    // insert the correct truncation when there is a mismatch between
     // {expected_loaded_repr} and {actual}.
 
     return false;
@@ -170,7 +170,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 
   OpIndex value = store.value();
 
-  // Updating the known stored values
+  // Updating the known stored values.
   memory_.Invalidate(store);
   memory_.Insert(store);
 

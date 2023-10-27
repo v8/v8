@@ -202,8 +202,8 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(StructGet)(OpIndex object, const wasm::StructType* type,
-                            int field_index, bool is_signed,
-                            CheckForNull null_check) {
+                            uint32_t type_index, int field_index,
+                            bool is_signed, CheckForNull null_check) {
     auto [explicit_null_check, implicit_null_check] =
         null_checks_for_struct_op(null_check, field_index);
 
@@ -221,8 +221,8 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(StructSet)(OpIndex object, OpIndex value,
-                            const wasm::StructType* type, int field_index,
-                            CheckForNull null_check) {
+                            const wasm::StructType* type, uint32_t type_index,
+                            int field_index, CheckForNull null_check) {
     auto [explicit_null_check, implicit_null_check] =
         null_checks_for_struct_op(null_check, field_index);
 

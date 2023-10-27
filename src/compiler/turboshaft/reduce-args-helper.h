@@ -477,13 +477,13 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const StructGetOp& op) {
-    return callback_(op.object(), op.type, op.field_index, op.is_signed,
-                     op.null_check);
+    return callback_(op.object(), op.type, op.type_index, op.field_index,
+                     op.is_signed, op.null_check);
   }
 
   OpIndex operator()(const StructSetOp& op) {
-    return callback_(op.object(), op.value(), op.type, op.field_index,
-                     op.null_check);
+    return callback_(op.object(), op.value(), op.type, op.type_index,
+                     op.field_index, op.null_check);
   }
 
   OpIndex operator()(const ArrayGetOp& op) {

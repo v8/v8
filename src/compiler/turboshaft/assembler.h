@@ -2902,15 +2902,17 @@ class AssemblerOpInterface {
   }
 
   OpIndex StructGet(V<HeapObject> object, const wasm::StructType* type,
-                    int field_index, bool is_signed, CheckForNull null_check) {
-    return ReduceIfReachableStructGet(object, type, field_index, is_signed,
-                                      null_check);
+                    uint32_t type_index, int field_index, bool is_signed,
+                    CheckForNull null_check) {
+    return ReduceIfReachableStructGet(object, type, type_index, field_index,
+                                      is_signed, null_check);
   }
 
   void StructSet(V<HeapObject> object, OpIndex value,
-                 const wasm::StructType* type, int field_index,
-                 CheckForNull null_check) {
-    ReduceIfReachableStructSet(object, value, type, field_index, null_check);
+                 const wasm::StructType* type, uint32_t type_index,
+                 int field_index, CheckForNull null_check) {
+    ReduceIfReachableStructSet(object, value, type, type_index, field_index,
+                               null_check);
   }
 
   OpIndex ArrayGet(V<HeapObject> array, V<Word32> index,
@@ -3550,7 +3552,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     // Inserting a Goto in {intermediate_block} to {destination}. This will
     // create the edge from {intermediate_block} to {destination}. Note that
     // this will call AddPredecessor, but we've already removed the eventual
-    // edge of {destination} that need splitting, so no risks of inifinite
+    // edge of {destination} that need splitting, so no risks of infinite
     // recursion here.
     this->Goto(destination);
   }

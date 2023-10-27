@@ -3203,6 +3203,7 @@ filegroup(
             "src/compiler/turboshaft/wasm-gc-optimize-phase.h",
             "src/compiler/turboshaft/wasm-gc-type-reducer.cc",
             "src/compiler/turboshaft/wasm-gc-type-reducer.h",
+            "src/compiler/turboshaft/wasm-load-elimination-reducer.h",
             "src/compiler/turboshaft/wasm-lowering-phase.cc",
             "src/compiler/turboshaft/wasm-lowering-phase.h",
             "src/compiler/turboshaft/wasm-lowering-reducer.h",

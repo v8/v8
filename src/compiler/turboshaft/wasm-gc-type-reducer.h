@@ -276,8 +276,9 @@ class WasmGCTypeReducer : public Next {
     // Remove the null check if it is known to be not null.
     if (struct_get.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ StructGet(__ MapToNewGraph(struct_get.object()),
-                          struct_get.type, struct_get.field_index,
-                          struct_get.is_signed, kWithoutNullCheck);
+                          struct_get.type, struct_get.type_index,
+                          struct_get.field_index, struct_get.is_signed,
+                          kWithoutNullCheck);
     }
     goto no_change;
   }
@@ -294,7 +295,8 @@ class WasmGCTypeReducer : public Next {
     if (struct_set.null_check == kWithNullCheck && type.is_non_nullable()) {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
-                   struct_set.field_index, kWithoutNullCheck);
+                   struct_set.type_index, struct_set.field_index,
+                   kWithoutNullCheck);
       return OpIndex::Invalid();
     }
     goto no_change;

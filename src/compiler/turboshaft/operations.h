@@ -6260,6 +6260,7 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
 
 struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   const wasm::StructType* type;
+  uint32_t type_index;
   int field_index;
   bool is_signed;  // `false` only for unsigned packed type accesses.
   CheckForNull null_check;
@@ -6277,10 +6278,11 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
     return result;
   }
 
-  StructGetOp(OpIndex object, const wasm::StructType* type, int field_index,
-              bool is_signed, CheckForNull null_check)
+  StructGetOp(OpIndex object, const wasm::StructType* type, uint32_t type_index,
+              int field_index, bool is_signed, CheckForNull null_check)
       : Base(object),
         type(type),
+        type_index(type_index),
         field_index(field_index),
         is_signed(is_signed),
         null_check(null_check) {}
@@ -6302,12 +6304,13 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, field_index, is_signed, null_check};
+    return std::tuple{type, type_index, field_index, is_signed, null_check};
   }
 };
 
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   const wasm::StructType* type;
+  uint32_t type_index;
   int field_index;
   CheckForNull null_check;
 
@@ -6325,9 +6328,10 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   StructSetOp(OpIndex object, OpIndex value, const wasm::StructType* type,
-              int field_index, CheckForNull null_check)
+              uint32_t type_index, int field_index, CheckForNull null_check)
       : Base(object, value),
         type(type),
+        type_index(type_index),
         field_index(field_index),
         null_check(null_check) {}
 
@@ -6348,7 +6352,9 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
     DCHECK_LT(field_index, type->field_count());
   }
 
-  auto options() const { return std::tuple{type, field_index, null_check}; }
+  auto options() const {
+    return std::tuple{type, type_index, field_index, null_check};
+  }
 };
 
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
