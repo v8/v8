@@ -1420,7 +1420,8 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kStringSubstring: {
         V<Tagged> string = ExternRefToString(args[0]);
         V<Tagged> view = __ StringAsWtf16(string);
-        // TODO(14108): Annotate `view`'s type.
+        // TODO(12868): Consider annotating {view}'s type when the typing story
+        //              for string views has been settled.
         result = CallBuiltinThroughJumptable(
             decoder, Builtin::kWasmStringViewWtf16Slice,
             {view, args[1].op, args[2].op}, Operator::kEliminatable);

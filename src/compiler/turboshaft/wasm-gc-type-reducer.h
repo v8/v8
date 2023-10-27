@@ -58,6 +58,7 @@ class WasmGCTypeAnalyzer {
 
   void StartNewSnapshotFor(const Block& block);
   void ProcessOperations(const Block& block);
+  void ProcessBlock(const Block& block);
   void ProcessBranchOnTarget(const BranchOp& branch, const Block& target);
 
   void ProcessTypeCast(const WasmTypeCastOp& type_cast);
@@ -77,7 +78,8 @@ class WasmGCTypeAnalyzer {
   void ProcessTypeAnnotation(const WasmTypeAnnotationOp& type_annotation);
 
   void CreateMergeSnapshot(const Block& block);
-  bool CreateMergeSnapshot(base::Vector<const Snapshot> predecessors);
+  bool CreateMergeSnapshot(base::Vector<const Snapshot> predecessors,
+                           base::Vector<const bool> reachable);
 
   // Updates the knowledge in the side table about the type of {object},
   // returning the previous known type.
@@ -89,6 +91,8 @@ class WasmGCTypeAnalyzer {
   OpIndex ResolveAliases(OpIndex object) const;
   wasm::ValueType GetResolvedType(OpIndex object) const;
 
+  bool IsReachable(const Block& block) const;
+
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
@@ -99,6 +103,9 @@ class WasmGCTypeAnalyzer {
   // at the end of the block.
   FixedBlockSidetable<MaybeSnapshot> block_to_snapshot_{graph_.block_count(),
                                                         phase_zone_};
+  BitVector block_is_unreachable_{static_cast<int>(graph_.block_count()),
+                                  phase_zone_};
+  const Block* current_block_ = nullptr;
   // For any operation that could potentially refined, this map stores an entry
   // to the inferred input type based on the analysis.
   ZoneUnorderedMap<OpIndex, wasm::ValueType> input_type_map_{phase_zone_};
@@ -157,6 +164,9 @@ class WasmGCTypeReducer : public Next {
                                               : __ Word32Constant(0);
         __ TrapIfNot(non_trapping_condition, OpIndex::Invalid(),
                      TrapId::kTrapIllegalCast);
+        if (!to_nullable) {
+          __ Unreachable();
+        }
         return __ MapToNewGraph(cast_op.object());
       }
       // The cast cannot be replaced. Still, we can refine the source type, so

@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --no-liftoff --no-wasm-lazy-compilation
-// Flags: --no-experimental-wasm-inlining
+// Flags: --no-experimental-wasm-inlining --no-wasm-loop-unrolling
+// Flags: --no-wasm-loop-peeling
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.
@@ -906,6 +907,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(1, wasm.loopPhiOptimizable(1));
   assertEquals(2, wasm.loopPhiOptimizable(2));
+  assertEquals(20, wasm.loopPhiOptimizable(20));
 })();
 
 (function TypePropagationLoopPhiCheckRequired() {
@@ -950,6 +952,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(1, wasm.loopPhiCheckRequired(1));
   assertEquals(1, wasm.loopPhiCheckRequired(2));
+  assertEquals(1, wasm.loopPhiCheckRequired(20));
 })();
 
 (function TypePropagationLoopPhiCheckRequiredUnrelated() {
@@ -997,6 +1000,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(1, wasm.loopPhiCheckRequiredUnrelated(1));
   assertEquals(1, wasm.loopPhiCheckRequiredUnrelated(2));
+  assertEquals(1, wasm.loopPhiCheckRequiredUnrelated(20));
 })();
 
 (function TypePropagationCallRef() {
@@ -1040,4 +1044,141 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   wasm.callTypedWasm(0, wasm.callee);
   assertTraps(kTrapIllegalCast, () => wasm.callTypedWasm(1, wasm.callee));
+})();
+
+(function TypePropagationDeadBranch() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('deadBranch',
+      makeSig([kWasmI32, kWasmStructRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 1,
+      kExprLocalSet, 2,
+      kExprLocalGet, 0,
+      kExprIf, kWasmVoid,
+        kExprLocalGet, 2,
+        // This cast always traps -> dead branch.
+        kGCPrefix, kExprRefCast, kArrayRefCode,
+        kExprDrop,
+      kExprElse,
+        kExprLocalGet, 2,
+        kGCPrefix, kExprRefCast, struct,
+        kExprDrop,
+      kExprEnd,
+      kExprLocalGet, 2,
+      // This is the same cast as in the else branch. As the end of the true
+      // branch is unreachable, this cast can be safely eliminated.
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertTraps(kTrapIllegalCast, () => wasm.deadBranch(0, null));
+})();
+
+(function TypePropagationDeadByRefTestTrue() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('deadBranchBasedOnRefTestTrue',
+      makeSig([kWasmStructRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalSet, 1,
+      kExprLocalGet, 1,
+      // This test always succeeds, the true branch is always taken.
+      kGCPrefix, kExprRefTestNull, kStructRefCode,
+      kExprIf, kWasmVoid,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprRefCast, struct,
+        kExprDrop,
+      kExprEnd,
+      kExprLocalGet, 1,
+      // This is the same cast as in the true branch. As the true branch is
+      // guaranteed to be taken, the cast can be eliminated.
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertTraps(kTrapIllegalCast, () => wasm.deadBranchBasedOnRefTestTrue(null));
+})();
+
+(function TypePropagationDeadByRefTestFalse() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('deadBranchBasedOnRefTestFalse',
+      makeSig([kWasmStructRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalSet, 1,
+      kExprLocalGet, 1,
+      // This test is always false, the else branch is always taken.
+      kGCPrefix, kExprRefTest, kArrayRefCode,
+      kExprIf, kWasmVoid,
+      kExprElse,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprRefCast, struct,
+        kExprDrop,
+      kExprEnd,
+      kExprLocalGet, 1,
+      // This is the same cast as in the else branch. As the else branch is
+      // guaranteed to be taken, the cast can be eliminated.
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertTraps(kTrapIllegalCast, () => wasm.deadBranchBasedOnRefTestFalse(null));
+})();
+
+(function TypePropagationDeadByIsNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('deadBranchBasedOnIsNull',
+      makeSig([wasmRefType(kWasmAnyRef)], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalSet, 1,
+      kExprLocalGet, 1,
+      // This is always false, the else branch is always taken.
+      kExprRefIsNull,
+      kExprIf, kWasmVoid,
+      kExprElse,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprRefCast, struct,
+        kExprDrop,
+      kExprEnd,
+      kExprLocalGet, 1,
+      // This is the same cast as in the else branch. As the true branch is
+      // never taken, the cast can be eliminated.
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertTraps(kTrapIllegalCast, () => wasm.deadBranchBasedOnIsNull({}));
 })();

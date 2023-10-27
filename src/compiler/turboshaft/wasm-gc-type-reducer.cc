@@ -14,8 +14,7 @@ void WasmGCTypeAnalyzer::Run() {
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
   while (iterator.HasNext()) {
     const Block& block = *iterator.Next();
-    StartNewSnapshotFor(block);
-    ProcessOperations(block);
+    ProcessBlock(block);
 
     // Finish snapshot.
     Snapshot snapshot = types_table_.Seal();
@@ -23,21 +22,20 @@ void WasmGCTypeAnalyzer::Run() {
 
     // Consider re-processing for loops.
     if (const GotoOp* last = block.LastOperation(graph_).TryCast<GotoOp>()) {
-      if (last->destination->IsLoop() &&
+      if (IsReachable(block) && last->destination->IsLoop() &&
           last->destination->LastPredecessor() == &block) {
         const Block& loop_header = *last->destination;
-        // Create a merged snapshot state for the forward- and backedge.
-        StartNewSnapshotFor(loop_header);
-        // Revisit the loop header and compare the new snapshot with the
-        // existing one.
-        ProcessOperations(loop_header);
+        // Create a merged snapshot state for the forward- and backedge and
+        // process all operations inside the loop header.
+        ProcessBlock(loop_header);
         Snapshot old_snapshot = block_to_snapshot_[loop_header.index()].value();
         Snapshot snapshot = types_table_.Seal();
         // TODO(14108): The snapshot isn't needed at all, we only care about the
         // information if two snapshots are equivalent. Unfortunately, currently
         // this can only be answered by creating a merge snapshot.
         bool needs_revisit =
-            CreateMergeSnapshot(base::VectorOf({old_snapshot, snapshot}));
+            CreateMergeSnapshot(base::VectorOf({old_snapshot, snapshot}),
+                                base::VectorOf({true, true}));
         types_table_.Seal();  // Discard the snapshot.
 
         // TODO(14108): This currently encodes a fixed point analysis where the
@@ -54,6 +52,14 @@ void WasmGCTypeAnalyzer::Run() {
       }
     }
   }
+}
+
+void WasmGCTypeAnalyzer::ProcessBlock(const Block& block) {
+  DCHECK_NULL(current_block_);
+  current_block_ = &block;
+  StartNewSnapshotFor(block);
+  ProcessOperations(block);
+  current_block_ = nullptr;
 }
 
 void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
@@ -260,20 +266,34 @@ void WasmGCTypeAnalyzer::ProcessTypeAnnotation(
 
 void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
                                                const Block& target) {
+  DCHECK_EQ(current_block_, &target);
   const Operation& condition = graph_.Get(branch.condition());
   switch (condition.opcode) {
     case Opcode::kWasmTypeCheck: {
+      const WasmTypeCheckOp& check = condition.Cast<WasmTypeCheckOp>();
       if (branch.if_true == &target) {
         // It is known from now on that the type is at least the checked one.
-        const WasmTypeCheckOp& check = condition.Cast<WasmTypeCheckOp>();
         wasm::ValueType known_input_type =
             RefineTypeKnowledge(check.object(), check.config.to);
         input_type_map_[branch.condition()] = known_input_type;
+      } else {
+        DCHECK_EQ(branch.if_false, &target);
+        if (wasm::IsSubtypeOf(GetResolvedType(check.object()), check.config.to,
+                              module_)) {
+          // The type check always succeeds, the target is impossible to be
+          // reached.
+          block_is_unreachable_.Add(target.index().id());
+        }
       }
     } break;
     case Opcode::kIsNull: {
       const IsNullOp& is_null = condition.Cast<IsNullOp>();
       if (branch.if_true == &target) {
+        if (GetResolvedType(is_null.object()).is_non_nullable()) {
+          // The target is impossible to be reached.
+          block_is_unreachable_.Add(target.index().id());
+          return;
+        }
         RefineTypeKnowledge(is_null.object(),
                             wasm::ToNullSentinel({is_null.type, module_}));
       } else {
@@ -293,38 +313,54 @@ void WasmGCTypeAnalyzer::ProcessNull(const NullOp& null) {
 
 void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
   base::SmallVector<Snapshot, 8> snapshots;
-  NeighboringPredecessorIterable iterable = block.PredecessorsIterable();
-  std::transform(iterable.begin(), iterable.end(),
-                 std::back_insert_iterator(snapshots), [this](Block* pred) {
-                   return block_to_snapshot_[pred->index()].value();
-                 });
+  // Unreachable predecessors should be ignored when merging but we can't remove
+  // them from the predecessors as that would mess up the phi inputs. Therefore
+  // the reachability of the predecessors is passed as a separate list.
+  base::SmallVector<bool, 8> reachable;
+  for (auto predecessor : block.PredecessorsIterable()) {
+    snapshots.push_back(block_to_snapshot_[predecessor->index()].value());
+    reachable.push_back(IsReachable(*predecessor));
+  }
   // The predecessor snapshots need to be reversed to restore the "original"
   // order of predecessors. (This is used to map phi inputs to their
   // corresponding predecessor.)
   std::reverse(snapshots.begin(), snapshots.end());
-  CreateMergeSnapshot(base::VectorOf(snapshots));
+  std::reverse(reachable.begin(), reachable.end());
+  CreateMergeSnapshot(base::VectorOf(snapshots), base::VectorOf(reachable));
 }
 
 bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
-    base::Vector<const Snapshot> predecessors) {
+    base::Vector<const Snapshot> predecessors,
+    base::Vector<const bool> reachable) {
+  DCHECK_EQ(predecessors.size(), reachable.size());
   // The merging logic is also used to evaluate if two snapshots are
   // "identical", i.e. the known types for all operations are the same.
   bool types_are_equivalent = true;
   types_table_.StartNewSnapshot(
-      predecessors, [this, &types_are_equivalent](
+      predecessors, [this, &types_are_equivalent, reachable](
                         TypeSnapshotTable::Key,
                         base::Vector<const wasm::ValueType> predecessors) {
         DCHECK_GT(predecessors.size(), 1);
-        wasm::ValueType first = predecessors[0];
+        size_t i = 0;
+        // Initialize the type based on the first reachable predecessor.
+        wasm::ValueType first = wasm::kWasmBottom;
+        for (; i < reachable.size(); ++i) {
+          if (reachable[i]) {
+            first = predecessors[i];
+            ++i;
+            break;
+          }
+        }
 
         wasm::ValueType res = first;
-        for (auto iter = predecessors.begin() + 1; iter != predecessors.end();
-             ++iter) {
-          types_are_equivalent &= first == *iter;
-          if (res == wasm::ValueType() || *iter == wasm::ValueType()) {
+        for (; i < reachable.size(); ++i) {
+          if (!reachable[i]) continue;  // Skip unreachable predecessors.
+          wasm::ValueType type = predecessors[i];
+          types_are_equivalent &= first == type;
+          if (res == wasm::ValueType() || type == wasm::ValueType()) {
             res = wasm::ValueType();
           } else {
-            res = wasm::Union(res, *iter, module_, module_).type;
+            res = wasm::Union(res, type, module_, module_).type;
           }
         }
         return res;
@@ -334,12 +370,16 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
 
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
     OpIndex object, wasm::ValueType new_type) {
+  DCHECK_NOT_NULL(current_block_);
   object = ResolveAliases(object);
   wasm::ValueType previous_value = types_table_.Get(object);
   wasm::ValueType intersection_type =
       previous_value == wasm::ValueType()
           ? new_type
           : wasm::Intersection(previous_value, new_type, module_, module_).type;
+  if (intersection_type.is_uninhabited()) {
+    block_is_unreachable_.Add(current_block_->index().id());
+  }
   types_table_.Set(object, intersection_type);
   return previous_value;
 }
@@ -347,6 +387,9 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledgeNotNull(OpIndex object) {
   object = ResolveAliases(object);
   wasm::ValueType previous_value = types_table_.Get(object);
+  if (previous_value.is_uninhabited()) {
+    block_is_unreachable_.Add(current_block_->index().id());
+  }
   types_table_.Set(object, previous_value.AsNonNull());
   return previous_value;
 }
@@ -368,6 +411,10 @@ OpIndex WasmGCTypeAnalyzer::ResolveAliases(OpIndex object) const {
         return object;
     }
   }
+}
+
+bool WasmGCTypeAnalyzer::IsReachable(const Block& block) const {
+  return !block_is_unreachable_.Contains(block.index().id());
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::GetResolvedType(OpIndex object) const {
