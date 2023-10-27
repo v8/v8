@@ -42,6 +42,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(Catch, 0x07, _, "catch")                                                   \
   V(Throw, 0x08, _, "throw")                                                   \
   V(Rethrow, 0x09, _, "rethrow")                                               \
+  V(TryTable, 0x1f, _, "try_table")                                            \
+  V(ThrowRef, 0x0a, _, "throw_ref")                                            \
   V(End, 0x0b, _, "end")                                                       \
   V(Br, 0x0c, _, "br")                                                         \
   V(BrIf, 0x0d, _, "br_if")                                                    \

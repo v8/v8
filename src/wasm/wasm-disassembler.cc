@@ -389,6 +389,40 @@ class ImmediatesPrinter {
     }
   }
 
+  const char* CatchKindToString(CatchKind kind) {
+    switch (kind) {
+      case kCatch:
+        return "catch";
+      case kCatchRef:
+        return "catch_ref";
+      case kCatchAll:
+        return "catch_all";
+      case kCatchAllRef:
+        return "catch_all_ref";
+      default:
+        return "<invalid>";
+    }
+  }
+
+  void TryTable(TryTableImmediate& imm) {
+    const uint8_t* pc = imm.table;
+    for (uint32_t i = 0; i <= imm.table_count; i++) {
+      uint8_t kind = owner_->read_u8<ValidationTag>(pc);
+      pc += 1;
+      out_ << CatchKindToString(static_cast<CatchKind>(kind)) << " ";
+      if (kind == kCatch || kind == kCatchRef) {
+        auto [tag, length] = owner_->read_u32v<ValidationTag>(pc);
+        out_ << " ";
+        names()->PrintTagName(out_, tag);
+        pc += length;
+      }
+      auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
+      out_ << " ";
+      PrintDepthAsLabel(target);
+      pc += length;
+    }
+  }
+
   void CallIndirect(CallIndirectImmediate& imm) {
     PrintSignature(imm.sig_imm.index);
     if (imm.table_imm.index != 0) TableIndex(imm.table_imm);

@@ -324,7 +324,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kExnRefCode:
       if (!VALIDATE(enabled.has_exnref())) {
         DecodeError<ValidationTag>(decoder, pc,
-                                   "invalid value type 'exnref', enable with"
+                                   "invalid value type 'exnref', enable with "
                                    "--experimental-wasm-exnref");
         return {kWasmBottom, 0};
       }
@@ -718,12 +718,16 @@ struct BranchTableImmediate {
   }
 };
 
+using TryTableImmediate = BranchTableImmediate;
+
 // A helper to iterate over a branch table.
 template <typename ValidationTag>
 class BranchTableIterator {
  public:
-  uint32_t cur_index() { return index_; }
-  bool has_next() { return VALIDATE(decoder_->ok()) && index_ <= table_count_; }
+  uint32_t cur_index() const { return index_; }
+  bool has_next() const {
+    return VALIDATE(decoder_->ok()) && index_ <= table_count_;
+  }
   uint32_t next() {
     DCHECK(has_next());
     index_++;
@@ -733,12 +737,13 @@ class BranchTableIterator {
     return result;
   }
   // length, including the length of the {BranchTableImmediate}, but not the
-  // opcode.
+  // opcode. This consumes the table entries, so it is invalid to call next()
+  // before or after this method.
   uint32_t length() {
     while (has_next()) next();
     return static_cast<uint32_t>(pc_ - start_);
   }
-  const uint8_t* pc() { return pc_; }
+  const uint8_t* pc() const { return pc_; }
 
   BranchTableIterator(Decoder* decoder, const BranchTableImmediate& imm)
       : decoder_(decoder),
@@ -748,7 +753,65 @@ class BranchTableIterator {
 
  private:
   Decoder* const decoder_;
-  const uint8_t* start_;
+  const uint8_t* const start_;
+  const uint8_t* pc_;
+  uint32_t index_ = 0;          // the current index.
+  const uint32_t table_count_;  // the count of entries, not including default.
+};
+
+struct CatchCase {
+  CatchKind kind;
+  // The union contains a TagIndexImmediate iff kind == kCatch or kind ==
+  // kCatchRef.
+  union MaybeTagIndex {
+    uint8_t empty;
+    TagIndexImmediate tag_imm;
+  } maybe_tag;
+  BranchDepthImmediate br_imm;
+};
+
+// A helper to iterate over a try table.
+template <typename ValidationTag>
+class TryTableIterator {
+ public:
+  uint32_t cur_index() const { return index_; }
+  bool has_next() const {
+    return VALIDATE(decoder_->ok()) && index_ < table_count_;
+  }
+
+  CatchCase next() {
+    uint8_t kind =
+        static_cast<CatchKind>(decoder_->read_u8<ValidationTag>(pc_));
+    pc_ += 1;
+    CatchCase::MaybeTagIndex maybe_tag{0};
+    if (kind == kCatch || kind == kCatchRef) {
+      maybe_tag.tag_imm = TagIndexImmediate(decoder_, pc_, ValidationTag{});
+      pc_ += maybe_tag.tag_imm.length;
+    }
+    BranchDepthImmediate br_imm(decoder_, pc_, ValidationTag{});
+    pc_ += br_imm.length;
+    index_++;
+    return CatchCase{static_cast<CatchKind>(kind), maybe_tag, br_imm};
+  }
+
+  // length, including the length of the {TryTableImmediate}, but not the
+  // opcode. This consumes the table entries, so it is invalid to call next()
+  // before or after this method.
+  uint32_t length() {
+    while (has_next()) next();
+    return static_cast<uint32_t>(pc_ - start_);
+  }
+  const uint8_t* pc() const { return pc_; }
+
+  TryTableIterator(Decoder* decoder, const TryTableImmediate& imm)
+      : decoder_(decoder),
+        start_(imm.start),
+        pc_(imm.table),
+        table_count_(imm.table_count) {}
+
+ private:
+  Decoder* const decoder_;
+  const uint8_t* const start_;
   const uint8_t* pc_;
   uint32_t index_ = 0;          // the current index.
   const uint32_t table_count_;  // the count of entries, not including default.
@@ -971,6 +1034,7 @@ enum ControlKind : uint8_t {
   kControlBlock,
   kControlLoop,
   kControlTry,
+  kControlTryTable,
   kControlTryCatch,
   kControlTryCatchAll,
 };
@@ -989,6 +1053,10 @@ template <typename Value, typename ValidationTag>
 struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   ControlKind kind = kControlBlock;
   Reachability reachability = kReachable;
+
+  // For try-table.
+  CatchCase* catch_cases = nullptr;
+
   uint32_t stack_depth = 0;  // Stack height at the beginning of the construct.
   uint32_t init_stack_depth = 0;  // Height of "locals initialization" stack
                                   // at the beginning of the construct.
@@ -1001,9 +1069,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ControlBase);
 
-  ControlBase(Zone* /* unused in the base class */, ControlKind kind,
-              uint32_t stack_depth, uint32_t init_stack_depth,
-              const uint8_t* pc, Reachability reachability)
+  ControlBase(Zone* zone, ControlKind kind, uint32_t stack_depth,
+              uint32_t init_stack_depth, const uint8_t* pc,
+              Reachability reachability)
       : PcForErrors<ValidationTag::full_validation>(pc),
         kind(kind),
         reachability(reachability),
@@ -1036,6 +1104,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   bool is_try() const {
     return is_incomplete_try() || is_try_catch() || is_try_catchall();
   }
+  bool is_try_table() { return kind == kControlTryTable; }
 
   Merge<Value>* br_merge() {
     return is_loop() ? &this->start_merge : &this->end_merge;
@@ -1093,6 +1162,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(Block, Control* block)                                                     \
   F(Loop, Control* block)                                                      \
   F(Try, Control* block)                                                       \
+  F(TryTable, Control* block)                                                  \
+  F(CatchCase, Control* block, const CatchCase& catch_case,                    \
+    base::Vector<Value> caught_values)                                         \
   F(If, const Value& cond, Control* if_block)                                  \
   F(FallThruTo, Control* c)                                                    \
   F(PopControl, Control* block)                                                \
@@ -1149,6 +1221,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
     const Value& input1, Value* result)                                        \
   F(Throw, const TagIndexImmediate& imm, const Value args[])                   \
+  F(ThrowRef, Value* value)                                                    \
   F(Rethrow, Control* block)                                                   \
   F(CatchException, const TagIndexImmediate& imm, Control* block,              \
     base::Vector<Value> caught_values)                                         \
@@ -1703,8 +1776,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const uint8_t* pc, BranchTableImmediate& imm,
-                size_t block_depth) {
+  bool Validate(const uint8_t* pc, BranchTableImmediate& imm) {
     if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
       DecodeError(pc, "invalid table count (> max br_table size): %u",
                   imm.table_count);
@@ -2019,12 +2091,20 @@ class WasmDecoder : public Decoder {
         BranchTableIterator<ValidationTag> iterator(decoder, imm);
         return 1 + iterator.length();
       }
+      case kExprTryTable: {
+        TryTableImmediate imm(decoder, pc + 1, validate);
+        (ios.TryTable(imm), ...);
+        TryTableIterator<ValidationTag> iterator(decoder, imm);
+        return 1 + iterator.length();
+      }
       case kExprThrow:
       case kExprCatch: {
         TagIndexImmediate imm(decoder, pc + 1, validate);
         (ios.TagIndex(imm), ...);
         return 1 + imm.length;
       }
+      case kExprThrowRef:
+        return 1;
 
       /********** Misc opcodes **********/
       case kExprCallFunction:
@@ -2905,6 +2985,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           case kControlTry:
             Append("T");
             break;
+          case kControlTryTable:
+            Append("T");
+            break;
           case kControlIfElse:
             Append("E");
             break;
@@ -3108,6 +3191,72 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1;
   }
 
+  DECODE(TryTable) {
+    CHECK_PROTOTYPE_OPCODE(exnref);
+    this->detected_->Add(kFeature_eh);
+    BlockTypeImmediate block_imm(this->enabled_, this, this->pc_ + 1, validate);
+    if (!this->Validate(this->pc_ + 1, block_imm)) return 0;
+    Control* try_block = PushControl(kControlTryTable, block_imm);
+    TryTableImmediate try_table_imm(this, this->pc_ + 2, validate);
+    if (try_table_imm.table_count > 0) {
+      try_block->previous_catch = current_catch_;
+      current_catch_ = static_cast<int>(control_depth() - 1);
+    }
+    if (!this->Validate(this->pc_ + 2, try_table_imm)) return 0;
+    TryTableIterator<ValidationTag> try_table_iterator(this, try_table_imm);
+    try_block->catch_cases = this->zone_->template AllocateArray<CatchCase>(
+        try_table_imm.table_count);
+    int i = 0;
+    while (try_table_iterator.has_next()) {
+      CatchCase catch_case = try_table_iterator.next();
+      if (VALIDATE(catch_case.kind > kLastCatchKind)) {
+        this->DecodeError("invalid catch kind in try table");
+        return 0;
+      }
+      if ((catch_case.kind == kCatch || catch_case.kind == kCatchRef) &&
+          !this->Validate(this->pc_, catch_case.maybe_tag.tag_imm)) {
+        return 0;
+      }
+      catch_case.br_imm.depth += 1;
+      if (!this->Validate(this->pc_, catch_case.br_imm, control_.size()))
+        return 0;
+
+      uint32_t stack_size = stack_.size();
+      if (catch_case.kind == kCatch || catch_case.kind == kCatchRef) {
+        const WasmTagSig* sig = catch_case.maybe_tag.tag_imm.tag->sig;
+        stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
+                                  this->zone_);
+        for (ValueType type : sig->parameters()) Push(type);
+      }
+      if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
+        stack_.EnsureMoreCapacity(1, this->zone_);
+        Push(kWasmExnRef);
+      }
+      Control* target = control_at(catch_case.br_imm.depth);
+      TypeCheckBranch<true>(target);
+      target->br_merge()->reached = true;
+      stack_.shrink_to(stack_size);
+      DCHECK_LT(i, try_table_imm.table_count);
+      try_block->catch_cases[i] = catch_case;
+      ++i;
+    }
+    return 2 + try_table_iterator.length();
+  }
+
+  DECODE(ThrowRef) {
+    this->detected_->Add(kFeature_exnref);
+    Value value = Pop();
+    if (!VALIDATE(
+            (value.type.kind() == kRef || value.type.kind() == kRefNull) &&
+            value.type.heap_type() == HeapType::kExn)) {
+      this->DecodeError("invalid type for throw_ref: expected exnref, found %s",
+                        value.type.name().c_str());
+      return 0;
+    }
+    EndControl();
+    return 1;
+  }
+
   DECODE(BrOnNull) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
@@ -3259,6 +3408,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (c->is_onearmed_if()) {
         if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
       }
+      if (c->is_try_table()) {
+        current_catch_ = c->previous_catch;
+      }
     }
 
     if (control_.size() == 1) {
@@ -3343,7 +3495,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BranchTableIterator<ValidationTag> iterator(this, imm);
     Value key = Pop(kWasmI32);
     if (!VALIDATE(this->ok())) return 0;
-    if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
 
     // Cache the branch targets during the iteration, so that we can set
     // all branch targets as reachable after the {CALL_INTERFACE} call.
@@ -3803,6 +3955,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(Rethrow);
     DECODE_IMPL(Throw);
     DECODE_IMPL(Try);
+    DECODE_IMPL(TryTable);
+    DECODE_IMPL(ThrowRef);
     DECODE_IMPL(Catch);
     DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);

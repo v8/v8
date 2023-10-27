@@ -459,6 +459,7 @@ class TurboshaftGraphBuildingInterface {
       case kControlIfElse:
       case kControlBlock:
       case kControlTry:
+      case kControlTryTable:
       case kControlTryCatch:
       case kControlTryCatchAll:
         // {block->reachable()} is not reliable here for exceptions, because

@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-body-decoder.h"
 
+#include "src/flags/flags.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -14,6 +15,7 @@
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -2956,6 +2958,78 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
 }
 
 #undef WASM_TRY_OP
+
+#define WASM_TRY_TABLE_OP kExprTryTable, kVoidCode
+
+TEST_F(FunctionBodyDecoderTest, ThrowRef) {
+  WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(gc);
+  ExpectValidates(sigs.v_v(), {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP,
+                               U32V_1(1), CatchKind::kCatchAllRef, 0, kExprEnd,
+                               kExprBr, 1, kExprEnd, kExprThrowRef});
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(HeapType::kExtern))),
+                 kExprThrowRef},
+                kAppendEnd,
+                "invalid type for throw_ref: expected exnref, found externref");
+}
+
+TEST_F(FunctionBodyDecoderTest, TryTable) {
+  WASM_FEATURE_SCOPE(exnref);
+  uint8_t ex = builder.AddException(sigs.v_v());
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, ex,
+                   U32V_1(0), kExprEnd},
+                  kAppendEnd);
+  ExpectValidates(sigs.v_v(),
+                  {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(1),
+                   CatchKind::kCatchRef, ex, U32V_1(0), kExprEnd,
+                   kExprUnreachable, kExprEnd, kExprDrop},
+                  kAppendEnd);
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatchAll,
+                   U32V_1(0), kExprEnd, kExprUnreachable},
+                  kAppendEnd);
+  ExpectValidates(sigs.v_v(),
+                  {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(1),
+                   CatchKind::kCatchAllRef, U32V_1(0), kExprEnd,
+                   kExprUnreachable, kExprEnd, kExprDrop},
+                  kAppendEnd);
+  // All catch kinds at the same time.
+  ExpectValidates(
+      sigs.v_v(),
+      {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(4), CatchKind::kCatch,
+       ex, U32V_1(1), CatchKind::kCatchRef, ex, U32V_1(0), CatchKind::kCatchAll,
+       U32V_1(1), CatchKind::kCatchAllRef, U32V_1(0), kExprEnd,
+       kExprUnreachable, kExprEnd, kExprDrop},
+      kAppendEnd);
+  // // Duplicate catch-all.
+  ExpectValidates(
+      sigs.v_v(),
+      {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(4),
+       CatchKind::kCatchAll, U32V_1(1), CatchKind::kCatchAll, U32V_1(1),
+       CatchKind::kCatchAllRef, U32V_1(0), CatchKind::kCatchAllRef, U32V_1(0),
+       kExprEnd, kExprUnreachable, kExprEnd, kExprDrop},
+      kAppendEnd);
+  // // Catch-all before catch.
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_TRY_TABLE_OP, U32V_1(2), CatchKind::kCatchAll, U32V_1(0),
+       CatchKind::kCatch, ex, U32V_1(0), kExprEnd, kExprUnreachable},
+      kAppendEnd);
+
+  constexpr uint8_t kInvalidCatchKind = kLastCatchKind + 1;
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_TABLE_OP, U32V_1(1), kInvalidCatchKind, ex, U32V_1(0),
+                 kExprEnd},
+                kAppendEnd, "invalid catch kind in try table");
+  // Branching to an exnref block with ref-less catch.
+  ExpectFailure(sigs.v_v(),
+                {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(1), kCatch,
+                 ex, U32V_1(0), kExprEnd, kExprUnreachable, kExprEnd},
+                kAppendEnd,
+                "expected 1 elements on the stack for branch, found 0");
+}
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   uint8_t sig0 = builder.AddSignature(sigs.ii_v());
