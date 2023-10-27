@@ -51,6 +51,9 @@ class Test262GitHub(GitHubRepo):
         "44702d6ea9c1bce9c95316e3aca41c14e0e8533f",
         "87437c41113c2b41aaf5bcbc7fee996df0ab1711",
         "b8d49712ab12dd13bee5da34849f8ab7f5309715",
+        "46c933180967191758afd0427f9d0ba02a4d24a3",
+        "85bf69fd70e118b1ace64110ed82cb1ff0d58533",
+        "b97d50ae5e4bb6b5abfc811c0b618d888c3f1377",
     ]
 
 
