@@ -28,8 +28,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SourcePositionTable;
-
 struct V8_EXPORT_PRIVATE MemoryOffsetComparer {
   bool operator()(const Node* lhs, const Node* rhs) const;
 };
@@ -163,8 +161,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE Revectorizer final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph,
-               SourcePositionTable* source_positions);
+  Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph);
   void DetectCPUFeatures();
   bool TryRevectorize(const char* name);
 
@@ -197,7 +194,6 @@ class V8_EXPORT_PRIVATE Revectorizer final
   ZoneMap<Node*, ZoneMap<Node*, StoreNodeSet>*> group_of_stores_;
   std::unordered_set<Node*> sources_;
   SLPTree* slp_tree_;
-  SourcePositionTable* source_positions_;
 
   bool support_simd256_;
 

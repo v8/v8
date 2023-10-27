@@ -624,7 +624,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_WASM(F, I)         \
   F(ThrowBadSuspenderError, 0, 1)             \
   F(ThrowWasmError, 1, 1)                     \
-  F(TrapHandlerThrowWasmError, 0, 1)          \
   F(ThrowWasmStackOverflow, 0, 1)             \
   F(WasmI32AtomicWait, 4, 1)                  \
   F(WasmI64AtomicWait, 5, 1)                  \

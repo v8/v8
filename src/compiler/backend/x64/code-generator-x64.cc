@@ -490,28 +490,39 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   Instruction* instr_;
 };
 
-void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
-                            InstructionCode opcode, Instruction* instr,
-                            int pc) {
+class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
+ public:
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr,
+                               TrapId trap_id)
+      : WasmOutOfLineTrap(gen, instr), pc_(pc), trap_id_(trap_id) {}
+
+  void Generate() final {
+    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
+    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+    GenerateWithTrapId(trap_id_);
+  }
+
+ private:
+  int pc_;
+  TrapId trap_id_;
+};
+
+void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
+                         InstructionCode opcode, Instruction* instr, int pc) {
   const MemoryAccessMode access_mode = instr->memory_access_mode();
-  if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
-      access_mode == kMemoryAccessProtectedNullDereference) {
-    ReferenceMap* reference_map =
-        codegen->zone()->New<ReferenceMap>(codegen->zone());
-    // The safepoint has to be recorded at the return address of a call. Address
-    // we use as the fake return address in the case of the trap handler is the
-    // fault address (here `pc`) + 1. Therefore the safepoint here has to be
-    // recorded at pc + 1;
-    codegen->RecordSafepoint(reference_map, pc + 1);
-    codegen->RecordProtectedInstruction(pc);
+  if (access_mode == kMemoryAccessProtectedMemOutOfBounds) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapMemOutOfBounds);
+  } else if (access_mode == kMemoryAccessProtectedNullDereference) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapNullDereference);
   }
 }
 
 #else
 
-void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
-                            InstructionCode opcode, Instruction* instr,
-                            int pc) {
+void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
+                         InstructionCode opcode, Instruction* instr, int pc) {
   DCHECK_EQ(kMemoryAccessDirect, instr->memory_access_mode());
 }
 
@@ -677,8 +688,8 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
   // path. It is not crucial, but it would be nice to remove this restriction.
   if (codegen->code_kind() != CodeKind::FOR_TESTING) {
     if (instr->HasMemoryAccessMode()) {
-      RecordTrapInfoIfNeeded(zone, codegen, instr->opcode(), instr,
-                             masm->pc_offset());
+      EmitOOLTrapIfNeeded(zone, codegen, instr->opcode(), instr,
+                          masm->pc_offset());
     }
     int size = ElementSizeInBytes(rep);
     EmitMemoryProbeForTrapHandlerIfNeeded(masm, i.TempRegister(0), operand,
@@ -689,8 +700,8 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
   } else {
     int store_instr_offset = EmitStore<order>(masm, operand, value, rep);
     if (instr->HasMemoryAccessMode()) {
-      RecordTrapInfoIfNeeded(zone, codegen, instr->opcode(), instr,
-                             store_instr_offset);
+      EmitOOLTrapIfNeeded(zone, codegen, instr->opcode(), instr,
+                          store_instr_offset);
     }
   }
 }
@@ -768,8 +779,7 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
          order == std::memory_order_seq_cst);
   int store_instr_off = EmitStore<order>(masm, operand, value, rep);
   if (instr->HasMemoryAccessMode()) {
-    RecordTrapInfoIfNeeded(zone, codegen, instr->opcode(), instr,
-                           store_instr_off);
+    EmitOOLTrapIfNeeded(zone, codegen, instr->opcode(), instr, store_instr_off);
   }
 }
 
@@ -973,30 +983,30 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 1); \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst)          \
-  do {                                                                   \
-    Label binop;                                                         \
-    __ bind(&binop);                                                     \
-    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ mov_inst(rax, i.MemoryOperand(1));                                \
-    __ movl(i.TempRegister(0), rax);                                     \
-    __ bin_inst(i.TempRegister(0), i.InputRegister(0));                  \
-    __ lock();                                                           \
-    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));              \
-    __ j(not_equal, &binop);                                             \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst)       \
+  do {                                                                \
+    Label binop;                                                      \
+    __ bind(&binop);                                                  \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ mov_inst(rax, i.MemoryOperand(1));                             \
+    __ movl(i.TempRegister(0), rax);                                  \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));               \
+    __ lock();                                                        \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));           \
+    __ j(not_equal, &binop);                                          \
   } while (false)
 
-#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst)        \
-  do {                                                                   \
-    Label binop;                                                         \
-    __ bind(&binop);                                                     \
-    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ mov_inst(rax, i.MemoryOperand(1));                                \
-    __ movq(i.TempRegister(0), rax);                                     \
-    __ bin_inst(i.TempRegister(0), i.InputRegister(0));                  \
-    __ lock();                                                           \
-    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));              \
-    __ j(not_equal, &binop);                                             \
+#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst)     \
+  do {                                                                \
+    Label binop;                                                      \
+    __ bind(&binop);                                                  \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ mov_inst(rax, i.MemoryOperand(1));                             \
+    __ movq(i.TempRegister(0), rax);                                  \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));               \
+    __ lock();                                                        \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));           \
+    __ j(not_equal, &binop);                                          \
   } while (false)
 
 // Handles both SSE and AVX codegen. For SSE we use DefineSameAsFirst, so the
@@ -1144,7 +1154,7 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     } else {                                                             \
       __ ASM_INSTR(dst, src, i.InputOperand(2), laneidx, &load_offset);  \
     }                                                                    \
-    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, load_offset);    \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, load_offset);       \
   } while (false)
 
 #define ASSEMBLE_SEQ_CST_STORE(rep)                                            \
@@ -1603,8 +1613,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchStoreWithWriteBarrier:  // Fall through.
     case kArchAtomicStoreWithWriteBarrier: {
-      // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
-      // here.
+      // {EmitTSANAwareStore} calls EmitOOLTrapIfNeeded. No need to do it here.
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -2672,21 +2681,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kX64Movsxbl:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxbq:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxbq);
       break;
     case kX64Movzxbq:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxbq);
       __ AssertZeroExtended(i.OutputRegister());
       break;
@@ -2707,21 +2716,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movsxwl:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxwq:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxwq);
       break;
     case kX64Movzxwq:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxwq);
       __ AssertZeroExtended(i.OutputRegister());
       break;
@@ -2743,7 +2752,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Movl:
       if (instr->HasOutput()) {
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         if (HasAddressingMode(instr)) {
           Operand address(i.MemoryOperand());
           __ movl(i.OutputRegister(), address);
@@ -2774,12 +2783,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64Movsxlq:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxlq);
       break;
     case kX64MovqDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTaggedSigned(i.OutputRegister(), address);
       EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
@@ -2788,7 +2797,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64MovqDecompressTagged: {
       CHECK(instr->HasOutput());
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTagged(i.OutputRegister(), address);
       EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
@@ -2796,8 +2805,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64MovqCompressTagged: {
-      // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
-      // here.
+      // {EmitTSANAwareStore} calls EmitOOLTrapIfNeeded. No need to do it here.
       CHECK(!instr->HasOutput());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2849,7 +2857,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Movq:
       if (instr->HasOutput()) {
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         Operand address(i.MemoryOperand());
         __ movq(i.OutputRegister(), address);
         EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
@@ -2871,7 +2879,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64Movss:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -2881,7 +2889,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64Movsd: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -2892,7 +2900,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movdqu: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
       } else {
@@ -3664,7 +3672,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2PromoteLowF32x4: {
       if (HasAddressingMode(instr)) {
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ Cvtps2pd(i.OutputSimd128Register(), i.MemoryOperand());
       } else {
         __ Cvtps2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -5672,7 +5680,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Pextrb: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       if (HasAddressingMode(instr)) {
         Operand operand = i.MemoryOperand(&index);
@@ -5685,7 +5693,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Pextrw: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       if (HasAddressingMode(instr)) {
         Operand operand = i.MemoryOperand(&index);
@@ -5897,59 +5905,59 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128Load8Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ S128Load8Splat(i.OutputSimd128Register(), i.MemoryOperand(),
                         kScratchDoubleReg);
       break;
     }
     case kX64S128Load16Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ S128Load16Splat(i.OutputSimd128Register(), i.MemoryOperand(),
                          kScratchDoubleReg);
       break;
     }
     case kX64S128Load32Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ S128Load32Splat(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load64Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Movddup(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load8x8S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load8x8U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load16x4S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load16x4U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load32x2S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Load32x2U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S128Store32Lane: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       uint8_t lane = i.InputUint8(index + 1);
@@ -5957,7 +5965,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128Store64Lane: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       uint8_t lane = i.InputUint8(index + 1);
@@ -6285,13 +6293,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicExchangeInt8: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxbl(i.InputRegister(0), i.InputRegister(0));
       break;
     }
     case kAtomicExchangeUint8: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
@@ -6305,13 +6313,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicExchangeInt16: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxwl(i.InputRegister(0), i.InputRegister(0));
       break;
     }
     case kAtomicExchangeUint16: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
@@ -6324,20 +6332,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAtomicExchangeWord32: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
     case kAtomicCompareExchangeInt8: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
       __ movsxbl(rax, rax);
       break;
     }
     case kAtomicCompareExchangeUint8: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
       switch (AtomicWidthField::decode(opcode)) {
@@ -6352,14 +6360,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicCompareExchangeInt16: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
       __ movsxwl(rax, rax);
       break;
     }
     case kAtomicCompareExchangeUint16: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
       switch (AtomicWidthField::decode(opcode)) {
@@ -6373,7 +6381,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAtomicCompareExchangeWord32: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
       if (AtomicWidthField::decode(opcode) == AtomicWidth::kWord64) {
@@ -6383,12 +6391,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Word64AtomicExchangeUint64: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
     case kX64Word64AtomicCompareExchangeUint64: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
       break;
@@ -6460,31 +6468,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S256Load8Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx2_scope(masm(), AVX2);
       __ vpbroadcastb(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load16Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx2_scope(masm(), AVX2);
       __ vpbroadcastw(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load32Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vbroadcastss(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load64Splat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vbroadcastsd(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64Movdqu256: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx_scope(masm(), AVX);
       if (instr->HasOutput()) {
         __ vmovdqu(i.OutputSimd256Register(), i.MemoryOperand());
@@ -6561,37 +6569,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S256Load8x16S: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovsxbw(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load8x16U: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovzxbw(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load16x8S: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovsxwd(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load16x8U: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovzxwd(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load32x4S: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovsxdq(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }
     case kX64S256Load32x4U: {
       CpuFeatureScope avx_scope(masm(), AVX2);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ vpmovzxdq(i.OutputSimd256Register(), i.MemoryOperand());
       break;
     }

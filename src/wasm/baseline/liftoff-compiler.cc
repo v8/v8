@@ -425,6 +425,7 @@ class LiftoffCompiler {
     LiftoffRegList regs_to_save;
     Register cached_instance;
     OutOfLineSafepointInfo* safepoint_info;
+    uint32_t trapping_pc;  // The PC that should execute the OOL code on trap.
     // These two pointers will only be used for debug code:
     SpilledRegistersForInspection* spilled_registers;
     DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
@@ -433,7 +434,7 @@ class LiftoffCompiler {
     static OutOfLineCode Trap(
         Zone* zone, Builtin builtin, WasmCodePosition pos,
         SpilledRegistersForInspection* spilled_registers,
-        OutOfLineSafepointInfo* safepoint_info,
+        OutOfLineSafepointInfo* safepoint_info, uint32_t pc,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       DCHECK_LT(0, pos);
       return {
@@ -444,6 +445,7 @@ class LiftoffCompiler {
           {},                            // regs_to_save
           no_reg,                        // cached_instance
           safepoint_info,                // safepoint_info
+          pc,                            // trapping_pc
           spilled_registers,             // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
@@ -461,6 +463,7 @@ class LiftoffCompiler {
           regs_to_save,                  // regs_to_save
           cached_instance,               // cached_instance
           safepoint_info,                // safepoint_info
+          0,                             // trapping_pc
           spilled_regs,                  // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
@@ -478,6 +481,7 @@ class LiftoffCompiler {
           regs_to_save,                  // regs_to_save
           cached_instance,               // cached_instance
           safepoint_info,                // safepoint_info
+          0,                             // trapping_pc
           spilled_regs,                  // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
@@ -943,7 +947,7 @@ class LiftoffCompiler {
         // the OOL code is shared).
         out_of_line_code_.push_back(OutOfLineCode::Trap(
             zone_, Builtin::kThrowWasmTrapUnreachable, decoder->position(),
-            nullptr, nullptr, nullptr));
+            nullptr, nullptr, 0, nullptr));
 
         // Subtract 16 steps for the function call itself (including the
         // function prologue), plus 1 for each local (including parameters). Do
@@ -967,6 +971,19 @@ class LiftoffCompiler {
     __ bind(ool->label.get());
     const bool is_stack_check = ool->builtin == Builtin::kWasmStackGuard;
     const bool is_tierup = ool->builtin == Builtin::kWasmTriggerTierUp;
+
+    // Only memory OOB traps need a {pc}, but not unconditionally. Static OOB
+    // accesses do not need protected instruction information, hence they also
+    // do not set {pc}.
+    DCHECK_IMPLIES(ool->builtin != Builtin::kThrowWasmTrapMemOutOfBounds,
+                   ool->trapping_pc == 0);
+
+    if (ool->trapping_pc != 0) {
+      uint32_t pc = static_cast<uint32_t>(__ pc_offset());
+      DCHECK_EQ(pc, __ pc_offset());
+      protected_instructions_.emplace_back(
+          trap_handler::ProtectedInstructionData{ool->trapping_pc, pc});
+    }
 
     if (!ool->regs_to_save.is_empty()) {
       __ PushRegisters(ool->regs_to_save);
@@ -2965,7 +2982,11 @@ class LiftoffCompiler {
     return spilled;
   }
 
-  Label* AddOutOfLineTrap(FullDecoder* decoder, Builtin builtin) {
+  Label* AddOutOfLineTrap(FullDecoder* decoder, Builtin builtin,
+                          uint32_t trapping_pc = 0) {
+    // Only memory OOB traps need a {pc}.
+    DCHECK_IMPLIES(builtin != Builtin::kThrowWasmTrapMemOutOfBounds,
+                   trapping_pc == 0);
     DCHECK(v8_flags.wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
     // Execution does not return after a trap. Therefore we don't have to define
@@ -2982,7 +3003,7 @@ class LiftoffCompiler {
         zone_, builtin, decoder->position(),
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr,
-        safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
+        safepoint_info, trapping_pc, RegisterOOLDebugSideTableEntry(decoder)));
     return out_of_line_code_.back().label.get();
   }
 
@@ -3026,7 +3047,7 @@ class LiftoffCompiler {
     // Set {pc} of the OOL code to {0} to avoid generation of protected
     // instruction information (see {GenerateOutOfLineCode}.
     Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds, 0);
 
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
@@ -3084,7 +3105,7 @@ class LiftoffCompiler {
                          LiftoffRegList pinned) {
     SCOPED_CODE_COMMENT("alignment check");
     Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess);
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess, 0);
     Register address = __ GetUnusedRegister(kGpReg, pinned).gp();
 
     FREEZE_STATE(trapping);
@@ -3273,11 +3294,8 @@ class LiftoffCompiler {
       __ Load(value, mem, index, offset, type, &protected_load_pc, true,
               i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        protected_instructions_.emplace_back(
-            trap_handler::ProtectedInstructionData{protected_load_pc});
-        source_position_table_builder_.AddPosition(
-            protected_load_pc, SourcePosition(decoder->position()), true);
-        DefineSafepoint(protected_load_pc);
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds,
+                         protected_load_pc);
       }
       __ PushRegister(kind, value);
     }
@@ -3320,11 +3338,8 @@ class LiftoffCompiler {
                      &protected_load_pc);
 
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_load_pc});
-      source_position_table_builder_.AddPosition(
-          protected_load_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_load_pc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds,
+                       protected_load_pc);
     }
     __ PushRegister(kS128, value);
 
@@ -3363,14 +3378,12 @@ class LiftoffCompiler {
     Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister result = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
+
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
                 &protected_load_pc, i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_load_pc});
-      source_position_table_builder_.AddPosition(
-          protected_load_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_load_pc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds,
+                       protected_load_pc);
     }
 
     __ PushRegister(kS128, result);
@@ -3424,11 +3437,8 @@ class LiftoffCompiler {
       __ Store(mem, index, offset, value, type, outer_pinned,
                &protected_store_pc, true, i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        protected_instructions_.emplace_back(
-            trap_handler::ProtectedInstructionData{protected_store_pc});
-        source_position_table_builder_.AddPosition(
-            protected_store_pc, SourcePosition(decoder->position()), true);
-        DefineSafepoint(protected_store_pc);
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds,
+                         protected_store_pc);
       }
     }
 
@@ -3464,11 +3474,8 @@ class LiftoffCompiler {
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc,
                  i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_store_pc});
-      source_position_table_builder_.AddPosition(
-          protected_store_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_store_pc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds,
+                       protected_store_pc);
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       // TODO(14259): Implement memory tracing for multiple memories.
@@ -8204,8 +8211,8 @@ class LiftoffCompiler {
     os << "\n";
   }
 
-  void DefineSafepoint(int pc_offset = 0) {
-    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
+  void DefineSafepoint() {
+    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     __ cache_state()->DefineSafepoint(safepoint);
   }
 

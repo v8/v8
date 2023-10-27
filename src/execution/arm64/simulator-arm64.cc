@@ -81,7 +81,6 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
       trap_handler::ProbeMemory(last_accessed_byte, current_pc);
   if (!landing_pad) return true;
   set_pc(landing_pad);
-  set_reg(kWasmTrapHandlerFaultAddressRegister.code(), current_pc);
   return false;
 #else
   return true;

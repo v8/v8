@@ -122,9 +122,8 @@ void SafepointTable::Print(std::ostream& os) const {
 }
 
 SafepointTableBuilder::Safepoint SafepointTableBuilder::DefineSafepoint(
-    Assembler* assembler, int pc_offset) {
-  pc_offset = pc_offset ? pc_offset : assembler->pc_offset_for_safepoint();
-  entries_.emplace_back(zone_, pc_offset);
+    Assembler* assembler) {
+  entries_.emplace_back(zone_, assembler->pc_offset_for_safepoint());
   return SafepointTableBuilder::Safepoint(&entries_.back(), this);
 }
 

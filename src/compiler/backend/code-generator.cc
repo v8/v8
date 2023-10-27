@@ -104,9 +104,10 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
   masm_.set_builtin(builtin);
 }
 
-void CodeGenerator::RecordProtectedInstruction(uint32_t instr_offset) {
+void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
+                                                   uint32_t landing_offset) {
 #if V8_ENABLE_WEBASSEMBLY
-  protected_instructions_.push_back({instr_offset});
+  protected_instructions_.push_back({instr_offset, landing_offset});
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -532,8 +533,8 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
       .IsNext(instructions()->InstructionBlockAt(block)->ao_number());
 }
 
-void CodeGenerator::RecordSafepoint(ReferenceMap* references, int pc_offset) {
-  auto safepoint = safepoints()->DefineSafepoint(masm(), pc_offset);
+void CodeGenerator::RecordSafepoint(ReferenceMap* references) {
+  auto safepoint = safepoints()->DefineSafepoint(masm());
   int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {

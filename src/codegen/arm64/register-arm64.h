@@ -609,7 +609,6 @@ constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;
 constexpr Register kWasmInstanceRegister = x7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = x8;
-constexpr Register kWasmTrapHandlerFaultAddressRegister = x16;
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
 

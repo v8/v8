@@ -3353,10 +3353,6 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }
 
-void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
-  __ Trap();
-}
-
 void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // TODO(v8:12191): Implement for this platform.
   __ Trap();

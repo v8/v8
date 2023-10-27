@@ -902,9 +902,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsExternRefOpcode(WasmOpcode);
   static constexpr bool IsThrowingOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
-#if DEBUG
-  static constexpr bool IsMemoryAccessOpcode(WasmOpcode);
-#endif  // DEBUG
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static constexpr bool IsUnconditionalJump(WasmOpcode);

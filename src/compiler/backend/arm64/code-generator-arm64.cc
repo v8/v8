@@ -445,26 +445,37 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   Instruction* instr_;
 };
 
-void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
-                            InstructionCode opcode, Instruction* instr,
-                            int pc) {
+class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
+ public:
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr,
+                               TrapId trap_id)
+      : WasmOutOfLineTrap(gen, instr), pc_(pc), trap_id_(trap_id) {}
+
+  void Generate() override {
+    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
+    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+    GenerateWithTrapId(trap_id_);
+  }
+
+ private:
+  int pc_;
+  TrapId trap_id_;
+};
+
+void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
+                         InstructionCode opcode, Instruction* instr, int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
-      access_mode == kMemoryAccessProtectedNullDereference) {
-    ReferenceMap* reference_map =
-        codegen->zone()->New<ReferenceMap>(codegen->zone());
-    // The safepoint has to be recorded at the return address of a call. Address
-    // we use as the fake return address in the case of the trap handler is the
-    // fault address (here `pc`) + 1. Therefore the safepoint here has to be
-    // recorded at pc + 1;
-    codegen->RecordSafepoint(reference_map, pc + 1);
-    codegen->RecordProtectedInstruction(pc);
+  if (access_mode == kMemoryAccessProtectedMemOutOfBounds) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapMemOutOfBounds);
+  } else if (access_mode == kMemoryAccessProtectedNullDereference) {
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
+                                            TrapId::kTrapNullDereference);
   }
 }
 #else
-void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
-                            InstructionCode opcode, Instruction* instr,
-                            int pc) {
+void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
+                         InstructionCode opcode, Instruction* instr, int pc) {
   DCHECK_EQ(kMemoryAccessDirect, AccessModeField::decode(opcode));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -496,107 +507,107 @@ void EmitFpOrNeonUnop(MacroAssembler* masm, Fn fn, Instruction* instr,
     }                                                                       \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, reg)                     \
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, reg)                   \
+  do {                                                                 \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+    __ asm_instr(i.Output##reg(), i.TempRegister(0));                  \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, reg)                  \
+  do {                                                                 \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+    __ asm_instr(i.Input##reg(2), i.TempRegister(0));                  \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(suffix, reg)                   \
+  do {                                                                  \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));  \
+    if (CpuFeatures::IsSupported(LSE)) {                                \
+      CpuFeatureScope scope(masm(), LSE);                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ Swpal##suffix(i.Input##reg(2), i.Output##reg(),                \
+                       MemOperand(i.TempRegister(0)));                  \
+    } else {                                                            \
+      Label exchange;                                                   \
+      __ Bind(&exchange);                                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));             \
+      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(2),            \
+                       i.TempRegister(0));                              \
+      __ Cbnz(i.TempRegister32(1), &exchange);                          \
+    }                                                                   \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(suffix, ext, reg)      \
+  do {                                                                  \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));  \
+    if (CpuFeatures::IsSupported(LSE)) {                                \
+      DCHECK_EQ(i.OutputRegister(), i.InputRegister(2));                \
+      CpuFeatureScope scope(masm(), LSE);                               \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ Casal##suffix(i.Output##reg(), i.Input##reg(3),                \
+                       MemOperand(i.TempRegister(0)));                  \
+    } else {                                                            \
+      Label compareExchange;                                            \
+      Label exit;                                                       \
+      __ Bind(&compareExchange);                                        \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));             \
+      __ Cmp(i.Output##reg(), Operand(i.Input##reg(2), ext));           \
+      __ B(ne, &exit);                                                  \
+      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(3),            \
+                       i.TempRegister(0));                              \
+      __ Cbnz(i.TempRegister32(1), &compareExchange);                   \
+      __ Bind(&exit);                                                   \
+    }                                                                   \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_SUB(suffix, reg)                                 \
   do {                                                                   \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
-    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ asm_instr(i.Output##reg(), i.TempRegister(0));                    \
+    if (CpuFeatures::IsSupported(LSE)) {                                 \
+      CpuFeatureScope scope(masm(), LSE);                                \
+      UseScratchRegisterScope temps(masm());                             \
+      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));       \
+      __ Neg(scratch, i.Input##reg(2));                                  \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ Ldaddal##suffix(scratch, i.Output##reg(),                       \
+                         MemOperand(i.TempRegister(0)));                 \
+    } else {                                                             \
+      Label binop;                                                       \
+      __ Bind(&binop);                                                   \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));              \
+      __ Sub(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
+      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),              \
+                       i.TempRegister(0));                               \
+      __ Cbnz(i.TempRegister32(2), &binop);                              \
+    }                                                                    \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, reg)                    \
+#define ASSEMBLE_ATOMIC_AND(suffix, reg)                                 \
   do {                                                                   \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
-    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ asm_instr(i.Input##reg(2), i.TempRegister(0));                    \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(suffix, reg)                      \
-  do {                                                                     \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
-    if (CpuFeatures::IsSupported(LSE)) {                                   \
-      CpuFeatureScope scope(masm(), LSE);                                  \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ Swpal##suffix(i.Input##reg(2), i.Output##reg(),                   \
-                       MemOperand(i.TempRegister(0)));                     \
-    } else {                                                               \
-      Label exchange;                                                      \
-      __ Bind(&exchange);                                                  \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                \
-      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(2),               \
-                       i.TempRegister(0));                                 \
-      __ Cbnz(i.TempRegister32(1), &exchange);                             \
-    }                                                                      \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(suffix, ext, reg)         \
-  do {                                                                     \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
-    if (CpuFeatures::IsSupported(LSE)) {                                   \
-      DCHECK_EQ(i.OutputRegister(), i.InputRegister(2));                   \
-      CpuFeatureScope scope(masm(), LSE);                                  \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ Casal##suffix(i.Output##reg(), i.Input##reg(3),                   \
-                       MemOperand(i.TempRegister(0)));                     \
-    } else {                                                               \
-      Label compareExchange;                                               \
-      Label exit;                                                          \
-      __ Bind(&compareExchange);                                           \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                \
-      __ Cmp(i.Output##reg(), Operand(i.Input##reg(2), ext));              \
-      __ B(ne, &exit);                                                     \
-      __ stlxr##suffix(i.TempRegister32(1), i.Input##reg(3),               \
-                       i.TempRegister(0));                                 \
-      __ Cbnz(i.TempRegister32(1), &compareExchange);                      \
-      __ Bind(&exit);                                                      \
-    }                                                                      \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_SUB(suffix, reg)                                   \
-  do {                                                                     \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
-    if (CpuFeatures::IsSupported(LSE)) {                                   \
-      CpuFeatureScope scope(masm(), LSE);                                  \
-      UseScratchRegisterScope temps(masm());                               \
-      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));         \
-      __ Neg(scratch, i.Input##reg(2));                                    \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ Ldaddal##suffix(scratch, i.Output##reg(),                         \
-                         MemOperand(i.TempRegister(0)));                   \
-    } else {                                                               \
-      Label binop;                                                         \
-      __ Bind(&binop);                                                     \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                \
-      __ Sub(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2)));   \
-      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),                \
-                       i.TempRegister(0));                                 \
-      __ Cbnz(i.TempRegister32(2), &binop);                                \
-    }                                                                      \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_AND(suffix, reg)                                   \
-  do {                                                                     \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
-    if (CpuFeatures::IsSupported(LSE)) {                                   \
-      CpuFeatureScope scope(masm(), LSE);                                  \
-      UseScratchRegisterScope temps(masm());                               \
-      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));         \
-      __ Mvn(scratch, i.Input##reg(2));                                    \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ Ldclral##suffix(scratch, i.Output##reg(),                         \
-                         MemOperand(i.TempRegister(0)));                   \
-    } else {                                                               \
-      Label binop;                                                         \
-      __ Bind(&binop);                                                     \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                \
-      __ And(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2)));   \
-      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),                \
-                       i.TempRegister(0));                                 \
-      __ Cbnz(i.TempRegister32(2), &binop);                                \
-    }                                                                      \
+    if (CpuFeatures::IsSupported(LSE)) {                                 \
+      CpuFeatureScope scope(masm(), LSE);                                \
+      UseScratchRegisterScope temps(masm());                             \
+      Register scratch = temps.AcquireSameSizeAs(i.Input##reg(2));       \
+      __ Mvn(scratch, i.Input##reg(2));                                  \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ Ldclral##suffix(scratch, i.Output##reg(),                       \
+                         MemOperand(i.TempRegister(0)));                 \
+    } else {                                                             \
+      Label binop;                                                       \
+      __ Bind(&binop);                                                   \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
+      __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));              \
+      __ And(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
+      __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),              \
+                       i.TempRegister(0));                               \
+      __ Cbnz(i.TempRegister32(2), &binop);                              \
+    }                                                                    \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP(suffix, bin_instr, lse_instr, reg)               \
@@ -604,13 +615,13 @@ void EmitFpOrNeonUnop(MacroAssembler* masm, Fn fn, Instruction* instr,
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));         \
     if (CpuFeatures::IsSupported(LSE)) {                                       \
       CpuFeatureScope scope(masm(), LSE);                                      \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());     \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
       __ lse_instr##suffix(i.Input##reg(2), i.Output##reg(),                   \
                            MemOperand(i.TempRegister(0)));                     \
     } else {                                                                   \
       Label binop;                                                             \
       __ Bind(&binop);                                                         \
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());     \
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
       __ ldaxr##suffix(i.Output##reg(), i.TempRegister(0));                    \
       __ bin_instr(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
       __ stlxr##suffix(i.TempRegister32(2), i.Temp##reg(1),                    \
@@ -1039,7 +1050,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreTaggedField(value, MemOperand(object, offset));
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
@@ -1093,7 +1104,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_, tag);
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
@@ -1960,64 +1971,64 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fmov(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Ldrb:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Ldrsb:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrsbW:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsb(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64Strb:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrh:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Ldrsh:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrshW:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsh(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64Strh:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrsw:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsw(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrW:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64StrW:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
     case kArm64StrWPair:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Stp(i.InputOrZeroRegister32(0), i.InputOrZeroRegister32(1),
              i.MemoryOperand(2));
       break;
     case kArm64Ldr:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrDecompressTaggedSigned:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrDecompressTagged:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdarDecompressTaggedSigned:
@@ -2032,16 +2043,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64StrPair:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Stp(i.InputOrZeroRegister64(0), i.InputOrZeroRegister64(1),
              i.MemoryOperand(2));
       break;
     case kArm64StrCompressTagged:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64StlrCompressTagged:
@@ -2059,27 +2070,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                     i.MemoryOperand(1));
       break;
     case kArm64LdrS:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputFloat32OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrD:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputFloat64OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrQ:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     case kArm64StrQ:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
       break;
     case kArm64DmbIsh:
@@ -2938,58 +2949,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_CASE(kArm64S8x4Reverse, Rev32, 16B);
       SIMD_UNOP_CASE(kArm64S8x2Reverse, Rev16, 16B);
     case kArm64LoadSplat: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
       break;
     }
     case kArm64LoadLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       int laneidx = i.InputInt8(1);
       __ ld1(i.OutputSimd128Register().Format(f), laneidx, i.MemoryOperand(2));
       break;
     }
     case kArm64StoreLane: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       int laneidx = i.InputInt8(1);
       __ st1(i.InputSimd128Register(0).Format(f), laneidx, i.MemoryOperand(2));
       break;
     }
     case kArm64S128Load8x8S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
       break;
     }
     case kArm64S128Load8x8U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
       break;
     }
     case kArm64S128Load16x4S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
       break;
     }
     case kArm64S128Load16x4U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
       break;
     }
     case kArm64S128Load32x2S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
     case kArm64S128Load32x2U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
