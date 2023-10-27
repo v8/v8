@@ -426,10 +426,10 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
 
   if (protected_instructions_size_ > 0) {
-    os << "Protected instructions:\n pc offset  land pad\n";
+    os << "Protected instructions:\n pc offset\n";
     for (auto& data : protected_instructions()) {
       os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
-         << std::hex << data.landing_offset << "\n";
+         << "\n";
     }
     os << "\n";
   }

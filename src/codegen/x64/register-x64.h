@@ -289,6 +289,7 @@ constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
 constexpr Register kRuntimeCallArgvRegister = r15;
 constexpr Register kWasmInstanceRegister = rsi;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = r10;
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the

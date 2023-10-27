@@ -21,6 +21,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
@@ -218,6 +219,42 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   // always return a Smi.
   DCHECK(!isolate->has_pending_exception());
   return Smi::FromInt(ret);
+}
+
+RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
+  std::vector<FrameSummary> summary;
+  FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
+  WasmFrame* frame = frame_finder.frame();
+  // TODO(ahaas): We cannot use frame->position() here because for inlined
+  // function it does not return the correct source position. We should remove
+  // frame->position() to avoid problems in the future.
+  frame->Summarize(&summary);
+  DCHECK(summary.back().IsWasm());
+  int pos = summary.back().AsWasm().SourcePosition();
+
+  wasm::WasmCodeRefScope code_ref_scope;
+  auto wire_bytes = frame->wasm_code()->native_module()->wire_bytes();
+  wasm::WasmOpcode op = static_cast<wasm::WasmOpcode>(wire_bytes.at(pos));
+  MessageTemplate message = MessageTemplate::kWasmTrapMemOutOfBounds;
+  if (op == wasm::kGCPrefix || op == wasm::kExprRefAsNonNull ||
+      op == wasm::kExprCallRef || op == wasm::kExprReturnCallRef ||
+      // Calling imported string function with null can trigger a signal.
+      op == wasm::kExprCallFunction || op == wasm::kExprReturnCall) {
+    message = MessageTemplate::kWasmTrapNullDereference;
+#if DEBUG
+  } else {
+    if (wasm::WasmOpcodes::IsPrefixOpcode(op)) {
+      op = wasm::Decoder{wire_bytes}
+               .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
+                   &wire_bytes.begin()[pos])
+               .first;
+    }
+    DCHECK(wasm::WasmOpcodes::IsMemoryAccessOpcode(op));
+#endif  // DEBUG
+  }
+  return ThrowWasmError(isolate, message);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {

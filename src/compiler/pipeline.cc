@@ -2396,7 +2396,8 @@ struct RevectorizePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Revectorizer)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    Revectorizer revec(temp_zone, data->graph(), data->mcgraph());
+    Revectorizer revec(temp_zone, data->graph(), data->mcgraph(),
+                       data->source_positions());
     revec.TryRevectorize(data->info()->GetDebugName().get());
   }
 };
