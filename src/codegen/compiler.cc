@@ -2629,7 +2629,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   }
 
   if (script->produce_compile_hints()) {
-    // Log lazy funtion compilation.
+    // Log lazy function compilation.
     Handle<ArrayList> list;
     if (IsUndefined(script->compiled_lazy_function_positions())) {
       constexpr int kInitialLazyFunctionPositionListSize = 100;
