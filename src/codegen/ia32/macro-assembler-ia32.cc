@@ -907,6 +907,13 @@ void MacroAssembler::AssertSmi(Register object) {
   }
 }
 
+void MacroAssembler::AssertSmi(Operand object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  test(object, Immediate(kSmiTagMask));
+  Check(equal, AbortReason::kOperandIsNotASmi);
+}
+
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
@@ -1338,14 +1345,24 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
+Operand MacroAssembler::StackLimitAsOperand(StackLimitKind kind) {
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(MacroAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      MacroAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  return Operand(kRootRegister, static_cast<int32_t>(offset));
+}
+
 void MacroAssembler::CompareStackLimit(Register with, StackLimitKind kind) {
   ASM_CODE_COMMENT(this);
-  DCHECK(root_array_available());
-  intptr_t offset = kind == StackLimitKind::kRealStackLimit
-                        ? IsolateData::real_jslimit_offset()
-                        : IsolateData::jslimit_offset();
-
-  cmp(with, Operand(kRootRegister, offset));
+  cmp(with, StackLimitAsOperand(kind));
 }
 
 void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
@@ -1861,6 +1878,15 @@ void MacroAssembler::CheckStackAlignment() {
   }
 }
 
+void MacroAssembler::AlignStackPointer() {
+  const int kFrameAlignment = base::OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    DCHECK(base::bits::IsPowerOfTwo(kFrameAlignment));
+    DCHECK(is_int8(kFrameAlignment));
+    and_(esp, Immediate(-kFrameAlignment));
+  }
+}
+
 void MacroAssembler::Abort(AbortReason reason) {
   if (v8_flags.code_comments) {
     const char* msg = GetAbortReason(reason);
@@ -1912,8 +1938,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
     // and the original value of esp.
     mov(scratch, esp);
     AllocateStackSpace((num_arguments + 1) * kSystemPointerSize);
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    and_(esp, -frame_alignment);
+    AlignStackPointer();
     mov(Operand(esp, num_arguments * kSystemPointerSize), scratch);
   } else {
     AllocateStackSpace(num_arguments * kSystemPointerSize);
@@ -2362,6 +2387,31 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ mov(return_value, saved_result);
     __ jmp(&leave_exit_frame);
   }
+}
+
+// SMI related operations
+
+void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
+  AssertSmi(smi1);
+  AssertSmi(smi2);
+  cmp(smi1, smi2);
+}
+
+void MacroAssembler::SmiCompare(Register dst, Tagged<Smi> src) {
+  AssertSmi(dst);
+  cmp(dst, Immediate(src));
+}
+
+void MacroAssembler::SmiCompare(Register dst, Operand src) {
+  AssertSmi(dst);
+  AssertSmi(src);
+  cmp(dst, src);
+}
+
+void MacroAssembler::SmiCompare(Operand dst, Register src) {
+  AssertSmi(dst);
+  AssertSmi(src);
+  cmp(dst, src);
 }
 
 }  // namespace internal
