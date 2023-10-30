@@ -8003,6 +8003,35 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, Local<Value>* elements,
       factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, len));
 }
 
+// static
+MaybeLocal<v8::Array> v8::Array::New(
+    Local<Context> context, size_t length,
+    std::function<MaybeLocal<v8::Value>()> next_value_callback) {
+  PREPARE_FOR_EXECUTION(context, Array, New, Array);
+  // We should never see a pending exception here as V8 will not create an
+  // exception and the callback is invoked by the embedder where the exception
+  // is already scheduled.
+  USE(has_pending_exception);
+  i::Factory* factory = i_isolate->factory();
+  const int len = static_cast<int>(length);
+  i::Handle<i::FixedArray> backing = factory->NewFixedArray(len);
+  v8::Local<v8::Value> value;
+  for (int i = 0; i < len; i++) {
+    MaybeLocal<v8::Value> maybe_value = next_value_callback();
+    // The embedder may signal to abort creation on exception via an empty
+    // local.
+    DCHECK(!i_isolate->has_pending_exception());
+    if (!maybe_value.ToLocal(&value)) {
+      CHECK(!i_isolate->has_pending_exception());
+      CHECK(i_isolate->has_scheduled_exception());
+      return {};
+    }
+    backing->set(i, *Utils::OpenDirectHandle(*value));
+  }
+  RETURN_ESCAPED(Utils::ToLocal(
+      factory->NewJSArrayWithElements(backing, i::PACKED_ELEMENTS, len)));
+}
+
 namespace internal {
 
 uint32_t GetLength(Tagged<JSArray> array) {

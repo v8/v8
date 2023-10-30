@@ -643,8 +643,37 @@ class MaybeLocal {
     return IsEmpty() ? default_value : Local<S>(local_);
   }
 
+  /**
+   * Cast a handle to a subclass, e.g. MaybeLocal<Value> to MaybeLocal<Object>.
+   * This is only valid if the handle actually refers to a value of the target
+   * type.
+   */
+  template <class S>
+  V8_INLINE static MaybeLocal<T> Cast(MaybeLocal<S> that) {
+#ifdef V8_ENABLE_CHECKS
+    // If we're going to perform the type check then we have to check
+    // that the handle isn't empty before doing the checked cast.
+    if (that.IsEmpty()) return MaybeLocal<T>();
+    T::Cast(that.local_.template value<S>());
+#endif
+    return MaybeLocal<T>(that.local_);
+  }
+
+  /**
+   * Calling this is equivalent to MaybeLocal<S>::Cast().
+   * In particular, this is only valid if the handle actually refers to a value
+   * of the target type.
+   */
+  template <class S>
+  V8_INLINE MaybeLocal<S> As() const {
+    return MaybeLocal<S>::Cast(*this);
+  }
+
  private:
   Local<T> local_;
+
+  template <typename S>
+  friend class MaybeLocal;
 };
 
 /**

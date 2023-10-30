@@ -5128,8 +5128,18 @@ THREADED_TEST(PropertyAttributes) {
   try_catch.Reset();
 }
 
+void ExpectArrayValues(std::vector<int> expected_values,
+                       v8::Local<v8::Context> context,
+                       v8::Local<v8::Array> array) {
+  for (auto i = 0u; i < expected_values.size(); i++) {
+    CHECK_EQ(expected_values[i], array->Get(context, i)
+                                     .ToLocalChecked()
+                                     ->Int32Value(context)
+                                     .FromJust());
+  }
+}
 
-THREADED_TEST(Array) {
+THREADED_TEST(Array_New_Basic) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Local<v8::Array> array = v8::Array::New(context->GetIsolate());
@@ -5150,40 +5160,72 @@ THREADED_TEST(Array) {
   Local<Value> obj = CompileRun("[1, 2, 3]");
   Local<v8::Array> arr = obj.As<v8::Array>();
   CHECK_EQ(3u, arr->Length());
-  CHECK_EQ(1, arr->Get(context.local(), 0)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(2, arr->Get(context.local(), 1)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(3, arr->Get(context.local(), 2)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
+  ExpectArrayValues({1, 2, 3}, context.local(), arr);
   array = v8::Array::New(context->GetIsolate(), 27);
   CHECK_EQ(27u, array->Length());
   array = v8::Array::New(context->GetIsolate(), -27);
   CHECK_EQ(0u, array->Length());
+}
 
+THREADED_TEST(Array_New_FromVector) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Local<v8::Array> array;
   auto numbers = v8::to_array<Local<Value>>({v8_num(1), v8_num(2), v8_num(3)});
   array = v8::Array::New(context->GetIsolate(), numbers.data(), numbers.size());
   CHECK_EQ(numbers.size(), array->Length());
-  CHECK_EQ(1, arr->Get(context.local(), 0)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(2, arr->Get(context.local(), 1)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(3, arr->Get(context.local(), 2)
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
+  ExpectArrayValues({1, 2, 3}, context.local(), array);
 }
 
+struct CreateElementFactory {
+  static void Prepare(size_t abort_index_value = static_cast<size_t>(-1)) {
+    abort_index = abort_index_value;
+    current_index = 0;
+  }
+
+  static v8::MaybeLocal<v8::Value> CreateElement() {
+    if (current_index == abort_index) {
+      fprintf(stderr, "THROWING!\n");
+      CcTest::isolate()->ThrowException(v8_str("CreateElement exception"));
+      return {};
+    }
+    return v8_num(current_index++ + 1);
+  }
+
+  static size_t abort_index;
+  static size_t current_index;
+};
+
+// static
+size_t CreateElementFactory::abort_index = static_cast<size_t>(-1);
+size_t CreateElementFactory::current_index = 0;
+
+THREADED_TEST(Array_New_FromCallback_Success) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::MaybeLocal<v8::Array> maybe_array;
+  v8::Local<v8::Array> array;
+  CreateElementFactory::Prepare();
+  maybe_array =
+      v8::Array::New(context.local(), 7, CreateElementFactory::CreateElement);
+  CHECK(maybe_array.ToLocal(&array));
+  CHECK_EQ(7u, array->Length());
+  ExpectArrayValues({1, 2, 3, 4, 5, 6, 7}, context.local(), array);
+}
+
+THREADED_TEST(Array_New_FromCallback_Exception) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  v8::MaybeLocal<v8::Array> maybe_array;
+  v8::Local<v8::Array> array;
+  CreateElementFactory::Prepare(17);
+  v8::TryCatch try_catch(context->GetIsolate());
+  maybe_array =
+      v8::Array::New(context.local(), 23, CreateElementFactory::CreateElement);
+  CHECK(!maybe_array.ToLocal(&array));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+}
 
 void HandleF(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
