@@ -1739,7 +1739,7 @@ if (v8_postmortem_support) {
     script = "tools/gen-postmortem-metadata.py"
 
     # NOSORT
-    sources = [
+    inputs = [
       "$target_gen_dir/torque-generated/instance-types.h",
       "src/objects/allocation-site.h",
       "src/objects/allocation-site-inl.h",
@@ -1825,7 +1825,7 @@ if (v8_postmortem_support) {
     outputs = [ "$target_gen_dir/debug-support.cc" ]
 
     args = rebase_path(outputs, root_build_dir) +
-           rebase_path(sources, root_build_dir)
+           rebase_path(inputs, root_build_dir)
 
     deps = [ ":run_torque" ]
   }
