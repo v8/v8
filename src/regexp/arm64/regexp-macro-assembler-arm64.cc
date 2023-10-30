@@ -1459,17 +1459,16 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch,
 
   // Allocate space on the stack to store the return address. The
   // CheckStackGuardState C++ function will override it if the code
-  // moved. Allocate extra space for 3 arguments (2 for input start/end and 1
-  // for gap). AAPCS64 requires the stack to be 16 byte aligned.
+  // moved. Allocate extra space for 2 arguments passed by pointers.
+  // AAPCS64 requires the stack to be 16 byte aligned.
   int alignment = masm_->ActivationFrameAlignment();
   DCHECK_EQ(alignment % 16, 0);
   int align_mask = (alignment / kXRegSize) - 1;
-  int xreg_to_claim = (4 + align_mask) & ~align_mask;
+  int xreg_to_claim = (3 + align_mask) & ~align_mask;
 
   __ Claim(xreg_to_claim);
 
-  __ Mov(x0, extra_space);
-  __ Poke(x0, 3 * kSystemPointerSize);
+  __ Mov(x6, extra_space);
   // CheckStackGuardState needs the end and start addresses of the input string.
   __ Poke(input_end(), 2 * kSystemPointerSize);
   __ Add(x5, sp, 2 * kSystemPointerSize);
