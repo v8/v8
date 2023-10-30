@@ -641,6 +641,13 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
         return WellKnownImport::kDataViewSetUint32;
       }
       break;
+    case Builtin::kDataViewPrototypeGetByteLength:
+      if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+          sig->GetParam(0) == wasm::kWasmExternRef &&
+          sig->GetReturn(0) == kWasmF64) {
+        return WellKnownImport::kDataViewByteLength;
+      }
+      break;
     case Builtin::kNumberPrototypeToString:
       if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
           sig->GetParam(0) == wasm::kWasmI32 &&

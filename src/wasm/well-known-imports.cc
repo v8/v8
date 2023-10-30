@@ -59,6 +59,8 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "DataView.setUint16";
     case WellKnownImport::kDataViewSetUint32:
       return "DataView.setUint32";
+    case WellKnownImport::kDataViewByteLength:
+      return "DataView.byteLength";
 
       // String-related functions:
     case WellKnownImport::kDoubleToString:

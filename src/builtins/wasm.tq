@@ -1408,6 +1408,20 @@ builtin ThrowDataViewSetUint32TypeError(value: JSAny): JSAny {
   runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
 }
 
+builtin ThrowDataViewByteLengthDetachedError(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kDetachedOperation;
+  const name = StringConstant('DataView.prototype.byteLength');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
+builtin ThrowDataViewByteLengthTypeError(value: JSAny): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kIncompatibleMethodReceiver;
+  const name = StringConstant('get DataView.prototype.byte_length');
+  runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
+}
+
 macro ThrowDataViewOutOfBounds(): never {
   const context = LoadContextFromFrame();
   const error = MessageTemplate::kInvalidDataViewAccessorOffset;

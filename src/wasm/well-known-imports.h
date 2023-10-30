@@ -45,6 +45,7 @@ enum class WellKnownImport : uint8_t {
   kDataViewSetUint8,
   kDataViewSetUint16,
   kDataViewSetUint32,
+  kDataViewByteLength,
 
   // String-related functions:
   kDoubleToString,

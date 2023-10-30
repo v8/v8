@@ -1186,17 +1186,19 @@ class TurboshaftGraphBuildingInterface {
     END_IF
   }
 
-  void DetachedDataViewBufferCheck(FullDecoder* decoder, V<Tagged> dataview,
-                                   DataViewOp op_type) {
+  V<Word32> IsDetached(V<Tagged> dataview) {
     // TODO(evih): Make the buffer load immutable.
     V<Object> buffer = __ LoadField<Object>(
         dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
     V<Word32> bit_field = __ LoadField<Word32>(
         buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-    V<Word32> is_detached =
-        __ Word32BitwiseAnd(bit_field, JSArrayBuffer::WasDetachedBit::kMask);
+    return __ Word32BitwiseAnd(bit_field, JSArrayBuffer::WasDetachedBit::kMask);
+  }
+
+  void DetachedDataViewBufferCheck(FullDecoder* decoder, V<Tagged> dataview,
+                                   DataViewOp op_type) {
     Builtin builtin_to_call;
-    IF (is_detached) {
+    IF (IsDetached(dataview)) {
       switch (op_type) {
         case DataViewOp::kGetBigInt64:
           builtin_to_call = Builtin::kThrowDataViewGetBigInt64DetachedError;
@@ -1566,6 +1568,7 @@ class TurboshaftGraphBuildingInterface {
       }
 
       // DataView related imports.
+      // Note that we don't support DataView imports for resizable ArrayBuffers.
       case WKI::kDataViewGetBigInt64: {
         result = DataViewGetter(decoder, args, DataViewOp::kGetBigInt64);
         break;
@@ -1626,6 +1629,30 @@ class TurboshaftGraphBuildingInterface {
         break;
       case WKI::kDataViewSetUint32:
         DataViewSetter(decoder, args, DataViewOp::kSetUint32);
+        break;
+      case WKI::kDataViewByteLength:
+        V<Tagged> dataview = args[0].op;
+
+        IF_NOT (__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE)) {
+          CallBuiltinThroughJumptable(
+              decoder, Builtin::kThrowDataViewByteLengthTypeError, {dataview});
+          __ Unreachable();
+        }
+        END_IF
+        IF (IsDetached(dataview)) {
+          CallBuiltinThroughJumptable(
+              decoder, Builtin::kThrowDataViewByteLengthDetachedError, {});
+          __ Unreachable();
+        }
+        END_IF
+
+        V<WordPtr> length = __ LoadField<WordPtr>(
+            dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
+        if constexpr (Is64()) {
+          result = __ ChangeInt64ToFloat64(__ ChangeIntPtrToInt64(length));
+        } else {
+          result = __ ChangeInt32ToFloat64(__ TruncateWordPtrToWord32(length));
+        }
         break;
     }
     if (v8_flags.trace_wasm_inlining) {

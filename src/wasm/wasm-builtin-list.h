@@ -123,6 +123,8 @@ namespace v8::internal::wasm {
   V(ThrowDataViewSetUint32DetachedError)                                       \
   V(ThrowDataViewSetUint32OutOfBounds)                                         \
   V(ThrowDataViewSetUint32TypeError)                                           \
+  V(ThrowDataViewByteLengthDetachedError)                                      \
+  V(ThrowDataViewByteLengthTypeError)                                          \
   V(ThrowIndexOfCalledOnNull)                                                  \
   V(ThrowToLowerCaseCalledOnNull)                                              \
   IF_INTL(V, StringToLowerCaseIntl)                                            \

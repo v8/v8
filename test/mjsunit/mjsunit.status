@@ -590,6 +590,7 @@
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
+  'wasm/imported-dataview-bytelength': [SKIP],
 
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],

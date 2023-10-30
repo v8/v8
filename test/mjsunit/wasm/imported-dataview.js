@@ -7,6 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We use "r" for nullable "externref", and "e" for non-nullable "ref extern".
+let kSig_d_r = makeSig([kWasmExternRef], [kWasmF64]);
 let kSig_l_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmI64]);
 let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
 let kSig_i_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmI32]);
@@ -48,6 +49,8 @@ let kImports = {
     setUint8Import: Function.prototype.call.bind(DataView.prototype.setUint8),
     setUint16Import: Function.prototype.call.bind(DataView.prototype.setUint16),
     setUint32Import: Function.prototype.call.bind(DataView.prototype.setUint32),
+    byteLengthImport: Function.prototype.call.bind(
+        Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength').get)
   },
 };
 
@@ -113,6 +116,8 @@ function MakeInstance() {
       builder.addImport('DataView', 'setUint16Import', kSig_v_riii);
   let kDataViewSetUint32 =
       builder.addImport('DataView', 'setUint32Import', kSig_v_riii);
+  let kDataViewByteLength =
+      builder.addImport('DataView', 'byteLengthImport', kSig_d_r);
 
   builder.addFunction('getBigInt64', kSig_l_rii)
       .exportFunc()
@@ -184,6 +189,10 @@ function MakeInstance() {
   builder.addFunction('setUint32', kSig_v_riii)
       .exportFunc()
       .addBody(ExportedDataViewSetterBody(kDataViewSetUint32));
+  builder.addFunction('byteLength', kSig_d_r).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprCallFunction, kDataViewByteLength,
+  ]);
   return builder.instantiate(kImports);
 }
 
@@ -577,4 +586,27 @@ let instance = MakeInstance();
   assertEquals(0x78563412, array[1]);
 
   CheckDataViewErrorMessages('setUint32', array, 100);
+})();
+
+(function TestByteLength() {
+  print(arguments.callee.name);
+  let array = new Int32Array(2);
+  let dataview = new DataView(array.buffer);
+
+  assertEquals(8, instance.exports.byteLength(dataview));
+  let dataview2 = new DataView(array.buffer, 4, 4);
+  assertEquals(4, dataview2.byteLength);
+
+  CheckStackTrace(
+      () => instance.exports.byteLength('test_string'),
+      () => Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength')
+                .get.call('test_string'),
+      'byteLength');
+
+  %ArrayBufferDetach(array.buffer);
+  CheckStackTrace(
+      () => instance.exports.byteLength(dataview),
+      () => Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength')
+                .get.call(dataview),
+      'byteLength');
 })();
