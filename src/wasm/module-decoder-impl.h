@@ -2094,7 +2094,7 @@ class ModuleDecoderImpl : public Decoder {
 #undef TYPE_CHECK
 
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-    FunctionBody body(&sig, buffer_offset_, pc_, end_);
+    FunctionBody body(&sig, this->pc_offset(), pc_, end_);
     WasmFeatures detected;
     WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                     kConstantExpression>
@@ -2106,7 +2106,16 @@ class ModuleDecoderImpl : public Decoder {
     decoder.DecodeFunctionBody();
 
     if (tracer_) {
-      tracer_->InitializerExpression(pc_, decoder.end(), expected);
+      // In case of error, decoder.end() is set to the position right before
+      // the byte(s) that caused the error. For debugging purposes, we should
+      // print these bytes, but we don't know how many of them there are, so
+      // for now we have to guess. For more accurate behavior, we'd have to
+      // pass {num_invalid_bytes} to every {decoder->DecodeError()} call.
+      static constexpr size_t kInvalidBytesGuess = 4;
+      const uint8_t* end =
+          decoder.ok() ? decoder.end()
+                       : std::min(decoder.end() + kInvalidBytesGuess, end_);
+      tracer_->InitializerExpression(pc_, end, expected);
     }
     this->pc_ = decoder.end();
 
