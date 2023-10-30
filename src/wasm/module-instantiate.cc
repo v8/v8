@@ -804,14 +804,6 @@ ImportCallKind WasmImportData::ComputeKind(
       return ImportCallKind::kJSFunctionArityMatch;
     }
 
-    // If function isn't compiled, compile it now.
-    Isolate* isolate = callable_->GetIsolate();
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
-    if (!is_compiled_scope.is_compiled()) {
-      Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
-                        &is_compiled_scope);
-    }
-
     return ImportCallKind::kJSFunctionArityMismatch;
   }
   // Unknown case. Use the call builtin.
