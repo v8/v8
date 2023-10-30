@@ -4893,7 +4893,8 @@ size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
   return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_ms ? 2 : 1);
 }
 
-void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
+void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
+                         v8::CppHeap* cpp_heap) {
   // Initialize max_semi_space_size_.
   {
     max_semi_space_size_ = DefaultMaxSemiSpaceSize();
@@ -5054,6 +5055,11 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   code_range_size_ = constraints.code_range_size_in_bytes();
 
+  if (cpp_heap) {
+    AttachCppHeap(cpp_heap);
+    owning_cpp_heap_.reset(CppHeap::From(cpp_heap));
+  }
+
   configured_ = true;
 }
 
@@ -5081,7 +5087,7 @@ void Heap::GetFromRingBuffer(char* buffer) {
 
 void Heap::ConfigureHeapDefault() {
   v8::ResourceConstraints constraints;
-  ConfigureHeap(constraints);
+  ConfigureHeap(constraints, nullptr);
 }
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
@@ -5818,12 +5824,24 @@ EmbedderRootsHandler* Heap::GetEmbedderRootsHandler() const {
 }
 
 void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
+  // The API function should be a noop in case a CppHeap was passed on Isolate
+  // creation.
+  if (owning_cpp_heap_) {
+    return;
+  }
+
   CHECK(!incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
 }
 
 void Heap::DetachCppHeap() {
+  // The API function should be a noop in case a CppHeap was passed on Isolate
+  // creation.
+  if (owning_cpp_heap_) {
+    return;
+  }
+
   CppHeap::From(cpp_heap_)->DetachIsolate();
   cpp_heap_ = nullptr;
 }
@@ -5840,6 +5858,15 @@ void Heap::SetStackStart(void* stack_start) {
 ::heap::base::Stack& Heap::stack() { return isolate_->stack(); }
 
 void Heap::StartTearDown() {
+  if (owning_cpp_heap_) {
+    // Release the pointer. The non-owning pointer is still set which allows
+    // DetachCppHeap() to work properly.
+    auto* cpp_heap = owning_cpp_heap_.release();
+    DetachCppHeap();
+    // Termination will free up all managed C++ memory and invoke destructors.
+    cpp_heap->Terminate();
+  }
+
   // Finish any ongoing sweeping to avoid stray background tasks still accessing
   // the heap during teardown.
   CompleteSweepingFull();

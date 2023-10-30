@@ -294,6 +294,12 @@ class V8_EXPORT Isolate {
      */
     FatalErrorCallback fatal_error_callback = nullptr;
     OOMErrorCallback oom_error_callback = nullptr;
+
+    /**
+     * A CppHeap used to construct the Isolate. V8 takes ownership of the
+     * CppHeap passed this way.
+     */
+    CppHeap* cpp_heap = nullptr;
   };
 
   /**
@@ -1013,12 +1019,20 @@ class V8_EXPORT Isolate {
    *
    * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
    * CppHeap.
+   *
+   * If a CppHeap is set via CreateParams, then this call is a noop.
    */
+  V8_DEPRECATE_SOON(
+      "Set the heap on Isolate creation using CreateParams instead.")
   void AttachCppHeap(CppHeap*);
 
   /**
    * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
+   *
+   * If a CppHeap is set via CreateParams, then this call is a noop.
    */
+  V8_DEPRECATE_SOON(
+      "Set the heap on Isolate creation using CreateParams instead.")
   void DetachCppHeap();
 
   /**

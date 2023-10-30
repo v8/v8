@@ -712,7 +712,8 @@ class Heap final {
   // Initialization. ===========================================================
   // ===========================================================================
 
-  void ConfigureHeap(const v8::ResourceConstraints& constraints);
+  void ConfigureHeap(const v8::ResourceConstraints& constraints,
+                     v8::CppHeap* cpp_heap);
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.
@@ -2269,7 +2270,14 @@ class Heap final {
   TrustedRange* trusted_range_ = nullptr;
 #endif
 
-  v8::CppHeap* cpp_heap_ = nullptr;  // Owned by the embedder.
+  // V8 configuration where V8 owns the heap which is either created or passed
+  // in during Isolate initialization.
+  std::unique_ptr<CppHeap> owning_cpp_heap_;
+  // Deprecated API where the heap is owned by the embedder. This field is
+  // always set, independent of which CppHeap configuration (owned, unowned) is
+  // used. As soon as Isolate::AttachCppHeap() is removed, this field should
+  // also be removed and we should exclusively rely on the owning version.
+  v8::CppHeap* cpp_heap_ = nullptr;
   EmbedderRootsHandler* embedder_roots_handler_ =
       nullptr;  // Owned by the embedder.
 
