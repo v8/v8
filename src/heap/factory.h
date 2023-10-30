@@ -434,8 +434,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        Handle<Foreign> data);
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
-      Handle<JSReceiver> then, Handle<Context> context,
-      Handle<Object> continuation_preserved_embedder_data);
+      Handle<JSReceiver> then, Handle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(

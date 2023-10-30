@@ -4911,17 +4911,10 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     then_context = isolate->native_context();
   }
 
-  Handle<Object> continuation_preserved_embedder_data(
-      isolate->context()
-          ->native_context()
-          ->continuation_preserved_embedder_data(),
-      isolate);
-
   Handle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
           promise, Handle<JSReceiver>::cast(resolution),
-          Handle<JSReceiver>::cast(then_action), then_context,
-          continuation_preserved_embedder_data);
+          Handle<JSReceiver>::cast(then_action), then_context);
   if (isolate->debug()->is_active() && IsJSPromise(*resolution)) {
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,

@@ -1528,8 +1528,7 @@ Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
 
 Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
     Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
-    Handle<JSReceiver> then, Handle<Context> context,
-    Handle<Object> continuation_preserved_embedder_data) {
+    Handle<JSReceiver> then, Handle<Context> context) {
   DCHECK(IsCallable(*then));
   auto microtask = NewStructInternal<PromiseResolveThenableJobTask>(
       PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, AllocationType::kYoung);
@@ -1538,8 +1537,6 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   microtask->set_thenable(*thenable, SKIP_WRITE_BARRIER);
   microtask->set_then(*then, SKIP_WRITE_BARRIER);
   microtask->set_context(*context, SKIP_WRITE_BARRIER);
-  microtask->set_continuation_preserved_embedder_data(
-      *continuation_preserved_embedder_data, SKIP_WRITE_BARRIER);
   return handle(microtask, isolate());
 }
 
