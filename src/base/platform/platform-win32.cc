@@ -1205,7 +1205,7 @@ void OS::Abort() {
 
   switch (g_abort_mode) {
     case AbortMode::kSoft:
-      exit(-1);
+      _exit(-1);
     case AbortMode::kHard:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
