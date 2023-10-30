@@ -2879,6 +2879,7 @@ class InspectionWebFormatter(object):
       magic = self.reader.ReadUIntPtr(slot)
       if magic == STACK_TRACE_MARKER:
         return self.output_stack_trace(f, slot, start, end, print_message)
+    return start
 
   def output_stack_trace(self, f, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
