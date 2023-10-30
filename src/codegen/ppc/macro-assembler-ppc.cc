@@ -1451,13 +1451,14 @@ void MacroAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, d1);
 }
 
-void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind,
+                                    Register scratch) {
   DCHECK(root_array_available());
   intptr_t offset = kind == StackLimitKind::kRealStackLimit
                         ? IsolateData::real_jslimit_offset()
                         : IsolateData::jslimit_offset();
   CHECK(is_int32(offset));
-  LoadU64(destination, MemOperand(kRootRegister, offset), r0);
+  LoadU64(destination, MemOperand(kRootRegister, offset), scratch);
 }
 
 void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
@@ -1465,7 +1466,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, r0);
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
   sub(scratch, sp, scratch);

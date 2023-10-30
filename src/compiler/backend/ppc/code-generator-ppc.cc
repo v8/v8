@@ -3192,7 +3192,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         Register stack_limit = ip;
-        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit, r0);
         __ AddS64(stack_limit, stack_limit,
                   Operand(required_slots * kSystemPointerSize), r0);
         __ CmpU64(sp, stack_limit);

@@ -694,7 +694,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, r0);
   __ CmpU64(sp, scratch);
   __ blt(&stack_overflow);
 
@@ -1293,7 +1293,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register sp_minus_frame_size = r11;
     Register interrupt_limit = r0;
     __ SubS64(sp_minus_frame_size, sp, frame_size);
-    __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
+    __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit,
+                      r0);
     __ CmpU64(sp_minus_frame_size, interrupt_limit);
     __ blt(&call_stack_guard);
   }
@@ -1453,8 +1454,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Do a stack check to ensure we don't go over the limit.
     __ sub(r8, sp, r5);
-    __ LoadStackLimit(r0, StackLimitKind::kRealStackLimit);
-    __ CmpU64(r8, r0);
+    __ LoadStackLimit(ip, StackLimitKind::kRealStackLimit, r0);
+    __ CmpU64(r8, ip);
     __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1487,8 +1488,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  __ LoadStackLimit(r0, StackLimitKind::kInterruptStackLimit);
-  __ CmpU64(sp, r0);
+  __ LoadStackLimit(ip, StackLimitKind::kInterruptStackLimit, r0);
+  __ CmpU64(sp, ip);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -2673,7 +2674,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
       {
-        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, ip);
         __ CmpU64(r0, scratch);
       }
       __ bgt(&done);  // Signed comparison.

@@ -160,7 +160,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Label continuation;
   if (frame_size < v8_flags.stack_size * 1024) {
     Register stack_limit = ip;
-    LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+    LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit, r0);
     AddS64(stack_limit, stack_limit, Operand(frame_size), r0);
     CmpU64(sp, stack_limit);
     bge(&continuation);
@@ -2504,7 +2504,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit_address = ip;
-  LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);
+  LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit, r0);
   CmpU64(sp, limit_address);
   ble(ool_code);
 }
