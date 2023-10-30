@@ -125,7 +125,7 @@ macro TestTurboshaftWord64Type(
               valueHigh, valueLow, range.to_high, range.to_low) <= 0;
       const isWrapping =
           CompareUint64HighLow(
-              range.from_high, range.from_low, range.to_high, range.to_low) < 0;
+              range.from_high, range.from_low, range.to_high, range.to_low) > 0;
 
       return (isWrapping && (greaterThanOrEqualFrom || lessThanOrEqualTo)) ||
           (greaterThanOrEqualFrom && lessThanOrEqualTo);
