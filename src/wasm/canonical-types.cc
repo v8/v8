@@ -249,7 +249,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 // Returns the index of the canonical representative of the first type in this
 // group, or -1 if an identical group does not exist.
 int TypeCanonicalizer::FindCanonicalGroup(const CanonicalGroup& group) const {
-  DCHECK_LT(1, group.types.size());
+  DCHECK_NE(1, group.types.size());
   auto it = canonical_groups_.find(group);
   return it == canonical_groups_.end() ? -1 : it->second;
 }
