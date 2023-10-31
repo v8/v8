@@ -591,7 +591,8 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   ValueType type = ValueType::FromRawBitField(raw_type);
   int8_t* initial_element_address = reinterpret_cast<int8_t*>(
       ArrayElementAddress(raw_array, index, type.value_kind_size()));
-  int64_t initial_value = *reinterpret_cast<int64_t*>(initial_value_addr);
+  // Stack pointers are only aligned to 4 bytes.
+  int64_t initial_value = base::ReadUnalignedValue<int64_t>(initial_value_addr);
   const int bytes_to_set = length * type.value_kind_size();
 
   // If the initial value is zero, we memset the array.
@@ -608,7 +609,10 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   switch (type.kind()) {
     case kI64:
     case kF64: {
-      *reinterpret_cast<int64_t*>(initial_element_address) = initial_value;
+      // Array elements are only aligned to 4 bytes, therefore
+      // `initial_element_address` may be misaligned as a 64-bit pointer.
+      base::WriteUnalignedValue<int64_t>(
+          reinterpret_cast<Address>(initial_element_address), initial_value);
       break;
     }
     case kI32:
@@ -636,7 +640,9 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
         int32_t* base = reinterpret_cast<int32_t*>(initial_element_address);
         base[0] = base[1] = static_cast<int32_t>(initial_value);
       } else {
-        *reinterpret_cast<int64_t*>(initial_element_address) = initial_value;
+        // We use WriteUnalignedValue; see above.
+        base::WriteUnalignedValue(
+            reinterpret_cast<Address>(initial_element_address), initial_value);
       }
       break;
     case kS128:
