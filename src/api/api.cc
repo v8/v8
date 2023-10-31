@@ -2493,7 +2493,7 @@ Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
   std::vector<
       std::tuple<i::Handle<i::SourceTextModule>, i::Handle<i::JSMessageObject>>>
       stalled_awaits = i::DirectHandle<i::SourceTextModule>::cast(self)
-                           ->GetStalledTopLevelAwaitMessage(i_isolate);
+                           ->GetStalledTopLevelAwaitMessages(i_isolate);
 
   std::vector<std::tuple<Local<Module>, Local<Message>>> result;
   size_t stalled_awaits_count = stalled_awaits.size();
@@ -2507,6 +2507,35 @@ Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
                                      ToApiHandle<Message>(message)));
   }
   return result;
+}
+
+std::pair<LocalVector<Module>, LocalVector<Message>>
+Module::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  auto self = Utils::OpenDirectHandle(this);
+  Utils::ApiCheck(i::IsSourceTextModule(*self),
+                  "v8::Module::GetStalledTopLevelAwaitMessages",
+                  "v8::Module::GetStalledTopLevelAwaitMessages must only be "
+                  "called on a SourceTextModule");
+  std::vector<
+      std::tuple<i::Handle<i::SourceTextModule>, i::Handle<i::JSMessageObject>>>
+      stalled_awaits = i::DirectHandle<i::SourceTextModule>::cast(self)
+                           ->GetStalledTopLevelAwaitMessages(i_isolate);
+
+  LocalVector<Module> modules(isolate);
+  LocalVector<Message> messages(isolate);
+
+  if (size_t stalled_awaits_count = stalled_awaits.size();
+      stalled_awaits_count > 0) {
+    modules.reserve(stalled_awaits_count);
+    messages.reserve(stalled_awaits_count);
+    for (auto [module, message] : stalled_awaits) {
+      modules.push_back(ToApiHandle<Module>(module));
+      messages.push_back(ToApiHandle<Message>(message));
+    }
+  }
+
+  return {modules, messages};
 }
 
 namespace {

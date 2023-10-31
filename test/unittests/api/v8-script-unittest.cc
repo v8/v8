@@ -91,11 +91,12 @@ class ScriptTest : public TestWithContext {
                  : v8::Promise::PromiseState::kFulfilled,
              promise->State());
 
-    std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
-        root->GetStalledTopLevelAwaitMessage(isolate());
-    CHECK_EQ(expected_stalled.size(), stalled.size());
-    for (size_t i = 0; i < stalled.size(); ++i) {
-      Local<Message> message = std::get<1>(stalled[i]);
+    auto [stalled_modules, stalled_messages] =
+        root->GetStalledTopLevelAwaitMessages(isolate());
+    CHECK_EQ(expected_stalled.size(), stalled_modules.size());
+    CHECK_EQ(expected_stalled.size(), stalled_messages.size());
+    for (size_t i = 0; i < expected_stalled.size(); ++i) {
+      Local<Message> message = stalled_messages[i];
       CHECK_EQ("Top-level await promise never resolved",
                from_v8_string(isolate(), message->Get()));
       CHECK_EQ(expected_stalled[i],

@@ -1532,10 +1532,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     return false;
   }
 
-  std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
-      root_module->GetStalledTopLevelAwaitMessage(isolate);
-  if (stalled.size() > 0) {
-    Local<Message> message = std::get<1>(stalled[0]);
+  auto [stalled_modules, stalled_messages] =
+      root_module->GetStalledTopLevelAwaitMessages(isolate);
+  DCHECK_EQ(stalled_modules.size(), stalled_messages.size());
+  if (stalled_messages.size() > 0) {
+    Local<Message> message = stalled_messages[0];
     ReportException(isolate, message, v8::Exception::Error(message->Get()));
     return false;
   }

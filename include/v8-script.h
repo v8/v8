@@ -313,8 +313,19 @@ class V8_EXPORT Module : public Data {
    * with the pending top-level await.
    * An embedder may call this before exiting to improve error messages.
    */
+  V8_DEPRECATE_SOON("Please use GetStalledTopLevelAwaitMessages")
   std::vector<std::tuple<Local<Module>, Local<Message>>>
   GetStalledTopLevelAwaitMessage(Isolate* isolate);
+
+  /**
+   * Search the modules requested directly or indirectly by the module for
+   * any top-level await that has not yet resolved. If there is any, the
+   * returned pair of vectors (of equal size) contain the unresolved module
+   * and corresponding message with the pending top-level await.
+   * An embedder may call this before exiting to improve error messages.
+   */
+  std::pair<LocalVector<Module>, LocalVector<Message>>
+  GetStalledTopLevelAwaitMessages(Isolate* isolate);
 
   V8_INLINE static Module* Cast(Data* data);
 

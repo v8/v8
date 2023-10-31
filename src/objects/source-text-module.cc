@@ -1225,7 +1225,7 @@ void SourceTextModule::Reset(Isolate* isolate,
 }
 
 std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
-SourceTextModule::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
+SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
   std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
