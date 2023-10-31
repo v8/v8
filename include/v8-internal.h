@@ -572,17 +572,6 @@ constexpr uint32_t kCodePointerHandleShift = 12;
 // A null handle always references an entry that contains nullptr.
 constexpr CodePointerHandle kNullCodePointerHandle = kNullIndirectPointerHandle;
 
-// It can sometimes be necessary to distinguish a code pointer handle from a
-// trusted pointer handle. A typical example would be a union trusted pointer
-// field that can refer to both Code objects and other trusted objects. To
-// support these use-cases, we use a simple marking scheme where some of the
-// low bits of a code pointer handle are set, while they will be unset on a
-// trusted pointer handle. This way, the correct table to resolve the handle
-// can be determined even in the absence of a type tag.
-constexpr uint32_t kCodePointerHandleMarker = 0x1;
-static_assert(kCodePointerHandleShift > 0);
-static_assert(kTrustedPointerHandleShift > 0);
-
 // The maximum number of entries in a code pointer table.
 constexpr int kCodePointerTableEntrySize = 16;
 constexpr int kCodePointerTableEntrySizeLog2 = 4;

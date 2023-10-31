@@ -39,54 +39,27 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
 #endif
 }
 
-namespace {
-#ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerTag tag>
-V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
-    IndirectPointerHandle handle, const Isolate* isolate) {
-  const TrustedPointerTable& table = isolate->trusted_pointer_table();
-  return Tagged<Object>(table.Get(handle));
-}
-
-V8_INLINE Tagged<Object> ResolveCodePointerHandle(
-    IndirectPointerHandle handle) {
-  CodePointerTable* table = GetProcessWideCodePointerTable();
-  return Tagged<Object>(table->GetCodeObject(handle));
-}
-#endif  // V8_ENABLE_SANDBOX
-}  // namespace
-
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   const Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  // Load the indirect pointer handle from the object.
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   IndirectPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
-  // Resolve the handle. The tag implies the pointer table to use.
-  // Here we generally assume that the load from the table cannot be reordered
-  // before the load of the code object pointer due to the data dependency
-  // between the two loads and therefore use relaxed memory ordering, but
-  // technically we should use memory_order_consume here.
-  if constexpr (tag == kUnknownIndirectPointerTag) {
-    // In this case we need to check if the handle is a code pointer handle and
-    // select the appropriate table based on that.
-    if (handle & kCodePointerHandleMarker) {
-      return ResolveCodePointerHandle(handle);
-    } else {
-      // TODO(saelo): once we have type tagging for entries in the trusted
-      // pointer table, we could ASSUME that the top bits of the tag match the
-      // instance type, which might allow the compiler to optimize subsequent
-      // instance type checks.
-      return ResolveTrustedPointerHandle<tag>(handle, isolate);
-    }
-  } else if constexpr (tag == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    return ResolveTrustedPointerHandle<tag>(handle, isolate);
+  if constexpr (tag == kCodeIndirectPointerTag) {
+    // These are special as they use the code pointer table, not the indirect
+    // pointer table.
+    // Here we assume that the load from the table cannot be reordered before
+    // the load of the code object pointer due to the data dependency between
+    // the two loads and therefore use relaxed memory ordering, but technically
+    // we should use memory_order_consume here.
+    CodePointerTable* table = GetProcessWideCodePointerTable();
+    return Tagged<Object>(table->GetCodeObject(handle));
   }
+
+  const TrustedPointerTable& table = isolate->trusted_pointer_table();
+  return Tagged<Object>(table.Get(handle));
 #else
   UNREACHABLE();
 #endif

@@ -127,15 +127,14 @@ void CodePointerTable::Mark(Space* space, CodePointerHandle handle) {
 
 uint32_t CodePointerTable::HandleToIndex(CodePointerHandle handle) const {
   uint32_t index = handle >> kCodePointerHandleShift;
-  DCHECK_EQ(handle,
-            (index << kCodePointerHandleShift) | kCodePointerHandleMarker);
+  DCHECK_EQ(handle, index << kCodePointerHandleShift);
   return index;
 }
 
 CodePointerHandle CodePointerTable::IndexToHandle(uint32_t index) const {
   CodePointerHandle handle = index << kCodePointerHandleShift;
   DCHECK_EQ(index, handle >> kCodePointerHandleShift);
-  return handle | kCodePointerHandleMarker;
+  return handle;
 }
 
 }  // namespace internal
