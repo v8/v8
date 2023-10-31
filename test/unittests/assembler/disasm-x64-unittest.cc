@@ -636,7 +636,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883fb0c             REX.W cmpq rbx,0xc", cmpq(rbx, Immediate(12)));
   COMPARE("4883bc8a102700000c   REX.W cmpq [rdx+rcx*4+0x2710],0xc",
           cmpq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
-  COMPARE("80f864               cmpb al,0x64", cmpb(rax, Immediate(100)));
+  COMPARE("3c64                 cmpb al,0x64", cmpb(rax, Immediate(100)));
 
   COMPARE("4881cb39300000       REX.W orq rbx,0x3039",
           orq(rbx, Immediate(12345)));

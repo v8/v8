@@ -870,9 +870,14 @@ void Assembler::immediate_arithmetic_op_8(uint8_t subcode, Register dst,
     emit_rex_32(dst);
   }
   DCHECK(is_int8(src.value_) || is_uint8(src.value_));
-  emit(0x80);
-  emit_modrm(subcode, dst);
-  emit(src.value_);
+  if (dst == rax) {
+    emit(0x04 | (subcode << 3));
+    emit(src.value_);
+  } else {
+    emit(0x80);
+    emit_modrm(subcode, dst);
+    emit(src.value_);
+  }
 }
 
 void Assembler::shift(Register dst, Immediate shift_amount, int subcode,
