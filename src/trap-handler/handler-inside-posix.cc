@@ -51,6 +51,8 @@ namespace trap_handler {
 
 #if V8_OS_LINUX && V8_HOST_ARCH_ARM64
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.regs[REG]
+#elif V8_OS_LINUX && V8_HOST_ARCH_LOONG64
+#define CONTEXT_REG(reg, REG) &uc->uc_mcontext.__gregs[REG]
 #elif V8_OS_LINUX
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.gregs[REG_##REG]
 #elif V8_OS_DARWIN && V8_HOST_ARCH_ARM64
@@ -179,6 +181,8 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     auto* fault_address_reg = CONTEXT_REG(r10, R10);
 #elif V8_HOST_ARCH_ARM64
     auto* fault_address_reg = CONTEXT_REG(x16, 16);
+#elif V8_HOST_ARCH_LOONG64
+    auto* fault_address_reg = CONTEXT_REG(t6, 18);
 #else
 #error "Unsupported architecture."
 #endif

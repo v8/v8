@@ -261,37 +261,26 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   Instruction* instr_;
 };
 
-class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
- public:
-  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr,
-                               TrapId trap_id)
-      : WasmOutOfLineTrap(gen, instr), pc_(pc), trap_id_(trap_id) {}
-
-  void Generate() override {
-    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
-    gen_->RecordProtectedInstruction(pc_, __ pc_offset());
-    GenerateWithTrapId(trap_id_);
-  }
-
- private:
-  int pc_;
-  TrapId trap_id_;
-};
-
-void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
-                         InstructionCode opcode, Instruction* instr, int pc) {
+void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
+                            InstructionCode opcode, Instruction* instr,
+                            int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessProtectedMemOutOfBounds) {
-    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
-                                            TrapId::kTrapMemOutOfBounds);
-  } else if (access_mode == kMemoryAccessProtectedNullDereference) {
-    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr,
-                                            TrapId::kTrapNullDereference);
+  if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
+      access_mode == kMemoryAccessProtectedNullDereference) {
+    ReferenceMap* reference_map =
+        codegen->zone()->New<ReferenceMap>(codegen->zone());
+    // The safepoint has to be recorded at the return address of a call. Address
+    // we use as the fake return address in the case of the trap handler is the
+    // fault address (here `pc`) + 1. Therefore the safepoint here has to be
+    // recorded at pc + 1;
+    codegen->RecordSafepoint(reference_map, pc + 1);
+    codegen->RecordProtectedInstruction(pc);
   }
 }
 #else
-void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
-                         InstructionCode opcode, Instruction* instr, int pc) {
+void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
+                            InstructionCode opcode, Instruction* instr,
+                            int pc) {
   DCHECK_EQ(kMemoryAccessDirect, AccessModeField::decode(opcode));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -385,20 +374,20 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 }  // namespace
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
-  do {                                                                \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ asm_instr(i.OutputRegister(), i.MemoryOperand());              \
-    __ dbar(0);                                                       \
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                          \
+  do {                                                                   \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ asm_instr(i.OutputRegister(), i.MemoryOperand());                 \
+    __ dbar(0);                                                          \
   } while (0)
 
 // TODO(LOONG_dev): remove second dbar?
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                      \
-  do {                                                                \
-    __ dbar(0);                                                       \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    __ asm_instr(i.InputOrZeroRegister(2), i.MemoryOperand());        \
-    __ dbar(0);                                                       \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                         \
+  do {                                                                   \
+    __ dbar(0);                                                          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ asm_instr(i.InputOrZeroRegister(2), i.MemoryOperand());           \
+    __ dbar(0);                                                          \
   } while (0)
 
 // only use for sub_w and sub_d
@@ -408,7 +397,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ dbar(0);                                                                \
     __ bind(&binop);                                                           \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());       \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                       \
                  Operand(i.InputRegister(2)));                                 \
@@ -434,7 +423,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ slli_w(i.TempRegister(3), i.TempRegister(3), 3);                        \
     __ dbar(0);                                                                \
     __ bind(&binop);                                                           \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());       \
     __ load_linked(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));       \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(3),  \
                    size, sign_extend);                                         \
@@ -464,7 +453,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ slli_w(i.TempRegister(1), i.TempRegister(1), 3);                        \
     __ dbar(0);                                                                \
     __ bind(&exchange);                                                        \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());       \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
@@ -484,7 +473,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());       \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ BranchShort(&exit, ne, i.InputRegister(2),                              \
                    Operand(i.OutputRegister(0)));                              \
@@ -514,7 +503,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ slli_w(i.TempRegister(1), i.TempRegister(1), 3);                        \
     __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
+    RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());       \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
@@ -901,7 +890,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         auto ool = zone()->New<OutOfLineRecordWrite>(
             this, object, Operand(i.InputInt64(1)), value, mode,
             DetermineStubCallMode());
-        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ StoreTaggedField(value, MemOperand(object, i.InputInt64(1)));
         if (mode > RecordWriteMode::kValueIsPointer) {
           __ JumpIfSmi(value, ool->exit());
@@ -915,7 +904,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         auto ool = zone()->New<OutOfLineRecordWrite>(
             this, object, Operand(i.InputRegister(1)), value, mode,
             DetermineStubCallMode());
-        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)));
         if (mode > RecordWriteMode::kValueIsPointer) {
           __ JumpIfSmi(value, ool->exit());
@@ -1593,73 +1582,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ext_w_h(i.OutputRegister(), i.InputRegister(0));
       break;
     case kLoong64Ld_bu:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_bu(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64Ld_b:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_b(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64St_b: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ St_b(i.InputOrZeroRegister(index), mem);
       break;
     }
     case kLoong64Ld_hu:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_hu(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64Ld_h:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_h(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64St_h: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ St_h(i.InputOrZeroRegister(index), mem);
       break;
     }
     case kLoong64Ld_w:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_w(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64Ld_wu:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_wu(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64Ld_d:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ld_d(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64St_w: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ St_w(i.InputOrZeroRegister(index), mem);
       break;
     }
     case kLoong64St_d: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ St_d(i.InputOrZeroRegister(index), mem);
       break;
     }
     case kLoong64LoadDecompressTaggedSigned:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64LoadDecompressTagged:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
     case kLoong64StoreCompressTagged: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreTaggedField(i.InputOrZeroRegister(index), mem);
       break;
     }
@@ -1685,7 +1674,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64Fld_s: {
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Fld_s(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
@@ -1696,12 +1685,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Fst_s(ft, operand);
       break;
     }
     case kLoong64Fld_d:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Fld_d(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kLoong64Fst_d: {
@@ -1711,7 +1700,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Fst_d(ft, operand);
       break;
     }
@@ -1837,7 +1826,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
           __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
           __ amswap_db_w(i.OutputRegister(0), i.InputRegister(2),
                          i.TempRegister(0));
           break;
@@ -1848,7 +1837,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Word64AtomicExchangeUint64:
       __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ amswap_db_d(i.OutputRegister(0), i.InputRegister(2),
                      i.TempRegister(0));
       break;
@@ -1903,7 +1892,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
           __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
           __ amadd_db_w(i.OutputRegister(0), i.InputRegister(2),
                         i.TempRegister(0));
           break;
@@ -1926,7 +1915,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
           __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
           __ amand_db_w(i.OutputRegister(0), i.InputRegister(2),
                         i.TempRegister(0));
           break;
@@ -1939,7 +1928,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
           __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
           __ amor_db_w(i.OutputRegister(0), i.InputRegister(2),
                        i.TempRegister(0));
           break;
@@ -1952,7 +1941,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
           __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-          EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
           __ amxor_db_w(i.OutputRegister(0), i.InputRegister(2),
                         i.TempRegister(0));
           break;
@@ -1999,7 +1988,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
     case kLoong64Word64AtomicAddUint64:
       __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ amadd_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
       break;
     case kLoong64Word64AtomicSubUint64:
@@ -2007,17 +1996,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Word64AtomicAndUint64:
       __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ amand_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
       break;
     case kLoong64Word64AtomicOrUint64:
       __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ amor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
       break;
     case kLoong64Word64AtomicXorUint64:
       __ Add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ amxor_db_d(i.OutputRegister(0), i.InputRegister(2), i.TempRegister(0));
       break;
 #undef ATOMIC_BINOP_CASE
