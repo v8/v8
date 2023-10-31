@@ -32,31 +32,14 @@ BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
 
-Tagged<HeapObject> CallSiteInfo::code_object(const Isolate* isolate) const {
-  DCHECK(!IsTrustedPointerFieldCleared(kCodeObjectOffset));
-  // The field can contain either a Code or a BytecodeArray, so we need to use
-  // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
-  // type-checking mechanism of trusted pointers we need to perform manual type
-  // checks afterwards.
-  Tagged<HeapObject> code_object =
-      ReadTrustedPointerField<kUnknownIndirectPointerTag>(kCodeObjectOffset,
-                                                          isolate);
-  CHECK(IsCode(code_object) || IsBytecodeArray(code_object));
-  return code_object;
+DEF_GETTER(CallSiteInfo, code_object, Tagged<HeapObject>) {
+  return TorqueGeneratedClass::code_object(cage_base);
 }
 
 void CallSiteInfo::set_code_object(Tagged<HeapObject> code,
                                    WriteBarrierMode mode) {
-  DCHECK(IsCode(code) || IsBytecodeArray(code) || IsUndefined(code));
-  if (IsCode(code) || IsBytecodeArray(code)) {
-    WriteTrustedPointerField<kUnknownIndirectPointerTag>(
-        kCodeObjectOffset, ExposedTrustedObject::cast(code));
-    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(
-        *this, kCodeObjectOffset, kUnknownIndirectPointerTag, code, mode);
-  } else {
-    DCHECK(IsUndefined(code));
-    ClearTrustedPointerField(kCodeObjectOffset);
-  }
+  DCHECK(!IsCodeSpaceObject(code));
+  TorqueGeneratedClass::set_code_object(code, mode);
 }
 
 }  // namespace internal

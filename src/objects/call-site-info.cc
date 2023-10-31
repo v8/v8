@@ -608,9 +608,8 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-  Tagged<HeapObject> code = info->code_object(isolate);
-  DCHECK(IsCode(code) || IsBytecodeArray(code));
-  return AbstractCode::cast(code)->SourcePosition(isolate, offset);
+  return AbstractCode::cast(info->code_object())
+      ->SourcePosition(isolate, offset);
 }
 
 base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {

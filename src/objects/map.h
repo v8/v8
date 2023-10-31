@@ -42,7 +42,6 @@ enum InstanceType : uint16_t;
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
-  V(CallSiteInfo)                       \
   V(Code)                               \
   V(DataHandler)                        \
   V(DebugInfo)                          \
