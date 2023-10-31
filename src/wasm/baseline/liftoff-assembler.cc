@@ -309,7 +309,10 @@ void LiftoffAssembler::CacheState::DefineSafepoint(
   // growing the underlying bitvector.
   for (const auto& slot : base::Reversed(stack_state)) {
     if (is_reference(slot.kind())) {
-      DCHECK(slot.is_stack());
+      // TODO(v8:14422): References that are not on the stack now will get lost
+      // at the moment. Once v8:14422 is resolved, this `continue` should be
+      // revisited and potentially updated to a DCHECK.
+      if (!slot.is_stack()) continue;
       safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
