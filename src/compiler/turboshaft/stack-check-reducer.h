@@ -22,6 +22,13 @@ class StackCheckReducer : public Next {
 
   OpIndex REDUCE(StackCheck)(StackCheckOp::CheckOrigin origin,
                              StackCheckOp::CheckKind kind) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+    if (origin == StackCheckOp::CheckOrigin::kFromWasm &&
+        kind == StackCheckOp::CheckKind::kFunctionHeaderCheck &&
+        __ IsLeafFunction()) {
+      return OpIndex::Invalid();
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     V<WordPtr> limit = __ Load(
         __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
         MemoryRepresentation::PointerSized(), IsolateData::jslimit_offset());
