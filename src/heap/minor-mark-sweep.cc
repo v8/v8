@@ -578,8 +578,7 @@ void MinorMarkSweepCollector::MarkRoots(
   // Seed the root set.
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_SEED);
-    isolate->traced_handles()->ComputeWeaknessForYoungObjects(
-        &JSObject::IsUnmodifiedApiObject);
+    isolate->traced_handles()->ComputeWeaknessForYoungObjects();
     // MinorMS treats all weak roots except for global handles as strong.
     // That is why we don't set skip_weak = true here and instead visit
     // global handles separately.

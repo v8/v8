@@ -65,9 +65,9 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   // Computes whether young weak objects should be considered roots for young
   // generation garbage collections  or just be treated weakly. Per default
   // objects are considered as roots. Objects are treated not as root when both
-  // - `is_unmodified()` returns true;
+  // - `JSObject::IsUnmodifiedApiObject` returns true;
   // - the `EmbedderRootsHandler` also does not consider them as roots;
-  void ComputeWeaknessForYoungObjects(WeakSlotCallback is_unmodified);
+  void ComputeWeaknessForYoungObjects();
 
   void ProcessYoungObjects(RootVisitor* v,
                            WeakSlotCallbackWithHeap should_reset_handle);
