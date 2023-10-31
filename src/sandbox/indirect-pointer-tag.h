@@ -30,8 +30,45 @@ constexpr uint64_t kIndirectPointerTagMask = 0xffff000000000000;
 #define MAKE_TAG(instance_type) \
   (uint64_t{instance_type} << kIndirectPointerTagShift)
 
+// TODO(saelo): consider renaming this to something like TypeTag or
+// InstanceTypeTag since that better captures what this represents.
 enum IndirectPointerTag : uint64_t {
+  // The null tag. Usually used to express the lack of a valid tag, for example
+  // in non-sandbox builds.
   kIndirectPointerNullTag = 0,
+
+  // This tag can be used when an indirect pointer field can legitimately refer
+  // to objects of different types.
+  // NOTE: this tag effectively disables the built-in type-checking mechanism.
+  // As such, in virtually all cases the caller needs to perform runtime-type
+  // checks (i.e. IsXyzObject(obj))` afterwards which need to be able to
+  // correctly handle unexpected types. The last point is worth stressing
+  // further. As an example, the following code is NOT correct:
+  //
+  //     auto obj = LoadTrustedPointerField<kUnknownIndirectPointerTag>(...);
+  //     if (IsFoo(obj)) {
+  //         Foo::cast(obj)->foo();
+  //     } else if (IsBar(obj)) {
+  //         Bar::cast(obj)->bar();
+  //     } else {
+  //         // Potential type confusion here!
+  //         Baz::cast(obj)->baz();
+  //     }
+  //
+  // This is because an attacker can swap trusted pointers and thereby cause an
+  // object of a different/unexpected type to be returned. Instead, in this
+  // case a CHECK can for example be used to make the code correct:
+  //
+  //     // ...
+  //     } else {
+  //         // Must be a Baz object
+  //         CHECK(IsBaz(obj));
+  //         Baz::cast(obj)->baz();
+  //    }
+  //
+  kUnknownIndirectPointerTag = kIndirectPointerTagMask,
+
+// "Regular" tags. One per supported instance type.
 #define INDIRECT_POINTER_TAG_ENUM_DECL(name, instance_type) \
   name = MAKE_TAG(instance_type),
   INDIRECT_POINTER_TAG_LIST(INDIRECT_POINTER_TAG_ENUM_DECL)
