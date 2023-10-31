@@ -29,6 +29,7 @@ namespace internal {
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
+  V(CallSiteInfo)                       \
   V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
