@@ -2752,7 +2752,7 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
     // There exists a cloneable character stream.
     DCHECK(info()->character_stream()->can_be_cloned_for_parallel_access());
 
-    UnparkedScope scope(local_isolate_);
+    UnparkedScopeIfOnBackground scope(local_isolate_);
     // If there doesn't already exist a SharedFunctionInfo for this function,
     // then create one and enqueue it. Otherwise, we're reparsing (e.g. for the
     // debugger, source position collection, call printing, recompile after
