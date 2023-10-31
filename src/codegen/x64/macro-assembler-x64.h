@@ -721,15 +721,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                 IsolateRootLocation isolateRootLocation =
                                     IsolateRootLocation::kInRootRegister);
 
-  // Load an indirect pointer field.
-  // Only available when the sandbox is enabled.
-  void LoadIndirectPointerField(Register destination, Operand field_operand,
-                                IndirectPointerTag tag, Register scratch);
-
-  // Store an indirect pointer field.
-  // Only available when the sandbox is enabled.
-  void StoreIndirectPointerField(Operand dst_field_operand, Register value);
-
   // Store a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
@@ -742,11 +733,31 @@ class V8_EXPORT_PRIVATE MacroAssembler
     StoreTrustedPointerField(dst_field_operand, value);
   }
 
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled, but always visible to avoid
+  // having to place the #ifdefs into the caller.
+  void LoadIndirectPointerField(Register destination, Operand field_operand,
+                                IndirectPointerTag tag, Register scratch);
+
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled, but always visible to avoid
+  // having to place the #ifdefs into the caller.
+  void StoreIndirectPointerField(Operand dst_field_operand, Register value);
+
+#ifdef V8_ENABLE_SANDBOX
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   IndirectPointerTag tag);
+
+  // Retrieve the Code object referenced by the given code pointer handle.
+  void ResolveCodePointerHandle(Register destination, Register handle);
+
   // Load the pointer to a Code's entrypoint via a code pointer.
   // Only available when the sandbox is enabled as it requires the code pointer
   // table.
   void LoadCodeEntrypointViaCodePointer(Register destination,
                                         Operand field_operand);
+#endif  // V8_ENABLE_SANDBOX
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of

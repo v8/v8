@@ -1832,58 +1832,6 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_ENABLE_SANDBOX
-TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
-  TNode<IndirectPointerHandleT> handle =
-      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
-  // that the graph structure does not depend on the configuration-specific
-  // constant value (Uint32Constant uses cached nodes).
-  TNode<Uint32T> index =
-      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
-  // We're using a 32-bit shift here to reduce code size, but for that we need
-  // to be sure that the offset will always fit into a 32-bit integer.
-  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
-  TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
-  return offset;
-}
-#endif  // V8_ENABLE_SANDBOX
-
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
-#ifdef V8_ENABLE_SANDBOX
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::code_pointer_table_address());
-  TNode<UintPtrT> offset =
-      ComputeCodePointerTableEntryOffset(object, field_offset);
-  return Load<RawPtrT>(table, offset);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
-    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::code_pointer_table_address());
-  TNode<UintPtrT> offset =
-      ComputeCodePointerTableEntryOffset(object, IntPtrConstant(field_offset));
-  offset = UintPtrAdd(offset,
-                      UintPtrConstant(kCodePointerTableEntryCodeObjectOffset));
-  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // The LSB is used as marking bit by the code pointer table, so here we have
-  // to set it using a bitwise OR as it may or may not be set.
-  value =
-      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
 TNode<HeapObject> CodeStubAssembler::LoadTrustedPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
@@ -1898,6 +1846,81 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
   return UncheckedCast<Code>(LoadTrustedPointerFromObject(
       object, field_offset, kCodeIndirectPointerTag));
 }
+
+#ifdef V8_ENABLE_SANDBOX
+TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
+    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
+  // Load the indirect pointer handle from the object.
+  TNode<IndirectPointerHandleT> handle =
+      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
+
+  // Resolve the handle. The tag implies the pointer table to use.
+  if (tag == kUnknownIndirectPointerTag) {
+    // TODO(saelo): implement once needed.
+    UNIMPLEMENTED();
+  } else if (tag == kCodeIndirectPointerTag) {
+    return ResolveCodePointerHandle(handle);
+  } else {
+    return ResolveTrustedPointerHandle(handle, tag);
+  }
+}
+
+TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
+    TNode<IndirectPointerHandleT> handle) {
+  TNode<Uint32T> index =
+      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
+  return offset;
+}
+
+TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
+    TNode<IndirectPointerHandleT> handle) {
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
+  offset = UintPtrAdd(offset,
+                      UintPtrConstant(kCodePointerTableEntryCodeObjectOffset));
+  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+  // The LSB is used as marking bit by the code pointer table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  value =
+      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
+  return UncheckedCast<Code>(BitcastWordToTagged(value));
+}
+
+TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
+  TNode<RawPtrT> table = ExternalConstant(
+      ExternalReference::trusted_pointer_table_base_address(isolate()));
+  TNode<Uint32T> index =
+      Word32Shr(handle, UniqueUint32Constant(kTrustedPointerHandleShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kTrustedPointerTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(Word32Shl(
+      index, UniqueUint32Constant(kTrustedPointerTableEntrySizeLog2)));
+  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+  // The LSB is used as marking bit by the code pointer table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  value =
+      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
+  return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
+}
+
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+  TNode<IndirectPointerHandleT> handle =
+      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
+  return Load<RawPtrT>(table, offset);
+}
+#endif  // V8_ENABLE_SANDBOX
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();

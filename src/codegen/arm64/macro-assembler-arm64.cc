@@ -3544,49 +3544,6 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void MacroAssembler::LoadIndirectPointerField(Register destination,
-                                              MemOperand field_operand,
-                                              IndirectPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register table = temps.AcquireX();
-  Ldr(destination.W(), field_operand);
-  if (tag == kCodeIndirectPointerTag) {
-    Mov(table, ExternalReference::code_pointer_table_address());
-    Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
-    Add(destination, table,
-        Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
-    Ldr(destination,
-        MemOperand(destination,
-                   Immediate(kCodePointerTableEntryCodeObjectOffset)));
-  } else {
-    CHECK(root_array_available_);
-    Mov(table,
-        ExternalReference::trusted_pointer_table_base_address(isolate()));
-    Mov(destination, Operand(destination, LSR, kTrustedPointerHandleShift));
-    Ldr(destination,
-        MemOperand(table, destination, LSL, kTrustedPointerTableEntrySizeLog2));
-  }
-  Orr(destination, destination, Immediate(kHeapObjectTag));
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Ldr(scratch.W(),
-      FieldMemOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
-  Str(scratch.W(), dst_field_operand);
-#else
-  UNREACHABLE();
-#endif
-}
-
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
@@ -3596,10 +3553,83 @@ void MacroAssembler::StoreTrustedPointerField(Register value,
 #endif
 }
 
+void MacroAssembler::LoadIndirectPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+
+  // Move the IndirectPointerHandle into a scratch register.
+  Register handle = temps.AcquireX();
+  Ldr(handle.W(), field_operand);
+
+  // Resolve the handle. The tag implies the pointer table to use.
+  if (tag == kUnknownIndirectPointerTag) {
+    // TODO(saelo): implement once needed.
+    UNIMPLEMENTED();
+  } else if (tag == kCodeIndirectPointerTag) {
+    ResolveCodePointerHandle(destination, handle);
+  } else {
+    ResolveTrustedPointerHandle(destination, handle, tag);
+  }
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
+void MacroAssembler::StoreIndirectPointerField(Register value,
+                                               MemOperand dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldr(scratch.W(),
+      FieldMemOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+  Str(scratch.W(), dst_field_operand);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
+#ifdef V8_ENABLE_SANDBOX
+void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
+                                                 Register handle,
+                                                 IndirectPointerTag tag) {
+  DCHECK_NE(tag, kCodeIndirectPointerTag);
+  DCHECK_NE(tag, kUnknownIndirectPointerTag);
+  DCHECK(!AreAliased(handle, destination));
+
+  CHECK(root_array_available_);
+  Register table = destination;
+  Mov(table, ExternalReference::trusted_pointer_table_base_address(isolate()));
+  Mov(handle, Operand(handle, LSR, kTrustedPointerHandleShift));
+  Ldr(destination,
+      MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
+  // The LSB is used as marking bit by the trusted pointer table, so here we
+  // have to set it using a bitwise OR as it may or may not be set.
+  Orr(destination, destination, Immediate(kHeapObjectTag));
+}
+
+void MacroAssembler::ResolveCodePointerHandle(Register destination,
+                                              Register handle) {
+  DCHECK(!AreAliased(handle, destination));
+
+  Register table = destination;
+  Mov(table, ExternalReference::code_pointer_table_address());
+  Mov(handle, Operand(handle, LSR, kCodePointerHandleShift));
+  Add(destination, table, Operand(handle, LSL, kCodePointerTableEntrySizeLog2));
+  Ldr(destination,
+      MemOperand(destination,
+                 Immediate(kCodePointerTableEntryCodeObjectOffset)));
+  // The LSB is used as marking bit by the code pointer table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  Orr(destination, destination, Immediate(kHeapObjectTag));
+}
+
 void MacroAssembler::LoadCodeEntrypointViaCodePointer(
     Register destination, MemOperand field_operand) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register table = temps.AcquireX();
   Mov(table, ExternalReference::code_pointer_table_address());
@@ -3608,10 +3638,8 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(
   Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
   Ldr(destination, MemOperand(table, destination));
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
 }
+#endif  // V8_ENABLE_SANDBOX
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
   if (registers.is_empty()) return;

@@ -1190,12 +1190,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<RawPtrT> pointer,
                                     ExternalPointerTag tag);
 
-  // Load an indirect pointer field.
-  // Only available when the sandbox is enabled.
-  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                  int offset,
-                                                  IndirectPointerTag tag);
-
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
@@ -1208,6 +1202,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // enabled, reference code objects through the code pointer table.
   TNode<Code> LoadCodePointerFromObject(TNode<HeapObject> object, int offset);
 
+#ifdef V8_ENABLE_SANDBOX
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled.
+  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
+                                                  int offset,
+                                                  IndirectPointerTag tag);
+
+  // Helper function to compute the offset into the code pointer table from a
+  // code pointer handle.
+  TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
+      TNode<IndirectPointerHandleT> handle);
+
+  // Retrieve the Code object referenced by the given trusted pointer handle.
+  TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  TNode<HeapObject> ResolveTrustedPointerHandle(
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+
   // Load the pointer to a Code's entrypoint via code pointer.
   // Only available when the sandbox is enabled as it requires the code pointer
   // table.
@@ -1218,12 +1230,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset);
-
-#ifdef V8_ENABLE_SANDBOX
-  // Helper function to load a CodePointerHandle from an object and compute the
-  // offset into the code pointer table from it.
-  TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
-      TNode<HeapObject> object, TNode<IntPtrT> field_offset);
 #endif
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {

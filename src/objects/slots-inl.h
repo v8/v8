@@ -353,18 +353,40 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
   // returns Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
 
-  if (tag_ == kCodeIndirectPointerTag) {
-    // These are special as they use the code pointer table.
-    Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
-    return Tagged<Object>(addr);
+  // Resolve the handle. The tag implies the pointer table to use.
+  if (tag_ == kUnknownIndirectPointerTag) {
+    // In this case we have to rely on the handle marking to determine which
+    // pointer table to use.
+    if (handle & kCodePointerHandleMarker) {
+      return ResolveCodePointerHandle(handle);
+    } else {
+      return ResolveTrustedPointerHandle(handle, isolate);
+    }
+  } else if (tag_ == kCodeIndirectPointerTag) {
+    return ResolveCodePointerHandle(handle);
+  } else {
+    return ResolveTrustedPointerHandle(handle, isolate);
   }
-
-  const TrustedPointerTable& table = isolate->trusted_pointer_table();
-  return Tagged<Object>(table.Get(handle));
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
+
+#ifdef V8_ENABLE_SANDBOX
+Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
+    IndirectPointerHandle handle, const Isolate* isolate) const {
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
+  const TrustedPointerTable& table = isolate->trusted_pointer_table();
+  return Tagged<Object>(table.Get(handle));
+}
+
+Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
+    IndirectPointerHandle handle) const {
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
+  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  return Tagged<Object>(addr);
+}
+#endif  // V8_ENABLE_SANDBOX
 
 //
 // Utils.
