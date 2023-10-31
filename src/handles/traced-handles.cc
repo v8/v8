@@ -914,9 +914,9 @@ void TracedHandlesImpl::ProcessYoungObjects(
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
-  // If CppGC is attached, since the embeeder may trigger allocations in
-  // ResetRoot().
+  // ResetRoot should not trigger allocations in CppGC.
   if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
+    cpp_heap->EnterDisallowGCScope();
     cpp_heap->EnterNoGCScope();
   }
 
@@ -946,6 +946,7 @@ void TracedHandlesImpl::ProcessYoungObjects(
 
   if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
     cpp_heap->LeaveNoGCScope();
+    cpp_heap->LeaveDisallowGCScope();
   }
 }
 
