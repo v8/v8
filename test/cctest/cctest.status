@@ -97,12 +97,11 @@
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
 
   # Slow tests.
+  'test-api/FastApiCalls': [PASS, SLOW],
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap/TestInternalWeakLists': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
-  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
-  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-serialize/SharedStrings': [PASS, SLOW],
   'test-serialize/StartupSerializerOnce': [PASS, SLOW],
@@ -110,25 +109,24 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'test-accessors/HandleScopePop': [PASS, HEAVY],
-  'test-api/FastApiCalls': [PASS, HEAVY],
+  'test-allocation/AccountingAllocatorOOM': [PASS, HEAVY],
+  'test-allocation/MallocedOperatorNewOOM': [PASS, HEAVY],
   'test-api/NewStringRangeError': [PASS, HEAVY],
-  'test-api/Threading8': [PASS, HEAVY],
+  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, HEAVY],
+  'test-lockers/LockerUnlocker': [PASS, HEAVY],
   'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
-  'test-run-machops/RunInt32AddWithOverflowImm': [PASS, HEAVY],
-  'test-run-machops/RunInt32MulAndInt32AddP': [PASS, HEAVY],
-  'test-run-machops/RunInt64SubWithOverflowImm': [PASS, HEAVY],
+  'test-lockers/SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, HEAVY],
   'test-serialize/ContextSerializerContext': [PASS, HEAVY],
   'test-serialize/ContextSerializerCustomContext': [PASS, HEAVY],
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
   'test-serialize/StaticRootsPredictableSnapshot': [PASS, HEAVY],
+  'test-spaces/OldLargeObjectSpace': [PASS, HEAVY],
+  'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
-  'test-strings/Traverse': [PASS, HEAVY],
-  'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
-  'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################

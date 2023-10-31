@@ -194,30 +194,23 @@
   'cross-realm-filtering': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'compiler/array-subclass': [PASS, HEAVY],
-  'compiler/regress-crbug-11564': [PASS, HEAVY],
   'd8/d8-worker-shutdown*': [PASS, HEAVY],
-  'es6/large-classes-*': [PASS, HEAVY],
-  'harmony/sharedarraybuffer-stress': [PASS, HEAVY],
-  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, HEAVY],
   'huge-typedarrays': [PASS, HEAVY],
-  'ignition/regress-672027': [PASS, HEAVY],
   'json2': [PASS, HEAVY],
-  'regress/regress-500980': [PASS, HEAVY],
-  'regress/regress-599414-array-concat-fast-path': [PASS, HEAVY],
   'regress/regress-678917': [PASS, HEAVY],
   'regress/regress-779407': [PASS, HEAVY],
   'regress/regress-852258': [PASS, HEAVY],
-  'regress/regress-862433': [PASS, HEAVY],
   'regress/regress-1034322': [PASS, HEAVY, NO_VARIANTS, ['mode != release', SKIP]],
-  'regress/regress-crbug-119926': [PASS, HEAVY],
-  'regress/regress-crbug-941743': [PASS, HEAVY],
-  'regress/regress-crbug-1191886': [PASS, HEAVY],
-  'wasm/externref-globals': [PASS, HEAVY],
+  'regress/regress-1320641': [PASS, HEAVY],
+  'regress/regress-1447343': [PASS, HEAVY],
   'wasm/grow-huge-memory': [PASS, HEAVY],
   'wasm/huge-memory': [PASS, HEAVY],
-  'wasm/huge-typedarray': [PASS, HEAVY],
+  'wasm/many-modules': [PASS, HEAVY],
+  'wasm/memory64': [PASS, HEAVY],
   'wasm/simd-lane-memory64': [PASS, HEAVY],
+  'wasm/stringrefs-regressions': [PASS, HEAVY],
+  'wasm/table': [PASS, HEAVY],
+  'wasm/table-grow': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
@@ -1033,6 +1026,9 @@
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
+
+  # Suspect to stress other tests when run in background.
+  'huge-typedarrays': [PASS, HEAVY, NO_VARIANTS],
 }],  # 'system == windows'
 
 ##############################################################################

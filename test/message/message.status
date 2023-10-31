@@ -37,6 +37,8 @@
   'fail/modules-skip*': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
+  'fail/map-grow-failed': [PASS, HEAVY],
+  'fail/set-grow-failed': [PASS, HEAVY],
   'wasm-trace-memory64*': [PASS, HEAVY],
 }],  # ALWAYS
 
