@@ -588,6 +588,12 @@ int SemiSpaceNewSpace::GetSpaceRemainingOnCurrentPageForTesting() {
   return static_cast<int>(to_space_.page_high() - allocation_top());
 }
 
+void SemiSpaceNewSpace::FillCurrentPageForTesting() {
+  int remaining = GetSpaceRemainingOnCurrentPageForTesting();
+  heap()->CreateFillerObjectAt(allocation_top(), remaining);
+  IncrementAllocationTop(to_space_.page_high());
+}
+
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).

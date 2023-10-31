@@ -1138,9 +1138,10 @@ int FixedArrayLenFromSize(int size) {
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
                            SemiSpaceNewSpace* space) {
   DCHECK(!v8_flags.single_generation);
+  heap->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(heap);
-  int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
-  while (space_remaining > 0) {
+  while (space->GetSpaceRemainingOnCurrentPageForTesting() > 0) {
+    int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
     int length = FixedArrayLenFromSize(space_remaining);
     if (length > 0) {
       Handle<FixedArray> padding =
@@ -1148,13 +1149,11 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
       DCHECK(heap->new_space()->Contains(*padding));
       space_remaining -= padding->Size();
     } else {
-      // Not enough room to create another fixed array. Create a filler.
-      heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
-                                 space_remaining);
-      break;
+      // Not enough room to create another fixed array. Create a filler instead.
+      space->FillCurrentPageForTesting();
     }
+    heap->FreeMainThreadLinearAllocationAreas();
   }
-  heap->FreeMainThreadLinearAllocationAreas();
 }
 
 }  // namespace

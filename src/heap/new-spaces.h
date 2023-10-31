@@ -441,8 +441,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 
   int GetSpaceRemainingOnCurrentPageForTesting();
-
-  bool AddFreshPageForTesting();
+  void FillCurrentPageForTesting();
 
  private:
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
