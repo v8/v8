@@ -154,8 +154,8 @@ class VariableReducer : public Next {
     is_temporary_ = false;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
-    OpIndex result = Next::ReduceGoto(destination, is_backedge);
+  OpIndex REDUCE(Goto)(Block* destination) {
+    OpIndex result = Next::ReduceGoto(destination);
     if (!destination->IsBound()) {
       return result;
     }

@@ -428,26 +428,12 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   bool HasPhis(const Graph& graph) const;
 
+#ifdef DEBUG
   bool HasBackedge(const Graph& graph) const {
     if (const GotoOp* gto = LastOperation(graph).TryCast<GotoOp>()) {
       return gto->destination->index().id() < index().id();
     }
     return false;
-  }
-
-#ifdef DEBUG
-  // {has_peeled_iteration_} is currently only updated for loops peeled in
-  // Turboshaft (it is true only for loop headers of loops that have had their
-  // first iteration peeled). So be aware that while Turbofan loop peeling is
-  // enabled, this is not a reliable way to check if a loop has a peeled
-  // iteration.
-  bool has_peeled_iteration() const {
-    DCHECK(IsLoop());
-    return has_peeled_iteration_;
-  }
-  void set_has_peeled_iteration() {
-    DCHECK(IsLoop());
-    has_peeled_iteration_ = true;
   }
 #endif
 
@@ -518,8 +504,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 #ifdef DEBUG
   CustomDataKind custom_data_kind_for_debug_check_ = CustomDataKind::kUnset;
   size_t graph_generation_ = 0;
-  // True if this is a loop header of a loop with a peeled iteration.
-  bool has_peeled_iteration_ = false;
 #endif
 
   template <class Assembler>

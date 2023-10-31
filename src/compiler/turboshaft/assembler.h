@@ -692,25 +692,19 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
              .template Is<PendingLoopPhiOp>()) {
       return;
     }
+#ifdef DEBUG
     DCHECK(output_graph_loop->Contains(output_index));
     auto& pending_phi = Asm()
                             .output_graph()
                             .Get(output_index)
                             .template Cast<PendingLoopPhiOp>();
-#ifdef DEBUG
     DCHECK_EQ(pending_phi.rep, input_phi.rep);
-    // The 1st input of the PendingLoopPhi should be the same as the original
-    // Phi, except for peeled loops (where it's the same as the 2nd input when
-    // computed with the VariableReducer Snapshot right before the loop was
-    // emitted).
-    DCHECK_IMPLIES(
-        pending_phi.first() != Asm().MapToNewGraph(input_phi.input(0)),
-        output_graph_loop->has_peeled_iteration());
+    DCHECK_EQ(pending_phi.first(), Asm().MapToNewGraph(input_phi.input(0)));
 #endif
     Asm().output_graph().template Replace<PhiOp>(
         output_index,
-        base::VectorOf(
-            {pending_phi.first(), Asm().MapToNewGraph(input_phi.input(1))}),
+        base::VectorOf({Asm().MapToNewGraph(input_phi.input(0)),
+                        Asm().MapToNewGraph(input_phi.input(1))}),
         input_phi.rep);
   }
 
@@ -727,7 +721,7 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     return Base::ReducePendingLoopPhi(args...);
   }
 
-  OpIndex ReduceGoto(Block* destination, bool is_backedge) {
+  OpIndex ReduceGoto(Block* destination) {
     // Calling Base::Goto will call Emit<Goto>, which will call FinalizeBlock,
     // which will reset {current_block_}. We thus save {current_block_} before
     // calling Base::Goto, as we'll need it for AddPredecessor. Note also that
@@ -735,7 +729,7 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     // split an edge, which means that it has to run after Base::Goto
     // (otherwise, the current Goto could be inserted in the wrong block).
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex = Base::ReduceGoto(destination, is_backedge);
+    OpIndex new_opindex = Base::ReduceGoto(destination);
     Asm().AddPredecessor(saved_current_block, destination, false);
     return new_opindex;
   }
@@ -1985,13 +1979,7 @@ class AssemblerOpInterface {
 
   OpIndex LoadRootRegister() { return ReduceIfReachableLoadRootRegister(); }
 
-  void Goto(Block* destination) {
-    bool is_backedge = destination->IsBound();
-    Goto(destination, is_backedge);
-  }
-  void Goto(Block* destination, bool is_backedge) {
-    ReduceIfReachableGoto(destination, is_backedge);
-  }
+  void Goto(Block* destination) { ReduceIfReachableGoto(destination); }
   void Branch(V<Word32> condition, Block* if_true, Block* if_false,
               BranchHint hint = BranchHint::kNone) {
     ReduceIfReachableBranch(condition, if_true, if_false, hint);

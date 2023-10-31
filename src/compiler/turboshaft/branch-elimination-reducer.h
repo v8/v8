@@ -287,10 +287,8 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
-    LABEL_BLOCK(no_change) {
-      return Next::ReduceGoto(destination, is_backedge);
-    }
+  OpIndex REDUCE(Goto)(Block* destination) {
+    LABEL_BLOCK(no_change) { return Next::ReduceGoto(destination); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const Block* destination_origin = __ OriginForBlockStart(destination);
