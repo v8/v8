@@ -3712,6 +3712,7 @@ struct ReturnOp : OperationT<ReturnOp> {
 };
 
 struct GotoOp : FixedArityOperationT<0, GotoOp> {
+  bool is_backedge;
   Block* destination;
 
   static constexpr OpEffects effects = OpEffects().CanChangeControlFlow();
@@ -3722,7 +3723,8 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
     return {};
   }
 
-  explicit GotoOp(Block* destination) : Base(), destination(destination) {}
+  explicit GotoOp(Block* destination, bool is_backedge)
+      : Base(), is_backedge(is_backedge), destination(destination) {}
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{destination}; }
 };

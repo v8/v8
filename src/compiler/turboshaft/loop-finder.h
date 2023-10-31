@@ -78,6 +78,13 @@ class LoopFinder {
     return it->second;
   }
 
+  struct BlockCmp {
+    bool operator()(Block* a, Block* b) const {
+      return a->index().id() < b->index().id();
+    }
+  };
+  ZoneSet<Block*, BlockCmp> GetLoopBody(Block* loop_header);
+
  private:
   void Run();
   LoopInfo VisitLoop(Block* header);

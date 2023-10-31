@@ -73,4 +73,27 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(Block* header) {
   return info;
 }
 
+ZoneSet<Block*, LoopFinder::BlockCmp> LoopFinder::GetLoopBody(
+    Block* loop_header) {
+  DCHECK(!GetLoopInfo(loop_header).has_inner_loops);
+  ZoneSet<Block*, BlockCmp> body(phase_zone_);
+  body.insert(loop_header);
+
+  ZoneVector<Block*> queue(phase_zone_);
+  queue.push_back(loop_header->LastPredecessor());
+  while (!queue.empty()) {
+    Block* curr = queue.back();
+    queue.pop_back();
+    if (body.find(curr) != body.end()) continue;
+    body.insert(curr);
+    for (Block* pred = curr->LastPredecessor(); pred != nullptr;
+         pred = pred->NeighboringPredecessor()) {
+      if (pred == loop_header) continue;
+      queue.push_back(pred);
+    }
+  }
+
+  return body;
+}
+
 }  // namespace v8::internal::compiler::turboshaft
