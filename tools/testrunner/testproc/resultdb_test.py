@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 from collections import namedtuple
+from pyfakefs import fake_filesystem_unittest
 
 import json
 import os
@@ -15,7 +16,7 @@ TOOLS_PATH = os.path.dirname(
 sys.path.append(TOOLS_PATH)
 
 # Standard library imports...
-from testrunner.testproc.resultdb import ResultDBIndicator
+from testrunner.testproc.resultdb import ResultDBIndicator, write_artifact
 from testrunner.testproc.resultdb_server_mock import RDBMockServer
 
 from testrunner.local.command import BaseCommand
@@ -90,6 +91,14 @@ class TestResultDBIndicator(unittest.TestCase):
     assert_testid_at_index('expected2fail-pass', 0)
     assert_testid_at_index('expected2pass-fail', 1)
     assert_duration_at_index('0.000010s', 2)
+
+
+class TestFileOutput(fake_filesystem_unittest.TestCase):
+  def test_write_artifact_encoded(self):
+    """Test that characters mapping to utf-8 encoding work."""
+    self.setUpPyfakefs(allow_root_user=True)
+    with open(write_artifact('\u0394')['filePath']) as f:
+      self.assertEqual('\u0394', f.read())
 
 
 if __name__ == '__main__':
