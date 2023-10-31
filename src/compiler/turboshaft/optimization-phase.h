@@ -251,7 +251,8 @@ class GraphVisitor {
   // block of `sub_graph` is always emitted. The output Block corresponding to
   // the 1st block of `sub_graph` is returned.
   template <class Set>
-  Block* CloneSubGraph(Set sub_graph, bool keep_loop_kinds) {
+  Block* CloneSubGraph(Set sub_graph, bool keep_loop_kinds,
+                       bool is_loop_after_peeling = false) {
     // The BlockIndex of the blocks of `sub_graph` should be sorted so that
     // visiting them in order is correct (all of the predecessors of a block
     // should always be visited before the block itself).
@@ -281,6 +282,9 @@ class GraphVisitor {
 
     // Emit a goto to 1st block.
     Block* start = block_mapping_[(*sub_graph.begin())->index()];
+#ifdef DEBUG
+    if (is_loop_after_peeling) start->set_has_peeled_iteration();
+#endif
     assembler().Goto(start);
     // Visiting `sub_graph`.
     for (Block* block : sub_graph) {
@@ -526,7 +530,8 @@ class GraphVisitor {
   // blocks accordingly.
   V8_INLINE OpIndex AssembleOutputGraphGoto(const GotoOp& op) {
     Block* destination = MapToNewGraph(op.destination);
-    if (destination->IsBound()) {
+    if (op.is_backedge) {
+      DCHECK(destination->IsBound());
       DCHECK(destination->IsLoop());
       FixLoopPhis(op.destination);
     }
@@ -534,7 +539,7 @@ class GraphVisitor {
     // because reducing the `Goto` can have side effects, in particular, it can
     // modify affect the SnapshotTable of `VariableReducer`, which is also used
     // by `FixLoopPhis()`.
-    assembler().ReduceGoto(destination);
+    assembler().ReduceGoto(destination, op.is_backedge);
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
