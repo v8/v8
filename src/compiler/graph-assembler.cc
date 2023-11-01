@@ -322,6 +322,14 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                   value, effect(), control()));
 }
 
+Node* JSGraphAssembler::ClearPendingMessage() {
+  ExternalReference const ref =
+      ExternalReference::address_of_pending_message(isolate());
+  return AddNode(graph()->NewNode(
+      simplified()->StoreMessage(), jsgraph()->ExternalConstant(ref),
+      jsgraph()->TheHoleConstant(), effect(), control()));
+}
+
 #ifdef V8_MAP_PACKING
 TNode<Map> GraphAssembler::UnpackMapWord(Node* map_word) {
   map_word = BitcastTaggedToWordForTagAndSmiBits(map_word);

@@ -2453,6 +2453,8 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   Try(_ {
     CallPromiseExecutor(executor, resolve, reject, lazy_with_catch_frame_state);
   }).Catch([&](TNode<Object> exception) {
+    // Clear pending message since the exception is not going to be rethrown.
+    ClearPendingMessage();
     CallPromiseReject(reject, exception, lazy_with_catch_frame_state);
   });
 

@@ -993,6 +993,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   Node* StoreField(FieldAccess const&, Node* object, Node* value);
   Node* StoreElement(ElementAccess const&, Node* object, Node* index,
                      Node* value);
+  Node* ClearPendingMessage();
+
   void TransitionAndStoreElement(MapRef double_map, MapRef fast_map,
                                  TNode<HeapObject> object, TNode<Number> index,
                                  TNode<Object> value);
