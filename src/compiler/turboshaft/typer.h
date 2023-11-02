@@ -709,15 +709,17 @@ struct FloatOperationTyper {
         ((l_min == -inf || l_max == inf) && (r_min == -inf || r_max == inf));
 
     // Try to rule out -0.
-    // -0 / r (r > 0)
     bool maybe_minuszero =
+        // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
-        // 0 / r (r < 0 || r == -0)
-        || (l.Contains(0) && (r_min < 0 || r.has_minus_zero()))
-        // l / inf (l < 0 || l == -0)
-        || (r_max == inf && (l_min < 0 || l.has_minus_zero()))
-        // l / -inf (l >= 0)
-        || (r_min == -inf && l_max >= 0);
+        // -0.0..01 / r (r > 1)
+        || (l.Contains(0) && l_min < 0 && r_min > 1)
+        // 0.0..01 / r (r < -1)
+        || (l.Contains(0) && l_max >= 0 && r_min < -1)
+        // l / large (l < 0)
+        || (l_max < 0 && detail::is_minus_zero(l_max / r_max))
+        // l / -large (l > 0)
+        || (l_min > 0 && detail::is_minus_zero(l_min / r_min));
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);
