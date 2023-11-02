@@ -2544,17 +2544,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x4Abs
-            XMMRegister dst = i.OutputSimd128Register();
-            XMMRegister src = i.InputSimd128Register(0);
-            if (dst == src) {
-              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-              __ Psrld(kScratchDoubleReg, uint8_t{1});
-              __ Andps(dst, kScratchDoubleReg);
-            } else {
-              __ Pcmpeqd(dst, dst);
-              __ Psrld(dst, uint8_t{1});
-              __ Andps(dst, src);
-            }
+            __ Absps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     kScratchRegister);
             break;
           }
           case kL64: {
@@ -2609,17 +2600,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x4Neg
-            XMMRegister dst = i.OutputSimd128Register();
-            XMMRegister src = i.InputSimd128Register(0);
-            if (dst == src) {
-              __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-              __ Pslld(kScratchDoubleReg, uint8_t{31});
-              __ Xorps(dst, kScratchDoubleReg);
-            } else {
-              __ Pcmpeqd(dst, dst);
-              __ Pslld(dst, uint8_t{31});
-              __ Xorps(dst, src);
-            }
+            __ Negps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     kScratchRegister);
             break;
           }
           case kL64: {
