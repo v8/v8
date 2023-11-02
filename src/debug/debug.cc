@@ -5,7 +5,6 @@
 #include "src/debug/debug.h"
 
 #include <memory>
-#include <unordered_set>
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
@@ -52,34 +51,21 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 
   void AllocationEvent(Address addr, int size) override {
     if (disabled) return;
-    auto existing_region = GetAllocationRegion(addr);
-    if (IsEmpty(existing_region)) {
-      AddAllocationRegion(addr, size);
-    } else {
-      // If we allocate into a region we already know (e.g. because part of the
-      // region is dead) we merge the new allocation into the existing one.
-      Address region_end = std::max(
-          existing_region->first + existing_region->second, addr + size);
-      existing_region->second =
-          static_cast<int>(region_end - existing_region->first);
-    }
+    AddRegion(addr, addr + size);
   }
 
   void MoveEvent(Address from, Address to, int size) override {
     if (from == to) return;
-    base::MutexGuard guard(&mutex_);
-    auto from_region = GetAllocationRegion(from);
-    auto to_region = GetAllocationRegion(to);
-    if (IsEmpty(from_region)) {
-      // If temporary object was collected we can get MoveEvent which moves
-      // existing non temporary object to the address where we had temporary
-      // object. So we should mark new address as non temporary.
-      if (!IsEmpty(to_region)) RemoveFromAllocationRegion(to_region, to, size);
-      return;
+    if (RemoveFromRegions(from, from + size)) {
+      // We had the object tracked as temporary, so we will track the
+      // new location as temporary, too.
+      AddRegion(to, to + size);
+    } else {
+      // The object we moved is a non-temporary, so the new location is also
+      // non-temporary. Thus we remove everything we track there (because it
+      // must have become dead).
+      RemoveFromRegions(to, to + size);
     }
-    RemoveFromAllocationRegion(from_region, from, size);
-    DCHECK(IsEmpty(to_region));
-    AddAllocationRegion(to, size);
   }
 
   bool HasObject(Handle<HeapObject> obj) {
@@ -91,60 +77,91 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
       // with embedder fields as non temporary.
       return false;
     }
-    return !IsEmpty(GetAllocationRegion(obj->address()));
+    Address addr = obj->address();
+    return HasRegionContainingObject(addr, addr + obj->Size());
   }
 
   bool disabled = false;
 
  private:
-  using AllocationRegion = std::map<Address, int>::iterator;
-  bool IsEmpty(AllocationRegion region) const {
-    return region == allocations_.end();
+  bool HasRegionContainingObject(Address start, Address end) {
+    // Check if there is a region that contains (overlaps) this object's space.
+    auto it = FindOverlappingRegion(start, end, false);
+    // If there is, we expect the region to contain the entire object.
+    DCHECK_IMPLIES(it != regions_.end(),
+                   it->second <= start && end <= it->first);
+    return it != regions_.end();
   }
-  void AddAllocationRegion(Address addr, int size) {
-    allocations_.emplace(addr, size);
-  }
-  AllocationRegion GetAllocationRegion(Address addr) {
-    if (allocations_.empty()) return allocations_.end();
-    auto it = allocations_.upper_bound(addr);
-    // {it} points to the first region after {addr}, if any.
-    if (it == allocations_.begin()) return allocations_.end();
-    // Consider the region before that as the one that contains the object at
-    // {addr}.
-    it = std::prev(it);
-    DCHECK_LE(it->first, addr);
-    return addr < (it->first + it->second) ? it : allocations_.end();
-  }
-  void RemoveFromAllocationRegion(AllocationRegion region, Address address,
-                                  int size) {
-    DCHECK_LE(region->first, address);
-    DCHECK_LE(address + size, region->first + region->second);
 
-    int region_size = region->second;
-    if (address == region->first) {
-      // Object is at the start of the allocated region.
-      allocations_.erase(region);
-      if (region_size > size) {
-        allocations_.emplace(address + size, region_size - size);
-      }
+  // This function returns any one of the overlapping regions (there might be
+  // multiple). If {include_adjacent} is true, it will also consider regions
+  // that have no overlap but are directly connected.
+  std::map<Address, Address>::iterator FindOverlappingRegion(
+      Address start, Address end, bool include_adjacent) {
+    // Region A = [start, end) overlaps with an existing region [existing_start,
+    // existing_end) iff (start <= existing_end) && (existing_start <= end).
+    // Since we index {regions_} by end address, we can find a candidate that
+    // satisfies the first condition using lower_bound.
+    if (include_adjacent) {
+      auto it = regions_.lower_bound(start);
+      if (it == regions_.end()) return regions_.end();
+      if (it->second <= end) return it;
     } else {
-      // Object is in the middle or end of the allocated region.
-      int region_before_object_size = static_cast<int>(address - region->first);
-      int region_after_object_size =
-          region_size - region_before_object_size - size;
-      region->second = region_before_object_size;
-      if (region_after_object_size > 0) {
-        allocations_.emplace(
-            region->first + region_size - region_after_object_size,
-            region_after_object_size);
-      }
+      auto it = regions_.upper_bound(start);
+      if (it == regions_.end()) return regions_.end();
+      if (it->second < end) return it;
     }
+    return regions_.end();
   }
+
+  void AddRegion(Address start, Address end) {
+    DCHECK_LT(start, end);
+
+    // Region [start, end) can be combined with an existing region if they
+    // overlap.
+    while (true) {
+      auto it = FindOverlappingRegion(start, end, true);
+      // If there is no such region, we don't need to merge anything.
+      if (it == regions_.end()) break;
+
+      // Otherwise, we found an overlapping region. We remove the old one and
+      // add the new region recursively (to handle cases where the new region
+      // overlaps multiple existing ones).
+      start = std::min(start, it->second);
+      end = std::max(end, it->first);
+      regions_.erase(it);
+    }
+
+    // Add the new (possibly combined) region.
+    regions_.emplace(end, start);
+  }
+
+  bool RemoveFromRegions(Address start, Address end) {
+    // Check if we have anything that overlaps with [start, end).
+    auto it = FindOverlappingRegion(start, end, false);
+    if (it == regions_.end()) return false;
+
+    // We need to update all overlapping regions.
+    for (; it != regions_.end();
+         it = FindOverlappingRegion(start, end, false)) {
+      Address existing_start = it->second;
+      Address existing_end = it->first;
+      // If we remove the region [start, end) from an existing region
+      // [existing_start, existing_end), there can be at most 2 regions left:
+      regions_.erase(it);
+      // The one before {start} is: [existing_start, start)
+      if (existing_start < start) AddRegion(existing_start, start);
+      // And the one after {end} is: [end, existing_end)
+      if (end < existing_end) AddRegion(end, existing_end);
+    }
+    return true;
+  }
+
   // Tracking addresses is not enough, because a single allocation may combine
-  // multiple objects due to allocation folding. Track start address of an
-  // allocation and the size to figure out if a given object is contained in
-  // such an allocation block.
-  std::map<Address, int> allocations_;
+  // multiple objects due to allocation folding. We track both start and end
+  // (exclusive) address of regions. We index by end address for faster lookup.
+  // Map: end address => start address
+  std::map<Address, Address> regions_;
   base::Mutex mutex_;
 };
 
