@@ -2618,7 +2618,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       maybe_function_info =
           i::Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
               i_isolate, str, script_details, deserialize_task.get(), options,
-              no_cache_reason, i::NOT_NATIVES_CODE);
+              no_cache_reason, i::NOT_NATIVES_CODE,
+              &source->compilation_details);
       source->cached_data->rejected = deserialize_task->rejected();
     } else {
       DCHECK(source->cached_data);
@@ -2628,7 +2629,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       maybe_function_info =
           i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
               i_isolate, str, script_details, cached_data.get(), options,
-              no_cache_reason, i::NOT_NATIVES_CODE);
+              no_cache_reason, i::NOT_NATIVES_CODE,
+              &source->compilation_details);
       source->cached_data->rejected = cached_data->rejected();
     }
   } else if (options == kConsumeCompileHints) {
@@ -2636,12 +2638,12 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
         i::Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
             i_isolate, str, script_details, source->compile_hint_callback,
             source->compile_hint_callback_data, options, no_cache_reason,
-            i::NOT_NATIVES_CODE);
+            i::NOT_NATIVES_CODE, &source->compilation_details);
   } else {
     // Compile without any cache.
     maybe_function_info = i::Compiler::GetSharedFunctionInfoForScript(
         i_isolate, str, script_details, options, no_cache_reason,
-        i::NOT_NATIVES_CODE);
+        i::NOT_NATIVES_CODE, &source->compilation_details);
   }
 
   has_pending_exception = !maybe_function_info.ToHandle(&result);
@@ -2890,7 +2892,7 @@ i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
                        origin.GetHostDefinedOptions(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
-      i_isolate, str, script_details, data);
+      i_isolate, str, script_details, data, &v8_source->compilation_details());
 }
 
 }  // namespace

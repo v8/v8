@@ -191,7 +191,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       const ScriptDetails& script_details,
       ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo>
@@ -199,7 +200,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, v8::Extension* extension,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for a String source and serialized
   // cached data. The cached data may be rejected, in which case this function
@@ -210,7 +212,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       const ScriptDetails& script_details, AlignedCachedData* cached_data,
       ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for a String source and a task that
   // has deserialized cached data on a background thread. The cached data from
@@ -223,7 +226,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       BackgroundDeserializeTask* deserialize_task,
       ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   static MaybeHandle<SharedFunctionInfo>
   GetSharedFunctionInfoForScriptWithCompileHints(
@@ -233,7 +237,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       void* compile_hint_callback_data,
       ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
-      NativesFlag is_natives_code);
+      NativesFlag is_natives_code,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for a Script source that has already
   // been parsed and possibly compiled on a background thread while being loaded
@@ -242,7 +247,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // owned by the caller.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
       Isolate* isolate, Handle<String> source,
-      const ScriptDetails& script_details, ScriptStreamingData* streaming_data);
+      const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
+      ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).

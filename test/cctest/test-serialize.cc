@@ -1681,22 +1681,32 @@ int CountBuiltins() {
 static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
-    v8::ScriptCompiler::CompileOptions options) {
-  return Compiler::GetSharedFunctionInfoForScriptWithCachedData(
-             isolate, source, script_details, cached_data, options,
-             ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
-      .ToHandleChecked();
+    v8::ScriptCompiler::CompileOptions options,
+    ScriptCompiler::InMemoryCacheResult expected_lookup_result =
+        ScriptCompiler::InMemoryCacheResult::kMiss) {
+  ScriptCompiler::CompilationDetails compilation_details;
+  auto result = Compiler::GetSharedFunctionInfoForScriptWithCachedData(
+                    isolate, source, script_details, cached_data, options,
+                    ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+                    &compilation_details)
+                    .ToHandleChecked();
+  CHECK_EQ(compilation_details.in_memory_cache_result, expected_lookup_result);
+  return result;
 }
 
 static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, AlignedCachedData** out_cached_data,
-    v8::ScriptCompiler::CompileOptions options) {
-  Handle<SharedFunctionInfo> sfi =
-      Compiler::GetSharedFunctionInfoForScript(
-          isolate, source, script_details, options,
-          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
-          .ToHandleChecked();
+    v8::ScriptCompiler::CompileOptions options,
+    ScriptCompiler::InMemoryCacheResult expected_lookup_result =
+        ScriptCompiler::InMemoryCacheResult::kMiss) {
+  ScriptCompiler::CompilationDetails compilation_details;
+  Handle<SharedFunctionInfo> sfi = Compiler::GetSharedFunctionInfoForScript(
+                                       isolate, source, script_details, options,
+                                       ScriptCompiler::kNoCacheNoReason,
+                                       NOT_NATIVES_CODE, &compilation_details)
+                                       .ToHandleChecked();
+  CHECK_EQ(compilation_details.in_memory_cache_result, expected_lookup_result);
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));
   uint8_t* buffer = NewArray<uint8_t>(cached_data->length);
@@ -1853,13 +1863,15 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   ScriptDetails default_script_details(src);
   default_script_details.host_defined_options = default_host_defined_options;
   CompileScriptAndProduceCache(isolate, src, default_script_details, &cache,
-                               v8::ScriptCompiler::kNoCompileOptions);
+                               v8::ScriptCompiler::kNoCompileOptions,
+                               ScriptCompiler::InMemoryCacheResult::kMiss);
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = CompileScript(isolate, src, default_script_details, cache,
-                         v8::ScriptCompiler::kConsumeCodeCache);
+                         v8::ScriptCompiler::kConsumeCodeCache,
+                         ScriptCompiler::InMemoryCacheResult::kHit);
   }
 
   {
@@ -1960,13 +1972,16 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   // Compile the script again with different options.
   ScriptDetails alternative_script_details(src);
+  ScriptCompiler::CompilationDetails compilation_details;
   Handle<SharedFunctionInfo> alternative_toplevel_sfi =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, src, alternative_script_details,
           ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-          NOT_NATIVES_CODE)
+          NOT_NATIVES_CODE, &compilation_details)
           .ToHandleChecked();
   CHECK_NE(*copy, *alternative_toplevel_sfi);
+  CHECK_EQ(compilation_details.in_memory_cache_result,
+           ScriptCompiler::InMemoryCacheResult::kMiss);
 
   {
     // The original script can still be found.
@@ -3008,7 +3023,8 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
     HandleScope first_compilation_scope(isolate);
     Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
         isolate, source, ScriptDetails(), &cached_data,
-        v8::ScriptCompiler::kNoCompileOptions);
+        v8::ScriptCompiler::kNoCompileOptions,
+        ScriptCompiler::InMemoryCacheResult::kMiss);
     SharedFunctionInfo::EnsureOldForTesting(*shared);
     Handle<Script> local_script =
         handle(Script::cast(shared->script()), isolate);
@@ -3028,9 +3044,16 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
   heap::InvokeMajorGC(isolate->heap());
   heap::InvokeMajorGC(isolate->heap());
 
-  Handle<SharedFunctionInfo> copy =
-      CompileScript(isolate, source, ScriptDetails(), cached_data,
-                    v8::ScriptCompiler::kConsumeCodeCache);
+  // If the top-level SFI was compiled by Sparkplug, and flushing of Sparkplug
+  // code is not enabled, then the cache entry can never be cleared.
+  ScriptCompiler::InMemoryCacheResult expected_lookup_result =
+      v8_flags.always_sparkplug && !v8_flags.flush_baseline_code
+          ? ScriptCompiler::InMemoryCacheResult::kHit
+          : ScriptCompiler::InMemoryCacheResult::kPartial;
+
+  Handle<SharedFunctionInfo> copy = CompileScript(
+      isolate, source, ScriptDetails(), cached_data,
+      v8::ScriptCompiler::kConsumeCodeCache, expected_lookup_result);
   delete cached_data;
 
   // The existing Script was reused.

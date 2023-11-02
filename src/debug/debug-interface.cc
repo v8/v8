@@ -979,13 +979,15 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   i::Handle<i::SharedFunctionInfo> result;
   {
     i::AlignedCachedData* cached_data = nullptr;
+    ScriptCompiler::CompilationDetails compilation_details;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
             isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::v8_flags.expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                                 : i::INSPECTOR_CODE);
+                                                 : i::INSPECTOR_CODE,
+            &compilation_details);
     has_pending_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }

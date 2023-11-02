@@ -3503,9 +3503,11 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   // Join with background thread and finalize compilation.
   background_compile_thread.ParkedJoin(isolate->main_thread_local_isolate());
 
+  ScriptCompiler::CompilationDetails compilation_details;
   MaybeHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
-          isolate, source, script_details, background_compile_thread.data());
+          isolate, source, script_details, background_compile_thread.data(),
+          &compilation_details);
 
   // Either both compiles should succeed, or both should fail. The one exception
   // to this is that the main-thread compilation might stack overflow while the
@@ -3528,6 +3530,17 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   return maybe_result;
 }
 
+namespace {
+ScriptCompiler::InMemoryCacheResult CategorizeLookupResult(
+    const CompilationCacheScript::LookupResult& lookup_result) {
+  return !lookup_result.toplevel_sfi().is_null()
+             ? ScriptCompiler::InMemoryCacheResult::kHit
+         : !lookup_result.script().is_null()
+             ? ScriptCompiler::InMemoryCacheResult::kPartial
+             : ScriptCompiler::InMemoryCacheResult::kMiss;
+}
+}  // namespace
+
 MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
@@ -3535,7 +3548,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     v8::CompileHintCallback compile_hint_callback,
     void* compile_hint_callback_data,
     ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
@@ -3576,6 +3590,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     // First check per-isolate compilation cache.
     CompilationCacheScript::LookupResult lookup_result =
         compilation_cache->LookupScript(source, script_details, language_mode);
+    compilation_details->in_memory_cache_result =
+        CategorizeLookupResult(lookup_result);
     maybe_script = lookup_result.script();
     maybe_result = lookup_result.toplevel_sfi();
     is_compiled_scope = lookup_result.is_compiled_scope();
@@ -3688,21 +3704,23 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details,
     ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, nullptr, nullptr, nullptr, nullptr,
-      nullptr, compile_options, no_cache_reason, natives);
+      nullptr, compile_options, no_cache_reason, natives, compilation_details);
 }
 
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForScriptWithExtension(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
-    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, extension, nullptr, nullptr, nullptr,
       nullptr, compile_options, ScriptCompiler::kNoCacheBecauseV8Extension,
-      natives);
+      natives, compilation_details);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3710,10 +3728,11 @@ Compiler::GetSharedFunctionInfoForScriptWithCachedData(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
     ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, nullptr, cached_data, nullptr, nullptr,
-      nullptr, compile_options, no_cache_reason, natives);
+      nullptr, compile_options, no_cache_reason, natives, compilation_details);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3722,10 +3741,12 @@ Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
     const ScriptDetails& script_details,
     BackgroundDeserializeTask* deserialize_task,
     ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, nullptr, nullptr, deserialize_task,
-      nullptr, nullptr, compile_options, no_cache_reason, natives);
+      nullptr, nullptr, compile_options, no_cache_reason, natives,
+      compilation_details);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -3735,11 +3756,12 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
     v8::CompileHintCallback compile_hint_callback,
     void* compile_hint_callback_data,
     ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   return GetSharedFunctionInfoForScriptImpl(
       isolate, source, script_details, nullptr, nullptr, nullptr,
       compile_hint_callback, compile_hint_callback_data, compile_options,
-      no_cache_reason, natives);
+      no_cache_reason, natives, compilation_details);
 }
 
 // static
@@ -3836,7 +3858,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
-    const ScriptDetails& script_details, ScriptStreamingData* streaming_data) {
+    const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
+    ScriptCompiler::CompilationDetails* compilation_details) {
   DCHECK(!script_details.origin_options.IsWasm());
 
   ScriptCompileTimerScope compile_timer(
@@ -3856,6 +3879,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     CompilationCacheScript::LookupResult lookup_result =
         compilation_cache->LookupScript(source, script_details,
                                         task->flags().outer_language_mode());
+    compilation_details->in_memory_cache_result =
+        CategorizeLookupResult(lookup_result);
 
     if (!lookup_result.toplevel_sfi().is_null()) {
       maybe_result = lookup_result.toplevel_sfi();

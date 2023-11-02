@@ -23578,6 +23578,8 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
         v8::ScriptCompiler::Compile(env.local(), &source, v8_str(full_source),
                                     origin)
             .ToLocalChecked();
+    CHECK_EQ(source.compilation_details().in_memory_cache_result,
+             v8::ScriptCompiler::InMemoryCacheResult::kMiss);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
     first_function_untyped = inner_scope.Escape(result);
 
@@ -23611,6 +23613,9 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     Local<Script> script =
         v8::ScriptCompiler::Compile(env.local(), &script_source)
             .ToLocalChecked();
+    CHECK_EQ(script_source.GetCompilationDetails().in_memory_cache_result,
+             run_gc ? v8::ScriptCompiler::InMemoryCacheResult::kPartial
+                    : v8::ScriptCompiler::InMemoryCacheResult::kHit);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
     second_function =
         i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
