@@ -677,10 +677,7 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   Add(dst.X(), location.base(), Immediate(location.offset()));
 }
 
-inline int MaglevAssembler::PushOrSetReturnAddressTo(Label* target) {
-  adr(lr, target);
-  return 0;
-}
+inline void MaglevAssembler::Call(Label* target) { bl(target); }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,

@@ -4853,10 +4853,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
-  Label* no_done = nullptr;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, thunk_arg, kUseStackSpaceOperand,
-                           &stack_space_operand, return_value_operand, no_done);
+                           &stack_space_operand, return_value_operand);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -4971,10 +4970,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
-  Label* no_done = nullptr;
-  CallApiFunctionAndReturn(
-      masm, with_profiling, api_function_address, thunk_ref, thunk_arg,
-      kStackUnwindSpace, kUseStackSpaceConstant, return_value_operand, no_done);
+  CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
+                           thunk_ref, thunk_arg, kStackUnwindSpace,
+                           kUseStackSpaceConstant, return_value_operand);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

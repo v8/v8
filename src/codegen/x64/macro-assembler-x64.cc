@@ -3966,7 +3966,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, Operand* stack_space_operand,
-                              Operand return_value_operand, Label* done) {
+                              Operand return_value_operand) {
   ASM_CODE_COMMENT(masm);
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -4081,16 +4081,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (stack_space_operand == nullptr) {
     DCHECK_NE(stack_space, 0);
-    if (done) {
-      __ addq(rsp, Immediate(stack_space * kSystemPointerSize));
-      __ jmp(done);
-
-    } else {
-      __ ret(stack_space * kSystemPointerSize);
-    }
+    __ ret(stack_space * kSystemPointerSize);
   } else {
     DCHECK_EQ(stack_space, 0);
-    DCHECK_NULL(done);
     __ PopReturnAddressTo(scratch);
     // {stack_space_operand} was loaded into {stack_space_reg} above.
     __ addq(rsp, stack_space_reg);
