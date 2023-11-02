@@ -1400,7 +1400,8 @@ DEFINE_BOOL(
     experimental_wasm_pgo_from_file, false,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
 
-DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
+DEFINE_BOOL(validate_asm, true,
+            "validate asm.js modules and translate them to Wasm")
 // asm.js validation is disabled since it triggers wasm code generation.
 // --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
@@ -1491,9 +1492,9 @@ DEFINE_BOOL(print_wasm_code, false, "print WebAssembly code")
 DEFINE_INT(print_wasm_code_function_index, -1,
            "print WebAssembly code for function at index")
 DEFINE_BOOL(print_wasm_stub_code, false, "print WebAssembly stub code")
-DEFINE_BOOL(asm_wasm_lazy_compilation, false,
-            "enable lazy compilation for asm-wasm modules")
-DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
+DEFINE_BOOL(asm_wasm_lazy_compilation, true,
+            "enable lazy compilation for asm.js translated to wasm (see "
+            "--validate-asm)")
 DEFINE_BOOL(wasm_lazy_compilation, true,
             "enable lazy compilation for all wasm modules")
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
