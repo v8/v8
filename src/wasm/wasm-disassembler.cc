@@ -409,7 +409,7 @@ class ImmediatesPrinter {
     for (uint32_t i = 0; i <= imm.table_count; i++) {
       uint8_t kind = owner_->read_u8<ValidationTag>(pc);
       pc += 1;
-      out_ << CatchKindToString(static_cast<CatchKind>(kind)) << " ";
+      out_ << " " << CatchKindToString(static_cast<CatchKind>(kind));
       if (kind == kCatch || kind == kCatchRef) {
         auto [tag, length] = owner_->read_u32v<ValidationTag>(pc);
         out_ << " ";
@@ -417,7 +417,6 @@ class ImmediatesPrinter {
         pc += length;
       }
       auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
-      out_ << " ";
       PrintDepthAsLabel(target);
       pc += length;
     }
