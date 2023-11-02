@@ -1068,7 +1068,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand);
+                              MemOperand return_value_operand, Label* done);
 
 #define ACCESS_MASM(masm) masm->
 

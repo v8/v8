@@ -5088,15 +5088,14 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   static_assert((kApiStackSpace - 1) * kSystemPointerSize == FCA::kSize);
   const int exit_frame_params_size = 0;
 
-  Label done, call_api_callback_builtin_inline;
-  __ Call(&call_api_callback_builtin_inline);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  __ jmp(&done);
-
-  //
-  // Generate a CallApiCallback builtin inline.
-  //
-  __ bind(&call_api_callback_builtin_inline);
+  Label done;
+  // Make it look like as if the code starting from EnterExitFrame was called
+  // by an instruction right before the |done| label. Depending on the current
+  // architecture it will either push the "return address" between
+  // FunctonCallbackInfo and ExitFrame or set the link register to the
+  // "return address". This is necessary for lazy deopting of current code.
+  const int kMaybePCOnTheStack = __ PushOrSetReturnAddressTo(&done);
+  DCHECK(kMaybePCOnTheStack == 0 || kMaybePCOnTheStack == 1);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EmitEnterExitFrame(kApiStackSpace, StackFrame::EXIT, api_function_address,
@@ -5129,7 +5128,8 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
       FCA::kReturnValueIndex + exit_frame_params_size);
-  const int kStackUnwindSpace = FCA::kArgsLengthWithReceiver + num_args();
+  const int kStackUnwindSpace =
+      FCA::kArgsLengthWithReceiver + num_args() + kMaybePCOnTheStack;
 
   const bool with_profiling = false;
   ExternalReference no_thunk_ref;
@@ -5137,10 +5137,11 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            no_thunk_ref, no_thunk_arg, kStackUnwindSpace,
-                           nullptr, return_value_operand);
-  __ RecordComment("end of inlined CallApiCallbackOptimized builtin");
+                           nullptr, return_value_operand, &done);
 
   __ bind(&done);
+  __ RecordComment("end of inlined CallApiCallbackOptimized builtin");
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 int CallBuiltin::MaxCallStackArgs() const {
@@ -5300,7 +5301,11 @@ void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
 
   DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin()).GetReturnCount(),
             1);
-  __ CallBuiltin(Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit);
+  constexpr int kResultSize = 1;
+  constexpr bool kBuiltinExitFrame = true;
+  Handle<Code> code = CodeFactory::CEntry(masm->isolate(), kResultSize,
+                                          ArgvMode::kStack, kBuiltinExitFrame);
+  __ Call(code, RelocInfo::CODE_TARGET);
 }
 
 int CallRuntime::MaxCallStackArgs() const { return num_args(); }

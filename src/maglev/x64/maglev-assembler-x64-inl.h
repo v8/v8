@@ -521,7 +521,11 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   leaq(dst, location);
 }
 
-inline void MaglevAssembler::Call(Label* target) { call(target); }
+inline int MaglevAssembler::PushOrSetReturnAddressTo(Label* target) {
+  leaq(kScratchRegister, Operand(target));
+  pushq(kScratchRegister);
+  return 1;
+}
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
