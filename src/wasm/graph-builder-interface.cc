@@ -1337,6 +1337,15 @@ class WasmGraphBuildingInterface {
     SetEnv(block->try_info->catch_env);
   }
 
+  void TryTable(FullDecoder* decoder, Control* control) { UNIMPLEMENTED(); }
+
+  void CatchCase(FullDecoder* decoder, Control* control,
+                 const CatchCase& catch_case, base::Vector<Value> values) {
+    UNIMPLEMENTED();
+  }
+
+  void ThrowRef(FullDecoder* decoder, Value* value) { UNIMPLEMENTED(); }
+
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
                 Value* result) {

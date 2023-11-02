@@ -1467,6 +1467,15 @@ class LiftoffCompiler {
     }
   }
 
+  void TryTable(FullDecoder* decoder, Control* block) { UNIMPLEMENTED(); }
+
+  void CatchCase(FullDecoder* decoder, Control* control,
+                 const CatchCase& catch_case, base::Vector<Value> values) {
+    UNIMPLEMENTED();
+  }
+
+  void ThrowRef(FullDecoder* decoder, Value* value) { UNIMPLEMENTED(); }
+
   // Before emitting the conditional branch, {will_freeze} will be initialized
   // to prevent cache state changes in conditionally executed code.
   void JumpIfFalse(FullDecoder* decoder, Label* false_dst,

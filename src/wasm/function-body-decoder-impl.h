@@ -20,6 +20,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/strings/unicode.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
@@ -1055,7 +1056,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   Reachability reachability = kReachable;
 
   // For try-table.
-  CatchCase* catch_cases = nullptr;
+  base::Vector<CatchCase> catch_cases;
 
   uint32_t stack_depth = 0;  // Stack height at the beginning of the construct.
   uint32_t init_stack_depth = 0;  // Height of "locals initialization" stack
@@ -2092,9 +2093,12 @@ class WasmDecoder : public Decoder {
         return 1 + iterator.length();
       }
       case kExprTryTable: {
-        TryTableImmediate imm(decoder, pc + 1, validate);
-        (ios.TryTable(imm), ...);
-        TryTableIterator<ValidationTag> iterator(decoder, imm);
+        BlockTypeImmediate block_type_imm(WasmFeatures::All(), decoder, pc + 1,
+                                          validate);
+        TryTableImmediate try_table_imm(decoder, pc + 1 + block_type_imm.length,
+                                        validate);
+        (ios.TryTable(try_table_imm), ...);
+        TryTableIterator<ValidationTag> iterator(decoder, try_table_imm);
         return 1 + iterator.length();
       }
       case kExprThrow:
@@ -3197,14 +3201,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BlockTypeImmediate block_imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, block_imm)) return 0;
     Control* try_block = PushControl(kControlTryTable, block_imm);
-    TryTableImmediate try_table_imm(this, this->pc_ + 2, validate);
+    TryTableImmediate try_table_imm(this, this->pc_ + 1 + block_imm.length,
+                                    validate);
     if (try_table_imm.table_count > 0) {
       try_block->previous_catch = current_catch_;
       current_catch_ = static_cast<int>(control_depth() - 1);
     }
     if (!this->Validate(this->pc_ + 2, try_table_imm)) return 0;
     TryTableIterator<ValidationTag> try_table_iterator(this, try_table_imm);
-    try_block->catch_cases = this->zone_->template AllocateArray<CatchCase>(
+    try_block->catch_cases = this->zone_->template AllocateVector<CatchCase>(
         try_table_imm.table_count);
     int i = 0;
     while (try_table_iterator.has_next()) {
@@ -3240,6 +3245,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       try_block->catch_cases[i] = catch_case;
       ++i;
     }
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(TryTable, try_block);
     return 2 + try_table_iterator.length();
   }
 
@@ -3253,6 +3259,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                         value.type.name().c_str());
       return 0;
     }
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ThrowRef, &value);
     EndControl();
     return 1;
   }
@@ -3410,6 +3417,32 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       if (c->is_try_table()) {
         current_catch_ = c->previous_catch;
+        FallThrough();
+        for (CatchCase& catch_case : c->catch_cases) {
+          uint32_t stack_size = stack_.size();
+          size_t push_count = 0;
+          if (catch_case.kind == kCatch || catch_case.kind == kCatchRef) {
+            const WasmTagSig* sig = catch_case.maybe_tag.tag_imm.tag->sig;
+            stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
+                                      this->zone_);
+            for (ValueType type : sig->parameters()) Push(type);
+            push_count = sig->parameter_count();
+          }
+          if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
+            stack_.EnsureMoreCapacity(1, this->zone_);
+            Push(kWasmExnRef);
+            push_count += 1;
+          }
+          base::Vector<Value> values(
+              stack_.begin() + stack_.size() - push_count, push_count);
+          // Already typed checked on block entry.
+          CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchCase, c, catch_case,
+                                                    values);
+          stack_.shrink_to(stack_size);
+        }
+        EndControl();
+        PopControl();
+        return 1;
       }
     }
 

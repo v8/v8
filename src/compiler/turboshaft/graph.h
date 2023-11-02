@@ -387,7 +387,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   // The block from the previous graph which produced the current block. This
   // has to be updated to be the last block that contributed operations to the
-  // current block to ensure that phi nodes are created correctly.git cl
+  // current block to ensure that phi nodes are created correctly.
   void SetOrigin(const Block* origin) {
     DCHECK_IMPLIES(origin != nullptr,
                    origin->graph_generation_ + 1 == graph_generation_);

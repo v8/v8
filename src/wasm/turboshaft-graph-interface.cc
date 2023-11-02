@@ -136,7 +136,7 @@ class TurboshaftGraphBuildingInterface {
 
   struct Control : public ControlBase<Value, ValidationTag> {
     TSBlock* merge_block = nullptr;
-    // for 'if', loops, and 'try' respectively.
+    // for 'if', loops, and 'try'/'try-table' respectively.
     TSBlock* false_or_loop_or_catch_block = nullptr;
     V<Tagged> exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
@@ -459,7 +459,6 @@ class TurboshaftGraphBuildingInterface {
       case kControlIfElse:
       case kControlBlock:
       case kControlTry:
-      case kControlTryTable:
       case kControlTryCatch:
       case kControlTryCatchAll:
         // {block->reachable()} is not reliable here for exceptions, because
@@ -469,6 +468,11 @@ class TurboshaftGraphBuildingInterface {
           SetupControlFlowEdge(decoder, block->merge_block);
           __ Goto(block->merge_block);
         }
+        BindBlockAndGeneratePhis(decoder, block->merge_block,
+                                 block->br_merge());
+        break;
+      case kControlTryTable:
+        DCHECK_EQ(__ current_block(), nullptr);
         BindBlockAndGeneratePhis(decoder, block->merge_block,
                                  block->br_merge());
         break;
@@ -2135,7 +2139,8 @@ class TurboshaftGraphBuildingInterface {
     SetupControlFlowEdge(decoder, if_no_catch);
 
     // If the tags don't match we continue with the next tag by setting the
-    // no-catch environment as the new {block->catch_block} here.
+    // no-catch environment as the new {block->false_or_loop_or_catch_block}
+    // here.
     block->false_or_loop_or_catch_block = if_no_catch;
 
     if (imm.tag->sig->parameter_count() == 1 &&
@@ -2212,6 +2217,73 @@ class TurboshaftGraphBuildingInterface {
     DCHECK_EQ(decoder->control_at(0), block);
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
+  }
+
+  void TryTable(FullDecoder* decoder, Control* block) {
+    block->false_or_loop_or_catch_block = NewBlockWithPhis(decoder, nullptr);
+    block->merge_block = NewBlockWithPhis(decoder, block->br_merge());
+  }
+
+  void CatchCase(FullDecoder* decoder, Control* block,
+                 const CatchCase& catch_case, base::Vector<Value> values) {
+    // If this is the first catch case, {block->false_or_loop_or_catch_block} is
+    // the block that was created on block entry, and is where all throwing
+    // instructions in the try-table jump to if they throw.
+    // Otherwise, {block->false_or_loop_or_catch_block} has been overwritten by
+    // the previous handler, and is where we jump to if we did not catch the
+    // exception yet.
+    BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                             nullptr, &block->exception);
+    V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        instance_node_, NativeContext, MemoryRepresentation::TaggedPointer());
+    if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
+      if (catch_case.kind == kCatchAllRef) {
+        DCHECK_EQ(values.size(), 1);
+        values.last().op = block->exception;
+      }
+      BrOrRet(decoder, catch_case.br_imm.depth, 0);
+      return;
+    }
+    V<WasmTagObject> caught_tag = CallBuiltinThroughJumptable(
+        decoder, Builtin::kWasmGetOwnProperty,
+        {block->exception, LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol),
+         native_context});
+    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        instance_node_, TagsTable, MemoryRepresentation::TaggedPointer());
+    auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
+        instance_tags, catch_case.maybe_tag.tag_imm.index));
+    TSBlock* if_catch = __ NewBlock();
+    TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
+    SetupControlFlowEdge(decoder, if_no_catch);
+    block->false_or_loop_or_catch_block = if_no_catch;
+    __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
+              if_catch, block->false_or_loop_or_catch_block);
+    __ Bind(if_catch);
+    if (catch_case.kind == kCatchRef) {
+      UnpackWasmException(decoder, block->exception,
+                          values.SubVector(0, values.size() - 1));
+      values.last().op = block->exception;
+    } else {
+      UnpackWasmException(decoder, block->exception, values);
+    }
+    BrOrRet(decoder, catch_case.br_imm.depth, 0);
+
+    bool is_last = &catch_case == &block->catch_cases.last();
+    bool has_catch_all =
+        std::any_of(block->catch_cases.begin(), block->catch_cases.end(),
+                    [](const struct CatchCase& catch_case) {
+                      return catch_case.kind == kCatchAll ||
+                             catch_case.kind == kCatchAllRef;
+                    });
+    if (is_last && !has_catch_all) {
+      BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                               nullptr, &block->exception);
+      ThrowRef(decoder, block->exception);
+    }
+  }
+
+  void ThrowRef(FullDecoder* decoder, Value* value) {
+    ThrowRef(decoder, value->op);
   }
 
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input) {
@@ -5552,6 +5624,13 @@ class TurboshaftGraphBuildingInterface {
           UNREACHABLE();
       }
     }
+  }
+
+  void ThrowRef(FullDecoder* decoder, OpIndex exn) {
+    CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow, {exn},
+                                Operator::kNoProperties,
+                                CheckForException::kCatchInThisFrame);
+    __ Unreachable();
   }
 
   void AsmjsStoreMem(V<Word32> index, OpIndex value,

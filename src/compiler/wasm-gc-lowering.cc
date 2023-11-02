@@ -87,7 +87,8 @@ Reduction WasmGCLowering::Reduce(Node* node) {
 }
 
 Node* WasmGCLowering::Null(wasm::ValueType type) {
-  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
+  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
+                            type == wasm::kWasmExnRef
                         ? RootIndex::kNullValue
                         : RootIndex::kWasmNull;
   return gasm_.LoadImmutable(MachineType::Pointer(), gasm_.LoadRootRegister(),

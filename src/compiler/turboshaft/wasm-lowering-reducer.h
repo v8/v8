@@ -902,9 +902,11 @@ class WasmLoweringReducer : public Next {
 
   OpIndex Null(wasm::ValueType type) {
     OpIndex roots = __ LoadRootRegister();
-    RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
-                          ? RootIndex::kNullValue
-                          : RootIndex::kWasmNull;
+    RootIndex index =
+        wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
+                wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
+            ? RootIndex::kNullValue
+            : RootIndex::kWasmNull;
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
                    MemoryRepresentation::PointerSized(),
                    IsolateData::root_slot_offset(index));
