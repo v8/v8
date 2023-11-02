@@ -228,8 +228,8 @@ void ForEachContextLocal(i::Isolate* isolate, i::Handle<i::Context> context,
 }  // namespace
 
 bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
-                       std::vector<Local<Value>>* names_out,
-                       std::vector<Local<Value>>* values_out) {
+                       LocalVector<Value>* names_out,
+                       LocalVector<Value>* values_out) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   API_RCS_SCOPE(isolate, debug, GetPrivateMembers);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
