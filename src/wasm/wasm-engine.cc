@@ -484,6 +484,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmFeatures enabled,
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
+    Handle<Script> script,
     base::Vector<const uint8_t> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -517,6 +518,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
       bytes, compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
+
+  native_module->LogWasmCodes(isolate, *script);
 
   return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
 }
