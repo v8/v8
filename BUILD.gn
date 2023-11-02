@@ -3310,6 +3310,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/analyzer-iterator.h",
     "src/compiler/turboshaft/assembler.h",
     "src/compiler/turboshaft/assert-types-reducer.h",
+    "src/compiler/turboshaft/branch-condition-duplication-reducer.h",
     "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/build-graph-phase.h",
     "src/compiler/turboshaft/builtin-call-descriptors.h",

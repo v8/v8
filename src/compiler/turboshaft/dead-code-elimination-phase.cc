@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/dead-code-elimination-phase.h"
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/branch-condition-duplication-reducer.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/stack-check-reducer.h"
 
@@ -17,13 +18,12 @@ namespace v8::internal::compiler::turboshaft {
 void DeadCodeEliminationPhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(), DEBUG_BOOL);
 
-  turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer,
-                                turboshaft::StackCheckReducer
+  turboshaft::OptimizationPhase<
+      turboshaft::DeadCodeEliminationReducer, turboshaft::StackCheckReducer,
 #if V8_ENABLE_WEBASSEMBLY
-                                ,
-                                turboshaft::WasmJSLoweringReducer
+      turboshaft::WasmJSLoweringReducer,
 #endif
-                                >::Run(temp_zone);
+      turboshaft::BranchConditionDuplicationReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

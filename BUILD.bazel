@@ -3015,6 +3015,7 @@ filegroup(
         "src/compiler/turboshaft/assembler.cc",
         "src/compiler/turboshaft/assembler.h",
         "src/compiler/turboshaft/assert-types-reducer.h",
+        "src/compiler/turboshaft/branch-condition-duplication-reducer.h",
         "src/compiler/turboshaft/branch-elimination-reducer.h",
         "src/compiler/turboshaft/build-graph-phase.cc",
         "src/compiler/turboshaft/build-graph-phase.h",
