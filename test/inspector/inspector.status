@@ -123,6 +123,12 @@
 }],  # 'arch == loong64'
 
 ##############################################################################
+['arch == mips64el', {
+  # Generic wasm-to-js wrapper must be enabled.
+  'cpu-profiler/console-profile-wasm': [SKIP],
+}],  # 'arch == mips64el'
+
+##############################################################################
 ['arch == riscv64 or arch == riscv32', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
