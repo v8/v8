@@ -540,6 +540,7 @@ type NumberOrUndefined = Number|Undefined;
 
 extern macro DefaultStringConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
+extern macro ErrorStringConstant(): String;
 extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
 extern macro GetStringConstant(): String;
@@ -561,6 +562,7 @@ extern macro ReturnStringConstant(): String;
 extern macro SearchSymbolConstant(): Symbol;
 extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
+extern macro SuppressedStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
 extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;

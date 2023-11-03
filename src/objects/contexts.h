@@ -375,6 +375,7 @@ enum ContextLookupFlags {
   V(SET_HAS_INDEX, JSFunction, set_has)                                        \
   V(SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX, JSFunction,                      \
     shadow_realm_import_value_rejected)                                        \
+  V(SUPPRESSED_ERROR_FUNCTION_INDEX, JSFunction, suppressed_error_function)    \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \

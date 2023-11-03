@@ -5682,6 +5682,18 @@ void Genesis::InitializeGlobal_harmony_array_from_async() {
                         Builtin::kArrayFromAsync, 1, false);
 }
 
+void Genesis::InitializeGlobal_js_explicit_resource_management() {
+  if (!v8_flags.js_explicit_resource_management) return;
+
+  Factory* factory = isolate()->factory();
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  // -- S u p p r e s s e d E r r o r
+  InstallError(isolate(), global, factory->SuppressedError_string(),
+               Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
+               Builtin::kSuppressedErrorConstructor, 3);
+}
+
 void Genesis::InitializeGlobal_regexp_linear_flag() {
   if (!v8_flags.enable_experimental_regexp_engine) return;
 

@@ -257,6 +257,7 @@
   V(_, epochSeconds_string, "epochSeconds")                                   \
   V(_, era_string, "era")                                                     \
   V(_, eraYear_string, "eraYear")                                             \
+  V(_, error_string, "error")                                                 \
   V(_, errors_string, "errors")                                               \
   V(_, error_to_string, "[object Error]")                                     \
   V(_, eval_string, "eval")                                                   \
@@ -430,6 +431,8 @@
   V(_, String_string, "String")                                               \
   V(_, string_string, "string")                                               \
   V(_, string_to_string, "[object String]")                                   \
+  V(_, suppressed_string, "suppressed")                                       \
+  V(_, SuppressedError_string, "SuppressedError")                             \
   V(_, Symbol_iterator_string, "Symbol.iterator")                             \
   V(_, Symbol_match_all_string, "Symbol.matchAll")                            \
   V(_, Symbol_replace_string, "Symbol.replace")                               \

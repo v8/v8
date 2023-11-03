@@ -177,6 +177,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     EmptySlowElementDictionary)                                              \
   V(empty_string, empty_string, EmptyString)                                 \
   V(error_to_string, error_to_string, ErrorToString)                         \
+  V(error_string, error_string, ErrorString)                                 \
   V(errors_string, errors_string, ErrorsString)                              \
   V(FalseValue, false_value, False)                                          \
   V(FixedArrayMap, fixed_array_map, FixedArrayMap)                           \
@@ -241,6 +242,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                  \
   V(string_string, string_string, StringString)                              \
   V(string_to_string, string_to_string, StringToString)                      \
+  V(suppressed_string, suppressed_string, SuppressedString)                  \
   V(SeqTwoByteStringMap, seq_two_byte_string_map, SeqTwoByteStringMap)       \
   V(TheHoleValue, the_hole_value, TheHole)                                   \
   V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)       \

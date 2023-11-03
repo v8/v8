@@ -940,6 +940,7 @@ filegroup(
         "src/builtins/string-substring.tq",
         "src/builtins/string-towellformed.tq",
         "src/builtins/string-trim.tq",
+        "src/builtins/suppressed-error.tq",
         "src/builtins/symbol.tq",
         "src/builtins/torque-internal.tq",
         "src/builtins/typed-array.tq",
