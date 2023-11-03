@@ -1309,6 +1309,9 @@
 
   # https://crbug.com/v8/14228
   'asm/poppler/poppler': [SKIP],
+
+  # https://crbug.com/v8/14421
+  'wasm/multiple-code-spaces': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################
