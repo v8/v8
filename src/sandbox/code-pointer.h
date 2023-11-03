@@ -10,6 +10,16 @@
 namespace v8 {
 namespace internal {
 
+// Initializes the 'self' pointer of a Code object.
+// Creates and initializes an entry in the CodePointerTable and writes a handle
+// for that entry into the field. The entry will contain a pointer to the
+// owning code object as well as to the entrypoint.
+//
+// Only available when the sandbox is enabled.
+V8_INLINE void InitSelfCodePointerField(Address field_address, Isolate* isolate,
+                                        Tagged<HeapObject> owning_code,
+                                        Address entrypoint);
+
 // Read the pointer to a Code's entrypoint via a code pointer.
 // Only available when the sandbox is enabled as it requires the code pointer
 // table.

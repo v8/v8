@@ -8,7 +8,7 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate-inl.h"
+#include "src/execution/local-isolate.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
@@ -18,28 +18,17 @@ namespace internal {
 
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
                                             LocalIsolate* isolate,
-                                            Tagged<HeapObject> host,
-                                            IndirectPointerTag tag) {
+                                            Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kUnknownIndirectPointerTag);
+  // TODO(saelo): we'll need the tag here in the future (to tag the entry in
+  // the pointer table). At that point, DCHECK that we don't see
+  // kCodeIndirectPointerTag here.
   // TODO(saelo): in the future, we might want to CHECK here or in
-  // AllocateAndInitializeEntry that the host lives in trusted space.
-
-  IndirectPointerHandle handle;
-  if (tag == kCodeIndirectPointerTag) {
-    CodePointerTable::Space* space =
-        ReadOnlyHeap::Contains(field_address)
-            ? isolate->read_only_heap()->code_pointer_space()
-            : isolate->heap()->code_pointer_space();
-    handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-        space, host.ptr(), kNullAddress);
-  } else {
-    TrustedPointerTable::Space* space =
-        isolate->heap()->trusted_pointer_space();
-    handle = isolate->trusted_pointer_table()->AllocateAndInitializeEntry(
-        space, host.ptr());
-  }
-
+  // AllocateAndInitializeEntry that the object lives in trusted space.
+  TrustedPointerTable::Space* space = isolate->heap()->trusted_pointer_space();
+  IndirectPointerHandle handle =
+      isolate->trusted_pointer_table()->AllocateAndInitializeEntry(
+          space, object->ptr());
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads
   // may access an uninitialized table entry and crash.

@@ -274,14 +274,12 @@ class ObjectPostProcessor final {
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {
-    o->init_self_indirect_pointer(isolate_->AsLocalIsolate());
+    o->init_instruction_start(
+        isolate_, embedded_data_.InstructionStartOf(o->builtin_id()));
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
-    o->SetInstructionStartForOffHeapBuiltin(
-        isolate_,
-        EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
   }
   void PostProcessSharedFunctionInfo(Tagged<SharedFunctionInfo> o) {
     // Reset the id to avoid collisions - it must be unique in this isolate.

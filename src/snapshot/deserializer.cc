@@ -1218,7 +1218,15 @@ int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
 
   Tagged<ExposedTrustedObject> host =
       ExposedTrustedObject::cast(*slot_accessor.object());
-  host->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  if (IsCode(host)) {
+    // These use the code pointer table and so need to be handled separately.
+    // TODO(saelo): consider renaming the init method to make it clearer that it
+    // initializes the "self" indirect pointer.
+    Code::cast(host)->init_instruction_start(main_thread_isolate(),
+                                             kNullAddress);
+  } else {
+    host->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  }
 
   return 1;
 #else
