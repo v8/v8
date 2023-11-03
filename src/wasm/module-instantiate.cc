@@ -2482,16 +2482,26 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
   instance->set_exports_object(*exports_object);
 
+  // Switch the exports object to dictionary mode and allocate enough storage
+  // for the expected number of exports.
+  DCHECK(exports_object->HasFastProperties());
+  JSObject::NormalizeProperties(
+      isolate_, exports_object, KEEP_INOBJECT_PROPERTIES,
+      static_cast<int>(module_->export_table.size()), "WasmExportsObject");
+
   PropertyDescriptor desc;
   desc.set_writable(is_asm_js);
   desc.set_enumerable(true);
   desc.set_configurable(is_asm_js);
 
+  const PropertyDetails details{PropertyKind::kData, desc.ToAttributes(),
+                                PropertyConstness::kMutable};
+
   // Process each export in the export table.
   for (const WasmExport& exp : module_->export_table) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
         isolate_, module_object_, exp.name, kInternalize);
-    Handle<JSObject> export_to = exports_object;
+    Handle<Object> value;
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
@@ -2500,24 +2510,28 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                 isolate_, instance, exp.index);
         Handle<JSFunction> wasm_external_function =
             WasmInternalFunction::GetOrCreateExternal(internal);
-        desc.set_value(wasm_external_function);
+        value = wasm_external_function;
 
         if (is_asm_js &&
             String::Equals(isolate_, name,
                            single_function_name.ToHandleChecked())) {
-          export_to = instance;
+          desc.set_value(value);
+          CHECK(JSReceiver::DefineOwnProperty(isolate_, instance, name, &desc,
+                                              Just(kThrowOnError))
+                    .FromMaybe(false));
+          continue;
         }
         break;
       }
       case kExternalTable: {
-        desc.set_value(handle(instance->tables()->get(exp.index), isolate_));
+        value = handle(instance->tables()->get(exp.index), isolate_);
         break;
       }
       case kExternalMemory: {
         // Export the memory as a WebAssembly.Memory object. A WasmMemoryObject
         // should already be available if the module has memory, since we always
         // create or import it when building an WasmInstanceObject.
-        desc.set_value(handle(instance->memory_object(exp.index), isolate_));
+        value = handle(instance->memory_object(exp.index), isolate_);
         break;
       }
       case kExternalGlobal: {
@@ -2525,7 +2539,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.imported) {
           auto cached_global = imported_globals.find(exp.index);
           if (cached_global != imported_globals.end()) {
-            desc.set_value(cached_global->second);
+            value = cached_global->second;
             break;
           }
         }
@@ -2575,7 +2589,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                                   tagged_buffer, global.type, offset,
                                   global.mutability)
                 .ToHandleChecked();
-        desc.set_value(global_obj);
+        value = global_obj;
         break;
       }
       case kExternalTag: {
@@ -2591,17 +2605,26 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                                        tag_object);
           tags_wrappers_[exp.index] = wrapper;
         }
-        desc.set_value(wrapper);
+        value = wrapper;
         break;
       }
       default:
         UNREACHABLE();
     }
 
-    CHECK(JSReceiver::DefineOwnProperty(isolate_, export_to, name, &desc,
-                                        Just(kThrowOnError))
-              .FromMaybe(false));
+    uint32_t index;
+    if (V8_UNLIKELY(name->AsArrayIndex(&index))) {
+      // Add a data element.
+      JSObject::AddDataElement(exports_object, index, value,
+                               details.attributes());
+    } else {
+      // Add a property to the dictionary.
+      JSObject::SetNormalizedProperty(exports_object, name, value, details);
+    }
   }
+
+  // Switch back to fast properties if possible.
+  JSObject::MigrateSlowToFast(exports_object, 0, "WasmExportsObjectFinished");
 
   if (module_->origin == kWasmOrigin) {
     CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
