@@ -87,7 +87,12 @@ inline MaybeObject DeoptimizationLiteralArray::get_raw(int index) const {
 
 inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
   MaybeObject maybe = MaybeObject::FromObject(value);
-  if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
+  if (IsBytecodeArray(value)) {
+    // The BytecodeArray lives in trusted space, so we cannot reference it from
+    // a fixed array. However, we can use the BytecodeArray's wrapper object,
+    // which exists for exactly this purpose.
+    maybe = MaybeObject::FromObject(BytecodeArray::cast(value)->wrapper());
+  } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
     maybe = MaybeObject::MakeWeak(maybe);
   }
   WeakFixedArray::set(index, maybe);
