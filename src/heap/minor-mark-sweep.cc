@@ -291,6 +291,7 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushPretenuringFeedback();
   }
+  CHECK(heap_->concurrent_marking()->IsStopped());
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
   }
@@ -304,6 +305,11 @@ void MinorMarkSweepCollector::StartMarking() {
     }
   }
 #endif  // VERIFY_HEAP
+
+  // The state for background thread is saved here and maintained for the whole
+  // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
+  CHECK(!use_background_threads_in_cycle_.has_value());
+  use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
 
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   // CppHeap's marker must be initialized before the V8 marker to allow
@@ -336,6 +342,8 @@ void MinorMarkSweepCollector::StartMarking() {
 
 void MinorMarkSweepCollector::Finish() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH);
+
+  use_background_threads_in_cycle_.reset();
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH_ENSURE_CAPACITY);
@@ -633,7 +641,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   {
     // Mark the transitive closure in parallel.
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL);
+    TRACE_GC_ARG1(heap_->tracer(),
+                  GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL,
+                  "UseBackgroundThreads", UseBackgroundThreadsInCycle());
     local_marking_worklists()->Publish();
     if (v8_flags.parallel_marking) {
       heap_->concurrent_marking()->RescheduleJobIfNeeded(

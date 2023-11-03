@@ -629,6 +629,11 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
     return;
   }
 
+  if (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER &&
+      !heap_->minor_mark_sweep_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+
   if (heap_->IsTearingDown()) return;
 
   if (IsStopped()) {

@@ -1501,7 +1501,8 @@ void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
       (paged_new_space()->paged_space()->UsableCapacity() >=
        v8_flags.minor_ms_min_new_space_capacity_for_concurrent_marking_mb *
            MB) &&
-      new_space()->Size() >= MinorMSConcurrentMarkingTrigger(this)) {
+      new_space()->Size() >= MinorMSConcurrentMarkingTrigger(this) &&
+      ShouldUseBackgroundThreads()) {
     StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
                             GarbageCollector::MINOR_MARK_SWEEPER);

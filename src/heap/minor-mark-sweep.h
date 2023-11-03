@@ -184,6 +184,10 @@ class MinorMarkSweepCollector final {
     return gc_finalization_requested_.load(std::memory_order_relaxed);
   }
 
+  bool UseBackgroundThreadsInCycle() const {
+    return use_background_threads_in_cycle_.value();
+  }
+
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -232,6 +236,8 @@ class MinorMarkSweepCollector final {
       remembered_sets_marking_handler_;
 
   ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
+
+  base::Optional<bool> use_background_threads_in_cycle_;
 
   std::atomic<bool> is_in_atomic_pause_{false};
   std::atomic<bool> gc_finalization_requested_{false};
