@@ -184,6 +184,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
                                          int frame_size, int parameter_count,
                                          Handle<FixedArray> constant_pool);
 
+  Handle<BytecodeWrapper> NewBytecodeWrapper();
+
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(

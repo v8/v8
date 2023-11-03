@@ -38,7 +38,7 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  return has_debug_bytecode_array(kAcquireLoad);
+  return has_debug_bytecode_array();
 }
 
 Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {

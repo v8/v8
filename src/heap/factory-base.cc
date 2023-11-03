@@ -272,11 +272,12 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   // too.
   DCHECK(!Heap::InYoungGeneration(*constant_pool));
 
+  Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kOld, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
-  Tagged<BytecodeArray> instance = Tagged<BytecodeArray>::cast(result);
+  Tagged<BytecodeArray> instance = BytecodeArray::cast(result);
   instance->init_self_indirect_pointer(isolate()->AsLocalIsolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
@@ -286,12 +287,28 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(read_only_roots().empty_byte_array(),
                               SKIP_WRITE_BARRIER);
+  instance->set_wrapper(*wrapper);
   instance->set_source_position_table(read_only_roots().undefined_value(),
                                       kReleaseStore, SKIP_WRITE_BARRIER);
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();
+  wrapper->set_bytecode(instance);
   return handle(instance, isolate());
+}
+
+template <typename Impl>
+Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
+  Handle<BytecodeWrapper> wrapper(
+      BytecodeWrapper::cast(NewWithImmortalMap(
+          read_only_roots().bytecode_wrapper_map(), AllocationType::kOld)),
+      isolate());
+  // The BytecodeWrapper is typically created before the BytecodeArray it
+  // wraps, so the bytecode field cannot yet be set. However, as a heap
+  // verifier might see the wrapper before the field can be set, we need to
+  // clear the field here.
+  wrapper->clear_bytecode();
+  return wrapper;
 }
 
 template <typename Impl>

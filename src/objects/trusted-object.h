@@ -93,7 +93,7 @@ class ExposedTrustedObject : public TrustedObject {
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
 #define FIELD_LIST(V)                                                   \
-  V(kSelfIndirectPointerOffset, kIndirectPointerSlotSize)               \
+  V(kSelfIndirectPointerOffset, kIndirectPointerSize)                   \
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)                                                     \
   V(kSize, 0)

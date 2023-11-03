@@ -367,6 +367,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       if (instance_type == CALL_SITE_INFO_TYPE) {
         return kVisitCallSiteInfo;
       }
+      if (instance_type == BYTECODE_WRAPPER_TYPE) {
+        return kVisitBytecodeWrapper;
+      }
 #if V8_ENABLE_WEBASSEMBLY
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;

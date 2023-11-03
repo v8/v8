@@ -383,6 +383,11 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     CHECK(IsByteArray(o));
   }
   {
+    auto o = wrapper();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsBytecodeWrapper(o));
+  }
+  {
     auto o = source_position_table(kAcquireLoad);
     Object::VerifyPointer(isolate, o);
     CHECK(IsUndefined(o) || IsException(o) || IsByteArray(o));
@@ -398,6 +403,13 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
+}
+
+void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
+  if (!this->has_bytecode()) return;
+  auto bytecode = this->bytecode(isolate);
+  Object::VerifyPointer(isolate, bytecode);
+  CHECK_EQ(bytecode->wrapper(), *this);
 }
 
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {

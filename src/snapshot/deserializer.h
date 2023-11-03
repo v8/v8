@@ -219,6 +219,9 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadIndirectPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadInitializeSelfIndirectPointer(uint8_t data,
+                                        SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadHotObject(uint8_t data, SlotAccessor slot_accessor);

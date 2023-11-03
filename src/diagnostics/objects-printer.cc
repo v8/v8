@@ -297,6 +297,12 @@ void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {
   Disassemble(os);
 }
 
+void BytecodeWrapper::BytecodeWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "BytecodeWrapper");
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n    bytecode: " << Brief(bytecode(isolate));
+}
+
 void FreeSpace::FreeSpacePrint(std::ostream& os) {
   os << "free space, size " << Size() << "\n";
 }

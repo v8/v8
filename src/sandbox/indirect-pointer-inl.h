@@ -99,6 +99,7 @@ V8_INLINE void WriteIndirectPointerField(Address field_address,
   static_assert(tag != kIndirectPointerNullTag);
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
       ExposedTrustedObject::kSelfIndirectPointerOffset);
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
   base::AsAtomic32::Release_Store(location, handle);
 #else

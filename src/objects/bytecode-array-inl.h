@@ -24,6 +24,7 @@ SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 ACCESSORS(BytecodeArray, constant_pool, Tagged<FixedArray>, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, Tagged<ByteArray>, kHandlerTableOffset)
+ACCESSORS(BytecodeArray, wrapper, Tagged<BytecodeWrapper>, kWrapperOffset)
 RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
                           Tagged<HeapObject>, kSourcePositionTableOffset)
 
@@ -169,6 +170,12 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   }
   return size;
 }
+
+CAST_ACCESSOR(BytecodeWrapper)
+OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
+
+TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
+                          kBytecodeOffset, kBytecodeArrayIndirectPointerTag)
 
 }  // namespace internal
 }  // namespace v8

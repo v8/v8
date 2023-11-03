@@ -25,6 +25,7 @@ namespace internal {
   V(AllocationSite)                     \
   V(BigInt)                             \
   V(BytecodeArray)                      \
+  V(BytecodeWrapper)                    \
   V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \

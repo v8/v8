@@ -38,6 +38,7 @@ enum InstanceType : uint16_t;
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BytecodeArray)                      \
+  V(BytecodeWrapper)                    \
   V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \

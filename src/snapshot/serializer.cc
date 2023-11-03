@@ -1131,7 +1131,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   Handle<HeapObject> slot_value(HeapObject::cast(slot.load(isolate())),
                                 isolate());
   CHECK(IsHeapObject(*slot_value));
-  bytes_processed_so_far_ += kIndirectPointerSlotSize;
+  bytes_processed_so_far_ += kIndirectPointerSize;
 
   // Currently we cannot see pending objects here, but we may need to handle
   // them here and in the deserializer in the future.
@@ -1146,23 +1146,16 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
 void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  // These slots will be recreated during deserialization. We zero them out in
-  // the snapshot so that (a) the snapshot is deterministic and (b) the field
-  // will contain the kIndirectPointerNullHandle prior to the post-processing
-  // step during deserialization. This is important as a GC marker can see the
-  // object before post-processing, and would then see an invalid handle.
-
   // These fields only exist on the ExposedTrustedObject class, and they are
   // located directly after the Map word.
   DCHECK_EQ(bytes_processed_so_far_,
             ExposedTrustedObject::kSelfIndirectPointerOffset);
-  bytes_processed_so_far_ += kIndirectPointerSlotSize;
 
-  sink_->Put(
-      FixedRawDataWithSize::Encode(kIndirectPointerSlotSize / kTaggedSize),
-      "SelfIndirectPointer");
-  static uint8_t field_value[kIndirectPointerSlotSize] = {0};
-  sink_->PutRaw(field_value, kIndirectPointerSlotSize, "Bytes");
+  // The field will be recreated during deserialization by allocating a new
+  // pointer table entry for the host object. This opcode instructs the
+  // deserializer to do so.
+  sink_->Put(kInitializeSelfIndirectPointer, "InitializeSelfIndirectPointer");
+  bytes_processed_so_far_ += kIndirectPointerSize;
 #else
   UNREACHABLE();
 #endif
@@ -1240,7 +1233,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // When the sandbox is enabled, this field contains the handle to this
       // Code object's code pointer table entry. This will be recomputed after
       // deserialization.
-      static uint8_t field_value[kIndirectPointerSlotSize] = {0};
+      static uint8_t field_value[kIndirectPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kSelfIndirectPointerOffset,
                                sizeof(field_value), field_value);

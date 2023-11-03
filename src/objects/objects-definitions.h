@@ -157,6 +157,7 @@ namespace internal {
     async_generator_request)                                                   \
   V(_, BREAK_POINT_TYPE, BreakPoint, break_point)                              \
   V(_, BREAK_POINT_INFO_TYPE, BreakPointInfo, break_point_info)                \
+  V(_, BYTECODE_WRAPPER_TYPE, BytecodeWrapper, bytecode_wrapper)               \
   V(_, CALL_SITE_INFO_TYPE, CallSiteInfo, call_site_info)                      \
   V(_, CLASS_BOILERPLATE_TYPE, ClassBoilerplate, class_boilerplate)            \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \

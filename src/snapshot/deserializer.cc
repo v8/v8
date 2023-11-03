@@ -531,7 +531,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Tagged<Code> code = Code::cast(raw_obj);
-    code->init_instruction_start(main_thread_isolate(), kNullAddress);
     if (!code->has_instruction_stream()) {
       code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
@@ -575,16 +574,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                        nullptr);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     LogScriptEvents(Script::cast(*obj));
-  }
-
-  // Initialize the 'self' indirect pointer of ExposedTrustedObjects, except if
-  // this is a Code object, which are initialized in the ::IsCode case above
-  // since they use the code pointer table.
-  if (V8_ENABLE_SANDBOX_BOOL &&
-      InstanceTypeChecker::IsExposedTrustedObject(instance_type) &&
-      !InstanceTypeChecker::IsCode(instance_type)) {
-    Tagged<ExposedTrustedObject> object = ExposedTrustedObject::cast(raw_obj);
-    object->init_self_indirect_pointer(isolate()->AsLocalIsolate());
   }
 }
 
@@ -905,6 +894,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadWeakPrefix(data, slot_accessor);
     case kIndirectPointerPrefix:
       return ReadIndirectPointerPrefix(data, slot_accessor);
+    case kInitializeSelfIndirectPointer:
+      return ReadInitializeSelfIndirectPointer(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kHotObject, 8):
@@ -1213,6 +1204,34 @@ int Deserializer<IsolateT>::ReadIndirectPointerPrefix(
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   next_reference_is_indirect_pointer_ = true;
   return 0;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
+    uint8_t data, SlotAccessor slot_accessor) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
+  DCHECK(IsExposedTrustedObject(*slot_accessor.object()));
+  DCHECK_EQ(slot_accessor.offset(),
+            ExposedTrustedObject::kSelfIndirectPointerOffset);
+
+  Tagged<ExposedTrustedObject> host =
+      ExposedTrustedObject::cast(*slot_accessor.object());
+  if (IsCode(host)) {
+    // These use the code pointer table and so need to be handled separately.
+    // TODO(saelo): consider renaming the init method to make it clearer that it
+    // initializes the "self" indirect pointer.
+    Code::cast(host)->init_instruction_start(main_thread_isolate(),
+                                             kNullAddress);
+  } else {
+    host->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  }
+
+  return 1;
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 template <typename IsolateT>

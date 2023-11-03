@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_H_
 
+#include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -12,6 +13,8 @@
 
 namespace v8 {
 namespace internal {
+
+class BytecodeWrapper;
 
 namespace interpreter {
 class Register;
@@ -33,6 +36,15 @@ class BytecodeArray : public ExposedTrustedObject {
   DECL_ACCESSORS(constant_pool, Tagged<FixedArray>)
   // The handler table contains offsets of exception handlers.
   DECL_ACCESSORS(handler_table, Tagged<ByteArray>)
+
+  // The BytecodeWrapper for this BytecodeArray. When the sandbox is enabled,
+  // the BytecodeArray lives in trusted space outside of the sandbox, but the
+  // wrapper object lives inside the main heap and therefore inside the
+  // sandbox. As such, the wrapper object can be used in cases where a
+  // BytecodeArray needs to be referenced alongside other tagged pointer
+  // references (so for example inside a FixedArray).
+  DECL_ACCESSORS(wrapper, Tagged<BytecodeWrapper>)
+
   // Source position table. Can contain:
   // * undefined (initial value)
   // * empty_byte_array (for bytecode generated for functions that will never
@@ -113,6 +125,7 @@ class BytecodeArray : public ExposedTrustedObject {
   V(kLengthOffset, kTaggedSize)                                         \
   V(kConstantPoolOffset, kTaggedSize)                                   \
   V(kHandlerTableOffset, kTaggedSize)                                   \
+  V(kWrapperOffset, kTaggedSize)                                        \
   V(kSourcePositionTableOffset, kTaggedSize)                            \
   V(kFrameSizeOffset, kInt32Size)                                       \
   V(kParameterSizeOffset, kInt32Size)                                   \
@@ -126,6 +139,30 @@ class BytecodeArray : public ExposedTrustedObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(BytecodeArray, ExposedTrustedObject);
+};
+
+// A BytecodeWrapper wraps a BytecodeArray but lives inside the sandbox. This
+// can be useful for example when a reference to a BytecodeArray needs to be
+// stored along other tagged pointers inside an array or similar datastructure.
+class BytecodeWrapper : public Struct {
+ public:
+  DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
+
+  DECL_CAST(BytecodeWrapper)
+  DECL_PRINTER(BytecodeWrapper)
+  DECL_VERIFIER(BytecodeWrapper)
+
+#define FIELD_LIST(V)                     \
+  V(kBytecodeOffset, kTrustedPointerSize) \
+  V(kHeaderSize, 0)                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(BytecodeWrapper, Struct);
 };
 
 }  // namespace internal

@@ -522,31 +522,42 @@
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
-#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                        \
-  inline Tagged<type> name(const Isolate* isolate, AcquireLoadTag) const; \
-  inline void set_##name(Tagged<type> value, ReleaseStoreTag,             \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);   \
-  inline bool has_##name(AcquireLoadTag) const;                           \
-  inline void clear_##name(ReleaseStoreTag);
+#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                         \
+  /* Trusted pointers currently always have release-acquire semantics. */  \
+  /* However, we still expose explicit release-acquire accessors so it */  \
+  /* can be made clear when they are required. */                          \
+  /* If desired, we could create separate {Read|Write}TrustedPointer */    \
+  /* routines for relaxed- and release-acquire semantics in the future. */ \
+  inline Tagged<type> name(const Isolate* isolate) const;                  \
+  inline Tagged<type> name(const Isolate* isolate, AcquireLoadTag) const;  \
+  inline void set_##name(Tagged<type> value,                               \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,              \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
+  inline bool has_##name() const;                                          \
+  inline void clear_##name();
 
-#define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)         \
-  inline Tagged<type> holder::name(const Isolate* isolate, AcquireLoadTag) \
-      const {                                                              \
-    DCHECK(has_##name(kAcquireLoad));                                      \
-    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));      \
-  }                                                                        \
-  inline void holder::set_##name(Tagged<type> value, ReleaseStoreTag,      \
-                                 WriteBarrierMode mode) {                  \
-    WriteTrustedPointerField<tag>(offset, value);                          \
-    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,   \
-                                              mode);                       \
-  }                                                                        \
-  inline bool holder::has_##name(AcquireLoadTag) const {                   \
-    return !IsTrustedPointerFieldCleared(offset);                          \
-  }                                                                        \
-  inline void holder::clear_##name(ReleaseStoreTag) {                      \
-    ClearTrustedPointerField(offset);                                      \
-  }
+#define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)          \
+  Tagged<type> holder::name(const Isolate* isolate) const {                 \
+    return name(isolate, kAcquireLoad);                                     \
+  }                                                                         \
+  Tagged<type> holder::name(const Isolate* isolate, AcquireLoadTag) const { \
+    DCHECK(has_##name());                                                   \
+    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));       \
+  }                                                                         \
+  void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {      \
+    set_##name(value, kReleaseStore, mode);                                 \
+  }                                                                         \
+  void holder::set_##name(Tagged<type> value, ReleaseStoreTag,              \
+                          WriteBarrierMode mode) {                          \
+    WriteTrustedPointerField<tag>(offset, value);                           \
+    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,    \
+                                              mode);                        \
+  }                                                                         \
+  bool holder::has_##name() const {                                         \
+    return !IsTrustedPointerFieldCleared(offset);                           \
+  }                                                                         \
+  void holder::clear_##name() { ClearTrustedPointerField(offset); }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \

@@ -2535,6 +2535,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
+  Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
   Tagged<BytecodeArray> copy = BytecodeArray::cast(AllocateRawWithImmortalMap(
       size, AllocationType::kOld, *bytecode_array_map()));
@@ -2548,9 +2549,11 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
       raw_source->incoming_new_target_or_generator_register());
   copy->set_constant_pool(raw_source->constant_pool());
   copy->set_handler_table(raw_source->handler_table());
+  copy->set_wrapper(*wrapper);
   copy->set_source_position_table(
       raw_source->source_position_table(kAcquireLoad), kReleaseStore);
   raw_source->CopyBytecodesTo(copy);
+  wrapper->set_bytecode(copy);
   return handle(copy, isolate());
 }
 
@@ -3483,8 +3486,8 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info->set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
   debug_info->set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  debug_info->clear_original_bytecode_array(kReleaseStore);
-  debug_info->clear_debug_bytecode_array(kReleaseStore);
+  debug_info->clear_original_bytecode_array();
+  debug_info->clear_debug_bytecode_array();
 
   return handle(debug_info, isolate());
 }

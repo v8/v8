@@ -1319,11 +1319,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // since this visitor is for recording slots, not updating them. Figure
     // out if there's a better place for this logic.
     IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-
-    // We can see an uninitialized slot here, for example if GC is triggered
-    // during snapshot deserialization. In this case, there is nothing to do
-    // since the slot will be initialized later with the correct pointer.
-    if (handle == kNullIndirectPointerHandle) return;
+    DCHECK_NE(handle, kNullIndirectPointerHandle);
 
     if (slot.tag() == kCodeIndirectPointerTag) {
       DCHECK(IsCode(host));

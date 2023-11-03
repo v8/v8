@@ -311,6 +311,7 @@ void IndirectPointerSlot::Relaxed_Store(
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
       ExposedTrustedObject::kSelfIndirectPointerOffset);
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
   Relaxed_StoreHandle(handle);
 #else
   UNREACHABLE();
