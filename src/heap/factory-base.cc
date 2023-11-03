@@ -82,7 +82,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Tagged<Code> code = Tagged<Code>::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  code->init_instruction_start(isolate_for_sandbox, kNullAddress);
+  code->init_self_indirect_pointer(isolate()->AsLocalIsolate());
   code->initialize_flags(options.kind, options.is_turbofanned,
                          options.stack_slots);
   code->set_builtin_id(options.builtin);

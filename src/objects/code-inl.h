@@ -600,16 +600,6 @@ DEF_GETTER(Code, instruction_start, Address) {
 #endif
 }
 
-void Code::init_instruction_start(Isolate* isolate, Address value) {
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the instruction_start is stored in this Code's code pointer
-  // table entry, so initialize that instead.
-  InitSelfCodePointerField(kSelfIndirectPointerOffset, isolate, *this, value);
-#else
-  set_instruction_start(isolate, value);
-#endif
-}
-
 void Code::set_instruction_start(Isolate* isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
   WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value);

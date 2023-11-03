@@ -88,7 +88,6 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
-  inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void SetInstructionStreamAndInstructionStart(
       Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

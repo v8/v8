@@ -792,7 +792,10 @@ void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
 
 void HeapObject::InitSelfIndirectPointerField(size_t offset,
                                               LocalIsolate* isolate) {
-  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this);
+  DCHECK(IsExposedTrustedObject(*this));
+  InstanceType instance_type = map()->instance_type();
+  IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag);
 }
 
 template <IndirectPointerTag tag>
@@ -860,13 +863,6 @@ Tagged<Code> HeapObject::ReadCodePointerField(size_t offset) const {
 
 void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
   WriteTrustedPointerField<kCodeIndirectPointerTag>(offset, value);
-}
-
-void HeapObject::InitSelfCodePointerField(size_t offset, Isolate* isolate,
-                                          Tagged<Code> owning_code,
-                                          Address entrypoint) {
-  i::InitSelfCodePointerField(field_address(offset), isolate, owning_code,
-                              entrypoint);
 }
 
 Address HeapObject::ReadCodeEntrypointViaCodePointerField(size_t offset) const {
