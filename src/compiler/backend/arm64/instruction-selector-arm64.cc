@@ -41,7 +41,7 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   explicit Arm64OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
       : super(selector) {}
 
-  InstructionOperand UseOperand(Node* node, ImmediateMode mode) {
+  InstructionOperand UseOperand(node_t node, ImmediateMode mode) {
     if (CanBeImmediate(node, mode)) {
       return UseImmediate(node);
     }
@@ -81,6 +81,18 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return OpParameter<int64_t>(node->op());
   }
 
+  bool IsIntegerConstant(typename Adapter::ConstantView constant) {
+    return constant.is_int32() || constant.is_int64();
+  }
+
+  int64_t GetIntegerConstantValue(typename Adapter::ConstantView constant) {
+    if (constant.is_int32()) {
+      return constant.int32_value();
+    }
+    DCHECK(constant.is_int64());
+    return constant.int64_value();
+  }
+
   bool IsFloatConstant(Node* node) {
     return (node->opcode() == IrOpcode::kFloat32Constant) ||
            (node->opcode() == IrOpcode::kFloat64Constant);
@@ -94,8 +106,10 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return OpParameter<double>(node->op());
   }
 
-  bool CanBeImmediate(Node* node, ImmediateMode mode) {
-    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+  bool CanBeImmediate(node_t node, ImmediateMode mode) {
+    if (!this->is_constant(node)) return false;
+    auto constant = this->constant_view(node);
+    if (constant.is_compressed_heap_object()) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -103,9 +117,8 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      CompressedHeapObjectMatcher m(node);
-      if (m.HasResolvedValue() &&
-          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+      Handle<HeapObject> value = constant.heap_object_value();
+      if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
                                   root_index, selector()->isolate()),
@@ -114,8 +127,8 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       return false;
     }
 
-    return IsIntegerConstant(node) &&
-           CanBeImmediate(GetIntegerConstantValue(node), mode);
+    return IsIntegerConstant(constant) &&
+           CanBeImmediate(GetIntegerConstantValue(constant), mode);
   }
 
   bool CanBeImmediate(int64_t value, ImmediateMode mode) {
@@ -151,11 +164,13 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return false;
   }
 
-  bool CanBeLoadStoreShiftImmediate(Node* node, MachineRepresentation rep) {
+  bool CanBeLoadStoreShiftImmediate(node_t node, MachineRepresentation rep) {
     // TODO(arm64): Load and Store on 128 bit Q registers is not supported yet.
     DCHECK_GT(MachineRepresentation::kSimd128, rep);
-    return IsIntegerConstant(node) &&
-           (GetIntegerConstantValue(node) == ElementSizeLog2Of(rep));
+    if (!selector()->is_constant(node)) return false;
+    auto constant = selector()->constant_view(node);
+    return IsIntegerConstant(constant) &&
+           (GetIntegerConstantValue(constant) == ElementSizeLog2Of(rep));
   }
 
  private:
@@ -451,22 +466,25 @@ bool TryMatchAnyExtend(Arm64OperandGeneratorT<Adapter>* g,
 template <typename Adapter>
 bool TryMatchLoadStoreShift(Arm64OperandGeneratorT<Adapter>* g,
                             InstructionSelectorT<Adapter>* selector,
-                            MachineRepresentation rep, Node* node, Node* index,
+                            MachineRepresentation rep,
+                            typename Adapter::node_t node,
+                            typename Adapter::node_t index,
                             InstructionOperand* index_op,
                             InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
   if (index->InputCount() != 2) return false;
-  Node* left = index->InputAt(0);
-  Node* right = index->InputAt(1);
   switch (index->opcode()) {
     case IrOpcode::kWord32Shl:
-    case IrOpcode::kWord64Shl:
+    case IrOpcode::kWord64Shl: {
+      Node* left = index->InputAt(0);
+      Node* right = index->InputAt(1);
       if (!g->CanBeLoadStoreShiftImmediate(right, rep)) {
         return false;
       }
       *index_op = g->UseRegister(left);
       *shift_immediate_op = g->UseImmediate(right);
       return true;
+    }
     default:
       return false;
   }
@@ -539,9 +557,9 @@ uint8_t GetBinopProperties(InstructionCode opcode) {
 
 // Shared routine for multiple binary operations.
 template <typename Adapter, typename Matcher>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                InstructionCode opcode, ImmediateMode operand_mode,
-                FlagsContinuationT<Adapter>* cont) {
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, InstructionCode opcode,
+                ImmediateMode operand_mode, FlagsContinuationT<Adapter>* cont) {
   Arm64OperandGeneratorT<Adapter> g(selector);
   InstructionOperand inputs[5];
   size_t input_count = 0;
@@ -618,8 +636,9 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 
 // Shared routine for multiple binary operations.
 template <typename Adapter, typename Matcher>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                ArchOpcode opcode, ImmediateMode operand_mode) {
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, ArchOpcode opcode,
+                ImmediateMode operand_mode) {
   FlagsContinuationT<Adapter> cont;
   VisitBinop<Adapter, Matcher>(selector, node, opcode, operand_mode, &cont);
 }
@@ -685,9 +704,10 @@ void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
 }
 
 template <typename Adapter>
-void EmitLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-              InstructionCode opcode, ImmediateMode immediate_mode,
-              MachineRepresentation rep, Node* output = nullptr) {
+void EmitLoad(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, InstructionCode opcode,
+              ImmediateMode immediate_mode, MachineRepresentation rep,
+              typename Adapter::node_t output = typename Adapter::node_t{}) {
   Arm64OperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -2273,6 +2293,19 @@ void VisitExtAddPairwise(InstructionSelectorT<TurbofanAdapter>* selector,
 }
 }  // namespace
 
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8S(
     node_t node) {
@@ -2970,9 +3003,10 @@ struct CbzOrTbzMatchTrait<64> {
 // Try to emit TBZ, TBNZ, CBZ or CBNZ for certain comparisons of {node}
 // against {value}, depending on the condition.
 template <typename Adapter, int N>
-bool TryEmitCbzOrTbz(InstructionSelectorT<Adapter>* selector, Node* node,
+bool TryEmitCbzOrTbz(InstructionSelectorT<Adapter>* selector,
+                     typename Adapter::node_t node,
                      typename CbzOrTbzMatchTrait<N>::IntegralType value,
-                     Node* user, FlagsCondition cond,
+                     typename Adapter::node_t user, FlagsCondition cond,
                      FlagsContinuationT<Adapter>* cont) {
   // Only handle branches and deoptimisations.
   if (!cont->IsBranch() && !cont->IsDeoptimize()) return false;
@@ -3047,13 +3081,14 @@ bool TryEmitCbzOrTbz(InstructionSelectorT<Adapter>* selector, Node* node,
 
 // Shared routine for multiple word compare operations.
 template <typename Adapter>
-void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuationT<Adapter>* cont,
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node, InstructionCode opcode,
+                      FlagsContinuationT<Adapter>* cont,
                       ImmediateMode immediate_mode) {
   Arm64OperandGeneratorT<Adapter> g(selector);
-
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  DCHECK_EQ(selector->value_input_count(node), 2);
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
 
   // If one of the two inputs is an immediate, make sure it's on the right.
   if (!g.CanBeImmediate(right, immediate_mode) &&
@@ -3062,11 +3097,14 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
     std::swap(left, right);
   }
 
-  if (opcode == kArm64Cmp) {
-    Int64Matcher m(right);
-    if (m.HasResolvedValue()) {
-      if (TryEmitCbzOrTbz<Adapter, 64>(selector, left, m.ResolvedValue(), node,
-                                       cont->condition(), cont)) {
+  if (opcode == kArm64Cmp && selector->is_constant(right)) {
+    auto constant = selector->constant_view(right);
+    if (g.IsIntegerConstant(constant)) {
+      if constexpr (Adapter::IsTurboshaft) {
+        UNIMPLEMENTED();
+      } else if (TryEmitCbzOrTbz<Adapter, 64>(
+                     selector, left, g.GetIntegerConstantValue(constant), node,
+                     cont->condition(), cont)) {
         return;
       }
     }
@@ -5538,19 +5576,6 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGenerator* g, int first_input_index, node_t node) {
   continuation_outputs_.push_back(g->DefineAsRegister(node));
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
 }
 
 // static
