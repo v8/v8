@@ -141,6 +141,8 @@
   'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
+  'harmony/sharedarraybuffer-stress': [PASS, SLOW],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
   'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
