@@ -14,27 +14,6 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitSelfCodePointerField(Address field_address, Isolate* isolate,
-                                        Tagged<HeapObject> owning_code,
-                                        Address entrypoint) {
-#ifdef V8_ENABLE_SANDBOX
-  CodePointerTable::Space* space =
-      ReadOnlyHeap::Contains(field_address)
-          ? isolate->read_only_heap()->code_pointer_space()
-          : isolate->heap()->code_pointer_space();
-  CodePointerHandle handle =
-      GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-          space, owning_code.ptr(), entrypoint);
-  // Use a Release_Store to ensure that the store of the pointer into the
-  // table is not reordered after the store of the handle. Otherwise, other
-  // threads may access an uninitialized table entry and crash.
-  auto location = reinterpret_cast<CodePointerHandle*>(field_address);
-  base::AsAtomic32::Release_Store(location, handle);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
 V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address) {
 #ifdef V8_ENABLE_SANDBOX
   // Handles may be written to objects from other threads so the handle needs

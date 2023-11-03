@@ -23,17 +23,15 @@ namespace internal {
 // invalid (it cannot be dereferenced).
 
 // Initialize the 'self' indirect pointer that contains a reference back to the
-// owning object through the trusted pointer table. Must not be used for Code
-// objects, as these use the code pointer table instead of the trusted pointer
-// table.
+// owning object through its pointer table entry. For Code objects, this will
+// allocate an entry in the code pointer table. For all other trusted objects,
+// this will allocate an entry in the trusted pointer table.
 //
 // Only available when the sandbox is enabled.
-// TODO(saelo): we might want to move this method into trusted-pointer.h and
-// name it InitSelfTrustedPointerField to be consistent with
-// InitSelfCodePointerField.
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
                                             LocalIsolate* isolate,
-                                            Tagged<HeapObject> object);
+                                            Tagged<HeapObject> host,
+                                            IndirectPointerTag tag);
 
 // Reads the IndirectPointerHandle from the field and loads the Object
 // referenced by this handle from the appropriate pointer table. The given

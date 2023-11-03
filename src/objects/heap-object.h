@@ -279,9 +279,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline Tagged<Code> ReadCodePointerField(size_t offset) const;
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
-  inline void InitSelfCodePointerField(size_t offset, Isolate* isolate,
-                                       Tagged<Code> owning_code,
-                                       Address entrypoint);
   inline Address ReadCodeEntrypointViaCodePointerField(size_t offset) const;
   inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
                                                      Address value);
