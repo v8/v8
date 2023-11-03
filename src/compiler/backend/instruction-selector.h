@@ -1064,6 +1064,9 @@ class InstructionSelectorT final : public Adapter {
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
+  FlagsCondition GetComparisonFlagCondition(
+      const turboshaft::ComparisonOp& op) const;
+
   void MarkPairProjectionsAsWord32(node_t node);
   bool IsSourcePositionUsed(node_t node);
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,

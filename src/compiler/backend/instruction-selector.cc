@@ -1721,6 +1721,29 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
 }
 
 template <typename Adapter>
+FlagsCondition InstructionSelectorT<Adapter>::GetComparisonFlagCondition(
+    const turboshaft::ComparisonOp& op) const {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (op.kind) {
+    case ComparisonOp::Kind::kSignedLessThan:
+      return kSignedLessThan;
+    case ComparisonOp::Kind::kSignedLessThanOrEqual:
+      return kSignedLessThanOrEqual;
+    case ComparisonOp::Kind::kUnsignedLessThan:
+      return kUnsignedLessThan;
+    case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+      return kUnsignedLessThanOrEqual;
+  }
+}
+
+template <>
+FlagsCondition
+InstructionSelectorT<TurbofanAdapter>::GetComparisonFlagCondition(
+    const turboshaft::ComparisonOp& op) const {
+  UNREACHABLE();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(node_t node) {
   node_t projection0 = FindProjection(node, 0);
   if (Adapter::valid(projection0)) {

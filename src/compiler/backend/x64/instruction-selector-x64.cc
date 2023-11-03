@@ -4166,36 +4166,14 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
                    value_op.TryCast<ComparisonOp>()) {
       switch (comparison->rep.value()) {
         case RegisterRepresentation::Word32(): {
-          switch (comparison->kind) {
-            case ComparisonOp::Kind::kSignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-              return VisitWordCompare(this, value, kX64Cmp32, cont);
-            case ComparisonOp::Kind::kSignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-              return VisitWordCompare(this, value, kX64Cmp32, cont);
-            case ComparisonOp::Kind::kUnsignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-              return VisitWordCompare(this, value, kX64Cmp32, cont);
-            case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-              return VisitWordCompare(this, value, kX64Cmp32, cont);
-          }
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWordCompare(this, value, kX64Cmp32, cont);
         }
         case RegisterRepresentation::Word64(): {
-          switch (comparison->kind) {
-            case ComparisonOp::Kind::kSignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-              return VisitWordCompare(this, value, kX64Cmp, cont);
-            case ComparisonOp::Kind::kSignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-              return VisitWordCompare(this, value, kX64Cmp, cont);
-            case ComparisonOp::Kind::kUnsignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-              return VisitWordCompare(this, value, kX64Cmp, cont);
-            case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-              return VisitWordCompare(this, value, kX64Cmp, cont);
-          }
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWordCompare(this, value, kX64Cmp, cont);
         }
         case RegisterRepresentation::Float32():
           if (comparison->kind == ComparisonOp::Kind::kSignedLessThan) {
