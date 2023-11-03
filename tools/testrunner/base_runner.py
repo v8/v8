@@ -533,7 +533,7 @@ class BaseTestRunner(object):
     variables = self._get_statusfile_variables()
 
     # Head generator with no elements
-    test_chain = testsuite.TestGenerator(0, [], [])
+    test_chain = testsuite.TestGenerator(0, [], [], [])
     for name in names:
       if self.options.verbose:
         print('>>> Loading test suite: %s' % name)

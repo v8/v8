@@ -306,7 +306,7 @@ class TestCase(object):
 
   @property
   def is_slow(self):
-    return self.is_heavy or statusfile.SLOW in self._statusfile_outcomes
+    return statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):
