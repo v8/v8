@@ -10,6 +10,9 @@ namespace promise {
 
 struct PromiseAllWrapResultAsFulfilledFunctor {
   macro Call(_nativeContext: NativeContext, value: JSAny): JSAny {
+    // Make sure that we never see the PromiseHole here as a result.
+    // The other functors are safe as they return JSObjects by construction.
+    check(value != PromiseHole);
     return value;
   }
 }
@@ -112,7 +115,8 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   const newCapacity = index + 1;
   if (newCapacity > values.length_intptr) deferred {
       // This happens only when the promises are resolved during iteration.
-      values = ExtractFixedArray(values, 0, values.length_intptr, newCapacity);
+      values = ExtractFixedArray(
+          values, 0, values.length_intptr, newCapacity, PromiseHole);
       *ContextSlot(
           context,
           PromiseAllResolveElementContextSlots::
@@ -121,7 +125,7 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
 
   // Check whether a reject or resolve closure was already called for this
   // promise.
-  if (values.objects[index] != TheHole) {
+  if (values.objects[index] != PromiseHole) {
     return Undefined;
   }
 

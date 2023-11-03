@@ -1050,6 +1050,7 @@ bool Heap::CreateReadOnlyObjects() {
 
   set_property_cell_hole_value(*factory->NewHole());
   set_hash_table_hole_value(*factory->NewHole());
+  set_promise_hole_value(*factory->NewHole());
   set_uninitialized_value(*factory->NewHole());
   set_arguments_marker(*factory->NewHole());
   set_termination_exception(*factory->NewHole());

@@ -297,7 +297,8 @@ Reject(JSAny) {
 
     const oldCapacity = values.length_intptr;
     if (oldCapacity < newCapacity) {
-      *valuesRef = ExtractFixedArray(values, 0, oldCapacity, newCapacity);
+      *valuesRef =
+          ExtractFixedArray(values, 0, oldCapacity, newCapacity, PromiseHole);
     }
   } else
     deferred {

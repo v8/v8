@@ -532,6 +532,7 @@ const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
 type TheHole extends Hole;
+type PromiseHole extends Hole;
 type Exception extends Oddball;
 type EmptyString extends String;
 
@@ -561,6 +562,7 @@ extern macro SearchSymbolConstant(): Symbol;
 extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
+extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
 extern macro ToStringStringConstant(): String;
 extern macro TrueConstant(): True;
@@ -569,6 +571,7 @@ extern macro ValueOfStringConstant(): String;
 extern macro WasmWrappedObjectSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
+const PromiseHole: PromiseHole = PromiseHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();

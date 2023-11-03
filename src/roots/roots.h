@@ -97,6 +97,7 @@ class RootVisitor;
   V(Hole, stale_register, StaleRegister)                                       \
   V(Hole, property_cell_hole_value, PropertyCellHoleValue)                     \
   V(Hole, hash_table_hole_value, HashTableHoleValue)                           \
+  V(Hole, promise_hole_value, PromiseHoleValue)                                \
   /* Maps */                                                                   \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
   V(Map, closure_feedback_cell_array_map, ClosureFeedbackCellArrayMap)         \

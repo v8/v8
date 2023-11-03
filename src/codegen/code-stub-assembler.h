@@ -245,6 +245,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TheHoleValue, the_hole_value, TheHole)                                   \
   V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)       \
   V(HashTableHoleValue, hash_table_hole_value, HashTableHole)                \
+  V(PromiseHoleValue, promise_hole_value, PromiseHole)                       \
   V(then_string, then_string, ThenString)                                    \
   V(toJSON_string, toJSON_string, ToJSONString)                              \
   V(toString_string, toString_string, ToStringString)                        \
