@@ -33,7 +33,7 @@
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'LogAllTest.LogAll': [PASS, HEAVY],
+  'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
   'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
   'MachineOperatorReducerTest.Word64EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
   'WasmModuleVerifyTest.NGlobals': [PASS, HEAVY],
