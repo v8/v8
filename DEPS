@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e57ae7a5355bd2d2ce19bb13c33392fa9c484e1f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f902dff75b5cf1d20a962b2b62c3c68d0ed4db99',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '214c7529a0c7019cc0fb688ea87af43a322ddb2e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '98c672d6a63aeb31be6380a34ece6634411e5659',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e2e6aa8bf42eba17043d54bc8cef5a881cb4cd71',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f3e882d6319dab1c71e0b86dacf13f7ef859701f',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -276,9 +276,9 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '907c04621e21b72e30a93ab3fa0292940217d372',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'acecd0942ffe9eaa39311e18579c563b1f9d2c4c',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '3ed0e2bc9df9d4a81baea89b88652a2e8e882ce9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '2074d6d7702e558e3c2ed3008964b86b93ef9a22',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '69b8c646978a1650f10ee7c355b85018a3e23909',
   'third_party/logdog/logdog':
