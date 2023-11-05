@@ -278,7 +278,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0a172216de1ce3668700eedf34daf0355bc5aec1',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '2074d6d7702e558e3c2ed3008964b86b93ef9a22',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0226cb1cdfe740b173394e1cebbd0dcf293e38ad',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '69b8c646978a1650f10ee7c355b85018a3e23909',
   'third_party/logdog/logdog':
