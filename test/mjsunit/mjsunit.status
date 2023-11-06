@@ -1318,16 +1318,23 @@
 ##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
-  # take too long with the simulator.
+  # Slow tests
+  'frozen-array-reduce': [PASS, SLOW],
+  'generated-transition-stub': [PASS, SLOW],
+  'harmony/regexp-property-lu-ui': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-708247': [PASS, SLOW],
+  'regress/regress-779407': [PASS, SLOW],
+  'regress/regress-1449567': [PASS, SLOW],
+  'tools/processor': [PASS, SLOW],
+  'tools/processor-bigint': [PASS, SLOW],
+  'whitespaces': [PASS, SLOW],
+
+  # Too slow tests.
   'regress/regress-1132': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-crbug-482998': [SKIP],
-  'regress/regress-91008': [PASS, SLOW],
-  'regress/regress-779407': [PASS, SLOW],
-  'regress/regress-1449567': [PASS, SLOW],
-  'harmony/regexp-property-lu-ui': [PASS, SLOW],
-  'whitespaces': [PASS, SLOW],
-  'generated-transition-stub': [PASS, SLOW],
 }],  # 'simulator_run and (arch in [ppc64, s390x])'
 
 ##############################################################################

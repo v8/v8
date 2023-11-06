@@ -24,7 +24,7 @@
   'regress/regress-crbug-1080638': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'runtime/console-messages-limits': [PASS, HEAVY],
+  'runtime/console-messages-limits': [PASS, SLOW, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
 }],  # ALWAYS
 
@@ -79,8 +79,7 @@
 
 ##############################################################################
 ['(arch == ppc64) and simulator_run', {
-  # Slow test: https://crbug.com/v8/10965
-  'runtime/console-messages-limits': [PASS, SLOW],
+  # Slow tests:
   'debugger/regress-1125934': [PASS, SLOW],
 }],  # (arch == ppc64) and simulator_run
 
