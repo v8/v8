@@ -2461,10 +2461,7 @@ DEFINE_BOOL(mock_arraybuffer_allocator, false,
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")
-#ifndef MULTI_MAPPED_ALLOCATOR_AVAILABLE
-#error MULTI_MAPPED_ALLOCATOR_AVAILABLE must be defined at this point.
-#endif  // MULTI_MAPPED_ALLOCATOR_AVAILABLE
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
 DEFINE_BOOL(multi_mapped_mock_allocator, false,
             "Use a multi-mapped mock ArrayBuffer allocator for testing.")
 #endif

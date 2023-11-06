@@ -435,10 +435,8 @@ class ShellOptions {
       "mock-arraybuffer-allocator", false};
   DisallowReassignment<size_t> mock_arraybuffer_allocator_limit = {
       "mock-arraybuffer-allocator-limit", 0};
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   DisallowReassignment<bool> multi_mapped_mock_allocator = {
       "multi-mapped-mock-allocator", false};
-#endif
   DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
