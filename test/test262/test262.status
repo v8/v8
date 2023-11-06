@@ -2455,7 +2455,7 @@
   'intl402/DisplayNames/prototype/of/type-language-invalid': [SKIP],
   'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined': [SKIP],
   'language/global-code/script-decl-lex-var-declared-via-eval-sloppy': [SKIP],
-}]
+}],
 # end import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
 ####
 

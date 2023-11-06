@@ -93,6 +93,8 @@ class V8TestImporter(TestImporter):
     if self.run_postbuild_phase():
       self.update_status_file(v8_test262_revision, test262_revision,
                               failure_lines)
+      # Output the import range for the recipe to pick up.
+      print(f'{TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}')
 
     if self.run_upload_phase():
       self.commit_and_upload_changes(v8_test262_revision, test262_revision)
@@ -261,7 +263,7 @@ class V8TestImporter(TestImporter):
         f'# Removed {removed}' for removed in removed_lines
     ]
     new_failing_tests_lines = ['[ALWAYS, {\n'] + added_lines + [
-        '}],', f'# End import test262@{test262_revision[:8]}', '####\n'
+        '}],\n', f'# End import test262@{test262_revision[:8]}\n', '####\n'
     ]
     return (status_lines_before_eof + import_header_lines +
             deleted_mentions_comment_lines + new_failing_tests_lines +
