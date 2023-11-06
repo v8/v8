@@ -506,27 +506,7 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   add(dst, location.rn(), Operand(location.offset()));
 }
 
-inline int MaglevAssembler::PushOrSetReturnAddressTo(Label* target) {
-  // This should be just a
-  //    add(lr, pc, branch_offset(target));
-  // but current implementation of Assembler::bind_to()/target_at_put() add
-  // (InstructionStream::kHeaderSize - kHeapObjectTag) to a position of a label
-  // in a "linked" state and thus making it usable only for mov_label_offset().
-  // TODO(ishell): fix branch_offset() and re-implement
-  // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
-  mov_label_offset(lr, target);
-  // mov_label_offset computes offset of the |target| relative to the "current
-  // InstructionStream object pointer" which is essentally pc_offset() of the
-  // label added with (InstructionStream::kHeaderSize - kHeapObjectTag).
-  // Compute "current InstructionStream object pointer" and add it to the
-  // offset in |lr| register.
-  int current_instr_code_object_relative_offset =
-      pc_offset() + Instruction::kPcLoadDelta +
-      (InstructionStream::kHeaderSize - kHeapObjectTag);
-  add(lr, pc, lr);
-  sub(lr, lr, Operand(current_instr_code_object_relative_offset));
-  return 0;
-}
+inline void MaglevAssembler::Call(Label* target) { bl(target); }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
