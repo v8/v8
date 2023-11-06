@@ -1059,6 +1059,17 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
               kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0))};
 
   EXPECT_VERIFIES(empty_group);
+
+  static const uint8_t mixed_empty_and_nonempty_groups[] = {SECTION(
+      Type,                                         // --
+      ENTRY_COUNT(4),                               // one rec. group
+      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0),  // empty
+      SIG_ENTRY_v_v,                                // one type
+      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(0),  // empty
+      SIG_ENTRY_v_v                                 // one type
+      )};
+
+  EXPECT_VERIFIES(mixed_empty_and_nonempty_groups);
 }
 
 // Tests that all types in a rec. group are checked for supertype validity.

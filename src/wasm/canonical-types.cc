@@ -27,6 +27,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
 
 void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
                                           uint32_t start_index) {
+  if (size == 0) return;
   // If the caller knows statically that {size == 1}, it should have called
   // {AddRecursiveSingletonGroup} directly. For cases where this is not
   // statically determined we add this dispatch here.
@@ -70,6 +71,13 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
     module->isorecursive_canonical_type_ids[start_index + i] =
         first_canonical_index + i;
   }
+  // Check that this canonical ID is not used yet.
+  DCHECK(std::none_of(
+      canonical_singleton_groups_.begin(), canonical_singleton_groups_.end(),
+      [=](auto& entry) { return entry.second == first_canonical_index; }));
+  DCHECK(std::none_of(
+      canonical_groups_.begin(), canonical_groups_.end(),
+      [=](auto& entry) { return entry.second == first_canonical_index; }));
   canonical_groups_.emplace(group, first_canonical_index);
 }
 
@@ -106,6 +114,13 @@ void TypeCanonicalizer::AddRecursiveSingletonGroup(WasmModule* module,
           ? canonical_type.type_def.supertype + first_canonical_index
           : canonical_type.type_def.supertype;
   module->isorecursive_canonical_type_ids[start_index] = first_canonical_index;
+  // Check that this canonical ID is not used yet.
+  DCHECK(std::none_of(
+      canonical_singleton_groups_.begin(), canonical_singleton_groups_.end(),
+      [=](auto& entry) { return entry.second == first_canonical_index; }));
+  DCHECK(std::none_of(
+      canonical_groups_.begin(), canonical_groups_.end(),
+      [=](auto& entry) { return entry.second == first_canonical_index; }));
   canonical_singleton_groups_.emplace(group, first_canonical_index);
 }
 
@@ -249,7 +264,9 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 // Returns the index of the canonical representative of the first type in this
 // group, or -1 if an identical group does not exist.
 int TypeCanonicalizer::FindCanonicalGroup(const CanonicalGroup& group) const {
-  DCHECK_NE(1, group.types.size());
+  // Groups of size 0 do not make sense here; groups of size 1 should use
+  // {CanonicalSingletonGroup} (see below).
+  DCHECK_LT(1, group.types.size());
   auto it = canonical_groups_.find(group);
   return it == canonical_groups_.end() ? -1 : it->second;
 }
