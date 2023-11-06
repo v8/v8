@@ -258,6 +258,17 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 }
 
 // static
+Callable CodeFactory::InterpreterForwardAllArgsThenConstruct(Isolate* isolate) {
+  return Builtins::CallableFor(
+      isolate, Builtin::kInterpreterForwardAllArgsThenConstruct);
+}
+
+// static
+Callable CodeFactory::ConstructForwardAllArgs(Isolate* isolate) {
+  return Builtins::CallableFor(isolate, Builtin::kConstructForwardAllArgs);
+}
+
+// static
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   Handle<Code> code =
       CodeFactory::CEntry(isolate, result_size, ArgvMode::kRegister);

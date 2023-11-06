@@ -1750,6 +1750,55 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
+// static
+void Builtins::Generate_ConstructForwardAllArgsImpl(
+    MacroAssembler* masm, ForwardWhichFrame which_frame) {
+  // ----------- S t a t e -------------
+  // -- r6 : new target
+  // -- r4 : constructor to call
+  // -----------------------------------
+  Label stack_overflow;
+
+  // Load the frame pointer into r7.
+  switch (which_frame) {
+    case ForwardWhichFrame::kCurrentFrame:
+      __ Move(r7, fp);
+      break;
+    case ForwardWhichFrame::kParentFrame:
+      __ LoadU64(r7, Operand(fp, StandardFrameConstants::kCallerFPOffset));
+      break;
+  }
+
+  // Load the argument count into r3.
+  __ LoadU64(r3, MemOperand(r7, StandardFrameConstants::kArgCOffset));
+  __ StackOverflowCheck(r3, ip, &stack_overflow);
+
+  // Point r7 to the base of the argument list to forward, excluding the
+  // receiver.
+  __ addi(r7, r7,
+          Operand((StandardFrameConstants::kFixedSlotCountAboveFp + 1) *
+                  kSystemPointerSize));
+
+  // Copy arguments on the stack. r8 is a scratch register.
+  Register argc_without_receiver = ip;
+  __ subi(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
+  __ PushArray(r7, argc_without_receiver, r8, r0);
+
+  // Push a slot for the receiver to be constructed.
+  __ li(r0, Operand::Zero());
+  __ push(r0);
+
+  // Call the constructor with r3, r4, and r6 unmodified.
+  __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // Unreachable Code.
+    __ bkpt(0);
+  }
+}
+
 namespace {
 
 void NewImplicitReceiver(MacroAssembler* masm) {

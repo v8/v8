@@ -878,6 +878,33 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
+void JSGenericLowering::LowerJSConstructForwardAllArgs(Node* node) {
+  // Inlined JSConstructForwardAllArgs are reduced earlier in the pipeline in
+  // JSCallReducer.
+  DCHECK(FrameState{NodeProperties::GetFrameStateInput(node)}
+             .outer_frame_state()
+             ->opcode() != IrOpcode::kFrameState);
+
+  JSConstructForwardAllArgsNode n(node);
+
+  // Call a builtin for forwarding the arguments of non-inlined (i.e. outermost)
+  // frames.
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kConstructForwardAllArgs);
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), 0, CallDescriptor::kNeedsFrameState);
+
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+
+  // Shuffling inputs.
+  // Before: {target, new target, feedback vector}
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  // After: {code, target, new target}
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+}
+
 void JSGenericLowering::LowerJSConstruct(Node* node) {
   JSConstructNode n(node);
   ConstructParameters const& p = n.Parameters();

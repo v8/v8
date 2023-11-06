@@ -1493,6 +1493,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructWithSpread(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructForwardAllArgs(
+    Register constructor, int feedback_slot_id) {
+  OutputConstructForwardAllArgs(constructor, feedback_slot_id);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, RegisterList args) {
   DCHECK_EQ(1, Runtime::FunctionForId(function_id)->result_size);

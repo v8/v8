@@ -6005,8 +6005,6 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register constructor_then_instance = register_allocator()->NewRegister();
 
   BytecodeLabel super_ctor_call_done;
-  bool omit_super_ctor = v8_flags.omit_default_ctors &&
-                         IsDerivedConstructor(info()->literal()->kind());
 
   if (spread_position == Call::kHasNonFinalSpread) {
     RegisterAllocationScope register_scope(this);
@@ -6023,18 +6021,8 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
         register_allocator()->GrowRegisterList(&construct_args);
     VisitForRegisterValue(super->new_target_var(), new_target);
 
-    if (omit_super_ctor) {
-      BuildSuperCallOptimization(this_function, new_target,
-                                 constructor_then_instance,
-                                 &super_ctor_call_done);
-    } else {
-      builder()
-          ->LoadAccumulatorWithRegister(this_function)
-          .GetSuperConstructor(constructor);
-    }
-
-    // Check if the constructor is in fact a constructor.
-    builder()->ThrowIfNotSuperConstructor(constructor);
+    BuildGetAndCheckSuperConstructor(this_function, new_target, constructor,
+                                     &super_ctor_call_done);
 
     // Now pass that array to %reflect_construct.
     builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, construct_args);
@@ -6049,18 +6037,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     VisitForRegisterValue(super->new_target_var(), new_target);
 
     const Register& constructor = constructor_then_instance;
-    if (omit_super_ctor) {
-      BuildSuperCallOptimization(this_function, new_target,
-                                 constructor_then_instance,
-                                 &super_ctor_call_done);
-    } else {
-      builder()
-          ->LoadAccumulatorWithRegister(this_function)
-          .GetSuperConstructor(constructor);
-    }
+    BuildGetAndCheckSuperConstructor(this_function, new_target, constructor,
+                                     &super_ctor_call_done);
 
-    // Check if the constructor is in fact a constructor.
-    builder()->ThrowIfNotSuperConstructor(constructor);
     builder()->LoadAccumulatorWithRegister(new_target);
     builder()->SetExpressionPosition(expr);
 
@@ -6087,6 +6066,12 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   builder()->StoreAccumulatorInRegister(instance);
   builder()->Bind(&super_ctor_call_done);
 
+  BuildInstanceInitializationAfterSuperCall(this_function, instance);
+  builder()->LoadAccumulatorWithRegister(instance);
+}
+
+void BytecodeGenerator::BuildInstanceInitializationAfterSuperCall(
+    Register this_function, Register instance) {
   // Explicit calls to the super constructor using super() perform an
   // implicit binding assignment to the 'this' variable.
   //
@@ -6133,8 +6118,25 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
       !IsDerivedConstructor(info()->literal()->kind())) {
     BuildInstanceMemberInitialization(this_function, instance);
   }
+}
 
-  builder()->LoadAccumulatorWithRegister(instance);
+void BytecodeGenerator::BuildGetAndCheckSuperConstructor(
+    Register this_function, Register new_target, Register constructor,
+    BytecodeLabel* super_ctor_call_done) {
+  bool omit_super_ctor = v8_flags.omit_default_ctors &&
+                         IsDerivedConstructor(info()->literal()->kind());
+
+  if (omit_super_ctor) {
+    BuildSuperCallOptimization(this_function, new_target, constructor,
+                               super_ctor_call_done);
+  } else {
+    builder()
+        ->LoadAccumulatorWithRegister(this_function)
+        .GetSuperConstructor(constructor);
+  }
+
+  // Check if the constructor is in fact a constructor.
+  builder()->ThrowIfNotSuperConstructor(constructor);
 }
 
 void BytecodeGenerator::BuildSuperCallOptimization(
@@ -6195,6 +6197,39 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
     DCHECK_EQ(spread_position, CallNew::kNoSpread);
     builder()->Construct(constructor, args, feedback_slot_index);
   }
+}
+
+void BytecodeGenerator::VisitSuperCallForwardArgs(SuperCallForwardArgs* expr) {
+  RegisterAllocationScope register_scope(this);
+
+  SuperCallReference* super = expr->expression();
+  Register this_function = VisitForRegisterValue(super->this_function_var());
+  Register new_target = VisitForRegisterValue(super->new_target_var());
+
+  // This register initially holds the constructor, then the instance.
+  Register constructor_then_instance = register_allocator()->NewRegister();
+
+  BytecodeLabel super_ctor_call_done;
+
+  {
+    const Register& constructor = constructor_then_instance;
+    BuildGetAndCheckSuperConstructor(this_function, new_target, constructor,
+                                     &super_ctor_call_done);
+
+    builder()->LoadAccumulatorWithRegister(new_target);
+    builder()->SetExpressionPosition(expr);
+    int feedback_slot_index = feedback_index(feedback_spec()->AddCallICSlot());
+
+    builder()->ConstructForwardAllArgs(constructor, feedback_slot_index);
+  }
+
+  // From here onwards, constructor_then_instance holds the instance.
+  const Register& instance = constructor_then_instance;
+  builder()->StoreAccumulatorInRegister(instance);
+  builder()->Bind(&super_ctor_call_done);
+
+  BuildInstanceInitializationAfterSuperCall(this_function, instance);
+  builder()->LoadAccumulatorWithRegister(instance);
 }
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {

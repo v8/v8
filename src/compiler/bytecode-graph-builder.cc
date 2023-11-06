@@ -2765,6 +2765,50 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitConstructForwardAllArgs() {
+  PrepareEagerCheckpoint();
+  interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
+  int const slot_id = bytecode_iterator().GetIndexOperand(1);
+  FeedbackSource feedback = CreateFeedbackSource(slot_id);
+  Node* new_target = environment()->LookupAccumulator();
+  Node* callee = environment()->LookupRegister(callee_reg);
+  CallFrequency frequency = ComputeCallFrequency(slot_id);
+
+  // Use 0 as a fake argument count.
+  //
+  // This op will be later reduced to either a builtin call (in the case of not
+  // being inlined) or a normal JSConstruct with the inlined arguments
+  // forwarded.
+  constexpr int arg_count = 0;
+  const int arity = JSConstructForwardAllArgsNode::ArityForArgc(arg_count);
+  Node** construct_args =
+      local_zone()->AllocateArray<Node*>(static_cast<size_t>(arity));
+  static_assert(JSConstructForwardAllArgsNode::TargetIndex() == 0);
+  static_assert(JSConstructForwardAllArgsNode::NewTargetIndex() == 1);
+  static_assert(JSConstructNode::kFeedbackVectorIsLastInput);
+  DCHECK_LT(JSConstructForwardAllArgsNode::NewTargetIndex(), arity);
+  int cursor = 0;
+  construct_args[cursor++] = callee;
+  construct_args[cursor++] = new_target;
+  construct_args[cursor++] = feedback_vector_node();
+
+  const Operator* op =
+      javascript()->ConstructForwardAllArgs(frequency, feedback);
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedConstruct(op, construct_args, arg_count, feedback.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = MakeNode(op, arity, construct_args);
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
   PrepareEagerCheckpoint();
   Runtime::FunctionId functionId = bytecode_iterator().GetIntrinsicIdOperand(0);

@@ -85,6 +85,7 @@ namespace internal {
   V(BinaryOperation)            \
   V(NaryOperation)              \
   V(Call)                       \
+  V(SuperCallForwardArgs)       \
   V(CallNew)                    \
   V(CallRuntime)                \
   V(ClassLiteral)               \
@@ -1794,6 +1795,24 @@ class CallNew final : public CallBase {
       : CallBase(zone, kCallNew, expression, arguments, pos, has_spread) {}
 };
 
+// SuperCallForwardArgs is not utterable in JavaScript. It is used to
+// implement the default derived constructor, which forwards all arguments to
+// the super constructor without going through the user-visible spread
+// machinery.
+class SuperCallForwardArgs final : public Expression {
+ public:
+  SuperCallReference* expression() const { return expression_; }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+
+  SuperCallForwardArgs(Zone* zone, SuperCallReference* expression, int pos)
+      : Expression(pos, kSuperCallForwardArgs), expression_(expression) {}
+
+  SuperCallReference* expression_;
+};
+
 // The CallRuntime class does not represent any official JavaScript
 // language construct. Instead it is used to call a C or JS function
 // with a set of arguments. This is used from the builtins that are
@@ -3115,6 +3134,11 @@ class AstNodeFactory final {
     DCHECK_IMPLIES(possibly_eval == Call::IS_POSSIBLY_EVAL, !optional_chain);
     return zone_->New<Call>(zone_, expression, arguments, pos, has_spread,
                             possibly_eval, optional_chain);
+  }
+
+  SuperCallForwardArgs* NewSuperCallForwardArgs(SuperCallReference* expression,
+                                                int pos) {
+    return zone_->New<SuperCallForwardArgs>(zone_, expression, pos);
   }
 
   Call* NewTaggedTemplate(Expression* expression,

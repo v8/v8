@@ -283,6 +283,9 @@ class Builtins {
   // Returns given builtin's slot in the tier0 builtin table.
   FullObjectSlot builtin_tier0_slot(Builtin builtin);
 
+  // Public for ia32-specific helper.
+  enum class ForwardWhichFrame { kCurrentFrame, kParentFrame };
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -291,9 +294,9 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
 
-  enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                               Handle<Code> code);
+  enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
                                                      Handle<Code> code);
@@ -319,6 +322,9 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
+
+  static void Generate_ConstructForwardAllArgsImpl(
+      MacroAssembler* masm, ForwardWhichFrame which_frame);
 
   static void Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                            CallApiCallbackMode mode);

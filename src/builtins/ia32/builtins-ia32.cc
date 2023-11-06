@@ -1394,6 +1394,126 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 namespace {
+void LoadFramePointer(MacroAssembler* masm, Register to,
+                      Builtins::ForwardWhichFrame which_frame) {
+  switch (which_frame) {
+    case Builtins::ForwardWhichFrame::kCurrentFrame:
+      __ mov(to, ebp);
+      break;
+    case Builtins::ForwardWhichFrame::kParentFrame:
+      __ mov(to, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+      break;
+  }
+}
+}  // namespace
+
+// static
+void Builtins::Generate_ConstructForwardAllArgsImpl(
+    MacroAssembler* masm, ForwardWhichFrame which_frame) {
+  // ----------- S t a t e -------------
+  //  -- edx     : the new target
+  //  -- edi     : the constructor
+  //  -- esp[0]  : return address
+  // -----------------------------------
+  Label stack_overflow;
+
+  // Load the frame into ecx.
+  LoadFramePointer(masm, ecx, which_frame);
+
+  // Load the argument count into eax.
+  __ mov(eax, Operand(ecx, StandardFrameConstants::kArgCOffset));
+
+  // The following stack surgery is performed to forward arguments from the
+  // interpreted frame.
+  //
+  //  current stack    =====>    required stack layout
+  // |             |            | saved new target  | (2)
+  // |             |            | saved constructor | (2)
+  // |             |            | return addr       | (3) <-- esp (1)
+  // |             |            | arg N             | (5)
+  // |             |            | ....              | (5)
+  // |             |            | arg 0             | (5)
+  // | return addr | <-- esp    | 0 (receiver)      | (4)
+  //
+  // The saved new target and constructor are popped to their respective
+  // registers before calling the Construct builtin.
+
+  // Step 1
+  //
+  // Update the stack pointer, using ecx as a scratch register.
+  __ StackOverflowCheck(eax, ecx, &stack_overflow, true);
+  __ lea(ecx, Operand(eax, times_system_pointer_size, 0));
+  __ AllocateStackSpace(ecx);
+
+  // Step 2
+  //
+  // Save the new target and constructor on the stack so they can be used as
+  // scratch registers.
+  __ Push(edi);
+  __ Push(edx);
+
+  // Step 3
+  //
+  // Move the return address. Stack address computations have to be offset by
+  // the saved constructor and new target on the stack.
+  constexpr int spilledConstructorAndNewTargetOffset = 2 * kSystemPointerSize;
+  __ mov(edx, Operand(esp, eax, times_system_pointer_size,
+                      spilledConstructorAndNewTargetOffset));
+  __ mov(Operand(esp, spilledConstructorAndNewTargetOffset), edx);
+
+  // Step 4
+  // Push a 0 for the receiver to be allocated.
+  __ mov(
+      Operand(esp, kSystemPointerSize + spilledConstructorAndNewTargetOffset),
+      Immediate(0));
+
+  // Step 5
+  //
+  // Forward the arguments from the frame.
+
+  // First reload the frame pointer into ecx.
+  LoadFramePointer(masm, ecx, which_frame);
+
+  // Point ecx to the base of the arguments, excluding the receiver.
+  __ add(ecx, Immediate((StandardFrameConstants::kFixedSlotCountAboveFp + 1) *
+                        kSystemPointerSize));
+  {
+    // Copy the arguments.
+    Register counter = edx;
+    Register scratch = edi;
+
+    Label loop, entry;
+    __ mov(counter, eax);
+    __ jmp(&entry);
+    __ bind(&loop);
+    // The source frame's argument is offset by -kSystemPointerSize because the
+    // counter with an argument count inclusive of the receiver.
+    __ mov(scratch, Operand(ecx, counter, times_system_pointer_size,
+                            -kSystemPointerSize));
+    // Similarly, the target frame's argument is offset by +kSystemPointerSize
+    // because we pushed a 0 for the receiver to be allocated.
+    __ mov(Operand(esp, counter, times_system_pointer_size,
+                   kSystemPointerSize + spilledConstructorAndNewTargetOffset),
+           scratch);
+    __ bind(&entry);
+    __ dec(counter);
+    __ j(greater_equal, &loop, Label::kNear);
+  }
+
+  // Pop the saved constructor and new target, then call the appropriate
+  // constructor. eax already contains the argument count.
+  __ Pop(kJavaScriptCallNewTargetRegister);
+  __ Pop(kJavaScriptCallTargetRegister);
+  __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    __ int3();
+  }
+}
+
+namespace {
 
 void NewImplicitReceiver(MacroAssembler* masm) {
   // ----------- S t a t e -------------

@@ -162,6 +162,14 @@ class CallArguments {
     DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
   }
 
+  CallArguments(ConvertReceiverMode receiver_mode,
+                base::SmallVector<ValueNode*, 8>&& args, Mode mode = kDefault)
+      : receiver_mode_(receiver_mode), args_(std::move(args)), mode_(mode) {
+    DCHECK_IMPLIES(mode != kDefault,
+                   receiver_mode == ConvertReceiverMode::kAny);
+    DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+  }
+
   ValueNode* receiver() const {
     if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
       return nullptr;
@@ -7707,6 +7715,30 @@ void MaglevGraphBuilder::VisitConstructWithSpread() {
       },
       feedback_source, constructor, new_target, context);
   SetAccumulator(construct);
+}
+
+void MaglevGraphBuilder::VisitConstructForwardAllArgs() {
+  ValueNode* new_target = GetAccumulatorTagged();
+  ValueNode* target = LoadRegisterTagged(0);
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  if (is_inline()) {
+    int argc = inlined_arguments_ ? static_cast<int>(inlined_arguments_->size())
+                                  : parameter_count();
+    base::SmallVector<ValueNode*, 8> forwarded_args(argc);
+    for (int i = 1 /* skip receiver */; i < argc; ++i) {
+      forwarded_args[i] = GetTaggedArgument(i);
+    }
+    CallArguments args(ConvertReceiverMode::kNullOrUndefined,
+                       std::move(forwarded_args));
+    BuildConstruct(target, new_target, args, feedback_source);
+  } else {
+    // TODO(syg): Add ConstructForwardAllArgs reductions and support inlining.
+    SetAccumulator(
+        BuildCallBuiltin<Builtin::kConstructForwardAllArgs_WithFeedback>(
+            {target, new_target}, feedback_source));
+  }
 }
 
 void MaglevGraphBuilder::VisitTestEqual() {

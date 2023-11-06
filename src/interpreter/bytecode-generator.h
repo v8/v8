@@ -350,6 +350,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
+  void BuildInstanceInitializationAfterSuperCall(Register this_function,
+                                                 Register instance);
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
   void BuildPrivateBrandCheck(Property* property, Register object);
   void BuildPrivateMethodIn(Variable* private_name,
@@ -434,6 +436,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);
 
+  void BuildGetAndCheckSuperConstructor(Register this_function,
+                                        Register new_target,
+                                        Register constructor,
+                                        BytecodeLabel* super_ctor_call_done);
   void BuildSuperCallOptimization(Register this_function, Register new_target,
                                   Register constructor_then_instance,
                                   BytecodeLabel* super_ctor_call_done);

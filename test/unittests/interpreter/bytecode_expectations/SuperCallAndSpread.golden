@@ -17,23 +17,20 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 9
+frame size: 7
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 31
 bytecodes: [
-  /*   93 E> */ B(CreateRestParameter),
-                B(Star2),
                 B(Mov), R(closure), R(1),
-  /*   93 S> */ B(FindNonDefaultConstructorOrConstruct), R(1), R(0), R(7),
-                B(Mov), R(2), R(5),
-                B(Ldar), R(7),
-                B(Mov), R(1), R(3),
-                B(Mov), R(0), R(6),
-                B(Mov), R(8), R(4),
-                B(JumpIfTrue), U8(12),
+  /*   93 S> */ B(FindNonDefaultConstructorOrConstruct), R(1), R(0), R(5),
+                B(Ldar), R(5),
+                B(Mov), R(1), R(2),
+                B(Mov), R(0), R(3),
+                B(Mov), R(6), R(4),
+                B(JumpIfTrue), U8(10),
                 B(ThrowIfNotSuperConstructor), R(4),
-                B(Ldar), R(6),
-  /*   93 E> */ B(ConstructWithSpread), R(4), R(5), U8(1), U8(0),
+                B(Ldar), R(3),
+  /*   93 E> */ B(ConstructForwardAllArgs), R(4), U8(0),
                 B(Star4),
                 B(Ldar), R(4),
   /*   93 S> */ B(Return),

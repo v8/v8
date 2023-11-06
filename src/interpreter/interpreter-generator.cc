@@ -1582,7 +1582,7 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
   CallJSWithSpreadAndDispatch(callable, context, args, slot_id);
 }
 
-// ConstructWithSpread <first_arg> <arg_count>
+// ConstructWithSpread <constructor> <first_arg> <arg_count>
 //
 // Call the constructor in |constructor| with the first argument in register
 // |first_arg| and |arg_count| arguments in subsequent registers. The final
@@ -1596,6 +1596,22 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<Object> result =
       ConstructWithSpread(constructor, context, new_target, args, slot_id);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// ConstructForwardAllArgs <constructor>
+//
+// Call the constructor in |constructor|, forwarding all arguments in the
+// current frame. The new.target is in the accumulator.
+//
+IGNITION_HANDLER(ConstructForwardAllArgs, InterpreterAssembler) {
+  TNode<Object> new_target = GetAccumulator();
+  TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
+  TNode<UintPtrT> slot_id = BytecodeOperandIdx(1);
+  TNode<Context> context = GetContext();
+  TNode<Object> result =
+      ConstructForwardAllArgs(constructor, context, new_target, slot_id);
   SetAccumulator(result);
   Dispatch();
 }

@@ -207,6 +207,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                     const RegListNodePair& args,
                                     TNode<UintPtrT> slot_id);
 
+  // Call constructor |target|, forwarding all arguments in the current JS
+  // frame.
+  TNode<Object> ConstructForwardAllArgs(TNode<Object> target,
+                                        TNode<Context> context,
+                                        TNode<Object> new_target,
+
+                                        TNode<UintPtrT> slot_id);
+
   // Call runtime function with |args| arguments.
   template <class T = Object>
   TNode<T> CallRuntimeN(TNode<Uint32T> function_id, TNode<Context> context,

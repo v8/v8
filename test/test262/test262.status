@@ -271,9 +271,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # http://crbug/v8/11533
-  'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=13173
   'built-ins/RegExp/duplicate-named-capturing-groups-syntax': [FAIL],
   'built-ins/RegExp/named-groups/duplicate-names-group-property-enumeration-order': [FAIL],

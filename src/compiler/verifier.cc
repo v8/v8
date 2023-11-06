@@ -838,6 +838,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     }
 
     case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstructForwardAllArgs:
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:

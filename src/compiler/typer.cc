@@ -1710,6 +1710,10 @@ Type Typer::Visitor::TypeJSConstructForwardVarargs(Node* node) {
   return Type::Receiver();
 }
 
+Type Typer::Visitor::TypeJSConstructForwardAllArgs(Node* node) {
+  return Type::Receiver();
+}
+
 Type Typer::Visitor::TypeJSConstruct(Node* node) { return Type::Receiver(); }
 
 Type Typer::Visitor::TypeJSConstructWithArrayLike(Node* node) {

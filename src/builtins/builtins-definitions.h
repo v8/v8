@@ -143,6 +143,10 @@ namespace internal {
   TFC(ConstructWithArrayLike_WithFeedback,                                     \
       ConstructWithArrayLike_WithFeedback)                                     \
   ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
+  ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                        \
+  TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)      \
+  TFC(ConstructForwardAllArgs_WithFeedback,                                    \
+      ConstructForwardAllArgs_WithFeedback)                                    \
   ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
   TFC(Construct_Baseline, Construct_Baseline)                                  \
   TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
@@ -181,6 +185,7 @@ namespace internal {
   /* JSFunction in the form of bytecodes */                                    \
   ASM(InterpreterEntryTrampoline, JSTrampoline)                                \
   ASM(InterpreterEntryTrampolineForProfiling, JSTrampoline)                    \
+  ASM(InterpreterForwardAllArgsThenConstruct, ConstructForwardAllArgs)         \
   ASM(InterpreterPushArgsThenCall, InterpreterPushArgsThenCall)                \
   ASM(InterpreterPushUndefinedAndArgsThenCall, InterpreterPushArgsThenCall)    \
   ASM(InterpreterPushArgsThenCallWithFinalSpread, InterpreterPushArgsThenCall) \

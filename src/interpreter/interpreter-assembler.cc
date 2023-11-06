@@ -885,6 +885,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
 
 #ifndef V8_JITLESS
+  // TODO(syg): Is the feedback collection logic here the same as
+  // CollectConstructFeedback?
   Label extra_checks(this, Label::kDeferred), construct(this);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   GotoIf(IsUndefined(maybe_feedback_vector), &construct);
@@ -999,6 +1001,32 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   return CallStub(callable, context, args_count, args.base_reg_location(),
                   target, new_target, UndefinedConstant());
+}
+
+// TODO(v8:13249): Add a FastConstruct variant to avoid pushing arguments twice
+// (once here, and once again in construct stub).
+TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
+    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<UintPtrT> slot_id) {
+  DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
+  TVARIABLE(Object, var_result);
+  TVARIABLE(AllocationSite, var_site);
+
+#ifndef V8_JITLESS
+  Label construct(this);
+
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
+
+  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           &construct, &construct, &var_site);
+  BIND(&construct);
+#endif  // !V8_JITLESS
+
+  Callable callable =
+      CodeFactory::InterpreterForwardAllArgsThenConstruct(isolate());
+  return CallStub(callable, context, target, new_target);
 }
 
 template <class T>

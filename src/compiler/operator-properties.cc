@@ -226,6 +226,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSConstructForwardAllArgs:
     case IrOpcode::kJSCallForwardVarargs:
     case IrOpcode::kJSCall:
     case IrOpcode::kJSCallWithArrayLike:

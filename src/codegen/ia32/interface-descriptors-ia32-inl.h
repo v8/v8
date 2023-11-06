@@ -332,6 +332,12 @@ constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
 }
 
 // static
+constexpr auto ConstructForwardAllArgsDescriptor::registers() {
+  return RegisterArray(edi,   // the constructor
+                       edx);  // the new target
+}
+
+// static
 constexpr auto ResumeGeneratorDescriptor::registers() {
   return RegisterArray(eax,   // the value to pass to the generator
                        edx);  // the JSGeneratorObject to resume

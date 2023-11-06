@@ -213,6 +213,7 @@
 
 #define JS_CONSTRUCT_OP_LIST(V) \
   V(JSConstructForwardVarargs)  \
+  V(JSConstructForwardAllArgs)  \
   V(JSConstruct)                \
   V(JSConstructWithArrayLike)   \
   V(JSConstructWithSpread)
