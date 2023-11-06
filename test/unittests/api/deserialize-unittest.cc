@@ -306,6 +306,18 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                : i::MaybeObject::MakeWeak(i::MaybeObject::FromObject(obj));
   }
 
+  static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
+      i::Tagged<i::SharedFunctionInfo> sfi) {
+    i::Tagged<i::Object> data = sfi->function_data(kAcquireLoad);
+    // BytecodeArrays live in trusted space and so cannot be referenced through
+    // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
+    // use their in-sandbox wrapper object for that purpose.
+    if (i::IsBytecodeArray(data)) {
+      data = i::BytecodeArray::cast(data)->wrapper();
+    }
+    return data;
+  }
+
   void ValidateStandaloneGraphAndPopulateArray(
       i::Tagged<i::SharedFunctionInfo> toplevel_sfi,
       i::Tagged<i::WeakFixedArray> array, bool lazy_should_be_compiled = false,
@@ -314,7 +326,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     CHECK(toplevel_sfi->is_compiled());
     array->set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
     array->set(kToplevelFunctionData,
-               WeakOrSmi(toplevel_sfi->function_data(kAcquireLoad)));
+               WeakOrSmi(ExtractSharedFunctionInfoData(toplevel_sfi)));
     array->set(kToplevelFeedbackMetadata,
                WeakOrSmi(toplevel_sfi->feedback_metadata()));
     i::Tagged<i::Script> script = i::Script::cast(toplevel_sfi->script());
@@ -328,14 +340,14 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     array->set(kEagerSfi, WeakOrSmi(eager));
     if (eager_should_be_compiled) {
       array->set(kEagerFunctionData,
-                 WeakOrSmi(eager->function_data(kAcquireLoad)));
+                 WeakOrSmi(ExtractSharedFunctionInfoData(eager)));
       array->set(kEagerFeedbackMetadata, WeakOrSmi(eager->feedback_metadata()));
       i::Tagged<i::SharedFunctionInfo> iife =
           i::SharedFunctionInfo::cast(sfis->get(2).GetHeapObjectAssumeWeak());
       CHECK(iife->is_compiled());
       array->set(kIifeSfi, WeakOrSmi(iife));
       array->set(kIifeFunctionData,
-                 WeakOrSmi(iife->function_data(kAcquireLoad)));
+                 WeakOrSmi(ExtractSharedFunctionInfoData(iife)));
       array->set(kIifeFeedbackMetadata, WeakOrSmi(iife->feedback_metadata()));
     }
     i::Tagged<i::SharedFunctionInfo> lazy =
