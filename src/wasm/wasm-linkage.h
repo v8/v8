@@ -130,6 +130,24 @@ constexpr DoubleRegister kFpReturnRegisters[] = {};
 
 #endif
 
+#if V8_TARGET_ARCH_PPC64
+// Platforms where a Floating Point value is represented in Double Precision
+// format in a FP register.
+constexpr bool kIsFpAlwaysDouble = true;
+#else
+constexpr bool kIsFpAlwaysDouble = false;
+#endif
+#if V8_TARGET_BIG_ENDIAN
+constexpr bool kIsBigEndian = true;
+#else
+constexpr bool kIsBigEndian = false;
+#endif
+#if V8_TARGET_ARCH_S390_LE_SIM
+constexpr bool kIsBigEndianOnSim = true;
+#else
+constexpr bool kIsBigEndianOnSim = false;
+#endif
+
 // The parameter index where the instance parameter should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
 constexpr int kWasmInstanceParameterIndex = 0;

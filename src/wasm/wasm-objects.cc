@@ -1986,7 +1986,8 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
     return false;
   }
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64 &&                     \
+    !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390X
   return false;
 #else
   if (suspend == wasm::kSuspend) return false;

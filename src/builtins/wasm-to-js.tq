@@ -31,6 +31,29 @@ extern macro StackAlignmentInBytes(): intptr;
 const kSignatureOffset: constexpr intptr
     generates 'WasmToJSWrapperConstants::kSignatureOffset';
 
+// macro for handling platform specific f32 returns.
+macro HandleF32Returns(
+    context: NativeContext, locationAllocator: LocationAllocator,
+    toRef: &intptr, retVal: JSAny): void {
+  if constexpr (kIsFpAlwaysDouble) {
+    if (locationAllocator.GetRemainingFPRegs() >= 0) {
+      *RefCast<float64>(toRef) = ChangeTaggedToFloat64(retVal);
+    } else {
+      *RefCast<float32>(toRef) = WasmTaggedToFloat32(retVal);
+    }
+  } else if constexpr (kIsBigEndian) {
+    *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)))
+        << 32;
+  } else if constexpr (kIsBigEndianOnSim) {
+    if (locationAllocator.GetRemainingFPRegs() >= 0) {
+      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)))
+          << 32;
+    } else {
+      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+    }
+  }
+}
+
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // Spill the signature on the stack so that it can be read by the GC. This is
@@ -87,11 +110,32 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     const paramType = paramIt.NextNotEmpty();
     if (paramType == kWasmI32Type) {
       const slot = locationAllocator.GetGPSlot();
-      const val = *RefCast<int32>(slot);
+      let val: int32;
+      if constexpr (kIsBigEndian) {
+        val = TruncateInt64ToInt32(*RefCast<int64>(slot));
+      } else {
+        val = *RefCast<int32>(slot);
+      }
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else if (paramType == kWasmF32Type) {
       const slot = locationAllocator.GetFP32Slot();
-      const val = *RefCast<float32>(slot);
+      let val: float32;
+      if constexpr (kIsFpAlwaysDouble) {
+        if (locationAllocator.GetRemainingFPRegs() >= 0) {
+          val = TruncateFloat64ToFloat32(*RefCast<float64>(slot));
+        } else {
+          val = *RefCast<float32>(slot);
+        }
+      } else if constexpr (kIsBigEndianOnSim) {
+        if (locationAllocator.GetRemainingFPRegs() >= 0) {
+          val = BitcastInt32ToFloat32(
+              TruncateInt64ToInt32(*RefCast<int64>(slot) >> 32));
+        } else {
+          val = *RefCast<float32>(slot);
+        }
+      } else {
+        val = *RefCast<float32>(slot);
+      }
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else if (paramType == kWasmI64Type) {
       if constexpr (Is64()) {
@@ -191,7 +235,11 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       }
     } else if (retType == kWasmF32Type) {
       let toRef = locationAllocator.GetFP32Slot();
-      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+      if constexpr (kIsFpAlwaysDouble || kIsBigEndian || kIsBigEndianOnSim) {
+        HandleF32Returns(context, locationAllocator, toRef, retVal);
+      } else {
+        *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+      }
     } else if (retType == kWasmF64Type) {
       let toRef = locationAllocator.GetFP64Slot();
       *RefCast<float64>(toRef) = ChangeTaggedToFloat64(retVal);

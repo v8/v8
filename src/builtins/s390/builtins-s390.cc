@@ -3085,7 +3085,27 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
-void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) { __ Trap(); }
+void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  // Push registers in reverse order so that they are on the stack like
+  // in an array, with the first item being at the lowest address.
+  DoubleRegList fp_regs;
+  for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+    fp_regs.set(fp_param_reg);
+  }
+  __ MultiPushDoubles(fp_regs);
+
+  // Push the GP registers in reverse order so that they are on the stack like
+  // in an array, with the first item being at the lowest address.
+  RegList gp_regs;
+  for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
+    gp_regs.set(wasm::kGpParamRegisters[i]);
+  }
+  __ MultiPush(gp_regs);
+  // Push an arbitrary register to reserve stack space for the signature which
+  // will be spilled on the stack in Torque.
+  __ Push(r0);
+  __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
+}
 
 void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ Trap();
