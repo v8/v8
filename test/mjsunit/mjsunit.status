@@ -135,6 +135,7 @@
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
+  'compiler/regress-crbug-11564': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
