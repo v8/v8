@@ -1477,8 +1477,6 @@ DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, true, "enable final types as default for wasm-gc")
 
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
-// Stage wasm inlining in --future.
-DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
