@@ -177,6 +177,11 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
 TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
                           kBytecodeOffset, kBytecodeArrayIndirectPointerTag)
 
+void BytecodeWrapper::clear_padding() {
+  WriteField<int32_t>(kPadding1Offset, 0);
+  WriteField<int32_t>(kPadding2Offset, 0);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -22,6 +22,8 @@ extern class BytecodeArray extends ExposedTrustedObject {
 @cppObjectDefinition
 extern class BytecodeWrapper extends Struct {
   bytecode: IndirectPointer<BytecodeArray>;
+  padding1: int32;
+  padding2: int32;
 }
 
 extern class Code extends ExposedTrustedObject;

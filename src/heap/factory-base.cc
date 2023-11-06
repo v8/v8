@@ -308,6 +308,7 @@ Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
   // verifier might see the wrapper before the field can be set, we need to
   // clear the field here.
   wrapper->clear_bytecode();
+  wrapper->clear_padding();
   return wrapper;
 }
 

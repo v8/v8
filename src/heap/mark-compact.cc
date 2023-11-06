@@ -2921,14 +2921,19 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       [](Tagged<HeapObject> object, ObjectSlot slot,
          Tagged<HeapObject> target) { RecordSlot(object, slot, target); });
 
-  // The size of the bytecode array should always be larger than an
-  // UncompiledData object.
-  static_assert(BytecodeArray::SizeFor(0) >=
+  // Replace the bytecode with an uncompiled data object.
+  // As the bytecode arrays itself is located in trusted space, we cannot
+  // convert that object, but instead need to convert another object living
+  // inside the main pointer compression cage. The wrapper object is suitable
+  // for that purpose. The size of the bytecode wrapper must therefore match
+  // that of an UncompiledData object (it could also be larger, but it's most
+  // efficient if the sizes match because then we can avoid creating a filler
+  // object for the leftover space in the wrapper object).
+  static_assert(BytecodeWrapper::kSize ==
                 UncompiledDataWithoutPreparseData::kSize);
-
-  // Replace bytecode array with an uncompiled data array.
-  Tagged<HeapObject> compiled_data =
+  Tagged<BytecodeArray> bytecode_array =
       shared_info->GetBytecodeArray(heap_->isolate());
+  Tagged<HeapObject> compiled_data = bytecode_array->wrapper();
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data->Size());
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
@@ -2952,14 +2957,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   compiled_data->set_map_after_allocation(
       ReadOnlyRoots(heap_).uncompiled_data_without_preparse_data_map(),
       SKIP_WRITE_BARRIER);
-
-  // Create a filler object for any left over space in the bytecode array.
-  if (!heap_->IsLargeObject(compiled_data)) {
-    const int aligned_filler_offset =
-        ALIGN_TO_ALLOCATION_ALIGNMENT(UncompiledDataWithoutPreparseData::kSize);
-    heap_->CreateFillerObjectAt(compiled_data.address() + aligned_filler_offset,
-                                compiled_data_size - aligned_filler_offset);
-  }
 
   // Initialize the uncompiled data.
   Tagged<UncompiledData> uncompiled_data = UncompiledData::cast(compiled_data);
