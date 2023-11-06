@@ -238,6 +238,27 @@ class WasmFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   DEFINE_TYPED_FRAME_SIZES(1);
+
+  // The WasmTrapHandlerLandingPad builtin gets called from the WebAssembly
+  // trap handler when an out-of-bounds memory access happened or when a null
+  // reference gets dereferenced. This builtin then fakes a call from the
+  // instruction that triggered the signal to the runtime. This is done by
+  // setting a return address and then jumping to a builtin which will call
+  // further to the runtime. As the return address we use the fault address +
+  // {kProtectedInstructionReturnAddressOffset}. Using the fault address itself
+  // would cause problems with safepoints and source positions.
+  //
+  // The problem with safepoints is that a safepoint has to be registered at the
+  // return address, and that at most one safepoint should be registered at a
+  // location. However, there could already be a safepoint registered at the
+  // fault address if the fault address is the return address of a call.
+  //
+  // The problem with source positions is that the stack trace code looks for
+  // the source position of a call before the return address. The source
+  // position of the faulty memory access, however, is recorded at the fault
+  // address. Therefore the stack trace code would not find the source position
+  // if we used the fault address as the return address.
+  static constexpr int kProtectedInstructionReturnAddressOffset = 1;
 };
 
 class WasmExitFrameConstants : public WasmFrameConstants {

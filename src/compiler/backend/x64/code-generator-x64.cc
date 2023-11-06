@@ -502,7 +502,9 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     // we use as the fake return address in the case of the trap handler is the
     // fault address (here `pc`) + 1. Therefore the safepoint here has to be
     // recorded at pc + 1;
-    codegen->RecordSafepoint(reference_map, pc + 1);
+    codegen->RecordSafepoint(
+        reference_map,
+        pc + WasmFrameConstants::kProtectedInstructionReturnAddressOffset);
     codegen->RecordProtectedInstruction(pc);
   }
 }
