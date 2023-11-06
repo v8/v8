@@ -24,6 +24,7 @@
 #include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/task-handle.h"
@@ -483,7 +484,7 @@ class SweepFinalizer final {
     if (page_state->is_empty) {
       if (empty_page_handling_ == EmptyPageHandling::kDestroy ||
           page->is_large()) {
-        BasePage::Destroy(page);
+        BasePage::Destroy(page, free_memory_handling_);
         return;
       }
 
@@ -615,7 +616,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
             : SweepNormalPage<InlinedFinalizationBuilder<RegularFreeHandler>>(
                   &page, *platform_->GetPageAllocator(), sticky_bits_);
     if (result.is_empty) {
-      NormalPage::Destroy(&page);
+      NormalPage::Destroy(&page, free_memory_handling_);
     } else {
       // The page was eagerly finalized and all the freelist have been merged.
       // Verify that the bitmap is consistent with headers.
@@ -986,6 +987,9 @@ class Sweeper::SweeperImpl final {
     DCHECK(notify_done_pending_);
     notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
+    if (config_.free_memory_handling ==
+        FreeMemoryHandling::kDiscardWherePossible)
+      heap_.heap()->page_backend()->DiscardPooledPages();
   }
 
   void NotifyDoneIfNeeded() {
