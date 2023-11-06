@@ -4762,16 +4762,48 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32AsmjsRemS: {
+        // General case for signed integer modulus, with optimization for
+        // (unknown) power of 2 right hand side.
+        //
+        //   if 0 < rhs then
+        //     mask = rhs - 1
+        //     if rhs & mask != 0 then
+        //       lhs % rhs
+        //     else
+        //       if lhs < 0 then
+        //         -(-lhs & mask)
+        //       else
+        //         lhs & mask
+        //   else
+        //     if rhs < -1 then
+        //       lhs % rhs
+        //     else
+        //       zero
         Label<Word32> done(&asm_);
-        IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
-          GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
-          IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
-            GOTO(done, __ Word32Constant(0));
+        IF (__ Int32LessThan(0, rhs)) {
+          V<Word32> mask = __ Word32Sub(rhs, 1);
+          IF (__ Word32Equal(__ Word32BitwiseAnd(rhs, mask), 0)) {
+            IF (UNLIKELY(__ Int32LessThan(lhs, 0))) {
+              V<Word32> neg_lhs = __ Word32Sub(0, lhs);
+              V<Word32> combined = __ Word32BitwiseAnd(neg_lhs, mask);
+              GOTO(done, __ Word32Sub(0, combined));
+            }
+            ELSE {
+              GOTO(done, __ Word32BitwiseAnd(lhs, mask));
+            }
+            END_IF
           }
           ELSE {
             GOTO(done, __ Int32Mod(lhs, rhs));
+          }
+          END_IF
+        }
+        ELSE {
+          IF (__ Int32LessThan(rhs, -1)) {
+            GOTO(done, __ Int32Mod(lhs, rhs));
+          }
+          ELSE {
+            GOTO(done, __ Word32Constant(0));
           }
           END_IF
         }
