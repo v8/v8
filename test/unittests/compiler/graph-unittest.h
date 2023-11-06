@@ -29,7 +29,9 @@ using ::testing::Matcher;
 class GraphTest : public TestWithNativeContextAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
-  ~GraphTest() override;
+  ~GraphTest() override = default;
+
+  void Reset();
 
   Node* start() { return graph()->start(); }
   Node* end() { return graph()->end(); }
@@ -63,11 +65,11 @@ class GraphTest : public TestWithNativeContextAndZone {
   Matcher<Node*> IsNullConstant();
   Matcher<Node*> IsUndefinedConstant();
 
-  CommonOperatorBuilder* common() { return &common_; }
-  Graph* graph() { return &graph_; }
-  SourcePositionTable* source_positions() { return &source_positions_; }
-  NodeOriginTable* node_origins() { return &node_origins_; }
-  JSHeapBroker* broker() { return &broker_; }
+  CommonOperatorBuilder* common() { return &data_->common_; }
+  Graph* graph() { return &data_->graph_; }
+  SourcePositionTable* source_positions() { return &data_->source_positions_; }
+  NodeOriginTable* node_origins() { return &data_->node_origins_; }
+  JSHeapBroker* broker() { return &data_->broker_; }
   template <typename T>
   Handle<T> CanonicalHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -81,18 +83,24 @@ class GraphTest : public TestWithNativeContextAndZone {
   Handle<T> CanonicalHandle(Handle<T> handle) {
     return CanonicalHandle(*handle);
   }
-  TickCounter* tick_counter() { return &tick_counter_; }
+  TickCounter* tick_counter() { return &data_->tick_counter_; }
 
  private:
-  CommonOperatorBuilder common_;
-  Graph graph_;
-  JSHeapBroker broker_;
-  JSHeapBrokerScopeForTesting broker_scope_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
-  CurrentHeapBrokerScope current_broker_;
-  SourcePositionTable source_positions_;
-  NodeOriginTable node_origins_;
-  TickCounter tick_counter_;
+  struct Data {
+    Data(Isolate* isolate, Zone* zone, int num_parameters);
+    ~Data();
+    CommonOperatorBuilder common_;
+    Graph graph_;
+    JSHeapBroker broker_;
+    JSHeapBrokerScopeForTesting broker_scope_;
+    std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+    CurrentHeapBrokerScope current_broker_;
+    SourcePositionTable source_positions_;
+    NodeOriginTable node_origins_;
+    TickCounter tick_counter_;
+    int num_parameters_;
+  };
+  std::unique_ptr<Data> data_;
 };
 
 
