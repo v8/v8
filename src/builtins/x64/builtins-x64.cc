@@ -689,8 +689,9 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, &done, Label::kNear);
 
-  __ LoadTaggedField(
-      sfi_data, FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadTrustedPointerField(
+      sfi_data, FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset),
+      kBytecodeArrayIndirectPointerTag, scratch1);
 
   __ bind(&done);
 }

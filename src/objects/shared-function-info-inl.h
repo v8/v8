@@ -102,6 +102,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
+TRUSTED_POINTER_ACCESSORS(InterpreterData, bytecode_array, BytecodeArray,
+                          kBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
 
@@ -614,28 +618,28 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
 
   DCHECK(HasBytecodeArray());
 
-  base::Optional<Tagged<DebugInfo>> debug_info =
-      TryGetDebugInfo(isolate->GetMainThreadIsolateUnsafe());
+  Isolate* main_isolate = isolate->GetMainThreadIsolateUnsafe();
+  base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(main_isolate);
   if (debug_info.has_value() &&
       debug_info.value()->HasInstrumentedBytecodeArray()) {
-    return debug_info.value()->OriginalBytecodeArray(
-        isolate->GetMainThreadIsolateUnsafe());
+    return debug_info.value()->OriginalBytecodeArray(main_isolate);
   }
 
-  return GetActiveBytecodeArray();
+  return GetActiveBytecodeArray(main_isolate);
 }
 
-DEF_GETTER(SharedFunctionInfo, GetActiveBytecodeArray, Tagged<BytecodeArray>) {
+Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
+    const Isolate* isolate) const {
   Tagged<Object> data = function_data(kAcquireLoad);
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
-    data = baseline_code->bytecode_or_interpreter_data(cage_base);
+    data = baseline_code->bytecode_or_interpreter_data(isolate);
   }
   if (IsBytecodeArray(data)) {
     return BytecodeArray::cast(data);
   } else {
     DCHECK(IsInterpreterData(data));
-    return InterpreterData::cast(data)->bytecode_array();
+    return InterpreterData::cast(data)->bytecode_array(isolate);
   }
 }
 

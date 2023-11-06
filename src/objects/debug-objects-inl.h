@@ -49,7 +49,7 @@ Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
 Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
   Tagged<BytecodeArray> result = debug_bytecode_array(isolate, kAcquireLoad);
-  DCHECK_EQ(shared()->GetActiveBytecodeArray(), result);
+  DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
   return result;
 }
 

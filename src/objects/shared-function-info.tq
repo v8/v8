@@ -9,7 +9,12 @@ extern class PreparseData extends HeapObject {
 }
 
 extern class InterpreterData extends Struct {
-  bytecode_array: BytecodeArray;
+  // TODO(saelo): we should consider also moving InterpreterData out of the
+  // sandbox as it can often occur in places where BytecodeArrays are expected
+  // (which live outside of the sandbox). When we do this, this field can again
+  // always directly reference the BytecodeArray through a tagged pointer.
+  @if(V8_ENABLE_SANDBOX) bytecode_array: IndirectPointer<BytecodeArray>;
+  @ifnot(V8_ENABLE_SANDBOX) bytecode_array: BytecodeArray;
   interpreter_trampoline: Code;
 }
 

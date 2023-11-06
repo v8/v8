@@ -2542,7 +2542,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
     if (debug_info.value()->HasInstrumentedBytecodeArray()) {
       Tagged<ByteArray> source_position_table =
           job->compilation_info()->bytecode_array()->SourcePositionTable();
-      shared_info->GetActiveBytecodeArray()->set_source_position_table(
+      shared_info->GetActiveBytecodeArray(isolate)->set_source_position_table(
           source_position_table, kReleaseStore);
     }
   }

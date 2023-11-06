@@ -60,6 +60,7 @@ namespace internal {
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
+  V(InterpreterData)                    \
   V(SharedFunctionInfo)                 \
   V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \

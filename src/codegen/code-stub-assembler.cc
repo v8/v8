@@ -3410,8 +3410,9 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = LoadObjectField<BytecodeArray>(
-      var_result.value(), InterpreterData::kBytecodeArrayOffset);
+  TNode<BytecodeArray> bytecode_array = CAST(LoadTrustedPointerFromObject(
+      var_result.value(), InterpreterData::kBytecodeArrayOffset,
+      kBytecodeArrayIndirectPointerTag));
   var_result = bytecode_array;
   Goto(&done);
 

@@ -178,7 +178,9 @@ class UncompiledDataWithPreparseDataAndJob
 class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
-  using BodyDescriptor = StructBodyDescriptor;
+  DECL_TRUSTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
+
+  class BodyDescriptor;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
@@ -344,7 +346,8 @@ class SharedFunctionInfo
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
   inline void FlushBaselineCode();
-  DECL_GETTER(GetActiveBytecodeArray, Tagged<BytecodeArray>)
+  inline Tagged<BytecodeArray> GetActiveBytecodeArray(
+      const Isolate* isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode);
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -420,9 +420,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 #endif  // !V8_JITLESS
 
   __ B(ne, &done);
-  __ LoadTaggedField(
+  __ LoadTrustedPointerField(
       sfi_data,
-      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset),
+      kBytecodeArrayIndirectPointerTag);
   __ Bind(&done);
 }
 
