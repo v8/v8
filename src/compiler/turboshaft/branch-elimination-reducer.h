@@ -517,20 +517,23 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  // Checks that {idx} only depends on Constants or on Phi whose input from the
-  // current block is a Constant. If it is the case and {idx} is used in a
-  // Branch, then the Branch's block could be cloned in the current block, and
-  // {idx} could then be constant-folded away such that the Branch becomes a
+  // Checks that {idx} only depends on only on Constants or on Phi whose input
+  // from the current block is a Constant, and on a least one Phi (whose input
+  // from the current block is a Constant). If it is the case and {idx} is used
+  // in a Branch, then the Branch's block could be cloned in the current block,
+  // and {idx} could then be constant-folded away such that the Branch becomes a
   // Goto.
   bool CanBeConstantFolded(OpIndex idx, const Block* cond_input_block,
-                           int depth = 0) {
+                           bool has_phi = false, int depth = 0) {
     // We limit the depth of the search to {kMaxDepth} in order to avoid
     // potentially visiting a lot of nodes.
     static constexpr int kMaxDepth = 4;
     if (depth > kMaxDepth) return false;
     const Operation& op = __ input_graph().Get(idx);
     if (!cond_input_block->Contains(idx)) {
-      return op.Is<ConstantOp>();
+      // If we reach a ConstantOp without having gone through a Phi, then the
+      // condition can be constant-folded without performing block cloning.
+      return has_phi && op.Is<ConstantOp>();
     }
     if (op.Is<PhiOp>()) {
       int curr_block_pred_idx = cond_input_block->GetPredecessorIndex(
@@ -539,7 +542,7 @@ class BranchEliminationReducer : public Next {
       // it will anyways exit early because {idx} won't be in
       // {cond_input_block}.
       return CanBeConstantFolded(op.input(curr_block_pred_idx),
-                                 cond_input_block, depth);
+                                 cond_input_block, /*has_phi*/ true, depth);
     } else if (op.Is<ConstantOp>()) {
       return true;
     } else if (op.input_count == 0) {
@@ -552,7 +555,8 @@ class BranchEliminationReducer : public Next {
     }
 
     for (int i = 0; i < op.input_count; i++) {
-      if (!CanBeConstantFolded(op.input(i), cond_input_block, depth + 1)) {
+      if (!CanBeConstantFolded(op.input(i), cond_input_block, has_phi,
+                               depth + 1)) {
         return false;
       }
     }
