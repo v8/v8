@@ -1765,12 +1765,13 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
       __ Move(r7, fp);
       break;
     case ForwardWhichFrame::kParentFrame:
-      __ LoadU64(r7, Operand(fp, StandardFrameConstants::kCallerFPOffset));
+      __ LoadU64(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset),
+                 r0);
       break;
   }
 
   // Load the argument count into r3.
-  __ LoadU64(r3, MemOperand(r7, StandardFrameConstants::kArgCOffset));
+  __ LoadU64(r3, MemOperand(r7, StandardFrameConstants::kArgCOffset), r0);
   __ StackOverflowCheck(r3, ip, &stack_overflow);
 
   // Point r7 to the base of the argument list to forward, excluding the
