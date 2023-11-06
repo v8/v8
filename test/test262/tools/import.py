@@ -24,14 +24,14 @@ def main():
   parser.add_argument(
       '--phase',
       help=("Phase of the import process to run. One of 'ALL', 'PREBUILD', "
-            "'POSTBUILD', 'UPLOAD'. ALL will run all phases; suitable for local"
-            " runs. PREBUILD and POSTBUILD are to be used when buidling and "
-            "running the tests is delegated to a proper builder. UPLOAD is used"
-            " for creating and uploading the CL for the import. UPLOAD is "
-            "deffered to recipe on the import builder. This importer script "
-            "gets called twice on the builder, first with PREBUILD and second "
-            "with POSTBUILD. Build and UPLOAD phases are deffred to the recipe "
-            "on the builder."),
+            "'POSTBUILD', 'UPLOAD'. ALL will run all phases; suitable for "
+            "local runs. PREBUILD and POSTBUILD are to be used when building "
+            "and running the tests is delegated to a proper builder. UPLOAD is "
+            "used for creating and uploading the CL for the import. UPLOAD is "
+            "deferred to the recipe on the import builder. This importer "
+            "script gets called twice on the builder, first with PREBUILD and "
+            "second with POSTBUILD. Build and UPLOAD phases are deferred to "
+            "the recipe on the builder."),
       choices=['ALL', 'PREBUILD', 'POSTBUILD', 'UPLOAD'],
       default='ALL')
   parser.add_argument(
@@ -51,10 +51,9 @@ def main():
 
   add_depot_tools_dir_to_os_path()
   host = Host(project_config_factory=config_from_file(args.config_path))
-  print(f'Got phase {args.phase}')
   importer = V8TestImporter(
-      host=host,
       phase=args.phase,
+      host=host,
       test262_failure_file=args.test262_failure_file)
   try:
     success = importer.main(exporter_args[1:])

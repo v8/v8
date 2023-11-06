@@ -8,6 +8,7 @@ from pathlib import Path
 import logging
 import re
 import shutil
+import sys
 
 from blinkpy.common.system.log_utils import configure_logging
 from blinkpy.w3c.common import read_credentials
@@ -31,9 +32,9 @@ class GitFileStatus(Enum):
 class V8TestImporter(TestImporter):
 
   def __init__(self,
+               phase,
                host,
                test262_github=None,
-               phase='ALL',
                test262_failure_file=None):
     super().__init__(host, test262_github, wpt_manifests=None)
     self.project_config = host.project_config
@@ -70,7 +71,7 @@ class V8TestImporter(TestImporter):
     test262_revision = self.fetch_test262(gh_token)
     v8_test262_revision = self.find_current_test262_revision()
 
-    if self.run_prebuild_steps():
+    if self.run_prebuild_phase():
       if test262_revision == v8_test262_revision:
         _log.info(
             f'No changes to import. {test262_revision} == {v8_test262_revision}'
@@ -87,9 +88,9 @@ class V8TestImporter(TestImporter):
       failure_lines = self.build_and_test()
 
     # We either have the lines from the build phase or we read them from a file
-    # provided by the the excutor of POSTBUILD phase.
+    # provided by the executor of POSTBUILD phase.
     failure_lines = failure_lines or self.failure_lines_from_file()
-    if self.run_postbuild_steps():
+    if self.run_postbuild_phase():
       self.update_status_file(v8_test262_revision, test262_revision,
                               failure_lines)
 
@@ -103,6 +104,18 @@ class V8TestImporter(TestImporter):
   def test262_path(self):
     return Path(self.local_test262.path)
 
+  def run_prebuild_phase(self):
+    return self.phase in ['ALL', 'PREBUILD']
+
+  def run_build_phase(self):
+    return self.phase in ['ALL']
+
+  def run_postbuild_phase(self):
+    return self.phase in ['ALL', 'POSTBUILD']
+
+  def run_upload_phase(self):
+    return self.phase in ['ALL', 'UPLOAD']
+
   def fetch_test262(self, gh_token):
     _log.info(f'Fetching test262')
     self.local_test262 = self.project_config.local_repo_factory(
@@ -111,8 +124,6 @@ class V8TestImporter(TestImporter):
     self.test262_git = self.host.git(self.test262_path)
     return self.test262_git.latest_git_commit()
 
-  def run_prebuild_steps(self):
-    return self.phase in ['ALL', 'PREBUILD']
 
   def find_current_test262_revision(self):
     _log.info(f'Finding current test262 revision in V8')
@@ -172,27 +183,23 @@ class V8TestImporter(TestImporter):
           f'{local_file} has no counterpart in Test262. Maybe it was never exported?'
       )
 
-  def run_build_phase(self):
-    return self.phase in ['ALL']
-
   def build_and_test(self):
     """Builds and run test262 tests V8."""
-    # TBD: This is to be used only on local runs.
     gn_gen = self.host.executive.run_command(['gn', 'gen', '-C', 'out/Default'],
                                              cwd=self.project_root)
     print(gn_gen)
     self.host.executive.run_command(
-        ['autoninja', '-C', 'out/Default', '-j', '100'], cwd=self.project_root)
+        ['autoninja', '-C', 'out/Default'], cwd=self.project_root)
     test_results = self.host.executive.run_command(
         [
-            'python3', 'tools/run-tests.py', '--outdir=out/Default',
+            sys.executable, 'tools/run-tests.py', '--outdir=out/Default',
             '--progress=verbose', '--exit-after-n-failures=0', 'test262'
         ],
         error_handler=testing_error_handler,
         cwd=self.project_root).splitlines()
-    failure_matches = set(TEST262_FAILURE_LINE.match(l) for l in test_results)
-    failure_lines = [m.group(1) for m in failure_matches if m]
-    failure_lines.sort()
+    failure_matches = [TEST262_FAILURE_LINE.match(l) for l in test_results]
+    # Ensure we have no duplicates
+    failure_lines = sorted(set(m.group(1) for m in failure_matches if m))
     return failure_lines
 
   def failure_lines_from_file(self):
@@ -202,8 +209,6 @@ class V8TestImporter(TestImporter):
     with open(self.test262_failure_file, 'r') as r_file:
       return r_file.readlines()
 
-  def run_postbuild_steps(self):
-    return self.phase in ['ALL', 'POSTBUILD']
 
   def update_status_file(self, v8_test262_revision, test262_revision,
                          failure_lines):
@@ -276,18 +281,13 @@ class V8TestImporter(TestImporter):
         if line.strip()
     ]
 
-  def run_upload_phase(self):
-    return self.phase in ['ALL', 'UPLOAD']
 
   def commit_and_upload_changes(self, v8_test262_revision, test262_revision):
     _log.info('Committing changes.')
-    self.project_git.run(['new-branch', 'test262_roll'])
-
     self.project_git.run([
         'commit', '-a', '-m', '[test262] Roll test262', '-m',
         f'{TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}'
     ])
-    print(self.project_git.run(['show']))
 
     _log.info('Uploading changes.')
     self.project_git.run([
