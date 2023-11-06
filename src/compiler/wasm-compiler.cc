@@ -4018,7 +4018,10 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
-  index = gasm_->BuildChangeUint32ToUintPtr(index);
+  // Perform a signed extension to intptr so that the bounds check technique
+  // (a single unsigned comparison covering both negative and too-large indices)
+  // correctly works for buffers larger than 2 GiB.
+  index = gasm_->BuildChangeInt32ToIntPtr(index);
   Diamond bounds_check(graph(), mcgraph()->common(),
                        gasm_->UintLessThan(index, mem_size), BranchHint::kTrue);
   bounds_check.Chain(control());
@@ -4061,12 +4064,14 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
+  // Perform a signed extension to intptr so that the bounds check technique
+  // (a single unsigned comparison covering both negative and too-large indices)
+  // correctly works for buffers larger than 2 GiB.
+  index = gasm_->BuildChangeInt32ToIntPtr(index);
   Diamond bounds_check(graph(), mcgraph()->common(),
-                       gasm_->Uint32LessThan(index, mem_size),
-                       BranchHint::kTrue);
+                       gasm_->UintLessThan(index, mem_size), BranchHint::kTrue);
   bounds_check.Chain(control());
 
-  index = gasm_->BuildChangeUint32ToUintPtr(index);
   const Operator* store_op = mcgraph()->machine()->Store(StoreRepresentation(
       type.representation(), WriteBarrierKind::kNoWriteBarrier));
   Node* store = graph()->NewNode(store_op, mem_start, index, val, effect(),

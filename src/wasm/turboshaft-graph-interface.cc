@@ -5669,10 +5669,13 @@ class TurboshaftGraphBuildingInterface {
                      MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    IF (LIKELY(
-            __ Uint32LessThan(index, __ TruncateWordPtrToWord32(MemSize(0))))) {
-      __ Store(MemStart(0), __ ChangeUint32ToUintPtr(index), value,
-               StoreOp::Kind::RawAligned(), repr, compiler::kNoWriteBarrier, 0);
+    // Perform a signed extension to intptr so that the bounds check technique
+    // (a single unsigned comparison covering both negative and too-large
+    // indices) correctly works for buffers larger than 2 GiB.
+    V<WordPtr> index_ptr = __ ChangeInt32ToIntPtr(index);
+    IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
+      __ Store(MemStart(0), index_ptr, value, StoreOp::Kind::RawAligned(), repr,
+               compiler::kNoWriteBarrier, 0);
     }
     END_IF
   }
@@ -5682,9 +5685,12 @@ class TurboshaftGraphBuildingInterface {
     // ignoring the access size.
     Variable result = __ NewVariable(repr.ToRegisterRepresentation());
 
-    IF (LIKELY(
-            __ Uint32LessThan(index, __ TruncateWordPtrToWord32(MemSize(0))))) {
-      __ SetVariable(result, __ Load(MemStart(0), __ ChangeInt32ToIntPtr(index),
+    // Perform a signed extension to intptr so that the bounds check technique
+    // (a single unsigned comparison covering both negative and too-large
+    // indices) correctly works for buffers larger than 2 GiB.
+    V<WordPtr> index_ptr = __ ChangeInt32ToIntPtr(index);
+    IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
+      __ SetVariable(result, __ Load(MemStart(0), index_ptr,
                                      LoadOp::Kind::RawAligned(), repr));
     }
     ELSE {
