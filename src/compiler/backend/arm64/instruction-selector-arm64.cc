@@ -50,11 +50,15 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
-  InstructionOperand UseRegisterOrImmediateZero(Node* node) {
-    if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
-        (IsFloatConstant(node) &&
-         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
-      return UseImmediate(node);
+  InstructionOperand UseRegisterOrImmediateZero(typename Adapter::node_t node) {
+    if (this->is_constant(node)) {
+      auto constant = selector()->constant_view(node);
+      if ((IsIntegerConstant(constant) &&
+           GetIntegerConstantValue(constant) == 0) ||
+          (constant.is_float() &&
+           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+        return UseImmediate(node);
+      }
     }
     return UseRegister(node);
   }
@@ -91,6 +95,15 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
     DCHECK(constant.is_int64());
     return constant.int64_value();
+  }
+
+  base::Optional<int64_t> GetOptionalIntegerConstant(
+      InstructionSelectorT<TurboshaftAdapter>* selector,
+      turboshaft::OpIndex operation) {
+    if (!this->is_constant(operation)) return {};
+    auto constant = selector->constant_view(operation);
+    if (!this->IsIntegerConstant(constant)) return {};
+    return this->GetIntegerConstantValue(constant);
   }
 
   bool IsFloatConstant(Node* node) {
@@ -211,17 +224,13 @@ void VisitRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
-template <typename T>
-void VisitRRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
-  UNIMPLEMENTED();
-}
-
-void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
-              InstructionCode opcode, Node* node) {
-  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
+              typename Adapter::node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseRegister(node->InputAt(1)));
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseRegister(selector->input_at(node, 1)));
 }
 
 void VisitSimdShiftRRR(InstructionSelectorT<TurboshaftAdapter>* selector,
@@ -418,10 +427,23 @@ bool TryMatchAnyShift(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 }
 
-template <typename Adapter>
-bool TryMatchAnyExtend(Arm64OperandGeneratorT<Adapter>* g,
-                       InstructionSelectorT<Adapter>* selector, Node* node,
-                       Node* left_node, Node* right_node,
+bool TryMatchAnyShift(InstructionSelectorT<TurboshaftAdapter>* selector,
+                      turboshaft::OpIndex node, turboshaft::OpIndex input_node,
+                      InstructionCode* opcode, bool try_ror,
+                      turboshaft::RegisterRepresentation rep) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+
+  if (!selector->CanCover(node, input_node)) return false;
+  if (const ShiftOp* shift = selector->Get(input_node).TryCast<ShiftOp>()) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  }
+  return false;
+}
+
+bool TryMatchAnyExtend(Arm64OperandGeneratorT<TurbofanAdapter>* g,
+                       InstructionSelectorT<TurbofanAdapter>* selector,
+                       Node* node, Node* left_node, Node* right_node,
                        InstructionOperand* left_op,
                        InstructionOperand* right_op, InstructionCode* opcode) {
   if (!selector->CanCover(node, right_node)) return false;
@@ -459,6 +481,31 @@ bool TryMatchAnyExtend(Arm64OperandGeneratorT<Adapter>* g,
     *left_op = g->UseRegister(left_node);
     *right_op = g->UseRegister(right_node->InputAt(0));
     return true;
+  }
+  return false;
+}
+
+bool TryMatchAnyExtend(Arm64OperandGeneratorT<TurboshaftAdapter>* g,
+                       InstructionSelectorT<TurboshaftAdapter>* selector,
+                       turboshaft::OpIndex node, turboshaft::OpIndex left_node,
+                       turboshaft::OpIndex right_node,
+                       InstructionOperand* left_op,
+                       InstructionOperand* right_op, InstructionCode* opcode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (!selector->CanCover(node, right_node)) return false;
+
+  const Operation& right = selector->Get(node);
+  if (right.Is<Opmask::kWord32BitwiseAnd>()) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  } else if (right.Is<Opmask::kWord32ShiftRightArithmetic>()) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  } else if (const ChangeOp* change_op = right.TryCast<ChangeOp>()) {
+    // IsChangeInt32ToInt64
+    if (change_op->kind == ChangeOp::Kind::kSignExtend &&
+        change_op->from == WordRepresentation::Word32() &&
+        change_op->to == WordRepresentation::Word64()) {
+      UNIMPLEMENTED();  // TODO(mliedtke)
+    }
   }
   return false;
 }
@@ -643,6 +690,84 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector,
   VisitBinop<Adapter, Matcher>(selector, node, opcode, operand_mode, &cont);
 }
 
+// Shared routine for multiple binary operations.
+void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
+                turboshaft::OpIndex binop_idx,
+                turboshaft::RegisterRepresentation rep, InstructionCode opcode,
+                ImmediateMode operand_mode,
+                FlagsContinuationT<TurboshaftAdapter>* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  InstructionOperand inputs[5];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+
+  const Operation& binop = selector->Get(binop_idx);
+  OpIndex left_node = binop.input(0);
+  OpIndex right_node = binop.input(1);
+
+  uint8_t properties = GetBinopProperties(opcode);
+  bool can_commute = CanCommuteField::decode(properties);
+  bool must_commute_cond = MustCommuteCondField::decode(properties);
+  bool is_add_sub = IsAddSubField::decode(properties);
+
+  if (g.CanBeImmediate(right_node, operand_mode)) {
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseImmediate(right_node);
+  } else if (can_commute && g.CanBeImmediate(left_node, operand_mode)) {
+    if (must_commute_cond) cont->Commute();
+    inputs[input_count++] = g.UseRegister(right_node);
+    inputs[input_count++] = g.UseImmediate(left_node);
+  } else if (is_add_sub &&
+             TryMatchAnyExtend(&g, selector, binop_idx, left_node, right_node,
+                               &inputs[0], &inputs[1], &opcode)) {
+    input_count += 2;
+  } else if (is_add_sub && can_commute &&
+             TryMatchAnyExtend(&g, selector, binop_idx, right_node, left_node,
+                               &inputs[0], &inputs[1], &opcode)) {
+    if (must_commute_cond) cont->Commute();
+    input_count += 2;
+  } else if (TryMatchAnyShift(selector, binop_idx, right_node, &opcode,
+                              !is_add_sub, rep)) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  } else if (can_commute && TryMatchAnyShift(selector, binop_idx, left_node,
+                                             &opcode, !is_add_sub, rep)) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  } else {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegister(right_node);
+  }
+
+  if (!IsComparisonField::decode(properties)) {
+    outputs[output_count++] = g.DefineAsRegister(binop_idx);
+  }
+
+  if (cont->IsSelect()) {
+    // Keep the values live until the end so that we can use operations that
+    // write registers to generate the condition, without accidently
+    // overwriting the inputs.
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
+  }
+
+  DCHECK_NE(0u, input_count);
+  DCHECK((output_count != 0) || IsComparisonField::decode(properties));
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
+
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
+}
+
+void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
+                turboshaft::OpIndex node,
+                turboshaft::RegisterRepresentation rep, ArchOpcode opcode,
+                ImmediateMode operand_mode) {
+  FlagsContinuationT<TurboshaftAdapter> cont;
+  VisitBinop(selector, node, rep, opcode, operand_mode, &cont);
+}
+
 template <typename Adapter, typename Matcher>
 void VisitAddSub(InstructionSelectorT<Adapter>* selector, Node* node,
                  ArchOpcode opcode, ArchOpcode negate_opcode) {
@@ -659,6 +784,26 @@ void VisitAddSub(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 }
 
+void VisitAddSub(InstructionSelectorT<TurboshaftAdapter>* selector,
+                 turboshaft::OpIndex node, ArchOpcode opcode,
+                 ArchOpcode negate_opcode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  const WordBinopOp& add_sub = selector->Get(node).Cast<WordBinopOp>();
+
+  if (base::Optional<int64_t> constant_rhs =
+          g.GetOptionalIntegerConstant(selector, add_sub.right())) {
+    if (constant_rhs < 0 && constant_rhs > std::numeric_limits<int>::min() &&
+        g.CanBeImmediate(-*constant_rhs, kArithmeticImm)) {
+      selector->Emit(negate_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(add_sub.left()),
+                     g.TempImmediate(static_cast<int32_t>(-*constant_rhs)));
+      return;
+    }
+  }
+  VisitBinop(selector, node, add_sub.rep, opcode, kArithmeticImm);
+}
+
 // For multiplications by immediate of the form x * (2^k + 1), where k > 0,
 // return the value of k, otherwise return zero. This is used to reduce the
 // multiplication to addition with left shift: x + (x << k).
@@ -672,6 +817,116 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
     }
   }
   return 0;
+}
+
+// For multiplications by immediate of the form x * (2^k + 1), where k > 0,
+// return the value of k, otherwise return zero. This is used to reduce the
+// multiplication to addition with left shift: x + (x << k).
+int32_t LeftShiftForReducedMultiply(
+    InstructionSelectorT<TurboshaftAdapter>* selector,
+    turboshaft::OpIndex rhs) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  if (auto constant = g.GetOptionalIntegerConstant(selector, rhs)) {
+    int64_t value_minus_one = constant.value() - 1;
+    if (base::bits::IsPowerOfTwo(value_minus_one)) {
+      return base::bits::WhichPowerOfTwo(value_minus_one);
+    }
+  }
+  return 0;
+}
+
+// Try to match Add(Mul(x, y), z) and emit Madd(x, y, z) for it.
+template <typename MultiplyOpmaskT>
+bool TryEmitMulitplyAdd(InstructionSelectorT<TurboshaftAdapter>* selector,
+                        turboshaft::OpIndex add, turboshaft::OpIndex lhs,
+                        turboshaft::OpIndex rhs, InstructionCode madd_opcode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& add_lhs = selector->Get(lhs);
+  if (!add_lhs.Is<MultiplyOpmaskT>() || !selector->CanCover(add, lhs)) {
+    return false;
+  }
+  // Check that multiply can't be reduced to an addition with shift later on.
+  const WordBinopOp& mul = add_lhs.Cast<WordBinopOp>();
+  if (LeftShiftForReducedMultiply(selector, mul.right()) != 0) return false;
+
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  selector->Emit(madd_opcode, g.DefineAsRegister(add),
+                 g.UseRegister(mul.left()), g.UseRegister(mul.right()),
+                 g.UseRegister(rhs));
+  return true;
+}
+
+bool TryEmitMultiplyAddInt32(InstructionSelectorT<TurboshaftAdapter>* selector,
+                             turboshaft::OpIndex add, turboshaft::OpIndex lhs,
+                             turboshaft::OpIndex rhs) {
+  return TryEmitMulitplyAdd<turboshaft::Opmask::kWord32Mul>(selector, add, lhs,
+                                                            rhs, kArm64Madd32);
+}
+
+bool TryEmitMultiplyAddInt64(InstructionSelectorT<TurboshaftAdapter>* selector,
+                             turboshaft::OpIndex add, turboshaft::OpIndex lhs,
+                             turboshaft::OpIndex rhs) {
+  return TryEmitMulitplyAdd<turboshaft::Opmask::kWord64Mul>(selector, add, lhs,
+                                                            rhs, kArm64Madd);
+}
+
+// Try to match Mul(Sub(0, x), y) and emit Mneg(x, y) for it.
+template <typename SubtractOpmaskT>
+bool TryEmitMultiplyNegate(InstructionSelectorT<TurboshaftAdapter>* selector,
+                           turboshaft::OpIndex mul, turboshaft::OpIndex lhs,
+                           turboshaft::OpIndex rhs,
+                           InstructionCode mneg_opcode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& mul_lhs = selector->Get(lhs);
+  if (!mul_lhs.Is<SubtractOpmaskT>() || !selector->CanCover(mul, lhs)) {
+    return false;
+  }
+  const WordBinopOp& sub = mul_lhs.Cast<WordBinopOp>();
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  base::Optional<int64_t> sub_lhs_constant =
+      g.GetOptionalIntegerConstant(selector, sub.left());
+  if (!sub_lhs_constant.has_value() || sub_lhs_constant != 0) return false;
+  selector->Emit(mneg_opcode, g.DefineAsRegister(mul),
+                 g.UseRegister(sub.right()), g.UseRegister(rhs));
+  return true;
+}
+
+bool TryEmitMultiplyNegateInt32(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex mul,
+    turboshaft::OpIndex lhs, turboshaft::OpIndex rhs) {
+  return TryEmitMultiplyNegate<turboshaft::Opmask::kWord32Sub>(
+      selector, mul, lhs, rhs, kArm64Mneg32);
+}
+
+bool TryEmitMultiplyNegateInt64(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex mul,
+    turboshaft::OpIndex lhs, turboshaft::OpIndex rhs) {
+  return TryEmitMultiplyNegate<turboshaft::Opmask::kWord64Sub>(
+      selector, mul, lhs, rhs, kArm64Mneg);
+}
+
+// Try to match Sub(a, Mul(x, y)) and emit Msub(x, y, a) for it.
+template <typename MultiplyOpmaskT>
+bool TryEmitMultiplySub(InstructionSelectorT<TurboshaftAdapter>* selector,
+                        turboshaft::OpIndex node,
+                        InstructionCode msub_opbocde) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const WordBinopOp& sub = selector->Get(node).Cast<WordBinopOp>();
+  DCHECK_EQ(sub.kind, WordBinopOp::Kind::kSub);
+
+  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+  const Operation& sub_rhs = selector->Get(sub.right());
+  if (sub_rhs.Is<MultiplyOpmaskT>() && selector->CanCover(node, sub.right())) {
+    const WordBinopOp& mul = sub_rhs.Cast<WordBinopOp>();
+    if (LeftShiftForReducedMultiply(selector, mul.right()) == 0) {
+      Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+      selector->Emit(msub_opbocde, g.DefineAsRegister(node),
+                     g.UseRegister(mul.left()), g.UseRegister(mul.right()),
+                     g.UseRegister(sub.left()));
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
@@ -1942,7 +2197,17 @@ void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
+  DCHECK(add.Is<Opmask::kWord32Add>());
+  V<Word32> left = add.left();
+  V<Word32> right = add.right();
+  // Select Madd(x, y, z) for Add(Mul(x, y), z) or Add(z, Mul(x, y)).
+  if (TryEmitMultiplyAddInt32(this, node, left, right) ||
+      TryEmitMultiplyAddInt32(this, node, right, left)) {
+    return;
+  }
+  VisitAddSub(this, node, kArm64Add32, kArm64Sub32);
 }
 
 template <>
@@ -1977,90 +2242,119 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
                                                   kArm64Sub32);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    Int64BinopMatcher m(node);
-    // Select Madd(x, y, z) for Add(Mul(x, y), z).
-    if (m.left().IsInt64Mul() && CanCover(node, m.left().node())) {
-      Int64BinopMatcher mleft(m.left().node());
-      // Check multiply can't be later reduced to addition with shift.
-      if (LeftShiftForReducedMultiply(&mleft) == 0) {
-        Emit(kArm64Madd, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()),
-             g.UseRegister(mleft.right().node()),
-             g.UseRegister(m.right().node()));
-        return;
-      }
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt64Add(node_t node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
+  Int64BinopMatcher m(node);
+  // Select Madd(x, y, z) for Add(Mul(x, y), z).
+  if (m.left().IsInt64Mul() && CanCover(node, m.left().node())) {
+    Int64BinopMatcher mleft(m.left().node());
+    // Check multiply can't be later reduced to addition with shift.
+    if (LeftShiftForReducedMultiply(&mleft) == 0) {
+      Emit(kArm64Madd, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()),
+           g.UseRegister(mleft.right().node()),
+           g.UseRegister(m.right().node()));
+      return;
     }
-    // Select Madd(x, y, z) for Add(z, Mul(x, y)).
-    if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
-      Int64BinopMatcher mright(m.right().node());
-      // Check multiply can't be later reduced to addition with shift.
-      if (LeftShiftForReducedMultiply(&mright) == 0) {
-        Emit(kArm64Madd, g.DefineAsRegister(node),
-             g.UseRegister(mright.left().node()),
-             g.UseRegister(mright.right().node()),
-             g.UseRegister(m.left().node()));
-        return;
-      }
-    }
-    VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Add, kArm64Sub);
   }
+  // Select Madd(x, y, z) for Add(z, Mul(x, y)).
+  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    // Check multiply can't be later reduced to addition with shift.
+    if (LeftShiftForReducedMultiply(&mright) == 0) {
+      Emit(kArm64Madd, g.DefineAsRegister(node),
+           g.UseRegister(mright.left().node()),
+           g.UseRegister(mright.right().node()),
+           g.UseRegister(m.left().node()));
+      return;
+    }
+  }
+  VisitAddSub<TurbofanAdapter, Int64BinopMatcher>(this, node, kArm64Add,
+                                                  kArm64Sub);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Add(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
+  DCHECK(add.Is<Opmask::kWord64Add>());
+  V<Word64> left = add.left();
+  V<Word64> right = add.right();
+  // Select Madd(x, y, z) for Add(Mul(x, y), z) or Add(z, Mul(x, y)).
+  if (TryEmitMultiplyAddInt64(this, node, left, right) ||
+      TryEmitMultiplyAddInt64(this, node, right, left)) {
+    return;
+  }
+  VisitAddSub(this, node, kArm64Add, kArm64Sub);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    Int32BinopMatcher m(node);
+  Arm64OperandGeneratorT<Adapter> g(this);
+  Int32BinopMatcher m(node);
 
-    // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
-    if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
-      Int32BinopMatcher mright(m.right().node());
-      // Check multiply can't be later reduced to addition with shift.
-      if (LeftShiftForReducedMultiply(&mright) == 0) {
-        Emit(kArm64Msub32, g.DefineAsRegister(node),
-             g.UseRegister(mright.left().node()),
-             g.UseRegister(mright.right().node()),
-             g.UseRegister(m.left().node()));
-        return;
-      }
+  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+  if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    // Check multiply can't be later reduced to addition with shift.
+    if (LeftShiftForReducedMultiply(&mright) == 0) {
+      Emit(kArm64Msub32, g.DefineAsRegister(node),
+           g.UseRegister(mright.left().node()),
+           g.UseRegister(mright.right().node()),
+           g.UseRegister(m.left().node()));
+      return;
     }
-
-    VisitAddSub<Adapter, Int32BinopMatcher>(this, node, kArm64Sub32,
-                                            kArm64Add32);
   }
+
+  VisitAddSub<Adapter, Int32BinopMatcher>(this, node, kArm64Sub32, kArm64Add32);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Sub(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(this->Get(node).Is<Opmask::kWord32Sub>());
+
+  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+  if (TryEmitMultiplySub<Opmask::kWord32Mul>(this, node, kArm64Msub32)) {
+    return;
+  }
+
+  VisitAddSub(this, node, kArm64Sub32, kArm64Add32);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    Int64BinopMatcher m(node);
+  Arm64OperandGeneratorT<Adapter> g(this);
+  Int64BinopMatcher m(node);
 
-    // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
-    if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
-      Int64BinopMatcher mright(m.right().node());
-      // Check multiply can't be later reduced to addition with shift.
-      if (LeftShiftForReducedMultiply(&mright) == 0) {
-        Emit(kArm64Msub, g.DefineAsRegister(node),
-             g.UseRegister(mright.left().node()),
-             g.UseRegister(mright.right().node()),
-             g.UseRegister(m.left().node()));
-        return;
-      }
+  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    // Check multiply can't be later reduced to addition with shift.
+    if (LeftShiftForReducedMultiply(&mright) == 0) {
+      Emit(kArm64Msub, g.DefineAsRegister(node),
+           g.UseRegister(mright.left().node()),
+           g.UseRegister(mright.right().node()),
+           g.UseRegister(m.left().node()));
+      return;
     }
-
-    VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
   }
+
+  VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Sub(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(this->Get(node).Is<Opmask::kWord64Sub>());
+
+  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+  if (TryEmitMultiplySub<Opmask::kWord64Mul>(this, node, kArm64Msub)) {
+    return;
+  }
+
+  VisitAddSub(this, node, kArm64Sub, kArm64Add);
 }
 
 namespace {
@@ -2113,7 +2407,28 @@ void EmitInt64MulWithOverflow(InstructionSelectorT<Adapter>* selector,
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const WordBinopOp& mul = Get(node).Cast<WordBinopOp>();
+  DCHECK(mul.Is<Opmask::kWord32Mul>());
+
+  // First, try to reduce the multiplication to addition with left shift.
+  // x * (2^k + 1) -> x + (x << k)
+  int32_t shift = LeftShiftForReducedMultiply(this, mul.right());
+  if (shift > 0) {
+    Emit(kArm64Add32 | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+         g.DefineAsRegister(node), g.UseRegister(mul.left()),
+         g.UseRegister(mul.left()), g.TempImmediate(shift));
+    return;
+  }
+
+  // Select Mneg(x, y) for Mul(Sub(0, x), y) or Mul(y, Sub(0, x)).
+  if (TryEmitMultiplyNegateInt32(this, node, mul.left(), mul.right()) ||
+      TryEmitMultiplyNegateInt32(this, node, mul.right(), mul.left())) {
+    return;
+  }
+
+  VisitRRR(this, kArm64Mul32, node);
 }
 
 template <>
@@ -2160,7 +2475,28 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Mul(node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const WordBinopOp& mul = Get(node).Cast<WordBinopOp>();
+  DCHECK(mul.Is<Opmask::kWord64Mul>());
+
+  // First, try to reduce the multiplication to addition with left shift.
+  // x * (2^k + 1) -> x + (x << k)
+  int32_t shift = LeftShiftForReducedMultiply(this, mul.right());
+  if (shift > 0) {
+    Emit(kArm64Add | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+         g.DefineAsRegister(node), g.UseRegister(mul.left()),
+         g.UseRegister(mul.left()), g.TempImmediate(shift));
+    return;
+  }
+
+  // Select Mneg(x, y) for Mul(Sub(0, x), y) or Mul(y, Sub(0, x)).
+  if (TryEmitMultiplyNegateInt64(this, node, mul.left(), mul.right()) ||
+      TryEmitMultiplyNegateInt64(this, node, mul.right(), mul.left())) {
+    return;
+  }
+
+  VisitRRR(this, kArm64Mul, node);
 }
 
 template <>

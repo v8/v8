@@ -115,6 +115,18 @@ struct TurbofanAdapter {
       DCHECK(is_number());
       return OpParameter<double>(node_->op());
     }
+    bool is_float() const {
+      return node_->opcode() == IrOpcode::kFloat32Constant ||
+             node_->opcode() == IrOpcode::kFloat64Constant;
+    }
+    double float_value() const {
+      DCHECK(is_float());
+      if (node_->opcode() == IrOpcode::kFloat32Constant) {
+        return OpParameter<float>(node_->op());
+      } else {
+        return OpParameter<double>(node_->op());
+      }
+    }
 
     operator node_t() const { return node_; }
 
@@ -600,6 +612,17 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     double number_value() const {
       DCHECK(is_number());
       return op_->number();
+    }
+    bool is_float() const {
+      return op_->kind == Kind::kFloat32 || op_->kind == Kind::kFloat64;
+    }
+    double float_value() const {
+      DCHECK(is_float());
+      if (op_->kind == Kind::kFloat32) {
+        return op_->float32();
+      } else {
+        return op_->float64();
+      }
     }
 
     operator node_t() const { return node_; }

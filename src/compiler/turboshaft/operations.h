@@ -1353,10 +1353,16 @@ using kWord32Add =
     WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word32()>;
 using kWord32Sub =
     WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word32()>;
+using kWord32Mul =
+    WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word32()>;
 using kWord32BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word32()>;
+using kWord64Add =
+    WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word64()>;
 using kWord64Sub =
     WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word64()>;
+using kWord64Mul =
+    WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word64()>;
 using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word64()>;
 }  // namespace Opmask
@@ -1670,6 +1676,15 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   auto options() const { return std::tuple{kind, rep}; }
 };
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind);
+
+using ShiftMask =
+    MaskBuilder<ShiftOp, FIELD(ShiftOp, kind), FIELD(ShiftOp, rep)>;
+
+namespace Opmask {
+using kWord32ShiftRightArithmetic =
+    ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
+                   WordRepresentation::Word32()>;
+}  // namespace Opmask
 
 struct EqualOp : FixedArityOperationT<2, EqualOp> {
   RegisterRepresentation rep;
