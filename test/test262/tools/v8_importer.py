@@ -149,10 +149,10 @@ class V8TestImporter(TestImporter):
     for folder in self.project_config.paths_to_sync:
       _log.info(f'Sync {folder.destination} with {folder.source}')
       destination = self.project_root / folder.destination
-      for f in destination.glob('**/*'):
+      for f in destination.glob('./*/*'):
         if f.is_file():
-          relative_path = f.relative_to(self.project_root)
-          source_file = self.test262_path / relative_path
+          relative_path = f.relative_to(destination)
+          source_file = self.test262_path / folder.source / relative_path
           status = self.get_git_file_status(v8_test262_revision,
                                             test262_revision, source_file)
           self.update_file(f, status, source_file)
