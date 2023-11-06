@@ -113,7 +113,7 @@ MaybeObject CompressedMaybeObjectSlot::load(PtrComprCageBase cage_base) const {
 }
 
 void CompressedMaybeObjectSlot::store(MaybeObject value) const {
-  *location() = TCompressionScheme::CompressObject(value.ptr());
+  *location() = TCompressionScheme::CompressAny(value.ptr());
 }
 
 MaybeObject CompressedMaybeObjectSlot::Relaxed_Load() const {
@@ -128,14 +128,14 @@ MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(
 }
 
 void CompressedMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
-  Tagged_t ptr = TCompressionScheme::CompressObject(value.ptr());
+  Tagged_t ptr = TCompressionScheme::CompressAny(value.ptr());
   AsAtomicTagged::Relaxed_Store(location(), ptr);
 }
 
 void CompressedMaybeObjectSlot::Release_CompareAndSwap(
     MaybeObject old, MaybeObject target) const {
-  Tagged_t old_ptr = TCompressionScheme::CompressObject(old.ptr());
-  Tagged_t target_ptr = TCompressionScheme::CompressObject(target.ptr());
+  Tagged_t old_ptr = TCompressionScheme::CompressAny(old.ptr());
+  Tagged_t target_ptr = TCompressionScheme::CompressAny(target.ptr());
   AsAtomicTagged::Release_CompareAndSwap(location(), old_ptr, target_ptr);
 }
 
