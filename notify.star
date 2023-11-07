@@ -179,6 +179,14 @@ on {{.Build.EndTime | time}}
 )
 
 v8_notifier(
+    name = "test262 impex",
+    on_new_status = ["FAILURE"],
+    notify_emails = [
+        "liviurau@google.com",
+    ],
+)
+
+v8_notifier(
     name = "infra",
     on_new_status = ["SUCCESS", "FAILURE", "INFRA_FAILURE"],
     notify_emails = [
