@@ -523,8 +523,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   uint32_t no_crash_offset = __ pc_offset();
   __ li(scratch, static_cast<int64_t>(crash_address_));
   __ Ld_d(scratch, MemOperand(scratch, 0));
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
@@ -564,8 +562,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   UseScratchRegisterScope temps(&masm);
   uint32_t crash_offset = __ pc_offset();
   __ Trap();
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
