@@ -566,7 +566,7 @@ class Heap final {
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
   }
-  void SetGCState(HeapState state);
+  V8_EXPORT_PRIVATE void SetGCState(HeapState state);
   bool IsTearingDown() const { return gc_state() == TEAR_DOWN; }
   bool IsInGC() const {
     return gc_state() != NOT_IN_GC && gc_state() != TEAR_DOWN;

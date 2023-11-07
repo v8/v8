@@ -286,7 +286,8 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationOrigin origin) {
 #ifdef V8_RUNTIME_CALL_STATS
   base::Optional<RuntimeCallTimerScope> rcs_scope;
-  if (!is_compaction_space()) {
+  DCHECK_IMPLIES(is_compaction_space(), heap()->gc_state() != Heap::NOT_IN_GC);
+  if (heap()->gc_state() == Heap::NOT_IN_GC) {
     rcs_scope.emplace(heap()->isolate(),
                       RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   }
