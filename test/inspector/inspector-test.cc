@@ -461,8 +461,8 @@ class ConsoleExtension : public InspectorIsolateData::SetupGlobalTask {
            v8::Local<v8::ObjectTemplate> global) override {
     v8::Local<v8::String> name =
         v8::String::NewFromUtf8Literal(isolate, "console");
-    global->SetAccessor(name, &ConsoleGetterCallback, nullptr, {}, v8::DEFAULT,
-                        v8::DontEnum);
+    global->SetNativeDataProperty(name, &ConsoleGetterCallback, nullptr, {},
+                                  v8::DontEnum);
   }
 
  private:

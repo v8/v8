@@ -1218,7 +1218,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   V8_WARN_UNUSED_RESULT ExceptionStatus CollectElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       KeyAccumulator* keys) final {
-    if (keys->filter() & ONLY_ALL_CAN_READ) return ExceptionStatus::kSuccess;
     return Subclass::CollectElementIndicesImpl(object, backing_store, keys);
   }
 
@@ -1774,7 +1773,6 @@ class DictionaryElementsAccessor
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
     if (filter & SKIP_STRINGS) return list;
-    if (filter & ONLY_ALL_CAN_READ) return list;
 
     Handle<NumberDictionary> dictionary =
         Handle<NumberDictionary>::cast(backing_store);

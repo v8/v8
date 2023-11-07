@@ -42,8 +42,6 @@ class AccessorInfo
   DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(setter, Address)
   inline bool has_setter(Isolate* isolate);
 
-  DECL_BOOLEAN_ACCESSORS(all_can_read)
-  DECL_BOOLEAN_ACCESSORS(all_can_write)
   DECL_BOOLEAN_ACCESSORS(is_special_data_property)
   DECL_BOOLEAN_ACCESSORS(replace_on_access)
   DECL_BOOLEAN_ACCESSORS(is_sloppy)
@@ -107,7 +105,6 @@ class InterceptorInfo
     : public TorqueGeneratedInterceptorInfo<InterceptorInfo, Struct> {
  public:
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
-  DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
   DECL_BOOLEAN_ACCESSORS(is_named)
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)

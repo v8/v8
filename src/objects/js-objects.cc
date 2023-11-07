@@ -1855,15 +1855,13 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
       it->Next();
     } else {
       interceptor = it->GetInterceptorForFailedAccessCheck();
-      if (interceptor.is_null() &&
-          (!JSObject::AllCanRead(it) ||
-           it->state() != LookupIterator::INTERCEPTOR)) {
+      if (interceptor.is_null()) {
         it->Restart();
         return Just(false);
       }
+      CHECK(!interceptor.is_null());
     }
   }
-
   if (it->state() == LookupIterator::INTERCEPTOR) {
     interceptor = it->GetInterceptor();
   }
@@ -2670,51 +2668,13 @@ int JSObject::GetHeaderSize(InstanceType type,
   }
 }
 
-// static
-bool JSObject::AllCanRead(LookupIterator* it) {
-  // Skip current iteration, it's in state ACCESS_CHECK or INTERCEPTOR, both of
-  // which have already been checked.
-  DCHECK(it->state() == LookupIterator::ACCESS_CHECK ||
-         it->state() == LookupIterator::INTERCEPTOR);
-  if (it->IsPrivateName()) {
-    return false;
-  }
-  for (it->Next(); it->IsFound(); it->Next()) {
-    if (it->state() == LookupIterator::ACCESSOR) {
-      auto accessors = it->GetAccessors();
-      if (IsAccessorInfo(*accessors)) {
-        if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
-      }
-    } else if (it->state() == LookupIterator::INTERCEPTOR) {
-      if (it->GetInterceptor()->all_can_read()) return true;
-    } else if (it->state() == LookupIterator::JSPROXY) {
-      // Stop lookupiterating. And no, AllCanNotRead.
-      return false;
-    }
-  }
-  return false;
-}
-
 MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
     LookupIterator* it) {
   Isolate* isolate = it->isolate();
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   Handle<InterceptorInfo> interceptor =
       it->GetInterceptorForFailedAccessCheck();
-  if (interceptor.is_null()) {
-    while (AllCanRead(it)) {
-      if (it->state() == LookupIterator::ACCESSOR) {
-        return Object::GetPropertyWithAccessor(it);
-      }
-      DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
-      bool done;
-      Handle<Object> result;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                                 GetPropertyWithInterceptor(it, &done), Object);
-      if (done) return result;
-    }
-
-  } else {
+  if (!interceptor.is_null()) {
     Handle<Object> result;
     bool done;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -2741,17 +2701,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   Handle<InterceptorInfo> interceptor =
       it->GetInterceptorForFailedAccessCheck();
-  if (interceptor.is_null()) {
-    while (AllCanRead(it)) {
-      if (it->state() == LookupIterator::ACCESSOR) {
-        return Just(it->property_attributes());
-      }
-      DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
-      auto result = GetPropertyAttributesWithInterceptor(it);
-      if (isolate->has_scheduled_exception()) break;
-      if (result.IsJust() && result.FromJust() != ABSENT) return result;
-    }
-  } else {
+  if (!interceptor.is_null()) {
     Maybe<PropertyAttributes> result =
         GetPropertyAttributesWithInterceptorInternal(it, interceptor);
     if (isolate->has_pending_exception()) return Nothing<PropertyAttributes>();
@@ -2762,33 +2712,13 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   UNREACHABLE();
 }
 
-// static
-bool JSObject::AllCanWrite(LookupIterator* it) {
-  if (it->IsPrivateName()) {
-    return false;
-  }
-  for (; it->IsFound() && it->state() != LookupIterator::JSPROXY; it->Next()) {
-    if (it->state() == LookupIterator::ACCESSOR) {
-      Handle<Object> accessors = it->GetAccessors();
-      if (IsAccessorInfo(*accessors)) {
-        if (AccessorInfo::cast(*accessors)->all_can_write()) return true;
-      }
-    }
-  }
-  return false;
-}
-
 Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
     LookupIterator* it, Handle<Object> value, Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   Handle<InterceptorInfo> interceptor =
       it->GetInterceptorForFailedAccessCheck();
-  if (interceptor.is_null()) {
-    if (AllCanWrite(it)) {
-      return Object::SetPropertyWithAccessor(it, value, should_throw);
-    }
-  } else {
+  if (!interceptor.is_null()) {
     Maybe<bool> result = SetPropertyWithInterceptorInternal(
         it, interceptor, should_throw, value);
     if (isolate->has_pending_exception()) return Nothing<bool>();

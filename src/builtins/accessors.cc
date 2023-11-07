@@ -34,8 +34,6 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   {
     DisallowGarbageCollection no_gc;
     Tagged<AccessorInfo> raw = *info;
-    raw->set_all_can_read(false);
-    raw->set_all_can_write(false);
     raw->set_is_special_data_property(true);
     raw->set_is_sloppy(false);
     raw->set_replace_on_access(false);

@@ -900,9 +900,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Gets the number of currently used elements.
   int GetFastElementsUsage();
 
-  static bool AllCanRead(LookupIterator* it);
-  static bool AllCanWrite(LookupIterator* it);
-
   template <typename Dictionary>
   static void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
                                           Handle<Dictionary> dictionary,

@@ -81,10 +81,6 @@ bool AccessorInfo::has_setter(Isolate* isolate) {
   return setter(isolate) != kNullAddress;
 }
 
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
-                    AccessorInfo::AllCanReadBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
-                    AccessorInfo::AllCanWriteBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
                     AccessorInfo::IsSpecialDataPropertyBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
@@ -117,7 +113,6 @@ void AccessorInfo::clear_padding() {
 
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, AllCanReadBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, is_named, NamedBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
