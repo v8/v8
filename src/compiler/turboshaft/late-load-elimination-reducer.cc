@@ -52,6 +52,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
       case Opcode::kStackCheck:
+      case Opcode::kParameter:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
@@ -60,14 +61,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitely break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
-        break;
-      case Opcode::kParameter:
-#if V8_ENABLE_WEBASSEMBLY
-        if (is_wasm_ && op.Cast<ParameterOp>().parameter_index == 0) {
-          // This is the instance parameter.
-          non_aliasing_objects_.Set(op_idx, true);
-        }
-#endif
         break;
       default:
         // Operations that `can_write` should invalidate the state. All such

@@ -5971,10 +5971,10 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
-  explicit RttCanonOp(OpIndex instance, uint32_t type_index)
-      : Base(instance), type_index(type_index) {}
+  explicit RttCanonOp(OpIndex rtts, uint32_t type_index)
+      : Base(rtts), type_index(type_index) {}
 
-  OpIndex instance() const { return Base::input(0); }
+  OpIndex rtts() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();

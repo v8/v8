@@ -2887,8 +2887,8 @@ class AssemblerOpInterface {
     return ReduceIfReachableAssertNotNull(object, type, trap_id);
   }
 
-  V<Map> RttCanon(V<WasmInstanceObject> instance, uint32_t type_index) {
-    return ReduceIfReachableRttCanon(instance, type_index);
+  V<Map> RttCanon(V<FixedArray> rtts, uint32_t type_index) {
+    return ReduceIfReachableRttCanon(rtts, type_index);
   }
 
   V<Word32> WasmTypeCheck(V<Tagged> object, V<Map> rtt,

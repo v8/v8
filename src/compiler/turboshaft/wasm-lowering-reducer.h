@@ -80,11 +80,9 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex REDUCE(RttCanon)(OpIndex instance, uint32_t type_index) {
-    OpIndex maps_list = LOAD_INSTANCE_FIELD(
-        instance, ManagedObjectMaps, MemoryRepresentation::TaggedPointer());
+  OpIndex REDUCE(RttCanon)(OpIndex rtts, uint32_t type_index) {
     int map_offset = FixedArray::kHeaderSize + type_index * kTaggedSize;
-    return __ Load(maps_list, LoadOp::Kind::TaggedBase(),
+    return __ Load(rtts, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
 

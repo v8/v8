@@ -1191,8 +1191,7 @@ class GraphVisitor {
   }
 
   OpIndex AssembleOutputGraphRttCanon(const RttCanonOp& op) {
-    return assembler().ReduceRttCanon(MapToNewGraph(op.instance()),
-                                      op.type_index);
+    return assembler().ReduceRttCanon(MapToNewGraph(op.rtts()), op.type_index);
   }
 
   OpIndex AssembleOutputGraphWasmTypeCheck(const WasmTypeCheckOp& op) {

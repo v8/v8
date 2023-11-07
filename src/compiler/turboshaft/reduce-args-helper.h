@@ -467,7 +467,7 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const RttCanonOp& op) {
-    return callback_(op.instance(), op.type_index);
+    return callback_(op.rtts(), op.type_index);
   }
 
   OpIndex operator()(const WasmTypeCheckOp& op) {
