@@ -1498,7 +1498,7 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
       __ Move(a4, fp);
       break;
     case ForwardWhichFrame::kParentFrame:
-      __ LoadWord(a4, Operand(fp, StandardFrameConstants::kCallerFPOffset));
+      __ LoadWord(a4, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
       break;
   }
 
