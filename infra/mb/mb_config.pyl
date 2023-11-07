@@ -103,6 +103,7 @@
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',
+      'V8 Mac - arm64 - builder': 'release_arm64',
       'V8 Mac - arm64 - no pointer compression debug builder': 'debug_arm64_no_pointer_compression',
       'V8 Mac - arm64 - release builder': 'release_arm64',
       'V8 Mac - arm64 - debug builder': 'debug_arm64',
