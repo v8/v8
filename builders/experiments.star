@@ -241,4 +241,10 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
+    experiment_builder(
+        name = "V8 Mac - arm64 - builder",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"pool": "luci.flex.ci", "os": "Mac", "cpu": "arm64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+    ),
 )
