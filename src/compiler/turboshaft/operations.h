@@ -1731,6 +1731,12 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
   auto options() const { return std::tuple{rep}; }
 };
 
+using EqualMask = MaskBuilder<EqualOp, FIELD(EqualOp, rep)>;
+
+namespace Opmask {
+using kWord64Equal = EqualMask::For<WordRepresentation::Word32()>;
+}  // namespace Opmask
+
 struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   enum class Kind : uint8_t {
     kSignedLessThan,
