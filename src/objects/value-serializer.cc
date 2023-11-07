@@ -38,6 +38,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
+#include "src/regexp/regexp.h"
 #include "src/snapshot/code-serializer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1962,6 +1963,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
     bad_flags_mask |= JSRegExp::kLinear;
   }
   if ((raw_flags & bad_flags_mask) ||
+      !RegExp::VerifyFlags(static_cast<RegExpFlags>(raw_flags)) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeHandle<JSRegExp>();

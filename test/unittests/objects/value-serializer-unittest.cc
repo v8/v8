@@ -1727,6 +1727,32 @@ TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
       });
 }
 
+TEST_F(ValueSerializerTest, DecodeRegExpUnicodeSets) {
+  // The last two bytes encode the regexp flags.
+  std::vector<uint8_t> regexp_encoding = {
+      0xFF, 0x0C,        // Version 12
+      0x52,              // RegExp
+      0x22, 0x03,        // 3 char OneByteString
+      0x66, 0x6F, 0x6F,  // String content "foo"
+      0x83, 0x02         // Flags giv
+  };
+  DecodeTestUpToVersion(
+      15, std::move(regexp_encoding), [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        ExpectScriptTrue("Object.getPrototypeOf(result) === RegExp.prototype");
+        ExpectScriptTrue("result.toString() === '/foo/giv'");
+      });
+
+  // Flags u and v are mutually exclusive.
+  InvalidDecodeTest({
+      0xFF, 0x0C,        // Version 12
+      0x52,              // RegExp
+      0x22, 0x03,        // 3 char OneByteString
+      0x66, 0x6F, 0x6F,  // String content "foo"
+      0x93, 0x02         // Flags giuv
+  });
+}
+
 TEST_F(ValueSerializerTest, RoundTripMap) {
   Local<Value> value = RoundTripTest("var m = new Map(); m.set(42, 'foo'); m;");
   ASSERT_TRUE(value->IsMap());
