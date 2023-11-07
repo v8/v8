@@ -118,6 +118,9 @@ class SafepointTable {
   SafepointEntry FindEntry(Address pc) const;
   static SafepointEntry FindEntry(Isolate* isolate, Tagged<GcSafeCode> code,
                                   Address pc);
+  // Tries to find the entry for the given pc. If the entry does not exist, it
+  // returns an uninitialized entry.
+  SafepointEntry TryFindEntry(Address pc) const;
 
   void Print(std::ostream&) const;
 

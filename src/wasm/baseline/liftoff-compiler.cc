@@ -3286,7 +3286,9 @@ class LiftoffCompiler {
             trap_handler::ProtectedInstructionData{protected_load_pc});
         source_position_table_builder_.AddPosition(
             protected_load_pc, SourcePosition(decoder->position()), true);
-        DefineSafepoint(protected_load_pc);
+        if (for_debugging_) {
+          DefineSafepoint(protected_load_pc);
+        }
       }
       __ PushRegister(kind, value);
     }
@@ -3333,7 +3335,9 @@ class LiftoffCompiler {
           trap_handler::ProtectedInstructionData{protected_load_pc});
       source_position_table_builder_.AddPosition(
           protected_load_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_load_pc);
+      if (for_debugging_) {
+        DefineSafepoint(protected_load_pc);
+      }
     }
     __ PushRegister(kS128, value);
 
@@ -3379,7 +3383,9 @@ class LiftoffCompiler {
           trap_handler::ProtectedInstructionData{protected_load_pc});
       source_position_table_builder_.AddPosition(
           protected_load_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_load_pc);
+      if (for_debugging_) {
+        DefineSafepoint(protected_load_pc);
+      }
     }
 
     __ PushRegister(kS128, result);
@@ -3437,7 +3443,9 @@ class LiftoffCompiler {
             trap_handler::ProtectedInstructionData{protected_store_pc});
         source_position_table_builder_.AddPosition(
             protected_store_pc, SourcePosition(decoder->position()), true);
-        DefineSafepoint(protected_store_pc);
+        if (for_debugging_) {
+          DefineSafepoint(protected_store_pc);
+        }
       }
     }
 
@@ -3477,7 +3485,9 @@ class LiftoffCompiler {
           trap_handler::ProtectedInstructionData{protected_store_pc});
       source_position_table_builder_.AddPosition(
           protected_store_pc, SourcePosition(decoder->position()), true);
-      DefineSafepoint(protected_store_pc);
+      if (for_debugging_) {
+        DefineSafepoint(protected_store_pc);
+      }
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       // TODO(14259): Implement memory tracing for multiple memories.

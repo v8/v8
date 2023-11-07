@@ -1455,7 +1455,12 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc());
   DCHECK(wasm_code);
   SafepointTable table(wasm_code);
-  SafepointEntry safepoint_entry = table.FindEntry(pc());
+  SafepointEntry safepoint_entry = table.TryFindEntry(pc());
+  if (!safepoint_entry.is_initialized()) {
+    // Only for protected instructions the safepoint entry is not mandatory.
+    CHECK(wasm_code->IsProtectedInstruction(
+        pc() - WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
+  }
 
 #ifdef DEBUG
   intptr_t marker =
@@ -1500,10 +1505,12 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   }
 
   // Visit pointer spill slots and locals.
-  DCHECK_GE((wasm_code->stack_slots() + kBitsPerByte) / kBitsPerByte,
-            safepoint_entry.tagged_slots().size());
-  VisitSpillSlots(isolate(), v, parameters_limit,
-                  safepoint_entry.tagged_slots());
+  if (safepoint_entry.is_initialized()) {
+    DCHECK_GE((wasm_code->stack_slots() + kBitsPerByte) / kBitsPerByte,
+              safepoint_entry.tagged_slots().size());
+    VisitSpillSlots(isolate(), v, parameters_limit,
+                    safepoint_entry.tagged_slots());
+  }
 
   // Visit tagged parameters that have been passed to the function of this
   // frame. Conceptionally these parameters belong to the parent frame. However,

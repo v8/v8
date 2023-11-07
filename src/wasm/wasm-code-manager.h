@@ -222,6 +222,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
         protected_instructions_data());
   }
 
+  bool IsProtectedInstruction(Address pc);
+
   void Validate() const;
   void Print(const char* name = nullptr) const;
   void MaybePrint() const;

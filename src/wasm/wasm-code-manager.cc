@@ -301,6 +301,22 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                                    name, source_url, code_offset, script_id));
 }
 
+namespace {
+bool ProtectedInstructionDataCompare(const ProtectedInstructionData& left,
+                                     const ProtectedInstructionData& right) {
+  return left.instr_offset < right.instr_offset;
+}
+}  // namespace
+
+bool WasmCode::IsProtectedInstruction(Address pc) {
+  base::Vector<const trap_handler::ProtectedInstructionData> instructions =
+      protected_instructions();
+  ProtectedInstructionData offset{
+      static_cast<uint32_t>(pc - instruction_start())};
+  return std::binary_search(instructions.begin(), instructions.end(), offset,
+                            ProtectedInstructionDataCompare);
+}
+
 void WasmCode::Validate() const {
   // The packing strategy for {tagged_parameter_slots} only works if both the
   // max number of parameters and their max combined stack slot usage fits into

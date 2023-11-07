@@ -54,7 +54,7 @@ int SafepointTable::find_return_pc(int pc_offset) {
   UNREACHABLE();
 }
 
-SafepointEntry SafepointTable::FindEntry(Address pc) const {
+SafepointEntry SafepointTable::TryFindEntry(Address pc) const {
   int pc_offset = static_cast<int>(pc - instruction_start_);
 
   // Check if the PC is pointing at a trampoline.
@@ -71,11 +71,17 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   for (int i = 0; i < length_; ++i) {
     SafepointEntry entry = GetEntry(i);
     if (i == length_ - 1 || GetEntry(i + 1).pc() > pc_offset) {
-      DCHECK_LE(entry.pc(), pc_offset);
+      if (entry.pc() > pc_offset) return {};
       return entry;
     }
   }
-  UNREACHABLE();
+  return {};
+}
+
+SafepointEntry SafepointTable::FindEntry(Address pc) const {
+  SafepointEntry result = TryFindEntry(pc);
+  CHECK(result.is_initialized());
+  return result;
 }
 
 // static

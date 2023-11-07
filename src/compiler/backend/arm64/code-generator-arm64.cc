@@ -451,15 +451,6 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
       access_mode == kMemoryAccessProtectedNullDereference) {
-    ReferenceMap* reference_map =
-        codegen->zone()->New<ReferenceMap>(codegen->zone());
-    // The safepoint has to be recorded at the return address of a call. Address
-    // we use as the fake return address in the case of the trap handler is the
-    // fault address (here `pc`) + 1. Therefore the safepoint here has to be
-    // recorded at pc + 1;
-    codegen->RecordSafepoint(
-        reference_map,
-        pc + WasmFrameConstants::kProtectedInstructionReturnAddressOffset);
     codegen->RecordProtectedInstruction(pc);
   }
 }
