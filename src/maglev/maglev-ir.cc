@@ -999,7 +999,20 @@ void Phi::SetValueLocationConstraints() {
 
   result().SetUnallocated(kIgnoredPolicy, kNoVreg);
 }
+
 void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
+
+void Phi::SetUseRequires31BitValue() {
+  if (uses_require_31_bit_value_) return;
+  uses_require_31_bit_value_ = true;
+  for (int i = 0; i < merge_state_->predecessors_so_far(); ++i) {
+    ValueNode* input_node = input(i).node();
+    if (!input_node) continue;
+    if (auto phi = input_node->TryCast<Phi>()) {
+      phi->SetUseRequires31BitValue();
+    }
+  }
+}
 
 namespace {
 
@@ -1234,6 +1247,20 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{reg} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ SmiTagInt32AndJumpIfFail(reg, fail);
+}
+
+void CheckedSmiSizedInt32::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedSmiSizedInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  // We shouldn't be emitting this node for 32-bit Smis.
+  DCHECK(!SmiValuesAre32Bits());
+
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  __ CheckInt32IsSmi(reg, fail);
 }
 
 void CheckedSmiTagUint32::SetValueLocationConstraints() {

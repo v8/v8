@@ -3025,6 +3025,11 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   if (EnsureType(node, NodeType::kSmi)) {
+    if (SmiValuesAre31Bits()) {
+      if (auto phi = node->TryCast<Phi>()) {
+        phi->SetUseRequires31BitValue();
+      }
+    }
     return AddNewNode<UnsafeSmiUntag>({node});
   } else {
     return AddNewNode<CheckedSmiUntag>({node});
