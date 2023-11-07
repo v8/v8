@@ -3354,6 +3354,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
+    "src/compiler/turboshaft/opmasks.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/optimize-phase.h",
     "src/compiler/turboshaft/phase.h",

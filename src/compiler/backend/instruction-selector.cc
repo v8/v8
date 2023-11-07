@@ -20,6 +20,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions-inl.h"
 

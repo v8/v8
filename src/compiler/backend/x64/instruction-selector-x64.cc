@@ -24,6 +24,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/slots-inl.h"

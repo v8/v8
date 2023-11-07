@@ -331,10 +331,6 @@ inline constexpr bool MayThrow(Opcode opcode) {
 #undef CASE
 }
 
-#define FIELD(op, field_name)                                       \
-  OpMaskField<UnwrapRepresentation<decltype(op::field_name)>::type, \
-              OFFSET_OF(op, field_name)>
-
 template <typename T>
 inline base::Vector<T> InitVectorOf(
     ZoneVector<T>& storage,
@@ -885,80 +881,6 @@ template <class Op>
 struct HasStaticEffects<Op, std::void_t<decltype(Op::effects)>>
     : std::bool_constant<true> {};
 
-template <typename T, size_t Offset>
-struct OpMaskField {
-  using type = T;
-  static constexpr size_t offset = Offset;
-  static constexpr size_t size = sizeof(T);
-
-  static_assert(offset + size <= sizeof(uint64_t));
-};
-
-template <typename T>
-constexpr uint64_t encode_for_mask(T value) {
-  return static_cast<uint64_t>(value);
-}
-
-template <typename T>
-struct UnwrapRepresentation {
-  using type = T;
-};
-template <>
-struct UnwrapRepresentation<WordRepresentation> {
-  using type = WordRepresentation::Enum;
-};
-template <>
-struct UnwrapRepresentation<FloatRepresentation> {
-  using type = FloatRepresentation::Enum;
-};
-template <>
-struct UnwrapRepresentation<RegisterRepresentation> {
-  using type = RegisterRepresentation::Enum;
-};
-
-template <typename Op, typename... Fields>
-struct MaskBuilder {
-  static constexpr uint64_t BuildBaseMask() {
-    static_assert(OFFSET_OF(Operation, opcode) == 0);
-    static_assert(sizeof(Operation::opcode) == sizeof(uint8_t));
-    static_assert(sizeof(Operation) == 4);
-    return static_cast<uint64_t>(0xFF);
-  }
-
-  static constexpr uint64_t EncodeBaseValue(Opcode opcode) {
-    static_assert(OFFSET_OF(Operation, opcode) == 0);
-    return static_cast<uint64_t>(opcode);
-  }
-
-  static constexpr uint64_t BuildMask() {
-    constexpr uint64_t base_mask = BuildBaseMask();
-    return (base_mask | ... | BuildFieldMask<Fields>());
-  }
-
-  static constexpr uint64_t EncodeValue(typename Fields::type... args) {
-    constexpr uint64_t base_mask =
-        EncodeBaseValue(operation_to_opcode_map<Op>::value);
-    return (base_mask | ... | EncodeFieldValue<Fields>(args));
-  }
-
-  template <typename F>
-  static constexpr uint64_t BuildFieldMask() {
-    static_assert(F::size < sizeof(uint64_t));
-    static_assert(F::offset + F::size <= sizeof(uint64_t));
-    constexpr uint64_t ones = static_cast<uint64_t>(-1) >>
-                              ((sizeof(uint64_t) - F::size) * kBitsPerByte);
-    return ones << (F::offset * kBitsPerByte);
-  }
-
-  template <typename F>
-  static constexpr uint64_t EncodeFieldValue(typename F::type value) {
-    return encode_for_mask(value) << (F::offset * kBitsPerByte);
-  }
-
-  template <typename Fields::type... Args>
-  using For = OpMaskT<Op, BuildMask(), EncodeValue(Args...)>;
-};
-
 // This template knows the complete type of the operation and is plugged into
 // the inheritance hierarchy. It removes boilerplate from the concrete
 // `Operation` subclasses, defining everything that can be expressed
@@ -1345,28 +1267,6 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
-using WordBinopMask =
-    MaskBuilder<WordBinopOp, FIELD(WordBinopOp, kind), FIELD(WordBinopOp, rep)>;
-
-namespace Opmask {
-using kWord32Add =
-    WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word32()>;
-using kWord32Sub =
-    WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word32()>;
-using kWord32Mul =
-    WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word32()>;
-using kWord32BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
-                                             WordRepresentation::Word32()>;
-using kWord64Add =
-    WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word64()>;
-using kWord64Sub =
-    WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word64()>;
-using kWord64Mul =
-    WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word64()>;
-using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
-                                             WordRepresentation::Word64()>;
-}  // namespace Opmask
-
 struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -1606,14 +1506,6 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
 };
 std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind);
 
-using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
-                                   FIELD(FloatUnaryOp, rep)>;
-
-namespace Opmask {
-using kFloat64Abs = FloatUnaryMask::For<FloatUnaryOp::Kind::kAbs,
-                                        FloatRepresentation::Float64()>;
-}
-
 struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   enum class Kind : uint8_t {
     kShiftRightArithmeticShiftOutZeros,
@@ -1677,15 +1569,6 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
 };
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind);
 
-using ShiftMask =
-    MaskBuilder<ShiftOp, FIELD(ShiftOp, kind), FIELD(ShiftOp, rep)>;
-
-namespace Opmask {
-using kWord32ShiftRightArithmetic =
-    ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
-                   WordRepresentation::Word32()>;
-}  // namespace Opmask
-
 struct EqualOp : FixedArityOperationT<2, EqualOp> {
   RegisterRepresentation rep;
 
@@ -1730,12 +1613,6 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
   }
   auto options() const { return std::tuple{rep}; }
 };
-
-using EqualMask = MaskBuilder<EqualOp, FIELD(EqualOp, rep)>;
-
-namespace Opmask {
-using kWord64Equal = EqualMask::For<WordRepresentation::Word32()>;
-}  // namespace Opmask
 
 struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   enum class Kind : uint8_t {
@@ -2446,13 +2323,6 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     }
   }
 };
-
-using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
-
-namespace Opmask {
-using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
-using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
-}  // namespace Opmask
 
 // Load `loaded_rep` from: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
@@ -3903,13 +3773,6 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   }
   auto options() const { return std::tuple{index}; }
 };
-
-using ProjectionMask = MaskBuilder<ProjectionOp, FIELD(ProjectionOp, index)>;
-
-namespace Opmask {
-using kProjection0 = ProjectionMask::For<0>;
-using kProjection1 = ProjectionMask::For<1>;
-}  // namespace Opmask
 
 struct CheckTurboshaftTypeOfOp
     : FixedArityOperationT<1, CheckTurboshaftTypeOfOp> {
@@ -7553,8 +7416,6 @@ Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
   storage.resize_no_init(size);
   return new (storage.data()) Op(args...);
 }
-
-#undef FIELD
 
 }  // namespace v8::internal::compiler::turboshaft
 

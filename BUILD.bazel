@@ -3070,6 +3070,7 @@ filegroup(
         "src/compiler/turboshaft/operation-matcher.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
+        "src/compiler/turboshaft/opmasks.h",
         "src/compiler/turboshaft/optimization-phase.cc",
         "src/compiler/turboshaft/optimization-phase.h",
         "src/compiler/turboshaft/optimize-phase.cc",
