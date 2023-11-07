@@ -746,9 +746,12 @@ class TurboshaftGraphBuildingInterface {
 
     LoadOp::Kind load_kind = GetMemoryAccessKind(repr, strategy);
 
-    // TODO(14108): If offset is in int range, use it as static offset.
-    OpIndex load = __ Load(__ WordPtrAdd(mem_start, imm.offset), final_index,
-                           load_kind, repr);
+    const bool offset_in_int_range =
+        imm.offset <= std::numeric_limits<int32_t>::max();
+    OpIndex base =
+        offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
+    int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
+    OpIndex load = __ Load(base, final_index, load_kind, repr, offset);
     OpIndex extended_load =
         (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8)
             ? (repr.IsSigned() ? __ ChangeInt32ToInt64(load)
@@ -913,9 +916,13 @@ class TurboshaftGraphBuildingInterface {
     if (value.type == kWasmI64 && repr.SizeInBytes() <= 4) {
       store_value = __ TruncateWord64ToWord32(store_value);
     }
-    // TODO(14108): If offset is in int range, use it as static offset.
-    __ Store(mem_start, __ WordPtrAdd(imm.offset, final_index), store_value,
-             store_kind, repr, compiler::kNoWriteBarrier, 0);
+    const bool offset_in_int_range =
+        imm.offset <= std::numeric_limits<int32_t>::max();
+    OpIndex base =
+        offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
+    int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
+    __ Store(base, final_index, store_value, store_kind, repr,
+             compiler::kNoWriteBarrier, offset);
 
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
