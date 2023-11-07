@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd1c7080c734f727b03b88dc743d89e6328fd1846',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ab8815d43451026567ac995b87529c4a693e95a8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e1fa8831f1cedbaf91002ad32b476cb33aafe72f',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a724b3ac943915845541b5886e73b707127755d5',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c6db8519c02ae6a5afac0358c266dc3e5f2fd803',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '124950ee2c619428b16fabb3a5389fcbcfd7d665',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -264,7 +264,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '09ea53c2b67a9282ba92df4da4894c9413523998',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '10e7f91883ed56d1ad26977c8d413336f74f0bdd',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -276,7 +276,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'd781e6e1b823d1391179f52516e0fc93e61567b2',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2364ae8b073e44c9ac2725e176f2ce57967f1012',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0226cb1cdfe740b173394e1cebbd0dcf293e38ad',
   'third_party/libunwind/src':
