@@ -2912,7 +2912,13 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   void Validate(const Graph& graph) const {
   }
   void PrintOptions(std::ostream& os) const;
+
   auto options() const { return std::tuple{type}; }
+
+  // template <typename H>
+  // friend H AbslHashValue(H h, const AllocateOp& op) {
+  //   return H::combine(std::move(h), op.size(), op.type);
+  // }
 };
 
 struct DecodeExternalPointerOp

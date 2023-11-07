@@ -141,6 +141,11 @@ class OpIndex {
   uint32_t offset_;
 
   static constexpr uint32_t kTurbofanNodeIdFlag = 1;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const OpIndex& idx) {
+    return H::combine(std::move(h), idx.offset_);
+  }
 };
 
 std::ostream& operator<<(std::ostream& os, OpIndex idx);
@@ -165,6 +170,11 @@ class OptionalOpIndex : protected OpIndex {
     return OpIndex(*this);
   }
   constexpr OpIndex value_or_invalid() const { return OpIndex(*this); }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const OptionalOpIndex& idx) {
+    return H::combine(std::move(h), idx.offset_);
+  }
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os, OptionalOpIndex idx) {

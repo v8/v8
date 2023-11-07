@@ -3968,6 +3968,8 @@ v8_library(
     deps = [
         ":v8_libbase",
         "//external:base_trace_event_common",
+        "//external:absl_flat_hash_map",
+        "//external:absl_flat_hash_set",
     ],
 )
 

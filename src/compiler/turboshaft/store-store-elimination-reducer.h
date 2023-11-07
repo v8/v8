@@ -253,7 +253,7 @@ class MaybeRedundantStoresTable
 
   const Graph& graph_;
   GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
-  ZoneUnorderedMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
+  ZoneAbslFlatHashMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
   // In `active_keys_`, we track the keys of all stores that arge gc-observable
   // or unobservable. Keys that are mapped to the default value (observable) are
   // removed from the `active_keys_`.

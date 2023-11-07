@@ -61,8 +61,8 @@ struct ScheduleBuilder {
   compiler::SimplifiedOperatorBuilder simplified{graph_zone};
   compiler::BasicBlock* current_block = schedule->start();
   const Block* current_input_block = nullptr;
-  ZoneUnorderedMap<int, Node*> parameters{phase_zone};
-  ZoneUnorderedMap<int, Node*> osr_values{phase_zone};
+  ZoneAbslFlatHashMap<int, Node*> parameters{phase_zone};
+  ZoneAbslFlatHashMap<int, Node*> osr_values{phase_zone};
   std::vector<BasicBlock*> blocks = {};
   std::vector<Node*> nodes{input_graph.op_id_count()};
   std::vector<std::pair<Node*, OpIndex>> loop_phis = {};

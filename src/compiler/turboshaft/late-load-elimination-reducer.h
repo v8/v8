@@ -179,6 +179,12 @@ struct MemoryAddress {
            offset == other.offset &&
            element_size_log2 == other.element_size_log2 && size == other.size;
   }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const MemoryAddress& mem) {
+    return H::combine(std::move(h), mem.base, mem.index, mem.offset,
+                      mem.element_size_log2, mem.size);
+  }
 };
 
 inline size_t hash_value(MemoryAddress const& mem) {
@@ -530,16 +536,14 @@ class MemoryContentTable
   SparseOpIndexSnapshotTable<MapMaskAndOr>& object_maps_;
   FixedOpIndexSidetable<OpIndex>& replacements_;
 
-  // TODO(dmercadier): consider using a faster datastructure than
-  // ZoneUnorderedMap for {all_keys_}, {base_keys_} and {offset_keys_}.
-
   // A map containing all of the keys, for fast lookup of a specific
   // MemoryAddress.
-  ZoneUnorderedMap<MemoryAddress, Key> all_keys_;
+  ZoneAbslFlatHashMap<MemoryAddress, Key> all_keys_;
   // Map from base OpIndex to keys associated with this base.
-  ZoneUnorderedMap<OpIndex, BaseData> base_keys_;
+  ZoneAbslFlatHashMap<OpIndex, BaseData> base_keys_;
   // Map from offsets to keys associated with this offset.
-  ZoneUnorderedMap<int, DoublyThreadedList<Key, OffsetListTraits>> offset_keys_;
+  ZoneAbslFlatHashMap<int, DoublyThreadedList<Key, OffsetListTraits>>
+      offset_keys_;
 
   // List of all of the keys that have a valid index.
   DoublyThreadedList<Key, OffsetListTraits> index_keys_;

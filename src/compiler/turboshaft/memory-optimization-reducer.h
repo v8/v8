@@ -11,6 +11,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -55,10 +56,10 @@ struct MemoryAnalyzer {
   };
   FixedBlockSidetable<base::Optional<BlockState>> block_states{
       input_graph.block_count(), phase_zone};
-  ZoneUnorderedMap<const AllocateOp*, const AllocateOp*> folded_into{
+  ZoneAbslFlatHashMap<const AllocateOp*, const AllocateOp*> folded_into{
       phase_zone};
-  ZoneUnorderedSet<OpIndex> skipped_write_barriers{phase_zone};
-  ZoneUnorderedMap<const AllocateOp*, uint32_t> reserved_size{phase_zone};
+  ZoneAbslFlatHashSet<OpIndex> skipped_write_barriers{phase_zone};
+  ZoneAbslFlatHashMap<const AllocateOp*, uint32_t> reserved_size{phase_zone};
   BlockIndex current_block = BlockIndex(0);
   BlockState state;
 

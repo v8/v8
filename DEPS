@@ -338,6 +338,8 @@ include_rules = [
   # the Chromium guidelines (though note that some requirements in V8 may be
   # different to Chromium's):
   # https://chromium.googlesource.com/chromium/src/+/main/styleguide/c++/c++11.md
+  '+absl/container/flat_hash_map.h',
+  '+absl/container/flat_hash_set.h',
   '+absl/types/optional.h',
   '+absl/types/variant.h',
   '+absl/status',
