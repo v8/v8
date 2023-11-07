@@ -538,7 +538,6 @@ v8_source_set("v8_unittests_sources") {
       "compiler/persistent-unittest.cc",
       "compiler/redundancy-elimination-unittest.cc",
       "compiler/regalloc/live-range-unittest.cc",
-      "compiler/regalloc/mid-tier-register-allocator-unittest.cc",
       "compiler/regalloc/move-optimizer-unittest.cc",
       "compiler/regalloc/register-allocator-unittest.cc",
       "compiler/run-bytecode-graph-builder-unittest.cc",

@@ -2808,8 +2808,6 @@ filegroup(
         "src/compiler/backend/instruction-selector-impl.h",
         "src/compiler/backend/jump-threading.cc",
         "src/compiler/backend/jump-threading.h",
-        "src/compiler/backend/mid-tier-register-allocator.cc",
-        "src/compiler/backend/mid-tier-register-allocator.h",
         "src/compiler/backend/move-optimizer.cc",
         "src/compiler/backend/move-optimizer.h",
         "src/compiler/backend/register-allocation.h",

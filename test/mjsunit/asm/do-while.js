@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(crbug.com/v8/14410): The mid tier allocator caused a crash for this
-// test. As the allocator gets removed soon, we just disable the flag for this
-// test now instead of investigating the issue.
-// Flags: --noturbo-force-mid-tier-regalloc
 function Module(stdlib, foreign, buffer) {
   "use asm";
   function f(i) {

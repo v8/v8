@@ -26,7 +26,6 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/jump-threading.h"
-#include "src/compiler/backend/mid-tier-register-allocator.h"
 #include "src/compiler/backend/move-optimizer.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/backend/register-allocator.h"
@@ -440,12 +439,6 @@ class PipelineData {
   RegisterAllocationData* register_allocation_data() const {
     return register_allocation_data_;
   }
-  TopTierRegisterAllocationData* top_tier_register_allocation_data() const {
-    return TopTierRegisterAllocationData::cast(register_allocation_data_);
-  }
-  MidTierRegisterAllocationData* mid_tier_register_allocator_data() const {
-    return MidTierRegisterAllocationData::cast(register_allocation_data_);
-  }
 
   std::string const& source_position_output() const {
     return source_position_output_;
@@ -579,20 +572,11 @@ class PipelineData {
     if (osr_helper_.has_value()) osr_helper()->SetupFrame(frame());
   }
 
-  void InitializeTopTierRegisterAllocationData(
-      const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
+  void InitializeRegisterAllocationData(const RegisterConfiguration* config,
+                                        CallDescriptor* call_descriptor) {
     DCHECK_NULL(register_allocation_data_);
     register_allocation_data_ =
-        register_allocation_zone()->New<TopTierRegisterAllocationData>(
-            config, register_allocation_zone(), frame(), sequence(),
-            &info()->tick_counter(), debug_name());
-  }
-
-  void InitializeMidTierRegisterAllocationData(
-      const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
-    DCHECK_NULL(register_allocation_data_);
-    register_allocation_data_ =
-        register_allocation_zone()->New<MidTierRegisterAllocationData>(
+        register_allocation_zone()->New<RegisterAllocationData>(
             config, register_allocation_zone(), frame(), sequence(),
             &info()->tick_counter(), debug_name());
   }
@@ -797,12 +781,8 @@ class PipelineImpl final {
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   bool SelectInstructionsAndAssemble(CallDescriptor* call_descriptor);
   MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor);
-  void AllocateRegistersForTopTier(const RegisterConfiguration* config,
-                                   CallDescriptor* call_descriptor,
-                                   bool run_verifier);
-  void AllocateRegistersForMidTier(const RegisterConfiguration* config,
-                                   CallDescriptor* call_descriptor,
-                                   bool run_verifier);
+  void AllocateRegisters(const RegisterConfiguration* config,
+                         CallDescriptor* call_descriptor, bool run_verifier);
 
   OptimizedCompilationInfo* info() const;
   Isolate* isolate() const;
@@ -2458,7 +2438,7 @@ struct BitcastElisionPhase {
 struct MeetRegisterConstraintsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(MeetRegisterConstraints)
   void Run(PipelineData* data, Zone* temp_zone) {
-    ConstraintBuilder builder(data->top_tier_register_allocation_data());
+    ConstraintBuilder builder(data->register_allocation_data());
     builder.MeetRegisterConstraints();
   }
 };
@@ -2467,7 +2447,7 @@ struct ResolvePhisPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ResolvePhis)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    ConstraintBuilder builder(data->top_tier_register_allocation_data());
+    ConstraintBuilder builder(data->register_allocation_data());
     builder.ResolvePhis();
   }
 };
@@ -2476,8 +2456,7 @@ struct BuildLiveRangesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BuildLiveRanges)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeBuilder builder(data->top_tier_register_allocation_data(),
-                             temp_zone);
+    LiveRangeBuilder builder(data->register_allocation_data(), temp_zone);
     builder.BuildLiveRanges();
   }
 };
@@ -2486,7 +2465,7 @@ struct BuildBundlesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BuildLiveRangeBundles)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    BundleBuilder builder(data->top_tier_register_allocation_data());
+    BundleBuilder builder(data->register_allocation_data());
     builder.BuildBundles();
   }
 };
@@ -2496,7 +2475,7 @@ struct AllocateGeneralRegistersPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(AllocateGeneralRegisters)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    RegAllocator allocator(data->top_tier_register_allocation_data(),
+    RegAllocator allocator(data->register_allocation_data(),
                            RegisterKind::kGeneral, temp_zone);
     allocator.AllocateRegisters();
   }
@@ -2507,7 +2486,7 @@ struct AllocateFPRegistersPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(AllocateFPRegisters)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    RegAllocator allocator(data->top_tier_register_allocation_data(),
+    RegAllocator allocator(data->register_allocation_data(),
                            RegisterKind::kDouble, temp_zone);
     allocator.AllocateRegisters();
   }
@@ -2518,7 +2497,7 @@ struct AllocateSimd128RegistersPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(AllocateSIMD128Registers)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    RegAllocator allocator(data->top_tier_register_allocation_data(),
+    RegAllocator allocator(data->register_allocation_data(),
                            RegisterKind::kSimd128, temp_zone);
     allocator.AllocateRegisters();
   }
@@ -2528,7 +2507,7 @@ struct DecideSpillingModePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(DecideSpillingMode)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->top_tier_register_allocation_data());
+    OperandAssigner assigner(data->register_allocation_data());
     assigner.DecideSpillingMode();
   }
 };
@@ -2537,7 +2516,7 @@ struct AssignSpillSlotsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(AssignSpillSlots)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->top_tier_register_allocation_data());
+    OperandAssigner assigner(data->register_allocation_data());
     assigner.AssignSpillSlots();
   }
 };
@@ -2546,7 +2525,7 @@ struct CommitAssignmentPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CommitAssignment)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->top_tier_register_allocation_data());
+    OperandAssigner assigner(data->register_allocation_data());
     assigner.CommitAssignment();
   }
 };
@@ -2555,7 +2534,7 @@ struct PopulateReferenceMapsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(PopulatePointerMaps)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    ReferenceMapPopulator populator(data->top_tier_register_allocation_data());
+    ReferenceMapPopulator populator(data->register_allocation_data());
     populator.PopulateReferenceMaps();
   }
 };
@@ -2564,7 +2543,7 @@ struct ConnectRangesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ConnectRanges)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeConnector connector(data->top_tier_register_allocation_data());
+    LiveRangeConnector connector(data->register_allocation_data());
     connector.ConnectRanges(temp_zone);
   }
 };
@@ -2573,40 +2552,8 @@ struct ResolveControlFlowPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ResolveControlFlow)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeConnector connector(data->top_tier_register_allocation_data());
+    LiveRangeConnector connector(data->register_allocation_data());
     connector.ResolveControlFlow(temp_zone);
-  }
-};
-
-struct MidTierRegisterOutputDefinitionPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterOutputDefinition)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DefineOutputs(data->mid_tier_register_allocator_data());
-  }
-};
-
-struct MidTierRegisterAllocatorPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    AllocateRegisters(data->mid_tier_register_allocator_data());
-  }
-};
-
-struct MidTierSpillSlotAllocatorPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierSpillSlotAllocator)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    AllocateSpillSlots(data->mid_tier_register_allocator_data());
-  }
-};
-
-struct MidTierPopulateReferenceMapsPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierPopulateReferenceMaps)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    PopulateReferenceMaps(data->mid_tier_register_allocator_data());
   }
 };
 
@@ -4013,7 +3960,6 @@ std::unique_ptr<TurbofanCompilationJob> Pipeline::NewCompilationJob(
 
 void Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
-                                           bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(base::ArrayVector("testing"), sequence->zone(),
                                 CodeKind::FOR_TESTING);
@@ -4028,11 +3974,7 @@ void Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   }
 
   PipelineImpl pipeline(&data);
-  if (use_mid_tier_register_allocator) {
-    pipeline.AllocateRegistersForMidTier(config, nullptr, run_verifier);
-  } else {
-    pipeline.AllocateRegistersForTopTier(config, nullptr, run_verifier);
-  }
+  pipeline.AllocateRegisters(config, nullptr, run_verifier);
 }
 
 void PipelineImpl::ComputeScheduledGraph() {
@@ -4215,36 +4157,16 @@ bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor,
 
   // Allocate registers.
 
-  // This limit is chosen somewhat arbitrarily, by looking at a few bigger
-  // WebAssembly programs, and chosing the limit such that functions that take
-  // >100ms in register allocation are switched to mid-tier.
-  static int kTopTierVirtualRegistersLimit = 16384;
-
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   std::unique_ptr<const RegisterConfiguration> restricted_config;
-  // The mid-tier register allocator keeps values in stack slots for too long.
-  // This is incompatible with left-trimming, therefore we cannot enable it for
-  // JS functions.
-  bool use_mid_tier_register_allocator =
-      data->info()->code_kind() == CodeKind::WASM_FUNCTION &&
-      (v8_flags.turbo_force_mid_tier_regalloc ||
-       (v8_flags.turbo_use_mid_tier_regalloc_for_huge_functions &&
-        data->sequence()->VirtualRegisterCount() >
-            kTopTierVirtualRegistersLimit));
-
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     RegList registers = call_descriptor->AllocatableRegisters();
     DCHECK_LT(0, registers.Count());
     restricted_config.reset(
         RegisterConfiguration::RestrictGeneralRegisters(registers));
     config = restricted_config.get();
-    use_mid_tier_register_allocator = false;
   }
-  if (use_mid_tier_register_allocator) {
-    AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
-  } else {
-    AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
-  }
+  AllocateRegisters(config, call_descriptor, run_verifier);
 
   // Verify the instruction sequence has the same hash in two stages.
   VerifyGeneratedCodeIsIdempotent();
@@ -4481,9 +4403,9 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
 
 }  // namespace
 
-void PipelineImpl::AllocateRegistersForTopTier(
-    const RegisterConfiguration* config, CallDescriptor* call_descriptor,
-    bool run_verifier) {
+void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
+                                     CallDescriptor* call_descriptor,
+                                     bool run_verifier) {
   PipelineData* data = this->data_;
   // Don't track usage for this zone in compiler stats.
   std::unique_ptr<Zone> verifier_zone;
@@ -4501,7 +4423,7 @@ void PipelineImpl::AllocateRegistersForTopTier(
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  data->InitializeTopTierRegisterAllocationData(config, call_descriptor);
+  data->InitializeRegisterAllocationData(config, call_descriptor);
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();
@@ -4510,16 +4432,15 @@ void PipelineImpl::AllocateRegistersForTopTier(
 
   TraceSequence(info(), data, "before register allocation");
   if (verifier != nullptr) {
-    CHECK(!data->top_tier_register_allocation_data()
-               ->ExistsUseWithoutDefinition());
-    CHECK(data->top_tier_register_allocation_data()
+    CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
+    CHECK(data->register_allocation_data()
               ->RangesDefinedInDeferredStayInDeferred());
   }
 
   if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
-    tcf << AsC1VRegisterAllocationData(
-        "PreAllocation", data->top_tier_register_allocation_data());
+    tcf << AsC1VRegisterAllocationData("PreAllocation",
+                                       data->register_allocation_data());
   }
 
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
@@ -4563,49 +4484,8 @@ void PipelineImpl::AllocateRegistersForTopTier(
 
   if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
-    tcf << AsC1VRegisterAllocationData(
-        "CodeGen", data->top_tier_register_allocation_data());
-  }
-
-  data->DeleteRegisterAllocationZone();
-}
-
-void PipelineImpl::AllocateRegistersForMidTier(
-    const RegisterConfiguration* config, CallDescriptor* call_descriptor,
-    bool run_verifier) {
-  PipelineData* data = data_;
-  // Don't track usage for this zone in compiler stats.
-  std::unique_ptr<Zone> verifier_zone;
-  RegisterAllocatorVerifier* verifier = nullptr;
-  if (run_verifier) {
-    verifier_zone.reset(
-        new Zone(data->allocator(), kRegisterAllocatorVerifierZoneName));
-    verifier = verifier_zone->New<RegisterAllocatorVerifier>(
-        verifier_zone.get(), config, data->sequence(), data->frame());
-  }
-
-#ifdef DEBUG
-  data->sequence()->ValidateEdgeSplitForm();
-  data->sequence()->ValidateDeferredBlockEntryPaths();
-  data->sequence()->ValidateDeferredBlockExitPaths();
-#endif
-  data->InitializeMidTierRegisterAllocationData(config, call_descriptor);
-
-  TraceSequence(info(), data, "before register allocation");
-
-  Run<MidTierRegisterOutputDefinitionPhase>();
-
-  Run<MidTierRegisterAllocatorPhase>();
-
-  Run<MidTierSpillSlotAllocatorPhase>();
-
-  Run<MidTierPopulateReferenceMapsPhase>();
-
-  TraceSequence(info(), data, "after register allocation");
-
-  if (verifier != nullptr) {
-    verifier->VerifyAssignment("End of regalloc pipeline.");
-    verifier->VerifyGapMoves();
+    tcf << AsC1VRegisterAllocationData("CodeGen",
+                                       data->register_allocation_data());
   }
 
   data->DeleteRegisterAllocationZone();

@@ -350,10 +350,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmInlining)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)          \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition)   \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                  \
