@@ -3034,7 +3034,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
       baseline_code->instruction_stream(baseline_code->code_cage_base(),
                                         kRelaxedLoad);
   Tagged<HeapObject> baseline_bytecode_or_interpreter_data =
-      baseline_code->bytecode_or_interpreter_data();
+      baseline_code->bytecode_or_interpreter_data(heap_->isolate());
 
   // During flushing a BytecodeArray is transformed into an UncompiledData
   // in place. Seeing an UncompiledData here implies that another

@@ -3404,8 +3404,17 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
         code, Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
+    // As long as Code objects still live inside the sandbox, they reference
+    // BytecodeArrays through their in-sandbox wrapper object.
+    static_assert(!kCodeObjectLiveInTrustedSpace);
+    GotoIfNot(HasInstanceType(var_result.value(), BYTECODE_WRAPPER_TYPE),
+              &check_for_interpreter_data);
+    TNode<HeapObject> bytecode = LoadTrustedPointerFromObject(
+        var_result.value(), BytecodeWrapper::kBytecodeOffset,
+        kBytecodeArrayIndirectPointerTag);
+    var_result = bytecode;
+    Goto(&done);
   }
-  Goto(&check_for_interpreter_data);
 
   BIND(&check_for_interpreter_data);
 

@@ -1682,7 +1682,7 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
   // TODO(v8:11429): Avoid this heap walk somehow.
   HeapObjectIterator iterator(isolate_->heap());
   auto trampoline = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
-  shared->FlushBaselineCode();
+  shared->FlushBaselineCode(isolate_);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (IsJSFunction(obj)) {
@@ -1711,7 +1711,7 @@ void Debug::DiscardAllBaselineCode() {
     } else if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> shared = SharedFunctionInfo::cast(obj);
       if (shared->HasBaselineCode()) {
-        shared->FlushBaselineCode();
+        shared->FlushBaselineCode(isolate_);
       }
     }
   }

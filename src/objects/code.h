@@ -122,7 +122,14 @@ class Code : public ExposedTrustedObject {
   DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  DECL_ACCESSORS(bytecode_or_interpreter_data, Tagged<HeapObject>)
+  // As BytecodeArrays are located in trusted space, but Code objects are not
+  // yet, BytecodeArrays are currently referenced via their wrapper object.
+  // This is transparent for the caller.
+  static_assert(!kCodeObjectLiveInTrustedSpace);
+  inline Tagged<HeapObject> bytecode_or_interpreter_data(
+      const Isolate* isolate) const;
+  inline void set_bytecode_or_interpreter_data(
+      Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
@@ -391,7 +398,8 @@ class Code : public ExposedTrustedObject {
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data(
+      const Isolate* isolate) const;
   Tagged<ByteArray> raw_position_table() const;
 
   enum BytecodeToPCPosition {

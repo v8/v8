@@ -2500,7 +2500,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
   DCHECK(Builtins::IsBuiltinId(code->builtin_id()));
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
   DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
-  DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(),
+  DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(isolate()),
             read_only_roots().empty_fixed_array());
   // .. because we don't explicitly initialize these flags:
   DCHECK(!code->marked_for_deoptimization());
@@ -2525,7 +2525,8 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
       code->constant_pool_offset(),
       code->code_comments_offset(),
       code->unwinding_info_offset(),
-      handle(code->raw_deoptimization_data_or_interpreter_data(), isolate()),
+      handle(code->raw_deoptimization_data_or_interpreter_data(isolate()),
+             isolate()),
       /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
       /*instruction_stream=*/MaybeHandle<InstructionStream>{},
       off_heap_entry,

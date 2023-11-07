@@ -2019,7 +2019,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
     os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
   os << "\n - deoptimization_data_or_interpreter_data: "
-     << Brief(raw_deoptimization_data_or_interpreter_data());
+     << Brief(raw_deoptimization_data_or_interpreter_data(Isolate::Current()));
   os << "\n - position_table: " << Brief(raw_position_table());
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "

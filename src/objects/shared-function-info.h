@@ -345,7 +345,7 @@ class SharedFunctionInfo
   DECL_ACCESSORS(interpreter_data, Tagged<InterpreterData>)
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
-  inline void FlushBaselineCode();
+  inline void FlushBaselineCode(const Isolate* isolate);
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(
       const Isolate* isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode);

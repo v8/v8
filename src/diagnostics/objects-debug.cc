@@ -1265,6 +1265,7 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
 void Code::CodeVerify(Isolate* isolate) {
   ExposedTrustedObjectVerify(isolate);
   CHECK(IsCode(*this));
+  CHECK_EQ(IsTrustedSpaceObject(*this), kCodeObjectLiveInTrustedSpace);
   if (has_instruction_stream()) {
     Tagged<InstructionStream> istream = instruction_stream();
     CHECK_EQ(istream->code(kAcquireLoad), *this);

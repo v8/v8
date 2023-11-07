@@ -99,11 +99,31 @@ ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<FixedArray>,
                    kind() != CodeKind::BASELINE,
                    kind() != CodeKind::BASELINE &&
                        !ObjectInYoungGeneration(value))
-ACCESSORS_CHECKED2(Code, bytecode_or_interpreter_data, Tagged<HeapObject>,
-                   kDeoptimizationDataOrInterpreterDataOffset,
-                   kind() == CodeKind::BASELINE,
-                   kind() == CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
+
+Tagged<HeapObject> Code::bytecode_or_interpreter_data(
+    const Isolate* isolate) const {
+  DCHECK_EQ(kind(), CodeKind::BASELINE);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  Tagged<HeapObject> value =
+      TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
+          cage_base, *this);
+  if (IsBytecodeWrapper(value)) {
+    return BytecodeWrapper::cast(value)->bytecode(isolate);
+  }
+  return value;
+}
+void Code::set_bytecode_or_interpreter_data(Tagged<HeapObject> value,
+                                            WriteBarrierMode mode) {
+  DCHECK(kind() == CodeKind::BASELINE && !ObjectInYoungGeneration(value));
+  if (IsBytecodeArray(value)) {
+    value = BytecodeArray::cast(value)->wrapper();
+  }
+  TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::store(
+      *this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kDeoptimizationDataOrInterpreterDataOffset,
+                            value, mode);
+}
+
 ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
                    kPositionTableOffset, kind() != CodeKind::BASELINE,
                    kind() != CodeKind::BASELINE &&

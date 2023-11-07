@@ -674,7 +674,8 @@ DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
   if (IsCode(data, cage_base)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(cage_base);
+    data = baseline_code->bytecode_or_interpreter_data(
+        GetIsolateForSandbox(*this));
   }
   return IsInterpreterData(data, cage_base);
 }
@@ -685,7 +686,8 @@ DEF_GETTER(SharedFunctionInfo, interpreter_data, Tagged<InterpreterData>) {
   if (IsCode(data, cage_base)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(cage_base);
+    data = baseline_code->bytecode_or_interpreter_data(
+        GetIsolateForSandbox(*this));
   }
   return InterpreterData::cast(data);
 }
@@ -718,10 +720,11 @@ void SharedFunctionInfo::set_baseline_code(Tagged<Code> baseline_code,
   set_function_data(baseline_code, tag, mode);
 }
 
-void SharedFunctionInfo::FlushBaselineCode() {
+void SharedFunctionInfo::FlushBaselineCode(const Isolate* isolate) {
   DCHECK(HasBaselineCode());
-  set_function_data(baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(),
-                    kReleaseStore);
+  set_function_data(
+      baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(isolate),
+      kReleaseStore);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

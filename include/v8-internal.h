@@ -595,6 +595,10 @@ static_assert(
 constexpr int kCodePointerTableEntryEntrypointOffset = 0;
 constexpr int kCodePointerTableEntryCodeObjectOffset = 8;
 
+// Constants that can be used to mark places that should be modified once
+// certain types of objects are moved out of the sandbox and into trusted space.
+constexpr bool kCodeObjectLiveInTrustedSpace = false;
+
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
