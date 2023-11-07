@@ -25861,7 +25861,7 @@ TEST(DynamicImport) {
   referrer->set_name(*url);
   i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
       kCustomHostDefinedOptionsLengthForTesting);
-  referrer->set_host_defined_options(*options);
+  referrer->SetHostDefinedOptions(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -25948,7 +25948,7 @@ TEST(DynamicImportWithAssertions) {
   referrer->set_name(*url);
   i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
       kCustomHostDefinedOptionsLengthForTesting);
-  referrer->set_host_defined_options(*options);
+  referrer->SetHostDefinedOptions(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);

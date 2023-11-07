@@ -1738,7 +1738,7 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
   if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
     // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
     if (IsFixedArray(*host_defined_options)) {
-      script->set_host_defined_options(FixedArray::cast(*host_defined_options));
+      script->SetHostDefinedOptions(FixedArray::cast(*host_defined_options));
     }
   }
 }

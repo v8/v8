@@ -2785,7 +2785,6 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     // TODO(cbruni, v8:12302): Avoid creating tempory ScriptOrModule objects.
     auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
         i_isolate->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
-    script_or_module->set_resource_name(script->name());
     script_or_module->set_host_defined_options(script->host_defined_options());
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     i::Handle<i::ArrayList> list =

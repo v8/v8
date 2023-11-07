@@ -149,7 +149,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Script::cast(*obj);
-      script_obj->set_host_defined_options(*host_options);
+      script_obj->SetHostDefinedOptions(*host_options);
       script_obj->set_context_data(*context_data);
     }
     return;
