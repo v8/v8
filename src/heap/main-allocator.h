@@ -40,10 +40,6 @@ class AllocatorPolicy {
 
   virtual bool SupportsExtendingLAB() const { return false; }
 
-  virtual CompactionSpaceKind GetCompactionSpaceKind() const {
-    return CompactionSpaceKind::kNone;
-  }
-
  protected:
   Heap* heap() const { return heap_; }
 
@@ -73,8 +69,6 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin) final;
   void FreeLinearAllocationArea() final;
-
-  CompactionSpaceKind GetCompactionSpaceKind() const final;
 
  private:
   bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
@@ -149,7 +143,14 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space);
+  enum class Context {
+    kGC,
+    kNotGC,
+  };
+
+  V8_EXPORT_PRIVATE MainAllocator(
+      Heap* heap, SpaceWithLinearArea* space,
+      MainAllocator::Context context = MainAllocator::Context::kNotGC);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
@@ -171,11 +172,11 @@ class MainAllocator {
   }
 
   Address original_top_acquire() const {
-    return linear_area_original_data_.get_original_top_acquire();
+    return linear_area_original_data().get_original_top_acquire();
   }
 
   Address original_limit_relaxed() const {
-    return linear_area_original_data_.get_original_limit_relaxed();
+    return linear_area_original_data().get_original_limit_relaxed();
   }
 
   void MoveOriginalTopForward();
@@ -190,10 +191,12 @@ class MainAllocator {
     return allocation_info_;
   }
 
-  AllocationCounter& allocation_counter() { return allocation_counter_; }
+  AllocationCounter& allocation_counter() {
+    return allocation_counter_.value();
+  }
 
   const AllocationCounter& allocation_counter() const {
-    return allocation_counter_;
+    return allocation_counter_.value();
   }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
@@ -215,8 +218,6 @@ class MainAllocator {
                                                    size_t size_in_bytes,
                                                    size_t aligned_size_in_bytes,
                                                    size_t allocation_size);
-
-  void MarkLabStartInitialized();
 
   V8_EXPORT_PRIVATE void MakeLinearAllocationAreaIterable();
 
@@ -283,23 +284,23 @@ class MainAllocator {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin);
 
+  void MarkLabStartInitialized();
+
   LinearAreaOriginalData& linear_area_original_data() {
-    return linear_area_original_data_;
+    return linear_area_original_data_.value();
   }
 
   const LinearAreaOriginalData& linear_area_original_data() const {
-    return linear_area_original_data_;
+    return linear_area_original_data_.value();
   }
 
   int ObjectAlignment() const;
 
   AllocationSpace identity() const;
 
-  bool SupportsAllocationObserver() const { return !is_compaction_space(); }
+  bool SupportsAllocationObserver() const { return !in_gc(); }
 
-  bool is_compaction_space() const {
-    return compaction_space_kind_ != CompactionSpaceKind::kNone;
-  }
+  bool in_gc() const { return context_ == Context::kGC; }
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
 
@@ -308,14 +309,14 @@ class MainAllocator {
   Heap* const heap_;
   SpaceWithLinearArea* const space_;
 
-  AllocationCounter allocation_counter_;
+  base::Optional<AllocationCounter> allocation_counter_;
   LinearAllocationArea& allocation_info_;
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
-  LinearAreaOriginalData linear_area_original_data_;
+  base::Optional<LinearAreaOriginalData> linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
-  const CompactionSpaceKind compaction_space_kind_;
+  const Context context_;
   const bool supports_extending_lab_;
 
   friend class AllocatorPolicy;

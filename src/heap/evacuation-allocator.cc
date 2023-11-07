@@ -17,13 +17,18 @@ EvacuationAllocator::EvacuationAllocator(
       new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
       lab_allocation_will_fail_(false) {
   if (new_space_) {
+    DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
     new_space_allocator_ = heap_->allocator()->new_space_allocator();
   }
 
-  old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE));
-  code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE));
-  shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE));
-  trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE));
+  old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE),
+                               MainAllocator::Context::kGC);
+  code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
+                                MainAllocator::Context::kGC);
+  shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
+                                  MainAllocator::Context::kGC);
+  trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE),
+                                   MainAllocator::Context::kGC);
 }
 
 AllocationResult EvacuationAllocator::AllocateInNewSpaceSynchronized(
@@ -87,24 +92,29 @@ void EvacuationAllocator::FreeLastInCompactionSpace(MainAllocator* allocator,
 }
 
 void EvacuationAllocator::Finalize() {
+  // Give back remaining LAB space if this EvacuationAllocator's new space LAB
+  // sits right next to new space allocation top.
+  const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
+  if (new_space_) {
+    new_space_allocator()->MaybeFreeUnusedLab(info);
+    new_space_allocator()->FreeLinearAllocationArea();
+  }
+
   old_space_allocator()->FreeLinearAllocationArea();
   heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
+
   code_space_allocator()->FreeLinearAllocationArea();
   heap_->code_space()->MergeCompactionSpace(compaction_spaces_.Get(CODE_SPACE));
+
   if (heap_->shared_space()) {
     shared_space_allocator()->FreeLinearAllocationArea();
     heap_->shared_space()->MergeCompactionSpace(
         compaction_spaces_.Get(SHARED_SPACE));
   }
+
   trusted_space_allocator()->FreeLinearAllocationArea();
   heap_->trusted_space()->MergeCompactionSpace(
       compaction_spaces_.Get(TRUSTED_SPACE));
-
-  // Give back remaining LAB space if this EvacuationAllocator's new space LAB
-  // sits right next to new space allocation top.
-  const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
-  if (new_space_)
-    heap_->allocator()->new_space_allocator()->MaybeFreeUnusedLab(info);
 }
 
 }  // namespace internal
