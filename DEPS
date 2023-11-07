@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f4f93067362cc84423929e8e5a4cf4b7385c1ad9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd1c7080c734f727b03b88dc743d89e6328fd1846',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e1fa8831f1cedbaf91002ad32b476cb33aafe72f',
   'buildtools/linux64': {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f3e882d6319dab1c71e0b86dacf13f7ef859701f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c6db8519c02ae6a5afac0358c266dc3e5f2fd803',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b4e466e610accd97629e2a8f3e4fdb307bc54f4a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ccc34d2b44d8520f9b4c2697001f36444c78cd66',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '3f588d789b567e53fa284be308db4dbf3787d8f3',
     'condition': 'checkout_fuchsia',
@@ -264,7 +264,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '48a6beefc1bb4912a082ea127224d67e71d843b4',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '09ea53c2b67a9282ba92df4da4894c9413523998',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
