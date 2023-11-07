@@ -9,8 +9,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 void DebugFeatureLoweringPhase::Run(Zone* temp_zone) {
+#ifdef V8_ENABLE_DEBUG_CODE
   turboshaft::OptimizationPhase<turboshaft::DebugFeatureLoweringReducer>::Run(
       temp_zone);
+#endif
 }
 
 }  // namespace v8::internal::compiler::turboshaft
