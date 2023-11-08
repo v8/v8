@@ -1613,7 +1613,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
                             record_visitor),
-        buffer_(LocalAllocationBuffer::InvalidBuffer()),
         promoted_size_(0),
         semispace_copied_size_(0),
         pretenuring_handler_(heap_->pretenuring_handler()),
@@ -1693,7 +1692,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     return allocation;
   }
 
-  LocalAllocationBuffer buffer_;
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
   PretenuringHandler* const pretenuring_handler_;
