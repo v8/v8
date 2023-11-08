@@ -368,7 +368,7 @@ void Simulator::Init(FILE* stream) {
   // Allocate and setup the simulator stack.
   size_t stack_size = AllocatedStackSize();
 
-  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]());
   stack_limit_ = stack_ + kStackProtectionSize;
   uintptr_t tos = stack_ + stack_size - kStackProtectionSize;
   // The stack pointer must be 16-byte aligned.
