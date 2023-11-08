@@ -925,7 +925,7 @@ void Assembler::shift(Operand dst, int subcode, int size) {
 
 void Assembler::bswapl(Register dst) {
   EnsureSpace ensure_space(this);
-  emit_rex_32(dst);
+  emit_optional_rex_32(dst);
   emit(0x0F);
   emit(0xC8 + dst.low_bits());
 }

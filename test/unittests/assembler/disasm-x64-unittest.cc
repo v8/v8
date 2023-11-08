@@ -407,7 +407,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883448d0c0c         REX.W addq [rbp+rcx*4+0xc],0xc",
           addq(Operand(rbp, rcx, times_4, 12), Immediate(12)));
 
-  COMPARE("400fc8               bswapl rax", bswapl(rax));
+  COMPARE("0fc8                 bswapl rax", bswapl(rax));
   COMPARE("480fcf               REX.W bswapq rdi", bswapq(rdi));
   COMPARE("410fbdc7             bsrl rax,r15", bsrl(rax, r15));
   COMPARE("440fbd0ccd0f670100   bsrl r9,[rcx*8+0x1670f]",
