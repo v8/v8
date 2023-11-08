@@ -307,6 +307,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Dispatched behavior.
   void HeapObjectShortPrint(std::ostream& os);
+  void Print();
+  static void Print(Tagged<Object> obj);
+  static void Print(Tagged<Object> obj, std::ostream& os);
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);
 #endif

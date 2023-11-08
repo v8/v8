@@ -2877,6 +2877,16 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {
 
 #endif  // OBJECT_PRINT
 
+void HeapObject::Print() { Print(*this); }
+
+// static
+void HeapObject::Print(Tagged<Object> obj) { v8::internal::Print(obj); }
+
+// static
+void HeapObject::Print(Tagged<Object> obj, std::ostream& os) {
+  v8::internal::Print(obj, os);
+}
+
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
