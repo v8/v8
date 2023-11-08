@@ -449,8 +449,8 @@ class V8_EXPORT ScriptCompiler {
 
     // Origin information
     Local<Value> resource_name;
-    int resource_line_offset;
-    int resource_column_offset;
+    int resource_line_offset = -1;
+    int resource_column_offset = -1;
     ScriptOriginOptions resource_options;
     Local<Value> source_map_url;
     Local<Data> host_defined_options;
