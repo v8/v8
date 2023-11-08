@@ -1525,7 +1525,7 @@
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'test262', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'test262', 'variant': 'code_serializer', 'shards': 2},
     ],
   },
   'V8 Linux64 - minor mc - debug': {
