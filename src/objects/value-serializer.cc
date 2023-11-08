@@ -1066,15 +1066,6 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     WriteString(message);
   }
 
-  if (cause_found.FromJust() &&
-      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
-    Handle<Object> cause = cause_desc.value();
-    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
-    if (!WriteObject(cause).FromMaybe(false)) {
-      return Nothing<bool>();
-    }
-  }
-
   if (!Object::GetProperty(isolate_, error, isolate_->factory()->stack_string())
            .ToHandle(&stack)) {
     return Nothing<bool>();
@@ -1082,6 +1073,17 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   if (IsString(*stack)) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kStack));
     WriteString(Handle<String>::cast(stack));
+  }
+
+  // The {cause} can self-reference the error. We add at the end, so that we can
+  // create the Error first when deserializing.
+  if (cause_found.FromJust() &&
+      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
+    Handle<Object> cause = cause_desc.value();
+    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
+    if (!WriteObject(cause).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
   }
 
   WriteVarint(static_cast<uint8_t>(ErrorTag::kEnd));
@@ -2234,85 +2236,105 @@ bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   uint32_t id = next_id_++;
 
-  Handle<Object> message = isolate_->factory()->undefined_value();
-  Handle<Object> options = isolate_->factory()->undefined_value();
-  Handle<Object> stack = isolate_->factory()->undefined_value();
-  Handle<Object> no_caller;
-  auto constructor = isolate_->error_function();
-  bool done = false;
+#define READ_NEXT_ERROR_TAG()              \
+  do {                                     \
+    if (!ReadVarint<uint8_t>().To(&tag)) { \
+      return MaybeHandle<JSObject>();      \
+    }                                      \
+  } while (false)
 
-  while (!done) {
-    uint8_t tag;
-    if (!ReadVarint<uint8_t>().To(&tag)) {
-      return MaybeHandle<JSObject>();
-    }
-    switch (static_cast<ErrorTag>(tag)) {
-      case ErrorTag::kEvalErrorPrototype:
-        constructor = isolate_->eval_error_function();
-        break;
-      case ErrorTag::kRangeErrorPrototype:
-        constructor = isolate_->range_error_function();
-        break;
-      case ErrorTag::kReferenceErrorPrototype:
-        constructor = isolate_->reference_error_function();
-        break;
-      case ErrorTag::kSyntaxErrorPrototype:
-        constructor = isolate_->syntax_error_function();
-        break;
-      case ErrorTag::kTypeErrorPrototype:
-        constructor = isolate_->type_error_function();
-        break;
-      case ErrorTag::kUriErrorPrototype:
-        constructor = isolate_->uri_error_function();
-        break;
-      case ErrorTag::kMessage: {
-        Handle<String> message_string;
-        if (!ReadString().ToHandle(&message_string)) {
-          return MaybeHandle<JSObject>();
-        }
-        message = message_string;
-        break;
-      }
-      case ErrorTag::kCause: {
-        Handle<Object> cause;
-        if (!ReadObject().ToHandle(&cause)) {
-          return MaybeHandle<JSObject>();
-        }
-        options = isolate_->factory()->NewJSObject(isolate_->object_function());
-        if (JSObject::DefinePropertyOrElementIgnoreAttributes(
-                Handle<JSObject>::cast(options),
-                isolate_->factory()->cause_string(), cause, DONT_ENUM)
-                .is_null()) {
-          return MaybeHandle<JSObject>();
-        }
-        break;
-      }
-      case ErrorTag::kStack: {
-        Handle<String> stack_string;
-        if (!ReadString().ToHandle(&stack_string)) {
-          return MaybeHandle<JSObject>();
-        }
-        stack = stack_string;
-        break;
-      }
-      case ErrorTag::kEnd:
-        done = true;
-        break;
-      default:
-        return MaybeHandle<JSObject>();
-    }
+  uint8_t tag;
+  READ_NEXT_ERROR_TAG();
+
+  // Read error type constructor.
+  Handle<JSFunction> constructor;
+  switch (static_cast<ErrorTag>(tag)) {
+    case ErrorTag::kEvalErrorPrototype:
+      constructor = isolate_->eval_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kRangeErrorPrototype:
+      constructor = isolate_->range_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kReferenceErrorPrototype:
+      constructor = isolate_->reference_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kSyntaxErrorPrototype:
+      constructor = isolate_->syntax_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kTypeErrorPrototype:
+      constructor = isolate_->type_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kUriErrorPrototype:
+      constructor = isolate_->uri_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    default:
+      // The default prototype in the deserialization side is Error.prototype,
+      // so we don't have to do anything here.
+      constructor = isolate_->error_function();
+      break;
   }
 
+  // Check for message property.
+  Handle<Object> message = isolate_->factory()->undefined_value();
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kMessage) {
+    Handle<String> message_string;
+    if (!ReadString().ToHandle(&message_string)) {
+      return MaybeHandle<JSObject>();
+    }
+    message = message_string;
+    READ_NEXT_ERROR_TAG();
+  }
+
+  // Check for stack property.
+  Handle<Object> stack = isolate_->factory()->undefined_value();
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
+    Handle<String> stack_string;
+    if (!ReadString().ToHandle(&stack_string)) {
+      return MaybeHandle<JSObject>();
+    }
+    stack = stack_string;
+    READ_NEXT_ERROR_TAG();
+  }
+
+  // Create error object before adding the cause property.
   Handle<JSObject> error;
+  Handle<Object> no_caller;
+  Handle<Object> undefined_options = isolate_->factory()->undefined_value();
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
-                             options, SKIP_NONE, no_caller,
+                             undefined_options, SKIP_NONE, no_caller,
                              ErrorUtils::StackTraceCollection::kDisabled)
            .ToHandle(&error)) {
     return MaybeHandle<Object>();
   }
-
   ErrorUtils::SetFormattedStack(isolate_, error, stack);
   AddObjectWithID(id, error);
+
+  // Add cause property if needed.
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kCause) {
+    Handle<Object> cause;
+    if (!ReadObject().ToHandle(&cause)) {
+      return MaybeHandle<JSObject>();
+    }
+    Handle<Name> cause_string = isolate_->factory()->cause_string();
+    if (JSObject::SetOwnPropertyIgnoreAttributes(error, cause_string, cause,
+                                                 DONT_ENUM)
+            .is_null()) {
+      return MaybeHandle<JSObject>();
+    };
+    READ_NEXT_ERROR_TAG();
+  }
+
+#undef READ_NEXT_ERROR_TAG
+
+  if (static_cast<ErrorTag>(tag) != ErrorTag::kEnd) {
+    return MaybeHandle<Object>();
+  }
   return error;
 }
 
