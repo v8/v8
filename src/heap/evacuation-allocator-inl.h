@@ -18,7 +18,8 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
-      return AllocateInNewSpace(object_size, alignment);
+      return new_space_allocator()->AllocateRaw(object_size, alignment,
+                                                AllocationOrigin::kGC);
     case OLD_SPACE:
       return old_space_allocator()->AllocateRaw(object_size, alignment,
                                                 AllocationOrigin::kGC);
@@ -34,32 +35,6 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     default:
       UNREACHABLE();
   }
-}
-
-AllocationResult EvacuationAllocator::AllocateInLAB(
-    int object_size, AllocationAlignment alignment) {
-  AllocationResult allocation;
-  if (!new_space_lab_.IsValid() && !NewLocalAllocationBuffer()) {
-    return AllocationResult::Failure();
-  }
-  allocation = new_space_lab_.AllocateRawAligned(object_size, alignment);
-  if (allocation.IsFailure()) {
-    if (!NewLocalAllocationBuffer()) {
-      return AllocationResult::Failure();
-    } else {
-      allocation = new_space_lab_.AllocateRawAligned(object_size, alignment);
-      CHECK(!allocation.IsFailure());
-    }
-  }
-  return allocation;
-}
-
-AllocationResult EvacuationAllocator::AllocateInNewSpace(
-    int object_size, AllocationAlignment alignment) {
-  if (object_size > kMaxLabObjectSize) {
-    return AllocateInNewSpaceSynchronized(object_size, alignment);
-  }
-  return AllocateInLAB(object_size, alignment);
 }
 
 }  // namespace internal

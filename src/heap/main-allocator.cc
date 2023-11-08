@@ -40,7 +40,8 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       allocation_info_(owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
       context_(context),
-      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
+      supports_extending_lab_(!in_gc() &&
+                              allocator_policy_->SupportsExtendingLAB()) {
   if (in_gc()) {
     DCHECK(!supports_extending_lab_);
   } else {
@@ -412,7 +413,10 @@ AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  FreeLinearAllocationArea();
+  base::Optional<base::MutexGuard> guard;
+  if (allocator_->in_gc()) guard.emplace(space_->mutex());
+
+  FreeLinearAllocationAreaUnsynchronized();
 
   base::Optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
@@ -425,7 +429,17 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
   int aligned_size_in_bytes = size_in_bytes + filler_size;
   DCHECK_LE(start + aligned_size_in_bytes, end);
 
-  Address limit = allocator_->ComputeLimit(start, end, aligned_size_in_bytes);
+  Address limit;
+
+  if (allocator_->in_gc()) {
+    // During GC we allow multiple LABs in new space and since Allocate() above
+    // returns the whole remaining page by default, we limit the size of the LAB
+    // here.
+    size_t used = std::max(aligned_size_in_bytes, kLabSizeInGC);
+    limit = std::min(end, start + used);
+  } else {
+    limit = allocator_->ComputeLimit(start, end, aligned_size_in_bytes);
+  }
   CHECK_LE(limit, end);
 
   if (limit != end) {
@@ -445,6 +459,16 @@ void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
 #if DEBUG
   allocator_->Verify();
 #endif  // DEBUG
+
+  base::Optional<base::MutexGuard> guard;
+  if (allocator_->in_gc()) guard.emplace(space_->mutex());
+
+  FreeLinearAllocationAreaUnsynchronized();
+}
+
+void SemiSpaceNewSpaceAllocatorPolicy::
+    FreeLinearAllocationAreaUnsynchronized() {
+  if (!allocator_->IsLabValid()) return;
 
   Address current_top = allocator_->top();
   Address current_limit = allocator_->limit();

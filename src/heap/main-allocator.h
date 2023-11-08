@@ -58,6 +58,10 @@ class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   void FreeLinearAllocationArea() final;
 
  private:
+  static constexpr int kLabSizeInGC = 32 * KB;
+
+  void FreeLinearAllocationAreaUnsynchronized();
+
   SemiSpaceNewSpace* const space_;
 };
 
@@ -321,6 +325,7 @@ class MainAllocator {
 
   friend class AllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
+  friend class SemiSpaceNewSpaceAllocatorPolicy;
 };
 
 }  // namespace internal
