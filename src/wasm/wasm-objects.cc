@@ -1890,16 +1890,8 @@ Handle<WasmExceptionPackage> WasmExceptionPackage::New(
   Handle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   Handle<JSObject> exception = isolate->factory()->NewJSObject(exception_cons);
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_tag_symbol(),
-                             exception_tag, StoreOrigin::kMaybeKeyed,
-                             Just(ShouldThrow::kThrowOnError))
-             .is_null());
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_values_symbol(),
-                             values, StoreOrigin::kMaybeKeyed,
-                             Just(ShouldThrow::kThrowOnError))
-             .is_null());
+  exception->InObjectPropertyAtPut(kTagIndex, *exception_tag);
+  exception->InObjectPropertyAtPut(kValuesIndex, *values);
   return Handle<WasmExceptionPackage>::cast(exception);
 }
 

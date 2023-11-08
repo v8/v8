@@ -2955,12 +2955,15 @@ void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
 Handle<JSObject> SetupConstructor(Isolate* isolate,
                                   Handle<JSFunction> constructor,
                                   InstanceType instance_type, int instance_size,
-                                  const char* name = nullptr) {
+                                  const char* name = nullptr,
+                                  int in_object_properties = 0) {
   SetDummyInstanceTemplate(isolate, constructor);
   JSFunction::EnsureHasInitialMap(constructor);
   Handle<JSObject> proto(JSObject::cast(constructor->instance_prototype()),
                          isolate);
-  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
+  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size,
+                                               TERMINAL_FAST_ELEMENTS_KIND,
+                                               in_object_properties);
   JSFunction::SetInitialMap(isolate, constructor, map, proto);
   constexpr PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
@@ -3145,12 +3148,29 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     SetDummyInstanceTemplate(isolate, exception_constructor);
     Handle<JSObject> exception_proto = SetupConstructor(
         isolate, exception_constructor, WASM_EXCEPTION_PACKAGE_TYPE,
-        WasmExceptionPackage::kHeaderSize, "WebAssembly.Exception");
+        WasmExceptionPackage::kSize, "WebAssembly.Exception",
+        WasmExceptionPackage::kInObjectFieldCount);
     InstallFunc(isolate, exception_proto, "getArg",
                 wasm::WebAssemblyExceptionGetArg, 2);
     InstallFunc(isolate, exception_proto, "is", wasm::WebAssemblyExceptionIs,
                 1);
     native_context->set_wasm_exception_constructor(*exception_constructor);
+
+    Handle<Map> initial_map(exception_constructor->initial_map(), isolate);
+    Map::EnsureDescriptorSlack(isolate, initial_map, 2);
+    {
+      Descriptor d = Descriptor::DataField(
+          isolate, f->wasm_exception_tag_symbol(),
+          WasmExceptionPackage::kTagIndex, DONT_ENUM, Representation::Tagged());
+      initial_map->AppendDescriptor(isolate, &d);
+    }
+    {
+      Descriptor d =
+          Descriptor::DataField(isolate, f->wasm_exception_values_symbol(),
+                                WasmExceptionPackage::kValuesIndex, DONT_ENUM,
+                                Representation::Tagged());
+      initial_map->AppendDescriptor(isolate, &d);
+    }
   }
 
   // By default, make all exported functions an instance of {Function}.
