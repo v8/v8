@@ -167,8 +167,9 @@ bool TryEmitExtendingLoad(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter>
-void EmitLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-              InstructionCode opcode, Node* output = nullptr) {
+void EmitLoad(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, InstructionCode opcode,
+              typename Adapter::node_t output = typename Adapter::node_t{}) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -784,7 +785,8 @@ void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
-  UNIMPLEMENTED();
+  VisitBinop<TurboshaftAdapter, Int32BinopMatcher>(this, node, kRiscvAdd32,
+                                                   true, kRiscvAdd32);
 }
 
 template <>
@@ -795,35 +797,23 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvAdd64, true,
                                            kRiscvAdd64);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvSub32);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvSub64);
-  }
 }
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
-  UNIMPLEMENTED();
+  VisitRRR(this, kRiscvMul32, node);
 }
 
 template <>
@@ -904,7 +894,7 @@ void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Mul(node_t node) {
-  UNIMPLEMENTED();
+  VisitRRR(this, kRiscvMul64, node);
 }
 
 template <>
