@@ -922,7 +922,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   Handle<JSSharedStruct> NewJSSharedStruct(
-      Handle<JSFunction> constructor, Handle<Object> maybe_elements_template);
+      Handle<JSFunction> constructor,
+      MaybeHandle<NumberDictionary> maybe_elements_template);
 
   Handle<JSSharedArray> NewJSSharedArray(Handle<JSFunction> constructor,
                                          int length);

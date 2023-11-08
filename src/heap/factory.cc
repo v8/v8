@@ -4009,7 +4009,8 @@ Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
 }
 
 Handle<JSSharedStruct> Factory::NewJSSharedStruct(
-    Handle<JSFunction> constructor, Handle<Object> maybe_elements_template) {
+    Handle<JSFunction> constructor,
+    MaybeHandle<NumberDictionary> maybe_elements_template) {
   SharedObjectSafePublishGuard publish_guard;
 
   Handle<Map> instance_map(constructor->initial_map(), isolate());
@@ -4023,10 +4024,11 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
   }
 
   Handle<NumberDictionary> elements_dictionary;
-  if (!IsUndefined(*maybe_elements_template)) {
+  bool has_elements_dictionary;
+  if ((has_elements_dictionary =
+           maybe_elements_template.ToHandle(&elements_dictionary))) {
     elements_dictionary = NumberDictionary::ShallowCopy(
-        isolate(), Handle<NumberDictionary>::cast(maybe_elements_template),
-        AllocationType::kSharedOld);
+        isolate(), elements_dictionary, AllocationType::kSharedOld);
   }
 
   Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
@@ -4036,9 +4038,7 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
   // from this point on.
   DisallowGarbageCollection no_gc;
   if (!property_array.is_null()) instance->SetProperties(*property_array);
-  if (!elements_dictionary.is_null()) {
-    instance->set_elements(*elements_dictionary);
-  }
+  if (has_elements_dictionary) instance->set_elements(*elements_dictionary);
 
   return instance;
 }

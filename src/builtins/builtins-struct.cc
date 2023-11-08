@@ -137,22 +137,6 @@ BUILTIN(SharedStructTypeConstructor) {
                                  field_names, element_names),
         ReadOnlyRoots(isolate).exception());
 
-    if (!field_names.empty()) {
-      maybe_descriptors = factory->NewDescriptorArray(
-          static_cast<int>(field_names.size()), 0, AllocationType::kSharedOld);
-      for (const Handle<Name>& field_name : field_names) {
-        // Shared structs' fields need to be aligned, so make it all tagged.
-        PropertyDetails details(
-            PropertyKind::kData, SEALED, PropertyLocation::kField,
-            PropertyConstness::kMutable, Representation::Tagged(), num_fields);
-        maybe_descriptors->Set(InternalIndex(num_fields), *field_name,
-                               MaybeObject::FromObject(FieldType::Any()),
-                               details);
-        num_fields++;
-      }
-      maybe_descriptors->Sort();
-    }
-
     if (!element_names.empty()) {
       int nof_elements = static_cast<int>(element_names.size());
       elements_template = NumberDictionary::New(isolate, nof_elements,
@@ -166,6 +150,38 @@ BUILTIN(SharedStructTypeConstructor) {
       }
       elements_template->SetInitialNumberOfElements(nof_elements);
       DCHECK(elements_template->InAnySharedSpace());
+    }
+
+    if (!field_names.empty() || !element_names.empty()) {
+      const int extra_descriptor_for_elements_template =
+          element_names.empty() ? 0 : 1;
+      maybe_descriptors = factory->NewDescriptorArray(
+          static_cast<int>(field_names.size() +
+                           extra_descriptor_for_elements_template),
+          0, AllocationType::kSharedOld);
+
+      for (const Handle<Name>& field_name : field_names) {
+        // Shared structs' fields need to be aligned, so make it all tagged.
+        PropertyDetails details(
+            PropertyKind::kData, SEALED, PropertyLocation::kField,
+            PropertyConstness::kMutable, Representation::Tagged(), num_fields);
+        maybe_descriptors->Set(InternalIndex(num_fields), *field_name,
+                               MaybeObject::FromObject(FieldType::Any()),
+                               details);
+        num_fields++;
+      }
+
+      if (!element_names.empty()) {
+        // Abuse the class fields private symbol to store the elements template
+        // on shared struct constructors.
+        // TODO(v8:12547): Find a better symbol?
+        Descriptor d =
+            Descriptor::DataConstant(factory->class_fields_symbol(),
+                                     elements_template, ALL_ATTRIBUTES_MASK);
+        maybe_descriptors->Set(InternalIndex(num_fields), &d);
+      }
+
+      maybe_descriptors->Sort();
     }
   }
 
@@ -189,9 +205,16 @@ BUILTIN(SharedStructTypeConstructor) {
   Handle<Map> instance_map =
       factory->NewMap(JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
                       in_object_properties, AllocationType::kSharedMap);
-  if (num_fields == 0) {
+  if (num_properties == 0) {
+    // No properties at all.
+    DCHECK_EQ(num_fields, 0);
     AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(*instance_map);
+  } else if (num_fields == 0) {
+    // Have elements, but no non-element fields.
+    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
+        isolate, *instance_map, *maybe_descriptors);
   } else {
+    // Have non-element fields.
     AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
         isolate, instance_map, maybe_descriptors, num_fields);
   }
@@ -203,32 +226,32 @@ BUILTIN(SharedStructTypeConstructor) {
   }
   constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
-  int num_elements = num_properties - num_fields;
-  if (num_elements != 0) {
-    DCHECK(elements_template->InAnySharedSpace());
-    // Abuse the class fields private symbol to store the elements template on
-    // shared struct constructors.
-    // TODO(v8:12547): Find a better place to store this.
-    JSObject::AddProperty(isolate, constructor, factory->class_fields_symbol(),
-                          elements_template, NONE);
-  }
-
   JSObject::AddProperty(
       isolate, constructor, factory->has_instance_symbol(),
       handle(isolate->native_context()->shared_space_js_object_has_instance(),
              isolate),
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
+      ALL_ATTRIBUTES_MASK);
 
   return *constructor;
 }
 
 BUILTIN(SharedStructConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> elements_template;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, elements_template,
-      JSReceiver::GetProperty(isolate, args.target(),
-                              isolate->factory()->class_fields_symbol()));
+  Handle<JSFunction> constructor(args.target());
+  Handle<Map> instance_map(constructor->initial_map(), isolate);
+  Handle<DescriptorArray> descriptors(instance_map->instance_descriptors(),
+                                      isolate);
+  InternalIndex elements_template_index = descriptors->Search(
+      ReadOnlyRoots(isolate).class_fields_symbol(), *instance_map);
+  MaybeHandle<NumberDictionary> elements_template;
+  if (elements_template_index.is_found()) {
+    DCHECK_EQ(PropertyLocation::kDescriptor,
+              descriptors->GetDetails(elements_template_index).location());
+    elements_template =
+        handle(NumberDictionary::cast(descriptors->GetStrongValue(
+                   isolate, elements_template_index)),
+               isolate);
+  }
   return *isolate->factory()->NewJSSharedStruct(args.target(),
                                                 elements_template);
 }

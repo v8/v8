@@ -21,6 +21,8 @@ class AlwaysSharedSpaceJSObject
  public:
   // Prepare a Map to be used as the instance map for shared JS objects.
   static void PrepareMapNoEnumerableProperties(Tagged<Map> map);
+  static void PrepareMapNoEnumerableProperties(
+      Isolate* isolate, Tagged<Map> map, Tagged<DescriptorArray> descriptors);
   static void PrepareMapWithEnumerableProperties(
       Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
       int enum_length);
@@ -45,6 +47,10 @@ class JSSharedStruct
     : public TorqueGeneratedJSSharedStruct<JSSharedStruct,
                                            AlwaysSharedSpaceJSObject> {
  public:
+  static bool IsElementsTemplateDescriptor(Isolate* isolate,
+                                           Tagged<Map> instance_map,
+                                           InternalIndex i);
+
   DECL_CAST(JSSharedStruct)
   DECL_PRINTER(JSSharedStruct)
   EXPORT_DECL_VERIFIER(JSSharedStruct)
