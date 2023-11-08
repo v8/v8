@@ -91,6 +91,7 @@ class V8_EXPORT_PRIVATE StringTable {
   void VerifyIfOwnedBy(Isolate* isolate);
 
  private:
+  class OffHeapStringHashSet;
   class Data;
 
   Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);

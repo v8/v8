@@ -1100,7 +1100,6 @@ class InternalizedStringTableCleaner final : public RootVisitor {
         if (!heap_object.InReadOnlySpace() &&
             marking_state->IsUnmarked(heap_object)) {
           pointers_removed_++;
-          // Set the entry to the_hole_value (as deleted).
           p.store(StringTable::deleted_element());
         }
       }

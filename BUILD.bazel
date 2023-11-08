@@ -1957,6 +1957,8 @@ filegroup(
         "src/objects/objects-inl.h",
         "src/objects/oddball.h",
         "src/objects/oddball-inl.h",
+        "src/objects/off-heap-hash-table.h",
+        "src/objects/off-heap-hash-table-inl.h",
         "src/objects/hole.h",
         "src/objects/trusted-object.h",
         "src/objects/trusted-object-inl.h",
