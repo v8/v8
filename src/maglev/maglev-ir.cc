@@ -1005,9 +1005,11 @@ void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
 void Phi::SetUseRequires31BitValue() {
   if (uses_require_31_bit_value_) return;
   uses_require_31_bit_value_ = true;
-  for (int i = 0; i < merge_state_->predecessors_so_far(); ++i) {
+  auto inputs =
+      is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
+  for (int i = 0; i < inputs; ++i) {
     ValueNode* input_node = input(i).node();
-    if (!input_node) continue;
+    DCHECK(input_node);
     if (auto phi = input_node->TryCast<Phi>()) {
       phi->SetUseRequires31BitValue();
     }
