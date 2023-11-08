@@ -1373,7 +1373,16 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
       }
     } else {
       const Char* smi_start = cursor_;
-      AdvanceToNonDecimal();
+      static_assert(Smi::IsValid(-999999999));
+      static_assert(Smi::IsValid(999999999));
+      const int kMaxSmiLength = 9;
+      int32_t i = 0;
+      const Char* stop = cursor_ + kMaxSmiLength;
+      if (stop > end_) stop = end_;
+      while (cursor_ < stop && IsDecimalDigit(*cursor_)) {
+        i = (i * 10) + ((*cursor_) - '0');
+        cursor_++;
+      }
       if (V8_UNLIKELY(smi_start == cursor_)) {
         AllowGarbageCollection allow_before_exception;
         ReportUnexpectedToken(
@@ -1382,22 +1391,14 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         return handle(Smi::FromInt(0), isolate_);
       }
       c = CurrentCharacter();
-      static_assert(Smi::IsValid(-999999999));
-      static_assert(Smi::IsValid(999999999));
-      const int kMaxSmiLength = 9;
-      if ((cursor_ - smi_start) <= kMaxSmiLength &&
-          (!base::IsInRange(c, 0,
-                            static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
-           !IsNumberPart(character_json_scan_flags[c]))) {
+      if (!base::IsInRange(c, 0,
+                           static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
+          !IsNumberPart(character_json_scan_flags[c])) {
         // Smi.
-        int32_t i = 0;
-        for (; smi_start != cursor_; smi_start++) {
-          DCHECK(IsDecimalDigit(*smi_start));
-          i = (i * 10) + ((*smi_start) - '0');
-        }
         // TODO(verwaest): Cache?
         return handle(Smi::FromInt(i * sign), isolate_);
       }
+      AdvanceToNonDecimal();
     }
 
     if (CurrentCharacter() == '.') {
