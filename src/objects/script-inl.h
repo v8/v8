@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_SCRIPT_INL_H_
 #define V8_OBJECTS_SCRIPT_INL_H_
 
-#include "src/objects/fixed-array.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "src/objects/script.h"
@@ -16,7 +15,6 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -166,13 +164,6 @@ ScriptOriginOptions Script::origin_options() {
 void Script::set_origin_options(ScriptOriginOptions origin_options) {
   DCHECK(!(origin_options.Flags() & ~((1 << OriginOptionsBits::kSize) - 1)));
   set_flags(OriginOptionsBits::update(flags(), origin_options.Flags()));
-}
-
-void Script::SetHostDefinedOptions(Tagged<FixedArray> options) {
-  DCHECK(host_defined_options() ==
-             ReadOnlyRoots(GetHeap()).empty_fixed_array() ||
-         host_defined_options() == options);
-  set_host_defined_options(options);
 }
 
 bool Script::HasValidSource() {

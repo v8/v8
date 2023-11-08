@@ -26,7 +26,6 @@ namespace internal {
 
 class FunctionLiteral;
 class StructBodyDescriptor;
-class CodeSerializer;
 
 namespace wasm {
 class NativeModule;
@@ -144,9 +143,6 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
 
-  // DCHECK'ed wrapper around set_host_defined_options.
-  inline void SetHostDefinedOptions(Tagged<FixedArray> options);
-
   DECL_ACCESSORS(compiled_lazy_function_positions, Tagged<Object>)
 
   // If script source is an external string, check that the underlying
@@ -253,13 +249,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
-  friend CodeSerializer;
 
   // Hide torque-generated accessor, use Script::SetSource instead.
   using TorqueGeneratedScript::set_source;
-
-  // Hide torque-generated accessor, use Script::SetHostDefinedOptions instead.
-  using TorqueGeneratedScript::set_host_defined_options;
 
   // Bit positions in the flags field.
   DEFINE_TORQUE_GENERATED_SCRIPT_FLAGS()
