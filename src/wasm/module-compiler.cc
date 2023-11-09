@@ -174,10 +174,9 @@ class CompilationUnitQueues {
                                                   CompilationTier tier) {
     DCHECK_LT(tier, CompilationTier::kNumTiers);
     if (auto unit = GetNextUnitOfTier(queue, tier)) {
-      size_t old_units_count =
+      [[maybe_unused]] size_t old_units_count =
           num_units_[tier].fetch_sub(1, std::memory_order_relaxed);
       DCHECK_LE(1, old_units_count);
-      USE(old_units_count);
       return unit;
     }
     return {};

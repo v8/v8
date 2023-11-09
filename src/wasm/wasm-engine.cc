@@ -208,9 +208,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 
       // Insert a {nullopt} entry to let other threads know that this
       // {NativeModule} is already being created on another thread.
-      auto p = map_.emplace(key, base::nullopt);
-      USE(p);
-      DCHECK(p.second);
+      [[maybe_unused]] auto [iterator, inserted] =
+          map_.emplace(key, base::nullopt);
+      DCHECK(inserted);
       return nullptr;
     }
     if (it->second.has_value()) {
@@ -276,10 +276,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
     // The key now points to the new native module's owned copy of the bytes,
     // so that it stays valid until the native module is freed and erased from
     // the map.
-    auto p = map_.emplace(
+    [[maybe_unused]] auto [iterator, inserted] = map_.emplace(
         key, base::Optional<std::weak_ptr<NativeModule>>(native_module));
-    USE(p);
-    DCHECK(p.second);
+    DCHECK(inserted);
   }
   cache_cv_.NotifyAll();
   return native_module;

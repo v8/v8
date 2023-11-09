@@ -1322,12 +1322,11 @@ inline void AtomicI64CompareExchange(LiftoffAssembler* lasm,
 
   {
     UseScratchRegisterScope temps(lasm);
-    Register temp = liftoff::CalculateActualAddress(
+    [[maybe_unused]] Register temp = liftoff::CalculateActualAddress(
         lasm, &temps, dst_addr, offset_reg == no_reg ? no_reg : offset,
         offset_imm, dst_addr);
     // Make sure the actual address is stored in the right register.
     DCHECK_EQ(dst_addr, temp);
-    USE(temp);
   }
 
   Label retry;

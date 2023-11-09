@@ -866,13 +866,12 @@ class LiftoffCompiler {
     if (DidAssemblerBailout(decoder)) return;
 
     // Input 0 is the call target, the instance is at 1.
-    constexpr int kInstanceParameterIndex = 1;
+    [[maybe_unused]] constexpr int kInstanceParameterIndex = 1;
     // Check that {kWasmInstanceRegister} matches our call descriptor.
     DCHECK_EQ(kWasmInstanceRegister,
               Register::from_code(
                   descriptor_->GetInputLocation(kInstanceParameterIndex)
                       .AsRegister()));
-    USE(kInstanceParameterIndex);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
 
     if (num_params) {

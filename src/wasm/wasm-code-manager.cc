@@ -806,9 +806,9 @@ void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
 
   auto* code_manager = GetWasmCodeManager();
   for (auto region : regions_to_decommit.regions()) {
-    size_t old_committed = committed_code_space_.fetch_sub(region.size());
+    [[maybe_unused]] size_t old_committed =
+        committed_code_space_.fetch_sub(region.size());
     DCHECK_GE(old_committed, region.size());
-    USE(old_committed);
     for (base::AddressRegion split_range :
          SplitRangeByReservationsIfNeeded(region, owned_code_space_)) {
       code_manager->Decommit(split_range);
@@ -1946,9 +1946,9 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   PageAllocator* allocator = GetPlatformPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
-  size_t old_committed = total_committed_code_space_.fetch_sub(region.size());
+  [[maybe_unused]] size_t old_committed =
+      total_committed_code_space_.fetch_sub(region.size());
   DCHECK_LE(region.size(), old_committed);
-  USE(old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
   if (V8_UNLIKELY(!allocator->DecommitPages(
@@ -2491,10 +2491,9 @@ void WasmCodeManager::FreeNativeModule(
   DCHECK(IsAligned(committed_size, CommitPageSize()));
   // TODO(v8:8462): Remove this once perf supports remapping.
   if (!v8_flags.perf_prof) {
-    size_t old_committed =
+    [[maybe_unused]] size_t old_committed =
         total_committed_code_space_.fetch_sub(committed_size);
     DCHECK_LE(committed_size, old_committed);
-    USE(old_committed);
   }
 }
 

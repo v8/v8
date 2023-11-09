@@ -89,13 +89,12 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   Label data;
-  int start_offset = pc_offset();
+  [[maybe_unused]] int start_offset = pc_offset();
   jmp(Operand(&data));  // 6 bytes
   Nop(2);               // 2 bytes
   // The data must be properly aligned, so it can be patched atomically (see
   // {PatchFarJumpSlot}).
   DCHECK_EQ(start_offset + kSystemPointerSize, pc_offset());
-  USE(start_offset);
   bind(&data);
   dq(target);  // 8 bytes
 }

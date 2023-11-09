@@ -238,10 +238,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   ~WasmCode();
 
   void IncRef() {
-    int old_val = ref_count_.fetch_add(1, std::memory_order_acq_rel);
+    [[maybe_unused]] int old_val =
+        ref_count_.fetch_add(1, std::memory_order_acq_rel);
     DCHECK_LE(1, old_val);
     DCHECK_GT(kMaxInt, old_val);
-    USE(old_val);
   }
 
   // Decrement the ref count. Returns whether this code becomes dead and needs
@@ -261,9 +261,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Decrement the ref count on code that is known to be in use (i.e. the ref
   // count cannot drop to zero here).
   void DecRefOnLiveCode() {
-    int old_count = ref_count_.fetch_sub(1, std::memory_order_acq_rel);
+    [[maybe_unused]] int old_count =
+        ref_count_.fetch_sub(1, std::memory_order_acq_rel);
     DCHECK_LE(2, old_count);
-    USE(old_count);
   }
 
   // Decrement the ref count on code that is known to be dead, even though there
