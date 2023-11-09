@@ -169,20 +169,13 @@ class V8TestImporter(TestImporter):
     return GitFileStatus(status_line[0][0])
 
   def update_file(self, local_file, status, source_file):
-    if status == GitFileStatus.ADDED:
-      _log.info(
-          f'{local_file} just arived from an export. Will copy for good measure.'
-      )
-      shutil.copy(source_file, local_file)
-    elif status == GitFileStatus.DELETED:
-      _log.info(f'{local_file} got removed from test262.')
+    if status in GitFileStatus:
+      _log.info(f'{local_file} has counterpart in Test262. Deleting.')
       local_file.unlink()
-    elif status == GitFileStatus.MODIFIED:
-      _log.info(f'{local_file} got updated in test262.')
-      shutil.copy(source_file, local_file)
     else:
       _log.warning(
-          f'{local_file} has no counterpart in Test262. Maybe it was never exported?'
+          f'{local_file} has no counterpart in Test262. '
+          'Maybe it was never exported?'
       )
 
   def build_and_test(self):
