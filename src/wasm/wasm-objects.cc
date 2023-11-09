@@ -740,20 +740,6 @@ void SetInstanceMemory(Tagged<WasmInstanceObject> instance,
   instance->SetRawMemory(memory_index,
                          reinterpret_cast<uint8_t*>(buffer->backing_store()),
                          buffer->byte_length());
-#if DEBUG
-  if (!v8_flags.mock_arraybuffer_allocator) {
-    // To flush out bugs earlier, in DEBUG mode, check that all pages of the
-    // memory are accessible by reading and writing one byte on each page.
-    // Don't do this if the mock ArrayBuffer allocator is enabled.
-    uint8_t* mem_start = instance->memory0_start();
-    size_t mem_size = instance->memory0_size();
-    for (size_t offset = 0; offset < mem_size; offset += wasm::kWasmPageSize) {
-      uint8_t val = mem_start[offset];
-      USE(val);
-      mem_start[offset] = val;
-    }
-  }
-#endif
 }
 
 }  // namespace
