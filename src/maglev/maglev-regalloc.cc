@@ -745,6 +745,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateLazyDeopt(*node->lazy_deopt_info());
   }
 
+  // Make sure to save snapshot after allocate eager deopt registers.
   if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
 
   if (v8_flags.trace_maglev_regalloc) {
@@ -1573,6 +1574,25 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
       snapshot.live_registers.clear(reg);
       snapshot.live_tagged_registers.clear(reg);
     }
+  }
+  if (node->properties().can_eager_deopt()) {
+    // If we eagerly deopt after a deferred call, the registers saved by the
+    // runtime call might not include the inputs into the eager deopt. Here, we
+    // make sure that all the eager deopt registers are included in the
+    // snapshot.
+    detail::DeepForEachInput(
+        node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
+          if (!input->IsAnyRegister()) return;
+          if (input->IsDoubleRegister()) {
+            snapshot.live_double_registers.set(input->AssignedDoubleRegister());
+          } else {
+            snapshot.live_registers.set(input->AssignedGeneralRegister());
+            if (node->is_tagged()) {
+              snapshot.live_tagged_registers.set(
+                  input->AssignedGeneralRegister());
+            }
+          }
+        });
   }
   node->set_register_snapshot(snapshot);
 }

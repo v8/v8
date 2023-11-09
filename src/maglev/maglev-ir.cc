@@ -1632,12 +1632,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   save_registers.live_registers.set(object);
   save_registers.live_tagged_registers.set(object);
 
-  // We can eager deopt after the snapshot, so make sure the nodes used by the
-  // deopt are included in it.
-  // TODO(leszeks): This is a bit of a footgun -- we likely want the snapshot to
-  // always include eager deopt input registers.
-  AddDeoptRegistersToSnapshot(&save_registers, eager_deopt_info());
-
   size_t map_count = maps().size();
   bool has_migration_targets = false;
   MapCompare map_compare(masm, object, maps_.size());
@@ -2853,7 +2847,6 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
             __ CompareInt32AndJumpIf(string_length, node->value().length(),
                                      kNotEqual, fail);
             RegisterSnapshot snapshot = node->register_snapshot();
-            AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
             {
               SaveRegisterStateForCall save_register_state(masm, snapshot);
               __ CallBuiltin<Builtin::kStringEqual>(
@@ -3641,7 +3634,6 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
              MaybeGrowAndEnsureWritableFastElements* node) {
             {
               RegisterSnapshot snapshot = node->register_snapshot();
-              AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
               snapshot.live_registers.clear(result_reg);
               snapshot.live_tagged_registers.clear(result_reg);
               SaveRegisterStateForCall save_register_state(masm, snapshot);
@@ -5795,14 +5787,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.
     {
-      // At this point we need a custom register snapshot since additional
-      // registers may be live at the eager deopt below (the normal
-      // register_snapshot only contains live registers *after this
-      // node*).
-      // TODO(v8:7700): Consider making the snapshot location
-      // configurable.
       RegisterSnapshot snapshot = node->register_snapshot();
-      AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
       DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       if (node->unit()->is_inline()) {
