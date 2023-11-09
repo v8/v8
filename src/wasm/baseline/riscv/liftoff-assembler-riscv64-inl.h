@@ -91,6 +91,15 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kF64:
       assm->LoadDouble(dst.fp(), src);
       break;
+    case kS128:{
+      assm->VU.set(kScratchReg, E8, m1);
+      Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
+      if (src.offset() != 0) {
+        assm->AddWord(src_reg, src.rm(), src.offset());
+      }
+      assm->vl(dst.fp().toV(), src_reg, 0, E8);
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -115,6 +124,15 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kF64:
       assm->StoreDouble(src.fp(), dst);
       break;
+    case kS128:{
+      assm->VU.set(kScratchReg, E8, m1);
+      Register dst_reg = dst.offset() == 0 ? dst.rm() : kScratchReg;
+      if (dst.offset() != 0) {
+        assm->Add64(kScratchReg, dst.rm(), dst.offset());
+      }
+      assm->vs(src.fp().toV(), dst_reg, 0, VSew::E8);
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -140,6 +158,12 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
       assm->addi(sp, sp, -kSystemPointerSize);
       assm->StoreDouble(reg.fp(), MemOperand(sp, 0));
       break;
+    case kS128:{
+      assm->VU.set(kScratchReg, E8, m1);
+      assm->addi(sp, sp, -kSystemPointerSize * 2);
+      assm->vs(reg.fp().toV(), sp, 0, VSew::E8);
+      break;
+    }
     default:
       UNREACHABLE();
   }

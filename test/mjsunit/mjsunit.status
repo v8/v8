@@ -229,7 +229,7 @@
     ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
 
   # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
-  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [arm, ia32, ppc64, s390x, loong64, mips64, riscv32, riscv64]', FAIL]],
+  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [arm, ia32, ppc64, s390x, loong64, mips64, riscv32]', FAIL]],
 }],  # ALWAYS
 
 ################################################################################
@@ -964,33 +964,11 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # SIMD is not implemented
-  'regress/wasm/regress-1054466': [SKIP],
-  'regress/wasm/regress-1065599': [SKIP],
-  'regress/wasm/regress-1070078': [SKIP],
-  'regress/wasm/regress-1081030': [SKIP],
-  'regress/wasm/regress-10831': [SKIP],
-  'regress/wasm/regress-10309': [SKIP],
-  'regress/wasm/regress-1111522': [SKIP],
-  'regress/wasm/regress-1116019': [SKIP],
-  'regress/wasm/regress-1124885': [SKIP],
-  'regress/wasm/regress-1165966': [SKIP],
-  'regress/wasm/regress-1112124': [SKIP],
-  'regress/wasm/regress-1132461': [SKIP],
-  'regress/wasm/regress-1161555': [SKIP],
-  'regress/wasm/regress-1161954': [SKIP],
-  'regress/wasm/regress-1187831': [SKIP],
-  'regress/wasm/regress-1199662': [SKIP],
-  'regress/wasm/regress-1231950': [SKIP],
-  'regress/wasm/regress-1264462': [SKIP],
-  'regress/wasm/regress-1179025': [SKIP],
-  'regress/wasm/regress-13732': [SKIP],
-  'wasm/multi-value-simd': [SKIP],
-  'wasm/liftoff-simd-params': [SKIP],
-  'wasm/exceptions-simd': [SKIP],
-  'wasm/simd-*': [SKIP],
-
 }],  # 'arch == riscv64 or arch == riscv32'
+
+['variant == stress and (arch == riscv64 or arch == riscv32)', {
+'wasm/multi-value-simd': [SKIP]
+}], # 'arch == riscv64 or arch == riscv32' and 'variant == stress'
 
 [ 'arch == riscv32' , {
 'wasm/compare-exchange64-stress':[SKIP],
@@ -1720,7 +1698,7 @@
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, riscv64, riscv32, loong64, s390x) or (arch == s390x and pointer_compression)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64, s390x) or (arch == s390x and pointer_compression)', {
   'baseline/*': [SKIP],
   'regress/regress-1242306': [SKIP],
 }],
