@@ -227,16 +227,19 @@ class TurboshaftGraphBuildingInterface {
           inlining_decisions_ = decoder->zone_->New<InliningTree>(
               decoder->zone_, decoder->module_, func_index_,
               0,  // call count
-              0   // wire byte size. We pass 0 so that the initial node is
+              0,  // wire byte size. We pass 0 so that the initial node is
                   // always expanded, regardless of budget.
-          );
+              func_index_,
+              // Pass dummy values for caller, feedback slot, and case.
+              -1, -1, -1);
           inlining_decisions_->FullyExpand(
               decoder->module_->functions[func_index_].code.length());
         } else {
           set_no_liftoff_inlining_budget(std::max(
-              100,
+              static_cast<int>(v8_flags.wasm_inlining_min_budget),
               static_cast<int>(
-                  2 * decoder->module_->functions[func_index_].code.length())));
+                  v8_flags.wasm_inlining_factor *
+                  decoder->module_->functions[func_index_].code.length())));
         }
       } else {
 #if DEBUG
@@ -1709,6 +1712,11 @@ class TurboshaftGraphBuildingInterface {
       if (inlining_enabled(decoder) &&
           should_inline(feedback_slot_,
                         decoder->module_->functions[imm.index].code.length())) {
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF("[function %d%s: inlining direct call #%d to function %d]\n",
+                 func_index_, mode_ == kRegular ? "" : " (inlined)",
+                 feedback_slot_, imm.index);
+        }
         InlineWasmCall(decoder, imm.index, imm.sig, 0, args, returns);
       } else {
         V<WordPtr> callee =
@@ -1779,6 +1787,13 @@ class TurboshaftGraphBuildingInterface {
 
         __ Bind(inline_block);
         base::SmallVector<Value, 2> direct_returns(return_count);
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: Speculatively inlining call_ref #%d, case #%d, "
+              "to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, static_cast<int>(i), inlined_index);
+        }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        args, direct_returns.data());
         for (size_t ret = 0; ret < direct_returns.size(); ret++) {
