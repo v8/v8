@@ -738,7 +738,6 @@ config("internal_config_base") {
     ".",
     "include",
     "$target_gen_dir",
-    "$target_gen_dir/include",
   ]
 }
 
@@ -794,7 +793,6 @@ config("libbase_config") {
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
   }
-  include_dirs = [ "$target_gen_dir/include" ]
 }
 
 # Standalone cppgc cannot be built within chrome or with perfetto.
@@ -818,10 +816,7 @@ config("headers_config") {
     ":v8_header_features",
     ":cppgc_header_features",
   ]
-  include_dirs = [
-    "include",
-    "$target_gen_dir/include",
-  ]
+  include_dirs = [ "include" ]
 }
 
 # This config should only be applied to code using V8 and not any V8 code
@@ -3090,6 +3085,8 @@ v8_header_set("v8_flags") {
 
 v8_header_set("v8_internal_headers") {
   configs = [ ":internal_config" ]
+
+  public_configs = [ "src/inspector:inspector_config" ]
 
   sources = [
     ### gcmole(all) ###
