@@ -665,20 +665,47 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
+// Equivalent of SharedFunctionInfo::GetData
+static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
+                                      Register sfi) {
+  __ LoadTaggedField(
+      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+}
+
+static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
+                                      TaggedRegister sfi) {
+  __ LoadTaggedField(
+      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+}
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+// Equivalent of SharedFunctionInfo::wasm_resume_data()
+static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
+                                                Register resume_data,
+                                                Register sfi) {
+  __ LoadTaggedField(
+      resume_data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                    Register sfi_data,
+                                                    Register sfi,
+                                                    Register bytecode,
                                                     Register scratch1,
                                                     Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ LoadMap(scratch1, sfi_data);
+
+  Register data = bytecode;
+  GetSharedFunctionInfoData(masm, data, sfi);
+  __ LoadMap(scratch1, data);
 
 #ifndef V8_JITLESS
   __ CmpInstanceType(scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeIsBaseline(masm, data, scratch1);
     __ j(equal, is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -690,7 +717,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ j(not_equal, &done, Label::kNear);
 
   __ LoadTrustedPointerField(
-      sfi_data, FieldOperand(sfi_data, InterpreterData::kBytecodeArrayOffset),
+      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset),
       kBytecodeArrayIndirectPointerTag, scratch1);
 
   __ bind(&done);
@@ -786,9 +813,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     Label is_baseline, ok;
     __ LoadTaggedField(
         rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadTaggedField(
-        rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, rcx, kScratchRegister,
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, rcx, rcx, kScratchRegister,
                                             &is_baseline);
     __ IsObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
     __ Assert(equal, AbortReason::kMissingBytecodeArray);
@@ -1015,13 +1040,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
       shared_function_info,
       FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, shared_function_info);
-  __ LoadTaggedField(kInterpreterBytecodeArrayRegister,
-                     FieldOperand(shared_function_info,
-                                  SharedFunctionInfo::kFunctionDataOffset));
 
   Label is_baseline;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, kInterpreterBytecodeArrayRegister, kScratchRegister, &is_baseline);
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, shared_function_info,
+                                          kInterpreterBytecodeArrayRegister,
+                                          kScratchRegister, &is_baseline);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
@@ -1644,9 +1667,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   const TaggedRegister shared_function_info(rbx);
   __ LoadTaggedField(shared_function_info,
                      FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTaggedField(rbx,
-                     FieldOperand(shared_function_info,
-                                  SharedFunctionInfo::kFunctionDataOffset));
+
+  GetSharedFunctionInfoData(masm, rbx, shared_function_info);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
@@ -3768,15 +3790,14 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       MemOperand(
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
-  Register function_data = sfi;
-  __ LoadTaggedField(
-      function_data,
-      FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+  Register resume_data = sfi;
+  GetSharedFunctionInfoWasmResumeData(masm, resume_data, sfi);
+
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
   Register suspender = rdi;
   __ LoadTaggedField(
-      suspender, FieldOperand(function_data, WasmResumeData::kSuspenderOffset));
+      suspender, FieldOperand(resume_data, WasmResumeData::kSuspenderOffset));
   // Check the suspender state.
   Label suspender_is_suspended;
   Register state = rdx;
@@ -4807,9 +4828,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, shared_function_info);
   }
 
-  __ LoadTaggedField(code_obj,
-                     FieldOperand(shared_function_info,
-                                  SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoData(masm, code_obj, shared_function_info);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

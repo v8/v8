@@ -557,8 +557,8 @@ void WasmTableObject::UpdateDispatchTables(
     }
     instance->GetIndirectFunctionTable(isolate, table_index)
         ->Set(entry_index, canonical_type_index, wasm_code->instruction_start(),
-              WasmCapiFunctionData::cast(
-                  capi_function->shared()->function_data(kAcquireLoad))
+              capi_function->shared()
+                  ->wasm_capi_function_data()
                   ->internal()
                   ->ref());
   }
@@ -2423,9 +2423,8 @@ MaybeHandle<WasmInternalFunction> WasmInternalFunction::FromExternal(
   if (WasmExportedFunction::IsWasmExportedFunction(*external) ||
       WasmJSFunction::IsWasmJSFunction(*external) ||
       WasmCapiFunction::IsWasmCapiFunction(*external)) {
-    Tagged<WasmFunctionData> data = WasmFunctionData::cast(
-        Handle<JSFunction>::cast(external)->shared()->function_data(
-            kAcquireLoad));
+    Tagged<WasmFunctionData> data =
+        Handle<JSFunction>::cast(external)->shared()->wasm_function_data();
     return handle(data->internal(), isolate);
   }
   return MaybeHandle<WasmInternalFunction>();

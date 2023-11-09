@@ -2968,9 +2968,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
          marking_state_->IsMarked(inferred_name));
   marking_state_->TryMarkAndAccountLiveBytes(uncompiled_data);
 
-  // Use the raw function data setter to avoid validity checks, since we're
-  // performing the unusual task of decompiling.
-  shared_info->set_function_data(uncompiled_data, kReleaseStore);
+  shared_info->set_uncompiled_data(uncompiled_data);
   DCHECK(!shared_info->is_compiled());
 }
 
@@ -3011,8 +3009,8 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   // flushed it before processing this candidate. This can happen when using
   // CloneSharedFunctionInfo().
   Isolate* const isolate = heap_->isolate();
-  const bool bytecode_already_decompiled = IsUncompiledData(
-      flushing_candidate->function_data(isolate, kAcquireLoad), isolate);
+  const bool bytecode_already_decompiled =
+      flushing_candidate->HasUncompiledData();
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
@@ -3026,8 +3024,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
 
 bool MarkCompactCollector::ProcessOldBaselineSFI(
     Tagged<SharedFunctionInfo> flushing_candidate) {
-  Tagged<Code> baseline_code =
-      Code::cast(flushing_candidate->function_data(kAcquireLoad));
+  Tagged<Code> baseline_code = flushing_candidate->baseline_code(kAcquireLoad);
   // Safe to do a relaxed load here since the Code was acquire-loaded.
   Tagged<InstructionStream> baseline_istream =
       baseline_code->instruction_stream(baseline_code->code_cage_base(),
@@ -3066,8 +3063,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
     // or UncompiledData found on the baseline code. We can skip this step
     // if the BytecodeArray is not live and not already decompiled, because
     // FlushBytecodeFromSFI below will set the function_data field.
-    flushing_candidate->set_function_data(baseline_bytecode_or_interpreter_data,
-                                          kReleaseStore);
+    flushing_candidate->FlushBaselineCode(heap_->isolate());
   }
 
   if (!is_bytecode_live) {

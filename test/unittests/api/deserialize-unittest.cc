@@ -308,7 +308,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
       i::Tagged<i::SharedFunctionInfo> sfi) {
-    i::Tagged<i::Object> data = sfi->function_data(kAcquireLoad);
+    i::Tagged<i::Object> data = sfi->GetData();
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.

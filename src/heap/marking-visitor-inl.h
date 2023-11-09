@@ -290,8 +290,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    Tagged<Code> baseline_code =
-        Code::cast(shared_info->function_data(kAcquireLoad));
+    Tagged<Code> baseline_code = shared_info->baseline_code(kAcquireLoad);
     // Visit the bytecode hanging off baseline code.
     VisitPointer(baseline_code,
                  baseline_code->RawField(
@@ -318,7 +317,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   // Get a snapshot of the function data field, and if it is a bytecode array,
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
-  Tagged<Object> data = sfi->function_data(kAcquireLoad);
+  Tagged<Object> data = sfi->GetData();
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);

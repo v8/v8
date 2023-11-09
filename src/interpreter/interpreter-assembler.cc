@@ -1436,10 +1436,7 @@ void InterpreterAssembler::OnStackReplacement(
     DCHECK_EQ(params, OnStackReplacementParams::kDefault);
     TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
         LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-    TNode<HeapObject> sfi_data = LoadObjectField<HeapObject>(
-        sfi, SharedFunctionInfo::kFunctionDataOffset);
-    GotoIf(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
-           &osr_to_sparkplug);
+    GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
 
     // Case 3).
     {

@@ -183,7 +183,7 @@ void LazyCompileDispatcher::Enqueue(
 bool LazyCompileDispatcher::IsEnqueued(
     Handle<SharedFunctionInfo> function) const {
   Job* job = nullptr;
-  Tagged<Object> function_data = function->function_data(kAcquireLoad);
+  Tagged<Object> function_data = function->GetData();
   if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     job = reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
@@ -369,7 +369,7 @@ void LazyCompileDispatcher::AbortAll() {
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
-  Tagged<Object> function_data = shared->function_data(kAcquireLoad);
+  Tagged<Object> function_data = shared->GetData();
   if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     return reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());

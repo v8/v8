@@ -118,6 +118,10 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script, Tagged<HeapObject>,
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, raw_script, Tagged<Object>,
                           kScriptOffset)
 
+Tagged<Object> SharedFunctionInfo::GetData() const {
+  return function_data(kAcquireLoad);
+}
+
 DEF_GETTER(SharedFunctionInfo, script, Tagged<HeapObject>) {
   return script(cage_base, kAcquireLoad);
 }
@@ -649,18 +653,22 @@ void SharedFunctionInfo::SetActiveBytecodeArray(
   // functions. They should have been flushed earlier.
   DCHECK(!HasBaselineCode());
 
-  Tagged<Object> data = function_data(kAcquireLoad);
-  if (IsBytecodeArray(data)) {
-    set_function_data(bytecode, kReleaseStore);
-  } else {
-    DCHECK(IsInterpreterData(data));
+  if (HasInterpreterData()) {
     interpreter_data()->set_bytecode_array(bytecode);
+  } else {
+    DCHECK(HasBytecodeArray());
+    overwrite_bytecode_array(bytecode);
   }
 }
 
 void SharedFunctionInfo::set_bytecode_array(Tagged<BytecodeArray> bytecode) {
   DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData());
+  set_function_data(bytecode, kReleaseStore);
+}
+
+void SharedFunctionInfo::overwrite_bytecode_array(
+    Tagged<BytecodeArray> bytecode) {
   set_function_data(bytecode, kReleaseStore);
 }
 
@@ -850,7 +858,7 @@ DEF_GETTER(SharedFunctionInfo, uncompiled_data, Tagged<UncompiledData>) {
 void SharedFunctionInfo::set_uncompiled_data(
     Tagged<UncompiledData> uncompiled_data, WriteBarrierMode mode) {
   DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
-         HasUncompiledData());
+         HasUncompiledData() || HasBytecodeArray() || HasBaselineCode());
   DCHECK(IsUncompiledData(uncompiled_data));
   set_function_data(uncompiled_data, kReleaseStore);
 }

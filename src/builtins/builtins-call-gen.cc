@@ -640,8 +640,8 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       TNode<SharedFunctionInfo> template_shared =
           LoadObjectField<SharedFunctionInfo>(
               var_template.value(), JSFunction::kSharedFunctionInfoOffset);
-      TNode<Object> template_data = LoadObjectField(
-          template_shared, SharedFunctionInfo::kFunctionDataOffset);
+      TNode<Object> template_data =
+          LoadSharedFunctionInfoFunctionData(template_shared);
       GotoIf(TaggedIsSmi(template_data), &holder_next);
       var_template = CAST(template_data);
       Goto(&template_loop);

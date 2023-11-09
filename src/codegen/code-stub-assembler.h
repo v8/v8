@@ -1832,8 +1832,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the "code" property of a JSFunction.
   TNode<Code> LoadJSFunctionCode(TNode<JSFunction> function);
 
+  // Load the data object associated with a SFI.
+  // If the (expected) data type is known, prefer using one of the specialized
+  // accessors (e.g. LoadSharedFunctionInfoBuiltinId).
+  TNode<Object> LoadSharedFunctionInfoData(TNode<SharedFunctionInfo> sfi);
+
+  TNode<BoolT> SharedFunctionInfoHasBaselineCode(TNode<SharedFunctionInfo> sfi);
+
+  TNode<Smi> LoadSharedFunctionInfoBuiltinId(TNode<SharedFunctionInfo> sfi);
+
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
-      TNode<SharedFunctionInfo> shared);
+      TNode<SharedFunctionInfo> sfi);
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);
@@ -2825,6 +2834,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsCallableMap(TNode<Map> map);
   TNode<BoolT> IsCallable(TNode<HeapObject> object);
   TNode<BoolT> TaggedIsCallable(TNode<Object> object);
+  TNode<BoolT> IsCode(TNode<HeapObject> object);
+  TNode<BoolT> TaggedIsCode(TNode<Object> object);
   TNode<BoolT> IsConsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(TNode<HeapObject> object);

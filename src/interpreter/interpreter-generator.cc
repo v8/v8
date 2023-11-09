@@ -2235,10 +2235,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_baseline(this);
   TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
       LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-  TNode<HeapObject> sfi_data =
-      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
-         &maybe_osr_because_baseline, &ok);
+  Branch(SharedFunctionInfoHasBaselineCode(sfi), &maybe_osr_because_baseline,
+         &ok);
 
   BIND(&ok);
 #endif  // !V8_JITLESS

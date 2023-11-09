@@ -3380,10 +3380,27 @@ TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
   return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
 }
 
+TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
+    TNode<SharedFunctionInfo> sfi) {
+  return LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+}
+
+TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
+    TNode<SharedFunctionInfo> sfi) {
+  TNode<Object> data =
+      LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+  return TaggedIsCode(data);
+}
+
+TNode<Smi> CodeStubAssembler::LoadSharedFunctionInfoBuiltinId(
+    TNode<SharedFunctionInfo> sfi) {
+  return LoadObjectField<Smi>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+}
+
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
-    TNode<SharedFunctionInfo> shared) {
-  TNode<HeapObject> function_data = LoadObjectField<HeapObject>(
-      shared, SharedFunctionInfo::kFunctionDataOffset);
+    TNode<SharedFunctionInfo> sfi) {
+  // In this case, the function data can never contain a Smi (builtin id).
+  TNode<HeapObject> function_data = CAST(LoadSharedFunctionInfoData(sfi));
 
   TVARIABLE(HeapObject, var_result, function_data);
 
@@ -6932,6 +6949,16 @@ TNode<BoolT> CodeStubAssembler::TaggedIsCallable(TNode<Object> object) {
 
 TNode<BoolT> CodeStubAssembler::IsCallable(TNode<HeapObject> object) {
   return IsCallableMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::TaggedIsCode(TNode<Object> object) {
+  return Select<BoolT>(
+      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
+      [=] { return IsCode(UncheckedCast<HeapObject>(object)); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsCode(TNode<HeapObject> object) {
+  return HasInstanceType(object, CODE_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsConstructorMap(TNode<Map> map) {
@@ -16115,8 +16142,7 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
-  TNode<Object> sfi_data =
-      LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<Object> sfi_data = LoadSharedFunctionInfoData(shared_info);
 
   TVARIABLE(Code, sfi_code);
 

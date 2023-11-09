@@ -388,8 +388,8 @@ bool IsSimpleInstantiation(Isolate* isolate, Tagged<ObjectTemplateInfo> info,
 
   if (!IsJSFunction(new_target)) return false;
   Tagged<JSFunction> fun = JSFunction::cast(new_target);
-  if (fun->shared()->function_data(kAcquireLoad) != info->constructor())
-    return false;
+  if (!fun->shared()->IsApiFunction()) return false;
+  if (fun->shared()->api_func_data() != info->constructor()) return false;
   if (info->immutable_proto()) return false;
   return fun->native_context() == isolate->raw_native_context();
 }
