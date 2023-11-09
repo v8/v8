@@ -2914,12 +2914,7 @@ class LiftoffCompiler {
            decoder->control_at(br_depth)->is_loop();
   }
 
-  void BrOrRet(FullDecoder* decoder, uint32_t depth,
-               uint32_t /* drop_values */) {
-    BrOrRetImpl(decoder, depth);
-  }
-
-  void BrOrRetImpl(FullDecoder* decoder, uint32_t depth) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
       ReturnImpl(decoder);
     } else {
@@ -2939,7 +2934,7 @@ class LiftoffCompiler {
     base::Optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, &cont_false, frozen);
 
-    BrOrRetImpl(decoder, depth);
+    BrOrRet(decoder, depth);
 
     __ bind(&cont_false);
   }
@@ -2953,7 +2948,7 @@ class LiftoffCompiler {
     DCHECK_EQ(is_new_target, !label->is_bound());
     if (is_new_target) {
       __ bind(label);
-      BrOrRetImpl(decoder, br_depth);
+      BrOrRet(decoder, br_depth);
     } else {
       __ jmp(label);
     }
@@ -3841,7 +3836,7 @@ class LiftoffCompiler {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kNotEqual, &cont_false, ref_object.type.kind(),
                         ref.gp(), null, frozen);
-      BrOrRetImpl(decoder, depth);
+      BrOrRet(decoder, depth);
     }
     __ bind(&cont_false);
     if (!pass_null_along_branch) {
@@ -3869,7 +3864,7 @@ class LiftoffCompiler {
       __ emit_cond_jump(kEqual, &cont_false, ref_object.type.kind(), ref.gp(),
                         null, frozen);
 
-      BrOrRetImpl(decoder, depth);
+      BrOrRet(decoder, depth);
     }
     // Drop the reference if we are not branching.
     if (drop_null_on_fallthrough) __ DropValues(1);
@@ -6447,7 +6442,7 @@ class LiftoffCompiler {
                  ValueType::Rtt(ref_index), scratch_null, scratch2, &cont_false,
                  null_handling, frozen);
 
-    BrOrRetImpl(decoder, depth);
+    BrOrRet(decoder, depth);
 
     __ bind(&cont_false);
   }
@@ -6479,7 +6474,7 @@ class LiftoffCompiler {
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);
-    BrOrRetImpl(decoder, depth);
+    BrOrRet(decoder, depth);
 
     __ bind(&fallthrough);
   }
@@ -6757,7 +6752,7 @@ class LiftoffCompiler {
 
     (this->*type_checker)(check, frozen);
     __ bind(&match);
-    BrOrRetImpl(decoder, br_depth);
+    BrOrRet(decoder, br_depth);
 
     __ bind(&no_match);
   }
@@ -6784,7 +6779,7 @@ class LiftoffCompiler {
     __ emit_jump(&end);
 
     __ bind(&no_match);
-    BrOrRetImpl(decoder, br_depth);
+    BrOrRet(decoder, br_depth);
 
     __ bind(&end);
   }

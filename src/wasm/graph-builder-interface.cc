@@ -606,7 +606,7 @@ class WasmGraphBuildingInterface {
     SetEnv(internal_env);
   }
 
-  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values = 0) {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, drop_values);
     } else {
@@ -648,7 +648,7 @@ class WasmGraphBuildingInterface {
     }
     builder_->SetControl(fenv->control);
     ScopedSsaEnv scoped_env(this, tenv);
-    BrOrRet(decoder, depth, 0);
+    BrOrRet(decoder, depth);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
@@ -656,7 +656,7 @@ class WasmGraphBuildingInterface {
     if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<ValidationTag>(decoder, imm).next();
-      BrOrRet(decoder, target, 0);
+      BrOrRet(decoder, target);
       return;
     }
 
@@ -670,7 +670,7 @@ class WasmGraphBuildingInterface {
       ScopedSsaEnv env(this, Split(decoder->zone(), ssa_env_));
       builder_->SetControl(i == imm.table_count ? builder_->IfDefault(sw)
                                                 : builder_->IfValue(i, sw));
-      BrOrRet(decoder, target, 0);
+      BrOrRet(decoder, target);
     }
     DCHECK(decoder->ok());
   }
@@ -1133,7 +1133,8 @@ class WasmGraphBuildingInterface {
     builder_->SetControl(false_env->control);
     {
       ScopedSsaEnv scoped_env(this, true_env);
-      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+      int drop_values = pass_null_along_branch ? 0 : 1;
+      BrOrRet(decoder, depth, drop_values);
     }
     SetAndTypeNode(
         result_on_fallthrough,
@@ -1151,7 +1152,7 @@ class WasmGraphBuildingInterface {
         builder_->BrOnNull(ref_object.node, ref_object.type);
     builder_->SetControl(false_env->control);
     ScopedSsaEnv scoped_env(this, true_env);
-    BrOrRet(decoder, depth, 0);
+    BrOrRet(decoder, depth);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
@@ -1653,7 +1654,7 @@ class WasmGraphBuildingInterface {
       Forward(decoder, object, forwarding_value);
       // Currently, br_on_* instructions modify the value stack before calling
       // the interface function, so we don't need to drop any values here.
-      BrOrRet(decoder, br_depth, 0);
+      BrOrRet(decoder, br_depth);
       // Note: Differently to below for !{branch_on_match}, we do not Forward
       // the value here to perform a TypeGuard. It can't be done here due to
       // asymmetric decoder code. A Forward here would be poped from the stack
@@ -1666,7 +1667,7 @@ class WasmGraphBuildingInterface {
         // This will add a TypeGuard to the non-null type (as in this case the
         // object is non-nullable).
         Forward(decoder, object, decoder->stack_value(1));
-        BrOrRet(decoder, br_depth, 0);
+        BrOrRet(decoder, br_depth);
       }
       // Narrow type for the successful cast fallthrough branch.
       Forward(decoder, object, forwarding_value);
