@@ -498,9 +498,11 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
 
     bool set_in_wasm_flag = !inline_result.can_inline_body;
     BuildInlinedJSToWasmWrapper(
-        graph()->zone(), jsgraph(), sig, wasm_call_params.module(), isolate(),
-        source_positions_, wasm::WasmFeatures::FromFlags(),
-        continuation_frame_state, set_in_wasm_flag);
+        graph()->zone(), jsgraph(), sig,
+        native_module->module()->functions[fct_index].imported,
+        wasm_call_params.module(), isolate(), source_positions_,
+        wasm::WasmFeatures::FromFlags(), continuation_frame_state,
+        set_in_wasm_flag);
 
     // Extract the inlinee start/end nodes.
     wrapper_start_node = graph()->start();

@@ -1464,13 +1464,19 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
     rtt = isolate->factory()->wasm_internal_function_map();
   }
 
+  // Only set the call target if the function is not an imported function. The
+  // reason is that after wrapper tier-up the call target cannot be set anymore
+  // for imported functions, because the slot in the imported function table
+  // cannot be found anymore. Avoiding setting the call target makes the wrapper
+  // tiers behave more consistently, which can prevent surprising bugs.
   auto result = isolate->factory()->NewWasmInternalFunction(
-      instance->GetCallTarget(function_index), ref, rtt, function_index);
+      IsWasmApiFunctionRef(*ref) ? 0 : instance->GetCallTarget(function_index),
+      ref, rtt, function_index);
 
   if (IsWasmApiFunctionRef(*ref)) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr, result);
-    wafr->set_call_origin(*result);
+    result->set_code(isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
   }
   WasmInstanceObject::SetWasmInternalFunction(instance, function_index, result);
   return result;

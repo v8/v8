@@ -8448,7 +8448,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
 void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::FunctionSig* signature,
-                                 const wasm::WasmModule* module,
+                                 bool is_import, const wasm::WasmModule* module,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
                                  wasm::WasmFeatures features, Node* frame_state,
@@ -8457,7 +8457,7 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                   WasmGraphBuilder::kNoSpecialParameterMode,
                                   isolate, spt,
                                   StubCallMode::kCallBuiltinPointer, features);
-  builder.BuildJSToWasmWrapper(false, false, frame_state, set_in_wasm_flag);
+  builder.BuildJSToWasmWrapper(is_import, false, frame_state, set_in_wasm_flag);
 }
 
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
