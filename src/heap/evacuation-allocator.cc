@@ -13,8 +13,7 @@ EvacuationAllocator::EvacuationAllocator(
     Heap* heap, CompactionSpaceKind compaction_space_kind)
     : heap_(heap),
       new_space_(heap->new_space()),
-      compaction_spaces_(heap, compaction_space_kind),
-      lab_allocation_will_fail_(false) {
+      compaction_spaces_(heap, compaction_space_kind) {
   if (new_space_) {
     DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
     new_space_allocator_.emplace(heap, new_space_, MainAllocator::Context::kGC);

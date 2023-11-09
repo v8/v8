@@ -279,21 +279,6 @@ bool MainAllocator::IsPendingAllocation(Address object_address) {
   return top && top <= object_address && object_address < limit;
 }
 
-void MainAllocator::MaybeFreeUnusedLab(LinearAllocationArea lab) {
-  DCHECK(!in_gc());
-
-  if (allocation_info().MergeIfAdjacent(lab)) {
-    base::SharedMutexGuard<base::kExclusive> guard(
-        linear_area_original_data().linear_area_lock());
-    linear_area_original_data().set_original_top_release(
-        allocation_info().top());
-  }
-
-#if DEBUG
-  Verify();
-#endif
-}
-
 bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin) {

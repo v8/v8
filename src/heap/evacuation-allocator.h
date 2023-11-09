@@ -18,9 +18,6 @@ namespace internal {
 // that all other allocations also go through EvacuationAllocator.
 class EvacuationAllocator {
  public:
-  static const int kLabSize = 32 * KB;
-  static const int kMaxLabObjectSize = 8 * KB;
-
   EvacuationAllocator(Heap* heap, CompactionSpaceKind compaction_space_kind);
 
   // Needs to be called from the main thread to finalize this
@@ -56,7 +53,6 @@ class EvacuationAllocator {
   base::Optional<MainAllocator> code_space_allocator_;
   base::Optional<MainAllocator> shared_space_allocator_;
   base::Optional<MainAllocator> trusted_space_allocator_;
-  bool lab_allocation_will_fail_;
 };
 
 }  // namespace internal

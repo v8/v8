@@ -103,56 +103,6 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   UNREACHABLE();
 }
 
-AllocationResult LocalAllocationBuffer::AllocateRawAligned(
-    int size_in_bytes, AllocationAlignment alignment) {
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  Address current_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(current_top, alignment);
-  int aligned_size = filler_size + size_in_bytes;
-  if (!allocation_info_.CanIncrementTop(aligned_size)) {
-    return AllocationResult::Failure();
-  }
-  Tagged<HeapObject> object =
-      HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
-  return filler_size > 0 ? AllocationResult::FromObject(
-                               heap_->PrecedeWithFiller(object, filler_size))
-                         : AllocationResult::FromObject(object);
-}
-
-AllocationResult LocalAllocationBuffer::AllocateRawUnaligned(
-    int size_in_bytes) {
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  return allocation_info_.CanIncrementTop(size_in_bytes)
-             ? AllocationResult::FromObject(HeapObject::FromAddress(
-                   allocation_info_.IncrementTop(size_in_bytes)))
-             : AllocationResult::Failure();
-}
-
-LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
-                                                        AllocationResult result,
-                                                        intptr_t size) {
-  if (result.IsFailure()) return InvalidBuffer();
-  Tagged<HeapObject> obj;
-  bool ok = result.To(&obj);
-  USE(ok);
-  DCHECK(ok);
-  Address top = HeapObject::cast(obj).address();
-  return LocalAllocationBuffer(heap, LinearAllocationArea(top, top + size));
-}
-
-bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
-  return allocation_info_.MergeIfAdjacent(other->allocation_info_);
-}
-
-bool LocalAllocationBuffer::TryFreeLast(Tagged<HeapObject> object,
-                                        int object_size) {
-  if (IsValid()) {
-    const Address object_address = object.address();
-    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
-  }
-  return false;
-}
-
 bool MemoryChunkIterator::HasNext() {
   if (current_chunk_) return true;
 
