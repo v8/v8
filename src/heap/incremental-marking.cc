@@ -367,11 +367,9 @@ void IncrementalMarking::StartMarkingMinor() {
         "[IncrementalMarking] (MinorMS) Start marking\n");
   }
 
-  // Start Minor MS concurrent marking only when background threads
-  // should be used.
-  CHECK(heap_->ShouldUseBackgroundThreads());
-
-  minor_collector_->StartMarking();
+  // We only reach this code if Heap::ShouldUseBackgroundThreads() returned
+  // true. So we can force the use of background threads here.
+  minor_collector_->StartMarking(true);
   current_local_marking_worklists_ =
       minor_collector_->local_marking_worklists();
 

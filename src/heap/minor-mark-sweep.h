@@ -152,7 +152,7 @@ class MinorMarkSweepCollector final {
 
   void TearDown();
   void CollectGarbage();
-  void StartMarking();
+  void StartMarking(bool force_use_background_threads);
 
   void RequestGC();
 

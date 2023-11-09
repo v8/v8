@@ -297,7 +297,7 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
   }
 }
 
-void MinorMarkSweepCollector::StartMarking() {
+void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     for (Page* page : *heap_->new_space()) {
@@ -309,7 +309,13 @@ void MinorMarkSweepCollector::StartMarking() {
   // The state for background thread is saved here and maintained for the whole
   // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
   CHECK(!use_background_threads_in_cycle_.has_value());
-  use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
+  // Once we decided to start concurrent marking we always need to use
+  // background threads, this is because Minor MS doesn't perform incremental
+  // marking. ShouldUseBackgroundThreads() on worker isolates can be updated
+  // concurrently from the main thread outside a task, so we shouldn't invoke it
+  // here again as it could return a different result.
+  use_background_threads_in_cycle_ =
+      force_use_background_threads || heap_->ShouldUseBackgroundThreads();
 
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   // CppHeap's marker must be initialized before the V8 marker to allow
@@ -614,7 +620,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
   if (!was_marked_incrementally) {
-    StartMarking();
+    StartMarking(false);
   } else {
     auto* incremental_marking = heap_->incremental_marking();
     TRACE_GC_WITH_FLOW(
