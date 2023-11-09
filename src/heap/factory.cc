@@ -3250,7 +3250,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     Handle<JSReceiver> target_function, Handle<Object> bound_this,
-    base::Vector<Handle<Object>> bound_args) {
+    base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype) {
   DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {
@@ -3258,12 +3258,6 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                     NewRangeError(MessageTemplate::kTooManyArguments),
                     JSBoundFunction);
   }
-
-  // Determine the prototype of the {target_function}.
-  Handle<HeapObject> prototype;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), prototype,
-      JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
   SaveAndSwitchContext save(
       isolate(), *target_function->GetCreationContext().ToHandleChecked());

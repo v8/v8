@@ -689,3 +689,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(instance.exports.rc(1), -2);
   assertEquals(instance.exports.rc(0), 3);
 })();
+
+(function TestWebAssemblyFunctionBind() {
+  print(arguments.callee.name);
+  let fn = new WebAssembly.Function(
+    {parameters:["i32", "i32", "i32"], results:["i32"]},
+    function(a, b, c) { if (c) return a; return b; });
+
+  const bound = fn.bind(null, 42)
+  assertTrue(bound instanceof Function);
+  assertFalse(bound instanceof WebAssembly.Function);
+  assertEquals(bound(0, true), 42);
+})();

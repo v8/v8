@@ -3273,6 +3273,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     JSFunction::SetInitialMap(isolate, function_constructor, function_map,
                               function_proto);
     InstallFunc(isolate, function_proto, "type", WebAssemblyFunctionType, 0);
+    SimpleInstallFunction(isolate, function_proto, "bind",
+                          Builtin::kWebAssemblyFunctionPrototypeBind, 1, false);
     // Make all exported functions an instance of {WebAssembly.Function}.
     native_context->set_wasm_exported_function_map(*function_map);
   }

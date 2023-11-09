@@ -747,7 +747,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,
-      base::Vector<Handle<Object>> bound_args);
+      base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype);
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
