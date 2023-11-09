@@ -358,10 +358,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // preventing this object from being destroyed.
   std::shared_ptr<OperationsBarrier> GetBarrierForBackgroundCompile();
 
-  void SampleThrowEvent(Isolate*);
-  void SampleRethrowEvent(Isolate*);
-  void SampleCatchEvent(Isolate*);
-
   TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
 
   compiler::WasmCallDescriptors* call_descriptors() {

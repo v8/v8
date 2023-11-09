@@ -329,7 +329,6 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   Handle<FixedArray> values(FixedArray::cast(args[1]), isolate);
   Handle<WasmExceptionPackage> exception =
       WasmExceptionPackage::New(isolate, tag, values);
-  wasm::GetWasmEngine()->SampleThrowEvent(isolate);
   return isolate->Throw(*exception);
 }
 
@@ -337,7 +336,6 @@ RUNTIME_FUNCTION(Runtime_WasmReThrow) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  wasm::GetWasmEngine()->SampleRethrowEvent(isolate);
   return isolate->ReThrow(args[0]);
 }
 

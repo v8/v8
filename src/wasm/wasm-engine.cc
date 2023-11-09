@@ -401,16 +401,6 @@ struct WasmEngine::IsolateInfo {
   // one sample per Isolate).
   bool pku_support_sampled = false;
 
-  // Elapsed time since last throw/rethrow/catch event.
-  base::ElapsedTimer throw_timer;
-  base::ElapsedTimer rethrow_timer;
-  base::ElapsedTimer catch_timer;
-
-  // Total number of exception events in this isolate.
-  int throw_count = 0;
-  int rethrow_count = 0;
-  int catch_count = 0;
-
   // Operations barrier to synchronize on wrapper compilation on isolate
   // shutdown.
   // TODO(wasm): Remove this once we can use the generic js-to-wasm wrapper
@@ -1627,53 +1617,6 @@ WasmEngine::GetBarrierForBackgroundCompile() {
   return operations_barrier_;
 }
 
-namespace {
-void SampleExceptionEvent(base::ElapsedTimer* timer, TimedHistogram* counter) {
-  if (!timer->IsStarted()) {
-    timer->Start();
-    return;
-  }
-  counter->AddSample(static_cast<int>(timer->Elapsed().InMilliseconds()));
-  timer->Restart();
-}
-}  // namespace
-
-void WasmEngine::SampleThrowEvent(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  IsolateInfo* isolate_info = isolates_[isolate].get();
-  int& throw_count = isolate_info->throw_count;
-  // To avoid an int overflow, clip the count to the histogram's max value.
-  throw_count =
-      std::min(throw_count + 1, isolate->counters()->wasm_throw_count()->max());
-  isolate->counters()->wasm_throw_count()->AddSample(throw_count);
-  SampleExceptionEvent(&isolate_info->throw_timer,
-                       isolate->counters()->wasm_time_between_throws());
-}
-
-void WasmEngine::SampleRethrowEvent(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  IsolateInfo* isolate_info = isolates_[isolate].get();
-  int& rethrow_count = isolate_info->rethrow_count;
-  // To avoid an int overflow, clip the count to the histogram's max value.
-  rethrow_count = std::min(rethrow_count + 1,
-                           isolate->counters()->wasm_rethrow_count()->max());
-  isolate->counters()->wasm_rethrow_count()->AddSample(rethrow_count);
-  SampleExceptionEvent(&isolate_info->rethrow_timer,
-                       isolate->counters()->wasm_time_between_rethrows());
-}
-
-void WasmEngine::SampleCatchEvent(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  IsolateInfo* isolate_info = isolates_[isolate].get();
-  int& catch_count = isolate_info->catch_count;
-  // To avoid an int overflow, clip the count to the histogram's max value.
-  catch_count =
-      std::min(catch_count + 1, isolate->counters()->wasm_catch_count()->max());
-  isolate->counters()->wasm_catch_count()->AddSample(catch_count);
-  SampleExceptionEvent(&isolate_info->catch_timer,
-                       isolate->counters()->wasm_time_between_catch());
-}
-
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK(!mutex_.TryLock());
   DCHECK_NULL(current_gc_info_);
@@ -1757,7 +1700,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 720);
-  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 256);
+  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 192);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 144);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
   size_t result = sizeof(WasmEngine);
