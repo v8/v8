@@ -18,6 +18,9 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
   DCHECK(!v8_flags.enable_third_party_heap);
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
+  DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);
+  DCHECK_EQ(in_gc(), heap_->IsInGC());
+
   AllocationResult result;
 
   if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {

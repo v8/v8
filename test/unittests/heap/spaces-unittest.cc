@@ -12,6 +12,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
 #include "test/unittests/test-utils.h"
@@ -54,7 +55,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
                           CompactionSpaceKind::kCompactionSpaceForMarkCompact);
-  MainAllocator allocator(heap, compaction_space);
+  MainAllocator allocator(heap, compaction_space, MainAllocator::Context::kGC);
   EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {
@@ -74,7 +75,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
     Tagged<HeapObject> object =
         allocator
             .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
-                         AllocationOrigin::kRuntime)
+                         AllocationOrigin::kGC)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }

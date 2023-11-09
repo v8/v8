@@ -569,7 +569,10 @@ class Heap final {
   V8_EXPORT_PRIVATE void SetGCState(HeapState state);
   bool IsTearingDown() const { return gc_state() == TEAR_DOWN; }
   bool IsInGC() const {
-    return gc_state() != NOT_IN_GC && gc_state() != TEAR_DOWN;
+    // Load state only once and store it in local variable. Otherwise multiples
+    // loads could return different states on background threads.
+    HeapState state = gc_state();
+    return state != NOT_IN_GC && state != TEAR_DOWN;
   }
   bool force_oom() const { return force_oom_; }
 
