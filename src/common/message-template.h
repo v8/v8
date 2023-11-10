@@ -130,6 +130,7 @@ namespace internal {
   T(InvalidRegExpExecResult,                                                   \
     "RegExp exec method returned something other than an Object or null")      \
   T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
+  T(IsNotNumber, "Type of '%' must be 'number', found '%'")                    \
   T(IterableYieldedNonString, "Iterable yielded % which is not a string")      \
   T(IteratorReduceNoInitial,                                                   \
     "Reduce of a done iterator with no initial value")                         \

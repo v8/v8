@@ -112,8 +112,11 @@ BUILTIN(AtomicsConditionWait) {
 
   base::Optional<base::TimeDelta> timeout = base::nullopt;
   if (!IsUndefined(*timeout_obj, isolate)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout_obj,
-                                       Object::ToNumber(isolate, timeout_obj));
+    if (!IsNumber(*timeout_obj)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kIsNotNumber, timeout_obj,
+                                Object::TypeOf(isolate, timeout_obj)));
+    }
     double ms = Object::Number(*timeout_obj);
     if (!std::isnan(ms)) {
       if (ms < 0) ms = 0;
