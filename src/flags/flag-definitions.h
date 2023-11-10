@@ -777,8 +777,8 @@ DEFINE_BOOL_READONLY(minor_ms_shortcut_strings, false,
                      "short cut strings during marking")
 #endif
 
-DEFINE_BOOL(feedback_normalization, false,
-            "feed back normalization to constructors")
+DEFINE_EXPERIMENTAL_FEATURE(feedback_normalization,
+                            "feed back normalization to constructors")
 // TODO(jkummerow): This currently adds too much load on the stub cache.
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
