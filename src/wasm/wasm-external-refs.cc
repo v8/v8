@@ -695,6 +695,9 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
 
+  CHECK_EQ(thread_local_top->secondary_stack_sp_, 0);
+  CHECK_EQ(thread_local_top->secondary_stack_limit_, 0);
+
   auto secondary_stack_limit = stack_guard->real_jslimit();
 
   stack_guard->SetStackLimitForStackSwitching(
@@ -724,28 +727,6 @@ void switch_from_the_central_stack(Isolate* isolate) {
 
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
-}
-
-intptr_t switch_to_the_central_stack_for_js(Address raw_callable,
-                                            uintptr_t* stack_limit_slot) {
-  Tagged<JSReceiver> callable = JSReceiver::cast(Tagged<Object>(raw_callable));
-  Isolate* isolate = callable->GetIsolate();
-  ThreadLocalTop* thread_local_top = isolate->thread_local_top();
-  StackGuard* stack_guard = isolate->stack_guard();
-  *stack_limit_slot = stack_guard->real_jslimit();
-  stack_guard->SetStackLimit(thread_local_top->central_stack_limit_);
-  thread_local_top->is_on_central_stack_flag_ = true;
-  return thread_local_top->central_stack_sp_;
-}
-
-void switch_from_the_central_stack_for_js(Address raw_callable,
-                                          uintptr_t stack_limit) {
-  Tagged<JSReceiver> callable = JSReceiver::cast(Tagged<Object>(raw_callable));
-  Isolate* isolate = callable->GetIsolate();
-  ThreadLocalTop* thread_local_top = isolate->thread_local_top();
-  thread_local_top->is_on_central_stack_flag_ = false;
-  StackGuard* stack_guard = isolate->stack_guard();
-  stack_guard->SetStackLimit(stack_limit);
 }
 
 }  // namespace v8::internal::wasm

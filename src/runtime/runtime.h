@@ -709,8 +709,7 @@ namespace internal {
   F(WasmTierUpFunction, 1, 1)               \
   F(WasmTraceEnter, 0, 1)                   \
   F(WasmTraceExit, 1, 1)                    \
-  F(WasmTraceMemory, 1, 1)                  \
-  F(CheckIsOnCentralStack, 0, 1)
+  F(WasmTraceMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
   F(JSFinalizationRegistryRegisterWeakCellWithUnregisterToken, 4, 1) \
@@ -872,6 +871,10 @@ class Runtime : public AllStatic {
   // Check if a runtime function with the given {id} is allowlisted for
   // using it with fuzzers.
   static bool IsAllowListedForFuzzing(FunctionId id);
+
+  // Check if a switch to the central stack should be performed
+  // for a runtime function.
+  static bool SwitchToTheCentralStackForTarget(FunctionId id);
 
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);

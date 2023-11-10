@@ -23,10 +23,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-builtin-list.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -45,14 +41,6 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   CHECK(!options.isolate_independent_code);
   CHECK(!options.collect_win64_unwind_info);
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
-      builtin == Builtin::kJSToWasmWrapper ||
-      builtin == Builtin::kJSToWasmHandleReturns ||
-      builtin == Builtin::kWasmToJsWrapperCSA) {
-    options.is_wasm = true;
-  }
-#endif
   if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
