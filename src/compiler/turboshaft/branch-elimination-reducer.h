@@ -561,7 +561,7 @@ class BranchEliminationReducer : public Next {
       }
     }
 
-    return true;
+    return has_phi;
   }
 
   // TODO(dmercadier): use the SnapshotTable to replace {dominator_path_} and
