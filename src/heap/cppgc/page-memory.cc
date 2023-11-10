@@ -194,13 +194,9 @@ void PageBackend::FreeNormalPageMemory(
   auto* pmr = page_memory_region_tree_.Lookup(writeable_base);
   DCHECK_NOT_NULL(pmr);
   page_memory_region_tree_.Remove(pmr);
-  if (free_memory_handling == FreeMemoryHandling::kDoNotDiscard) {
-    page_pool_.Add(pmr);
-  } else {
-    // Destroy the page right away.
-    auto size = normal_page_memory_regions_.erase(pmr);
-    USE(size);
-    DCHECK_EQ(1u, size);
+  page_pool_.Add(pmr);
+  if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
+    CHECK(TryDiscard(normal_page_allocator_, pmr->GetPageMemory()));
   }
 }
 
