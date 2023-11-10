@@ -965,7 +965,7 @@ bool PagedSpaceForNewSpace::AllocatePage() {
   // list entries will be invalid.
   DCHECK_NE(kNullAddress,
             heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
-  return TryExpandImpl(MemoryAllocator::AllocationMode::kUsePool);
+  return TryExpand(0, AllocationOrigin::kRuntime);
 }
 
 bool PagedSpaceForNewSpace::IsPromotionCandidate(

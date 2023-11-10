@@ -287,27 +287,6 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
   }
 }
 
-Page* PagedSpaceBase::TryExpandImpl(
-    MemoryAllocator::AllocationMode allocation_mode) {
-  base::MutexGuard expansion_guard(heap_->heap_expansion_mutex());
-  const size_t accounted_size =
-      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(identity());
-  if (identity() != NEW_SPACE && !is_compaction_space() &&
-      !heap()->IsOldGenerationExpansionAllowed(accounted_size,
-                                               expansion_guard)) {
-    return nullptr;
-  }
-  Page* page = heap()->memory_allocator()->AllocatePage(allocation_mode, this,
-                                                        executable());
-  if (page == nullptr) return nullptr;
-  DCHECK_EQ(page->area_size(), accounted_size);
-  ConcurrentAllocationMutex guard(this);
-  AddPage(page);
-  Free(page->area_start(), page->area_size(),
-       SpaceAccountingMode::kSpaceAccounted);
-  return page;
-}
-
 base::Optional<std::pair<Address, size_t>> PagedSpaceBase::TryExpandBackground(
     LocalHeap* local_heap, size_t size_in_bytes, AllocationOrigin origin) {
   DCHECK_NE(NEW_SPACE, identity());
@@ -533,17 +512,35 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 #endif
 
 bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
-  DCHECK_NE(NEW_SPACE, identity());
   base::Optional<CodePageHeaderModificationScope> optional_scope;
   if (identity() == CODE_SPACE) {
     optional_scope.emplace("TryExpand writes to the page header.");
   }
-  Page* page = TryExpandImpl(MemoryAllocator::AllocationMode::kRegular);
-  if (!page) return false;
+  base::MutexGuard expansion_guard(heap_->heap_expansion_mutex());
+  const size_t accounted_size =
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(identity());
+  if (identity() != NEW_SPACE && !is_compaction_space() &&
+      !heap()->IsOldGenerationExpansionAllowed(accounted_size,
+                                               expansion_guard)) {
+    return false;
+  }
+  const MemoryAllocator::AllocationMode allocation_mode =
+      identity() == NEW_SPACE ? MemoryAllocator::AllocationMode::kUsePool
+                              : MemoryAllocator::AllocationMode::kRegular;
+  Page* page = heap()->memory_allocator()->AllocatePage(allocation_mode, this,
+                                                        executable());
+  if (page == nullptr) return false;
+  DCHECK_EQ(page->area_size(), accounted_size);
+  DCHECK_LE(size_in_bytes, page->area_size());
+  ConcurrentAllocationMutex guard(this);
+  AddPage(page);
   if (!is_compaction_space() && identity() != NEW_SPACE) {
     heap()->NotifyOldGenerationExpansion(heap()->main_thread_local_heap(),
                                          identity(), page);
   }
+  Free(page->area_start(), page->area_size(),
+       SpaceAccountingMode::kSpaceAccounted);
+  NotifyNewPage(page);
   return true;
 }
 
@@ -637,13 +634,7 @@ AllocatorPolicy* PagedSpace::CreateAllocatorPolicy(MainAllocator* allocator) {
 // -----------------------------------------------------------------------------
 // CompactionSpace implementation
 
-Page* CompactionSpace::TryExpandImpl(
-    MemoryAllocator::AllocationMode allocation_mode) {
-  DCHECK_NE(NEW_SPACE, identity());
-  Page* page = PagedSpaceBase::TryExpandImpl(allocation_mode);
-  new_pages_.push_back(page);
-  return page;
-}
+void CompactionSpace::NotifyNewPage(Page* page) { new_pages_.push_back(page); }
 
 void CompactionSpace::RefillFreeList() {
   DCHECK_NE(NEW_SPACE, identity());

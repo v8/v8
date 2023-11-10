@@ -64,8 +64,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
     {
       HandleScope scope2(isolate);
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       auto compaction_page_handles = heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
@@ -136,8 +135,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
       HandleScope scope2(isolate);
       // Fill another page with objects of size {object_size} (last one is
       // properly adjusted).
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       auto compaction_page_handles = heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
@@ -152,8 +150,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
         // Add another page that is filled with {num_objects} objects of size
         // {object_size}.
         HandleScope scope3(isolate);
-        CHECK(heap->old_space()->TryExpandImpl(
-            MemoryAllocator::AllocationMode::kRegular));
+        CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
         const int num_objects = 3;
         std::vector<Handle<FixedArray>> page_to_fill_handles =
             heap::CreatePadding(heap, object_size * num_objects,
@@ -225,8 +222,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       HandleScope temporary_scope(isolate);
       // Fill a fresh page with objects of size {object_size} (last one is
       // properly adjusted).
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       std::vector<Handle<FixedArray>> compaction_page_handles =
           heap::CreatePadding(
               heap,
@@ -247,8 +243,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       // Add another page that is filled with {num_objects} objects of size
       // {object_size}.
       HandleScope scope3(isolate);
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       const int num_objects = 2;
       int used_memory = object_size * num_objects;
       std::vector<Handle<FixedArray>> page_to_fill_handles =
@@ -328,8 +323,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       HandleScope temporary_scope(isolate);
       // Fill another page with objects of size {object_size} (last one is
       // properly adjusted).
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       auto compaction_page_handles = heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
@@ -356,8 +350,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       // Add another page that is filled with {num_objects} objects of size
       // {object_size}.
       HandleScope scope3(isolate);
-      CHECK(heap->old_space()->TryExpandImpl(
-          MemoryAllocator::AllocationMode::kRegular));
+      CHECK(heap->old_space()->TryExpand(0, AllocationOrigin::kRuntime));
       const int num_objects = 2;
       int used_memory = object_size * num_objects;
       std::vector<Handle<FixedArray>> page_to_fill_handles =
