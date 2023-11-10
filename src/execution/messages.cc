@@ -117,14 +117,14 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
   // and ignore scheduled exceptions callbacks can throw.
 
   // We pass the exception object into the message handler callback though.
-  Tagged<Object> exception_object = ReadOnlyRoots(isolate).undefined_value();
+  Handle<Object> exception = isolate->factory()->undefined_value();
   if (isolate->has_pending_exception()) {
-    exception_object = isolate->pending_exception();
+    exception = handle(isolate->pending_exception(), isolate);
   }
-  Handle<Object> exception(exception_object, isolate);
 
   Isolate::ExceptionScope exception_scope(isolate);
   isolate->clear_pending_exception();
+  isolate->clear_pending_message();
   isolate->set_external_caught_exception(false);
 
   // Turn the exception on the message into a string if it is an object.
@@ -148,6 +148,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     if (!maybe_stringified.ToHandle(&stringified)) {
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
+      isolate->clear_pending_message();
       isolate->set_external_caught_exception(false);
       stringified = isolate->factory()->exception_string();
     }
@@ -253,6 +254,7 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     Handle<Object> pending_exception =
         handle(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
+    isolate->clear_pending_message();
     isolate->set_external_caught_exception(false);
 
     err_str = ErrorUtils::ToString(isolate, pending_exception);
@@ -260,6 +262,7 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
+      isolate->clear_pending_message();
       isolate->set_external_caught_exception(false);
       builder->AppendCStringLiteral("<error>");
     } else {
@@ -387,6 +390,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       Handle<Object> pending_exception =
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
+      isolate->clear_pending_message();
       isolate->set_external_caught_exception(false);
 
       MaybeHandle<String> exception_string =
@@ -423,6 +427,7 @@ Handle<String> MessageFormatter::Format(
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
+    isolate->clear_pending_message();
     return isolate->factory()->InternalizeString(
         base::StaticCharVector("<error>"));
   }
@@ -726,6 +731,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     // clears any pending exceptions - so whenever we'd call this from C++,
     // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
+    isolate->clear_pending_message();
   }
   Handle<String> msg = MessageFormatter::Format(isolate, index, args);
   Handle<Object> options = isolate->factory()->undefined_value();
