@@ -1184,7 +1184,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(Forward, const Value& from, Value* to)                                     \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
-  F(BrOrRet, uint32_t depth, uint32_t drop_values)                             \
+  F(BrOrRet, uint32_t depth)                                                   \
   F(BrIf, const Value& cond, uint32_t depth)                                   \
   F(BrTable, const BranchTableImmediate& imm, const Value& key)                \
   F(Else, Control* if_block)                                                   \
@@ -3332,7 +3332,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         // For a non-nullable value, we always take the branch.
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           CALL_INTERFACE(Forward, ref_object, value_on_branch);
-          CALL_INTERFACE(BrOrRet, imm.depth, 0);
+          CALL_INTERFACE(BrOrRet, imm.depth);
           // We know that the following code is not reachable, but according
           // to the spec it technically is. Set it to spec-only reachable.
           SetSucceedingCodeDynamicallyUnreachable();
@@ -3514,7 +3514,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Control* c = control_at(imm.depth);
     if (!VALIDATE(TypeCheckBranch<false>(c))) return 0;
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
-      CALL_INTERFACE(BrOrRet, imm.depth, 0);
+      CALL_INTERFACE(BrOrRet, imm.depth);
       c->br_merge()->reached = true;
     }
     EndControl();
@@ -5252,7 +5252,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                          false);
         } else {
           CALL_INTERFACE(Forward, obj, value_on_branch);
-          CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+          CALL_INTERFACE(BrOrRet, branch_depth.depth);
           // We know that the following code is not reachable, but according
           // to the spec it technically is. Set it to spec-only reachable.
           SetSucceedingCodeDynamicallyUnreachable();
@@ -5371,7 +5371,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         // The types are incompatible (i.e. neither of the two types is a
         // subtype of the other). Always branch.
         CALL_INTERFACE(Forward, obj, stack_value(1));
-        CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+        CALL_INTERFACE(BrOrRet, branch_depth.depth);
         // We know that the following code is not reachable, but according
         // to the spec it technically is. Set it to spec-only reachable.
         SetSucceedingCodeDynamicallyUnreachable();
