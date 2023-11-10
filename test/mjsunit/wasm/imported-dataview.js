@@ -603,6 +603,12 @@ let instance = MakeInstance();
                 .get.call('test_string'),
       'byteLength');
 
+  CheckStackTrace(
+      () => instance.exports.byteLength(1),
+      () => Object.getOwnPropertyDescriptor(DataView.prototype, 'byteLength')
+                .get.call(1),
+      'byteLength');
+
   %ArrayBufferDetach(array.buffer);
   CheckStackTrace(
       () => instance.exports.byteLength(dataview),
