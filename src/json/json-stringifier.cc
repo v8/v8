@@ -257,25 +257,32 @@ class JsonStringifier {
   // pointers again and again, and we can use a fast path to copy those keys to
   // the output. However, strings can be externalized any time JS runs, so the
   // caller is responsible for checking whether a string is still the expected
-  // type.
-  class SimplePropertyKeyCache {
+  // type. This cache is cleared on GC, since the GC could move those strings.
+  // Using Handles for the cache has been tried, but is too expensive to set up
+  // when JSON.stringify is called for tiny inputs.
+  class SimplePropertyKeyCache : public Isolate::ToDestroyBeforeSuddenShutdown {
    public:
-    explicit SimplePropertyKeyCache(Isolate* isolate) {
-      Tagged<String> zero;
-      for (size_t i = 0; i < kSize; ++i) {
-        keys_[i] = handle(zero, isolate);
-      }
+    explicit SimplePropertyKeyCache(Isolate* isolate)
+        : Isolate::ToDestroyBeforeSuddenShutdown(isolate) {
+      Clear();
+      isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+          UpdatePointersCallback, this);
     }
 
-    void TryInsert(Tagged<String> string, Isolate* isolate) {
-      ReadOnlyRoots roots(isolate);
-      if (string->map(isolate) == roots.internalized_one_byte_string_map()) {
-        keys_[GetIndex(string)].PatchValue(string);
+    ~SimplePropertyKeyCache() {
+      isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+          UpdatePointersCallback, this);
+    }
+
+    void TryInsert(Tagged<String> string) {
+      ReadOnlyRoots roots(isolate());
+      if (string->map(isolate()) == roots.internalized_one_byte_string_map()) {
+        keys_[GetIndex(string)] = MaybeCompress(string);
       }
     }
 
     bool Contains(Tagged<String> string) {
-      return *keys_[GetIndex(string)] == string;
+      return keys_[GetIndex(string)] == MaybeCompress(string);
     }
 
    private:
@@ -285,11 +292,23 @@ class JsonStringifier {
       return (string.ptr() >> 4) & kIndexMask;
     }
 
+    Tagged_t MaybeCompress(Tagged<String> string) {
+      return COMPRESS_POINTERS_BOOL
+                 ? V8HeapCompressionScheme::CompressObject(string.ptr())
+                 : static_cast<Tagged_t>(string.ptr());
+    }
+
+    void Clear() { MemsetTagged(keys_, Smi::zero(), kSize); }
+
+    static void UpdatePointersCallback(void* cache) {
+      reinterpret_cast<SimplePropertyKeyCache*>(cache)->Clear();
+    }
+
     static constexpr size_t kSizeBits = 6;
     static constexpr size_t kSize = 1 << kSizeBits;
     static constexpr size_t kIndexMask = kSize - 1;
 
-    Handle<String> keys_[kSize];
+    Tagged_t keys_[kSize];
   };
 
   // Returns whether any escape sequences were used.
@@ -1479,7 +1498,7 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
   if (!wrote_simple) {
     bool required_escaping = SerializeString<false>(string_key);
     if (!required_escaping) {
-      key_cache_.TryInsert(*string_key, isolate_);
+      key_cache_.TryInsert(*string_key);
     }
     AppendCharacter(':');
   }

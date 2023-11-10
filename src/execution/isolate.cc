@@ -4005,6 +4005,8 @@ Isolate::~Isolate() {
   DCHECK(entry_stack_ == nullptr ||
          entry_stack_.load()->previous_item == nullptr);
 
+  DCHECK(to_destroy_before_sudden_shutdown_.empty());
+
   delete entry_stack_;
   entry_stack_ = nullptr;
 
@@ -4513,6 +4515,26 @@ void Isolate::VerifyStaticRoots() {
       ReadOnlyRoots(this).null_value().ptr());
 #undef STATIC_ROOTS_FAILED_MSG
 #endif  // V8_STATIC_ROOTS_BOOL
+}
+
+Isolate::ToDestroyBeforeSuddenShutdown::ToDestroyBeforeSuddenShutdown(
+    Isolate* isolate)
+    : isolate_(isolate) {
+  isolate->to_destroy_before_sudden_shutdown_.push_back(this);
+}
+
+Isolate::ToDestroyBeforeSuddenShutdown::~ToDestroyBeforeSuddenShutdown() {
+  // Since this class is only stack-allocated, the last instance created should
+  // be the first instance destroyed.
+  CHECK(!isolate_->to_destroy_before_sudden_shutdown_.empty() &&
+        isolate_->to_destroy_before_sudden_shutdown_.back() == this);
+  isolate_->to_destroy_before_sudden_shutdown_.pop_back();
+}
+
+void Isolate::PrepareForSuddenShutdown() {
+  while (!to_destroy_before_sudden_shutdown_.empty()) {
+    to_destroy_before_sudden_shutdown_.back()->~ToDestroyBeforeSuddenShutdown();
+  }
 }
 
 bool Isolate::Init(SnapshotData* startup_snapshot_data,
