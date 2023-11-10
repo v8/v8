@@ -605,9 +605,6 @@
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
-
-  # Too slow on arm64 simulator on Mac.
-  'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
 
 

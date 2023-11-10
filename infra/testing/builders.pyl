@@ -1069,36 +1069,6 @@
       {'name': 'v8testing'},
     ],
   },
-  'v8_mac_arm64_sim_rel': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Mac-13',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
-    ],
-  },
-  'v8_mac_arm64_sim_dbg': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Mac-13',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
-    ],
-  },
-  'v8_mac_arm64_sim_nodcheck_rel': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Mac-13',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
-    ],
-  },
   ##############################################################################
   ### luci.v8.ci
   ##############################################################################
@@ -1969,36 +1939,6 @@
     },
     'tests': [
       {'name': 'v8testing'},
-    ],
-  },
-  'V8 Mac - arm64 - sim - debug': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Mac-13',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 7200,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 4},
-    ],
-  },
-  'V8 Mac - arm64 - sim - release': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Mac-13',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   'V8 Win32': {
