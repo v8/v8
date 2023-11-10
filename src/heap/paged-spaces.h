@@ -326,7 +326,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // a memory area of the given size in it. If successful the method returns
   // the address and size of the area.
   base::Optional<std::pair<Address, size_t>> TryExpandBackground(
-      size_t size_in_bytes);
+      LocalHeap* local_heap, size_t size_in_bytes, AllocationOrigin origin);
 
   void RefineAllocatedBytesAfterSweeping(Page* page);
 

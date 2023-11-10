@@ -415,9 +415,8 @@ class Heap final {
 
   void NotifyBootstrapComplete();
 
-  void NotifyOldGenerationExpansion(AllocationSpace space, MemoryChunk* chunk);
-  void NotifyOldGenerationExpansionBackground(AllocationSpace space,
-                                              MemoryChunk* chunk);
+  void NotifyOldGenerationExpansion(LocalHeap* local_heap,
+                                    AllocationSpace space, MemoryChunk* chunk);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();

@@ -130,7 +130,8 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
-  heap()->NotifyOldGenerationExpansion(identity(), page);
+  heap()->NotifyOldGenerationExpansion(heap()->main_thread_local_heap(),
+                                       identity(), page);
   AdvanceAndInvokeAllocationObservers(object.address(),
                                       static_cast<size_t>(object_size));
   return AllocationResult::FromObject(object);
@@ -166,7 +167,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
-  heap()->NotifyOldGenerationExpansionBackground(identity(), page);
+  heap()->NotifyOldGenerationExpansion(local_heap, identity(), page);
   return AllocationResult::FromObject(object);
 }
 

@@ -5789,23 +5789,9 @@ void Heap::NotifyBootstrapComplete() {
   }
 }
 
-void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
+void Heap::NotifyOldGenerationExpansion(LocalHeap* local_heap,
+                                        AllocationSpace space,
                                         MemoryChunk* chunk) {
-  // Do the same thing we would have done for background expansion.
-  NotifyOldGenerationExpansionBackground(space, chunk);
-
-  const size_t kMemoryReducerActivationThreshold = 1 * MB;
-  if (memory_reducer() != nullptr && old_generation_capacity_after_bootstrap_ &&
-      ms_count_ == 0 &&
-      OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
-                                     kMemoryReducerActivationThreshold &&
-      v8_flags.memory_reducer_for_small_heaps) {
-    memory_reducer()->NotifyPossibleGarbage();
-  }
-}
-
-void Heap::NotifyOldGenerationExpansionBackground(AllocationSpace space,
-                                                  MemoryChunk* chunk) {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
     DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
@@ -5813,6 +5799,15 @@ void Heap::NotifyOldGenerationExpansionBackground(AllocationSpace space,
   }
   if (IsAnyCodeSpace(space)) {
     isolate()->AddCodeMemoryChunk(chunk);
+  }
+
+  const size_t kMemoryReducerActivationThreshold = 1 * MB;
+  if (local_heap->is_main_thread() && memory_reducer() != nullptr &&
+      old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
+      OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
+                                     kMemoryReducerActivationThreshold &&
+      v8_flags.memory_reducer_for_small_heaps) {
+    memory_reducer()->NotifyPossibleGarbage();
   }
 }
 

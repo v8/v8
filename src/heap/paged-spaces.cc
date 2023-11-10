@@ -129,7 +129,8 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
     // before shipping, which will likely be using LocalHeap.
   }
   for (auto p : other->GetNewPages()) {
-    heap()->NotifyOldGenerationExpansion(identity(), p);
+    heap()->NotifyOldGenerationExpansion(heap()->main_thread_local_heap(),
+                                         identity(), p);
   }
 
   DCHECK_EQ(0u, other->Size());
@@ -308,8 +309,9 @@ Page* PagedSpaceBase::TryExpandImpl(
 }
 
 base::Optional<std::pair<Address, size_t>> PagedSpaceBase::TryExpandBackground(
-    size_t size_in_bytes) {
+    LocalHeap* local_heap, size_t size_in_bytes, AllocationOrigin origin) {
   DCHECK_NE(NEW_SPACE, identity());
+  DCHECK_EQ(!local_heap, origin == AllocationOrigin::kGC);
   base::MutexGuard expansion_guard(heap_->heap_expansion_mutex());
   const size_t accounted_size =
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(identity());
@@ -323,7 +325,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpaceBase::TryExpandBackground(
   DCHECK_EQ(page->area_size(), accounted_size);
   base::MutexGuard lock(&space_mutex_);
   AddPage(page);
-  heap()->NotifyOldGenerationExpansionBackground(identity(), page);
+  if (origin != AllocationOrigin::kGC && identity() != NEW_SPACE) {
+    heap()->NotifyOldGenerationExpansion(local_heap, identity(), page);
+  }
   Address object_start = page->area_start();
   CHECK_LE(size_in_bytes, page->area_size());
   Free(page->area_start() + size_in_bytes, page->area_size() - size_in_bytes,
@@ -537,7 +541,8 @@ bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
   Page* page = TryExpandImpl(MemoryAllocator::AllocationMode::kRegular);
   if (!page) return false;
   if (!is_compaction_space() && identity() != NEW_SPACE) {
-    heap()->NotifyOldGenerationExpansion(identity(), page);
+    heap()->NotifyOldGenerationExpansion(heap()->main_thread_local_heap(),
+                                         identity(), page);
   }
   return true;
 }
