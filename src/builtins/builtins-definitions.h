@@ -1054,6 +1054,7 @@ namespace internal {
   CPP(AtomicsMutexConstructor)                                                 \
   CPP(AtomicsMutexIsMutex)                                                     \
   CPP(AtomicsMutexLock)                                                        \
+  CPP(AtomicsMutexLockWithTimeout)                                             \
   CPP(AtomicsMutexTryLock)                                                     \
   CPP(AtomicsConditionConstructor)                                             \
   CPP(AtomicsConditionIsCondition)                                             \

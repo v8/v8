@@ -5606,6 +5606,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
 
     SimpleInstallFunction(isolate(), mutex_fun, "lock",
                           Builtin::kAtomicsMutexLock, 2, true);
+    SimpleInstallFunction(isolate(), mutex_fun, "lockWithTimeout",
+                          Builtin::kAtomicsMutexLockWithTimeout, 3, true);
     SimpleInstallFunction(isolate(), mutex_fun, "tryLock",
                           Builtin::kAtomicsMutexTryLock, 2, true);
     SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
