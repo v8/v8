@@ -411,6 +411,37 @@ static void GetSharedFunctionInfoWasmResumeData(MacroAssembler* masm,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
+                                                      Register data,
+                                                      Register scratch,
+                                                      Label* is_baseline,
+                                                      Label* is_bytecode) {
+#if V8_STATIC_ROOTS_BOOL
+  __ IsObjectTypeFast(data, scratch, CODE_TYPE);
+#else
+  __ CompareObjectType(data, scratch, scratch, CODE_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+  if (v8_flags.debug_code) {
+    Label not_baseline;
+    __ B(ne, &not_baseline);
+    AssertCodeIsBaseline(masm, data, scratch);
+    __ B(eq, is_baseline);
+    __ Bind(&not_baseline);
+  } else {
+    __ B(eq, is_baseline);
+  }
+
+#if V8_STATIC_ROOTS_BOOL
+  // scratch already contains the compressed map.
+  __ CompareInstanceTypeWithUniqueCompressedMap(scratch, Register::no_reg(),
+                                                INTERPRETER_DATA_TYPE);
+#else
+  // scratch already contains the instance type.
+  __ Cmp(scratch, INTERPRETER_DATA_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+  __ B(ne, is_bytecode);
+}
+
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
@@ -424,25 +455,14 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 
   Register data = bytecode;
   GetSharedFunctionInfoData(masm, data, sfi);
-  __ LoadMap(scratch1, data);
-
-#ifndef V8_JITLESS
-  __ CompareInstanceType(scratch1, scratch1, CODE_TYPE);
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ B(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, data, scratch1);
-    __ B(eq, is_baseline);
-    __ Bind(&not_baseline);
+  if (V8_JITLESS_BOOL) {
+    __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
+    __ B(ne, &done);
   } else {
-    __ B(eq, is_baseline);
+    CheckSharedFunctionInfoBytecodeOrBaseline(masm, data, scratch1, is_baseline,
+                                              &done);
   }
-  __ Cmp(scratch1, INTERPRETER_DATA_TYPE);
-#else
-  __ CompareInstanceType(scratch1, scratch1, INTERPRETER_DATA_TYPE);
-#endif  // !V8_JITLESS
 
-  __ B(ne, &done);
   __ LoadTrustedPointerField(
       bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset),
       kBytecodeArrayIndirectPointerTag);

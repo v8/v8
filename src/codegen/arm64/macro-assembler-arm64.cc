@@ -3158,29 +3158,54 @@ void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
   B(cc, target);
 }
 
+#if V8_STATIC_ROOTS_BOOL
+void MacroAssembler::CompareInstanceTypeWithUniqueCompressedMap(
+    Register map, Register scratch, InstanceType type) {
+  base::Optional<RootIndex> expected =
+      InstanceTypeChecker::UniqueMapOfInstanceType(type);
+  CHECK(expected);
+  Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+  DCHECK_NE(map, scratch);
+  UseScratchRegisterScope temps(this);
+  CHECK(IsImmAddSub(expected_ptr) || scratch != Register::no_reg() ||
+        temps.CanAcquire());
+  if (!IsImmAddSub(expected_ptr)) {
+    if (scratch == Register::no_reg()) {
+      scratch = temps.AcquireX();
+      DCHECK_NE(map, scratch);
+    }
+    Operand imm_operand =
+        MoveImmediateForShiftedOp(scratch, expected_ptr, kAnyShift);
+    CmpTagged(map, imm_operand);
+  } else {
+    CmpTagged(map, Immediate(expected_ptr));
+  }
+}
+
+void MacroAssembler::IsObjectTypeFast(Register object,
+                                      Register compressed_map_scratch,
+                                      InstanceType type) {
+  ASM_CODE_COMMENT(this);
+  CHECK(InstanceTypeChecker::UniqueMapOfInstanceType(type));
+  LoadCompressedMap(compressed_map_scratch, object);
+  CompareInstanceTypeWithUniqueCompressedMap(compressed_map_scratch,
+                                             Register::no_reg(), type);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
 // Sets equality condition flags.
 void MacroAssembler::IsObjectType(Register object, Register scratch1,
                                   Register scratch2, InstanceType type) {
   ASM_CODE_COMMENT(this);
 
-  if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> expected =
-            InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
-      UseScratchRegisterScope temps(this);
-      Tagged_t ptr = ReadOnlyRootPtr(*expected);
-      if (IsImmAddSub(ptr) || scratch1 != scratch2 || temps.CanAcquire()) {
-        LoadCompressedMap(scratch1, object);
-        if (!IsImmAddSub(ptr) && scratch1 != scratch2) {
-          Operand imm_operand =
-              MoveImmediateForShiftedOp(scratch2, ptr, kAnyShift);
-          CmpTagged(scratch1, imm_operand);
-        } else {
-          CmpTagged(scratch1, Immediate(ptr));
-        }
-        return;
-      }
-    }
+#if V8_STATIC_ROOTS_BOOL
+  if (InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
+    LoadCompressedMap(scratch1, object);
+    CompareInstanceTypeWithUniqueCompressedMap(
+        scratch1, scratch1 != scratch2 ? scratch2 : Register::no_reg(), type);
+    return;
   }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   CompareObjectType(object, scratch1, scratch2, type);
 }

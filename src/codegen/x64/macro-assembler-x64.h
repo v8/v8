@@ -892,6 +892,15 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Variant of the above, which only guarantees to set the correct
   // equal/not_equal flag. Map might not be loaded.
   void IsObjectType(Register heap_object, InstanceType type, Register scratch);
+#if V8_STATIC_ROOTS_BOOL
+  // Fast variant which is guaranteed to not actually load the instance type
+  // from the map.
+  void IsObjectTypeFast(Register heap_object, InstanceType type,
+                        Register compressed_map_scratch);
+  void CompareInstanceTypeWithUniqueCompressedMap(Register map,
+                                                  InstanceType type);
+#endif  // V8_STATIC_ROOTS_BOOL
+
   // Fast check if the object is a js receiver type. Assumes only primitive
   // objects or js receivers are passed.
   void JumpIfJSAnyIsNotPrimitive(

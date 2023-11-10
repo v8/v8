@@ -3045,16 +3045,34 @@ void MacroAssembler::IncsspqIfSupported(Register number_of_words,
   bind(&not_supported);
 }
 
+#if V8_STATIC_ROOTS_BOOL
+void MacroAssembler::CompareInstanceTypeWithUniqueCompressedMap(
+    Register map, InstanceType type) {
+  base::Optional<RootIndex> expected =
+      InstanceTypeChecker::UniqueMapOfInstanceType(type);
+  CHECK(expected);
+  Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+  cmp_tagged(map, Immediate(expected_ptr));
+}
+
+void MacroAssembler::IsObjectTypeFast(Register object, InstanceType type,
+                                      Register compressed_map_scratch) {
+  ASM_CODE_COMMENT(this);
+  CHECK(InstanceTypeChecker::UniqueMapOfInstanceType(type));
+  LoadCompressedMap(compressed_map_scratch, object);
+  CompareInstanceTypeWithUniqueCompressedMap(compressed_map_scratch, type);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
 void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
                                   Register map) {
-  if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> expected =
-            InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
-      LoadCompressedMap(map, heap_object);
-      cmp_tagged(map, Immediate(ReadOnlyRootPtr(*expected)));
-      return;
-    }
+#if V8_STATIC_ROOTS_BOOL
+  if (InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
+    LoadCompressedMap(map, heap_object);
+    CompareInstanceTypeWithUniqueCompressedMap(map, type);
+    return;
   }
+#endif  // V8_STATIC_ROOTS_BOOL
   CmpObjectType(heap_object, type, map);
 }
 

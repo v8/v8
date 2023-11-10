@@ -2071,6 +2071,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Neither map, nor type_reg might be set to any particular value.
   void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
                     InstanceType type);
+#if V8_STATIC_ROOTS_BOOL
+  // Fast variant which is guaranteed to not actually load the instance type
+  // from the map.
+  void IsObjectTypeFast(Register heap_object, Register compressed_map_scratch,
+                        InstanceType type);
+  void CompareInstanceTypeWithUniqueCompressedMap(Register map,
+                                                  Register scratch,
+                                                  InstanceType type);
+#endif  // V8_STATIC_ROOTS_BOOL
 
   // Compare object type for heap object, and branch if equal (or not.)
   // heap_object contains a non-Smi whose object type should be compared with
