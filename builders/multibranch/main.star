@@ -290,16 +290,6 @@ in_category(
         properties = {"builder_group": "client.v8"},
         close_tree = True,
     ),
-    main_multibranch_builder(
-        name = "V8 Mac - arm64 - sim - release builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
-    ),
-    main_multibranch_builder(
-        name = "V8 Mac - arm64 - sim - debug builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
-    ),
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64 - no pointer compression debug",
         dimensions = {"os": "Mac", "cpu": "x86-64"},

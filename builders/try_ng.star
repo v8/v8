@@ -578,30 +578,6 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_mac_arm64_sim_rel",
-    total_timeout = 7200,
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-)
-
-trybot_pair(
-    name = "v8_mac_arm64_sim_dbg",
-    total_timeout = 7200,
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-)
-
-trybot_pair(
-    name = "v8_mac_arm64_sim_nodcheck_rel",
-    total_timeout = 7200,
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac"},
-    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-)
-
-trybot_pair(
     name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

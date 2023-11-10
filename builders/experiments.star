@@ -223,18 +223,6 @@ in_category(
         notifies = ["v8-infra-cc"],
     ),
     experiment_builder(
-        name = "V8 Mac - arm64 - sim - debug",
-        parent_builder = "V8 Mac - arm64 - sim - debug builder",
-        execution_timeout = 19800,
-        notifies = ["sheriffs on new failure", "blamelist"],
-    ),
-    experiment_builder(
-        name = "V8 Mac - arm64 - sim - release",
-        parent_builder = "V8 Mac - arm64 - sim - release builder",
-        execution_timeout = 19800,
-        notifies = ["sheriffs on new failure", "blamelist"],
-    ),
-    experiment_builder(
         name = "V8 Mac64 - full debug builder",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac", "cpu": "x86-64"},
