@@ -380,7 +380,7 @@ class TurboshaftGraphBuildingInterface {
                              nullptr);
   }
 
-  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values = 0) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, drop_values);
     } else {
@@ -437,7 +437,7 @@ class TurboshaftGraphBuildingInterface {
       TSBlock* intermediate = intermediate_blocks[i];
       i++;
       __ Bind(intermediate);
-      BrOrRet(decoder, branch_iterator.next());
+      BrOrRet(decoder, branch_iterator.next(), 0);
     }
   }
 
@@ -1838,8 +1838,7 @@ class TurboshaftGraphBuildingInterface {
                 bool pass_null_along_branch, Value* result_on_fallthrough) {
     result_on_fallthrough->op = ref_object.op;
     IF (UNLIKELY(__ IsNull(ref_object.op, ref_object.type))) {
-      int drop_values = pass_null_along_branch ? 0 : 1;
-      BrOrRet(decoder, depth, drop_values);
+      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
     }
     END_IF
   }
@@ -1848,7 +1847,7 @@ class TurboshaftGraphBuildingInterface {
                    uint32_t depth, bool /* drop_null_on_fallthrough */) {
     result->op = ref_object.op;
     IF_NOT (UNLIKELY(__ IsNull(ref_object.op, ref_object.type))) {
-      BrOrRet(decoder, depth);
+      BrOrRet(decoder, depth, 0);
     }
     END_IF
   }
@@ -2280,7 +2279,7 @@ class TurboshaftGraphBuildingInterface {
         DCHECK_EQ(values.size(), 1);
         values.last().op = block->exception;
       }
-      BrOrRet(decoder, catch_case.br_imm.depth);
+      BrOrRet(decoder, catch_case.br_imm.depth, 0);
       return;
     }
     V<WasmTagObject> caught_tag = CallBuiltinThroughJumptable(
@@ -2305,7 +2304,7 @@ class TurboshaftGraphBuildingInterface {
     } else {
       UnpackWasmException(decoder, block->exception, values);
     }
-    BrOrRet(decoder, catch_case.br_imm.depth);
+    BrOrRet(decoder, catch_case.br_imm.depth, 0);
 
     bool is_last = &catch_case == &block->catch_cases.last();
     if (is_last && !decoder->HasCatchAll(block)) {
@@ -5956,7 +5955,7 @@ class TurboshaftGraphBuildingInterface {
     IF (cast_succeeds) {
       // Narrow type for the successful cast target branch.
       Forward(decoder, object, value_on_branch);
-      BrOrRet(decoder, br_depth);
+      BrOrRet(decoder, br_depth, 0);
     }
     END_IF
     // Note: Differently to below for br_on_cast_fail, we do not Forward
@@ -5976,7 +5975,7 @@ class TurboshaftGraphBuildingInterface {
       // This will add a TypeGuard to the non-null type (as in this case the
       // object is non-nullable).
       Forward(decoder, object, decoder->stack_value(1));
-      BrOrRet(decoder, br_depth);
+      BrOrRet(decoder, br_depth, 0);
     }
     END_IF
     // Narrow type for the successful cast fallthrough branch.
