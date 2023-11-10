@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
@@ -578,10 +579,23 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
+TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
+}
+
+void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr) {
+  raw_assembler()->SetStackPointer(ptr);
+}
+
 TNode<RawPtrT> CodeAssembler::LoadPointerFromRootRegister(
     TNode<IntPtrT> offset) {
   return UncheckedCast<RawPtrT>(
       Load(MachineType::IntPtr(), raw_assembler()->LoadRootRegister(), offset));
+}
+
+TNode<Uint8T> CodeAssembler::LoadUint8FromRootRegister(TNode<IntPtrT> offset) {
+  return UncheckedCast<Uint8T>(
+      Load(MachineType::Uint8(), raw_assembler()->LoadRootRegister(), offset));
 }
 
 TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
@@ -1060,8 +1074,18 @@ Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
+#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
+      state_->kind_ == CodeKind::WASM_FUNCTION ||
+      state_->kind_ == CodeKind::WASM_TO_JS_FUNCTION ||
+      state_->kind_ == CodeKind::JS_TO_WASM_FUNCTION ||
+      state_->builtin_ == Builtin::kJSToWasmWrapper ||
+      state_->builtin_ == Builtin::kJSToWasmHandleReturns ||
+      state_->builtin_ == Builtin::kWasmToJsWrapperCSA ||
+      wasm::BuiltinLookup::IsWasmBuiltinId(state_->builtin_);
+#else
+  bool switch_to_the_central_stack = false;
+#endif
   TNode<Code> centry = HeapConstantNoHole(CodeFactory::RuntimeCEntry(
       isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;
@@ -1095,8 +1119,18 @@ void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
+#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
+      state_->kind_ == CodeKind::WASM_FUNCTION ||
+      state_->kind_ == CodeKind::WASM_TO_JS_FUNCTION ||
+      state_->kind_ == CodeKind::JS_TO_WASM_FUNCTION ||
+      state_->builtin_ == Builtin::kJSToWasmWrapper ||
+      state_->builtin_ == Builtin::kJSToWasmHandleReturns ||
+      state_->builtin_ == Builtin::kWasmToJsWrapperCSA ||
+      wasm::BuiltinLookup::IsWasmBuiltinId(state_->builtin_);
+#else
+  bool switch_to_the_central_stack = false;
+#endif
   TNode<Code> centry = HeapConstantNoHole(CodeFactory::RuntimeCEntry(
       isolate(), result_size, switch_to_the_central_stack));
   constexpr size_t kMaxNumArgs = 6;

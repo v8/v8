@@ -172,6 +172,16 @@ class IsolateData final {
     return (address - start) < sizeof(*this);
   }
 
+// Offset of a ThreadLocalTop member from {isolate_root()}.
+#define THREAD_LOCAL_TOP_MEMBER_OFFSET(Name)                              \
+  static uint32_t Name##_offset() {                                       \
+    return static_cast<uint32_t>(IsolateData::thread_local_top_offset() + \
+                                 OFFSET_OF(ThreadLocalTop, Name##_));     \
+  }
+
+  THREAD_LOCAL_TOP_MEMBER_OFFSET(is_on_central_stack_flag)
+#undef THREAD_LOCAL_TOP_MEMBER_OFFSET
+
  private:
   // Static layout definition.
   //

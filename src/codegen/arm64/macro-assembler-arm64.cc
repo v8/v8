@@ -2009,8 +2009,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  bool switch_to_central =
-      Runtime::SwitchToTheCentralStackForTarget(f->function_id);
+  bool switch_to_central = this->options().is_wasm;
   Handle<Code> code = CodeFactory::CEntry(
       isolate(), f->result_size, ArgvMode::kStack, false, switch_to_central);
   Call(code, RelocInfo::CODE_TARGET);
