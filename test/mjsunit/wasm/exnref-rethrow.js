@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --experimental-wasm-exnref --turboshaft-wasm
-// Flags: --no-liftoff
 
 // This file is for the most parts a direct port of
 // test/mjsunit/wasm/exceptions-rethrow.js using the new exception handling
@@ -17,6 +16,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addTag(kSig_v_v);
+  let if_sig = builder.addType(makeSig([kWasmExnRef], []));
   builder.addFunction("rethrow0", kSig_v_v)
       .addBody([
         kExprBlock, kExnRefCode,
@@ -30,16 +30,21 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   ]).exportFunc();
   builder.addFunction("rethrow1", kSig_i_i)
       .addBody([
-        kExprTry, kWasmI32,
-          kExprThrow, except,
-        kExprCatch, except,
-          kExprLocalGet, 0,
-          kExprI32Eqz,
-          kExprIf, kWasmVoid,
-            kExprRethrow, 1,
+        kExprBlock, kExnRefCode,
+          kExprTryTable, kWasmI32, 1,
+          kCatchRef, except, 0,
+            kExprThrow, except,
           kExprEnd,
-          kExprI32Const, 23,
-        kExprEnd
+          kExprUnreachable,
+        kExprEnd,
+        kExprLocalGet, 0,
+        kExprI32Eqz,
+        kExprIf, if_sig,
+          kExprThrowRef,
+        kExprElse,
+          kExprDrop,
+        kExprEnd,
+        kExprI32Const, 23,
   ]).exportFunc();
   let instance = builder.instantiate();
 
@@ -48,7 +53,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   assertEquals(23, instance.exports.rethrow1(1));
 })();
 
-// Test that an exception being rethrow can be caught by another local catch
+// Test that an exception being rethrown can be caught by another local catch
 // block in the same function without ever unwinding the activation.
 (function TestRethrowRecatch() {
   print(arguments.callee.name);

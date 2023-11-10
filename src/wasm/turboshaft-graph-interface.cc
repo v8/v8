@@ -2307,13 +2307,7 @@ class TurboshaftGraphBuildingInterface {
     BrOrRet(decoder, catch_case.br_imm.depth, 0);
 
     bool is_last = &catch_case == &block->catch_cases.last();
-    bool has_catch_all =
-        std::any_of(block->catch_cases.begin(), block->catch_cases.end(),
-                    [](const struct CatchCase& catch_case) {
-                      return catch_case.kind == kCatchAll ||
-                             catch_case.kind == kCatchAllRef;
-                    });
-    if (is_last && !has_catch_all) {
+    if (is_last && !decoder->HasCatchAll(block)) {
       BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                                nullptr, &block->exception);
       ThrowRef(decoder, block->exception);

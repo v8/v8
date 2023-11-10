@@ -2880,6 +2880,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
   }
 
+  bool HasCatchAll(Control* block) const {
+    DCHECK(block->is_try_table());
+    return std::any_of(block->catch_cases.begin(), block->catch_cases.end(),
+                       [](const struct CatchCase& catch_case) {
+                         return catch_case.kind == kCatchAll ||
+                                catch_case.kind == kCatchAllRef;
+                       });
+  }
+
  private:
   uint32_t locals_offset_ = 0;
   Interface interface_;
@@ -3214,7 +3223,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     int i = 0;
     while (try_table_iterator.has_next()) {
       CatchCase catch_case = try_table_iterator.next();
-      if (VALIDATE(catch_case.kind > kLastCatchKind)) {
+      if (!VALIDATE(catch_case.kind <= kLastCatchKind)) {
         this->DecodeError("invalid catch kind in try table");
         return 0;
       }
@@ -3239,7 +3248,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       Control* target = control_at(catch_case.br_imm.depth);
       TypeCheckBranch<true>(target);
-      target->br_merge()->reached = true;
       stack_.shrink_to(stack_size);
       DCHECK_LT(i, try_table_imm.table_count);
       try_block->catch_cases[i] = catch_case;
@@ -3438,6 +3446,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           // Already typed checked on block entry.
           CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchCase, c, catch_case,
                                                     values);
+
+          Control* target = control_at(catch_case.br_imm.depth);
+          target->br_merge()->reached = true;
           stack_.shrink_to(stack_size);
         }
         EndControl();

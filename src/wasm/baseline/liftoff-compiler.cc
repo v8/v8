@@ -1290,7 +1290,8 @@ class LiftoffCompiler {
     // This is the last use of this label. Re-use the field for the label of the
     // next catch block, and jump there if the tag does not match.
     __ bind(&block->try_info->catch_label);
-    new (&block->try_info->catch_label) Label();
+    block->try_info->catch_label.Unuse();
+    block->try_info->catch_label.UnuseNear();
 
     __ cache_state()->Split(block->try_info->catch_state);
 
@@ -1466,14 +1467,96 @@ class LiftoffCompiler {
     }
   }
 
-  void TryTable(FullDecoder* decoder, Control* block) { UNIMPLEMENTED(); }
-
-  void CatchCase(FullDecoder* decoder, Control* control,
-                 const CatchCase& catch_case, base::Vector<Value> values) {
-    UNIMPLEMENTED();
+  void TryTable(FullDecoder* decoder, Control* block) {
+    block->try_info = zone_->New<TryInfo>(zone_);
+    PushControl(block);
   }
 
-  void ThrowRef(FullDecoder* decoder, Value* value) { UNIMPLEMENTED(); }
+  void CatchCase(FullDecoder* decoder, Control* block,
+                 const CatchCase& catch_case, base::Vector<Value> values) {
+    DCHECK(block->is_try_table());
+
+    // This is the last use of this label. Re-use the field for the label of the
+    // next catch block, and jump there if the tag does not match.
+    __ bind(&block->try_info->catch_label);
+    if (!block->try_info->catch_reached) {
+      return;
+    }
+    block->try_info->catch_label.Unuse();
+    block->try_info->catch_label.UnuseNear();
+
+    __ cache_state()->Split(block->try_info->catch_state);
+
+    if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
+      // The landing pad pushed the exception on the stack, so keep
+      // it there for {kCatchAllRef}, and drop it for {kCatchAll}.
+      if (catch_case.kind == kCatchAll) {
+        __ DropValues(1);
+      }
+      BrOrRet(decoder, catch_case.br_imm.depth, 0);
+      return;
+    }
+
+    CODE_COMMENT("load caught exception tag");
+    DCHECK_EQ(__ cache_state()->stack_state.back().kind(), kRef);
+    LiftoffRegister caught_tag =
+        GetExceptionProperty(__ cache_state()->stack_state.back(),
+                             RootIndex::kwasm_exception_tag_symbol);
+    LiftoffRegList pinned;
+    pinned.set(caught_tag);
+
+    CODE_COMMENT("load expected exception tag");
+    Register imm_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
+    __ LoadTaggedPointer(imm_tag, imm_tag, no_reg,
+                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                             catch_case.maybe_tag.tag_imm.index));
+
+    CODE_COMMENT("compare tags");
+    {
+      FREEZE_STATE(frozen);
+      Label caught;
+      __ emit_cond_jump(kEqual, &caught, kRefNull, imm_tag, caught_tag.gp(),
+                        frozen);
+      // The tags don't match, merge the current state into the catch state
+      // and jump to the next handler.
+      __ MergeFullStackWith(block->try_info->catch_state);
+      __ emit_jump(&block->try_info->catch_label);
+      __ bind(&caught);
+    }
+
+    CODE_COMMENT("unpack exception");
+    pinned = {};
+    VarState exn = __ cache_state()->stack_state.back();
+    GetExceptionValues(decoder, exn, catch_case.maybe_tag.tag_imm.tag);
+    if (catch_case.kind == kCatchRef) {
+      // Append the exception on the operand stack.
+      DCHECK(exn.is_stack());
+      auto rc = reg_class_for(kRefNull);
+      LiftoffRegister reg = __ GetUnusedRegister(rc, pinned);
+      __ Fill(reg, exn.offset(), kRefNull);
+      __ PushRegister(kRefNull, reg);
+    }
+    // There is an extra copy of the exception at this point, below the unpacked
+    // values (if any). It will be dropped in the branch below.
+    BrOrRet(decoder, catch_case.br_imm.depth, 0);
+    bool is_last = &catch_case == &block->catch_cases.last();
+    if (is_last && !decoder->HasCatchAll(block)) {
+      __ bind(&block->try_info->catch_label);
+      __ cache_state()->Steal(block->try_info->catch_state);
+      ThrowRef(decoder, nullptr);
+    }
+  }
+
+  void ThrowRef(FullDecoder* decoder, Value*) {
+    // Like Rethrow, but pops the exception from the stack.
+    VarState exn = __ PopVarState();
+    CallBuiltin(Builtin::kWasmRethrow, MakeSig::Params(kRef), {exn},
+                decoder->position());
+    int pc_offset = __ pc_offset();
+    MaybeOSR();
+    EmitLandingPad(decoder, pc_offset);
+  }
 
   // Before emitting the conditional branch, {will_freeze} will be initialized
   // to prevent cache state changes in conditionally executed code.
@@ -1592,9 +1675,9 @@ class LiftoffCompiler {
   }
 
   void FinishTry(FullDecoder* decoder, Control* c) {
-    DCHECK(c->is_try_catch() || c->is_try_catchall());
+    DCHECK(c->is_try_catch() || c->is_try_catchall() || c->is_try_table());
     if (!c->end_merge.reached) {
-      if (c->try_info->catch_reached) {
+      if (c->try_info->catch_reached && !c->is_try_table()) {
         // Drop the implicit exception ref.
         __ DropExceptionValueAtOffset(__ num_locals() + c->stack_depth +
                                       c->num_exceptions);
@@ -1607,7 +1690,7 @@ class LiftoffCompiler {
       }
       __ cache_state()->Steal(c->label_state);
     }
-    if (c->try_info->catch_reached) {
+    if (c->try_info->catch_reached && !c->is_try_table()) {
       num_exceptions_--;
     }
   }
@@ -1617,7 +1700,7 @@ class LiftoffCompiler {
     if (c->is_onearmed_if()) {
       // Special handling for one-armed ifs.
       FinishOneArmedIf(decoder, c);
-    } else if (c->is_try_catch() || c->is_try_catchall()) {
+    } else if (c->is_try_catch() || c->is_try_catchall() || c->is_try_table()) {
       FinishTry(decoder, c);
     } else if (c->end_merge.reached) {
       // There is a merge already. Merge our state into that, then continue with

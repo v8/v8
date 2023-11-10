@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --experimental-wasm-exnref --turboshaft-wasm
-// Flags: --no-liftoff
 
 // This file is for the most parts a direct port of
 // test/mjsunit/wasm/exceptions.js using the new exception handling proposal.
@@ -472,26 +471,6 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   assertEquals(10.5, instance.exports.throw_catch_param(10.5));
 })();
 
-(function TestCatchlessTry() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except = builder.addTag(kSig_v_v);
-  builder.addFunction('catchless_try', kSig_v_i)
-    .addBody([
-        kExprTry, kWasmVoid,
-          kExprLocalGet, 0,
-          kExprIf, kWasmVoid,
-            kExprThrow, except,
-          kExprEnd,
-        kExprEnd,
-    ]).exportFunc();
-
-  let instance = builder.instantiate();
-  assertDoesNotThrow(() => instance.exports.catchless_try(0));
-  assertWasmThrows(instance, except, [],
-                   () => instance.exports.catchless_try(1));
-})();
-
 (function TestThrowBeforeUnreachable() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -605,4 +584,52 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate();
 
   assertEquals(1, instance.exports.catch_ref_i32());
+})();
+
+// Test catch-all-ref.
+(function TestCatchAllRef() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+  let sig = builder.addType(makeSig([], [kWasmExnRef]));
+  let g = builder.addGlobal(kWasmExnRef, true);
+  builder.addExportOfKind("g", kExternalGlobal, g.index);
+  builder.addFunction("catch_all_ref", kSig_v_v)
+      .addBody([
+        kExprBlock, sig,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchAllRef, 0,
+            kExprThrow, except,
+          kExprEnd,
+          kExprReturn,
+        kExprEnd,
+        kExprGlobalSet, g.index,
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  instance.exports.catch_all_ref();
+  assertTrue(instance.exports.g.value instanceof WebAssembly.Exception);
+})();
+
+(function TestCatchRefTwoParams() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_ii);
+  let sig = builder.addType(makeSig([], [kWasmI32, kWasmI32, kWasmExnRef]));
+  builder.addFunction("catch_ref_two_params", kSig_ii_v)
+      .addBody([
+        kExprBlock, sig,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchRef, except, 0,
+            kExprI32Const, 1, kExprI32Const, 2,
+            kExprThrow, except,
+          kExprEnd,
+          kExprI32Const, 3, kExprI32Const, 4,
+          kExprReturn,
+        kExprEnd,
+        kExprDrop,
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertEquals([1, 2], instance.exports.catch_ref_two_params());
 })();
