@@ -1356,10 +1356,6 @@ DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmFunctions,
 DEFINE_INT(
     wasm_caching_threshold, 1000000,
     "the amount of wasm top tier code that triggers the next caching event")
-DEFINE_INT(
-    wasm_caching_timeout_ms, 0,
-    "only trigger caching if no new code was compiled within this timeout (0 "
-    "to disable this logic and only use --wasm-caching-threshold)")
 DEFINE_BOOL(trace_wasm_compilation_times, false,
             "print how long it took to compile each wasm function")
 DEFINE_INT(wasm_tier_up_filter, -1, "only tier-up function with this index")
