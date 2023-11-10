@@ -198,22 +198,18 @@ namespace {
 
 template <typename Adapter>
 void VisitRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-             Node* node) {
+             typename Adapter::node_t node) {
   Arm64OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
-template <typename T>
-void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
-  UNIMPLEMENTED();
-}
-
-void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector,
-             InstructionCode opcode, Node* node) {
-  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
+             typename Adapter::node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -273,14 +269,10 @@ void VisitRRI(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 template <typename Adapter>
 void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
               typename Adapter::node_t node, ImmediateMode operand_mode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseOperand(node->InputAt(1), operand_mode));
-  }
+  Arm64OperandGeneratorT<Adapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseOperand(selector->input_at(node, 1), operand_mode));
 }
 
 template <typename Adapter>
@@ -536,6 +528,23 @@ bool TryMatchLoadStoreShift(Arm64OperandGeneratorT<Adapter>* g,
     default:
       return false;
   }
+}
+
+template <>
+bool TryMatchLoadStoreShift(Arm64OperandGeneratorT<TurboshaftAdapter>* g,
+                            InstructionSelectorT<TurboshaftAdapter>* selector,
+                            MachineRepresentation rep, turboshaft::OpIndex node,
+                            turboshaft::OpIndex index,
+                            InstructionOperand* index_op,
+                            InstructionOperand* shift_immediate_op) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (!selector->CanCover(node, index)) return false;
+  const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
+  if (shift == nullptr) return false;
+  if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
+  *index_op = g->UseRegister(shift->left());
+  *shift_immediate_op = g->UseImmediate(shift->right());
+  return true;
 }
 
 // Bitfields describing binary operator properties:
@@ -1020,6 +1029,70 @@ void EmitLoad(InstructionSelectorT<Adapter>* selector,
   selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
 }
 
+template <>
+void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
+              typename TurboshaftAdapter::node_t node, InstructionCode opcode,
+              ImmediateMode immediate_mode, MachineRepresentation rep,
+              typename TurboshaftAdapter::node_t output) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  const LoadOp& load = selector->Get(node).Cast<LoadOp>();
+
+  OpIndex base = load.base();
+  OptionalOpIndex index = load.index();
+  intptr_t offset = load.offset;
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  InstructionOperand output_op;
+
+  // If output is valid, use that as the output register. This is used when we
+  // merge a conversion into the load.
+  output_op = g.DefineAsRegister(output.valid() ? output : node);
+
+  const Operation& base_op = selector->Get(base);
+  if (base_op.Is<Opmask::kExternalConstant>()) {
+    UNIMPLEMENTED();  // TODO(mliedtke)
+  }
+
+  if (base_op.Is<LoadRootRegisterOp>()) {
+    DCHECK(!index.valid());
+    input_count = 1;
+    inputs[0] = g.UseImmediate64(offset);
+    opcode |= AddressingModeField::encode(kMode_Root);
+    selector->Emit(opcode, 1, &output_op, input_count, inputs);
+    return;
+  }
+
+  inputs[0] = g.UseRegister(base);
+
+  if (!index.has_value()) {
+    if (g.CanBeImmediate(offset, immediate_mode)) {
+      input_count = 2;
+      inputs[1] = g.UseImmediate64(offset);
+      opcode |= AddressingModeField::encode(kMode_MRI);
+    } else {
+      // TODO(mliedtke): What to do if the constant offset can't be stored in an
+      // immediate?
+      UNIMPLEMENTED();
+      // input_count = 2;
+      // inputs[1] = g.UseRegister(offset);
+      // opcode |= AddressingModeField::encode(kMode_MRR);
+    }
+  } else {
+    if (TryMatchLoadStoreShift(&g, selector, rep, node, index.value(),
+                               &inputs[1], &inputs[2])) {
+      input_count = 3;
+      opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
+    } else {
+      input_count = 2;
+      inputs[1] = g.UseRegister(index.value());
+      opcode |= AddressingModeField::encode(kMode_MRR);
+    }
+  }
+  selector->Emit(opcode, 1, &output_op, input_count, inputs);
+}
+
 namespace {
 // Manually add base and index into a register to get the actual address.
 // This should be used prior to instructions that only support
@@ -1179,41 +1252,39 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    InstructionCode opcode = kArchNop;
-    ImmediateMode immediate_mode = kNoImmediate;
-    LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-    MachineRepresentation rep = load_rep.representation();
-    switch (rep) {
-      case MachineRepresentation::kFloat32:
-        opcode = kArm64LdrS;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kArm64LdrD;
-        immediate_mode = kLoadStoreImm64;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned()                            ? kArm64Ldrb
-                 : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrsbW
-                                                                  : kArm64Ldrsb;
-        immediate_mode = kLoadStoreImm8;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned()                            ? kArm64Ldrh
-                 : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrshW
-                                                                  : kArm64Ldrsh;
-        immediate_mode = kLoadStoreImm16;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = kArm64LdrW;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:
+  InstructionCode opcode = kArchNop;
+  ImmediateMode immediate_mode = kNoImmediate;
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  MachineRepresentation rep = load_rep.representation();
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      opcode = kArm64LdrS;
+      immediate_mode = kLoadStoreImm32;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kArm64LdrD;
+      immediate_mode = kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsUnsigned()                            ? kArm64Ldrb
+               : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrsbW
+                                                                : kArm64Ldrsb;
+      immediate_mode = kLoadStoreImm8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned()                            ? kArm64Ldrh
+               : load_rep.semantic() == MachineSemantic::kInt32 ? kArm64LdrshW
+                                                                : kArm64Ldrsh;
+      immediate_mode = kLoadStoreImm16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kArm64LdrW;
+      immediate_mode = kLoadStoreImm32;
+      break;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
       opcode = kArm64LdrW;
       immediate_mode = kLoadStoreImm32;
@@ -1253,15 +1324,16 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kIndirectPointer:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
+  }
+  bool traps_on_null;
+  if (load.is_protected(&traps_on_null)) {
+    if (traps_on_null) {
+      opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+    } else {
+      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
-  if (node->opcode() == IrOpcode::kProtectedLoad) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-  } else if (node->opcode() == IrOpcode::kLoadTrapOnNull) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
   }
-
   EmitLoad(this, node, opcode, immediate_mode, rep);
-  }
 }
 
 template <typename Adapter>
@@ -1766,7 +1838,44 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Shl(node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift_op.left());
+  if (lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
+      is_integer_constant(shift_op.right())) {
+    uint32_t shift_by =
+        static_cast<uint32_t>(integer_constant(shift_op.right()));
+    if (base::IsInRange(shift_by, 1, 31)) {
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      if (is_integer_constant(bitwise_and.right())) {
+        uint32_t mask =
+            static_cast<uint32_t>(integer_constant(bitwise_and.right()));
+
+        uint32_t mask_width = base::bits::CountPopulation(mask);
+        uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+        if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+          DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+          DCHECK_NE(0u, shift_by);
+          Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+          if ((shift_by + mask_width) >= 32) {
+            // If the mask is contiguous and reaches or extends beyond the top
+            // bit, only the shift is needed.
+            Emit(kArm64Lsl32, g.DefineAsRegister(node),
+                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by));
+            return;
+          } else {
+            // Select Ubfiz for Shl(And(x, mask), imm) where the mask is
+            // contiguous, and the shift immediate non-zero.
+            Emit(kArm64Ubfiz32, g.DefineAsRegister(node),
+                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by),
+                 g.TempImmediate(mask_width));
+            return;
+          }
+        }
+      }
+    }
+  }
+  VisitRRO(this, kArm64Lsl32, node, kShift32Imm);
 }
 
 template <>
@@ -1808,10 +1917,28 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shl(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(shift_op.left());
+    const Operation& rhs = this->Get(shift_op.right());
+    if ((lhs.Is<Opmask::kChangeInt32ToInt64>() ||
+         lhs.Is<Opmask::kChangeUint32ToUint64>()) &&
+        rhs.Is<Opmask::kWord32Constant>()) {
+      int64_t shift_by = rhs.Cast<ConstantOp>().signed_integral();
+      if (base::IsInRange(shift_by, 32, 63) &&
+          CanCover(node, shift_op.left())) {
+        // There's no need to sign/zero-extend to 64-bit if we shift out the
+        // upper 32 bits anyway.
+        Emit(kArm64Lsl, g.DefineAsRegister(node),
+             g.UseRegister(lhs.Cast<ChangeOp>().input()),
+             g.UseImmediate64(shift_by));
+        return;
+      }
+    }
+    VisitRRO(this, kArm64Lsl, node, kShift64Imm);
   } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     if ((m.left().IsChangeInt32ToInt64() ||
          m.left().IsChangeUint32ToUint64()) &&
@@ -2910,7 +3037,17 @@ void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
+    const Operation& input_op = this->Get(change_op.input());
+    if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
+      UNIMPLEMENTED();  // TODO(mliedtke)
+    }
+    if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
+        CanCover(node, change_op.input())) {
+      UNIMPLEMENTED();  // TODO(mliedtke)
+    }
+    VisitRR(this, kArm64Sxtw, node);
   } else {
     Node* value = node->InputAt(0);
     if ((value->opcode() == IrOpcode::kLoad ||
@@ -3096,53 +3233,48 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
+  Arm64OperandGeneratorT<Adapter> g(this);
 
-    // `arguments` includes alignment "holes". This means that slots bigger than
-    // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
-    int claim_count = static_cast<int>(arguments->size());
-    bool needs_padding = claim_count % 2 != 0;
-    int slot = claim_count - 1;
-    claim_count = RoundUp(claim_count, 2);
-    // Bump the stack pointer.
-    if (claim_count > 0) {
-      // TODO(titzer): claim and poke probably take small immediates.
-      // TODO(titzer): it would be better to bump the sp here only
-      //               and emit paired stores with increment for non c frames.
-      Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
+  // `arguments` includes alignment "holes". This means that slots bigger than
+  // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
+  int claim_count = static_cast<int>(arguments->size());
+  bool needs_padding = claim_count % 2 != 0;
+  int slot = claim_count - 1;
+  claim_count = RoundUp(claim_count, 2);
+  // Bump the stack pointer.
+  if (claim_count > 0) {
+    // TODO(titzer): claim and poke probably take small immediates.
+    // TODO(titzer): it would be better to bump the sp here only
+    //               and emit paired stores with increment for non c frames.
+    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
 
-      if (needs_padding) {
-        Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
-             g.TempImmediate(claim_count - 1));
-      }
+    if (needs_padding) {
+      Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
+           g.TempImmediate(claim_count - 1));
     }
+  }
 
-    // Poke the arguments into the stack.
-    while (slot >= 0) {
-      PushParameter input0 = (*arguments)[slot];
-      // Skip holes in the param array. These represent both extra slots for
-      // multi-slot values and padding slots for alignment.
-      if (input0.node == nullptr) {
-        slot--;
-        continue;
-      }
-      PushParameter input1 =
-          slot > 0 ? (*arguments)[slot - 1] : PushParameter();
-      // Emit a poke-pair if consecutive parameters have the same type.
-      // TODO(arm): Support consecutive Simd128 parameters.
-      if (input1.node != nullptr &&
-          input0.location.GetType() == input1.location.GetType()) {
-        Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
-             g.UseRegister(input1.node), g.TempImmediate(slot));
-        slot -= 2;
-      } else {
-        Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
-             g.TempImmediate(slot));
-        slot--;
-      }
+  // Poke the arguments into the stack.
+  while (slot >= 0) {
+    PushParameter input0 = (*arguments)[slot];
+    // Skip holes in the param array. These represent both extra slots for
+    // multi-slot values and padding slots for alignment.
+    if (!this->valid(input0.node)) {
+      slot--;
+      continue;
+    }
+    PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
+    // Emit a poke-pair if consecutive parameters have the same type.
+    // TODO(arm): Support consecutive Simd128 parameters.
+    if (this->valid(input1.node) &&
+        input0.location.GetType() == input1.location.GetType()) {
+      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
+           g.UseRegister(input1.node), g.TempImmediate(slot));
+      slot -= 2;
+    } else {
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
+           g.TempImmediate(slot));
+      slot--;
     }
   }
 }
@@ -3617,8 +3749,9 @@ void VisitWord32Compare(InstructionSelectorT<TurboshaftAdapter>* selector,
 }
 
 template <typename Adapter>
-void VisitWordTest(InstructionSelectorT<Adapter>* selector, Node* node,
-                   InstructionCode opcode, FlagsContinuationT<Adapter>* cont) {
+void VisitWordTest(InstructionSelectorT<Adapter>* selector,
+                   typename Adapter::node_t node, InstructionCode opcode,
+                   FlagsContinuationT<Adapter>* cont) {
   Arm64OperandGeneratorT<Adapter> g(selector);
   VisitCompare(selector, opcode, g.UseRegister(node), g.UseRegister(node),
                cont);
@@ -3631,7 +3764,8 @@ void VisitWord32Test(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter>
-void VisitWord64Test(InstructionSelectorT<Adapter>* selector, Node* node,
+void VisitWord64Test(InstructionSelectorT<Adapter>* selector,
+                     typename Adapter::node_t node,
                      FlagsContinuationT<Adapter>* cont) {
   VisitWordTest(selector, node, kArm64Tst, cont);
 }
@@ -4561,11 +4695,21 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Equal(node_t node) {
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const EqualOp& equal = this->Get(node).template Cast<EqualOp>();
+    if (this->MatchIntegralZero(equal.right()) &&
+        CanCover(node, equal.left())) {
+      if (this->Get(equal.left()).template Is<Opmask::kWord64BitwiseAnd>()) {
+        return VisitWordCompare(this, equal.left(), kArm64Tst, &cont,
+                                kLogical64Imm);
+      }
+      return VisitWord64Test(this, equal.left(), &cont);
+    }
+    VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
   } else {
     Node* const user = node;
-    FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
     Int64BinopMatcher m(user);
     if (m.right().Is(0)) {
       Node* const value = m.left().node();

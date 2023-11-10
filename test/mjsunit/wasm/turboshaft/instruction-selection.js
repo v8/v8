@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-liftoff --no-wasm-lazy-compilation --experimental-wasm-stringref
 // Flags: --turboshaft-wasm --turboshaft-wasm-instruction-selection
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -193,4 +193,44 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(-42n * 4n, wasm.mulNegate(42n, 4n));
   assertEquals(42n * -4n, wasm.mulNegate2(42n, 4n));
   assertEquals(5n * -7n, wasm.mul(5n, -7n));
+})();
+
+(function Loads() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("isString", makeSig([kWasmAnyRef], [kWasmI32]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprRefTest, kStringRefCode,
+  ])
+  .exportFunc();
+
+  // Loops emit stack checks (which includes loading from the root register).
+  let loop_sig = builder.addType(kSig_i_i);
+  // Works for positive numbers only.
+  builder.addFunction("factorial", kSig_i_i)
+    .addBody([
+      kExprI32Const, 1,
+      kExprLoop, loop_sig,
+        kExprLocalGet, 0,
+        kExprI32Mul,
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kExprI32Sub,
+        kExprLocalTee, 0,
+        kExprI32Const, 1,
+        kExprI32GtS,
+        kExprBrIf, 0,
+      kExprEnd])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0, wasm.isString({}));
+  assertEquals(0, wasm.isString(1));
+  assertEquals(1, wasm.isString("test"));
+
+  assertEquals(1, wasm.factorial(1));
+  assertEquals(24, wasm.factorial(4));
+  assertEquals(720, wasm.factorial(6));
 })();

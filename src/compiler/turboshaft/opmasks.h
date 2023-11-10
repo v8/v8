@@ -150,15 +150,18 @@ using kFloat64Abs = FloatUnaryMask::For<FloatUnaryOp::Kind::kAbs,
 
 using ShiftMask =
     MaskBuilder<ShiftOp, FIELD(ShiftOp, kind), FIELD(ShiftOp, rep)>;
+using ShiftKindMask = MaskBuilder<ShiftOp, FIELD(ShiftOp, kind)>;
 
 using kWord32ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word32()>;
+using kShiftLeft = ShiftKindMask::For<ShiftOp::Kind::kShiftLeft>;
 
 using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
 
 using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
 using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
+using kExternalConstant = ConstantMask::For<ConstantOp::Kind::kExternal>;
 
 using ProjectionMask = MaskBuilder<ProjectionOp, FIELD(ProjectionOp, index)>;
 
@@ -168,6 +171,17 @@ using kProjection1 = ProjectionMask::For<1>;
 using EqualMask = MaskBuilder<EqualOp, FIELD(EqualOp, rep)>;
 
 using kWord64Equal = EqualMask::For<WordRepresentation::Word32()>;
+
+using ChangeOpMask =
+    MaskBuilder<ChangeOp, FIELD(ChangeOp, kind), FIELD(ChangeOp, assumption),
+                FIELD(ChangeOp, from), FIELD(ChangeOp, to)>;
+
+using kChangeInt32ToInt64 = ChangeOpMask::For<
+    ChangeOp::Kind::kSignExtend, ChangeOp::Assumption::kNoAssumption,
+    RegisterRepresentation::Word32(), RegisterRepresentation::Word64()>;
+using kChangeUint32ToUint64 = ChangeOpMask::For<
+    ChangeOp::Kind::kZeroExtend, ChangeOp::Assumption::kNoAssumption,
+    RegisterRepresentation::Word32(), RegisterRepresentation::Word64()>;
 
 #undef FIELD
 

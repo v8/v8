@@ -3341,6 +3341,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/late-escape-analysis-reducer.h",
     "src/compiler/turboshaft/late-load-elimination-reducer.h",
     "src/compiler/turboshaft/layered-hash-map.h",
+    "src/compiler/turboshaft/load-simplification-reducer.h",
     "src/compiler/turboshaft/loop-finder.h",
     "src/compiler/turboshaft/loop-peeling-phase.h",
     "src/compiler/turboshaft/loop-peeling-reducer.h",
