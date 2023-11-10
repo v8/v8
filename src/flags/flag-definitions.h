@@ -544,6 +544,7 @@ DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
@@ -578,6 +579,12 @@ DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_untagged_phis, true,
             "enable phi untagging in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
+            "enable phi untagging to hoist untagging of osr values")
+DEFINE_EXPERIMENTAL_FEATURE(
+    maglev_speculative_hoist_phi_untagging,
+    "enable phi untagging to hoist untagging of loop phi inputs (could "
+    "still cause deopt loops)")
 
 DEFINE_BOOL(
     optimize_on_next_call_optimizes_to_maglev, false,

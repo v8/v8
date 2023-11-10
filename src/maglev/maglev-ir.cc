@@ -5750,6 +5750,15 @@ void Jump::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   }
 }
 
+void CheckpointedJump::SetValueLocationConstraints() {}
+void CheckpointedJump::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ Jump(target()->label());
+  }
+}
+
 namespace {
 
 void AttemptOnStackReplacement(MaglevAssembler* masm,

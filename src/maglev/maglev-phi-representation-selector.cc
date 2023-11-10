@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-phi-representation-selector.h"
 
 #include "src/base/enum-set.h"
+#include "src/base/logging.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -39,6 +40,7 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
   // {input_mask} represents the ValueRepresentation that {node} could have,
   // based on the ValueRepresentation of its inputs.
   ValueRepresentationSet input_reprs;
+  HoistType hoist_untagging = HoistType::kNone;
 
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input(i).node();
@@ -84,13 +86,50 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
         break;
       }
     } else {
-      // This input is tagged (and didn't require a tagging operation to be
-      // tagged); we won't untag {node}.
-      // TODO(dmercadier): this is a bit suboptimal, because some nodes start
-      // tagged, and later become untagged (parameters for instance). Such nodes
-      // will have their untagged alternative passed to {node} without any
-      // explicit conversion, and we thus won't untag {node} even though we
-      // could have.
+      // This is the case where we don't have an existing conversion to attach
+      // the untagging to. In the general case we give up, however in the
+      // special case of the value originating from the loop entry branch, we
+      // can try to hoist untagging out of the loop.
+      if (builder_->graph()->is_osr() &&
+          v8_flags.maglev_hoist_osr_value_phi_untagging &&
+          input->Is<InitialValue>()) {
+        hoist_untagging = HoistType::kPrologue;
+        continue;
+      }
+      if (node->is_loop_phi()) {
+        BasicBlock* dominator = node->merge_state()->predecessor_at(0);
+        if (input->Is<InitialValue>() || i == 0 ||
+            (input->has_id() &&
+             input->id() < dominator->control_node()->id())) {
+          auto static_type = StaticTypeForNode(
+              builder_->broker(), builder_->local_isolate(), input);
+          if (NodeTypeIs(static_type, NodeType::kSmi)) {
+            input_reprs.Add(ValueRepresentation::kInt32);
+            hoist_untagging = HoistType::kLoopEntryUnchecked;
+            continue;
+          }
+          if (NodeTypeIs(static_type, NodeType::kNumber)) {
+            input_reprs.Add(ValueRepresentation::kFloat64);
+            hoist_untagging = HoistType::kLoopEntryUnchecked;
+            continue;
+          }
+
+          // TODO(olivf): Unless we untag OSR values, speculatively untagging
+          // could end us in deopt loops. To enable this by default we need to
+          // add some feedback to be able to back off. Or, ideally find the
+          // respective checked conversion form within the loop to wire up the
+          // feedback collection.
+          if (v8_flags.maglev_speculative_hoist_phi_untagging) {
+            // TODO(olivf): Currently there is no hard guarantee that the phi
+            // merge state has a checkpointed jump.
+            if (dominator->control_node()->Is<CheckpointedJump>()) {
+              hoist_untagging = HoistType::kLoopEntry;
+              continue;
+            }
+          }
+        }
+      }
+      // This input can't be untagged.
       input_reprs.RemoveAll();
       break;
     }
@@ -193,15 +232,16 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
   if (intersection.contains(ValueRepresentation::kInt32)) {
     TRACE_UNTAGGING("  => Untagging to Int32");
-    ConvertTaggedPhiTo(node, ValueRepresentation::kInt32);
+    ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, hoist_untagging);
     return ProcessResult::kContinue;
   } else if (intersection.contains(ValueRepresentation::kFloat64)) {
     TRACE_UNTAGGING("  => Untagging to kFloat64");
-    ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64);
+    ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64, hoist_untagging);
     return ProcessResult::kContinue;
   } else if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
     TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
-    ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64);
+    ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64,
+                       hoist_untagging);
     return ProcessResult::kContinue;
   }
 
@@ -317,7 +357,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 }  // namespace
 
 void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
-    Phi* phi, ValueRepresentation repr) {
+    Phi* phi, ValueRepresentation repr, HoistType hoist_untagging) {
   // We currently only support Int32, Float64, and HoleyFloat64 untagged phis.
   DCHECK(repr == ValueRepresentation::kInt32 ||
          repr == ValueRepresentation::kFloat64 ||
@@ -454,6 +494,77 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Keeping untagged Phi input as-is");
       }
+    } else if (hoist_untagging != HoistType::kNone) {
+      CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+      BasicBlock* block;
+      DeoptFrame* deopt_frame;
+      auto GetDeoptFrame = [](BasicBlock* block) {
+        return &block->control_node()
+                    ->Cast<CheckpointedJump>()
+                    ->eager_deopt_info()
+                    ->top_frame();
+      };
+      switch (hoist_untagging) {
+        case HoistType::kLoopEntryUnchecked:
+          block = phi->merge_state()->predecessor_at(0);
+          deopt_frame = nullptr;
+          break;
+        case HoistType::kLoopEntry:
+          block = phi->merge_state()->predecessor_at(0);
+          deopt_frame = GetDeoptFrame(block);
+          break;
+        case HoistType::kPrologue:
+          block = *builder_->graph()->begin();
+          deopt_frame = GetDeoptFrame(block);
+          break;
+        case HoistType::kNone:
+          UNREACHABLE();
+      }
+      ValueNode* untagged;
+      switch (repr) {
+        case ValueRepresentation::kUint32:
+        case ValueRepresentation::kInt32:
+          if (!deopt_frame) {
+            DCHECK(
+                NodeTypeIs(StaticTypeForNode(builder_->broker(),
+                                             builder_->local_isolate(), input),
+                           NodeType::kSmi));
+            untagged = AddNode(
+                NodeBase::New<UnsafeSmiUntag>(builder_->zone(), {input}), block,
+                NewNodePosition::kEnd);
+
+          } else {
+            untagged =
+                AddNode(NodeBase::New<CheckedTruncateNumberOrOddballToInt32>(
+                            builder_->zone(), {input},
+                            TaggedToFloat64ConversionType::kOnlyNumber),
+                        block, NewNodePosition::kEnd, deopt_frame);
+          }
+          break;
+        case ValueRepresentation::kTagged:
+          UNREACHABLE();
+        case ValueRepresentation::kFloat64:
+        case ValueRepresentation::kHoleyFloat64:
+          if (!deopt_frame) {
+            DCHECK(
+                NodeTypeIs(StaticTypeForNode(builder_->broker(),
+                                             builder_->local_isolate(), input),
+                           NodeType::kNumber));
+            untagged = AddNode(NodeBase::New<UncheckedNumberOrOddballToFloat64>(
+                                   builder_->zone(), {input},
+                                   TaggedToFloat64ConversionType::kOnlyNumber),
+                               block, NewNodePosition::kEnd);
+          } else {
+            untagged = AddNode(NodeBase::New<CheckedNumberOrOddballToFloat64>(
+                                   builder_->zone(), {input},
+                                   TaggedToFloat64ConversionType::kOnlyNumber),
+                               block, NewNodePosition::kEnd, deopt_frame);
+          }
+          break;
+        case ValueRepresentation::kWord64:
+          UNREACHABLE();
+      }
+      phi->change_input(i, untagged);
     } else {
       TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Invalid input for untagged phi");
       UNREACHABLE();

@@ -345,10 +345,15 @@ class LiveRangeAndNextUseProcessor {
     }
   }
   void MarkInputUses(Jump* node, const ProcessingState& state) {
+    MarkJumpInputUses(node->id(), node->target(), state);
+  }
+  void MarkInputUses(CheckpointedJump* node, const ProcessingState& state) {
+    MarkJumpInputUses(node->id(), node->target(), state);
+  }
+  void MarkJumpInputUses(uint32_t use, BasicBlock* target,
+                         const ProcessingState& state) {
     int i = state.block()->predecessor_id();
-    BasicBlock* target = node->target();
     if (!target->has_phi()) return;
-    uint32_t use = node->id();
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     Phi::List& phis = *target->phis();
     for (auto it = phis.begin(); it != phis.end();) {

@@ -394,6 +394,10 @@ class MaglevGraphBuilder {
 
   DeoptFrame GetLatestCheckpointedFrame();
 
+  bool need_checkpointed_loop_entry() {
+    return v8_flags.maglev_speculative_hoist_phi_untagging;
+  }
+
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
     phi->RecordUseReprHint(reprs, iterator_.current_offset());
   }
@@ -678,7 +682,13 @@ class MaglevGraphBuilder {
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
-        BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
+        BasicBlock* predecessor;
+        if (merge_state->is_loop() && need_checkpointed_loop_entry()) {
+          predecessor =
+              FinishBlock<CheckpointedJump>({}, &jump_targets_[offset]);
+        } else {
+          predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
+        }
         merge_state->Merge(this, current_interpreter_frame_, predecessor);
       }
       if (v8_flags.trace_maglev_graph_building) {
@@ -840,12 +850,24 @@ class MaglevGraphBuilder {
 
   template <typename NodeT>
   NodeT* AttachExtraInfoAndAddToGraph(NodeT* node) {
+    static_assert(NodeT::kProperties.is_deopt_checkpoint() +
+                      NodeT::kProperties.can_eager_deopt() +
+                      NodeT::kProperties.can_lazy_deopt() <=
+                  1);
+    AttachDeoptCheckpoint(node);
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
     AttachExceptionHandlerInfo(node);
     MarkPossibleSideEffect(node);
     AddInitializedNodeToGraph(node);
     return node;
+  }
+
+  template <typename NodeT>
+  void AttachDeoptCheckpoint(NodeT* node) {
+    if constexpr (NodeT::kProperties.is_deopt_checkpoint()) {
+      node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame());
+    }
   }
 
   template <typename NodeT>
@@ -1507,6 +1529,7 @@ class MaglevGraphBuilder {
     ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
         zone(), control_inputs, std::forward<Args>(args)...);
     AttachEagerDeoptInfo(control_node);
+    AttachDeoptCheckpoint(control_node);
     static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
     static_assert(!ControlNodeT::kProperties.can_throw());
     static_assert(!ControlNodeT::kProperties.can_write());

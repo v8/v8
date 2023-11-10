@@ -61,9 +61,17 @@ class MaglevPhiRepresentationSelector {
   }
 
  private:
+  enum class HoistType {
+    kNone,
+    kLoopEntry,
+    kLoopEntryUnchecked,
+    kPrologue,
+  };
+
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
-  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr);
+  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
+                          HoistType hoist_untagging);
 
   // Since this pass changes the representation of Phis, it makes some untagging
   // operations outdated: if we've decided that a Phi should have Int32

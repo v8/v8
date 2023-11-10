@@ -669,7 +669,13 @@ void MaglevGraphBuilder::StartPrologue() {
 }
 
 BasicBlock* MaglevGraphBuilder::EndPrologue() {
-  BasicBlock* first_block = FinishBlock<Jump>({}, &jump_targets_[entrypoint_]);
+  BasicBlock* first_block;
+  if (v8_flags.maglev_hoist_osr_value_phi_untagging) {
+    first_block =
+        FinishBlock<CheckpointedJump>({}, &jump_targets_[entrypoint_]);
+  } else {
+    first_block = FinishBlock<Jump>({}, &jump_targets_[entrypoint_]);
+  }
   MergeIntoFrameState(first_block, entrypoint_);
   return first_block;
 }

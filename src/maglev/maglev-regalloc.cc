@@ -68,9 +68,15 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
   // If the node is a Jump, it may be a hole, but only if it is not a
   // fallthrough (jump to the immediately next block). Otherwise, it will point
   // to the nearest post-dominating hole in its own "next" field.
-  if (Jump* jump = node->TryCast<Jump>()) {
-    if (IsTargetOfNodeFallthrough(jump, jump->target())) {
-      return jump->next_post_dominating_hole();
+  if (node->Is<Jump>() || node->Is<CheckpointedJump>()) {
+    BasicBlock* target;
+    if (auto jmp = node->TryCast<Jump>()) {
+      target = jmp->target();
+    } else {
+      target = node->Cast<CheckpointedJump>()->target();
+    }
+    if (IsTargetOfNodeFallthrough(node, target)) {
+      return node->next_post_dominating_hole();
     }
   }
 
