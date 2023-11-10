@@ -1206,8 +1206,8 @@ STREAM_TEST(TestModuleWithImportedFunction) {
 
 STREAM_TEST(TestIncrementalCaching) {
   FLAG_VALUE_SCOPE(wasm_tier_up, false);
-  constexpr int threshold = 10;
-  FlagScope<int> caching_treshold(&v8_flags.wasm_caching_threshold, threshold);
+  constexpr int threshold = 10;  // 10 bytes
+  FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, threshold);
   StreamTester tester(isolate);
   int call_cache_counter = 0;
   tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
@@ -1387,14 +1387,13 @@ STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
 }
 
 STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
-  // The "module compiled" callback (to be renamed to "top tier chunk finished"
-  // or similar) will only be triggered with dynamic tiering, so skip this test
-  // if dynamic tiering is disabled.
+  // The "more functions can be serialized" callback will only be triggered with
+  // dynamic tiering, so skip this test if dynamic tiering is disabled.
   if (!v8_flags.wasm_dynamic_tiering) return;
 
-  // Reduce the caching threshold so that our three small functions trigger
-  // caching.
-  FlagScope<int> caching_treshold(&v8_flags.wasm_caching_threshold, 10);
+  // Reduce the caching threshold to 10 bytes so that our three small functions
+  // trigger caching.
+  FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, 10);
   StreamTester tester(isolate);
   bool callback_called = false;
   tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
@@ -1459,6 +1458,112 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
     }
     tester.RunCompilerTasks();
   }
+}
+
+STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
+  // The "more functions can be serialized" callback will only be triggered with
+  // dynamic tiering, so skip this test if dynamic tiering is disabled.
+  if (!v8_flags.wasm_dynamic_tiering) return;
+
+  // Reduce the caching threshold to 10 bytes so that our three small functions
+  // trigger caching.
+  FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, 10);
+  // Set the caching timeout to 10ms.
+  constexpr int kCachingTimeoutMs = 10;
+  FlagScope<int> caching_timeout(&v8_flags.wasm_caching_timeout_ms,
+                                 kCachingTimeoutMs);
+
+  // Use a semaphore to wait for the caching event on the main thread.
+  base::Semaphore caching_was_triggered{0};
+  StreamTester tester(isolate);
+  base::TimeTicks last_time_callback_was_called;
+  tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
+      [&](const std::shared_ptr<NativeModule> module) {
+        base::TimeTicks now = base::TimeTicks::Now();
+        int64_t ms_since_last_time =
+            (now - last_time_callback_was_called).InMilliseconds();
+        // The timeout should have been respected.
+        CHECK_LE(kCachingTimeoutMs, ms_since_last_time);
+        last_time_callback_was_called = now;
+        caching_was_triggered.Signal();
+      });
+
+  uint8_t code[] = {
+      ADD_COUNT(U32V_1(0),                   // locals count
+                kExprLocalGet, 0, kExprEnd)  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+      SECTION(Type,
+              ENTRY_COUNT(1),                      // type count
+              SIG_ENTRY_x_x(kI32Code, kI32Code)),  // signature entry
+      SECTION(Function, ENTRY_COUNT(3), SIG_INDEX(0), SIG_INDEX(0),
+              SIG_INDEX(0)),
+      SECTION(Export, ENTRY_COUNT(3),                             // 3 exports
+              ADD_COUNT('a'), kExternalFunction, FUNC_INDEX(0),   // "a" (0)
+              ADD_COUNT('b'), kExternalFunction, FUNC_INDEX(1),   // "b" (1)
+              ADD_COUNT('c'), kExternalFunction, FUNC_INDEX(2)),  // "c" (2)
+      kCodeSectionCode,                 // section code
+      U32V_1(1 + arraysize(code) * 3),  // section size
+      U32V_1(3),                        // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+
+  // Create an instance.
+  auto* i_isolate = CcTest::i_isolate();
+  ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
+  Handle<WasmInstanceObject> instance =
+      GetWasmEngine()
+          ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {}, {})
+          .ToHandleChecked();
+  CHECK(!thrower.error());
+
+  // Execute the first function 100 times (which triggers tier-up and hence
+  // caching).
+  Handle<WasmExportedFunction> func_a =
+      testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
+  Handle<Object> receiver = ReadOnlyRoots{i_isolate}.undefined_value_handle();
+  for (int i = 0; i < 100; ++i) {
+    Execution::Call(i_isolate, func_a, receiver, 0, nullptr).Check();
+  }
+
+  // Ensure that background compilation is being executed.
+  tester.RunCompilerTasks();
+
+  // The caching callback should be called within the next second (be generous).
+  CHECK(caching_was_triggered.WaitFor(base::TimeDelta::FromSeconds(1)));
+
+  // There should be no other caching happening within the next 20ms.
+  CHECK(!caching_was_triggered.WaitFor(base::TimeDelta::FromMilliseconds(20)));
+
+  // Now execute the other two functions 100 times and validate that this
+  // triggers another event (but not two).
+  Handle<WasmExportedFunction> func_b_and_c[]{
+      testing::GetExportedFunction(i_isolate, instance, "b").ToHandleChecked(),
+      testing::GetExportedFunction(i_isolate, instance, "c").ToHandleChecked()};
+  for (int i = 0; i < 100; ++i) {
+    for (auto func : func_b_and_c) {
+      Execution::Call(i_isolate, func, receiver, 0, nullptr).Check();
+    }
+  }
+
+  // Ensure that background compilation is being executed.
+  tester.RunCompilerTasks();
+
+  // The caching callback should be called within the next second (be generous).
+  CHECK(caching_was_triggered.WaitFor(base::TimeDelta::FromSeconds(1)));
+
+  // There should be no other caching happening within the next 20ms.
+  CHECK(!caching_was_triggered.WaitFor(base::TimeDelta::FromMilliseconds(20)));
 }
 
 // Test that a compile error contains the name of the function, even if the name
