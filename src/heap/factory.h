@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+#include "include/v8-memory-span.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/baseline/baseline.h"
@@ -816,27 +817,37 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index,
-                            base::Vector<const Handle<Object>> args);
+                            MemorySpan<const Handle<Object>> args);
 
   template <typename... Args,
             typename = std::enable_if_t<std::conjunction_v<
                 std::is_convertible<Args, Handle<Object>>...>>>
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index, Args... args) {
-    return NewError(constructor, template_index,
-                    base::VectorOf<Handle<Object>>({args...}));
+    constexpr size_t N = sizeof...(args);
+    if constexpr (N > 0) {
+      auto arr = to_array<Handle<Object>, N>({args...});
+      return NewError(constructor, template_index, arr);
+    } else {
+      return NewError(constructor, template_index, {});
+    }
   }
 
 #define DECLARE_ERROR(NAME)                                                  \
   Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
-                             base::Vector<const Handle<Object>> args);       \
+                             MemorySpan<const Handle<Object>> args);         \
                                                                              \
   template <typename... Args,                                                \
             typename = std::enable_if_t<std::conjunction_v<                  \
                 std::is_convertible<Args, Handle<Object>>...>>>              \
   Handle<JSObject> New##NAME(MessageTemplate template_index, Args... args) { \
-    return New##NAME(template_index,                                         \
-                     base::VectorOf<Handle<Object>>({args...}));             \
+    constexpr size_t N = sizeof...(args);                                    \
+    if constexpr (N > 0) {                                                   \
+      auto arr = to_array<Handle<Object>, N>({args...});                     \
+      return New##NAME(template_index, arr);                                 \
+    } else {                                                                 \
+      return New##NAME(template_index, {});                                  \
+    }                                                                        \
   }
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)

@@ -1731,13 +1731,14 @@ TEST(FormatMessage) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Handle<String> arg0 = isolate->factory()->NewStringFromAsciiChecked("arg0");
-  Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
-  Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
-  Handle<String> result = MessageFormatter::TryFormat(
-                              isolate, MessageTemplate::kPropertyNotFunction,
-                              base::VectorOf({arg0, arg1, arg2}))
-                              .ToHandleChecked();
+  auto args = to_array<Handle<String>>(
+      {isolate->factory()->NewStringFromAsciiChecked("arg0"),
+       isolate->factory()->NewStringFromAsciiChecked("arg1"),
+       isolate->factory()->NewStringFromAsciiChecked("arg2")});
+  Handle<String> result =
+      MessageFormatter::TryFormat(isolate,
+                                  MessageTemplate::kPropertyNotFunction, args)
+          .ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
   CHECK(String::Equals(isolate, result, expected));

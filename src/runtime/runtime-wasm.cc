@@ -114,8 +114,8 @@ class V8_NODISCARD ClearThreadInWasmScope {
 
 Tagged<Object> ThrowWasmError(Isolate* isolate, MessageTemplate message,
                               std::initializer_list<Handle<Object>> args = {}) {
-  Handle<JSObject> error_obj =
-      isolate->factory()->NewWasmRuntimeError(message, base::VectorOf(args));
+  Handle<JSObject> error_obj = isolate->factory()->NewWasmRuntimeError(
+      message, {args.begin(), args.end()});
   JSObject::AddProperty(isolate, error_obj,
                         isolate->factory()->wasm_uncatchable_symbol(),
                         isolate->factory()->true_value(), NONE);

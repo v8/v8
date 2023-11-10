@@ -198,7 +198,7 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
 
   Handle<Object> message_string =
       MessageFormatter::Format(isolate, MessageTemplate(message_template_index),
-                               base::VectorOf(message_args, num_message_args));
+                               {message_args, message_args + num_message_args});
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

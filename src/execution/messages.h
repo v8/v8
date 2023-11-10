@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "include/v8-local-handle.h"
+#include "include/v8-memory-span.h"
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
 #include "src/handles/handles.h"
@@ -90,7 +91,7 @@ class ErrorUtils : public AllStatic {
 
   static Handle<JSObject> MakeGenericError(
       Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-      base::Vector<const Handle<Object>> args, FrameSkipMode mode);
+      MemorySpan<const Handle<Object>> args, FrameSkipMode mode);
 
   // Formats a textual stack trace from the given structured stack trace.
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.
@@ -146,10 +147,10 @@ class MessageFormatter {
 
   V8_EXPORT_PRIVATE static MaybeHandle<String> TryFormat(
       Isolate* isolate, MessageTemplate index,
-      base::Vector<const Handle<String>> args);
+      MemorySpan<const Handle<String>> args);
 
   static Handle<String> Format(Isolate* isolate, MessageTemplate index,
-                               base::Vector<const Handle<Object>> args);
+                               MemorySpan<const Handle<Object>> args);
 };
 
 // A message handler is a convenience interface for accessing the list

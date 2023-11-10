@@ -118,7 +118,7 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
 
   return *isolate->factory()->NewError(
       (isolate->*constructor_fn)(), message_id,
-      base::VectorOf(message_args, num_message_args));
+      {message_args, message_args + num_message_args});
 }
 
 Tagged<Object> ThrowError(Isolate* isolate, RuntimeArguments args,

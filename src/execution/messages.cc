@@ -205,8 +205,8 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> arg{message->argument(), isolate};
-  return MessageFormatter::Format(isolate, message->type(),
-                                  base::VectorOf({arg}));
+  auto arr = to_array<Handle<Object>>({arg});
+  return MessageFormatter::Format(isolate, message->type(), arr);
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -411,9 +411,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   return builder.Finish();
 }
 
-Handle<String> MessageFormatter::Format(
-    Isolate* isolate, MessageTemplate index,
-    base::Vector<const Handle<Object>> args) {
+Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
+                                        MemorySpan<const Handle<Object>> args) {
   constexpr size_t kMaxArgs = 3;
   Handle<String> arg_strings[kMaxArgs];
   DCHECK_LE(args.size(), kMaxArgs);
@@ -422,7 +421,7 @@ Handle<String> MessageFormatter::Format(
     arg_strings[i] = Object::NoSideEffectsToString(isolate, args[i]);
   }
   MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
-      isolate, index, base::VectorOf(arg_strings, args.size()));
+      isolate, index, {arg_strings, arg_strings + args.size()});
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
@@ -453,7 +452,7 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
 
 MaybeHandle<String> MessageFormatter::TryFormat(
     Isolate* isolate, MessageTemplate index,
-    base::Vector<const Handle<String>> args) {
+    MemorySpan<const Handle<String>> args) {
   const char* template_string = TemplateString(index);
 
   IncrementalStringBuilder builder(isolate);
@@ -504,7 +503,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kUnexpectedTokenIdentifier,
       MessageTemplate::kWeakRefsCleanupMustBeCallable};
 
-  base::Vector<const Handle<String>> remaining_args = args;
+  size_t next_arg = 0;
   for (const char* c = template_string; *c != '\0'; c++) {
     if (*c == '%') {
       // %% results in verbatim %.
@@ -513,7 +512,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
         builder.AppendCharacter('%');
       } else {
         // TODO(14386): Remove this fallback.
-        if (remaining_args.empty()) {
+        if (next_arg >= args.size()) {
           if (std::count(std::begin(kTemplatesWithMismatchedArguments),
                          std::end(kTemplatesWithMismatchedArguments), index)) {
             builder.AppendCString("undefined");
@@ -522,20 +521,18 @@ MaybeHandle<String> MessageFormatter::TryFormat(
                   template_string);
           }
         } else {
-          Handle<String> arg = remaining_args[0];
-          remaining_args += 1;
-          builder.AppendString(arg);
+          builder.AppendString(args[next_arg++]);
         }
       }
     } else {
       builder.AppendCharacter(*c);
     }
   }
-  if (!remaining_args.empty() &&
+  if (next_arg < args.size() &&
       std::count(std::begin(kTemplatesWithMismatchedArguments),
                  std::end(kTemplatesWithMismatchedArguments), index) == 0) {
     FATAL("Too many arguments to template (expected %zu, got %zu): %s",
-          args.size() - remaining_args.size(), args.size(), template_string);
+          next_arg, args.size(), template_string);
   }
 
   return builder.Finish();
@@ -725,7 +722,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
 // static
 Handle<JSObject> ErrorUtils::MakeGenericError(
     Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-    base::Vector<const Handle<Object>> args, FrameSkipMode mode) {
+    MemorySpan<const Handle<Object>> args, FrameSkipMode mode) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
     // clears any pending exceptions - so whenever we'd call this from C++,
