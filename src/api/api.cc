@@ -3942,13 +3942,17 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
 }
 
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
-  auto obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Isolate* i_isolate;
+  if (!context.IsEmpty()) {
+    i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  } else if (IsSmi(*obj) || !i::GetIsolateFromHeapObject(
+                                i::HeapObject::cast(*obj), &i_isolate)) {
+    i_isolate = i::Isolate::Current();
+  }
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);
-  PREPARE_FOR_EXECUTION(context, Object, ToDetailString, String);
-  Local<String> result =
-      Utils::ToLocal(i::Object::NoSideEffectsToString(i_isolate, obj));
-  RETURN_ON_FAILED_EXECUTION(String);
-  RETURN_ESCAPED(result);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  return Utils::ToLocal(i::Object::NoSideEffectsToString(i_isolate, obj));
 }
 
 MaybeLocal<Object> Value::ToObject(Local<Context> context) const {

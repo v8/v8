@@ -69,9 +69,7 @@
 #define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
                                            bailout_value, HandleScopeClass,    \
                                            do_callback)                        \
-  auto i_isolate = context.IsEmpty()                                           \
-                       ? i::Isolate::Current()                                 \
-                       : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
+  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());       \
   ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name,      \
                            bailout_value, HandleScopeClass, do_callback);
 
