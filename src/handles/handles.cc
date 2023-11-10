@@ -94,7 +94,6 @@ bool HandleBase::IsDereferenceAllowed() const {
 }
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
-
 bool DirectHandleBase::IsDereferenceAllowed() const {
   DCHECK_NE(obj_, kTaggedNullAddress);
   Tagged<Object> object(obj_);
@@ -106,6 +105,10 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
   if (heap_object.InWritableSharedSpace()) return true;
+
+  // Deref is explicitly allowed from any thread. Used for running internal GC
+  // epilogue callbacks in the safepoint after a GC.
+  if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
@@ -123,14 +126,6 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   return true;
 }
-
-void DirectHandleBase::VerifyOnStackAndMainThread() const {
-  internal::HandleHelper::VerifyOnStack(this);
-  // The following verifies that we are on the main thread, as
-  // LocalHeap::Current is not set in that case.
-  DCHECK_NULL(LocalHeap::Current());
-}
-
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
 #endif  // DEBUG

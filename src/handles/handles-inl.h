@@ -97,6 +97,16 @@ V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
 }
 
 template <typename T>
+V8_INLINE Handle<T> handle(DirectHandle<T> handle, Isolate* isolate) {
+  return Handle<T>(*handle, isolate);
+}
+
+template <typename T>
+V8_INLINE Handle<T> handle(DirectHandle<T> handle, LocalIsolate* isolate) {
+  return Handle<T>(*handle, isolate);
+}
+
+template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
@@ -289,6 +299,28 @@ inline SealHandleScope::~SealHandleScope() {
 #endif  // DEBUG
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
+bool HandleBase::is_identical_to(const DirectHandleBase& that) const {
+  SLOW_DCHECK(
+      (this->location_ == nullptr || this->IsDereferenceAllowed()) &&
+      (that.address() == kTaggedNullAddress || that.IsDereferenceAllowed()));
+  if (this->location_ == nullptr && that.address() == kTaggedNullAddress)
+    return true;
+  if (this->location_ == nullptr || that.address() == kTaggedNullAddress)
+    return false;
+  return Tagged<Object>(*this->location_) == Tagged<Object>(that.address());
+}
+
+bool DirectHandleBase::is_identical_to(const HandleBase& that) const {
+  SLOW_DCHECK(
+      (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&
+      (that.location_ == nullptr || that.IsDereferenceAllowed()));
+  if (this->address() == kTaggedNullAddress && that.location_ == nullptr)
+    return true;
+  if (this->address() == kTaggedNullAddress || that.location_ == nullptr)
+    return false;
+  return Tagged<Object>(this->address()) == Tagged<Object>(*that.location_);
+}
+
 bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   SLOW_DCHECK(
       (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&

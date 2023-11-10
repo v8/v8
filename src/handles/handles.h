@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/objects/tagged.h"
 #include "src/zone/zone.h"
+#include "v8-internal.h"  // NOLINT(build/include_directory)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 #include "src/flags/flags.h"
@@ -25,6 +26,9 @@ class HandleScope;
 namespace internal {
 
 // Forward declarations.
+#ifdef V8_ENABLE_DIRECT_HANDLE
+class DirectHandleBase;
+#endif
 class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
@@ -49,6 +53,9 @@ class HandleBase {
  public:
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase& that) const;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  V8_INLINE bool is_identical_to(const DirectHandleBase& that) const;
+#endif
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
   // Returns the raw address where this handle is stored. This should only be
@@ -66,16 +73,19 @@ class HandleBase {
   }
 
  protected:
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  friend class DirectHandleBase;
+#endif
+
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
   V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
   V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
 
 #ifdef DEBUG
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
+  V8_EXPORT_PRIVATE bool IsDereferenceAllowed() const;
 #else
-  V8_INLINE
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
+  V8_INLINE bool IsDereferenceAllowed() const { return true; }
 #endif  // DEBUG
 
   // This uses type Address* as opposed to a pointer type to a typed
@@ -332,16 +342,17 @@ static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 class DirectHandleBase {
  public:
   // Check if this handle refers to the exact same object as the other handle.
+  V8_INLINE bool is_identical_to(const HandleBase& that) const;
   V8_INLINE bool is_identical_to(const DirectHandleBase& that) const;
   V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
 
   V8_INLINE Address address() const { return obj_; }
 
  protected:
+  friend class HandleBase;
+
   V8_INLINE explicit DirectHandleBase(Address object) : obj_(object) {
-#ifdef DEBUG
     VerifyOnStackAndMainThread();
-#endif
   }
 
   V8_INLINE explicit DirectHandleBase(Address object, Isolate* isolate);
@@ -349,12 +360,17 @@ class DirectHandleBase {
   V8_INLINE explicit DirectHandleBase(Address object, LocalHeap* local_heap);
 
 #ifdef DEBUG
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
-  V8_EXPORT_PRIVATE void VerifyOnStackAndMainThread() const;
+  V8_EXPORT_PRIVATE bool IsDereferenceAllowed() const;
 #else
-  V8_INLINE
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
+  V8_INLINE bool IsDereferenceAllowed() const { return true; }
 #endif  // DEBUG
+
+  V8_INLINE void VerifyOnStackAndMainThread() const {
+#ifdef DEBUG
+    internal::HandleHelper::VerifyOnStack(this);
+    internal::HandleHelper::VerifyOnMainThread();
+#endif
+  }
 
   // This is a direct pointer to either a tagged object or SMI. Design overview:
   // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
@@ -409,8 +425,7 @@ class DirectHandle final : public DirectHandleBase {
                                                   : kTaggedNullAddress) {}
 
   V8_INLINE Tagged<T> operator->() const {
-    if constexpr (std::is_base_of_v<HeapObject, T> ||
-                  std::is_convertible_v<T*, HeapObject*>) {
+    if constexpr (is_subtype_v<T, HeapObject>) {
       return **this;
     } else {
       // For non-HeapObjects, there's no on-heap object to dereference, so
@@ -445,6 +460,11 @@ class DirectHandle final : public DirectHandleBase {
   // Consider declaring values that contain empty handles as
   // MaybeDirectHandle to force validation before being used as handles.
   V8_INLINE static const DirectHandle<T> null() { return DirectHandle<T>(); }
+
+  // Address equality.
+  bool equals(DirectHandle<T> other) const {
+    return address() == other.address();
+  }
 
  private:
   // DirectHandles of different classes are allowed to access each other's

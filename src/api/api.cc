@@ -758,6 +758,13 @@ void v8::internal::HandleHelper::VerifyOnStack(const void* ptr) {
   DCHECK_GE(v8::base::Stack::GetStackStartUnchecked(), ptr);
 }
 
+// static
+void v8::internal::HandleHelper::VerifyOnMainThread() {
+  // The following verifies that we are on the main thread, as
+  // LocalHeap::Current is not set in that case.
+  DCHECK_NULL(LocalHeap::Current());
+}
+
 #if V8_STATIC_ROOTS_BOOL
 
 // Initialize static root constants exposed in v8-internal.h.
@@ -7724,6 +7731,17 @@ template <typename T>
 i::Handle<T> ToHandle(i::MaybeHandle<T> h) {
   return h.ToHandleChecked();
 }
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+i::DirectHandle<T> ToHandle(i::DirectHandle<T> h) {
+  return h;
+}
+template <typename T>
+i::DirectHandle<T> ToHandle(i::MaybeDirectHandle<T> h) {
+  return h.ToHandleChecked();
+}
+#endif
 
 template <typename Dictionary>
 void AddPropertiesAndElementsToObject(i::Isolate* i_isolate,
