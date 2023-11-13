@@ -55,7 +55,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.118.1.ae3c3be-gomaip',
+  'reclient_version': 're_client_version:0.120.1.f75cfb7-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8d813a198cb6c99100b2a5eabddd5299a2195ebe',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bbd90fededd060455a545b88e0b1882710d2e652',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8c05271edf10cdfde452a5a99d7833294003b41c',
   'buildtools/linux64': {
@@ -264,7 +264,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '4aedc47d8ab62454f5b1532e9e9ae63d460b034d',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '77706d901583f0d3b2037392309f8b718ac7b8e3',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -306,7 +306,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfc48fc4de8e80416606e2aab42f430ced2a524e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'bbcb7c6c14fffe3274a20fb4c11e2cb933e0843e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1f8329e28f7e0ed710d29c4d5ac41b3c02538cfb',
   'tools/luci-go': {
       'packages': [
         {
