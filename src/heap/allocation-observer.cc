@@ -134,7 +134,8 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
         std::remove_if(observers_.begin(), observers_.end(),
                        [this](const AllocationObserverCounter& aoc) {
                          return pending_removed_.count(aoc.observer_) != 0;
-                       }));
+                       }),
+        observers_.end());
     pending_removed_.clear();
 
     // Some observers were removed, recalculate step size.
