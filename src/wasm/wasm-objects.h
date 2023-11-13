@@ -13,6 +13,8 @@
 
 #include "src/base/bit-field.h"
 #include "src/debug/interface-types.h"
+#include "src/heap/heap.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
