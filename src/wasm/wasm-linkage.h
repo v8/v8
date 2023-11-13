@@ -74,7 +74,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
 // ===========================================================================
 // == LOONG64 ================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
+constexpr Register kGpParamRegisters[] = {a7, a0, a2, a3, a4, a5, a6};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {f0, f1, f2, f3, f4, f5, f6, f7};
 constexpr DoubleRegister kFpReturnRegisters[] = {f0, f1};
