@@ -89,6 +89,7 @@ enum class DataViewOp {
 #define V(Name) kGet##Name, kSet##Name,
   DATAVIEW_OP_LIST(V)
 #undef V
+      kByteLength
 };
 
 ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
@@ -99,6 +100,8 @@ ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
     return kExternal##Name##Array;
     DATAVIEW_OP_LIST(V)
 #undef V
+    case DataViewOp::kByteLength:
+      UNREACHABLE();
   }
 }
 
@@ -1083,6 +1086,9 @@ class TurboshaftGraphBuildingInterface {
       DATAVIEW_OP_LIST(SET);
 #undef GET
 #undef SET
+      case DataViewOp::kByteLength:
+        builtin_to_call = Builtin::kThrowDataViewByteLengthTypeError;
+        break;
       default:
         UNREACHABLE();
     }
@@ -1127,6 +1133,9 @@ class TurboshaftGraphBuildingInterface {
       DATAVIEW_OP_LIST(SET);
 #undef GET
 #undef SET
+      case DataViewOp::kByteLength:
+        builtin_to_call = Builtin::kThrowDataViewByteLengthDetachedError;
+        break;
       default:
         UNREACHABLE();
     }
@@ -1134,10 +1143,18 @@ class TurboshaftGraphBuildingInterface {
     __ Unreachable();
   }
 
-  void DataViewRelatedBoundsCheck(FullDecoder* decoder, V<WordPtr> left,
-                                  V<WordPtr> right, DataViewOp op_type) {
+  void DataViewRangeCheck(FullDecoder* decoder, V<WordPtr> left,
+                          V<WordPtr> right, DataViewOp op_type) {
     IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
       ThrowDataViewOutOfBoundsError(decoder, op_type);
+    }
+    END_IF
+  }
+
+  void DataViewBoundsCheck(FullDecoder* decoder, V<WordPtr> left,
+                           V<WordPtr> right, DataViewOp op_type) {
+    IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
+      ThrowDataViewDetachedError(decoder, op_type);
     }
     END_IF
   }
@@ -1151,7 +1168,7 @@ class TurboshaftGraphBuildingInterface {
     return __ Word32BitwiseAnd(bit_field, JSArrayBuffer::WasDetachedBit::kMask);
   }
 
-  void DetachedDataViewBufferCheck(FullDecoder* decoder, V<Tagged> dataview,
+  void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Tagged> dataview,
                                    DataViewOp op_type) {
     IF (UNLIKELY(IsDetached(dataview))) {
       ThrowDataViewDetachedError(decoder, op_type);
@@ -1159,29 +1176,151 @@ class TurboshaftGraphBuildingInterface {
     END_IF
   }
 
-  V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Tagged> dataview,
-                                V<WordPtr> offset, DataViewOp op_type) {
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Tagged> dataview,
+                                   DataViewOp op_type) {
+    DCHECK_EQ(op_type, DataViewOp::kByteLength);
+    return GetDataViewByteLength(decoder, dataview, __ IntPtrConstant(0),
+                                 op_type);
+  }
+
+  // Converts a Smi or HeapNumber to an intptr. The input is not validated.
+  V<WordPtr> ChangeTaggedNumberToIntPtr(V<Tagged> tagged) {
+    Label<> smi_label(&asm_);
+    Label<> heapnumber_label(&asm_);
     Label<WordPtr> done_label(&asm_);
+
+    GOTO_IF(LIKELY(__ IsSmi(tagged)), smi_label);
+    GOTO(heapnumber_label);
+
+    BIND(smi_label);
+    V<WordPtr> smi_length = __ ChangeInt32ToIntPtr(__ UntagSmi(tagged));
+    GOTO(done_label, smi_length);
+
+    BIND(heapnumber_label);
+    V<Float64> float_value = __ template LoadField<Float64>(
+        tagged, AccessBuilder::ForHeapNumberValue());
+    if constexpr (Is64()) {
+      DCHECK_EQ(WordPtr::bits, Word64::bits);
+      GOTO(done_label,
+           V<WordPtr>::Cast(
+               __ TruncateFloat64ToInt64OverflowUndefined(float_value)));
+    } else {
+      GOTO(done_label,
+           __ ChangeInt32ToIntPtr(
+               __ TruncateFloat64ToInt32OverflowUndefined(float_value)));
+    }
+
+    BIND(done_label, length);
+    return length;
+  }
+
+  // An `ArrayBuffer` can be resizable, i.e. it can shrink or grow.
+  // A `SharedArrayBuffer` can be growable, i.e. it can only grow. A `DataView`
+  // can be length-tracking or non-legth-tracking . A length-tracking `DataView`
+  // is tracking the length of the underlying buffer, i.e. it doesn't have a
+  // `byteLength` specified, which means that the length of the `DataView` is
+  // the length (or remaining length if `byteOffset != 0`) of the underlying
+  // array buffer. On the other hand, a non-length-tracking `DataView` has a
+  // `byteLength`.
+  // Depending on whether the buffer is resizable or growable and the `DataView`
+  // is length-tracking or non-length-tracking, getting the byte length has to
+  // be handled differently.
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Tagged> dataview,
+                                   V<WordPtr> offset, DataViewOp op_type) {
+    Label<WordPtr> done_label(&asm_);
+    Label<> rab_ltgsab_label(&asm_);
     Label<> type_error_label(&asm_);
 
     GOTO_IF(UNLIKELY(__ IsSmi(dataview)), type_error_label);
 
+    // Case 1):
+    //  - non-resizable ArrayBuffers, length-tracking and non-length-tracking
+    //  - non-growable SharedArrayBuffers, length-tracking and non-length-tr.
+    //  - growable SharedArrayBuffers, non-length-tracking
     GOTO_IF_NOT(
         LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE)),
-        type_error_label);
-    DataViewRelatedBoundsCheck(decoder, offset, __ IntPtrConstant(0), op_type);
-    DetachedDataViewBufferCheck(decoder, dataview, op_type);
-    V<WordPtr> byte_length = __ LoadField<WordPtr>(
+        rab_ltgsab_label);
+    if (op_type != DataViewOp::kByteLength) {
+      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+    }
+    DataViewDetachedBufferCheck(decoder, dataview, op_type);
+    V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
         dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
-    GOTO(done_label, byte_length);
+    GOTO(done_label, view_byte_length);
+
+    // Case 2):
+    // - resizable ArrayBuffers, length-tracking and non-length-tracking
+    // - growable SharedArrayBuffers, length-tracking
+    BIND(rab_ltgsab_label);
+    GOTO_IF_NOT(LIKELY(__ HasInstanceType(
+                    dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE)),
+                type_error_label);
+    if (op_type != DataViewOp::kByteLength) {
+      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+    }
+    DataViewDetachedBufferCheck(decoder, dataview, op_type);
+
+    V<Word32> bit_field = __ LoadField<Word32>(
+        dataview, AccessBuilder::ForJSArrayBufferViewBitField());
+    V<Word32> length_tracking = __ Word32BitwiseAnd(
+        bit_field, JSArrayBufferView::IsLengthTrackingBit::kMask);
+    V<Word32> backed_by_rab_bit = __ Word32BitwiseAnd(
+        bit_field, JSArrayBufferView::IsBackedByRabBit::kMask);
+
+    V<Object> buffer = __ LoadField<Object>(
+        dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
+    V<WordPtr> buffer_byte_length = __ LoadField<WordPtr>(
+        buffer, AccessBuilder::ForJSArrayBufferByteLength());
+    V<WordPtr> view_byte_offset = __ LoadField<WordPtr>(
+        dataview, AccessBuilder::ForJSArrayBufferViewByteOffset());
+
+    // The final length for each case in Case 2) is calculated differently.
+    // Case: resizable ArrayBuffers, LT and non-LT.
+    IF (backed_by_rab_bit) {
+      // DataViews with resizable ArrayBuffers can go out of bounds.
+      IF (length_tracking) {
+        V<WordPtr> final_length =
+            __ WordPtrSub(buffer_byte_length, view_byte_offset);
+        DataViewBoundsCheck(decoder, buffer_byte_length, view_byte_offset,
+                            op_type);
+        GOTO(done_label, final_length);
+      }
+      ELSE {
+        V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
+            dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
+        DataViewBoundsCheck(decoder, buffer_byte_length,
+                            __ WordPtrAdd(view_byte_offset, view_byte_length),
+                            op_type);
+
+        GOTO(done_label, view_byte_length);
+      }
+      END_IF
+    }
+    // Case: growable SharedArrayBuffers, LT.
+    ELSE {
+      V<Tagged> gsab_length_tagged =
+          CallRuntime(Runtime::kGrowableSharedArrayBufferByteLength, {buffer});
+      V<WordPtr> gsab_buffer_byte_length = __ WordPtrSub(
+          ChangeTaggedNumberToIntPtr(gsab_length_tagged), view_byte_offset);
+      GOTO(done_label, gsab_buffer_byte_length);
+    }
+    END_IF
+    __ Unreachable();
 
     BIND(type_error_label);
     ThrowDataViewTypeError(decoder, dataview, op_type);
 
-    BIND(done_label, view_byte_length);
-    V<WordPtr> viewlength_minus_size =
+    BIND(done_label, final_view_byte_length);
+    return final_view_byte_length;
+  }
+
+  V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Tagged> dataview,
+                                V<WordPtr> offset, DataViewOp op_type) {
+    V<WordPtr> view_byte_length =
+        GetDataViewByteLength(decoder, dataview, offset, op_type);
+    V<WordPtr> view_byte_length_minus_size =
         __ WordPtrSub(view_byte_length, GetTypeSize(op_type));
-    DataViewRelatedBoundsCheck(decoder, viewlength_minus_size, offset, op_type);
+    DataViewRangeCheck(decoder, view_byte_length_minus_size, offset, op_type);
     return __ LoadField<WordPtr>(
         dataview, compiler::AccessBuilder::ForJSDataViewDataPointer());
   }
@@ -1534,27 +1673,8 @@ class TurboshaftGraphBuildingInterface {
         Label<WordPtr> done_label(&asm_);
         Label<> type_error_label(&asm_);
 
-        GOTO_IF(UNLIKELY(__ IsSmi(dataview)), type_error_label);
-
-        GOTO_IF_NOT(LIKELY(__ HasInstanceType(dataview,
-                                              InstanceType::JS_DATA_VIEW_TYPE)),
-                    type_error_label);
-        IF (UNLIKELY(IsDetached(dataview))) {
-          CallBuiltinThroughJumptable(
-              decoder, Builtin::kThrowDataViewByteLengthDetachedError, {});
-          __ Unreachable();
-        }
-        END_IF
-        V<WordPtr> byte_length = __ LoadField<WordPtr>(
-            dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
-        GOTO(done_label, byte_length);
-
-        BIND(type_error_label);
-        CallBuiltinThroughJumptable(
-            decoder, Builtin::kThrowDataViewByteLengthTypeError, {dataview});
-        __ Unreachable();
-
-        BIND(done_label, view_byte_length);
+        V<WordPtr> view_byte_length =
+            GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
         if constexpr (Is64()) {
           result =
               __ ChangeInt64ToFloat64(__ ChangeIntPtrToInt64(view_byte_length));
