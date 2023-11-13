@@ -1437,13 +1437,18 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     PropertyDetails details = descriptors->GetDetails(i);
     CHECK_EQ(PropertyKind::kData, details.kind());
 
-    if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, struct_map, i)) {
+    if (JSSharedStruct::IsRegistryKeyDescriptor(isolate, struct_map, i)) {
+      CHECK_EQ(PropertyLocation::kDescriptor, details.location());
+      CHECK(IsInternalizedString(descriptors->GetStrongValue(i)));
+    } else if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, struct_map,
+                                                            i)) {
       CHECK_EQ(PropertyLocation::kDescriptor, details.location());
       CHECK(IsNumberDictionary(descriptors->GetStrongValue(i)));
     } else {
       CHECK_EQ(PropertyLocation::kField, details.location());
       CHECK(details.representation().IsTagged());
       CHECK(!IsNumberDictionary(descriptors->GetStrongValue(i)));
+      CHECK(!IsInternalizedString(descriptors->GetStrongValue(i)));
       FieldIndex field_index = FieldIndex::ForDetails(struct_map, details);
       VerifyElementIsShared(RawFastPropertyAt(field_index));
     }

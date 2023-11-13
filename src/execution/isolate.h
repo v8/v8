@@ -143,6 +143,7 @@ class ReadOnlyArtifacts;
 class RegExpStack;
 class RootVisitor;
 class SetupIsolateDelegate;
+class SharedStructTypeRegistry;
 class Simulator;
 class SnapshotData;
 class StackFrame;
@@ -764,6 +765,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StringTable* string_table() const { return string_table_.get(); }
   StringForwardingTable* string_forwarding_table() const {
     return string_forwarding_table_.get();
+  }
+
+  SharedStructTypeRegistry* shared_struct_type_registry() const {
+    return shared_struct_type_registry_.get();
   }
 
   Address get_address_from_id(IsolateAddressId id);
@@ -2578,6 +2583,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Stores the isolate containing the shared space.
   base::Optional<Isolate*> shared_space_isolate_;
+
+  // Used to deduplicate registered SharedStructType shapes.
+  std::shared_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
 
 #ifdef V8_COMPRESS_POINTERS
   // Stores the external pointer table space for the shared external pointer

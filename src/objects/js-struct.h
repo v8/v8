@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_STRUCT_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -47,6 +48,21 @@ class JSSharedStruct
     : public TorqueGeneratedJSSharedStruct<JSSharedStruct,
                                            AlwaysSharedSpaceJSObject> {
  public:
+  static Handle<Map> CreateInstanceMap(
+      Isolate* isolate, const std::vector<Handle<Name>>& field_names,
+      const std::set<uint32_t>& element_names,
+      MaybeHandle<String> maybe_registry_key);
+
+  static MaybeHandle<String> GetRegistryKey(Isolate* isolate,
+                                            Tagged<Map> instance_map);
+
+  static bool IsRegistryKeyDescriptor(Isolate* isolate,
+                                      Tagged<Map> instance_map,
+                                      InternalIndex i);
+
+  static MaybeHandle<NumberDictionary> GetElementsTemplate(
+      Isolate* isolate, Tagged<Map> instance_map);
+
   static bool IsElementsTemplateDescriptor(Isolate* isolate,
                                            Tagged<Map> instance_map,
                                            InternalIndex i);
@@ -58,6 +74,31 @@ class JSSharedStruct
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(JSSharedStruct)
+};
+
+class SharedStructTypeRegistry final {
+ public:
+  static constexpr Tagged<Smi> deleted_element() { return Smi::FromInt(1); }
+
+  SharedStructTypeRegistry();
+  ~SharedStructTypeRegistry();
+
+  MaybeHandle<Map> Register(Isolate* isolate, Handle<String> key,
+                            const std::vector<Handle<Name>>& field_names,
+                            const std::set<uint32_t>& element_names);
+
+  void IterateElements(Isolate* isolate, RootVisitor* visitor);
+  void NotifyElementsRemoved(int count);
+
+ private:
+  class Data;
+
+  void EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
+
+  std::unique_ptr<Data> data_;
+
+  // Protects all access to the registry.
+  base::Mutex data_mutex_;
 };
 
 }  // namespace internal

@@ -37,7 +37,9 @@ class StringTable::OffHeapStringHashSet
   explicit OffHeapStringHashSet(int capacity)
       : OffHeapHashTableBase<OffHeapStringHashSet>(capacity) {}
 
-  static uint32_t Hash(Tagged<Object> key) { return String::cast(key)->hash(); }
+  static uint32_t Hash(PtrComprCageBase, Tagged<Object> key) {
+    return String::cast(key)->hash();
+  }
 
   template <typename IsolateT, typename StringTableKey>
   static bool KeyIsMatch(IsolateT* isolate, StringTableKey* key,
@@ -121,7 +123,9 @@ void* StringTable::Data::operator new(size_t size, int capacity) {
       capacity);
 }
 
-void StringTable::Data::operator delete(void* table) { AlignedFree(table); }
+void StringTable::Data::operator delete(void* table) {
+  OffHeapStringHashSet::Free(table);
+}
 
 size_t StringTable::Data::GetCurrentMemoryUsage() const {
   size_t usage = sizeof(*this) + table_.GetSizeExcludingHeader();

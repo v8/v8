@@ -219,13 +219,13 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
       : heap_(heap), incremental_marking_(heap->incremental_marking()) {}
 
   void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) override {
+                        FullObjectSlot p) final {
     DCHECK(!MapWord::IsPacked((*p).ptr()));
     MarkObjectByPointer(root, p);
   }
 
   void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
+                         FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK(!MapWord::IsPacked((*p).ptr()));
       MarkObjectByPointer(root, p);

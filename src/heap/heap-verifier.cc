@@ -43,7 +43,7 @@ thread_local Tagged<HeapObject> pending_layout_change_object =
 class VerifySmisVisitor final : public RootVisitor {
  public:
   void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
+                         FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot current = start; current < end; ++current) {
       CHECK(IsSmi(*current));
     }

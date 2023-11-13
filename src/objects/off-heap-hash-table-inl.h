@@ -24,16 +24,14 @@ template <typename Derived>
 void OffHeapHashTableBase<Derived>::RehashInto(PtrComprCageBase cage_base,
                                                Derived* new_table) {
   DCHECK_LT(number_of_elements(), new_table->capacity());
-  DCHECK(HasSufficientCapacityToAdd(
-      new_table->capacity(), new_table->number_of_elements(),
-      new_table->number_of_deleted_elements(), number_of_elements()));
+  DCHECK(new_table->HasSufficientCapacityToAdd(number_of_elements()));
 
   Derived* derived_this = static_cast<Derived*>(this);
   // Rehash the elements and copy them into new_table.
   for (InternalIndex i : InternalIndex::Range(capacity())) {
     Tagged<Object> key = derived_this->GetKey(cage_base, i);
     if (!IsKey(key)) continue;
-    uint32_t hash = Derived::Hash(key);
+    uint32_t hash = Derived::Hash(cage_base, key);
     InternalIndex insertion_index =
         new_table->FindInsertionEntry(cage_base, hash);
     new_table->SetKey(insertion_index, key);

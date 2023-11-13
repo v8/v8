@@ -4563,6 +4563,13 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     external_string_table_.IterateAll(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
+  if (!options.contains(SkipRoot::kOldGeneration) &&
+      !options.contains(SkipRoot::kUnserializable) &&
+      isolate()->is_shared_space_isolate() &&
+      isolate()->shared_struct_type_registry()) {
+    isolate()->shared_struct_type_registry()->IterateElements(isolate(), v);
+  }
+  v->Synchronize(VisitorSynchronization::kSharedStructTypeRegistry);
 }
 
 void Heap::IterateSmiRoots(RootVisitor* v) {

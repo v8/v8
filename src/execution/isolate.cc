@@ -85,6 +85,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
@@ -3969,6 +3970,8 @@ void Isolate::Deinit() {
     string_forwarding_table()->TearDown();
   }
 
+  shared_struct_type_registry_.reset();
+
 #ifdef V8_COMPRESS_POINTERS
   external_pointer_table().TearDownSpace(heap()->external_pointer_space());
   external_pointer_table().DetachSpaceFromReadOnlySegment(
@@ -4723,6 +4726,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     string_table_ = shared_space_isolate()->string_table_;
     string_forwarding_table_ = shared_space_isolate()->string_forwarding_table_;
   }
+
 #ifdef V8_EXTERNAL_CODE_SPACE
   {
     VirtualMemoryCage* code_cage;
@@ -4919,6 +4923,17 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (initialized_from_snapshot_) {
     SLOW_DCHECK(SharedFunctionInfo::UniqueIdsAreUnique(this));
+  }
+
+  if (v8_flags.harmony_struct) {
+    // Initialize or get the struct type registry shared by all isolates.
+    if (is_shared_space_isolate()) {
+      shared_struct_type_registry_ =
+          std::make_shared<SharedStructTypeRegistry>();
+    } else {
+      shared_struct_type_registry_ =
+          shared_space_isolate()->shared_struct_type_registry_;
+    }
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY

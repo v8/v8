@@ -2709,6 +2709,69 @@ class FullStringForwardingTableCleaner final
   Heap* const heap_;
 };
 
+class SharedStructTypeRegistryCleaner final : public RootVisitor {
+ public:
+  explicit SharedStructTypeRegistryCleaner(Heap* heap) : heap_(heap) {}
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    UNREACHABLE();
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    DCHECK_EQ(root, Root::kSharedStructTypeRegistry);
+    // The SharedStructTypeRegistry holds the canonical SharedStructType
+    // instance maps weakly. Visit all Map pointers in [start, end), deleting
+    // it if unmarked.
+    auto* marking_state = heap_->marking_state();
+    Isolate* const isolate = heap_->isolate();
+    for (OffHeapObjectSlot p = start; p < end; p++) {
+      Tagged<Object> o = p.load(isolate);
+      DCHECK(!IsString(o));
+      if (IsMap(o)) {
+        Tagged<HeapObject> map = Map::cast(o);
+        DCHECK(map.InAnySharedSpace());
+        if (!map.InReadOnlySpace() && marking_state->IsUnmarked(map)) {
+          elements_removed_++;
+          p.store(SharedStructTypeRegistry::deleted_element());
+        }
+      }
+    }
+  }
+
+  int ElementsRemoved() const { return elements_removed_; }
+
+ private:
+  Heap* heap_;
+  int elements_removed_ = 0;
+};
+
+class ClearSharedStructTypeRegistryJobItem final
+    : public ParallelClearingJob::ClearingItem {
+ public:
+  explicit ClearSharedStructTypeRegistryJobItem(Isolate* isolate)
+      : isolate_(isolate) {
+    DCHECK(isolate->is_shared_space_isolate());
+    DCHECK_NOT_NULL(isolate->shared_struct_type_registry());
+  }
+
+  void Run(JobDelegate* delegate) final {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+
+    auto* registry = isolate_->shared_struct_type_registry();
+    SharedStructTypeRegistryCleaner cleaner(isolate_->heap());
+    registry->IterateElements(isolate_, &cleaner);
+    registry->NotifyElementsRemoved(cleaner.ElementsRemoved());
+  }
+
+ private:
+  Isolate* const isolate_;
+};
+
 }  // namespace
 
 void MarkCompactCollector::ClearNonLiveReferences() {
@@ -2740,6 +2803,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   clearing_job->Add(std::move(clear_string_table_job_item));
   TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
                           TRACE_EVENT_FLAG_FLOW_OUT);
+  if (isolate->is_shared_space_isolate() &&
+      isolate->shared_struct_type_registry()) {
+    auto clear_shared_struct_type_registry_job_item =
+        std::make_unique<ClearSharedStructTypeRegistryJobItem>(isolate);
+    clearing_job->Add(std::move(clear_shared_struct_type_registry_job_item));
+  }
   auto clearing_job_handle = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserBlocking, std::move(clearing_job));
   if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
