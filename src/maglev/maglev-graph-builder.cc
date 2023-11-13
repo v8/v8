@@ -670,7 +670,8 @@ void MaglevGraphBuilder::StartPrologue() {
 
 BasicBlock* MaglevGraphBuilder::EndPrologue() {
   BasicBlock* first_block;
-  if (v8_flags.maglev_hoist_osr_value_phi_untagging) {
+  if (v8_flags.maglev_hoist_osr_value_phi_untagging && graph_->is_osr() &&
+      !is_inline()) {
     first_block =
         FinishBlock<CheckpointedJump>({}, &jump_targets_[entrypoint_]);
   } else {
@@ -960,6 +961,9 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
 }
 
 DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
+  if (in_prologue_) {
+    return GetDeoptFrameForEntryStackCheck();
+  }
   if (!latest_checkpointed_frame_) {
     latest_checkpointed_frame_.emplace(InterpretedDeoptFrame(
         *compilation_unit_,
@@ -1082,28 +1086,25 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
 }
 
 InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
+  if (entry_stack_check_frame_) return *entry_stack_check_frame_;
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK_NULL(parent_);
-  int osr_jump_loop_pos;
-  if (graph_->is_osr()) {
-    osr_jump_loop_pos = bytecode_analysis_.osr_bailout_id().ToInt();
-  }
-  InterpretedDeoptFrame ret(
+  entry_stack_check_frame_.emplace(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
           *compilation_unit_,
-          GetInLivenessFor(graph_->is_osr() ? osr_jump_loop_pos : 0),
+          GetInLivenessFor(graph_->is_osr() ? bailout_for_entrypoint() : 0),
           current_interpreter_frame_),
-      GetClosure(),
-      BytecodeOffset(graph_->is_osr() ? osr_jump_loop_pos
-                                      : kFunctionEntryBytecodeOffset),
+      GetClosure(), BytecodeOffset(bailout_for_entrypoint()),
       current_source_position_, nullptr);
 
-  ret.frame_state()->ForEachValue(
-      *compilation_unit_,
-      [](ValueNode* node, interpreter::Register) { node->add_use(); });
-  ret.closure()->add_use();
-  return ret;
+  (*entry_stack_check_frame_)
+      .frame_state()
+      ->ForEachValue(
+          *compilation_unit_,
+          [](ValueNode* node, interpreter::Register) { node->add_use(); });
+  (*entry_stack_check_frame_).closure()->add_use();
+  return *entry_stack_check_frame_;
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedValue(
@@ -5307,6 +5308,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   BuildRegisterFrameInitialization(context, function, new_target);
   BuildMergeStates();
   EndPrologue();
+  in_prologue_ = false;
 
   // Build the inlined function body.
   BuildBody();

@@ -279,6 +279,8 @@ class MaglevGraphBuilder {
 
     BuildMergeStates();
     EndPrologue();
+    in_prologue_ = false;
+
     BuildBody();
   }
 
@@ -2145,7 +2147,9 @@ class MaglevGraphBuilder {
   BitVector loop_headers_to_peel_;
 
   // Current block information.
+  bool in_prologue_ = true;
   BasicBlock* current_block_ = nullptr;
+  base::Optional<InterpretedDeoptFrame> entry_stack_check_frame_;
   base::Optional<DeoptFrame> latest_checkpointed_frame_;
   SourcePosition current_source_position_;
   struct ForInState {
@@ -2178,6 +2182,10 @@ class MaglevGraphBuilder {
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;
+  int bailout_for_entrypoint() {
+    if (!graph_->is_osr()) return kFunctionEntryBytecodeOffset;
+    return bytecode_analysis_.osr_bailout_id().ToInt();
+  }
 
   int inlining_id_;
 

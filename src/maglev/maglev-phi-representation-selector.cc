@@ -534,11 +534,13 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 NewNodePosition::kEnd);
 
           } else {
-            untagged =
-                AddNode(NodeBase::New<CheckedTruncateNumberOrOddballToInt32>(
-                            builder_->zone(), {input},
-                            TaggedToFloat64ConversionType::kOnlyNumber),
-                        block, NewNodePosition::kEnd, deopt_frame);
+            untagged = AddNode(NodeBase::New<CheckedNumberOrOddballToFloat64>(
+                                   builder_->zone(), {input},
+                                   TaggedToFloat64ConversionType::kOnlyNumber),
+                               block, NewNodePosition::kEnd, deopt_frame);
+            untagged = AddNode(NodeBase::New<CheckedTruncateFloat64ToInt32>(
+                                   builder_->zone(), {untagged}),
+                               block, NewNodePosition::kEnd, deopt_frame);
           }
           break;
         case ValueRepresentation::kTagged:
