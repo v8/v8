@@ -6302,8 +6302,8 @@ int v8::Object::InternalFieldCount() const {
   return i::JSObject::cast(self)->GetEmbedderFieldCount();
 }
 
-static bool InternalFieldOK(i::DirectHandle<i::JSReceiver> obj, int index,
-                            const char* location) {
+static V8_INLINE bool InternalFieldOK(i::DirectHandle<i::JSReceiver> obj,
+                                      int index, const char* location) {
   return Utils::ApiCheck(
       IsJSObject(*obj) &&
           (index < i::JSObject::cast(*obj)->GetEmbedderFieldCount()),
@@ -6327,6 +6327,19 @@ void v8::Object::SetInternalField(int index, v8::Local<Data> value) {
   if (!InternalFieldOK(obj, index, location)) return;
   auto val = Utils::OpenDirectHandle(*value);
   i::DirectHandle<i::JSObject>::cast(obj)->SetEmbedderField(index, *val);
+}
+
+void* v8::Object::SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate,
+                                                         int index) {
+  auto obj = Utils::OpenDirectHandle(this);
+  const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
+  if (!InternalFieldOK(obj, index, location)) return nullptr;
+  void* result;
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
+          .ToAlignedPointer(reinterpret_cast<i::Isolate*>(isolate), &result),
+      location, "Unaligned pointer");
+  return result;
 }
 
 void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {

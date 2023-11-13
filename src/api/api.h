@@ -190,9 +190,11 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static inline bool ApiCheck(bool condition, const char* location,
-                              const char* message) {
-    if (!condition) Utils::ReportApiFailure(location, message);
+  static V8_INLINE bool ApiCheck(bool condition, const char* location,
+                                 const char* message) {
+    if (V8_UNLIKELY(!condition)) {
+      Utils::ReportApiFailure(location, message);
+    }
     return condition;
   }
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
@@ -261,7 +263,8 @@ class Utils {
   }
 
  private:
-  static void ReportApiFailure(const char* location, const char* message);
+  V8_NOINLINE V8_PRESERVE_MOST static void ReportApiFailure(
+      const char* location, const char* message);
 };
 
 template <class T>
