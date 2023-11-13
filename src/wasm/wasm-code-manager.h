@@ -27,6 +27,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-sourcemap.h"
 #include "src/wasm/wasm-tier.h"
@@ -680,8 +681,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* Lookup(Address) const;
 
-  WasmImportWrapperCache* import_wrapper_cache() const {
-    return import_wrapper_cache_.get();
+  WasmImportWrapperCache* import_wrapper_cache() {
+    return &import_wrapper_cache_;
   }
 
   WasmFeatures enabled_features() const { return enabled_features_; }
@@ -869,7 +870,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<CompilationState> compilation_state_;
 
   // A cache of the import wrappers, keyed on the kind and signature.
-  std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
+  WasmImportWrapperCache import_wrapper_cache_;
 
   // Array to handle number of function calls.
   std::unique_ptr<uint32_t[]> tiering_budgets_;
