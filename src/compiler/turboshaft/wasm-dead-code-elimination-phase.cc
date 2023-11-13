@@ -20,7 +20,7 @@ void WasmDeadCodeEliminationPhase::Run(Zone* temp_zone) {
                     BranchConditionDuplicationReducer
 // TODO(12783): This needs to be extended for all architectures that don't have
 // loads with the base + index * element_size + offset pattern.
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64
                     // The value numbering ensures that load with similar
                     // patterns in the complex loads can share those
                     // calculations.

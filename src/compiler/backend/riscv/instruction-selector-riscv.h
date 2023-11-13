@@ -89,6 +89,18 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
     DCHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
     return OpParameter<double>(node->op());
   }
+  bool CanBeZero(typename Adapter::node_t node) {
+    if (this->is_constant(node)) {
+      auto constant = selector()->constant_view(node);
+      if ((IsIntegerConstant(constant) &&
+           GetIntegerConstantValue(constant) == 0) ||
+          (constant.is_float() &&
+           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   bool CanBeImmediate(node_t node, InstructionCode mode) {
     if (!this->is_constant(node)) return false;
@@ -543,9 +555,16 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
 #elif V8_TARGET_ARCH_RISCV32
     if (opcode == kRiscvTst32) {
 #endif
-      if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
-        VisitCompare(selector, opcode, g.UseRegister(left->InputAt(0)),
-                     g.UseImmediate(right), cont);
+      if constexpr (Adapter::IsTurbofan) {
+        if (selector->opcode(left) ==
+            Adapter::opcode_t::kTruncateInt64ToInt32) {
+          VisitCompare(selector, opcode,
+                       g.UseRegister(selector->input_at(left, 0)),
+                       g.UseImmediate(right), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseImmediate(right), cont);
+        }
       } else {
         VisitCompare(selector, opcode, g.UseRegister(left),
                      g.UseImmediate(right), cont);
@@ -558,9 +577,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseImmediate(right), cont);
           } else {
-            Int32BinopMatcher m(node, true);
-            NumberBinopMatcher n(node, true);
-            if (m.right().Is(0) || n.right().IsZero()) {
+            if (g.CanBeZero(right)) {
               VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                    cont);
             } else {
@@ -573,8 +590,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
         case kSignedGreaterThanOrEqual:
         case kUnsignedLessThan:
         case kUnsignedGreaterThanOrEqual: {
-          Int32BinopMatcher m(node, true);
-          if (m.right().Is(0)) {
+          if (g.CanBeZero(right)) {
             VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                  cont);
           } else {
@@ -583,8 +599,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
           }
         } break;
         default:
-          Int32BinopMatcher m(node, true);
-          if (m.right().Is(0)) {
+          if (g.CanBeZero(right)) {
             VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                  cont);
           } else {
@@ -638,7 +653,8 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
 }
 
 template <typename Adapter>
-void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector, Node* value,
+void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t value,
                          FlagsContinuationT<Adapter>* cont) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->EmitWithContinuation(kRiscvCmpZero,
