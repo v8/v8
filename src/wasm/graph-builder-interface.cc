@@ -1338,14 +1338,56 @@ class WasmGraphBuildingInterface {
     SetEnv(block->try_info->catch_env);
   }
 
-  void TryTable(FullDecoder* decoder, Control* control) { UNIMPLEMENTED(); }
+  void TryTable(FullDecoder* decoder, Control* block) { Try(decoder, block); }
 
-  void CatchCase(FullDecoder* decoder, Control* control,
+  void CatchCase(FullDecoder* decoder, Control* block,
                  const CatchCase& catch_case, base::Vector<Value> values) {
-    UNIMPLEMENTED();
+    DCHECK(block->is_try_table());
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    if (!block->try_info->might_throw()) {
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
+      return;
+    }
+
+    TFNode* exception = block->try_info->exception;
+    SetEnv(block->try_info->catch_env);
+
+    if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
+      if (catch_case.kind == kCatchAllRef) {
+        DCHECK_EQ(values[0].type, kWasmExnRef);
+        values[0].node = block->try_info->exception;
+      }
+      BrOrRet(decoder, catch_case.br_imm.depth);
+      return;
+    }
+
+    TFNode* caught_tag = builder_->GetExceptionTag(exception);
+    TFNode* expected_tag =
+        builder_->LoadTagFromTable(catch_case.maybe_tag.tag_imm.index);
+
+    base::Vector<Value> values_without_exnref =
+        catch_case.kind == kCatch ? values
+                                  : values.SubVector(0, values.size() - 1);
+    CatchAndUnpackWasmException(decoder, block, exception,
+                                catch_case.maybe_tag.tag_imm.tag, caught_tag,
+                                expected_tag, values_without_exnref);
+    if (catch_case.kind == kCatchRef) {
+      DCHECK_EQ(values.last().type, kWasmExnRef);
+      values.last().node = block->try_info->exception;
+    }
+    BrOrRet(decoder, catch_case.br_imm.depth);
+    bool is_last = &catch_case == &block->catch_cases.last();
+    if (is_last && !decoder->HasCatchAll(block)) {
+      SetEnv(block->try_info->catch_env);
+      ThrowRef(decoder, block->try_info->exception);
+    }
   }
 
-  void ThrowRef(FullDecoder* decoder, Value* value) { UNIMPLEMENTED(); }
+  void ThrowRef(FullDecoder* decoder, Value* value) {
+    ThrowRef(decoder, value->node);
+  }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
@@ -2652,6 +2694,12 @@ class WasmGraphBuildingInterface {
       }
     }
     return -1;
+  }
+
+  void ThrowRef(FullDecoder* decoder, TFNode* exception) {
+    DCHECK_NOT_NULL(exception);
+    CheckForException(decoder, builder_->Rethrow(exception), false);
+    builder_->TerminateThrow(effect(), control());
   }
 };
 

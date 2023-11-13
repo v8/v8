@@ -2135,10 +2135,7 @@ class TurboshaftGraphBuildingInterface {
                              nullptr, &block->exception);
   }
 
-  void TryTable(FullDecoder* decoder, Control* block) {
-    block->false_or_loop_or_catch_block = NewBlockWithPhis(decoder, nullptr);
-    block->merge_block = NewBlockWithPhis(decoder, block->br_merge());
-  }
+  void TryTable(FullDecoder* decoder, Control* block) { Try(decoder, block); }
 
   void CatchCase(FullDecoder* decoder, Control* block,
                  const CatchCase& catch_case, base::Vector<Value> values) {

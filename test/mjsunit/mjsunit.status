@@ -1390,10 +1390,6 @@
 
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],
-
-  # Exnref is not implemented in TurboFan yet.
-  'wasm/exnref': [SKIP],
-  'wasm/exnref-rethrow': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
