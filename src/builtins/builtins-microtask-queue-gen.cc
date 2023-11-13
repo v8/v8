@@ -241,9 +241,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
     Label preserved_data_done(this);
     GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_done);
-    StoreContextElement(native_context,
-                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
-                        preserved_embedder_data);
+    SetContinuationPreservedEmbedderData(preserved_embedder_data);
     Goto(&preserved_data_done);
     BIND(&preserved_data_done);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -265,9 +263,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     Label preserved_data_reset_done(this);
     GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_reset_done);
-    StoreContextElement(native_context,
-                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
-                        UndefinedConstant());
+    SetContinuationPreservedEmbedderData(UndefinedConstant());
     Goto(&preserved_data_reset_done);
     BIND(&preserved_data_reset_done);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -298,9 +294,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
     Label preserved_data_done(this);
     GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_done);
-    StoreContextElement(native_context,
-                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
-                        preserved_embedder_data);
+    SetContinuationPreservedEmbedderData(preserved_embedder_data);
     Goto(&preserved_data_done);
     BIND(&preserved_data_done);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -322,9 +316,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     Label preserved_data_reset_done(this);
     GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_reset_done);
-    StoreContextElement(native_context,
-                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
-                        UndefinedConstant());
+    SetContinuationPreservedEmbedderData(UndefinedConstant());
     Goto(&preserved_data_reset_done);
     BIND(&preserved_data_reset_done);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA

@@ -76,6 +76,8 @@ class StatsCounter;
   V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \
   V(api_callback_thunk_argument_address,                                       \
     "IsolateData::api_callback_thunk_argument_address")                        \
+  V(continuation_preserved_embedder_data,                                      \
+    "IsolateData::continuation_preserved_embedder_data")                       \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
   V(address_of_regexp_stack_limit_address,                                     \
     "RegExpStack::limit_address_address()")                                    \

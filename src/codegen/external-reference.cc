@@ -1441,6 +1441,12 @@ ExternalReference ExternalReference::api_callback_thunk_argument_address(
       isolate->isolate_data()->api_callback_thunk_argument_address());
 }
 
+ExternalReference ExternalReference::continuation_preserved_embedder_data(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->continuation_preserved_embedder_data_address());
+}
+
 ExternalReference ExternalReference::stack_is_iterable_address(
     Isolate* isolate) {
   return ExternalReference(

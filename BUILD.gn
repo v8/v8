@@ -366,7 +366,9 @@ declare_args() {
   # Allow for JS promise hooks (instead of just C++).
   v8_enable_javascript_promise_hooks = false
 
-  # Allow for JS promise hooks (instead of just C++).
+  # Allow embedder data to be saved on continuations. Used to support
+  # TaskAttribution and `scheduler.yield()`.
+  # The flag enables disabling the feature, to test this data's overhead.
   v8_enable_continuation_preserved_embedder_data = true
 
   # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).

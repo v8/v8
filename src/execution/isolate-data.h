@@ -57,6 +57,8 @@ class Isolate;
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
   V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
     api_callback_thunk_argument)                                              \
+  V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,             \
+    continuation_preserved_embedder_data)                                     \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -149,6 +151,12 @@ class IsolateData final {
   RootsTable& roots() { return roots_table_; }
   Address api_callback_thunk_argument() const {
     return api_callback_thunk_argument_;
+  }
+  Tagged<Object> continuation_preserved_embedder_data() const {
+    return continuation_preserved_embedder_data_;
+  }
+  void set_continuation_preserved_embedder_data(Tagged<Object> data) {
+    continuation_preserved_embedder_data_ = data;
   }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
@@ -269,6 +277,9 @@ class IsolateData final {
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
+
+  // This is data that should be preserved on newly created continuations.
+  Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;

@@ -585,6 +585,10 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
         FullObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
   }
 
+  v->VisitRootPointer(
+      Root::kStackRoots, nullptr,
+      FullObjectSlot(continuation_preserved_embedder_data_address()));
+
   // Iterate over pointers on native execution stack.
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
@@ -4868,6 +4872,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName(this).c_str(), std::ios_base::trunc);
   }
+
+  isolate_data_.continuation_preserved_embedder_data_ =
+      *factory()->undefined_value();
 
   {
     HandleScope scope(this);

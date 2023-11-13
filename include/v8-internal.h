@@ -700,8 +700,10 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif
-  static const int kIsolateRootsOffset =
+  static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateRootsOffset =
+      kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
 #if V8_STATIC_ROOTS_BOOL
 

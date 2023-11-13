@@ -6782,6 +6782,19 @@ TNode<BoolT> CodeStubAssembler::IsExecutionTerminating() {
                      LoadRoot(RootIndex::kTerminationException));
 }
 
+TNode<Object> CodeStubAssembler::GetContinuationPreservedEmbedderData() {
+  TNode<ExternalReference> continuation_data = ExternalConstant(
+      ExternalReference::continuation_preserved_embedder_data(isolate()));
+  return LoadFullTagged(continuation_data);
+}
+
+void CodeStubAssembler::SetContinuationPreservedEmbedderData(
+    TNode<Object> value) {
+  TNode<ExternalReference> continuation_data = ExternalConstant(
+      ExternalReference::continuation_preserved_embedder_data(isolate()));
+  StoreFullTaggedNoWriteBarrier(continuation_data, value);
+}
+
 TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(TNode<Int32T> instance_type,
                                                   int type) {
   return Word32Equal(instance_type, Int32Constant(type));
