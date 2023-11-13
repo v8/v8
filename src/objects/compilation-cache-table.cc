@@ -531,7 +531,13 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     InternalIndex entry = cache->FindEntry(isolate, &key);
     if (entry.is_found()) {
       cache->SetKeyAt(entry, *k);
-      cache->SetPrimaryValueAt(entry, *value);
+      if (cache->PrimaryValueAt(entry) != *value) {
+        cache->SetPrimaryValueAt(entry, *value);
+        // The SFI is changing because the code was aged. Nuke existing feedback
+        // since it can't be reused after this point.
+        cache->SetEvalFeedbackValueAt(entry,
+                                      ReadOnlyRoots(isolate).the_hole_value());
+      }
       // AddToFeedbackCellsMap may allocate a new sub-array to live in the
       // entry, but it won't change the cache array. Therefore EntryToIndex
       // and entry remains correct.
