@@ -939,6 +939,95 @@ bool TryEmitMultiplySub(InstructionSelectorT<TurboshaftAdapter>* selector,
   return false;
 }
 
+std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
+    MachineRepresentation rep, bool paired) {
+  InstructionCode opcode = kArchNop;
+  ImmediateMode immediate_mode = kNoImmediate;
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      CHECK(!paired);
+      opcode = kArm64StrS;
+      immediate_mode = kLoadStoreImm32;
+      break;
+    case MachineRepresentation::kFloat64:
+      CHECK(!paired);
+      opcode = kArm64StrD;
+      immediate_mode = kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      CHECK(!paired);
+      opcode = kArm64Strb;
+      immediate_mode = kLoadStoreImm8;
+      break;
+    case MachineRepresentation::kWord16:
+      CHECK(!paired);
+      opcode = kArm64Strh;
+      immediate_mode = kLoadStoreImm16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = paired ? kArm64StrWPair : kArm64StrW;
+      immediate_mode = kLoadStoreImm32;
+      break;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      opcode = paired ? kArm64StrWPair : kArm64StrCompressTagged;
+      immediate_mode = kLoadStoreImm32;
+      break;
+#else
+      UNREACHABLE();
+#endif
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:
+      if (paired) {
+        // There is an inconsistency here on how we treat stores vs. paired
+        // stores. In the normal store case we have special opcodes for
+        // compressed fields and the backend decides whether to write 32 or 64
+        // bits. However, for pairs this does not make sense, since the
+        // paired values could have different representations (e.g.,
+        // compressed paired with word32). Therefore, we decide on the actual
+        // machine representation already in instruction selection.
+#ifdef V8_COMPRESS_POINTERS
+        static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 2);
+        opcode = kArm64StrWPair;
+#else
+        static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 3);
+        opcode = kArm64StrPair;
+#endif
+      } else {
+        opcode = kArm64StrCompressTagged;
+      }
+      immediate_mode =
+          COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kIndirectPointer:
+      opcode = kArm64StrIndirectPointer;
+      immediate_mode = kLoadStoreImm32;
+      break;
+    case MachineRepresentation::kSandboxedPointer:
+      CHECK(!paired);
+      opcode = kArm64StrEncodeSandboxedPointer;
+      immediate_mode = kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kWord64:
+      opcode = paired ? kArm64StrPair : kArm64Str;
+      immediate_mode = kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kSimd128:
+      CHECK(!paired);
+      opcode = kArm64StrQ;
+      immediate_mode = kNoImmediate;
+      break;
+    case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+  }
+  return std::tuple{opcode, immediate_mode};
+}
+
 }  // namespace
 
 template <typename Adapter>
@@ -1002,7 +1091,7 @@ void EmitLoad(InstructionSelectorT<Adapter>* selector,
     }
   }
 
-  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+  if (base->opcode() == IrOpcode::kLoadRootRegister) {
     input_count = 1;
     inputs[0] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_Root);
@@ -1419,94 +1508,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     return;
   }
 
-  auto GetOpcodeAndImmediate = [](MachineRepresentation rep, bool paired) {
-    InstructionCode opcode = kArchNop;
-    ImmediateMode immediate_mode = kNoImmediate;
-    switch (rep) {
-      case MachineRepresentation::kFloat32:
-        CHECK(!paired);
-        opcode = kArm64StrS;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kFloat64:
-        CHECK(!paired);
-        opcode = kArm64StrD;
-        immediate_mode = kLoadStoreImm64;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        CHECK(!paired);
-        opcode = kArm64Strb;
-        immediate_mode = kLoadStoreImm8;
-        break;
-      case MachineRepresentation::kWord16:
-        CHECK(!paired);
-        opcode = kArm64Strh;
-        immediate_mode = kLoadStoreImm16;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = paired ? kArm64StrWPair : kArm64StrW;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:
-#ifdef V8_COMPRESS_POINTERS
-        opcode = paired ? kArm64StrWPair : kArm64StrCompressTagged;
-        immediate_mode = kLoadStoreImm32;
-        break;
-#else
-        UNREACHABLE();
-#endif
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:
-        if (paired) {
-          // There is an inconsistency here on how we treat stores vs. paired
-          // stores. In the normal store case we have special opcodes for
-          // compressed fields and the backend decides whether to write 32 or 64
-          // bits. However, for pairs this does not make sense, since the
-          // paired values could have different representations (e.g.,
-          // compressed paired with word32). Therefore, we decide on the actual
-          // machine representation already in instruction selection.
-#ifdef V8_COMPRESS_POINTERS
-          static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 2);
-          opcode = kArm64StrWPair;
-#else
-          static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 3);
-          opcode = kArm64StrPair;
-#endif
-        } else {
-          opcode = kArm64StrCompressTagged;
-        }
-        immediate_mode =
-            COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
-        break;
-      case MachineRepresentation::kIndirectPointer:
-        opcode = kArm64StrIndirectPointer;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      case MachineRepresentation::kSandboxedPointer:
-        CHECK(!paired);
-        opcode = kArm64StrEncodeSandboxedPointer;
-        immediate_mode = kLoadStoreImm64;
-        break;
-      case MachineRepresentation::kWord64:
-        opcode = paired ? kArm64StrPair : kArm64Str;
-        immediate_mode = kLoadStoreImm64;
-        break;
-      case MachineRepresentation::kSimd128:
-        CHECK(!paired);
-        opcode = kArm64StrQ;
-        immediate_mode = kNoImmediate;
-        break;
-      case MachineRepresentation::kSimd256:  // Fall through.
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kNone:
-        UNREACHABLE();
-    }
-    return std::tuple{opcode, immediate_mode};
-  };
-
   InstructionOperand inputs[4];
   size_t input_count = 0;
 
@@ -1515,8 +1516,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   MachineRepresentation approx_rep;
   if (kStorePair) {
     auto rep_pair = StorePairRepresentationOf(node->op());
-    auto info1 = GetOpcodeAndImmediate(rep_pair.first.representation(), true);
-    auto info2 = GetOpcodeAndImmediate(rep_pair.second.representation(), true);
+    auto info1 =
+        GetStoreOpcodeAndImmediate(rep_pair.first.representation(), true);
+    auto info2 =
+        GetStoreOpcodeAndImmediate(rep_pair.second.representation(), true);
     CHECK_EQ(ElementSizeLog2Of(rep_pair.first.representation()),
              ElementSizeLog2Of(rep_pair.second.representation()));
     switch (ElementSizeLog2Of(rep_pair.first.representation())) {
@@ -1535,7 +1538,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     CHECK_EQ(immediate_mode, std::get<ImmediateMode>(info2));
   } else {
     approx_rep = StoreRepresentationOf(node->op()).representation();
-    auto info = GetOpcodeAndImmediate(approx_rep, false);
+    auto info = GetStoreOpcodeAndImmediate(approx_rep, false);
     opcode = std::get<InstructionCode>(info);
     immediate_mode = std::get<ImmediateMode>(info);
   }
@@ -1573,7 +1576,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     inputs[input_count++] = g.UseRegisterOrImmediateZero(node->InputAt(3));
   }
 
-  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+  if (base->opcode() == IrOpcode::kLoadRootRegister) {
     // This will only work if {index} is a constant.
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_Root);
