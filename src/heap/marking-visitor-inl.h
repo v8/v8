@@ -749,6 +749,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitMap(Tagged<Map> meta_map,
                                                   Tagged<Map> map) {
+  this->VisitMapPointer(map);
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   VisitDescriptorsForMap(map);
 

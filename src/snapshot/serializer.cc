@@ -454,10 +454,14 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   }
 
   if (map.SafeEquals(*object_)) {
-    DCHECK_EQ(*object_, ReadOnlyRoots(isolate()).meta_map());
-    DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
-    sink_->Put(kNewMetaMap, "NewMetaMap");
-
+    if (map == ReadOnlyRoots(isolate()).meta_map()) {
+      DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
+      sink_->Put(kNewContextlessMetaMap, "NewContextlessMetaMap");
+    } else {
+      DCHECK_EQ(space, SnapshotSpace::kOld);
+      DCHECK(IsContext(map->native_context_or_null()));
+      sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
+    }
     DCHECK_EQ(size, Map::kSize);
   } else {
     sink_->Put(NewObject::Encode(space), "NewObject");

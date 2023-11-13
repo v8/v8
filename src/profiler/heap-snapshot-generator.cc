@@ -1558,8 +1558,8 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
                        Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map->prototype(),
                        Map::kPrototypeOffset);
-  if (IsContextMap(map)) {
-    Tagged<Object> native_context = map->native_context();
+  if (IsContextMap(map) || IsMapMap(map)) {
+    Tagged<Object> native_context = map->native_context_or_null();
     TagObject(native_context, "(native context)");
     SetInternalReference(entry, "native_context", native_context,
                          Map::kConstructorOrBackPointerOrNativeContextOffset);

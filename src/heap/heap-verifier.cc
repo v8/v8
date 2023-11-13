@@ -629,7 +629,8 @@ class SlotCollectingVisitor final : public ObjectVisitor {
   }
 
   void VisitMapPointer(Tagged<HeapObject> object) override {
-  }  // do nothing by default
+    slots_.push_back(MaybeObjectSlot(object->map_slot()));
+  }
 
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 

@@ -463,12 +463,32 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
+
+  Handle<Map> NewContextfulMap(
+      Handle<NativeContext> native_context, InstanceType type,
+      int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
+  Handle<Map> NewMapWithMetaMap(
+      Handle<Map> meta_map, InstanceType type, int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
+  Handle<Map> NewContextlessMap(
+      InstanceType type, int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
   // Initializes the fields of a newly created Map using roots from the
   // passed-in Heap. Exposed for tests and heap setup; other code should just
   // call NewMap which takes care of it.
   Tagged<Map> InitializeMap(Tagged<Map> map, InstanceType type,
                             int instance_size, ElementsKind elements_kind,
-                            int inobject_properties, Heap* roots);
+                            int inobject_properties, ReadOnlyRoots roots);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
@@ -1121,6 +1141,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   void ProcessNewScript(Handle<Script> shared,
                         ScriptEventType script_event_type);
   // ------
+
+  // MetaMapProviderFunc is supposed to be a function returning Tagged<Map>.
+  // For example,  std::function<Tagged<Map>()>.
+  template <typename MetaMapProviderFunc>
+  V8_INLINE Handle<Map> NewMapImpl(
+      MetaMapProviderFunc&& meta_map_provider, InstanceType type,
+      int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,

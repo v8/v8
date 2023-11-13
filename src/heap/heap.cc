@@ -6330,12 +6330,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
     void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                        ObjectSlot end) override {
-      MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
+      MarkPointersImpl(start, end);
     }
 
     void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                        MaybeObjectSlot end) final {
-      MarkPointers(start, end);
+      MarkPointersImpl(start, end);
     }
 
     void VisitInstructionStreamPointer(Tagged<Code> host,
@@ -6377,10 +6377,6 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
    private:
-    void MarkPointers(MaybeObjectSlot start, MaybeObjectSlot end) {
-      MarkPointersImpl(start, end);
-    }
-
     template <typename TSlot>
     V8_INLINE void MarkPointersImpl(TSlot start, TSlot end) {
       // Treat weak references as strong.

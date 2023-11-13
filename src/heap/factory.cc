@@ -1241,16 +1241,39 @@ Tagged<Context> Factory::NewContextInternal(Handle<Map> map, int size,
   return context;
 }
 
+// Creates new maps and new native context and wires them up.
+//
+// +-+------------->|NativeContext|
+// | |                    |
+// | |                   map
+// | |                    v
+// | |              |context_map| <Map(NATIVE_CONTEXT_TYPE)>
+// | |                  |   |
+// | +--native_context--+  map
+// |                        v
+// |   +------->|contextful_meta_map| <Map(MAP_TYPE)>
+// |   |             |      |
+// |   +-----map-----+      |
+// |                        |
+// +-----native_context-----+
+//
 Handle<NativeContext> Factory::NewNativeContext() {
-  Handle<Map> map = NewMap(NATIVE_CONTEXT_TYPE, kVariableSizeSentinel);
+  // All maps that belong to this new native context will have this meta map.
+  // The native context does not exist yet, so create the map as contextless
+  // for now.
+  Handle<Map> contextful_meta_map = NewContextlessMap(MAP_TYPE, Map::kSize);
+  contextful_meta_map->set_map(*contextful_meta_map);
+
+  Handle<Map> context_map = NewMapWithMetaMap(
+      contextful_meta_map, NATIVE_CONTEXT_TYPE, kVariableSizeSentinel);
   Tagged<NativeContext> context =
       Tagged<NativeContext>::cast(NewContextInternal(
-          map, NativeContext::kSize, NativeContext::NATIVE_CONTEXT_SLOTS,
-          AllocationType::kOld));
+          context_map, NativeContext::kSize,
+          NativeContext::NATIVE_CONTEXT_SLOTS, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  context->set_native_context_map(*map);
-  map->set_native_context(context);
-  // The ExternalPointerTable is a C++ object.
+  contextful_meta_map->set_native_context(context);
+  context_map->set_native_context(context);
+  context->set_meta_map(*contextful_meta_map);
   context->set_scope_info(*native_scope_info());
   context->set_previous(Context());
   context->set_extension(*undefined_value());
@@ -2026,10 +2049,15 @@ Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
   return site;
 }
 
-Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
-                            ElementsKind elements_kind, int inobject_properties,
-                            AllocationType allocation_type) {
+template <typename MetaMapProviderFunc>
+Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
+                                InstanceType type, int instance_size,
+                                ElementsKind elements_kind,
+                                int inobject_properties,
+                                AllocationType allocation_type) {
   static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
+         InstanceTypeChecker::IsMap(type));
   DCHECK(!InstanceTypeChecker::MayHaveMapCheckFastCase(type));
   DCHECK_IMPLIES(InstanceTypeChecker::IsJSObject(type) &&
                      !Map::CanHaveFastTransitionableElementsKind(type),
@@ -2042,11 +2070,9 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
           Map::kSize, allocation_type);
   DisallowGarbageCollection no_gc;
-  Heap* roots = allocation_type == AllocationType::kMap
-                    ? isolate()->heap()
-                    : isolate()->shared_space_isolate()->heap();
-  result->set_map_after_allocation(ReadOnlyRoots(roots).meta_map(),
-                                   SKIP_WRITE_BARRIER);
+  ReadOnlyRoots roots(isolate());
+  result->set_map_after_allocation(meta_map_provider());
+
 #if V8_STATIC_ROOTS_BOOL
   CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(type),
                 V8HeapCompressionScheme::CompressObject(result.ptr()) >
@@ -2061,7 +2087,8 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
 Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                                    int instance_size,
                                    ElementsKind elements_kind,
-                                   int inobject_properties, Heap* roots) {
+                                   int inobject_properties,
+                                   ReadOnlyRoots roots) {
   DisallowGarbageCollection no_gc;
   map->set_bit_field(0);
   map->set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -2072,10 +2099,9 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
       Map::Bits3::IsExtensibleBit::encode(true);
   map->set_bit_field3(bit_field3);
   map->set_instance_type(type);
-  ReadOnlyRoots ro_roots(roots);
-  map->init_prototype_and_constructor_or_back_pointer(ro_roots);
+  map->init_prototype_and_constructor_or_back_pointer(roots);
   map->set_instance_size(instance_size);
-  if (IsJSObjectMap(*map)) {
+  if (InstanceTypeChecker::IsJSObject(type)) {
     // Shared space JS objects have fixed layout and can have RO maps. No other
     // JS objects have RO maps.
     DCHECK_IMPLIES(!IsAlwaysSharedSpaceJSObjectMap(*map),
@@ -2083,7 +2109,7 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
     map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);
     DCHECK_EQ(map->GetInObjectProperties(), inobject_properties);
-    map->set_prototype_validity_cell(ro_roots.invalid_prototype_validity_cell(),
+    map->set_prototype_validity_cell(roots.invalid_prototype_validity_cell(),
                                      kRelaxedStore);
   } else {
     DCHECK_EQ(inobject_properties, 0);
@@ -2091,18 +2117,76 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
     map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
                                      kRelaxedStore, SKIP_WRITE_BARRIER);
   }
-  map->set_dependent_code(DependentCode::empty_dependent_code(ro_roots),
+  map->set_dependent_code(DependentCode::empty_dependent_code(roots),
                           SKIP_WRITE_BARRIER);
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()),
                            SKIP_WRITE_BARRIER);
   map->SetInObjectUnusedPropertyFields(inobject_properties);
-  map->SetInstanceDescriptors(isolate(), ro_roots.empty_descriptor_array(), 0);
+  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   // Must be called only after |instance_type| and |instance_size| are set.
   map->set_visitor_id(Map::GetVisitorId(map));
   DCHECK(!map->is_in_retained_map_list());
   map->clear_padding();
   map->set_elements_kind(elements_kind);
   if (v8_flags.log_maps) LOG(isolate(), MapCreate(map));
+  return map;
+}
+
+Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
+                            ElementsKind elements_kind, int inobject_properties,
+                            AllocationType allocation_type) {
+  auto meta_map_provider = [=] {
+    // The new map is not tied to any context.
+    return ReadOnlyRoots(isolate()).meta_map();
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
+  return map;
+}
+
+Handle<Map> Factory::NewMapWithMetaMap(Handle<Map> meta_map, InstanceType type,
+                                       int instance_size,
+                                       ElementsKind elements_kind,
+                                       int inobject_properties,
+                                       AllocationType allocation_type) {
+  DCHECK_EQ(*meta_map, meta_map->map());
+  auto meta_map_provider = [=] {
+    // Use given meta map.
+    return *meta_map;
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
+  return map;
+}
+
+Handle<Map> Factory::NewContextfulMap(Handle<NativeContext> native_context,
+                                      InstanceType type, int instance_size,
+                                      ElementsKind elements_kind,
+                                      int inobject_properties,
+                                      AllocationType allocation_type) {
+  auto meta_map_provider = [=] {
+    // Tie new map to given native context.
+    return native_context->meta_map();
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
+  return map;
+}
+
+Handle<Map> Factory::NewContextlessMap(InstanceType type, int instance_size,
+                                       ElementsKind elements_kind,
+                                       int inobject_properties,
+                                       AllocationType allocation_type) {
+  auto meta_map_provider = [=] {
+    // The new map is not tied to any context.
+    return ReadOnlyRoots(isolate()).meta_map();
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
   return map;
 }
 

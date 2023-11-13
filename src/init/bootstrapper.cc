@@ -2234,40 +2234,50 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Factory* factory = isolate_->factory();
 
   {  // -- C o n t e x t
-    Handle<Map> map =
-        factory->NewMap(FUNCTION_CONTEXT_TYPE, kVariableSizeSentinel);
+    Handle<Map> meta_map(native_context()->meta_map(), isolate());
+
+    Handle<Map> map = factory->NewMapWithMetaMap(
+        meta_map, FUNCTION_CONTEXT_TYPE, kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_function_context_map(*map);
 
-    map = factory->NewMap(CATCH_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, CATCH_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_catch_context_map(*map);
 
-    map = factory->NewMap(WITH_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, WITH_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_with_context_map(*map);
 
-    map = factory->NewMap(DEBUG_EVALUATE_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, DEBUG_EVALUATE_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_debug_evaluate_context_map(*map);
 
-    map = factory->NewMap(BLOCK_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, BLOCK_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_block_context_map(*map);
 
-    map = factory->NewMap(MODULE_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, MODULE_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_module_context_map(*map);
 
-    map = factory->NewMap(AWAIT_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, AWAIT_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_await_context_map(*map);
 
-    map = factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, SCRIPT_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_script_context_map(*map);
 
-    map = factory->NewMap(EVAL_CONTEXT_TYPE, kVariableSizeSentinel);
+    map = factory->NewMapWithMetaMap(meta_map, EVAL_CONTEXT_TYPE,
+                                     kVariableSizeSentinel);
     map->set_native_context(*native_context());
     native_context()->set_eval_context_map(*map);
 

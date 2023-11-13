@@ -3032,8 +3032,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(TNode<TIndex> element_count,
                                                  int base_size);
 
-  TNode<BoolT> IsMetaMap(TNode<HeapObject> o) { return IsMapMap(o); }
-
   // ElementsKind helpers:
   TNode<BoolT> ElementsKindEqual(TNode<Int32T> a, TNode<Int32T> b) {
     return Word32Equal(a, b);

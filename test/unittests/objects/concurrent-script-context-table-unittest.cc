@@ -102,8 +102,8 @@ TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
 
   Factory* factory = i_isolate()->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
-  Handle<Map> script_context_map =
-      factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+  Handle<Map> script_context_map = factory->NewContextfulMap(
+      native_context, SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
   script_context_map->set_native_context(*native_context);
   native_context->set_script_context_map(*script_context_map);
 
@@ -152,8 +152,8 @@ TEST_F(ConcurrentScriptContextTableTest,
 
   Factory* factory = i_isolate()->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
-  Handle<Map> script_context_map =
-      factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+  Handle<Map> script_context_map = factory->NewContextfulMap(
+      native_context, SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
   script_context_map->set_native_context(*native_context);
   native_context->set_script_context_map(*script_context_map);
 

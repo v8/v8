@@ -6433,15 +6433,22 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Handle<Map> map;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    map = isolate->factory()->NewMap(BIGINT_TYPE, HeapNumber::kSize);
+    map = isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   }
   CHECK(heap->incremental_marking()->black_allocation());
-  Handle<HeapObject> object;
+  Handle<JSObject> object;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    object = handle(isolate->factory()->NewForTest(map, AllocationType::kOld),
+    object = handle(JSObject::cast(isolate->factory()->NewForTest(
+                        map, AllocationType::kOld)),
                     isolate);
   }
+  // Initialize backing stores to ensure object is valid.
+  ReadOnlyRoots roots(isolate);
+  object->set_raw_properties_or_hash(roots.empty_property_array(),
+                                     SKIP_WRITE_BARRIER);
+  object->set_elements(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+
   // The object is black. If Factory::New sets the map without write-barrier,
   // then the map is white and will be freed prematurely.
   heap::SimulateIncrementalMarking(heap, true);

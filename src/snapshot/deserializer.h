@@ -236,8 +236,8 @@ class Deserializer : public SerializerDeserializer {
   // A helper function for reading external pointer tags.
   ExternalPointerTag ReadExternalPointerTag();
 
-  Handle<HeapObject> ReadObject(SnapshotSpace space_number);
-  Handle<HeapObject> ReadMetaMap();
+  Handle<HeapObject> ReadObject(SnapshotSpace space);
+  Handle<HeapObject> ReadMetaMap(SnapshotSpace space);
 
   ReferenceDescriptor GetAndResetNextReferenceDescriptor();
 

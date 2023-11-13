@@ -252,6 +252,7 @@ bool Heap::CreateMutableHeapObjects() {
   return true;
 }
 
+// Allocates contextless map in read-only or map (old) space.
 AllocationResult Heap::AllocateMap(AllocationType allocation_type,
                                    InstanceType instance_type,
                                    int instance_size,
@@ -265,11 +266,11 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
   AllocationResult allocation = AllocateRaw(Map::kSize, allocation_type);
   if (!allocation.To(&result)) return allocation;
 
-  result->set_map_after_allocation(ReadOnlyRoots(this).meta_map(),
-                                   SKIP_WRITE_BARRIER);
+  ReadOnlyRoots roots(this);
+  result->set_map_after_allocation(roots.meta_map(), SKIP_WRITE_BARRIER);
   Tagged<Map> map = isolate()->factory()->InitializeMap(
       Map::cast(result), instance_type, instance_size, elements_kind,
-      inobject_properties, this);
+      inobject_properties, roots);
 
   return AllocationResult::FromObject(map);
 }

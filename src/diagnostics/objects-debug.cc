@@ -549,7 +549,9 @@ void Map::MapVerify(Isolate* isolate) {
     // itself, so it may happen that during a GC the native_context() is still
     // null.
     CHECK(IsNull(native_context_or_null()) ||
-          IsNativeContext(native_context()));
+          IsNativeContext(native_context_or_null()));
+    // The context's meta map is tied to the same native context.
+    CHECK_EQ(native_context_or_null(), map()->native_context_or_null());
   } else {
     if (IsUndefined(GetBackPointer(), isolate)) {
       // Root maps must not have descriptors in the descriptor array that do not
@@ -2455,9 +2457,8 @@ bool TransitionsAccessor::IsSortedNoDuplicates() {
   return transitions()->IsSortedNoDuplicates();
 }
 
-static bool CheckOneBackPointer(Tagged<Map> current_map,
-                                Tagged<Object> target) {
-  return !IsMap(target) || Map::cast(target)->GetBackPointer() == current_map;
+static bool CheckOneBackPointer(Tagged<Map> current_map, Tagged<Map> target) {
+  return target->GetBackPointer() == current_map;
 }
 
 bool TransitionsAccessor::IsConsistentWithBackPointers() {

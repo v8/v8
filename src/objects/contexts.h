@@ -230,7 +230,7 @@ enum ContextLookupFlags {
   V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \
     string_fixed_array_from_iterable)                                          \
   /* Context maps */                                                           \
-  V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
+  V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
   V(MODULE_CONTEXT_MAP_INDEX, Map, module_context_map)                         \
   V(EVAL_CONTEXT_MAP_INDEX, Map, eval_context_map)                             \

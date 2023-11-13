@@ -798,6 +798,10 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
   if (map_data->should_access_heap()) {
     return Handle<Map>::cast(map_data->object())->instance_type();
   }
+  if (this == map_data) {
+    // Handle infinite recursion in case this object is a contextful meta map.
+    return MAP_TYPE;
+  }
   return map_data->AsMap()->instance_type();
 }
 

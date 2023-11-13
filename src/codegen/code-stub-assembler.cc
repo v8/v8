@@ -7181,8 +7181,8 @@ TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
   return HasInstanceType(object, JS_REG_EXP_STRING_ITERATOR_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> map) {
-  return IsMetaMap(LoadMap(map));
+TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> object) {
+  return HasInstanceType(object, MAP_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperInstanceType(

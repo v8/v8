@@ -109,7 +109,9 @@ void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (!IsMap(*this, cage_base)) os << "\n - map: " << Brief(map(cage_base));
+  if (!SafeEquals(GetReadOnlyRoots().meta_map())) {
+    os << "\n - map: " << Brief(map(cage_base));
+  }
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
@@ -2907,18 +2909,23 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   }
   switch (map(cage_base)->instance_type()) {
     case MAP_TYPE: {
-      os << "<Map";
-      Tagged<Map> mapInstance = Map::cast(*this);
-      if (mapInstance->instance_size() != kVariableSizeSentinel) {
-        os << "[" << mapInstance->instance_size() << "]";
-      }
-      os << "(";
-      if (IsJSObjectMap(mapInstance)) {
-        os << ElementsKindToString(mapInstance->elements_kind());
+      Tagged<Map> map = Map::cast(*this);
+      if (map->instance_type() == MAP_TYPE) {
+        // This is one of the meta maps, print only relevant fields.
+        os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
       } else {
-        os << mapInstance->instance_type();
+        os << "<Map";
+        if (map->instance_size() != kVariableSizeSentinel) {
+          os << "[" << map->instance_size() << "]";
+        }
+        os << "(";
+        if (IsJSObjectMap(map)) {
+          os << ElementsKindToString(map->elements_kind());
+        } else {
+          os << map->instance_type();
+        }
+        os << ")>";
       }
-      os << ")>";
     } break;
     case AWAIT_CONTEXT_TYPE: {
       os << "<AwaitContext generator= ";
@@ -3301,10 +3308,11 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
+  bool is_meta_map = instance_type() == MAP_TYPE;
 #ifdef OBJECT_PRINT
-  PrintHeader(os, "Map");
+  PrintHeader(os, is_meta_map ? "MetaMap" : "Map");
 #else
-  os << "Map=" << reinterpret_cast<void*>(ptr());
+  os << (is_meta_map ? "MetaMap=" : "Map=") << reinterpret_cast<void*>(ptr());
 #endif
   os << "\n - type: " << instance_type();
   os << "\n - instance size: ";
@@ -3313,6 +3321,13 @@ void Map::MapPrint(std::ostream& os) {
   } else {
     os << instance_size();
   }
+  if (is_meta_map) {
+    // This is one of the meta maps, print only relevant fields.
+    os << "\n - native_context: " << Brief(native_context_or_null());
+    os << "\n";
+    return;
+  }
+
   if (IsJSObjectMap(*this)) {
     os << "\n - inobject properties: " << GetInObjectProperties();
     os << "\n - unused property fields: " << UnusedPropertyFields();

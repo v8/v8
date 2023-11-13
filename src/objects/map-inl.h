@@ -850,11 +850,11 @@ RELAXED_ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Tagged<Object>,
                            IsNull(value) || !IsContextMap(*this))
 ACCESSORS_CHECKED(Map, native_context, Tagged<NativeContext>,
                   kConstructorOrBackPointerOrNativeContextOffset,
-                  IsContextMap(*this))
+                  IsContextMap(*this) || IsMapMap(*this))
 ACCESSORS_CHECKED(Map, native_context_or_null, Tagged<Object>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   (IsNull(value) || IsNativeContext(value)) &&
-                      IsContextMap(*this))
+                      (IsContextMap(*this) || IsMapMap(*this)))
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
                   kConstructorOrBackPointerOrNativeContextOffset,

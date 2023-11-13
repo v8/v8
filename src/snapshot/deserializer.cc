@@ -634,7 +634,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   // The map can't be a forward ref. If you want the map to be a forward ref,
   // then you're probably serializing the meta-map, in which case you want to
-  // use the kNewMetaMap bytecode.
+  // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   Handle<Map> map = Handle<Map>::cast(ReadObject());
 
@@ -745,8 +745,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 }
 
 template <typename IsolateT>
-Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
-  const SnapshotSpace space = SnapshotSpace::kReadOnlyHeap;
+Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   const int size_in_bytes = Map::kSize;
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
@@ -859,7 +858,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadStartupObjectCache(data, slot_accessor);
     case kSharedHeapObjectCache:
       return ReadSharedHeapObjectCache(data, slot_accessor);
-    case kNewMetaMap:
+    case kNewContextlessMetaMap:
+    case kNewContextfulMetaMap:
       return ReadNewMetaMap(data, slot_accessor);
     case kSandboxedExternalReference:
     case kExternalReference:
@@ -1014,7 +1014,10 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadNewMetaMap(uint8_t data,
                                            SlotAccessor slot_accessor) {
-  Handle<HeapObject> heap_object = ReadMetaMap();
+  SnapshotSpace space = data == kNewContextlessMetaMap
+                            ? SnapshotSpace::kReadOnlyHeap
+                            : SnapshotSpace::kOld;
+  Handle<HeapObject> heap_object = ReadMetaMap(space);
   return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
 }
 

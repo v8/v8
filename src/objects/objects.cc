@@ -6431,13 +6431,13 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
 // static
 bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
   MapWord map_word = map->map_word(kRelaxedLoad);
-
   if (map_word.IsForwardingAddress()) {
     // During GC we can't access forwarded maps without synchronization.
     return true;
-  } else {
-    return IsMap(map_word.ToMap());
   }
+  // The meta map might be moved away by GC too but we can read instance
+  // type from both old and new location as it can't change.
+  return InstanceTypeChecker::IsMap(map_word.ToMap()->instance_type());
 }
 
 // Force instantiation of template instances class.

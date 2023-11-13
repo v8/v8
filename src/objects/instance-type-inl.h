@@ -362,6 +362,27 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
   return IsFreeSpaceOrFiller(map_object->instance_type());
 }
 
+// Returns true for those heap object types that must be tied to some native
+// context.
+V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
+  if (instance_type == JS_MESSAGE_OBJECT_TYPE ||
+      instance_type == JS_EXTERNAL_OBJECT_TYPE) {
+    // These JSObject types are wrappers around a set of primitive values
+    // and exist only for the purpose of passing the data across V8 Api.
+    // Thus they are not tied to any native context.
+    return false;
+  }
+  return IsJSReceiver(instance_type) || IsContext(instance_type) ||
+#if V8_ENABLE_WEBASSEMBLY
+         instance_type == WASM_INTERNAL_FUNCTION_TYPE ||
+#endif
+         false;
+}
+
+V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {
+  return IsNativeContextSpecific(map_object->instance_type());
+}
+
 }  // namespace InstanceTypeChecker
 
 #define TYPE_CHECKER(type, ...)                \
