@@ -5857,10 +5857,11 @@ class TurboshaftGraphBuildingInterface {
                      MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    // Perform a signed extension to intptr so that the bounds check technique
-    // (a single unsigned comparison covering both negative and too-large
-    // indices) correctly works for buffers larger than 2 GiB.
-    V<WordPtr> index_ptr = __ ChangeInt32ToIntPtr(index);
+    // Technically, we should do a signed 32-to-ptr extension here. However,
+    // that is an explicit instruction, whereas unsigned extension is implicit.
+    // Since the difference is only observable for memories larger than 2 GiB,
+    // and since we disallow such memories, we can use unsigned extension.
+    V<WordPtr> index_ptr = __ ChangeUint32ToUintPtr(index);
     IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
       __ Store(MemStart(0), index_ptr, value, StoreOp::Kind::RawAligned(), repr,
                compiler::kNoWriteBarrier, 0);
@@ -5873,10 +5874,11 @@ class TurboshaftGraphBuildingInterface {
     // ignoring the access size.
     Variable result = __ NewVariable(repr.ToRegisterRepresentation());
 
-    // Perform a signed extension to intptr so that the bounds check technique
-    // (a single unsigned comparison covering both negative and too-large
-    // indices) correctly works for buffers larger than 2 GiB.
-    V<WordPtr> index_ptr = __ ChangeInt32ToIntPtr(index);
+    // Technically, we should do a signed 32-to-ptr extension here. However,
+    // that is an explicit instruction, whereas unsigned extension is implicit.
+    // Since the difference is only observable for memories larger than 2 GiB,
+    // and since we disallow such memories, we can use unsigned extension.
+    V<WordPtr> index_ptr = __ ChangeUint32ToUintPtr(index);
     IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
       __ SetVariable(result, __ Load(MemStart(0), index_ptr,
                                      LoadOp::Kind::RawAligned(), repr));

@@ -310,6 +310,12 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   }
   // Enforce multiple of 2^24 for sizes >= 2^24
   if ((size % (1u << 24u)) != 0) return false;
+  // Limitation of our implementation: for performance reasons, we use unsigned
+  // uint32-to-uintptr extensions for memory addresses, which would give
+  // incorrect behavior for memories larger than 2 GiB.
+  // Note that this does not affect Chrome, which does not allow allocating
+  // larger ArrayBuffers anyway.
+  if (size > 0x8000'0000u) return false;
   // All checks passed!
   return true;
 }

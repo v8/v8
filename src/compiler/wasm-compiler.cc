@@ -4019,10 +4019,11 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
-  // Perform a signed extension to intptr so that the bounds check technique
-  // (a single unsigned comparison covering both negative and too-large indices)
-  // correctly works for buffers larger than 2 GiB.
-  index = gasm_->BuildChangeInt32ToIntPtr(index);
+  // Technically, we should do a signed 32-to-ptr extension here. However,
+  // that is an explicit instruction, whereas unsigned extension is implicit.
+  // Since the difference is only observable for memories larger than 2 GiB,
+  // and since we disallow such memories, we can use unsigned extension.
+  index = gasm_->BuildChangeUint32ToUintPtr(index);
   Diamond bounds_check(graph(), mcgraph()->common(),
                        gasm_->UintLessThan(index, mem_size), BranchHint::kTrue);
   bounds_check.Chain(control());
@@ -4065,10 +4066,9 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
-  // Perform a signed extension to intptr so that the bounds check technique
-  // (a single unsigned comparison covering both negative and too-large indices)
-  // correctly works for buffers larger than 2 GiB.
-  index = gasm_->BuildChangeInt32ToIntPtr(index);
+  // See {BuildAsmJsLoadMem} for background on using an unsigned extension
+  // here.
+  index = gasm_->BuildChangeUint32ToUintPtr(index);
   Diamond bounds_check(graph(), mcgraph()->common(),
                        gasm_->UintLessThan(index, mem_size), BranchHint::kTrue);
   bounds_check.Chain(control());
