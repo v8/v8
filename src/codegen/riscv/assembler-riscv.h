@@ -49,6 +49,7 @@
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/base-riscv-i.h"
 #include "src/codegen/riscv/extension-riscv-a.h"
+#include "src/codegen/riscv/extension-riscv-b.h"
 #include "src/codegen/riscv/extension-riscv-c.h"
 #include "src/codegen/riscv/extension-riscv-d.h"
 #include "src/codegen/riscv/extension-riscv-f.h"
@@ -165,6 +166,7 @@ class V8_EXPORT_PRIVATE MemOperand : public Operand {
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVI,
                                     public AssemblerRISCVA,
+                                    public AssemblerRISCVB,
                                     public AssemblerRISCVF,
                                     public AssemblerRISCVD,
                                     public AssemblerRISCVM,

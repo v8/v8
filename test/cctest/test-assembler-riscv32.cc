@@ -362,6 +362,47 @@ UTEST_R2_FORM_WITH_OP(sll, uint32_t, 0x12345678U, 17, <<)
 UTEST_R2_FORM_WITH_OP(srl, uint32_t, 0x82340000U, 17, >>)
 UTEST_R2_FORM_WITH_OP(sra, int32_t, -0x12340000, 17, >>)
 
+// RV64B
+UTEST_R2_FORM_WITH_RES(sh1add, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((LARGE_INT_UNDER_32_BIT) +
+                               (LARGE_UINT_UNDER_32_BIT << 1)))
+UTEST_R2_FORM_WITH_RES(sh2add, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((LARGE_INT_UNDER_32_BIT) +
+                               (LARGE_UINT_UNDER_32_BIT << 2)))
+UTEST_R2_FORM_WITH_RES(sh3add, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((LARGE_INT_UNDER_32_BIT) +
+                               (LARGE_UINT_UNDER_32_BIT << 3)))
+
+UTEST_R2_FORM_WITH_RES(andn, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((LARGE_UINT_UNDER_32_BIT) &
+                               (~LARGE_INT_UNDER_32_BIT)))
+
+UTEST_R2_FORM_WITH_RES(orn, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((LARGE_UINT_UNDER_32_BIT) |
+                               (~LARGE_INT_UNDER_32_BIT)))
+
+UTEST_R2_FORM_WITH_RES(xnor, int32_t, LARGE_UINT_UNDER_32_BIT,
+                       LARGE_INT_UNDER_32_BIT,
+                       int32_t((~LARGE_UINT_UNDER_32_BIT) ^
+                               (~LARGE_INT_UNDER_32_BIT)))
+
+UTEST_R1_FORM_WITH_RES(clz, int32_t, int32_t, 0b000011000100000000000, 15)
+UTEST_R1_FORM_WITH_RES(ctz, int32_t, int32_t, 0b000011000100000000000, 11)
+UTEST_R1_FORM_WITH_RES(cpop, int32_t, int32_t, 0b000011000100000000000, 3)
+
+UTEST_R2_FORM_WITH_RES(max, int32_t, -1012, 3456, 3456)
+UTEST_R2_FORM_WITH_RES(min, int32_t, -1012, 3456, -1012)
+UTEST_R2_FORM_WITH_RES(maxu, uint32_t, -1012, 3456, uint32_t(-1012))
+UTEST_R2_FORM_WITH_RES(minu, uint32_t, -1012, 3456, 3456)
+
+UTEST_R1_FORM_WITH_RES(sextb, int32_t, int32_t, 0xB080, int32_t(0xffffff80))
+UTEST_R1_FORM_WITH_RES(sexth, int32_t, int32_t, 0xB080, int32_t(0xffffb080))
+UTEST_R1_FORM_WITH_RES(zexth, int32_t, int32_t, 0xB080, 0xB080)
 // -- Memory fences --
 // void fence(uint8_t pred, uint8_t succ);
 // void fence_tso();
