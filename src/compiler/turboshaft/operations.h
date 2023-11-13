@@ -68,8 +68,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // DEFINING NEW OPERATIONS
 // =======================
 // For each operation `Foo`, we define:
-// - An entry V(Foo) in either TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR or
-//   TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR, which defines
+// - An entry V(Foo) in one of the TURBOSHAFT*OPERATION list (eg,
+//   TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR,
+//   TURBOSHAFT_SIMPLIFIED_OPERATION_LIST etc), which defines
 //   `Opcode::kFoo` and whether the operation is a block terminator.
 // - A `struct FooOp`, which derives from either `OperationT<FooOp>` or
 //   `FixedArityOperationT<k, FooOp>` if the op always has excactly `k` inputs.
@@ -87,6 +88,19 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // - `OpEffects` as either a static constexpr member `effects` or a
 //   non-static method `Effects()` if the effects depend on the particular
 //   operation and not just the opcode.
+// - outputs_rep/inputs_rep methods, which should return a vector describing the
+//   representation of the outputs and inputs of this operations.
+// After defining the struct here, you'll also need to integrate it in
+// Turboshaft:
+// - Add an AssembleOutputGraphFoo method in OptimizationPhase (don't forget to
+//   MapToNewGraph the OpIndices and the Blocks).
+// - Add one or more Foo(...) helper in AssemblerOpInterface (at least one of
+//   these Foo helper should probably call ReduceIfReachableFoo().
+// - Add an overload for FooOp in CallWithReduceArgsHelper in
+//   reduce-args-helper.h.
+// - If Foo is not in not lowered before reaching the instruction selector, add
+//   a overload of ProcessOperation for FooOp in recreate-schedule.cc, and
+//   handle Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
 
 #ifdef V8_INTL_SUPPORT
 #define TURBOSHAFT_INTL_OPERATION_LIST(V) V(StringToCaseIntl)
