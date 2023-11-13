@@ -46,8 +46,10 @@ if (this.Worker) {
   let worker1Script = `onmessage = function(msg) {
         let {mutex, box, cv, cv_mutex} = msg;
         Atomics.Mutex.lock(mutex, function() {
-          postMessage("lock acquired");
           Atomics.Mutex.lock(cv_mutex, function() {
+            // Post inside cv_mutex critical section to ensure worker2
+            // requests it after worker1.
+            postMessage("lock acquired");
             while(!box.timedOut) {
               Atomics.Condition.wait(cv, cv_mutex);
             }
@@ -57,13 +59,14 @@ if (this.Worker) {
       };
       postMessage("started");`;
   let worker2Script = `onmessage = function(msg) {
-         let mutex = msg.mutex;
-         let box = msg.box;
-         let cv = msg.cv;
+         let {mutex, box, cv, cv_mutex} = msg;
          let result =
             Atomics.Mutex.lockWithTimeout(mutex, ()=>{} , 1);
          box.timedOut = !result.success;
-         Atomics.Condition.notify(cv);
+         // Use cv_mutex to ensure the notify happens after the wait.
+         Atomics.Mutex.lock(cv_mutex, function() {
+          Atomics.Condition.notify(cv);
+         });
          postMessage("done");
         };
         postMessage("started");`;
