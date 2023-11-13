@@ -168,8 +168,7 @@ void LocalHeap::SetUpSharedMarking() {
 
 void LocalHeap::EnsurePersistentHandles() {
   if (!persistent_handles_) {
-    persistent_handles_.reset(
-        heap_->isolate()->NewPersistentHandles().release());
+    persistent_handles_ = heap_->isolate()->NewPersistentHandles();
     persistent_handles_->Attach(this);
   }
 }
