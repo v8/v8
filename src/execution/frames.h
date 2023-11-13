@@ -16,6 +16,7 @@
 #include "src/objects/objects.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1598,6 +1599,16 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   void AdvanceOneFrame();
 
   bool IsValidStackAddress(Address addr) const {
+#if V8_ENABLE_WEBASSEMBLY
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_stack_switching)) {
+      wasm::StackMemory* head = wasm_stacks_;
+      if (head->Contains(addr)) return true;
+      for (wasm::StackMemory* current = head->next(); current != head;
+           current = current->next()) {
+        if (current->Contains(addr)) return true;
+      }
+    }
+#endif
     return low_bound_ <= addr && addr <= high_bound_;
   }
   bool IsValidFrame(StackFrame* frame) const;
@@ -1619,6 +1630,9 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::StackMemory* wasm_stacks_;
+#endif
 };
 
 // We cannot export 'StackFrameIteratorForProfiler' for cctests since the

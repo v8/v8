@@ -2340,9 +2340,15 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       }
       // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
       // signature instead of compiling a new one for every instantiation.
-      wasm_to_js_wrapper_code = compiler::CompileWasmToJSWrapper(
-                                    isolate, sig, kind, expected_arity, suspend)
-                                    .ToHandleChecked();
+      if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
+        wasm_to_js_wrapper_code = handle(
+            isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm), isolate);
+      } else {
+        wasm_to_js_wrapper_code =
+            compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
+                                             suspend)
+                .ToHandleChecked();
+      }
     }
     function_data->internal()->set_code(*wasm_to_js_wrapper_code);
   }

@@ -1903,6 +1903,7 @@
   # Stack switching is only supported on x64/arm64.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-export': [SKIP],
+  'wasm/stack-switching-generic-wrapper': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32)
 
 ##############################################################################

@@ -832,6 +832,9 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   ClearThreadInWasmScope flag_scope(isolate);
+#if V8_TARGET_ARCH_X64
+  DCHECK(isolate->IsOnCentralStack(GetCurrentStackPosition()));
+#endif
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Tagged<WasmInstanceObject> instance = WasmInstanceObject::cast(args[0]);
