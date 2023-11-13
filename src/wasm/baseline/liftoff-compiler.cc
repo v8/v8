@@ -1479,11 +1479,12 @@ class LiftoffCompiler {
     // This is the last use of this label. Re-use the field for the label of the
     // next catch block, and jump there if the tag does not match.
     __ bind(&block->try_info->catch_label);
-    if (!block->try_info->catch_reached) {
-      return;
-    }
     block->try_info->catch_label.Unuse();
     block->try_info->catch_label.UnuseNear();
+    if (!block->try_info->catch_reached) {
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
+      return;
+    }
 
     __ cache_state()->Split(block->try_info->catch_state);
 

@@ -41,6 +41,12 @@ proposal_flags = [
         'name': 'multi-memory',
         'flags': ['--experimental-wasm-multi-memory']
     },
+    {
+        'name': 'exception-handling',
+        # This flag enables the *new* exception handling proposal. The legacy
+        # proposal is enabled by default.
+        'flags': ['--experimental-wasm-exnref', '--turboshaft-wasm']
+    }
 ]
 
 

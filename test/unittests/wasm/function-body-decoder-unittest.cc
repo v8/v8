@@ -3028,7 +3028,13 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
                 {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(1), kCatch,
                  ex, U32V_1(0), kExprEnd, kExprUnreachable, kExprEnd},
                 kAppendEnd,
-                "expected 1 elements on the stack for branch, found 0");
+                "catch kind generates 0 operands, target block expects 1");
+  // Branching to a void block with catch-ref.
+  ExpectFailure(sigs.v_v(),
+                {kExprBlock, kVoidCode, WASM_TRY_TABLE_OP, U32V_1(1), kCatchRef,
+                 ex, U32V_1(0), kExprEnd, kExprUnreachable, kExprEnd},
+                kAppendEnd,
+                "catch kind generates 1 operand, target block expects 0");
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {

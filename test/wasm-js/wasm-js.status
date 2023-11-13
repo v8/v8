@@ -18,6 +18,7 @@
   # Failing spec tests after test update
   'proposals/js-types/function/constructor.tentative': [FAIL],
   'proposals/gc/gc/casts.tentative': [FAIL],
+  'wpt/gc/casts.tentative': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],

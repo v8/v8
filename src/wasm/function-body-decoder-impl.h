@@ -2095,11 +2095,12 @@ class WasmDecoder : public Decoder {
       case kExprTryTable: {
         BlockTypeImmediate block_type_imm(WasmFeatures::All(), decoder, pc + 1,
                                           validate);
+        (ios.BlockType(block_type_imm), ...);
         TryTableImmediate try_table_imm(decoder, pc + 1 + block_type_imm.length,
                                         validate);
         (ios.TryTable(try_table_imm), ...);
         TryTableIterator<ValidationTag> iterator(decoder, try_table_imm);
-        return 1 + iterator.length();
+        return 1 + block_type_imm.length + iterator.length();
       }
       case kExprThrow:
       case kExprCatch: {
@@ -3232,22 +3233,32 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 0;
       }
       catch_case.br_imm.depth += 1;
-      if (!this->Validate(this->pc_, catch_case.br_imm, control_.size()))
+      if (!this->Validate(this->pc_, catch_case.br_imm, control_.size())) {
         return 0;
+      }
 
       uint32_t stack_size = stack_.size();
+      uint32_t push_count = 0;
       if (catch_case.kind == kCatch || catch_case.kind == kCatchRef) {
         const WasmTagSig* sig = catch_case.maybe_tag.tag_imm.tag->sig;
         stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
                                   this->zone_);
         for (ValueType type : sig->parameters()) Push(type);
+        push_count += sig->parameter_count();
       }
       if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
         stack_.EnsureMoreCapacity(1, this->zone_);
         Push(kWasmExnRef);
+        push_count += 1;
       }
       Control* target = control_at(catch_case.br_imm.depth);
-      TypeCheckBranch<true>(target);
+      if (!VALIDATE(push_count == target->br_merge()->arity)) {
+        this->DecodeError(
+            "catch kind generates %d operand%s, target block expects %d",
+            push_count, push_count != 1 ? "s" : "", target->br_merge()->arity);
+        return 0;
+      }
+      if (!VALIDATE(TypeCheckBranch<true>(target))) return 0;
       stack_.shrink_to(stack_size);
       DCHECK_LT(i, try_table_imm.table_count);
       try_block->catch_cases[i] = catch_case;
@@ -3426,6 +3437,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (c->is_try_table()) {
         current_catch_ = c->previous_catch;
         FallThrough();
+        // Temporarily set the reachability for the catch handlers, and restore
+        // it before we actually exit the try block.
+        Reachability reachability_at_end = c->reachability;
+        c->reachability = control_at(1)->innerReachability();
+        current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
         for (CatchCase& catch_case : c->catch_cases) {
           uint32_t stack_size = stack_.size();
           size_t push_count = 0;
@@ -3443,14 +3459,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
           base::Vector<Value> values(
               stack_.begin() + stack_.size() - push_count, push_count);
-          // Already typed checked on block entry.
+          // Already type checked on block entry.
           CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchCase, c, catch_case,
                                                     values);
 
           Control* target = control_at(catch_case.br_imm.depth);
-          target->br_merge()->reached = true;
+          if (current_code_reachable_and_ok_) {
+            target->br_merge()->reached = true;
+          }
           stack_.shrink_to(stack_size);
         }
+        c->reachability = reachability_at_end;
         EndControl();
         PopControl();
         return 1;

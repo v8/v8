@@ -41,9 +41,13 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   builder.addFunction("catch_ref_empty_try", kSig_v_v)
       .addBody([
-        kExprTryTable, kWasmVoid, 1,
-        kCatchRef, except, 0,
+        kExprBlock, kExnRefCode,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchRef, except, 0,
+          kExprEnd,
+          kExprReturn,
         kExprEnd,
+        kExprDrop,
       ]).exportFunc();
   builder.addFunction("catch_all_empty_try", kSig_v_v)
       .addBody([
@@ -53,9 +57,13 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   builder.addFunction("catch_all_ref_empty_try", kSig_v_v)
       .addBody([
-        kExprTryTable, kWasmVoid, 1,
-        kCatchAllRef, 0,
+        kExprBlock, kExnRefCode,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchAllRef, 0,
+          kExprEnd,
+          kExprReturn,
         kExprEnd,
+        kExprDrop,
       ]).exportFunc();
   let instance = builder.instantiate();
 

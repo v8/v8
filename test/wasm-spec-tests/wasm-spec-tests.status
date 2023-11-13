@@ -71,6 +71,8 @@
   'proposals/memory64/memory64': [FAIL],
   'proposals/memory64/memory': [FAIL],
   'proposals/tail-call/binary': [FAIL],
+  'proposals/exception-handling/binary': [FAIL],
+  'proposals/exception-handling/imports': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
