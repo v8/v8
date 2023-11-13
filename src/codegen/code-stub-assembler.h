@@ -4602,10 +4602,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<Uint8T> property_details,
                               Label* needs_resize);
 
-  TNode<Object> CallOnCentralStack(TNode<Context> context, TNode<Object> target,
-                                   TNode<Int32T> num_args,
-                                   TNode<FixedArray> args);
-
  private:
   friend class CodeStubArguments;
 
@@ -4757,10 +4753,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void EmitElementStoreTypedArrayUpdateValue(
       TNode<Object> value, ElementsKind elements_kind,
       TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
-
-  TNode<RawPtrT> SwitchToTheCentralStackForJS(TNode<Object> callable_node);
-  void SwitchFromTheCentralStackForJS(TNode<RawPtrT> old_sp,
-                                      TNode<Object> callable);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {

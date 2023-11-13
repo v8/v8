@@ -129,30 +129,28 @@ class Reducer;
   V(Uint64Div)                               \
   V(Uint64Mod)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)                         \
-  V(AllocateInOldGenerationStub, InstructionStream)                \
-  V(AllocateInYoungGenerationStub, InstructionStream)              \
-  IF_WASM(V, WasmAllocateInYoungGenerationStub, InstructionStream) \
-  IF_WASM(V, WasmAllocateInOldGenerationStub, InstructionStream)   \
-  V(BigIntMap, Map)                                                \
-  V(BooleanMap, Map)                                               \
-  V(EmptyString, String)                                           \
-  V(ExternalObjectMap, Map)                                        \
-  V(False, Boolean)                                                \
-  V(FixedArrayMap, Map)                                            \
-  V(FixedDoubleArrayMap, Map)                                      \
-  V(WeakFixedArrayMap, Map)                                        \
-  V(HeapNumberMap, Map)                                            \
-  V(MinusOne, Number)                                              \
-  V(NaN, Number)                                                   \
-  V(NoContext, Object)                                             \
-  V(Null, Null)                                                    \
-  V(One, Number)                                                   \
-  V(TheHole, Hole)                                                 \
-  V(ToNumberBuiltin, InstructionStream)                            \
-  V(PlainPrimitiveToNumberBuiltin, InstructionStream)              \
-  V(True, Boolean)                                                 \
-  V(Undefined, Undefined)                                          \
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)            \
+  V(AllocateInOldGenerationStub, InstructionStream)   \
+  V(AllocateInYoungGenerationStub, InstructionStream) \
+  V(BigIntMap, Map)                                   \
+  V(BooleanMap, Map)                                  \
+  V(EmptyString, String)                              \
+  V(ExternalObjectMap, Map)                           \
+  V(False, Boolean)                                   \
+  V(FixedArrayMap, Map)                               \
+  V(FixedDoubleArrayMap, Map)                         \
+  V(WeakFixedArrayMap, Map)                           \
+  V(HeapNumberMap, Map)                               \
+  V(MinusOne, Number)                                 \
+  V(NaN, Number)                                      \
+  V(NoContext, Object)                                \
+  V(Null, Null)                                       \
+  V(One, Number)                                      \
+  V(TheHole, Hole)                                    \
+  V(ToNumberBuiltin, InstructionStream)               \
+  V(PlainPrimitiveToNumberBuiltin, InstructionStream) \
+  V(True, Boolean)                                    \
+  V(Undefined, Undefined)                             \
   V(Zero, Number)
 
 class GraphAssembler;

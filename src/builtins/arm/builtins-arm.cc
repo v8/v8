@@ -2952,14 +2952,8 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   // arbitrarily.
   __ Push(r6, wasm::kGpParamRegisters[3], wasm::kGpParamRegisters[2],
           wasm::kGpParamRegisters[1]);
-  // Reserve fixed slots for the CSA wrapper.
-  // Two slots for stack-switching (central stack pointer and secondary stack
-  // limit):
-  Register scratch = r1;
-  __ mov(scratch, Operand::Zero());
-  __ Push(scratch);
-  __ Push(scratch);
-  // One slot for the signature:
+  // Push an arbitrary register to reserve stack space for the signature which
+  // will be spilled on the stack in Torque.
   __ Push(r0);
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }

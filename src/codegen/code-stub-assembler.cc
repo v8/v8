@@ -13,7 +13,6 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
-#include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
@@ -17734,87 +17733,6 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
             ArrayList::OffsetOfElementAt(0), length);
   return elements;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStackForJS(
-    TNode<Object> callable) {
-  TNode<WordT> stack_limit_slot = IntPtrAdd(
-      LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
-
-  TNode<ExternalReference> do_switch = ExternalConstant(
-      ExternalReference::wasm_switch_to_the_central_stack_for_js());
-  TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(
-      CallCFunction(do_switch, MachineType::Pointer(),
-                    std::make_pair(MachineType::TaggedPointer(), callable),
-                    std::make_pair(MachineType::Pointer(), stack_limit_slot)));
-
-  TNode<RawPtrT> old_sp = LoadStackPointer();
-  SetStackPointer(central_stack_sp);
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
-      central_stack_sp);
-  return old_sp;
-}
-
-void CodeStubAssembler::SwitchFromTheCentralStackForJS(TNode<RawPtrT> old_sp,
-                                                       TNode<Object> callable) {
-  TNode<WordT> stack_limit = Load<RawPtrT>(
-      LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
-
-  TNode<ExternalReference> do_switch = ExternalConstant(
-      ExternalReference::wasm_switch_from_the_central_stack_for_js());
-  CallCFunction(do_switch, MachineType::Pointer(),
-                std::make_pair(MachineType::TaggedPointer(), callable),
-                std::make_pair(MachineType::Pointer(), stack_limit));
-
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
-      IntPtrConstant(0));
-  SetStackPointer(old_sp);
-}
-
-TNode<Object> CodeStubAssembler::CallOnCentralStack(TNode<Context> context,
-                                                    TNode<Object> target,
-                                                    TNode<Int32T> num_args,
-                                                    TNode<FixedArray> args) {
-  // If the current stack is a secondary stack, switch, perform the call and
-  // switch back. Otherwise, just do the call.
-  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
-  // that the graph structure does not depend on the value of the predicate
-  // (BoolConstant uses cached nodes).
-#if V8_TARGET_ARCH_X64
-  auto is_supported_arch = UniqueInt32Constant(1);
-#else
-  auto is_supported_arch = UniqueInt32Constant(0);
-#endif
-  Label no_switch(this);
-  GotoIfNot(is_supported_arch, &no_switch);
-  TVARIABLE(Object, result);
-  Label end(this);  // -> return value of the call (kTaggedPointer)
-  TNode<Uint8T> is_on_central_stack_flag = LoadUint8FromRootRegister(
-      IntPtrConstant(IsolateData::is_on_central_stack_flag_offset()));
-  GotoIf(is_on_central_stack_flag, &no_switch);
-
-  TNode<RawPtrT> old_sp = SwitchToTheCentralStackForJS(target);
-
-  result = CallBuiltin(Builtin::kCallVarargs, context, target, Int32Constant(0),
-                       num_args, args);
-  SwitchFromTheCentralStackForJS(old_sp, target);
-  Goto(&end);
-
-  Bind(&no_switch);
-  result = CallBuiltin(Builtin::kCallVarargs, context, target, Int32Constant(0),
-                       num_args, args);
-  Goto(&end);
-
-  Bind(&end);
-  return result.value();
-}
-#endif
 
 }  // namespace internal
 }  // namespace v8

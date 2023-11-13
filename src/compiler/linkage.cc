@@ -200,9 +200,8 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
 #if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
-      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmImportWrapper:
-      return WasmImportWrapperFrameConstants::kFixedSlotCount;
+      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
 #endif  // V8_ENABLE_WEBASSEMBLY

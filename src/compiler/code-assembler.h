@@ -748,17 +748,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
-  // Access to the frame pointer.
+  // Access to the frame pointer
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
   TNode<RawPtrT> StackSlotPtr(int size, int alignment);
 
-  // Access to the stack pointer.
-  TNode<RawPtrT> LoadStackPointer();
-  void SetStackPointer(TNode<RawPtrT> ptr);
-
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
-  TNode<Uint8T> LoadUint8FromRootRegister(TNode<IntPtrT> offset);
 
   // Load raw memory location.
   Node* Load(MachineType type, Node* base);

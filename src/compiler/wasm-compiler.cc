@@ -35,7 +35,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/compiler/wasm-inlining-into-js.h"
-#include "src/compiler/write-barrier-kind.h"
 #include "src/execution/simulator-base.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
@@ -7759,91 +7758,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return resume.PhiAt(0);
   }
 
-#if V8_TARGET_ARCH_X64
-  Node* BuildSwitchToTheCentralStack(Node* callable_node) {
-    Node* stack_limit_slot = gasm_->IntPtrAdd(
-        gasm_->LoadFramePointer(),
-        gasm_->IntPtrConstant(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
-
-    Node* do_switch = gasm_->ExternalConstant(
-        ExternalReference::wasm_switch_to_the_central_stack_for_js());
-    MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer(),
-                          MachineType::Pointer()};
-    MachineSignature sig(1, 2, reps);
-
-    Node* central_stack_sp =
-        BuildCCall(&sig, do_switch, callable_node, stack_limit_slot);
-    Node* old_sp = gasm_->LoadStackPointer();
-    gasm_->SetStackPointer(central_stack_sp);
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 gasm_->LoadFramePointer(),
-                 WasmImportWrapperFrameConstants::kCentralStackSPOffset,
-                 central_stack_sp);
-    return old_sp;
-  }
-
-  void BuildSwitchBackFromCentralStack(Node* old_sp, Node* callable_node) {
-    Node* stack_limit = gasm_->Load(
-        MachineType::Pointer(), gasm_->LoadFramePointer(),
-        WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
-
-    Node* do_switch = gasm_->ExternalConstant(
-        ExternalReference::wasm_switch_from_the_central_stack_for_js());
-    MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
-    MachineSignature sig(0, 2, reps);
-    BuildCCall(&sig, do_switch, callable_node, stack_limit);
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 gasm_->LoadFramePointer(),
-                 WasmImportWrapperFrameConstants::kCentralStackSPOffset,
-                 gasm_->IntPtrConstant(0));
-    gasm_->SetStackPointer(old_sp);
-  }
-#endif
-
-  Node* BuildCallOnCentralStack(base::SmallVector<Node*, 16>& args, int& pos,
-                                CallDescriptor* call_descriptor,
-                                Node* callable_node) {
-#if V8_TARGET_ARCH_X64
-    // If the current stack is a secondary stack, switch, perform the call and
-    // switch back. Otherwise, just do the call.
-    // Return the Phi of the calls in the two branches.
-    auto no_switch = gasm_->MakeLabel();
-    auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-    Node* isolate_root = BuildLoadIsolateRoot();
-    Node* is_on_central_stack_flag =
-        gasm_->Load(MachineType::Uint8(), isolate_root,
-                    IsolateData::is_on_central_stack_flag_offset());
-    gasm_->GotoIf(is_on_central_stack_flag, &no_switch);
-
-    Node* old_sp = BuildSwitchToTheCentralStack(callable_node);
-    args[pos++] = effect();
-    args[pos++] = control();
-    DCHECK_EQ(pos, args.size());
-
-    Node* call = gasm_->Call(call_descriptor, pos, args.begin());
-    BuildSwitchBackFromCentralStack(old_sp, callable_node);
-    gasm_->Goto(&end, call);
-
-    gasm_->Bind(&no_switch);
-    args[pos - 2] = effect();
-    args[pos - 1] = control();
-    call = gasm_->Call(call_descriptor, pos, args.begin());
-    gasm_->Goto(&end, call);
-
-    gasm_->Bind(&end);
-    return end.PhiAt(0);
-#else
-    // TODO(thibaudm): Port to other archs.
-    args[pos++] = effect();
-    args[pos++] = control();
-    DCHECK_EQ(pos, args.size());
-    return gasm_->Call(call_descriptor, pos, args.begin());
-#endif
-  }
-
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.
   bool BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend,
@@ -7931,9 +7845,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = Int32Constant(
             JSParameterCount(wasm_count - suspend));  // argument count
         args[pos++] = function_context;
+        args[pos++] = effect();
+        args[pos++] = control();
 
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
+        DCHECK_EQ(pos, args.size());
+        call = gasm_->Call(call_descriptor, pos, args.begin());
         break;
       }
       // =======================================================================
@@ -7962,11 +7878,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         Node* function_context =
             gasm_->LoadContextFromJSFunction(callable_node);
         args[pos++] = function_context;
+        args[pos++] = effect();
+        args[pos++] = control();
+        DCHECK_EQ(pos, args.size());
 
         auto call_descriptor = Linkage::GetJSCallDescriptor(
             graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
+        call = gasm_->Call(call_descriptor, pos, args.begin());
         break;
       }
       // =======================================================================
@@ -7997,8 +7915,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // TypeError, if the target is a native function, or if the target is a
         // callable JSObject, which can only be constructed by the runtime.
         args[pos++] = native_context;
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
+        args[pos++] = effect();
+        args[pos++] = control();
+
+        DCHECK_EQ(pos, args.size());
+        call = gasm_->Call(call_descriptor, pos, args.begin());
         break;
       }
       default:
