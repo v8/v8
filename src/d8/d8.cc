@@ -6053,6 +6053,11 @@ int Shell::Main(int argc, char* argv[]) {
                 result = RunMain(isolate2, false);
                 ResetOnProfileEndListener(isolate2);
               }
+              // D8WasmAsyncResolvePromiseTask may be still in the runner at
+              // this point. We need to terminate the task runners before the
+              // Isolate to avoid retaining stray tasks with v8::Global pointing
+              // into a reclaimed Isolate.
+              platform::NotifyIsolateShutdown(g_default_platform, isolate2);
               isolate2->Dispose();
             });
 
