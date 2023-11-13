@@ -1058,6 +1058,17 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
+    // UntagSmi(x) + UntagSmi(x)  =>  (x, false)
+    // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
+    if (kind == Kind::kSignedAdd && left == right) {
+      uint16_t amount;
+      if (OpIndex x; matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
+                         left, &x, WordRepresentation::Word32(), &amount) &&
+                     amount == 1) {
+        return __ Tuple(x, __ Word32Constant(0));
+      }
+    }
+
     return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
   }
 
