@@ -226,10 +226,15 @@ AllocationResult MainAllocator::AllocateRawSlowAligned(
 }
 
 void MainAllocator::MakeLinearAllocationAreaIterable() {
+  if (!IsLabValid()) return;
+
+#if DEBUG
+  Verify();
+#endif  // DEBUG
+
   Address current_top = top();
-  Address current_limit = original_limit_relaxed();
-  DCHECK_GE(current_limit, limit());
-  if (current_top != kNullAddress && current_top != current_limit) {
+  Address current_limit = limit();
+  if (current_top != current_limit) {
     heap_->CreateFillerObjectAt(current_top,
                                 static_cast<int>(current_limit - current_top));
   }
@@ -255,7 +260,7 @@ void MainAllocator::UnmarkLinearAllocationArea() {
 }
 
 void MainAllocator::MoveOriginalTopForward() {
-  DCHECK(!in_gc());
+  DCHECK(SupportsPendingAllocation());
   base::SharedMutexGuard<base::kExclusive> guard(
       linear_area_original_data().linear_area_lock());
   DCHECK_GE(top(), linear_area_original_data().get_original_top_acquire());
@@ -273,7 +278,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
 
   allocation_info().Reset(start, end);
 
-  if (!in_gc()) {
+  if (SupportsPendingAllocation()) {
     base::SharedMutexGuard<base::kExclusive> guard(
         linear_area_original_data().linear_area_lock());
     linear_area_original_data().set_original_limit_relaxed(extended_end);
@@ -282,7 +287,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
 }
 
 bool MainAllocator::IsPendingAllocation(Address object_address) {
-  DCHECK(!in_gc());
+  DCHECK(SupportsPendingAllocation());
   base::SharedMutexGuard<base::kShared> guard(
       linear_area_original_data().linear_area_lock());
   Address top = original_top_acquire();
@@ -377,15 +382,15 @@ void MainAllocator::Verify() const {
     DCHECK_EQ(page->owner_identity(), identity());
   }
 
-  if (in_gc()) {
-    DCHECK_LE(allocation_info().top(), allocation_info().limit());
-  } else {
+  if (SupportsPendingAllocation()) {
     // Ensure that original_top <= top <= limit <= original_limit.
     DCHECK_LE(linear_area_original_data().get_original_top_acquire(),
               allocation_info().top());
     DCHECK_LE(allocation_info().top(), allocation_info().limit());
     DCHECK_LE(allocation_info().limit(),
               linear_area_original_data().get_original_limit_relaxed());
+  } else {
+    DCHECK_LE(allocation_info().top(), allocation_info().limit());
   }
 }
 #endif  // DEBUG

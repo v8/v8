@@ -309,6 +309,10 @@ class MainAllocator {
     return allocation_counter_.has_value();
   }
 
+  bool SupportsPendingAllocation() const {
+    return linear_area_original_data_.has_value();
+  }
+
   bool in_gc() const { return local_heap_ == nullptr; }
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
