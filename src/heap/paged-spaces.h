@@ -322,11 +322,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void ReduceActiveSystemPages(Page* page,
                                ActiveSystemPages active_system_pages);
 
-  // Expands the space by a single page from a background thread and allocates
-  // a memory area of the given size in it. If successful the method returns
-  // the address and size of the area.
-  base::Optional<std::pair<Address, size_t>> TryExpandBackground(
-      LocalHeap* local_heap, size_t size_in_bytes, AllocationOrigin origin);
+  // Expands the space by a single page and returns true on success.
+  bool TryExpand(LocalHeap* local_heap, AllocationOrigin origin);
 
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
@@ -343,9 +340,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Spaces can use this method to get notified about pages added to it.
   virtual void NotifyNewPage(Page* page) {}
-
-  V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
-                                       AllocationOrigin origin);
 
   size_t committed_physical_memory() const {
     return committed_physical_memory_.load(std::memory_order_relaxed);

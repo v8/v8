@@ -85,6 +85,8 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool TryAllocationFromFreeListMain(size_t size_in_bytes,
                                      AllocationOrigin origin);
 
+  bool TryExpandAndAllocate(size_t size_in_bytes, AllocationOrigin origin);
+
   V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
 
   void SetLinearAllocationArea(Address top, Address limit, Address end);

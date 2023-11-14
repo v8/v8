@@ -658,9 +658,7 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
       heap()->ShouldExpandOldGenerationOnSlowAllocation(
           allocator_->local_heap(), origin) &&
       heap()->CanExpandOldGeneration(space_->AreaSize())) {
-    if (space_->TryExpand(size_in_bytes, origin) &&
-        TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                      origin)) {
+    if (TryExpandAndAllocate(static_cast<size_t>(size_in_bytes), origin)) {
       return true;
     }
   }
@@ -674,8 +672,19 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
       !heap()->force_oom()) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
     // GC and give it a chance to increase the heap limit.
-    if (space_->TryExpand(size_in_bytes, origin) &&
-        TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+    if (TryExpandAndAllocate(size_in_bytes, origin)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
+                                                     AllocationOrigin origin) {
+  // Run in a loop because concurrent threads might allocate from the new free
+  // list entries before this thread gets a chance.
+  while (space_->TryExpand(allocator_->local_heap(), origin)) {
+    if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                       origin)) {
       return true;
     }
