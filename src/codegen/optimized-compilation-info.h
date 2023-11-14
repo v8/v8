@@ -21,10 +21,6 @@
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-builtin-list.h"
-#endif
-
 namespace v8 {
 
 namespace tracing {
@@ -159,15 +155,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
-  bool IsWasmBuiltin() const {
-    return code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
-           code_kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-           (code_kind() == CodeKind::BUILTIN &&
-            (builtin() == Builtin::kJSToWasmWrapper ||
-             builtin() == Builtin::kJSToWasmHandleReturns ||
-             builtin() == Builtin::kWasmToJsWrapperCSA ||
-             wasm::BuiltinLookup::IsWasmBuiltinId(builtin())));
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void set_persistent_handles(

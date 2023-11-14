@@ -2283,17 +2283,3 @@ let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
 function getOpcodeName(opcode) {
   return globalThis.kWasmOpcodeNames?.[opcode] ?? 'unknown';
 }
-
-// Make a wasm export "promising" using JS Promise Integration.
-function ToPromising(wasm_export) {
-  let sig = wasm_export.type();
-  assertTrue(sig.parameters.length > 0);
-  assertEquals('externref', sig.parameters[0]);
-  let wrapper_sig = {
-    parameters: sig.parameters.slice(1),
-    results: ['externref']
-  };
-  return new WebAssembly.Function(
-      wrapper_sig, wasm_export, {promising: 'first'});
-
-}
