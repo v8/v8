@@ -64,16 +64,14 @@ namespace v8::internal::compiler::turboshaft {
 //
 // In order to avoid visiting loop exits (= blocks whose dominator is in a loop
 // but which aren't themselves in the loop) multiple times, the stack of Blocks
-// to visit contains pairs of "block, generation", where "generation" is a
-// counter that is initially 1 and is incremented when revisiting loops.
-// Example: The first time a loop header is visited, say with a generation "n",
-// we mark in {visited_} that it has been visited with generation "n", and add
-// its sucessors to the {stack_} with generation "n" as well. When we decide to
-// revisit the loop, we'll add the loop header with generation "n+1" to the
-// stack, visit it on the next call to "Next", and again add its children with
-// generation "n+1" on the stack. When we encounter on the stack a node whose
-// generation is "n" but {visited_} says that this node has already been visited
-// with generation "m" with "m>=n", we skip this stack entry.
+// to visit contains pairs of "block, generation". Additionally, we have a
+// global {current_generation_} counter, which is incremented when we revisit a
+// loop. When visiting a block, we record in {visited_} that it has been visited
+// at {current_generation_}. When we pop a block from the stack and its
+// "generation" field is less than what is recorded in {visited_}, then we skip
+// it. On the other hand, if its "generation" field is greater than the one
+// recorded in {visited_}, it means that we've revisited a loop since the last
+// time we visited this block, so we should revisit it as well.
 
 class AnalyzerIterator {
  public:
@@ -113,6 +111,8 @@ class AnalyzerIterator {
 
   Graph& graph_;
   const LoopFinder& loop_finder_;
+
+  uint64_t current_generation_ = kGenerationForFirstVisit;
 
   // The last block returned by Next.
   StackNode curr_ = {nullptr, 0};

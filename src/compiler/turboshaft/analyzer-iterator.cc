@@ -32,7 +32,7 @@ Block* AnalyzerIterator::Next() {
   for (Block* child = curr_.block->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
     if (loop_finder_.GetLoopHeader(child) != curr_header) {
-      stack_.push_back({child, curr_.generation});
+      stack_.push_back({child, current_generation_});
     }
   }
 
@@ -41,11 +41,11 @@ Block* AnalyzerIterator::Next() {
   for (Block* child = curr_.block->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
     if (loop_finder_.GetLoopHeader(child) == curr_header) {
-      stack_.push_back({child, curr_.generation});
+      stack_.push_back({child, current_generation_});
     }
   }
 
-  visited_[curr_.block->index()] = curr_.generation;
+  visited_[curr_.block->index()] = current_generation_;
 
   // Note that PopOutdated must be called after updating {visited_}, because
   // this way, if the stack contained initially [{Bx, 1}, {Bx, 2}] (where `Bx`
@@ -62,7 +62,7 @@ void AnalyzerIterator::MarkLoopForRevisit() {
   DCHECK_NE(curr_.generation, kNotVisitedGeneration);
   DCHECK(curr_.block->HasBackedge(graph_));
   Block* header = curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
-  stack_.push_back({header, curr_.generation + 1});
+  stack_.push_back({header, ++current_generation_});
 }
 
 void AnalyzerIterator::MarkLoopForRevisitSkipHeader() {
@@ -72,7 +72,7 @@ void AnalyzerIterator::MarkLoopForRevisitSkipHeader() {
   Block* header = curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
   for (Block* child = header->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
-    stack_.push_back({child, curr_.generation + 1});
+    stack_.push_back({child, ++current_generation_});
   }
 }
 
