@@ -2025,7 +2025,11 @@ class MaglevGraphBuilder {
             bytecode_analysis().GetLoopInfoFor(iterator.current_offset());
         // Generators use irreducible control flow, which makes loop peeling too
         // complicated.
-        if (loop_info.innermost() && !loop_info.resumable()) {
+        if (loop_info.innermost() && !loop_info.resumable() &&
+            (loop_info.loop_end() - loop_info.loop_start()) <
+                v8_flags.maglev_loop_peeling_max_size &&
+            (!v8_flags.maglev_loop_peeling_only_trivial ||
+             loop_info.trivial())) {
           DCHECK(!is_loop_peeling_iteration);
           is_loop_peeling_iteration = true;
           loop_headers_to_peel_.Add(iterator.current_offset());
@@ -2136,6 +2140,7 @@ class MaglevGraphBuilder {
   uint32_t* predecessors_;
 
   bool in_peeled_iteration_ = false;
+  bool in_peeled_loop_ = false;
   bool allow_loop_peeling_;
 
   // When processing the peeled iteration of a loop, we need to reset the

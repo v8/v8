@@ -595,8 +595,11 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                          compilation_unit->osr_offset(), true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
-      allow_loop_peeling_(is_inline() ? parent_->allow_loop_peeling_
-                                      : v8_flags.maglev_loop_peeling),
+      allow_loop_peeling_(
+          // For osr we favor compilation speed over everything
+          !compilation_unit->is_osr() &&
+          (is_inline() ? parent_->allow_loop_peeling_
+                       : v8_flags.maglev_loop_peeling)),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
@@ -4272,8 +4275,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   // have preallocated the space if we see known indices. Turn off this
   // optimization if loop peeling is on.
   if (keyed_mode.access_mode() == compiler::AccessMode::kStoreInLiteral &&
-      index_object->Is<SmiConstant>() && is_jsarray &&
-      !v8_flags.maglev_loop_peeling) {
+      index_object->Is<SmiConstant>() && is_jsarray && !in_peeled_loop_) {
     index = GetInt32ElementIndex(index_object);
   } else {
     // Check boundaries.
@@ -8900,6 +8902,7 @@ void MaglevGraphBuilder::PeelLoop() {
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));
   in_peeled_iteration_ = true;
+  in_peeled_loop_ = true;
   allow_loop_peeling_ = false;
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
@@ -8983,6 +8986,9 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     // We have reached the end of the peeled iteration.
     return;
   }
+  // As we only peel innermost loops, once we reach jump loop a second time
+  // we know that this is the end of the loop that we previously peeled.
+  in_peeled_loop_ = false;
 
   if (ShouldEmitOsrInterruptBudgetChecks()) {
     AddNewNode<TryOnStackReplacement>(
