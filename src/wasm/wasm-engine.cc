@@ -1283,7 +1283,10 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   for (auto& [script_id, code_to_log] : code_to_log) {
     for (WasmCode* code : code_to_log.code) {
       if (should_log) {
-        code->LogCode(isolate, code_to_log.source_url.get(), script_id);
+        const char* source_url = code_to_log.source_url.get();
+        // The source URL can be empty for eval()'ed scripts.
+        if (!source_url) source_url = "";
+        code->LogCode(isolate, source_url, script_id);
       }
     }
     WasmCode::DecrementRefCount(base::VectorOf(code_to_log.code));

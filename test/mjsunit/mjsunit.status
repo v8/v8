@@ -1246,8 +1246,6 @@
   'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
-  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
-  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 
   # Tests using a shared heap are inherently non-deterministic.
   'shared-memory/*': [SKIP],
@@ -1278,9 +1276,13 @@
   # native module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
 
-  # The test triggers profiling, which can trigger non-deterministic
+  # These tests trigger profiling, which can trigger non-deterministic
   # allocations.
+  'asm/log-lazy-code': [SKIP],
   'regress/regress-1394663': [SKIP],
+  'regress/wasm/regress-crbug-1502180': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
