@@ -1140,7 +1140,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // and instead let the LiveRangeConnector perform the spills within the
   // deferred blocks. If so, we insert here spills for non-spilled ranges
   // with slot use positions.
-  void TreatAsSpilledInDeferredBlock(Zone* zone, int total_block_count) {
+  void TreatAsSpilledInDeferredBlock(Zone* zone) {
     spill_start_index_ = -1;
     spilled_in_deferred_blocks_ = true;
     spill_move_insertion_locations_ = nullptr;
@@ -1149,7 +1149,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   // Updates internal data structures to reflect that this range is not
   // spilled at definition but instead spilled in some blocks only.
-  void TransitionRangeToDeferredSpill(Zone* zone, int total_block_count) {
+  void TransitionRangeToDeferredSpill(Zone* zone) {
     spill_start_index_ = -1;
     spill_move_insertion_locations_ = nullptr;
     list_of_blocks_requiring_spill_operands_ = zone->New<SparseBitVector>(zone);

@@ -4557,7 +4557,6 @@ OperandAssigner::OperandAssigner(RegisterAllocationData* data) : data_(data) {}
 void OperandAssigner::DecideSpillingMode() {
   for (auto range : data()->live_ranges()) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
-    int max_blocks = data()->code()->InstructionBlockCount();
     DCHECK_NOT_NULL(range);
     if (range->IsSpilledOnlyInDeferredBlocks(data())) {
       // If the range is spilled only in deferred blocks and starts in
@@ -4574,8 +4573,7 @@ void OperandAssigner::DecideSpillingMode() {
       } else {
         TRACE("Live range %d is spilled deferred code only but alive outside\n",
               range->vreg());
-        range->TransitionRangeToDeferredSpill(data()->allocation_zone(),
-                                              max_blocks);
+        range->TransitionRangeToDeferredSpill(data()->allocation_zone());
       }
     }
   }
