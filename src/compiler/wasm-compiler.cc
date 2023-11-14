@@ -359,8 +359,10 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
   // We immediately lower null in wrappers, as they do not go through a lowering
   // phase.
+  // TODO(thibaudm): Can we use wasm null for exnref?
   return parameter_mode_ == kInstanceMode ? gasm_->Null(type)
-         : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef)
+         : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef ||
+            type == wasm::kWasmExnRef || type == wasm::kWasmNullExnRef)
              ? LOAD_ROOT(NullValue, null_value)
              : LOAD_ROOT(WasmNull, wasm_null);
 }

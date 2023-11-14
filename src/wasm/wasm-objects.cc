@@ -2500,7 +2500,9 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       default:
         bool is_extern_subtype =
             expected_canonical.heap_representation() == HeapType::kExtern ||
-            expected_canonical.heap_representation() == HeapType::kNoExtern;
+            expected_canonical.heap_representation() == HeapType::kNoExtern ||
+            expected_canonical.heap_representation() == HeapType::kExn ||
+            expected_canonical.heap_representation() == HeapType::kNoExn;
         return is_extern_subtype ? value : isolate->factory()->wasm_null();
     }
   }
@@ -2597,6 +2599,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     case HeapType::kNoFunc:
     case HeapType::kNoExtern:
+    case HeapType::kNoExn:
     case HeapType::kNone: {
       *error_message = "only null allowed for null types";
       return {};

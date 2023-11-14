@@ -908,7 +908,8 @@ class LiftoffCompiler {
           ValueType type = decoder->local_types_[local_index];
           if (type.is_reference()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
-                     IsSubtypeOf(type, kWasmExternRef, decoder->module_)
+                     IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
+                             IsSubtypeOf(type, kWasmExnRef, decoder->module_)
                          ? LiftoffRegister(null_ref_reg)
                          : LiftoffRegister(wasm_null_ref_reg),
                      type.kind());
@@ -6356,6 +6357,7 @@ class LiftoffCompiler {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         return EmitIsNull(kExprRefIsNull, obj.type);
       case HeapType::kAny:
@@ -8084,9 +8086,11 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, ValueType type) {
+    // TODO(thibaudm): Can we use wasm null for exnref?
     __ LoadFullPointer(
         null, kRootRegister,
-        type == kWasmExternRef || type == kWasmNullExternRef
+        type == kWasmExternRef || type == kWasmNullExternRef ||
+                type == kWasmExnRef || type == kWasmNullExnRef
             ? IsolateData::root_slot_offset(RootIndex::kNullValue)
             : IsolateData::root_slot_offset(RootIndex::kWasmNull));
   }
@@ -8100,7 +8104,7 @@ class LiftoffCompiler {
     Tagged_t static_null =
         wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
     if (type != kWasmExternRef && type != kWasmNullExternRef &&
-        static_null != 0) {
+        type != kWasmExnRef && type != kWasmNullExnRef && static_null != 0) {
       // static_null is only set for builds with pointer compression.
       DCHECK_LE(static_null, std::numeric_limits<uint32_t>::max());
       __ LoadConstant(LiftoffRegister(null),

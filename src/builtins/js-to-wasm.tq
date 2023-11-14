@@ -82,6 +82,8 @@ extern enum HeapType extends int32
   kAny,
   kNone,
   kNoFunc,
+  kExn,
+  kNoExn,
   ...
 }
 
@@ -713,7 +715,8 @@ macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
         heapType == HeapType::kStruct || heapType == HeapType::kArray ||
         heapType == HeapType::kAny || heapType == HeapType::kExtern ||
         heapType == HeapType::kString || heapType == HeapType::kNone ||
-        heapType == HeapType::kNoFunc || heapType == HeapType::kNoExtern) {
+        heapType == HeapType::kNoFunc || heapType == HeapType::kNoExtern ||
+        heapType == HeapType::kExn || heapType == HeapType::kNoExn) {
       return UnsafeCast<JSAny>(value);
     }
     // TODO(ahaas): This is overly pessimistic: all module-defined struct and
@@ -723,7 +726,8 @@ macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
     return runtime::WasmGenericWasmToJSObject(context, value);
   } else {
     dcheck(paramKind == ValueKind::kRefNull);
-    if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern) {
+    if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern ||
+        heapType == HeapType::kExn || heapType == HeapType::kNoExn) {
       return UnsafeCast<JSAny>(value);
     }
     if (value == kWasmNull) {
