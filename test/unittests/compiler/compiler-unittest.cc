@@ -252,7 +252,7 @@ TEST_F(CompilerTest, Regression236) {
 
 TEST_F(CompilerTest, GetScriptLineNumber) {
   v8::HandleScope scope(isolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate(), NewString("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(NewString("test"));
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
@@ -605,7 +605,7 @@ TEST_F(CompilerTest, CompileFunctionQuirks) {
 
 TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
   v8::HandleScope scope(isolate());
-  v8::ScriptOrigin origin(isolate(), NewString("test"), 22, 41);
+  v8::ScriptOrigin origin(NewString("test"), 22, 41);
   v8::ScriptCompiler::Source script_source(NewString("throw new Error()"),
                                            origin);
   v8::Local<v8::Function> fun =
@@ -649,7 +649,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
     // Regression test for v8:6190
     {
-      v8::ScriptOrigin origin(isolate(), NewString("test"), 22, 41);
+      v8::ScriptOrigin origin(NewString("test"), 22, 41);
       v8::ScriptCompiler::Source script_source(NewString("return event"),
                                                origin);
 
@@ -675,7 +675,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
     // With no parameters:
     {
-      v8::ScriptOrigin origin(isolate(), NewString("test"), 17, 31);
+      v8::ScriptOrigin origin(NewString("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(NewString("return 0"), origin);
 
       v8::TryCatch try_catch(isolate());
@@ -698,7 +698,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
     // With a name:
     {
-      v8::ScriptOrigin origin(isolate(), NewString("test"), 17, 31);
+      v8::ScriptOrigin origin(NewString("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(NewString("return 0"), origin);
 
       v8::TryCatch try_catch(isolate());
@@ -915,7 +915,7 @@ TEST_F(CompilerTest, ProfilerEnabledDuringBackgroundCompile) {
   v8::Local<v8::Script> script =
       v8::ScriptCompiler::Compile(isolate()->GetCurrentContext(),
                                   &streamed_source, NewString(source),
-                                  v8::ScriptOrigin(isolate(), NewString("foo")))
+                                  v8::ScriptOrigin(NewString("foo")))
           .ToLocalChecked();
 
   i::Handle<i::Object> obj = Utils::OpenHandle(*script);

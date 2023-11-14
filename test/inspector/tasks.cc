@@ -104,8 +104,8 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
   v8::MicrotasksScope microtasks_scope(context,
                                        v8::MicrotasksScope::kRunMicrotasks);
   v8::Context::Scope context_scope(context);
-  v8::ScriptOrigin origin(data->isolate(), ToV8String(data->isolate(), name_),
-                          line_offset_, column_offset_,
+  v8::ScriptOrigin origin(ToV8String(data->isolate(), name_), line_offset_,
+                          column_offset_,
                           /* resource_is_shared_cross_origin */ false,
                           /* script_id */ -1,
                           /* source_map_url */ v8::Local<v8::Value>(),

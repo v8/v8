@@ -417,7 +417,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         i_isolate->heap());
-    ScriptOrigin default_origin(isolate(), NewString(""));
+    ScriptOrigin default_origin(NewString(""));
 
     i::Handle<i::WeakFixedArray> original_objects =
         i_isolate->factory()->NewWeakFixedArray(kScriptObjectsCount);
@@ -651,7 +651,7 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate->heap());
 
-  ScriptOrigin default_origin(isolate(), NewString(""));
+  ScriptOrigin default_origin(NewString(""));
 
   constexpr char kSourceCode[] = "function f() {}";
   Local<Script> original_script;
@@ -729,7 +729,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate->heap());
-  ScriptOrigin default_origin(isolate(), NewString(""));
+  ScriptOrigin default_origin(NewString(""));
 
   constexpr char kSourceCode[] =
       "var f = function () {var s = f.toString(); f = null; return s;};";
@@ -821,7 +821,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   std::vector<std::unique_ptr<v8::ScriptCompiler::CachedData>> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-  ScriptOrigin default_origin(isolate(), NewString(""));
+  ScriptOrigin default_origin(NewString(""));
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate->heap());
 

@@ -191,7 +191,6 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
   is_wasm = script->type() == i::Script::Type::kWasm;
 #endif  // V8_ENABLE_WEBASSEMBLY
   v8::ScriptOrigin origin(
-      reinterpret_cast<v8::Isolate*>(i_isolate),
       Utils::ToLocal(scriptName, i_isolate), script->line_offset(),
       script->column_offset(), options.IsSharedCrossOrigin(), script->id(),
       Utils::ToLocal(source_map_url, i_isolate), options.IsOpaque(), is_wasm,
@@ -3153,7 +3152,6 @@ ScriptOrigin Message::GetScriptOrigin() const {
 void ScriptOrigin::VerifyHostDefinedOptions() const {
   // TODO(cbruni, chromium:1244145): Remove checks once we allow arbitrary
   // host-defined options.
-  USE(v8_isolate_);
   if (host_defined_options_.IsEmpty()) return;
   Utils::ApiCheck(host_defined_options_->IsFixedArray(), "ScriptOrigin()",
                   "Host-defined options has to be a PrimitiveArray");
@@ -5573,15 +5571,14 @@ Local<Value> Function::GetDebugName() const {
 
 ScriptOrigin Function::GetScriptOrigin() const {
   auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate = reinterpret_cast<v8::Isolate*>(self->GetIsolate());
-  if (!IsJSFunction(*self)) return v8::ScriptOrigin(i_isolate, Local<Value>());
+  if (!IsJSFunction(*self)) return v8::ScriptOrigin(Local<Value>());
   auto func = i::DirectHandle<i::JSFunction>::cast(self);
   if (i::IsScript(func->shared()->script())) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()),
                                 func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
-  return v8::ScriptOrigin(i_isolate, Local<Value>());
+  return v8::ScriptOrigin(Local<Value>());
 }
 
 const int Function::kLineOffsetNotFound = -1;

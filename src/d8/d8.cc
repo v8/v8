@@ -820,8 +820,8 @@ ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
   options->Set(isolate, 0,
                v8::Uint32::New(isolate, kHostDefinedOptionsMagicConstant));
   options->Set(isolate, 1, resource_name);
-  return ScriptOrigin(isolate, resource_name, 0, 0, false, -1, Local<Value>(),
-                      false, false, type == v8::ScriptType::kModule, options);
+  return ScriptOrigin(resource_name, 0, 0, false, -1, Local<Value>(), false,
+                      false, type == v8::ScriptType::kModule, options);
 }
 
 bool IsValidHostDefinedOptions(Local<Context> context, Local<Data> options,
@@ -3312,7 +3312,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
     Local<String> source =
         String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
     Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
-    ScriptOrigin origin(isolate, name);
+    ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
     stringify_function_.Reset(

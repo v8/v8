@@ -2343,8 +2343,8 @@ THREADED_TEST(TestDataTypeChecks) {
     x.As<v8::Value>();
   }
 
-  v8::ScriptOrigin origin(isolate, v8_str(""), 0, 0, false, -1,
-                          Local<v8::Value>(), false, false, true);
+  v8::ScriptOrigin origin(v8_str(""), 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, true);
   v8::ScriptCompiler::Source source(v8::String::NewFromUtf8Literal(isolate, ""),
                                     origin);
   v8::Local<v8::Data> module =
@@ -4747,8 +4747,8 @@ TEST(MessageHandler3) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_3);
   LocalContext context;
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("6.75"), 1, 2,
-                                             true, -1, v8_str("7.40"), true);
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8_str("6.75"), 1, 2, true, -1, v8_str("7.40"), true);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -4777,8 +4777,7 @@ TEST(MessageHandler4) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_4);
   LocalContext context;
-  v8::ScriptOrigin origin =
-      v8::ScriptOrigin(isolate, v8_str("6.75"), 1, 2, false);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("6.75"), 1, 2, false);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -4818,8 +4817,7 @@ TEST(MessageHandler5) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_5a);
   LocalContext context;
-  v8::ScriptOrigin origin1 =
-      v8::ScriptOrigin(isolate, v8_str("6.75"), 1, 2, true);
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str("6.75"), 1, 2, true);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin1)
           .ToLocalChecked();
@@ -4830,8 +4828,7 @@ TEST(MessageHandler5) {
 
   message_received = false;
   isolate->AddMessageListener(check_message_5b);
-  v8::ScriptOrigin origin2 =
-      v8::ScriptOrigin(isolate, v8_str("6.75"), 1, 2, false);
+  v8::ScriptOrigin origin2 = v8::ScriptOrigin(v8_str("6.75"), 1, 2, false);
   script = Script::Compile(context.local(), v8_str("throw 'error'"), &origin2)
                .ToLocalChecked();
   CHECK(script->Run(context.local()).IsEmpty());
@@ -4942,7 +4939,7 @@ THREADED_TEST(MessagePrintCurrentStackTrace) {
              v8::FunctionTemplate::New(isolate, GetCurrentStackTrace));
   LocalContext context(nullptr, templ);
 
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 0, 0);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Local<v8::String> script = v8_str(
       "function c() {\n"
       "  return getCurrentStackTrace();\n"
@@ -14093,13 +14090,13 @@ THREADED_TEST(TryCatchSourceInfo) {
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test1.js";
-  v8::ScriptOrigin origin1(isolate, v8_str(resource_name), 0, 0);
+  v8::ScriptOrigin origin1(v8_str(resource_name), 0, 0);
   script =
       v8::Script::Compile(context.local(), source, &origin1).ToLocalChecked();
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test2.js";
-  v8::ScriptOrigin origin2(isolate, v8_str(resource_name), 7, 0);
+  v8::ScriptOrigin origin2(v8_str(resource_name), 7, 0);
   script =
       v8::Script::Compile(context.local(), source, &origin2).ToLocalChecked();
   CheckTryCatchSourceInfo(script, resource_name, 7);
@@ -17343,9 +17340,9 @@ THREADED_TEST(ScriptOrigin) {
   Local<v8::Symbol> symbol(v8::Symbol::New(isolate));
   array->Set(isolate, 0, symbol);
 
-  v8::ScriptOrigin origin = v8::ScriptOrigin(
-      isolate, v8_str("test"), 1, 1, true, -1, v8_str("http://sourceMapUrl"),
-      true, false, false, array);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 1, 1, true, -1,
+                                             v8_str("http://sourceMapUrl"),
+                                             true, false, false, array);
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -17394,7 +17391,7 @@ THREADED_TEST(FunctionGetInferredName) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 0, 0);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Local<v8::String> script =
       v8_str("var foo = { bar : { baz : function() {}}}; var f = foo.bar.baz;");
   v8::Script::Compile(env.local(), script, &origin)
@@ -17458,7 +17455,7 @@ THREADED_TEST(FunctionGetDebugName) {
       "Object.defineProperty(j, 'name', { value: 'function.name' });"
       "var foo = { bar : { baz : (0, function() {})}}; var k = foo.bar.baz;"
       "var foo = { bar : { baz : function() {} }}; var l = foo.bar.baz;";
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 0, 0);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Script::Compile(env.local(), v8_str(code), &origin)
       .ToLocalChecked()
       ->Run(env.local())
@@ -17496,7 +17493,7 @@ THREADED_TEST(ScriptLineNumber) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 0, 0);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -17515,7 +17512,7 @@ THREADED_TEST(ScriptColumnNumber) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 3, 2);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 3, 2);
   v8::Local<v8::String> script =
       v8_str("function foo() {}\n\n     function bar() {}");
   v8::Script::Compile(env.local(), script, &origin)
@@ -17534,7 +17531,7 @@ THREADED_TEST(ScriptStartPosition) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 3, 2);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 3, 2);
   v8::Local<v8::String> script =
       v8_str("function foo() {}\n\n     function bar() {}");
   v8::Script::Compile(env.local(), script, &origin)
@@ -17553,7 +17550,7 @@ THREADED_TEST(FunctionGetScriptId) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"), 3, 2);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 3, 2);
   v8::Local<v8::String> scriptSource =
       v8_str("function foo() {}\n\n     function bar() {}");
   v8::Local<v8::Script> script(
@@ -17572,7 +17569,7 @@ THREADED_TEST(FunctionGetBoundFunction) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin = v8::ScriptOrigin(isolate, v8_str("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
   v8::Local<v8::String> script = v8_str(
       "var a = new Object();\n"
       "a.x = 1;\n"
@@ -22685,7 +22682,7 @@ TEST(ScriptNameAndLineNumber) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(isolate, v8_str(url), 13, 0);
+  v8::ScriptOrigin origin(v8_str(url), 13, 0);
   v8::ScriptCompiler::Source script_source(v8_str("var foo;"), origin);
 
   Local<Script> script =
@@ -22703,7 +22700,7 @@ TEST(ScriptPositionInfo) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(isolate, v8_str(url), 13, 0);
+  v8::ScriptOrigin origin(v8_str(url), 13, 0);
   v8::ScriptCompiler::Source script_source(v8_str("var foo;\n"
                                                   "var bar;\n"
                                                   "var fisk = foo + bar;\n"),
@@ -22819,8 +22816,7 @@ void SourceURLHelper(v8::Isolate* isolate, const char* source_text,
     Local<v8::String> source_str = v8_str(source_text);
     // Set a different resource name with the case above to invalidate the
     // cache.
-    v8::ScriptOrigin origin(isolate,
-                            v8_str("module.js"),  // resource name
+    v8::ScriptOrigin origin(v8_str("module.js"),  // resource name
                             0,                    // line offset
                             0,                    // column offset
                             true,                 // is cross origin
@@ -23079,7 +23075,7 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
   // Possible errors are only produced while compiling.
   CHECK(!try_catch.HasCaught());
 
-  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
+  v8::ScriptOrigin origin(v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false,
                           type == v8::ScriptType::kModule);
 
@@ -23403,7 +23399,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
 
   CHECK(!try_catch.HasCaught());
 
-  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"));
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
   char* full_source = i::TestSourceStream::FullSourceString(chunks);
 
   EnableDebugger(isolate);
@@ -23518,7 +23514,7 @@ TEST(StreamingWithHarmonyScopes) {
   // independent way, so the error is not detected).
   CHECK(!try_catch.HasCaught());
 
-  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"));
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
   char* full_source = i::TestSourceStream::FullSourceString(chunks);
   v8::Local<Script> script =
       v8::ScriptCompiler::Compile(env.local(), &source, v8_str(full_source),
@@ -23541,7 +23537,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
   const char* full_source = chunks[0];
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
+  v8::ScriptOrigin origin(v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false, false);
   v8::Local<Value> first_function_untyped;
   i::Handle<i::JSFunction> first_function;
@@ -23636,7 +23632,7 @@ TEST(CodeCache) {
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
-    v8::ScriptOrigin script_origin(isolate1, v8_str(origin));
+    v8::ScriptOrigin script_origin(v8_str(origin));
     v8::ScriptCompiler::Source script_source(source_string, script_origin);
     v8::ScriptCompiler::CompileOptions option =
         v8::ScriptCompiler::kNoCompileOptions;
@@ -23654,7 +23650,7 @@ TEST(CodeCache) {
     v8::Local<v8::Context> context = v8::Context::New(isolate2);
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
-    v8::ScriptOrigin script_origin(isolate2, v8_str(origin));
+    v8::ScriptOrigin script_origin(v8_str(origin));
     v8::ScriptCompiler::Source script_source(source_string, script_origin,
                                              cache);
     v8::ScriptCompiler::CompileOptions option =
@@ -23712,8 +23708,8 @@ Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
                                           const char* resource_name,
                                           const char* source) {
   Local<String> source_string = v8_str(source);
-  v8::ScriptOrigin script_origin(isolate, v8_str(resource_name), 0, 0, false,
-                                 -1, Local<v8::Value>(), false, false, true);
+  v8::ScriptOrigin script_origin(v8_str(resource_name), 0, 0, false, -1,
+                                 Local<v8::Value>(), false, false, true);
   v8::ScriptCompiler::Source script_compiler_source(source_string,
                                                     script_origin);
   Local<Module> module =
@@ -23741,8 +23737,8 @@ Local<Module> CompileAndInstantiateModuleFromCache(
     v8::Isolate* isolate, Local<Context> context, const char* resource_name,
     const char* source, v8::ScriptCompiler::CachedData* cache) {
   Local<String> source_string = v8_str(source);
-  v8::ScriptOrigin script_origin(isolate, v8_str(resource_name), 0, 0, false,
-                                 -1, Local<v8::Value>(), false, false, true);
+  v8::ScriptOrigin script_origin(v8_str(resource_name), 0, 0, false, -1,
+                                 Local<v8::Value>(), false, false, true);
   v8::ScriptCompiler::Source script_compiler_source(source_string,
                                                     script_origin, cache);
 
@@ -24110,8 +24106,8 @@ TEST(ImportFromSyntheticModule) {
   Local<String> source_text = v8_str(
       "import {test_export} from './synthetic.module'; "
       "(function() { globalThis.Result = test_export; })();");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24141,8 +24137,8 @@ TEST(ImportFromSyntheticModuleThrow) {
   Local<String> source_text = v8_str(
       "import {test_export} from './synthetic.module';"
       "(function() { return test_export; })();");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24172,8 +24168,8 @@ v8::MaybeLocal<Module> ModuleEvaluateTerminateExecutionResolveCallback(
 
   Local<String> url = v8_str("www.test.com");
   Local<String> source_text = v8_str("await Promise.resolve();");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24212,8 +24208,8 @@ TEST(ModuleEvaluateTerminateExecution) {
   Local<String> source_text = v8_str(
       "terminate_execution();"
       "await Promise.resolve();");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24253,8 +24249,8 @@ TEST(ModuleEvaluateImportTerminateExecution) {
       "import './synthetic.module';"
       "terminate_execution();"
       "await Promise.resolve();");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24327,7 +24323,7 @@ TEST(CodeCacheModuleScriptMismatch) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope cscope(context);
 
-      v8::ScriptOrigin script_origin(isolate, v8_str(origin));
+      v8::ScriptOrigin script_origin(v8_str(origin));
       v8::ScriptCompiler::Source script_compiler_source(v8_str(source),
                                                         script_origin, cache);
 
@@ -24366,7 +24362,7 @@ TEST(CodeCacheScriptModuleMismatch) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope cscope(context);
       v8::Local<v8::String> source_string = v8_str(source);
-      v8::ScriptOrigin script_origin(isolate, v8_str(origin));
+      v8::ScriptOrigin script_origin(v8_str(origin));
       v8::ScriptCompiler::Source script_source(source_string, script_origin);
       v8::ScriptCompiler::CompileOptions option =
           v8::ScriptCompiler::kNoCompileOptions;
@@ -24387,7 +24383,7 @@ TEST(CodeCacheScriptModuleMismatch) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope cscope(context);
 
-      v8::ScriptOrigin script_origin(isolate, v8_str(origin), 0, 0, false, -1,
+      v8::ScriptOrigin script_origin(v8_str(origin), 0, 0, false, -1,
                                      Local<v8::Value>(), false, false, true);
       v8::ScriptCompiler::Source script_compiler_source(v8_str(source),
                                                         script_origin, cache);
@@ -24425,8 +24421,8 @@ TEST(InvalidCodeCacheDataInCompileModule) {
       new v8::ScriptCompiler::CachedData(data, length);
   CHECK(!cached_data->rejected);
 
-  v8::ScriptOrigin script_origin(isolate, origin, 0, 0, false, -1,
-                                 Local<v8::Value>(), false, false, true);
+  v8::ScriptOrigin script_origin(origin, 0, 0, false, -1, Local<v8::Value>(),
+                                 false, false, true);
   v8::ScriptCompiler::Source source(v8_str("42"), script_origin, cached_data);
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
@@ -24452,7 +24448,7 @@ void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
   v8::ScriptCompiler::CachedData* cached_data =
       new v8::ScriptCompiler::CachedData(data, length);
   CHECK(!cached_data->rejected);
-  v8::ScriptOrigin origin(isolate, v8_str("origin"));
+  v8::ScriptOrigin origin(v8_str("origin"));
   v8::ScriptCompiler::Source source(v8_str("42"), origin, cached_data);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Script> script =
@@ -25975,8 +25971,8 @@ TEST(ImportMeta) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("globalThis.Result = import.meta;");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26023,8 +26019,8 @@ TEST(ImportMetaThrowUnhandled) {
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text =
       v8_str("export default function() { return import.meta }");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26066,8 +26062,8 @@ TEST(ImportMetaThrowHandled) {
         return false;
       }
       )javascript");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26104,8 +26100,8 @@ TEST(CreateShadowRealmContextHostNotSupported) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("new ShadowRealm()");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, false);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, false);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
@@ -26133,8 +26129,8 @@ TEST(CreateShadowRealmContext) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("new ShadowRealm()");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, false);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, false);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
@@ -26162,8 +26158,8 @@ TEST(CreateShadowRealmContextThrow) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("new ShadowRealm()");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, false);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, false);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Script> script =
       v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
@@ -26181,8 +26177,8 @@ TEST(GetModuleNamespace) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26208,8 +26204,8 @@ TEST(ModuleGetUnboundModuleScript) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26235,8 +26231,8 @@ TEST(ModuleScriptId) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26256,8 +26252,8 @@ TEST(ModuleIsSourceTextModule) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
