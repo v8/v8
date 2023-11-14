@@ -2873,17 +2873,27 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoadCommon(this, node, load_rep);
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoadCommon(this, node, load_rep);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoadCommon(this, node, load_rep);
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoadCommon(this, node, load_rep);
+  }
 }
 
 template <typename Adapter>
@@ -3484,7 +3494,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
-    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+    // implemented.
+    auto view = this->simd_shuffle_view(node);
+    CanonicalizeShuffle(view, shuffle, &is_swizzle);
     PPCOperandGeneratorT<Adapter> g(this);
     Node* input0 = node->InputAt(0);
     Node* input1 = node->InputAt(1);

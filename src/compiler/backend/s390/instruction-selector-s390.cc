@@ -2505,10 +2505,15 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoad(node, node, SelectLoadOpcode(load_rep));
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoad(node, node, SelectLoadOpcode(load_rep));
+  }
 }
 
 template <typename Adapter>
@@ -2805,10 +2810,15 @@ VISIT_ATOMIC64_BINOP(Xor)
 #undef VISIT_ATOMIC64_BINOP
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoad(node, node, SelectLoadOpcode(load_rep));
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoad(node, node, SelectLoadOpcode(load_rep));
+  }
 }
 
 template <typename Adapter>
@@ -3169,7 +3179,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
-    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+    // implemented.
+    auto view = this->simd_shuffle_view(node);
+    CanonicalizeShuffle(view, shuffle, &is_swizzle);
     S390OperandGeneratorT<Adapter> g(this);
     Node* input0 = node->InputAt(0);
     Node* input1 = node->InputAt(1);
