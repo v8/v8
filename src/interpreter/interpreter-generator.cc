@@ -2213,10 +2213,23 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
 #ifndef V8_JITLESS
+  TVARIABLE(HeapObject, maybe_feedback_vector);
   Label ok(this);
+  Label fbv_loaded(this);
 
-  TNode<FeedbackVector> feedback_vector =
+  // Load FeedbackVector from Cache.
+  maybe_feedback_vector = LoadFeedbackVector();
+  // If cache is empty, try to load from function closure.
+  GotoIfNot(IsUndefined(maybe_feedback_vector.value()), &fbv_loaded);
+  maybe_feedback_vector =
       CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure(), &ok);
+  // Update feedback vector stack cache.
+  StoreRegister(maybe_feedback_vector.value(), Register::feedback_vector());
+  Goto(&fbv_loaded);
+
+  BIND(&fbv_loaded);
+
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector.value());
   TNode<Int8T> osr_state = LoadOsrState(feedback_vector);
   TNode<Int32T> loop_depth = BytecodeOperandImm(1);
 

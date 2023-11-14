@@ -601,17 +601,6 @@ void JSFunction::CreateAndAttachFeedbackVector(
 
   DCHECK_EQ(v8_flags.log_function_events,
             feedback_vector->log_next_execution());
-
-  // Additionally, detect activations of this function on the stack, and update
-  // the feedback vector.
-  JavaScriptStackFrameIterator it(isolate);
-  while (!it.done()) {
-    if (it.frame()->is_interpreted() && it.frame()->function() == *function) {
-      static_cast<UnoptimizedFrame*>(it.frame())
-          ->SetFeedbackVector(*feedback_vector);
-    }
-    it.Advance();
-  }
 }
 
 // static
