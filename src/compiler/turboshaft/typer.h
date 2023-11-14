@@ -712,6 +712,8 @@ struct FloatOperationTyper {
     bool maybe_minuszero =
         // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
+        // 0 / r (r < 0)
+        || (l.Contains(0) && r_min < 0)
         // -0.0..01 / r (r > 1)
         || (l.Contains(0) && l_min < 0 && r_min > 1)
         // 0.0..01 / r (r < -1)
