@@ -589,6 +589,36 @@ void Map::MapVerify(Isolate* isolate) {
   // JSFunction objects must have prototype slot.
   CHECK_IMPLIES(has_prototype_slot(), IsJSFunctionMap(*this));
 
+  if (InstanceTypeChecker::IsNativeContextSpecific(instance_type())) {
+    // Native context-specific objects must have their own contextful meta map
+    // modulo the following exceptions.
+    if (instance_type() == NATIVE_CONTEXT_TYPE ||
+        instance_type() == JS_GLOBAL_PROXY_TYPE) {
+      // 1) Diring creation of the NativeContext the native context field might
+      //    be not be initialized yet.
+      // 2) The same applies to the placeholder JSGlobalProxy object created by
+      //    Factory::NewUninitializedJSGlobalProxy.
+      CHECK(IsNull(map()->native_context_or_null()) ||
+            IsNativeContext(map()->native_context_or_null()));
+
+    } else if (instance_type() == JS_SPECIAL_API_OBJECT_TYPE) {
+      // 3) Remote Api objects' maps have the RO meta map (and thus are not
+      //    tied to any native context) while all the other Api objects are
+      //    tied to a native context.
+      CHECK_IMPLIES(map() != GetReadOnlyRoots().meta_map(),
+                    IsNativeContext(map()->native_context_or_null()));
+
+    } else {
+      // For all the other objects native context specific objects the
+      // native context field must already be initialized.
+      CHECK(IsNativeContext(map()->native_context_or_null()));
+    }
+  } else if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+                 instance_type())) {
+    // Shared objects' maps must use the RO meta map.
+    CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
+  }
+
   if (IsJSObjectMap(*this)) {
     int header_end_offset = JSObject::GetHeaderSize(*this);
     int inobject_fields_start_offset = GetInObjectPropertyOffset(0);
@@ -1038,6 +1068,9 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSBoundFunctionVerify(*this, isolate);
   CHECK(IsCallable(*this));
   CHECK_EQ(IsConstructor(*this), IsConstructor(bound_target_function()));
+  // Ensure that the function's meta map belongs to the same native context
+  // as the target function (i.e. meta maps are the same).
+  CHECK_EQ(map()->map(), bound_target_function()->map()->map());
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
@@ -1061,6 +1094,9 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, code(isolate));
   CHECK(IsCode(code(isolate)));
   CHECK(map(isolate)->is_callable());
+  // Ensure that the function's meta map belongs to the same native context.
+  CHECK_EQ(map()->map()->native_context_or_null(), native_context());
+
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1076,6 +1112,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
     CHECK(!it.IsFound() || it.state() != LookupIterator::ACCESSOR ||
           !IsAccessorInfo(*it.GetAccessors()));
   }
+}
+
+void JSWrappedFunction::JSWrappedFunctionVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSWrappedFunctionVerify(*this, isolate);
+  CHECK(IsCallable(*this));
+  // Ensure that the function's meta map belongs to the same native context.
+  CHECK_EQ(map()->map()->native_context_or_null(), context());
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
@@ -1401,7 +1444,6 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(JSShadowRealm)
-USE_TORQUE_VERIFIER(JSWrappedFunction)
 
 namespace {
 
@@ -2470,6 +2512,9 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
   int num_transitions = NumberOfTransitions();
   for (int i = 0; i < num_transitions; i++) {
     Tagged<Map> target = GetTarget(i);
+    // Ensure maps belong to the same NativeContext (i.e. have the same
+    // meta map).
+    DCHECK_EQ(map_->map(), target->map());
     if (!CheckOneBackPointer(map_, target)) return false;
   }
   return true;

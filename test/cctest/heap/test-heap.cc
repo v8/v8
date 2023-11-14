@@ -6425,6 +6425,7 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
+  LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
@@ -6433,7 +6434,8 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Handle<Map> map;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    map = isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    map = isolate->factory()->NewContextfulMapForCurrentContext(
+        JS_OBJECT_TYPE, JSObject::kHeaderSize);
   }
   CHECK(heap->incremental_marking()->black_allocation());
   Handle<JSObject> object;

@@ -751,7 +751,7 @@ Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
                                              Handle<Object> value) {
   auto maps = GetOrCreateDebugMaps(isolate);
   if (maps->is_the_hole(isolate, kWasmValueMapIndex)) {
-    Handle<Map> map = isolate->factory()->NewMap(
+    Handle<Map> map = isolate->factory()->NewContextfulMapForCurrentContext(
         WASM_VALUE_OBJECT_TYPE, WasmValueObject::kSize,
         TERMINAL_FAST_ELEMENTS_KIND, 2);
     Map::EnsureDescriptorSlack(isolate, map, 2);

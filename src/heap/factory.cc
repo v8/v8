@@ -1266,6 +1266,16 @@ Handle<NativeContext> Factory::NewNativeContext() {
 
   Handle<Map> context_map = NewMapWithMetaMap(
       contextful_meta_map, NATIVE_CONTEXT_TYPE, kVariableSizeSentinel);
+
+  if (v8_flags.log_maps) {
+    LOG(isolate(),
+        MapEvent("NewNativeContext", isolate()->factory()->meta_map(),
+                 contextful_meta_map, "contextful meta map"));
+    LOG(isolate(),
+        MapEvent("NewNativeContext", isolate()->factory()->meta_map(),
+                 context_map, "native context map"));
+  }
+
   Tagged<NativeContext> context =
       Tagged<NativeContext>::cast(NewContextInternal(
           context_map, NativeContext::kSize,
@@ -2056,8 +2066,6 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
                                 int inobject_properties,
                                 AllocationType allocation_type) {
   static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
-         InstanceTypeChecker::IsMap(type));
   DCHECK(!InstanceTypeChecker::MayHaveMapCheckFastCase(type));
   DCHECK_IMPLIES(InstanceTypeChecker::IsJSObject(type) &&
                      !Map::CanHaveFastTransitionableElementsKind(type),
@@ -2132,12 +2140,15 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   return map;
 }
 
-Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
+Handle<Map> Factory::NewMap(Handle<HeapObject> meta_map_holder,
+                            InstanceType type, int instance_size,
                             ElementsKind elements_kind, int inobject_properties,
                             AllocationType allocation_type) {
   auto meta_map_provider = [=] {
-    // The new map is not tied to any context.
-    return ReadOnlyRoots(isolate()).meta_map();
+    // Tie new map to the same native context as given |meta_map_holder| object.
+    Tagged<Map> meta_map = meta_map_holder->map();
+    DCHECK(IsMapMap(meta_map));
+    return meta_map;
   };
   Handle<Map> map =
       NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
@@ -2161,14 +2172,48 @@ Handle<Map> Factory::NewMapWithMetaMap(Handle<Map> meta_map, InstanceType type,
   return map;
 }
 
+Handle<Map> Factory::NewContextfulMap(
+    Handle<JSReceiver> creation_context_holder, InstanceType type,
+    int instance_size, ElementsKind elements_kind, int inobject_properties,
+    AllocationType allocation_type) {
+  auto meta_map_provider = [=] {
+    // Tie new map to the creation context of given |creation_context_holder|
+    // object.
+    Tagged<Map> meta_map = creation_context_holder->map()->map();
+    DCHECK(IsMapMap(meta_map));
+    return meta_map;
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
+  return map;
+}
+
 Handle<Map> Factory::NewContextfulMap(Handle<NativeContext> native_context,
                                       InstanceType type, int instance_size,
                                       ElementsKind elements_kind,
                                       int inobject_properties,
                                       AllocationType allocation_type) {
+  DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
+         InstanceTypeChecker::IsMap(type));
   auto meta_map_provider = [=] {
     // Tie new map to given native context.
     return native_context->meta_map();
+  };
+  Handle<Map> map =
+      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
+                 inobject_properties, allocation_type);
+  return map;
+}
+
+Handle<Map> Factory::NewContextfulMapForCurrentContext(
+    InstanceType type, int instance_size, ElementsKind elements_kind,
+    int inobject_properties, AllocationType allocation_type) {
+  DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
+         InstanceTypeChecker::IsMap(type));
+  auto meta_map_provider = [=] {
+    // Tie new map to current native context.
+    return isolate()->raw_native_context()->meta_map();
   };
   Handle<Map> map =
       NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
@@ -2180,6 +2225,11 @@ Handle<Map> Factory::NewContextlessMap(InstanceType type, int instance_size,
                                        ElementsKind elements_kind,
                                        int inobject_properties,
                                        AllocationType allocation_type) {
+  DCHECK(!InstanceTypeChecker::IsNativeContextSpecific(type) ||
+         type == NATIVE_CONTEXT_TYPE ||   // just during NativeContext creation.
+         type == JS_GLOBAL_PROXY_TYPE ||  // might be a placeholder object.
+         type == JS_SPECIAL_API_OBJECT_TYPE ||  // might be a remote Api object.
+         InstanceTypeChecker::IsMap(type));
   auto meta_map_provider = [=] {
     // The new map is not tied to any context.
     return ReadOnlyRoots(isolate()).meta_map();
@@ -3399,7 +3449,7 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.
-  Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, size);
+  Handle<Map> map = NewContextlessMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
   {
     DisallowGarbageCollection no_gc;
@@ -3448,6 +3498,8 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
   // Reinitialize the object from the constructor map.
   InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map);
+  // Ensure that the object and constructor belongs to the same native context.
+  DCHECK_EQ(object->map()->map(), constructor->map()->map());
 }
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(
@@ -3826,7 +3878,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   int inobject_properties_count = 0;
   if (IsFunctionModeWithName(function_mode)) ++inobject_properties_count;
 
-  Handle<Map> map = NewMap(
+  Handle<Map> map = NewContextfulMapForCurrentContext(
       JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   {
@@ -3925,7 +3977,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   }
   descriptors_count += inobject_properties_count;
 
-  Handle<Map> map = NewMap(
+  Handle<Map> map = NewContextfulMapForCurrentContext(
       JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   {
@@ -3991,8 +4043,8 @@ Handle<Map> Factory::CreateStrictFunctionMap(
 }
 
 Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
-  Handle<Map> map =
-      NewMap(JS_CLASS_CONSTRUCTOR_TYPE, JSFunction::kSizeWithPrototype);
+  Handle<Map> map = NewContextfulMapForCurrentContext(
+      JS_CLASS_CONSTRUCTOR_TYPE, JSFunction::kSizeWithPrototype);
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;

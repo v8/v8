@@ -2032,10 +2032,18 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
     case ForInMode::kUseEnumCacheKeys:
     case ForInMode::kUseEnumCacheKeysAndIndices: {
       // Check that the {enumerator} is a Map.
-      effect = graph()->NewNode(
-          simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                  ZoneRefSet<Map>(broker()->meta_map())),
-          enumerator, effect, control);
+      // The direct IsMap check requires reading of an instance type, so we
+      // compare its map against fixed_array_map instead (by definition,
+      // the {enumerator} is either the receiver's Map or a FixedArray).
+      Node* check_for_fixed_array = effect =
+          graph()->NewNode(simplified()->CompareMaps(
+                               ZoneRefSet<Map>(broker()->fixed_array_map())),
+                           enumerator, effect, control);
+      Node* check_for_not_fixed_array =
+          graph()->NewNode(simplified()->BooleanNot(), check_for_fixed_array);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
+                           check_for_not_fixed_array, effect, control);
 
       // Load the enum cache from the {enumerator} map.
       Node* descriptor_array = effect = graph()->NewNode(
@@ -2060,13 +2068,17 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
     }
     case ForInMode::kGeneric: {
       // Check if the {enumerator} is a Map or a FixedArray.
-      Node* check = effect = graph()->NewNode(
-          simplified()->CompareMaps(ZoneRefSet<Map>(broker()->meta_map())),
-          enumerator, effect, control);
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      // The direct IsMap check requires reading of an instance type, so we
+      // compare against fixed array map instead (by definition,
+      // the {enumerator} is either the receiver's Map or a FixedArray).
+      Node* check = effect =
+          graph()->NewNode(simplified()->CompareMaps(
+                               ZoneRefSet<Map>(broker()->fixed_array_map())),
+                           enumerator, effect, control);
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                      check, control);
 
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* if_map = graph()->NewNode(common()->IfFalse(), branch);
       Node* etrue = effect;
       Node* cache_array_true;
       Node* cache_length_true;
@@ -2074,26 +2086,26 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
         // Load the enum cache from the {enumerator} map.
         Node* descriptor_array = etrue = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
-            enumerator, etrue, if_true);
+            enumerator, etrue, if_map);
         Node* enum_cache = etrue =
             graph()->NewNode(simplified()->LoadField(
                                  AccessBuilder::ForDescriptorArrayEnumCache()),
-                             descriptor_array, etrue, if_true);
+                             descriptor_array, etrue, if_map);
         cache_array_true = etrue = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForEnumCacheKeys()),
-            enum_cache, etrue, if_true);
+            enum_cache, etrue, if_map);
 
         // Load the enum length of the {enumerator} map.
         Node* bit_field3 = etrue = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForMapBitField3()),
-            enumerator, etrue, if_true);
+            enumerator, etrue, if_map);
         static_assert(Map::Bits3::EnumLengthBits::kShift == 0);
         cache_length_true = graph()->NewNode(
             simplified()->NumberBitwiseAnd(), bit_field3,
             jsgraph()->ConstantNoHole(Map::Bits3::EnumLengthBits::kMask));
       }
 
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* if_fixed_array = graph()->NewNode(common()->IfTrue(), branch);
       Node* efalse = effect;
       Node* cache_array_false;
       Node* cache_length_false;
@@ -2102,11 +2114,11 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
         cache_array_false = enumerator;
         cache_length_false = efalse = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-            cache_array_false, efalse, if_false);
+            cache_array_false, efalse, if_fixed_array);
       }
 
       // Rewrite the uses of the {node}.
-      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      control = graph()->NewNode(common()->Merge(2), if_map, if_fixed_array);
       effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
       cache_array =
           graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),

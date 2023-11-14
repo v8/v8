@@ -66,8 +66,9 @@ class Types {
     SignedSmall = Type::SignedSmall();
     UnsignedSmall = Type::UnsignedSmall();
 
-    Handle<i::Map> object_map = CanonicalHandle(
-        isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize));
+    Handle<i::Map> object_map =
+        CanonicalHandle(isolate->factory()->NewContextfulMapForCurrentContext(
+            JS_OBJECT_TYPE, JSObject::kHeaderSize));
     Handle<i::Smi> smi = CanonicalHandle(Smi::FromInt(666));
     Handle<i::HeapNumber> boxed_smi =
         CanonicalHandle(isolate->factory()->NewHeapNumber(666));

@@ -819,9 +819,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
-  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size,
-                                               TERMINAL_FAST_ELEMENTS_KIND,
-                                               inobject_properties);
+  Handle<NativeContext> creation_context(function->native_context(), isolate);
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
+      creation_context, instance_type, instance_size,
+      TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
 
   // Fetch or allocate prototype.
   Handle<HeapObject> prototype;

@@ -242,9 +242,9 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
   JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
                                           num_fields, &instance_size,
                                           &in_object_properties);
-  Handle<Map> instance_map =
-      factory->NewMap(JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
-                      in_object_properties, AllocationType::kSharedMap);
+  Handle<Map> instance_map = factory->NewContextlessMap(
+      JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
+      in_object_properties, AllocationType::kSharedMap);
 
   // Prepare the enum cache if necessary.
   if (num_descriptors == 0) {

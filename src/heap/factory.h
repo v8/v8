@@ -459,10 +459,24 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
 
   // Allocates and initializes a new Map.
-  Handle<Map> NewMap(InstanceType type, int instance_size,
+  Handle<Map> NewMap(Handle<HeapObject> meta_map_holder, InstanceType type,
+                     int instance_size,
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
+
+  Handle<Map> NewMapWithMetaMap(
+      Handle<Map> meta_map, InstanceType type, int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
+  Handle<Map> NewContextfulMap(
+      Handle<JSReceiver> creation_context_holder, InstanceType type,
+      int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
 
   Handle<Map> NewContextfulMap(
       Handle<NativeContext> native_context, InstanceType type,
@@ -471,8 +485,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
 
-  Handle<Map> NewMapWithMetaMap(
-      Handle<Map> meta_map, InstanceType type, int instance_size,
+  Handle<Map> NewContextfulMapForCurrentContext(
+      InstanceType type, int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);

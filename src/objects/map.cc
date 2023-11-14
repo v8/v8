@@ -1178,8 +1178,9 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
 Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
                          int instance_size, int inobject_properties) {
   Handle<Map> result = isolate->factory()->NewMap(
-      src_handle->instance_type(), instance_size, TERMINAL_FAST_ELEMENTS_KIND,
-      inobject_properties);
+      src_handle, src_handle->instance_type(), instance_size,
+      TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
+
   // We have to set the bitfields before any potential GCs could happen because
   // heap verification might fail otherwise.
   {
@@ -1446,6 +1447,7 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
 void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                             Handle<Map> child, Handle<Name> name,
                             SimpleTransitionFlag flag) {
+  DCHECK_EQ(parent->map(), child->map());
   DCHECK_IMPLIES(name->IsInteresting(isolate),
                  child->may_have_interesting_properties());
   DCHECK_IMPLIES(parent->may_have_interesting_properties(),

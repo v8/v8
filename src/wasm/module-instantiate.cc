@@ -104,8 +104,9 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size,
       instance, struct_index);
-  Handle<Map> map = isolate->factory()->NewMap(
-      instance_type, map_instance_size, elements_kind, inobject_properties);
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
+      instance, instance_type, map_instance_size, elements_kind,
+      inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0);
@@ -127,8 +128,9 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
       instance, array_index);
-  Handle<Map> map = isolate->factory()->NewMap(
-      instance_type, instance_size, elements_kind, inobject_properties);
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
+      instance, instance_type, instance_size, elements_kind,
+      inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0);

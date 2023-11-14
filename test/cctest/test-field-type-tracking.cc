@@ -1751,8 +1751,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = isolate->factory()->NewMap(
-      JS_ARRAY_TYPE, JSArray::kHeaderSize, PACKED_SMI_ELEMENTS);
+  Handle<Map> initial_map =
+      isolate->factory()->NewContextfulMapForCurrentContext(
+          JS_ARRAY_TYPE, JSArray::kHeaderSize, PACKED_SMI_ELEMENTS);
   initial_map->SetConstructor(*isolate->object_function());
 
   Handle<Map> map = initial_map;

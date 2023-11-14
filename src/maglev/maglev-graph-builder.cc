@@ -9502,12 +9502,16 @@ void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
 void MaglevGraphBuilder::VisitForInEnumerate() {
   // ForInEnumerate <receiver>
   ValueNode* receiver = LoadRegisterTagged(0);
+  // Pass receiver to ForInPrepare.
+  current_for_in_state.receiver = receiver;
   SetAccumulator(BuildCallBuiltin<Builtin::kForInEnumerate>({receiver}));
 }
 
 void MaglevGraphBuilder::VisitForInPrepare() {
   // ForInPrepare <cache_info_triple>
   ValueNode* enumerator = GetAccumulatorTagged();
+  // Catch the receiver value passed from ForInEnumerate.
+  ValueNode* receiver = current_for_in_state.receiver;
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
   // TODO(v8:7700): Use feedback and create fast path.
@@ -9523,8 +9527,14 @@ void MaglevGraphBuilder::VisitForInPrepare() {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
     case ForInHint::kEnumCacheKeys: {
-      RETURN_VOID_IF_ABORT(
-          BuildCheckMaps(enumerator, base::VectorOf({broker()->meta_map()})));
+      // Check that the {enumerator} is a Map.
+      // The direct IsMap check requires reading of an instance type, so in
+      // order to avoid additional load we compare the {enumerator} against
+      // receiver's Map instead (by definition, the {enumerator} is either
+      // the receiver's Map or a FixedArray).
+      auto* receiver_map =
+          AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
+      AddNewNode<CheckDynamicValue>({receiver_map, enumerator});
 
       auto* descriptor_array = AddNewNode<LoadTaggedField>(
           {enumerator}, Map::kInstanceDescriptorsOffset);
@@ -9543,7 +9553,7 @@ void MaglevGraphBuilder::VisitForInPrepare() {
       break;
     }
     case ForInHint::kAny: {
-      // The result of the  bytecode is output in registers |cache_info_triple|
+      // The result of the bytecode is output in registers |cache_info_triple|
       // to |cache_info_triple + 2|, with the registers holding cache_type,
       // cache_array, and cache_length respectively.
       //

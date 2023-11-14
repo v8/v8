@@ -444,8 +444,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
       elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
       break;
   }
-  Handle<Map> initial_map =
-      factory->NewMap(type, instance_size, elements_kind, inobject_properties);
+  Handle<Map> initial_map = factory->NewContextfulMapForCurrentContext(
+      type, instance_size, elements_kind, inobject_properties);
   initial_map->SetConstructor(*result);
   if (type == JS_FUNCTION_TYPE) {
     DCHECK_EQ(instance_size, JSFunction::kSizeWithPrototype);
@@ -1091,8 +1091,10 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   JSObject::ForceSetPrototype(isolate(), async_from_sync_iterator_prototype,
                               async_iterator_prototype);
 
-  Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
-      JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, JSAsyncFromSyncIterator::kHeaderSize);
+  Handle<Map> async_from_sync_iterator_map =
+      factory()->NewContextfulMapForCurrentContext(
+          JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+          JSAsyncFromSyncIterator::kHeaderSize);
   Map::SetPrototype(isolate(), async_from_sync_iterator_map,
                     async_from_sync_iterator_prototype);
   native_context()->set_async_from_sync_iterator_map(
@@ -1187,8 +1189,8 @@ void Genesis::CreateJSProxyMaps() {
   // Allocate maps for all Proxy types.
   // Next to the default proxy, we need maps indicating callable and
   // constructable proxies.
-  Handle<Map> proxy_map = factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize,
-                                            TERMINAL_FAST_ELEMENTS_KIND);
+  Handle<Map> proxy_map = factory()->NewContextfulMapForCurrentContext(
+      JS_PROXY_TYPE, JSProxy::kSize, TERMINAL_FAST_ELEMENTS_KIND);
   proxy_map->set_is_dictionary_map(true);
   proxy_map->set_may_have_interesting_properties(true);
   native_context()->set_proxy_map(*proxy_map);
@@ -1206,9 +1208,9 @@ void Genesis::CreateJSProxyMaps() {
   native_context()->set_proxy_constructor_map(*proxy_constructor_map);
 
   {
-    Handle<Map> map =
-        factory()->NewMap(JS_OBJECT_TYPE, JSProxyRevocableResult::kSize,
-                          TERMINAL_FAST_ELEMENTS_KIND, 2);
+    Handle<Map> map = factory()->NewContextfulMapForCurrentContext(
+        JS_OBJECT_TYPE, JSProxyRevocableResult::kSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 2);
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // proxy
@@ -4205,9 +4207,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallToStringTag(isolate_, prototype, "DataView");
 
     // Setup objects needed for the JSRabGsabDataView.
-    Handle<Map> rab_gsab_data_view_map = factory->NewMap(
-        JS_RAB_GSAB_DATA_VIEW_TYPE, JSDataView::kSizeWithEmbedderFields,
-        TERMINAL_FAST_ELEMENTS_KIND);
+    Handle<Map> rab_gsab_data_view_map =
+        factory->NewContextfulMapForCurrentContext(
+            JS_RAB_GSAB_DATA_VIEW_TYPE, JSDataView::kSizeWithEmbedderFields,
+            TERMINAL_FAST_ELEMENTS_KIND);
     Map::SetPrototype(isolate(), rab_gsab_data_view_map, prototype);
     rab_gsab_data_view_map->SetConstructor(*data_view_fun);
     native_context()->set_js_rab_gsab_data_view_map(*rab_gsab_data_view_map);
@@ -4424,7 +4427,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- J S M o d u l e N a m e s p a c e
-    Handle<Map> map = factory->NewMap(
+    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_MODULE_NAMESPACE_TYPE, JSModuleNamespace::kSize,
         TERMINAL_FAST_ELEMENTS_KIND, JSModuleNamespace::kInObjectFieldCount);
     map->SetConstructor(native_context()->object_function());
@@ -4592,9 +4595,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- B o u n d F u n c t i o n
-    Handle<Map> map =
-        factory->NewMap(JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kHeaderSize,
-                        TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+        JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kHeaderSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
     Map::SetPrototype(isolate(), map, empty_function);
@@ -4744,9 +4747,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     callee->set_setter(*poison);
 
     // Create the map. Allocate one in-object field for length.
-    Handle<Map> map =
-        factory->NewMap(JS_ARGUMENTS_OBJECT_TYPE,
-                        JSStrictArgumentsObject::kSize, PACKED_ELEMENTS, 1);
+    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+        JS_ARGUMENTS_OBJECT_TYPE, JSStrictArgumentsObject::kSize,
+        PACKED_ELEMENTS, 1);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
@@ -4852,9 +4855,10 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
 
   // RAB / GSAB backed TypedArrays don't have separate constructors, but they
   // have their own maps. Create the corresponding map here.
-  Handle<Map> rab_gsab_initial_map = factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
-      GetCorrespondingRabGsabElementsKind(elements_kind), 0);
+  Handle<Map> rab_gsab_initial_map =
+      factory()->NewContextfulMapForCurrentContext(
+          JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
+          GetCorrespondingRabGsabElementsKind(elements_kind), 0);
   rab_gsab_initial_map->SetConstructor(*result);
 
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
@@ -5099,8 +5103,9 @@ void Genesis::InitializeIteratorFunctions() {
     // there's one global (per native context) map here that is used for the
     // async function generator objects. These objects never escape to user
     // JavaScript anyways.
-    Handle<Map> async_function_object_map = factory->NewMap(
-        JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kHeaderSize);
+    Handle<Map> async_function_object_map =
+        factory->NewContextfulMapForCurrentContext(
+            JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kHeaderSize);
     native_context->set_async_function_object_map(*async_function_object_map);
 
     isolate_->async_function_map()->SetConstructor(*async_function_constructor);
@@ -5288,9 +5293,10 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
                         Builtin::kWrapForValidIteratorPrototypeNext, 0, true);
   SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "return",
                         Builtin::kWrapForValidIteratorPrototypeReturn, 0, true);
-  Handle<Map> valid_iterator_wrapper_map = factory()->NewMap(
-      JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
-      TERMINAL_FAST_ELEMENTS_KIND, 0);
+  Handle<Map> valid_iterator_wrapper_map =
+      factory()->NewContextfulMapForCurrentContext(
+          JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
+          TERMINAL_FAST_ELEMENTS_KIND, 0);
   Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
                     wrap_for_valid_iterator_prototype);
   valid_iterator_wrapper_map->SetConstructor(*iterator_function);
@@ -5333,10 +5339,10 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 #define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \
                                 ALL_CAPS_NAME, argc)                           \
   {                                                                            \
-    Handle<Map> map =                                                          \
-        factory()->NewMap(JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,           \
-                          JSIterator##Capitalized_name##Helper::kHeaderSize,   \
-                          TERMINAL_FAST_ELEMENTS_KIND, 0);                     \
+    Handle<Map> map = factory()->NewContextfulMapForCurrentContext(            \
+        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                             \
+        JSIterator##Capitalized_name##Helper::kHeaderSize,                     \
+        TERMINAL_FAST_ELEMENTS_KIND, 0);                                       \
     Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
     map->SetConstructor(*iterator_function);                                   \
     native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
@@ -5399,8 +5405,9 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
   if (!v8_flags.harmony_json_parse_with_source) return;
-  Handle<Map> map = factory()->NewMap(JS_RAW_JSON_TYPE, JSRawJson::kInitialSize,
-                                      TERMINAL_FAST_ELEMENTS_KIND, 1);
+  Handle<Map> map = factory()->NewContextfulMapForCurrentContext(
+      JS_RAW_JSON_TYPE, JSRawJson::kInitialSize, TERMINAL_FAST_ELEMENTS_KIND,
+      1);
   Map::EnsureDescriptorSlack(isolate_, map, 1);
   {
     Descriptor d = Descriptor::DataField(
@@ -5502,9 +5509,9 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
 
   {  // --- W r a p p e d F u n c t i o n
-    Handle<Map> map = factory->NewMap(JS_WRAPPED_FUNCTION_TYPE,
-                                      JSWrappedFunction::kHeaderSize,
-                                      TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+        JS_WRAPPED_FUNCTION_TYPE, JSWrappedFunction::kHeaderSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
     Handle<JSObject> empty_function(native_context()->function_prototype(),
@@ -5999,9 +6006,9 @@ bool Genesis::InstallABunchOfRandomThings() {
   // that predefines four properties get, set, configurable and enumerable).
   {
     // AccessorPropertyDescriptor initial map.
-    Handle<Map> map =
-        factory()->NewMap(JS_OBJECT_TYPE, JSAccessorPropertyDescriptor::kSize,
-                          TERMINAL_FAST_ELEMENTS_KIND, 4);
+    Handle<Map> map = factory()->NewContextfulMapForCurrentContext(
+        JS_OBJECT_TYPE, JSAccessorPropertyDescriptor::kSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 4);
     // Create the descriptor array for the property descriptor object.
     Map::EnsureDescriptorSlack(isolate(), map, 4);
 
@@ -6045,9 +6052,9 @@ bool Genesis::InstallABunchOfRandomThings() {
   // enumerable).
   {
     // DataPropertyDescriptor initial map.
-    Handle<Map> map =
-        factory()->NewMap(JS_OBJECT_TYPE, JSDataPropertyDescriptor::kSize,
-                          TERMINAL_FAST_ELEMENTS_KIND, 4);
+    Handle<Map> map = factory()->NewContextfulMapForCurrentContext(
+        JS_OBJECT_TYPE, JSDataPropertyDescriptor::kSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 4);
     // Create the descriptor array for the property descriptor object.
     Map::EnsureDescriptorSlack(isolate(), map, 4);
 
@@ -6746,7 +6753,7 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
                                    isolate());
 
   // Add initial map.
-  Handle<Map> initial_map = factory()->NewMap(
+  Handle<Map> initial_map = factory()->NewContextfulMapForCurrentContext(
       JS_ARRAY_TYPE, size, TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
   initial_map->SetConstructor(*array_constructor);
 
@@ -6959,7 +6966,7 @@ Genesis::Genesis(Isolate* isolate,
   // (Re)initialize the global proxy object.
   DCHECK_EQ(global_proxy_data->embedder_field_count(),
             global_proxy_template->InternalFieldCount());
-  Handle<Map> global_proxy_map = isolate->factory()->NewMap(
+  Handle<Map> global_proxy_map = factory()->NewContextlessMap(
       JS_GLOBAL_PROXY_TYPE, proxy_size, TERMINAL_FAST_ELEMENTS_KIND);
   global_proxy_map->set_is_access_check_needed(true);
   global_proxy_map->set_may_have_interesting_properties(true);

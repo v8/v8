@@ -152,7 +152,7 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
           HandleScope scope(i_client_isolate);
 
           for (int i = 0; i < kNumIterations; i++) {
-            i_client_isolate->factory()->NewMap(
+            i_client_isolate->factory()->NewContextlessMap(
                 NATIVE_CONTEXT_TYPE, kVariableSizeSentinel,
                 TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
           }

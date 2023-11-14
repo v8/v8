@@ -76,15 +76,15 @@ TEST(Promotion) {
   }
 }
 
-// This is the same as Factory::NewContextlessMap, except it doesn't retry on
-// allocation failure.
+// This is the same as Factory::NewContextfulMapForCurrentContext, except it
+// doesn't retry on allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   Heap* heap = isolate->heap();
   Tagged<HeapObject> obj;
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
   if (!alloc.To(&obj)) return alloc;
   ReadOnlyRoots roots(isolate);
-  obj->set_map_after_allocation(roots.meta_map(), SKIP_WRITE_BARRIER);
+  obj->set_map_after_allocation(*isolate->meta_map());
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
       Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
       TERMINAL_FAST_ELEMENTS_KIND, 0, roots));

@@ -2263,7 +2263,7 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       kNullAddress, opt_rtt_parent, instance_size, Handle<WasmInstanceObject>(),
       kNoIndex);
-  Handle<Map> map = isolate->factory()->NewMap(
+  Handle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   return map;

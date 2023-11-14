@@ -696,6 +696,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, map_key_iterator_map)                   \
   V(Map, map_key_value_iterator_map)             \
   V(Map, map_value_iterator_map)                 \
+  V(Map, meta_map)                               \
   V(Map, set_key_value_iterator_map)             \
   V(Map, set_value_iterator_map)                 \
   V(Map, sloppy_arguments_map)                   \

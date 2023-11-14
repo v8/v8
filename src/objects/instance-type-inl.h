@@ -365,18 +365,25 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
 // Returns true for those heap object types that must be tied to some native
 // context.
 V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
+  // All context map are tied to some native context.
+  if (IsContext(instance_type)) return true;
+  // All non-JSReceivers are never tied to any native context.
+  if (!IsJSReceiver(instance_type)) return false;
+
+  // Most of the JSReceivers are tied to some native context modulo the
+  // following exceptions.
   if (instance_type == JS_MESSAGE_OBJECT_TYPE ||
       instance_type == JS_EXTERNAL_OBJECT_TYPE) {
     // These JSObject types are wrappers around a set of primitive values
     // and exist only for the purpose of passing the data across V8 Api.
     // Thus they are not tied to any native context.
     return false;
+
+  } else if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
+    // JSObjects allocated in shared space are never tied to a native context.
+    return false;
   }
-  return IsJSReceiver(instance_type) || IsContext(instance_type) ||
-#if V8_ENABLE_WEBASSEMBLY
-         instance_type == WASM_INTERNAL_FUNCTION_TYPE ||
-#endif
-         false;
+  return true;
 }
 
 V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {

@@ -624,7 +624,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 
   Handle<FunctionTemplateInfo> constructor(
       FunctionTemplateInfo::cast(data->constructor()), isolate);
-  Handle<Map> object_map = isolate->factory()->NewMap(
+  Handle<Map> object_map = isolate->factory()->NewContextlessMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize +
           data->embedder_field_count() * kEmbedderDataSlotSize,
@@ -743,8 +743,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   int instance_size = JSObject::GetHeaderSize(type) +
                       kEmbedderDataSlotSize * embedder_field_count;
 
-  Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
-                                               TERMINAL_FAST_ELEMENTS_KIND);
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
+      native_context, type, instance_size, TERMINAL_FAST_ELEMENTS_KIND);
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {

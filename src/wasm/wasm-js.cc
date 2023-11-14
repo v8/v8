@@ -2961,9 +2961,9 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
   JSFunction::EnsureHasInitialMap(constructor);
   Handle<JSObject> proto(JSObject::cast(constructor->instance_prototype()),
                          isolate);
-  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size,
-                                               TERMINAL_FAST_ELEMENTS_KIND,
-                                               in_object_properties);
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
+      constructor, instance_type, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
+      in_object_properties);
   JSFunction::SetInitialMap(isolate, constructor, map, proto);
   constexpr PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);

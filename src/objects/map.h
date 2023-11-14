@@ -986,10 +986,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   void ReplaceDescriptors(Isolate* isolate,
                           Tagged<DescriptorArray> new_descriptors);
 
-  // This is the equivalent of IsMap() but avoids reading the instance type so
-  // it can be used concurrently without acquire load.
-  V8_INLINE bool ConcurrentIsMap(PtrComprCageBase cage_base,
-                                 Tagged<Object> object) const;
+  // This is the replacement for IsMap() which avoids reading the instance type
+  // but compares the object's map against given meta_map, so it can be used
+  // concurrently without acquire load.
+  V8_INLINE static bool ConcurrentIsHeapObjectWithMap(
+      PtrComprCageBase cage_base, Tagged<Object> object, Tagged<Map> meta_map);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, Tagged<DescriptorArray>)
