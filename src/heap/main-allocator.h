@@ -147,18 +147,19 @@ class LinearAreaOriginalData {
 
 class MainAllocator {
  public:
-  enum class Context {
-    kGC,
-    kNotGC,
-  };
+  struct InGCTag {};
+  static constexpr InGCTag kInGC{};
 
-  V8_EXPORT_PRIVATE MainAllocator(
-      Heap* heap, SpaceWithLinearArea* space,
-      MainAllocator::Context context = MainAllocator::Context::kNotGC);
+  // Use this constructor on the main thread.
+  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space);
 
   // This constructor allows to pass in the address of a LinearAllocationArea.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                                   LinearAllocationArea& allocation_info);
+
+  // Use this constructor for GC LABs/allocations.
+  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
+                                  InGCTag);
 
   // Returns the allocation pointer in this space.
   Address start() const { return allocation_info_.start(); }
@@ -289,6 +290,8 @@ class MainAllocator {
 
   void MarkLabStartInitialized();
 
+  bool IsBlackAllocationEnabled() const;
+
   LinearAreaOriginalData& linear_area_original_data() {
     return linear_area_original_data_.value();
   }
@@ -303,12 +306,16 @@ class MainAllocator {
 
   bool SupportsAllocationObserver() const { return !in_gc(); }
 
-  bool in_gc() const { return context_ == Context::kGC; }
+  bool in_gc() const { return local_heap_ == nullptr; }
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
 
+  LocalHeap* local_heap() const { return local_heap_; }
+
   Heap* heap() const { return heap_; }
 
+  // The current main or background thread's LocalHeap. nullptr for GC threads.
+  LocalHeap* const local_heap_;
   Heap* const heap_;
   SpaceWithLinearArea* const space_;
 
@@ -319,7 +326,6 @@ class MainAllocator {
   base::Optional<LinearAreaOriginalData> linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
-  const Context context_;
   const bool supports_extending_lab_;
 
   friend class AllocatorPolicy;

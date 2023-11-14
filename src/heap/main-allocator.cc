@@ -23,31 +23,38 @@ namespace internal {
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                              LinearAllocationArea& allocation_info)
-    : heap_(heap),
+    : local_heap_(heap->main_thread_local_heap()),
+      heap_(heap),
       space_(space),
       allocation_info_(allocation_info),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
-      context_(MainAllocator::Context::kNotGC),
       supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
+  CHECK_NOT_NULL(local_heap_);
   allocation_counter_.emplace();
   linear_area_original_data_.emplace();
 }
 
-MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             MainAllocator::Context context)
-    : heap_(heap),
+MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space)
+    : local_heap_(heap->main_thread_local_heap()),
+      heap_(heap),
       space_(space),
       allocation_info_(owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
-      context_(context),
-      supports_extending_lab_(!in_gc() &&
-                              allocator_policy_->SupportsExtendingLAB()) {
-  if (in_gc()) {
-    DCHECK(!supports_extending_lab_);
-  } else {
-    allocation_counter_.emplace();
-    linear_area_original_data_.emplace();
-  }
+      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
+  CHECK_NOT_NULL(local_heap_);
+  allocation_counter_.emplace();
+  linear_area_original_data_.emplace();
+}
+
+MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space, InGCTag)
+    : local_heap_(nullptr),
+      heap_(heap),
+      space_(space),
+      allocation_info_(owned_allocation_info_),
+      allocator_policy_(space->CreateAllocatorPolicy(this)),
+      supports_extending_lab_(false) {
+  DCHECK(!allocation_counter_.has_value());
+  DCHECK(!linear_area_original_data_.has_value());
 }
 
 Address MainAllocator::AlignTopForTesting(AllocationAlignment alignment,
@@ -74,6 +81,11 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
   return V8_UNLIKELY(result.IsFailure())
              ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
              : result;
+}
+
+bool MainAllocator::IsBlackAllocationEnabled() const {
+  return identity() != NEW_SPACE &&
+         heap()->incremental_marking()->black_allocation();
 }
 
 void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {
@@ -224,7 +236,7 @@ void MainAllocator::MakeLinearAllocationAreaIterable() {
 }
 
 void MainAllocator::MarkLinearAllocationAreaBlack() {
-  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK(IsBlackAllocationEnabled());
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != kNullAddress && current_top != current_limit) {
@@ -284,8 +296,7 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationOrigin origin) {
 #ifdef V8_RUNTIME_CALL_STATS
   base::Optional<RuntimeCallTimerScope> rcs_scope;
-  DCHECK_IMPLIES(in_gc(), heap()->gc_state() != Heap::NOT_IN_GC);
-  if (heap()->gc_state() == Heap::NOT_IN_GC) {
+  if (!in_gc() && local_heap()->is_main_thread()) {
     rcs_scope.emplace(heap()->isolate(),
                       RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   }
@@ -646,7 +657,7 @@ bool PagedSpaceAllocatorPolicy::RawRefillLabMain(int size_in_bytes,
 
   if (allocator_->identity() != NEW_SPACE &&
       heap()->ShouldExpandOldGenerationOnSlowAllocation(
-          heap()->main_thread_local_heap(), origin) &&
+          allocator_->local_heap(), origin) &&
       heap()->CanExpandOldGeneration(space_->AreaSize())) {
     if (space_->TryExpand(size_in_bytes, origin) &&
         TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
@@ -660,8 +671,8 @@ bool PagedSpaceAllocatorPolicy::RawRefillLabMain(int size_in_bytes,
                                sweeping_scope_kind))
     return true;
 
-  if (allocator_->identity() != NEW_SPACE &&
-      heap()->gc_state() != Heap::NOT_IN_GC && !heap()->force_oom()) {
+  if (allocator_->identity() != NEW_SPACE && allocator_->in_gc() &&
+      !heap()->force_oom()) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
     // GC and give it a chance to increase the heap limit.
     if (space_->TryExpand(size_in_bytes, origin) &&
@@ -707,8 +718,7 @@ void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,
   allocator_->ResetLab(top, limit, end);
   if (top != kNullAddress && top != limit) {
     Page* page = Page::FromAllocationAreaAddress(top);
-    if ((allocator_->identity() != NEW_SPACE) &&
-        heap()->incremental_marking()->black_allocation()) {
+    if (allocator_->IsBlackAllocationEnabled()) {
       page->CreateBlackArea(top, limit);
     }
   }
@@ -736,8 +746,7 @@ void PagedSpaceAllocatorPolicy::DecreaseLimit(Address new_limit) {
       heap()->CreateFillerObjectAt(new_limit,
                                    static_cast<int>(old_max_limit - new_limit));
     }
-    if (heap()->incremental_marking()->black_allocation() &&
-        allocator_->identity() != NEW_SPACE) {
+    if (allocator_->IsBlackAllocationEnabled()) {
       Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
                                                                    old_limit);
     }
@@ -857,8 +866,7 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
         "FreeLinearAllocationArea writes to the page header.");
   }
 
-  if (allocator_->identity() != NEW_SPACE && current_top != current_limit &&
-      heap()->incremental_marking()->black_allocation()) {
+  if (current_top != current_limit && allocator_->IsBlackAllocationEnabled()) {
     Page::FromAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
   }

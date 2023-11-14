@@ -16,17 +16,17 @@ EvacuationAllocator::EvacuationAllocator(
       compaction_spaces_(heap, compaction_space_kind) {
   if (new_space_) {
     DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
-    new_space_allocator_.emplace(heap, new_space_, MainAllocator::Context::kGC);
+    new_space_allocator_.emplace(heap, new_space_, MainAllocator::kInGC);
   }
 
   old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE),
-                               MainAllocator::Context::kGC);
+                               MainAllocator::kInGC);
   code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
-                                MainAllocator::Context::kGC);
+                                MainAllocator::kInGC);
   shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
-                                  MainAllocator::Context::kGC);
+                                  MainAllocator::kInGC);
   trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE),
-                                   MainAllocator::Context::kGC);
+                                   MainAllocator::kInGC);
 }
 
 void EvacuationAllocator::FreeLast(AllocationSpace space,
