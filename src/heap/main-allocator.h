@@ -305,7 +305,9 @@ class MainAllocator {
 
   AllocationSpace identity() const;
 
-  bool SupportsAllocationObserver() const { return !in_gc(); }
+  bool SupportsAllocationObserver() const {
+    return allocation_counter_.has_value();
+  }
 
   bool in_gc() const { return local_heap_ == nullptr; }
 
