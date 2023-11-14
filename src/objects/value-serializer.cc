@@ -1241,8 +1241,8 @@ Maybe<bool> ValueSerializer::ThrowDataCloneError(
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  Handle<Object> arg0) {
-  auto arr = to_array<Handle<Object>>({arg0});
-  Handle<String> message = MessageFormatter::Format(isolate_, index, arr);
+  Handle<String> message =
+      MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {

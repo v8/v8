@@ -2485,7 +2485,7 @@ Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
                                    MessageTemplate template_index,
-                                   MemorySpan<const Handle<Object>> args) {
+                                   base::Vector<const Handle<Object>> args) {
   HandleScope scope(isolate());
 
   return scope.CloseAndEscape(ErrorUtils::MakeGenericError(
@@ -2517,10 +2517,11 @@ Handle<Object> Factory::NewInvalidStringLengthError() {
   return NewRangeError(MessageTemplate::kInvalidStringLength);
 }
 
-#define DEFINE_ERROR(NAME, name)                                               \
-  Handle<JSObject> Factory::New##NAME(MessageTemplate template_index,          \
-                                      MemorySpan<const Handle<Object>> args) { \
-    return NewError(isolate()->name##_function(), template_index, args);       \
+#define DEFINE_ERROR(NAME, name)                                         \
+  Handle<JSObject> Factory::New##NAME(                                   \
+      MessageTemplate template_index,                                    \
+      base::Vector<const Handle<Object>> args) {                         \
+    return NewError(isolate()->name##_function(), template_index, args); \
   }
 DEFINE_ERROR(Error, error)
 DEFINE_ERROR(EvalError, eval_error)

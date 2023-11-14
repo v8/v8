@@ -198,8 +198,8 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<JSObject> error = factory->NewSyntaxError(error_details_.message(),
-                                                   {args, args + num_args});
+  Handle<JSObject> error = factory->NewSyntaxError(
+      error_details_.message(), base::VectorOf(args, num_args));
   isolate->ThrowAt(error, &location);
 }
 
@@ -213,7 +213,7 @@ Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     if (args[num_args].is_null()) break;
   }
   return MessageFormatter::Format(isolate, error_details_.message(),
-                                  {args, args + num_args});
+                                  base::VectorOf(args, num_args));
 }
 
 }  // namespace internal
