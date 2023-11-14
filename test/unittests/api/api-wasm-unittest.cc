@@ -166,6 +166,54 @@ TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
                     Promise::kPending);
 }
 
+TEST_F(ApiWasmTest, WasmErrorIsSharedCrossOrigin) {
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+
+  TryCatch try_catch(isolate());
+  // A fairly minimal Wasm module that produces an error at runtime:
+  // it returns {null} from an imported function that's typed to return
+  // a non-null reference.
+  const char* expected_message =
+      "Uncaught TypeError: type incompatibility when transforming from/to JS";
+  const char* src =
+      "let raw = new Uint8Array(["
+      "  0x00, 0x61, 0x73, 0x6d,  // wasm magic                            \n"
+      "  0x01, 0x00, 0x00, 0x00,  // wasm version                          \n"
+
+      "  0x01, 0x06,              // Type section, length 6                \n"
+      "  0x01, 0x60,              // 1 type, kind: func                    \n"
+      "  0x00, 0x01, 0x64, 0x6f,  // 0 params, 1 result: (ref extern)      \n"
+
+      "  0x02, 0x07, 0x01,        // Import section, length 7, 1 import    \n"
+      "  0x01, 0x6d, 0x01, 0x6e,  // 'm' 'n'                               \n"
+      "  0x00, 0x00,              // kind: function $type0                 \n"
+
+      "  0x03, 0x02,              // Function section, length 2            \n"
+      "  0x01, 0x00,              // 1 function, $type0                    \n"
+
+      "  0x07, 0x05, 0x01,        // Export section, length 5, 1 export    \n"
+      "  0x01, 0x66, 0x00, 0x01,  // 'f': function #1                      \n"
+
+      "  0x0a, 0x06, 0x01,        // Code section, length 6, 1 function    \n"
+      "  0x04, 0x00,              // body size 4, 0 locals                 \n"
+      "  0x10, 0x00, 0x0b,        // call $m.n; end                        \n"
+      "]);                                                                 \n"
+
+      "let mod = new WebAssembly.Module(raw.buffer);                       \n"
+      "let instance = new WebAssembly.Instance(mod, {m: {n: () => null}}); \n"
+      "instance.exports.f();";
+
+  TryRunJS(src);
+  EXPECT_TRUE(try_catch.HasCaught());
+  Local<Message> message = try_catch.Message();
+  CHECK_EQ(0, strcmp(*String::Utf8Value(isolate(), message->Get()),
+                     expected_message));
+  EXPECT_TRUE(message->IsSharedCrossOrigin());
+}
+
 TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
