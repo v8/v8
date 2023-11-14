@@ -2448,20 +2448,25 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
-         load_rep.representation() == MachineRepresentation::kWord16 ||
-         load_rep.representation() == MachineRepresentation::kWord32 ||
-         load_rep.representation() == MachineRepresentation::kTaggedSigned ||
-         load_rep.representation() == MachineRepresentation::kTaggedPointer ||
-         load_rep.representation() == MachineRepresentation::kTagged);
-  USE(load_rep);
-  // The memory order is ignored as both acquire and sequentially consistent
-  // loads can emit MOV.
-  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
-  VisitLoad(node, node, GetLoadOpcode(load_rep));
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
+           load_rep.representation() == MachineRepresentation::kWord16 ||
+           load_rep.representation() == MachineRepresentation::kWord32 ||
+           load_rep.representation() == MachineRepresentation::kTaggedSigned ||
+           load_rep.representation() == MachineRepresentation::kTaggedPointer ||
+           load_rep.representation() == MachineRepresentation::kTagged);
+    USE(load_rep);
+    // The memory order is ignored as both acquire and sequentially consistent
+    // loads can emit MOV.
+    // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+    VisitLoad(node, node, GetLoadOpcode(load_rep));
+  }
 }
 
 template <typename Adapter>
@@ -3546,7 +3551,10 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+  // implemented.
+  auto view = this->simd_shuffle_view(node);
+  CanonicalizeShuffle(view, shuffle, &is_swizzle);
 
   int imm_count = 0;
   static const int kMaxImms = 6;
@@ -3580,7 +3588,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
       imms[imm_count++] = shuffle_mask;
     } else {
       // Swap inputs from the normal order for (v)palignr.
-      SwapShuffleInputs(node);
+      SwapShuffleInputs(view);
       is_swizzle = false;  // It's simpler to just handle the general case.
       no_same_as_first = use_avx;  // SSE requires same-as-first.
       opcode = kIA32S8x16Alignr;

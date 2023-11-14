@@ -59,6 +59,7 @@ struct TurbofanAdapter {
   using block_t = BasicBlock*;
   using block_range_t = ZoneVector<block_t>;
   using node_t = Node*;
+  using optional_node_t = Node*;
   using inputs_t = Node::Inputs;
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
@@ -286,7 +287,7 @@ struct TurbofanAdapter {
     }
 
     node_t base() const { return node_->InputAt(0); }
-    node_t index() const { return node_->InputAt(1); }
+    optional_node_t index() const { return node_->InputAt(1); }
     node_t value() const { return node_->InputAt(2); }
     // TODO(saelo): once we have turboshaft everywhere, we should convert this
     // to an operation parameter instead of an addition input (which is
@@ -393,6 +394,44 @@ struct TurbofanAdapter {
     node_t node_;
   };
 
+#if V8_ENABLE_WEBASSEMBLY
+  class SimdShuffleView {
+   public:
+    explicit SimdShuffleView(node_t node) : node_(node) {
+      DCHECK(node_->opcode() == IrOpcode::kI8x16Shuffle ||
+             node_->opcode() == IrOpcode::kI8x32Shuffle);
+    }
+
+    bool isSimd128() const {
+      return node_->opcode() == IrOpcode::kI8x16Shuffle;
+    }
+
+    const uint8_t* data() const {
+      return isSimd128() ? S128ImmediateParameterOf(node_->op()).data()
+                         : S256ImmediateParameterOf(node_->op()).data();
+    }
+
+    node_t input(int index) const {
+      DCHECK_LT(index, node_->InputCount());
+      return node_->InputAt(index);
+    }
+
+    void SwapInputs() {
+      Node* input0 = node_->InputAt(0);
+      Node* input1 = node_->InputAt(1);
+      node_->ReplaceInput(0, input1);
+      node_->ReplaceInput(1, input0);
+    }
+
+    void DuplicateFirstInput() { node_->ReplaceInput(1, node_->InputAt(0)); }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+  };
+#endif
+
   bool is_constant(node_t node) const {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
@@ -430,6 +469,11 @@ struct TurbofanAdapter {
   StoreView store_view(node_t node) { return StoreView(node); }
   DeoptimizeView deoptimize_view(node_t node) { return DeoptimizeView(node); }
   AtomicRMWView atomic_rmw_view(node_t node) { return AtomicRMWView(node); }
+#if V8_ENABLE_WEBASSEMBLY
+  SimdShuffleView simd_shuffle_view(node_t node) {
+    return SimdShuffleView(node);
+  }
+#endif
 
   block_t block(schedule_t schedule, node_t node) const {
     return schedule->block(node);
@@ -498,6 +542,10 @@ struct TurbofanAdapter {
 
   id_t id(node_t node) const { return node->id(); }
   static bool valid(node_t node) { return node != nullptr; }
+  static node_t value(optional_node_t node) {
+    DCHECK(valid(node));
+    return node;
+  }
 
   node_t block_terminator(block_t block) const {
     return block->control_input();
@@ -564,6 +612,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   using block_t = turboshaft::Block*;
   using block_range_t = ZoneVector<block_t>;
   using node_t = turboshaft::OpIndex;
+  using optional_node_t = turboshaft::OptionalOpIndex;
   using inputs_t = base::Vector<const node_t>;
   using opcode_t = turboshaft::Opcode;
   using id_t = uint32_t;
@@ -730,12 +779,22 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   class LoadView {
    public:
     LoadView(turboshaft::Graph* graph, node_t node) : node_(node) {
-      op_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
+      load_ = graph->Get(node_).TryCast<turboshaft::LoadOp>();
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_ == nullptr) {
+        load_transform_ =
+            &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
+      }
+#else
+      DCHECK_NOT_NULL(load_);
+#endif
     }
 
     LoadRepresentation loaded_rep() const {
-      MachineType loaded_rep = op_->loaded_rep.ToMachineType();
-      if (op_->result_rep == turboshaft::RegisterRepresentation::Compressed()) {
+      DCHECK_NOT_NULL(load_);
+      MachineType loaded_rep = load_->loaded_rep.ToMachineType();
+      if (load_->result_rep ==
+          turboshaft::RegisterRepresentation::Compressed()) {
         if (loaded_rep == MachineType::AnyTagged()) {
           return MachineType::AnyCompressed();
         } else if (loaded_rep == MachineType::TaggedPointer()) {
@@ -745,38 +804,83 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return loaded_rep;
     }
     bool is_protected(bool* traps_on_null) const {
-      if (op_->kind.with_trap_handler) {
-        *traps_on_null = op_->kind.tagged_base;
-        return true;
+      if (load_) {
+        if (load_->kind.with_trap_handler) {
+          *traps_on_null = load_->kind.tagged_base;
+          return true;
+        }
+#if V8_ENABLE_WEBASSEMBLY
+      } else {
+        if (load_transform_->load_kind.with_trap_handler) {
+          DCHECK(!load_transform_->load_kind.tagged_base);
+          *traps_on_null = false;
+          return true;
+        }
+#endif
       }
       return false;
     }
-    bool is_atomic() const { return op_->kind.is_atomic; }
+    bool is_atomic() const {
+      if (load_) return load_->kind.is_atomic;
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->load_kind.is_atomic;
+#endif
+      UNREACHABLE();
+    }
 
-    node_t base() const { return op_->base(); }
-    node_t index() const { return op_->index().value_or_invalid(); }
+    node_t base() const {
+      if (load_) return load_->base();
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->base();
+#endif
+      UNREACHABLE();
+    }
+    node_t index() const {
+      if (load_) return load_->index().value_or_invalid();
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return load_transform_->index();
+#endif
+      UNREACHABLE();
+    }
     int32_t displacement() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
-      int32_t offset = op_->offset;
-      if (op_->kind.tagged_base) {
-        CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
-        offset -= kHeapObjectTag;
+      if (load_) {
+        int32_t offset = load_->offset;
+        if (load_->kind.tagged_base) {
+          CHECK_GE(offset,
+                   std::numeric_limits<int32_t>::min() + kHeapObjectTag);
+          offset -= kHeapObjectTag;
+        }
+        return offset;
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (load_transform_) {
+        int32_t offset = load_transform_->offset;
+        DCHECK(!load_transform_->load_kind.tagged_base);
+        return offset;
+#endif
       }
-      return offset;
+      UNREACHABLE();
     }
     uint8_t element_size_log2() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
                          uint8_t>);
-      return op_->element_size_log2;
+      if (load_) return load_->element_size_log2;
+#if V8_ENABLE_WEBASSEMBLY
+      if (load_transform_) return 0;
+#endif
+      UNREACHABLE();
     }
 
     operator node_t() const { return node_; }
 
    private:
     node_t node_;
-    const turboshaft::LoadOp* op_;
+    const turboshaft::LoadOp* load_;
+#if V8_ENABLE_WEBASSEMBLY
+    const turboshaft::Simd128LoadTransformOp* load_transform_;
+#endif
   };
 
   class StoreView {
@@ -790,8 +894,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
               op_->write_barrier};
     }
     base::Optional<AtomicMemoryOrder> memory_order() const {
-      // TODO(nicohartmann@): Currently we only have non-atomic stores.
-      DCHECK(!op_->kind.is_atomic);
+      // TODO(nicohartmann@): Currently we don't support memory orders.
+      if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
       return base::nullopt;
     }
     MemoryAccessKind access_kind() const {
@@ -800,7 +904,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
 
     node_t base() const { return op_->base(); }
-    node_t index() const { return op_->index().value_or_invalid(); }
+    optional_node_t index() const { return op_->index(); }
     node_t value() const { return op_->value(); }
     node_t indirect_pointer_tag() const { UNREACHABLE(); }
     int32_t displacement() const {
@@ -895,11 +999,55 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const turboshaft::AtomicRMWOp* op_;
   };
 
+#if V8_ENABLE_WEBASSEMBLY
+  class SimdShuffleView {
+   public:
+    explicit SimdShuffleView(const turboshaft::Graph* graph, node_t node)
+        : node_(node) {
+      op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
+      // Initialize input mapping.
+      for (int i = 0; i < op128_->input_count; ++i) {
+        input_mapping_.push_back(i);
+      }
+    }
+
+    bool isSimd128() const {
+      // TODO(nicohartmann@): Extend when we add support for Simd256.
+      return true;
+    }
+
+    const uint8_t* data() const { return op128_->shuffle; }
+
+    node_t input(int index) const {
+      DCHECK_LT(index, op128_->input_count);
+      return op128_->input(input_mapping_[index]);
+    }
+
+    void SwapInputs() { std::swap(input_mapping_[0], input_mapping_[1]); }
+
+    void DuplicateFirstInput() {
+      DCHECK_LE(2, input_mapping_.size());
+      input_mapping_[1] = input_mapping_[0];
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+    base::SmallVector<int, 2> input_mapping_;
+    const turboshaft::Simd128ShuffleOp* op128_;
+  };
+#endif
+
   bool is_constant(node_t node) const {
     return graph_->Get(node).Is<turboshaft::ConstantOp>();
   }
   bool is_load(node_t node) const {
-    return graph_->Get(node).Is<turboshaft::LoadOp>();
+    return graph_->Get(node).Is<turboshaft::LoadOp>()
+#if V8_ENABLE_WEBASSEMBLY
+           || graph_->Get(node).Is<turboshaft::Simd128LoadTransformOp>()
+#endif
+        ;
   }
   ConstantView constant_view(node_t node) { return ConstantView{graph_, node}; }
   CallView call_view(node_t node) { return CallView{graph_, node}; }
@@ -918,6 +1066,11 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   AtomicRMWView atomic_rmw_view(node_t node) {
     return AtomicRMWView(graph_, node);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  SimdShuffleView simd_shuffle_view(node_t node) {
+    return SimdShuffleView(graph_, node);
+  }
+#endif
 
   turboshaft::Graph* turboshaft_graph() const { return graph_; }
 
@@ -1045,6 +1198,11 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
   id_t id(node_t node) const { return node.id(); }
   static bool valid(node_t node) { return node.valid(); }
+  static bool valid(optional_node_t node) { return node.valid(); }
+  static node_t value(optional_node_t node) {
+    DCHECK(valid(node));
+    return node.value();
+  }
 
   node_t block_terminator(block_t block) const {
     return graph_->PreviousIndex(block->end());

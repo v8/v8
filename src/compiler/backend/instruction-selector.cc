@@ -1568,6 +1568,17 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+    if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
+      return rmw->memory_access_kind == MemoryAccessKind::kProtected;
+    }
+    if (const Simd128LoadTransformOp* lt =
+            operation.TryCast<Simd128LoadTransformOp>()) {
+      return lt->load_kind.with_trap_handler;
+    }
+    if (const Simd128LaneMemoryOp* lm =
+            operation.TryCast<Simd128LaneMemoryOp>()) {
+      return lm->kind.with_trap_handler;
+    }
 #endif
     return false;
   } else {
@@ -2097,11 +2108,8 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && \
     !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_PPC64 &&                          \
     !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
-  UNIMPLEMENTED();
-}
 
+VISIT_UNSUPPORTED_OP(Word64AtomicLoad)
 VISIT_UNSUPPORTED_OP(Word64AtomicStore)
 VISIT_UNSUPPORTED_OP(Word64AtomicAdd)
 VISIT_UNSUPPORTED_OP(Word64AtomicSub)
@@ -4334,6 +4342,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
               return VisitChangeFloat64ToUint32(node);
             case multi(Rep::Float64(), Rep::Word32(), true, A::kNoOverflow):
               return VisitRoundFloat64ToInt32(node);
+            case multi(Rep::Float64(), Rep::Word32(), false, A::kNoAssumption):
+              return VisitTruncateFloat64ToUint32(node);
             case multi(Rep::Float64(), Rep::Word64(), true, A::kReversible):
               return VisitChangeFloat64ToInt64(node);
             case multi(Rep::Float64(), Rep::Word64(), false, A::kReversible):
@@ -4892,20 +4902,24 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     }
     case Opcode::kLoad: {
       const LoadOp& load = op.Cast<LoadOp>();
-      MachineRepresentation rep =
-          load.loaded_rep.ToMachineType().representation();
-      MarkAsRepresentation(rep, node);
+      MachineType loaded_type = load.loaded_rep.ToMachineType();
+      MarkAsRepresentation(load.result_rep, node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
-        if (rep == MachineRepresentation::kWord8 ||
+        if (loaded_type.representation() == MachineRepresentation::kWord8 ||
             InstructionSelector::AlignmentRequirements()
-                .IsUnalignedLoadSupported(rep)) {
+                .IsUnalignedLoadSupported(loaded_type.representation())) {
           return VisitLoad(node);
         } else {
           return VisitUnalignedLoad(node);
         }
       } else if (load.kind.is_atomic) {
-        UNIMPLEMENTED();
+        if (load.result_rep == Rep::Word32()) {
+          return VisitWord32AtomicLoad(node);
+        } else {
+          DCHECK_EQ(load.result_rep, Rep::Word64());
+          return VisitWord64AtomicLoad(node);
+        }
       } else if (load.kind.with_trap_handler) {
         DCHECK(!load.kind.maybe_unaligned);
         return VisitProtectedLoad(node);
@@ -4929,7 +4943,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           return VisitUnalignedStore(node);
         }
       } else if (store.kind.is_atomic) {
-        UNIMPLEMENTED();
+        if (store.stored_rep == MemoryRepresentation::Int64() ||
+            store.stored_rep == MemoryRepresentation::Uint64()) {
+          return VisitWord64AtomicStore(node);
+        } else {
+          return VisitWord32AtomicStore(node);
+        }
       } else if (store.kind.with_trap_handler) {
         DCHECK(!store.kind.maybe_unaligned);
         return VisitProtectedStore(node);
@@ -5068,6 +5087,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       UNREACHABLE();
     }
+    case Opcode::kMemoryBarrier:
+      return VisitMemoryBarrier(node);
+
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Opcode::kSimd128Constant: {
       const Simd128ConstantOp& constant = op.Cast<Simd128ConstantOp>();
@@ -5209,8 +5231,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
       TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
 #undef UNIMPLEMENTED_CASE
-    case Opcode::kAtomicWord32Pair:
-    case Opcode::kMemoryBarrier: {
+    case Opcode::kAtomicWord32Pair: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
       FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
@@ -5384,11 +5405,9 @@ InstructionSelectorT<TurbofanAdapter>::GetFrameStateDescriptor(node_t node) {
 #if V8_ENABLE_WEBASSEMBLY
 // static
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::SwapShuffleInputs(Node* node) {
-  Node* input0 = node->InputAt(0);
-  Node* input1 = node->InputAt(1);
-  node->ReplaceInput(0, input1);
-  node->ReplaceInput(1, input0);
+void InstructionSelectorT<Adapter>::SwapShuffleInputs(
+    typename Adapter::SimdShuffleView& view) {
+  view.SwapInputs();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

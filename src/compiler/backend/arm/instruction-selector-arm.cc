@@ -2698,14 +2698,20 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
   Emit(kArmDmbIsh, g.NoOutput());
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicLoad(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicLoad(Node* node) {
   // The memory order is ignored as both acquire and sequentially consistent
   // loads can emit LDR; DMB ISH.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
   AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
   LoadRepresentation load_rep = atomic_load_params.representation();
-  ArmOperandGeneratorT<Adapter> g(this);
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   ArchOpcode opcode;
@@ -3591,7 +3597,10 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+  // implemented.
+  auto view = this->simd_shuffle_view(node);
+  CanonicalizeShuffle(view, shuffle, &is_swizzle);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
   uint8_t shuffle32x4[4];

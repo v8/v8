@@ -925,12 +925,13 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word64AtomicXor)
   DECLARE_GENERATOR_T(Word64AtomicExchange)
   DECLARE_GENERATOR_T(Word64AtomicCompareExchange)
+  DECLARE_GENERATOR_T(Word32AtomicLoad)
+  DECLARE_GENERATOR_T(Word64AtomicLoad)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  DECLARE_GENERATOR(Word32AtomicLoad)
   DECLARE_GENERATOR(Word32AtomicPairLoad)
   DECLARE_GENERATOR(Word32AtomicPairStore)
   DECLARE_GENERATOR(Word32AtomicPairAdd)
@@ -940,7 +941,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word32AtomicPairXor)
   DECLARE_GENERATOR(Word32AtomicPairExchange)
   DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
-  DECLARE_GENERATOR(Word64AtomicLoad)
   DECLARE_GENERATOR(Simd128ReverseBytes)
   DECLARE_GENERATOR(LoadStackPointer)
   DECLARE_GENERATOR(SetStackPointer)
@@ -1015,35 +1015,36 @@ class InstructionSelectorT final : public Adapter {
   template <const int simd_size = kSimd128Size,
             typename = std::enable_if_t<simd_size == kSimd128Size ||
                                         simd_size == kSimd256Size>>
-  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle) {
+  void CanonicalizeShuffle(typename Adapter::SimdShuffleView& view,
+                           uint8_t* shuffle, bool* is_swizzle) {
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
-      memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
-             kSimd128Size);
+      DCHECK(view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd128Size);
     } else if constexpr (simd_size == kSimd256Size) {
-      memcpy(shuffle, S256ImmediateParameterOf(node->op()).data(),
-             kSimd256Size);
+      DCHECK(!view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd256Size);
     } else {
       UNREACHABLE();
     }
     bool needs_swap;
-    bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
-                        GetVirtualRegister(node->InputAt(1));
+    bool inputs_equal =
+        GetVirtualRegister(view.input(0)) == GetVirtualRegister(view.input(1));
     wasm::SimdShuffle::CanonicalizeShuffle<simd_size>(inputs_equal, shuffle,
                                                       &needs_swap, is_swizzle);
     if (needs_swap) {
-      SwapShuffleInputs(node);
+      SwapShuffleInputs(view);
     }
     // Duplicate the first input; for some shuffles on some architectures, it's
     // easiest to implement a swizzle as a shuffle so it might be used.
     if (*is_swizzle) {
-      node->ReplaceInput(1, node->InputAt(0));
+      view.DuplicateFirstInput();
     }
   }
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
-  void SwapShuffleInputs(Node* node);
+  void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================

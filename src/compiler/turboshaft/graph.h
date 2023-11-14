@@ -570,6 +570,7 @@ class Graph {
   }
 
   V8_INLINE const Operation& Get(OpIndex i) const {
+    DCHECK(i.valid());
     DCHECK(BelongsToThisGraph(i));
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
@@ -580,6 +581,7 @@ class Graph {
     return *ptr;
   }
   V8_INLINE Operation& Get(OpIndex i) {
+    DCHECK(i.valid());
     DCHECK(BelongsToThisGraph(i));
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.

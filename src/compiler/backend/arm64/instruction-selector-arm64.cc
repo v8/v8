@@ -3951,10 +3951,14 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   }
 }
 
-template <typename Adapter>
-void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-                     AtomicWidth width) {
-  Arm64OperandGeneratorT<Adapter> g(selector);
+void VisitAtomicLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
+                     turboshaft::OpIndex node, AtomicWidth width) {
+  UNIMPLEMENTED();
+}
+
+void VisitAtomicLoad(InstructionSelectorT<TurbofanAdapter>* selector,
+                     Node* node, AtomicWidth width) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
@@ -5082,12 +5086,12 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
   VisitAtomicLoad(this, node, AtomicWidth::kWord32);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
   VisitAtomicLoad(this, node, AtomicWidth::kWord64);
 }
 
@@ -6189,7 +6193,10 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+  // implemented.
+  auto view = this->simd_shuffle_view(node);
+  CanonicalizeShuffle(view, shuffle, &is_swizzle);
   uint8_t shuffle32x4[4];
   Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   ArchOpcode opcode;
