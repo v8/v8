@@ -329,13 +329,8 @@ Address MainAllocator::ComputeLimit(Address start, Address end,
                                     size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
-  // Use the full LAB when allocation observers aren't enabled.
-  if (!SupportsAllocationObserver()) return end;
-
-  // LABs with allocation observers are only used outside GC and on the main
-  // thread.
-  DCHECK(!heap()->IsInGC());
-  DCHECK(is_main_thread());
+  // During GCs we always use the full LAB.
+  if (heap()->IsInGC()) return end;
 
   if (!heap()->IsInlineAllocationEnabled()) {
     // LABs are disabled, so we fit the requested area exactly.
