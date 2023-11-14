@@ -1585,6 +1585,9 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
+  if (IsSmi(args[0]) || IsSmi(args[1])) {
+    return CrashUnlessFuzzing(isolate);
+  }
   auto obj1 = HeapObject::cast(args[0]);
   auto obj2 = HeapObject::cast(args[1]);
   return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
