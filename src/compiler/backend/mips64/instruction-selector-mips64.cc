@@ -1767,7 +1767,6 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
   } else {
     Mips64OperandGeneratorT<Adapter> g(this);
     InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-    InstructionOperand temps[] = {g.TempDoubleRegister()};
     InstructionOperand outputs[2];
     size_t output_count = 0;
     outputs[output_count++] = g.DefineAsRegister(node);
@@ -1777,7 +1776,7 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
       outputs[output_count++] = g.DefineAsRegister(success_output);
     }
 
-    Emit(kMips64TruncWD, output_count, outputs, 1, inputs, 1, temps);
+    Emit(kMips64TruncWD, output_count, outputs, 1, inputs);
   }
 }
 
@@ -1789,7 +1788,6 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
   } else {
     Mips64OperandGeneratorT<Adapter> g(this);
     InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-    InstructionOperand temps[] = {g.TempDoubleRegister()};
     InstructionOperand outputs[2];
     size_t output_count = 0;
     outputs[output_count++] = g.DefineAsRegister(node);
@@ -1799,7 +1797,7 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
       outputs[output_count++] = g.DefineAsRegister(success_output);
     }
 
-    Emit(kMips64TruncUwD, output_count, outputs, 1, inputs, 1, temps);
+    Emit(kMips64TruncUwD, output_count, outputs, 1, inputs);
   }
 }
 
