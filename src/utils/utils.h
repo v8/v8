@@ -431,12 +431,21 @@ inline constexpr T truncate_to_intn(T x, unsigned n) {
   inline constexpr T truncate_to_int##N(T x) { \
     return truncate_to_intn(x, N);             \
   }
+
+#define DECLARE_CHECKED_TRUNCATE_TO_INT_N(N)           \
+  template <class T>                                   \
+  inline constexpr T checked_truncate_to_int##N(T x) { \
+    CHECK(is_int##N(x));                               \
+    return truncate_to_intn(x, N);                     \
+  }
 INT_1_TO_63_LIST(DECLARE_IS_INT_N)
 INT_1_TO_63_LIST(DECLARE_IS_UINT_N)
 INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
+INT_1_TO_63_LIST(DECLARE_CHECKED_TRUNCATE_TO_INT_N)
 #undef DECLARE_IS_INT_N
 #undef DECLARE_IS_UINT_N
 #undef DECLARE_TRUNCATE_TO_INT_N
+#undef DECLARE_CHECKED_TRUNCATE_TO_INT_N
 
 // clang-format off
 #define INT_0_TO_127_LIST(V)                                          \
