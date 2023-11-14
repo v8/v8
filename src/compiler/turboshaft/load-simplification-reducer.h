@@ -1,4 +1,5 @@
 // Copyright 2023 the V8 project authors. All rights reserved.
+
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,32 +30,42 @@ class LoadSimplificationReducer : public Next {
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_size_log2) {
-    if (kind.tagged_base) {
-      kind.tagged_base = false;
-      offset -= kHeapObjectTag;
-      base = __ BitcastTaggedToWord(base);
-    }
-    if (index.has_value()) {
-      if (element_size_log2 != 0) {
-        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
-        element_size_log2 = 0;
+    if (lowering_enabled_) {
+      if (kind.tagged_base) {
+        kind.tagged_base = false;
+        offset -= kHeapObjectTag;
+        base = __ BitcastTaggedToWord(base);
       }
-      if (offset != 0) {
-        index = __ WordPtrAdd(index.value(), offset);
-        offset = 0;
+      if (index.has_value()) {
+        if (element_size_log2 != 0) {
+          index = __ WordPtrShiftLeft(index.value(), element_size_log2);
+          element_size_log2 = 0;
+        }
+        if (offset != 0) {
+          index = __ WordPtrAdd(index.value(), offset);
+          offset = 0;
+        }
       }
+      // A lowered load can have either an index or an offset != 0.
+      DCHECK_IMPLIES(index.has_value(), offset == 0);
+      // If it has an index, the "element size" has to be 1 Byte.
+      // Note that the element size does not encode the size of the loaded value
+      // as that is encoded by the MemoryRepresentation, it only specifies a
+      // factor as a power of 2 to multiply the index with.
+      DCHECK_IMPLIES(index.has_value(), element_size_log2 == 0);
     }
-    // A lowered load can have either an index or an offset != 0.
-    DCHECK_IMPLIES(index.has_value(), offset == 0);
-    // If it has an index, the "element size" has to be 1 Byte.
-    // Note that the element size does not encode the size of the loaded value
-    // as that is encoded by the MemoryRepresentation, it only specifies a
-    // factor as a power of 2 to multiply the index with.
-    DCHECK_IMPLIES(index.has_value(), element_size_log2 == 0);
 
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_size_log2);
   }
+
+ private:
+  bool is_wasm_ = PipelineData::Get().is_wasm();
+  // TODO(12783): Remove this flag once the Turbofan instruction selection has
+  // been replaced.
+  bool lowering_enabled_ =
+      (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection) ||
+      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
