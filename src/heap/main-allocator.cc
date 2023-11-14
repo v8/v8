@@ -296,11 +296,15 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
                                      AllocationOrigin origin) {
 #ifdef V8_RUNTIME_CALL_STATS
   base::Optional<RuntimeCallTimerScope> rcs_scope;
-  if (!in_gc() && local_heap()->is_main_thread()) {
+  if (is_main_thread()) {
     rcs_scope.emplace(heap()->isolate(),
                       RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   }
 #endif  // V8_RUNTIME_CALL_STATS
+  base::Optional<VMState<GC>> vmstate;
+  if (is_main_thread()) {
+    vmstate.emplace(heap()->isolate());
+  }
   return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
 }
 
@@ -403,6 +407,10 @@ int MainAllocator::ObjectAlignment() const {
 }
 
 AllocationSpace MainAllocator::identity() const { return space_->identity(); }
+
+bool MainAllocator::is_main_thread() const {
+  return !in_gc() && local_heap()->is_main_thread();
+}
 
 AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
     : allocator_(allocator), heap_(allocator->heap()) {}
@@ -591,15 +599,6 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
 
 bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
                                               AllocationOrigin origin) {
-  base::Optional<VMState<GC>> vmstate;
-  if (!allocator_->in_gc()) {
-    vmstate.emplace(heap()->isolate());
-  }
-  return RawRefillLabMain(size_in_bytes, origin);
-}
-
-bool PagedSpaceAllocatorPolicy::RawRefillLabMain(int size_in_bytes,
-                                                 AllocationOrigin origin) {
   // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
 

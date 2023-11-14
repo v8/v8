@@ -76,7 +76,6 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
 
  private:
   bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
-  bool RawRefillLabMain(int size_in_bytes, AllocationOrigin origin);
 
   bool ContributeToSweepingMain(int required_freed_bytes, int max_pages,
                                 int size_in_bytes, AllocationOrigin origin,
@@ -309,6 +308,8 @@ class MainAllocator {
   bool in_gc() const { return local_heap_ == nullptr; }
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
+
+  bool is_main_thread() const;
 
   LocalHeap* local_heap() const { return local_heap_; }
 
