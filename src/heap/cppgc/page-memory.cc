@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 
+#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/memory.h"
@@ -14,6 +15,8 @@
 
 namespace cppgc {
 namespace internal {
+
+NormalPageMemoryPool* NormalPageMemoryPool::g_instance_ = nullptr;
 
 namespace {
 
@@ -125,24 +128,42 @@ void PageMemoryRegionTree::Remove(PageMemoryRegion* region) {
   DCHECK_EQ(1u, size);
 }
 
-void NormalPageMemoryPool::Add(PageMemoryRegion* pmr) {
-  DCHECK_NOT_NULL(pmr);
-  DCHECK_EQ(pmr->GetPageMemory().overall_region().size(), kPageSize);
-  // Oilpan requires the pages to be zero-initialized.
-  {
-    void* base = pmr->GetPageMemory().writeable_region().base();
-    const size_t size = pmr->GetPageMemory().writeable_region().size();
-    AsanUnpoisonScope unpoison_for_memset(base, size);
-    std::memset(base, 0, size);
-  }
-  pool_.push_back(pmr);
+NormalPageMemoryPool& NormalPageMemoryPool::Instance() {
+  DCHECK_NOT_NULL(g_instance_);
+  return *g_instance_;
 }
 
-PageMemoryRegion* NormalPageMemoryPool::Take() {
-  if (pool_.empty()) return nullptr;
-  auto* result = pool_.back();
-  DCHECK_NOT_NULL(result);
-  pool_.pop_back();
+void NormalPageMemoryPool::Initialize(PageAllocator& page_allocator) {
+  DCHECK_NULL(g_instance_);
+  static v8::base::LeakyObject<NormalPageMemoryPool> instance(page_allocator);
+  g_instance_ = instance.get();
+}
+
+NormalPageMemoryPool::NormalPageMemoryPool(PageAllocator& page_allocator)
+    : page_allocator_(page_allocator) {}
+
+PageMemoryRegion* NormalPageMemoryPool::AllocatePageMemoryRegion() {
+  PageMemoryRegion* result = nullptr;
+  {
+    v8::base::MutexGuard guard(&mutex_);
+    if (!pool_.empty()) {
+      result = pool_.back();
+      DCHECK_NOT_NULL(result);
+      DCHECK_NE(normal_page_memory_regions_.end(),
+                normal_page_memory_regions_.find(result));
+      pool_.pop_back();
+    }
+  }
+  if (!result) {
+    auto pmr = CreateNormalPageMemoryRegion(page_allocator_);
+    if (!pmr) return nullptr;
+    if (V8_UNLIKELY(!TryUnprotect(page_allocator_, pmr->GetPageMemory())))
+      return nullptr;
+    auto* pmr_raw = pmr.get();
+    v8::base::MutexGuard guard(&mutex_);
+    normal_page_memory_regions_.emplace(pmr.get(), std::move(pmr));
+    return pmr_raw;
+  }
   void* base = result->GetPageMemory().writeable_region().base();
   const size_t size = result->GetPageMemory().writeable_region().size();
   ASAN_UNPOISON_MEMORY_REGION(base, size);
@@ -152,38 +173,56 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
   return result;
 }
 
-void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
-  for (auto* pmr : pool_) {
+void NormalPageMemoryPool::FreePageMemoryRegion(
+    PageMemoryRegion* pmr, FreeMemoryHandling free_memory_handling) {
+  DCHECK_NOT_NULL(pmr);
+  DCHECK_EQ(pmr->GetPageMemory().overall_region().size(), kPageSize);
+  // Oilpan requires the pages to be zero-initialized. Either discard it or
+  // memset to zero.
+  if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
+    CHECK(TryDiscard(page_allocator_, pmr->GetPageMemory()));
+  } else {
+    void* base = pmr->GetPageMemory().writeable_region().base();
+    const size_t size = pmr->GetPageMemory().writeable_region().size();
+    AsanUnpoisonScope unpoison_for_memset(base, size);
+    std::memset(base, 0, size);
+  }
+  v8::base::MutexGuard guard(&mutex_);
+  pool_.push_back(pmr);
+  DCHECK_NE(normal_page_memory_regions_.end(),
+            normal_page_memory_regions_.find(pmr));
+}
+
+void NormalPageMemoryPool::DiscardPooledPages() {
+  decltype(pool_) copied_pool;
+  {
+    v8::base::MutexGuard guard(&mutex_);
+    copied_pool = pool_;
+  }
+  for (auto* pmr : copied_pool) {
     DCHECK_NOT_NULL(pmr);
-    CHECK(TryDiscard(page_allocator, pmr->GetPageMemory()));
+    CHECK(TryDiscard(page_allocator_, pmr->GetPageMemory()));
   }
 }
 
-PageBackend::PageBackend(PageAllocator& normal_page_allocator,
-                         PageAllocator& large_page_allocator)
-    : normal_page_allocator_(normal_page_allocator),
-      large_page_allocator_(large_page_allocator) {}
+void NormalPageMemoryPool::FlushPooledPagesForTesting() {
+  v8::base::MutexGuard guard(&mutex_);
+  pool_.clear();
+  normal_page_memory_regions_.clear();
+}
+
+PageBackend::PageBackend(PageAllocator& large_page_allocator)
+    : large_page_allocator_(large_page_allocator) {}
 
 PageBackend::~PageBackend() = default;
 
 Address PageBackend::TryAllocateNormalPageMemory() {
-  v8::base::MutexGuard guard(&mutex_);
-  if (PageMemoryRegion* cached = page_pool_.Take()) {
+  if (PageMemoryRegion* cached =
+          NormalPageMemoryPool::Instance().AllocatePageMemoryRegion()) {
     const auto writeable_region = cached->GetPageMemory().writeable_region();
-    DCHECK_NE(normal_page_memory_regions_.end(),
-              normal_page_memory_regions_.find(cached));
+    v8::base::MutexGuard guard(&mutex_);
     page_memory_region_tree_.Add(cached);
     return writeable_region.base();
-  }
-  auto pmr = CreateNormalPageMemoryRegion(normal_page_allocator_);
-  if (!pmr) {
-    return nullptr;
-  }
-  const PageMemory pm = pmr->GetPageMemory();
-  if (V8_LIKELY(TryUnprotect(normal_page_allocator_, pm))) {
-    page_memory_region_tree_.Add(pmr.get());
-    normal_page_memory_regions_.emplace(pmr.get(), std::move(pmr));
-    return pm.writeable_region().base();
   }
   return nullptr;
 }
@@ -194,10 +233,8 @@ void PageBackend::FreeNormalPageMemory(
   auto* pmr = page_memory_region_tree_.Lookup(writeable_base);
   DCHECK_NOT_NULL(pmr);
   page_memory_region_tree_.Remove(pmr);
-  page_pool_.Add(pmr);
-  if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
-    CHECK(TryDiscard(normal_page_allocator_, pmr->GetPageMemory()));
-  }
+  NormalPageMemoryPool::Instance().FreePageMemoryRegion(pmr,
+                                                        free_memory_handling);
 }
 
 Address PageBackend::TryAllocateLargePageMemory(size_t size) {
@@ -222,10 +259,6 @@ void PageBackend::FreeLargePageMemory(Address writeable_base) {
   auto size = large_page_memory_regions_.erase(pmr);
   USE(size);
   DCHECK_EQ(1u, size);
-}
-
-void PageBackend::DiscardPooledPages() {
-  page_pool_.DiscardPooledPages(normal_page_allocator_);
 }
 
 }  // namespace internal

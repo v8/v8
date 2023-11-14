@@ -989,7 +989,7 @@ class Sweeper::SweeperImpl final {
     stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
     if (config_.free_memory_handling ==
         FreeMemoryHandling::kDiscardWherePossible)
-      heap_.heap()->page_backend()->DiscardPooledPages();
+      NormalPageMemoryPool::Instance().DiscardPooledPages();
   }
 
   void NotifyDoneIfNeeded() {
