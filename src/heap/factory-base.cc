@@ -495,7 +495,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
-    raw->set_function_data(*function_data, kReleaseStore);
+    DCHECK(!IsCode(*function_data));
+    raw->SetData(*function_data, kReleaseStore,
+                 SharedFunctionInfo::DataType::kRegular);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {

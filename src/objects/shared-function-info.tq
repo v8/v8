@@ -52,10 +52,20 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
 }
 
 extern class SharedFunctionInfo extends HeapObject {
-  // function_data field is treated as a custom weak pointer. We visit this
-  // field as a weak pointer if there is aged bytecode. If there is no bytecode
-  // or if the bytecode is young then we treat it as a strong pointer. This is
-  // done to support flushing of bytecode.
+  // When the sandbox is enabled, the SFI's function data is split into a
+  // trusted and an untrusted part.
+  // The field is treated as a custom weak pointer. We visit this field as a
+  // weak pointer if there is aged bytecode. If there is no bytecode or if the
+  // bytecode is young then we treat it as a strong pointer. This is done to
+  // support flushing of bytecode.
+  // TODO(chromium:1490564) in the future, this field could be replaced by a
+  // generic code reference, which contains all information needed to (safely)
+  // invoke the function (Code/BytecodeArray, number of parameters, etc.).
+  // Then, function_data would only contain metadata used by the invoked code.
+  // With that, the function_data field would no longer require custom weak
+  // marking as that is only required for (byte)code flushing.
+  @if(V8_ENABLE_SANDBOX)
+      @customWeakMarking trusted_function_data: Object;
   @customWeakMarking function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;

@@ -3059,8 +3059,17 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 
     // Now record the slot, which has either been updated to an uncompiled data,
     // Baseline code or BytecodeArray which is still alive.
+#ifdef V8_ENABLE_SANDBOX
+    ObjectSlot slot = flushing_candidate->RawField(
+        SharedFunctionInfo::kTrustedFunctionDataOffset);
+    if (!IsHeapObject(slot.load(heap_->isolate()))) {
+      slot =
+          flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
+    }
+#else
     ObjectSlot slot =
         flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
+#endif  // V8_ENABLE_SANDBOX
     RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
   }
 

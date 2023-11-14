@@ -3383,7 +3383,29 @@ TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
 
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
     TNode<SharedFunctionInfo> sfi) {
+#ifdef V8_ENABLE_SANDBOX
+  // Return the trusted_function_data part if it is non-empty, otherwise the
+  // regular function_data.
+  TNode<Smi> smi_zero = SmiConstant(0);
+
+  TNode<Object> trusted_data = LoadObjectField<Object>(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
+  TVARIABLE(Object, var_result, trusted_data);
+  Label done(this, &var_result);
+  Label use_untrusted_data(this);
+  GotoIf(TaggedEqual(trusted_data, smi_zero), &use_untrusted_data);
+  Goto(&done);
+
+  BIND(&use_untrusted_data);
+  var_result =
+      LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+#else
   return LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(

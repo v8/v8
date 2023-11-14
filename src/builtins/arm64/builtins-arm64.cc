@@ -395,9 +395,27 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 
 // Equivalent of SharedFunctionInfo::GetData
 static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi) {
+                                      Register sfi, Register scratch) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(!AreAliased(data, scratch));
+  DCHECK(!AreAliased(sfi, scratch));
+  // Use trusted_function_data if non-empy, otherwise the regular function_data.
+  Label done;
+  // data and sfi might be aliased, so use a scratch register
+  __ LoadTaggedField(
+      scratch,
+      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+
+  __ Cbnz(scratch.W(), &done);
+  __ LoadTaggedField(
+      scratch, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+
+  __ bind(&done);
+  __ Move(data, scratch);
+#else
   __ LoadTaggedField(
       data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -454,7 +472,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   Register data = bytecode;
-  GetSharedFunctionInfoData(masm, data, sfi);
+  GetSharedFunctionInfoData(masm, data, sfi, scratch1);
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
     __ B(ne, &done);
@@ -1997,7 +2015,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  GetSharedFunctionInfoData(masm, x1, x1);
+  GetSharedFunctionInfoData(masm, x1, x1, x2);
   __ IsObjectType(x1, kInterpreterDispatchTableRegister,
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
@@ -5392,7 +5410,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, code_obj);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, code_obj);
+  GetSharedFunctionInfoData(masm, code_obj, code_obj, x3);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.

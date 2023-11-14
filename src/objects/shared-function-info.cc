@@ -77,7 +77,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
   // ======
 
-  Tagged<Object> data = function_data(kAcquireLoad);
+  Tagged<Object> data = GetData();
   if (IsSmi(data)) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
@@ -220,6 +220,10 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
 void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+#ifdef V8_ENABLE_SANDBOX
+  set_trusted_function_data(other->trusted_function_data(kAcquireLoad),
+                            kReleaseStore);
+#endif
   set_function_data(other->function_data(cage_base, kAcquireLoad),
                     kReleaseStore);
   set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
@@ -402,7 +406,7 @@ void SharedFunctionInfo::DiscardCompiled(
     // Update the function data to point to the UncompiledData without preparse
     // data created above. Use the raw function data setter to avoid validity
     // checks, since we're performing the unusual task of decompiling.
-    shared_info->set_function_data(*data.ToHandleChecked(), kReleaseStore);
+    shared_info->SetData(*data.ToHandleChecked(), kReleaseStore);
   }
 }
 

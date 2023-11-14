@@ -351,7 +351,38 @@ class SharedFunctionInfo
   inline Tagged<Object> GetData() const;
 
  private:
+  // When the sandbox is enabled, the function's data is split across two
+  // fields, with the "trusted" part containing a trusted pointer and the
+  // regular/untrusted part containing a tagged pointer. In that case, code
+  // accessing the data field will first load the trusted data field. If that
+  // is empty (i.e. kNullIndirectPointerHandle), it will then load the regular
+  // field. With that, the only racy transition would be a tagged -> trusted
+  // transition (one thread may first read the empty trusted pointer, then
+  // another thread transitions to the trusted field, clearing the tagged
+  // field, and then the first thread continues to load the tagged field). As
+  // such, this transition is only allowed on the main thread. From a GC
+  // perspective, both fields always contain a valid value and so can be
+  // processed unconditionally.
+  // Only one of these two fields should be in use at any time and the other
+  // field should be cleared. As such, when setting these fields prefer to use
+  // SetData() which automatically clears the inactive field.
+  // TODO(chromium:1490564): if we decide to do the refactoring described
+  // above, the trusted part would become the code field.
+#ifdef V8_ENABLE_SANDBOX
+  DECL_RELEASE_ACQUIRE_ACCESSORS(trusted_function_data, Tagged<Object>)
+#endif
   DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Tagged<Object>)
+
+  enum class DataType { kRegular, kTrusted };
+  inline void SetData(Tagged<Object> value, ReleaseStoreTag,
+                      DataType type = DataType::kRegular,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+#ifdef V8_ENABLE_SANDBOX
+  inline void clear_function_data(RelaxedStoreTag);
+  inline void clear_trusted_function_data(RelaxedStoreTag);
+  inline bool has_trusted_function_data() const;
+#endif
 
  public:
   inline bool IsApiFunction() const;
@@ -779,7 +810,13 @@ class SharedFunctionInfo
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
 
+#ifdef V8_ENABLE_SANDBOX
+// When the sandbox is enabled, the data field is split into a trusted pointer
+// part and a tagged part.
+static constexpr int kStaticRootsSFISize = 48;
+#else
 static constexpr int kStaticRootsSFISize = 44;
+#endif
 #ifdef V8_STATIC_ROOTS
 static_assert(SharedFunctionInfo::kSize == kStaticRootsSFISize);
 #endif  // V8_STATIC_ROOTS

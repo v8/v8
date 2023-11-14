@@ -284,6 +284,11 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
   if (!can_flush_bytecode || !ShouldFlushCode(shared_info)) {
     // If the SharedFunctionInfo doesn't have old bytecode visit the function
     // data strongly.
+#ifdef V8_ENABLE_SANDBOX
+    VisitPointer(
+        shared_info,
+        shared_info->RawField(SharedFunctionInfo::kTrustedFunctionDataOffset));
+#endif
     VisitPointer(shared_info, shared_info->RawField(
                                   SharedFunctionInfo::kFunctionDataOffset));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {

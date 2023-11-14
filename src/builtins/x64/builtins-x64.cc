@@ -667,15 +667,28 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 
 // Equivalent of SharedFunctionInfo::GetData
 static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi) {
+                                      Register sfi, Register scratch) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(!AreAliased(data, scratch));
+  DCHECK(!AreAliased(sfi, scratch));
+  // Use trusted_function_data if non-empy, otherwise the regular function_data.
+  Label done;
+  // data and sfi might be aliased, so use a scratch register
   __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-}
+      scratch,
+      FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      TaggedRegister sfi) {
+  __ testl(scratch, scratch);
+  __ j(not_zero, &done, Label::kNear);
+  __ LoadTaggedField(
+      scratch, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+
+  __ bind(&done);
+  __ Move(data, scratch);
+#else
   __ LoadTaggedField(
       data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -727,7 +740,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   Register data = bytecode;
-  GetSharedFunctionInfoData(masm, data, sfi);
+  GetSharedFunctionInfoData(masm, data, sfi, scratch1);
 
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, INTERPRETER_DATA_TYPE, scratch1);
@@ -1056,7 +1069,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  const Register shared_function_info(kScratchRegister);
+  const Register shared_function_info(r11);
   __ LoadTaggedField(
       shared_function_info,
       FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
@@ -1685,11 +1698,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // get the custom trampoline, otherwise grab the entry address of the global
   // trampoline.
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kFunctionOffset));
-  const TaggedRegister shared_function_info(rbx);
+  const Register shared_function_info(rbx);
   __ LoadTaggedField(shared_function_info,
                      FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
 
-  GetSharedFunctionInfoData(masm, rbx, shared_function_info);
+  GetSharedFunctionInfoData(masm, rbx, shared_function_info, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
@@ -4859,7 +4872,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     ResetSharedFunctionInfoAge(masm, shared_function_info);
   }
 
-  GetSharedFunctionInfoData(masm, code_obj, shared_function_info);
+  GetSharedFunctionInfoData(masm, code_obj, shared_function_info,
+                            kScratchRegister);
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
