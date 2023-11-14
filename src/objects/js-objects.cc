@@ -638,42 +638,6 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
   return GetConstructorHelper(isolate, receiver).second;
 }
 
-base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContextRaw() {
-  DisallowGarbageCollection no_gc;
-  Tagged<JSFunction> function;
-  {
-    Tagged<JSReceiver> receiver = *this;
-    Tagged<Map> receiver_map = receiver->map();
-    InstanceType receiver_instance_type = receiver_map->instance_type();
-    if (V8_LIKELY(InstanceTypeChecker::IsJSFunction(receiver_instance_type))) {
-      function = JSFunction::cast(receiver);
-    } else if (InstanceTypeChecker::IsJSGeneratorObject(
-                   receiver_instance_type)) {
-      function = JSGeneratorObject::cast(receiver)->function();
-    } else {
-      // Externals are JSObjects with null as a constructor.
-      DCHECK(!IsJSExternalObject(receiver));
-      Tagged<Object> constructor = receiver_map->GetConstructor();
-      if (IsJSFunction(constructor)) {
-        function = JSFunction::cast(constructor);
-      } else {
-        // constructor might be a FunctionTemplateInfo but remote objects don't
-        // have a creation context, if the object doesn't have a constructor
-        // then we can't compute a creation context.
-        return {};
-      }
-    }
-  }
-  CHECK(function->has_context());
-  return function->native_context();
-}
-
-MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
-  base::Optional<Tagged<NativeContext>> maybe_context = GetCreationContextRaw();
-  if (!maybe_context.has_value()) return {};
-  return handle(maybe_context.value(), GetIsolate());
-}
-
 // static
 MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     Handle<JSReceiver> receiver) {
@@ -685,7 +649,8 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
   Tagged<JSReceiver> current = *receiver;
   do {
     DCHECK(current->map()->is_constructor());
-    if (IsJSProxy(current)) {
+    InstanceType instance_type = current->map()->instance_type();
+    if (InstanceTypeChecker::IsJSProxy(instance_type)) {
       Tagged<JSProxy> proxy = JSProxy::cast(current);
       if (proxy->IsRevoked()) {
         AllowGarbageCollection allow_allocating_errors;
@@ -695,23 +660,23 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
       current = JSReceiver::cast(proxy->target());
       continue;
     }
-    if (IsJSFunction(current)) {
+    if (InstanceTypeChecker::IsJSFunction(instance_type)) {
       Tagged<JSFunction> function = JSFunction::cast(current);
       return handle(function->native_context(), isolate);
     }
-    if (IsJSBoundFunction(current)) {
+    if (InstanceTypeChecker::IsJSBoundFunction(instance_type)) {
       Tagged<JSBoundFunction> function = JSBoundFunction::cast(current);
       current = function->bound_target_function();
       continue;
     }
-    if (IsJSWrappedFunction(current)) {
+    if (InstanceTypeChecker::IsJSWrappedFunction(instance_type)) {
       Tagged<JSWrappedFunction> function = JSWrappedFunction::cast(current);
       current = function->wrapped_target_function();
       continue;
     }
     Tagged<JSObject> object = JSObject::cast(current);
     DCHECK(!IsJSFunction(object));
-    return object->GetCreationContext();
+    return object->GetCreationContext(isolate);
   } while (true);
 }
 
@@ -1954,13 +1919,13 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     // 6. Else X is an accessor property, so
     Handle<AccessorPair> accessors =
         Handle<AccessorPair>::cast(it->GetAccessors());
-    Handle<NativeContext> native_context =
-        it->GetHolder<JSReceiver>()->GetCreationContext().ToHandleChecked();
+    Handle<NativeContext> holder_realm(
+        it->GetHolder<JSReceiver>()->GetCreationContext().value(), isolate);
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
-    desc->set_get(AccessorPair::GetComponent(isolate, native_context, accessors,
+    desc->set_get(AccessorPair::GetComponent(isolate, holder_realm, accessors,
                                              ACCESSOR_GETTER));
     // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
-    desc->set_set(AccessorPair::GetComponent(isolate, native_context, accessors,
+    desc->set_set(AccessorPair::GetComponent(isolate, holder_realm, accessors,
                                              ACCESSOR_SETTER));
   }
 

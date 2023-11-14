@@ -99,8 +99,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> receiver,
       OrdinaryToPrimitiveHint hint);
 
+  // Unwraps the chain of potential function wrappers or JSProxy objects and
+  // return the leaf function's creation context.
+  // Throws TypeError in case there's a revoked JSProxy on the way.
+  // https://tc39.es/ecma262/#sec-getfunctionrealm
   static MaybeHandle<NativeContext> GetFunctionRealm(
       Handle<JSReceiver> receiver);
+
   V8_EXPORT_PRIVATE static MaybeHandle<NativeContext> GetContextForMicrotask(
       Handle<JSReceiver> receiver);
 
@@ -250,9 +255,10 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE base::Optional<Tagged<NativeContext>>
-  GetCreationContextRaw();
-  V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
+  V8_EXPORT_PRIVATE inline base::Optional<Tagged<NativeContext>>
+  GetCreationContext();
+  V8_EXPORT_PRIVATE inline MaybeHandle<NativeContext> GetCreationContext(
+      Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);

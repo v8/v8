@@ -1493,8 +1493,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   // Regular accessor.
   Handle<Object> getter(accessor_pair->getter(), isolate);
   if (IsFunctionTemplateInfo(*getter)) {
-    SaveAndSwitchContext save(isolate,
-                              *holder->GetCreationContext().ToHandleChecked());
+    SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     return Builtins::InvokeApiFunction(
         isolate, false, Handle<FunctionTemplateInfo>::cast(getter), receiver, 0,
         nullptr, isolate->factory()->undefined_value());
@@ -1565,8 +1564,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
   // Regular accessor.
   Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
   if (IsFunctionTemplateInfo(*setter)) {
-    SaveAndSwitchContext save(isolate,
-                              *holder->GetCreationContext().ToHandleChecked());
+    SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     Handle<Object> argv[] = {value};
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
@@ -1699,7 +1697,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
                             isolate->factory()->constructor_string()),
         Object);
     if (IsConstructor(*constructor)) {
-      Handle<Context> constructor_context;
+      Handle<NativeContext> constructor_context;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, constructor_context,
           JSReceiver::GetFunctionRealm(Handle<JSReceiver>::cast(constructor)),
@@ -1773,21 +1771,19 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
 
 // static
 bool Object::IterationHasObservableEffects(Tagged<Object> obj) {
+  DisallowGarbageCollection no_gc;
   // Check that this object is an array.
   if (!IsJSArray(obj)) return true;
   Tagged<JSArray> array = JSArray::cast(obj);
-  Isolate* isolate = array->GetIsolate();
 
   // Check that we have the original ArrayPrototype.
-  i::HandleScope handle_scope(isolate);
-  i::Handle<i::Context> context;
-  if (!array->GetCreationContext().ToHandle(&context)) return false;
-  if (!IsJSObject(array->map()->prototype())) return true;
-  Tagged<JSObject> array_proto = JSObject::cast(array->map()->prototype());
-  auto initial_array_prototype =
-      context->native_context()->initial_array_prototype();
-  if (initial_array_prototype != array_proto) return true;
+  Tagged<Object> array_proto = array->map()->prototype();
+  if (!IsJSObject(array_proto)) return true;
+  Tagged<NativeContext> native_context = array->GetCreationContext().value();
+  auto initial_array_prototype = native_context->initial_array_prototype();
+  if (initial_array_prototype != JSObject::cast(array_proto)) return true;
 
+  Isolate* isolate = array->GetIsolate();
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
   if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return true;

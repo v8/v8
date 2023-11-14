@@ -2278,6 +2278,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags flags = AllocationFlag::kNone,
       base::Optional<TNode<Map>> fixed_array_map = base::nullopt);
 
+  TNode<NativeContext> GetCreationContextFromMap(TNode<Map> map,
+                                                 Label* if_bailout);
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
   TNode<NativeContext> GetFunctionRealm(TNode<Context> context,

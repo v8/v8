@@ -310,7 +310,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
   Handle<NativeContext> error_context;
   if (!in_recursion && !has_overflowed &&
-      error->GetCreationContext().ToHandle(&error_context)) {
+      error->GetCreationContext(isolate).ToHandle(&error_context)) {
     if (isolate->HasPrepareStackTraceCallback()) {
       PrepareStackTraceScope scope(isolate);
 

@@ -158,11 +158,11 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
       case LookupIterator::ACCESSOR: {
         Handle<Object> maybe_pair = it.GetAccessors();
         if (IsAccessorPair(*maybe_pair)) {
-          Handle<NativeContext> native_context = it.GetHolder<JSReceiver>()
-                                                     ->GetCreationContext()
-                                                     .ToHandleChecked();
+          Handle<NativeContext> holder_realm(
+              it.GetHolder<JSReceiver>()->GetCreationContext().value(),
+              isolate);
           return *AccessorPair::GetComponent(
-              isolate, native_context, Handle<AccessorPair>::cast(maybe_pair),
+              isolate, holder_realm, Handle<AccessorPair>::cast(maybe_pair),
               component);
         }
       }

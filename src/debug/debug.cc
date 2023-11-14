@@ -1847,7 +1847,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
             needs_instantiate.emplace_back(
                 handle(accessor_pair, isolate_),
-                object->GetCreationContext().ToHandleChecked());
+                handle(object->GetCreationContext().value(), isolate_));
             recorded.insert(accessor_pair);
           }
         }

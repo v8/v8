@@ -5317,8 +5317,9 @@ Local<v8::Object> v8::Object::Clone() {
 
 MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
   auto self = Utils::OpenDirectHandle(this);
+  auto i_isolate = self->GetIsolate();
   i::Handle<i::NativeContext> context;
-  if (self->GetCreationContext().ToHandle(&context)) {
+  if (self->GetCreationContext(i_isolate).ToHandle(&context)) {
     return Utils::ToLocal(context);
   }
   return MaybeLocal<v8::Context>();
@@ -5328,14 +5329,13 @@ void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
     int index) {
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
-  auto maybe_context = Utils::OpenDirectHandle(this)->GetCreationContextRaw();
+  auto maybe_context = Utils::OpenDirectHandle(this)->GetCreationContext();
   if (!maybe_context.has_value()) return nullptr;
 
   // The code below mostly mimics Context::GetAlignedPointerFromEmbedderData()
   // but it doesn't try to expand the EmbedderDataArray instance.
   i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::NativeContext> native_context =
-      i::NativeContext::cast(maybe_context.value());
+  i::Tagged<i::NativeContext> native_context = maybe_context.value();
   i::Isolate* i_isolate = native_context->GetIsolate();
 
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);

@@ -25331,7 +25331,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
       object->Get(env.local(), v8_str("values")).ToLocalChecked());
   auto fn = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values));
   auto ctx = v8::Utils::OpenHandle(*env.local());
-  CHECK_EQ(*(fn->GetCreationContext().ToHandleChecked()), *ctx);
+  CHECK_EQ(fn->GetCreationContext().value(), *ctx);
 
   {
     LocalContext env2;
@@ -25347,7 +25347,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
         object2->Get(env2.local(), v8_str("values")).ToLocalChecked());
     auto fn2 = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values2));
     auto ctx2 = v8::Utils::OpenHandle(*env2.local());
-    CHECK_EQ(*(fn2->GetCreationContext().ToHandleChecked()), *ctx2);
+    CHECK_EQ(fn2->GetCreationContext().value(), *ctx2);
   }
 }
 

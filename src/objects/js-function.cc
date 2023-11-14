@@ -1074,17 +1074,16 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // constructor that points to the .prototype. This relies on
   // constructor.prototype being FROZEN for those constructors.
   if (!IsJSReceiver(*prototype)) {
-    Handle<Context> context;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, context,
+    Handle<NativeContext> native_context;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, native_context,
                                JSReceiver::GetFunctionRealm(new_target), Map);
-    DCHECK(IsNativeContext(*context));
     Handle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
     int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
                                     : Context::OBJECT_FUNCTION_INDEX;
-    Handle<JSFunction> realm_constructor(JSFunction::cast(context->get(index)),
-                                         isolate);
+    Handle<JSFunction> realm_constructor(
+        JSFunction::cast(native_context->get(index)), isolate);
     prototype = handle(realm_constructor->prototype(), isolate);
   }
 

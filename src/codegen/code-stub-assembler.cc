@@ -10159,52 +10159,26 @@ TNode<Object> CodeStubAssembler::GetConstructor(TNode<Map> map) {
   return var_maybe_constructor.value();
 }
 
+TNode<NativeContext> CodeStubAssembler::GetCreationContextFromMap(
+    TNode<Map> map, Label* if_bailout) {
+  TNode<Map> meta_map = LoadMap(map);
+  TNode<Object> maybe_context =
+      LoadMapConstructorOrBackPointerOrNativeContext(meta_map);
+  GotoIf(IsNull(maybe_context), if_bailout);
+  return CAST(maybe_context);
+}
+
 TNode<NativeContext> CodeStubAssembler::GetCreationContext(
     TNode<JSReceiver> receiver, Label* if_bailout) {
-  TNode<Map> receiver_map = LoadMap(receiver);
-  TNode<Object> constructor = GetConstructor(receiver_map);
-
-  TVARIABLE(JSFunction, var_function);
-
-  Label done(this), if_jsfunction(this), if_jsgenerator(this);
-  GotoIf(TaggedIsSmi(constructor), if_bailout);
-
-  TNode<Map> function_map = LoadMap(CAST(constructor));
-  GotoIf(IsJSFunctionMap(function_map), &if_jsfunction);
-  GotoIf(IsJSGeneratorMap(function_map), &if_jsgenerator);
-  // Remote objects don't have a creation context.
-  GotoIf(IsFunctionTemplateInfoMap(function_map), if_bailout);
-
-  CSA_DCHECK(this, IsJSFunctionMap(receiver_map));
-  var_function = CAST(receiver);
-  Goto(&done);
-
-  BIND(&if_jsfunction);
-  {
-    var_function = CAST(constructor);
-    Goto(&done);
-  }
-
-  BIND(&if_jsgenerator);
-  {
-    var_function = LoadJSGeneratorObjectFunction(CAST(receiver));
-    Goto(&done);
-  }
-
-  BIND(&done);
-  TNode<Context> context = LoadJSFunctionContext(var_function.value());
-
-  GotoIfNot(IsContext(context), if_bailout);
-
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  return native_context;
+  return GetCreationContextFromMap(LoadMap(receiver), if_bailout);
 }
 
 TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
     TNode<Context> context, TNode<JSReceiver> receiver, Label* if_bailout) {
   TVARIABLE(JSReceiver, current);
-  Label loop(this, VariableList({&current}, zone())), is_proxy(this),
-      is_function(this), is_bound_function(this), is_wrapped_function(this),
+  TVARIABLE(Map, current_map);
+  Label loop(this, VariableList({&current}, zone())), if_proxy(this),
+      if_simple_case(this), if_bound_function(this), if_wrapped_function(this),
       proxy_revoked(this, Label::kDeferred);
   CSA_DCHECK(this, IsCallable(receiver));
   current = receiver;
@@ -10212,15 +10186,18 @@ TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
 
   BIND(&loop);
   {
-    TNode<JSReceiver> current_value = current.value();
-    GotoIf(IsJSProxy(current_value), &is_proxy);
-    GotoIf(IsJSFunction(current_value), &is_function);
-    GotoIf(IsJSBoundFunction(current_value), &is_bound_function);
-    GotoIf(IsJSWrappedFunction(current_value), &is_wrapped_function);
-    Goto(if_bailout);
+    current_map = LoadMap(current.value());
+    TNode<Int32T> instance_type = LoadMapInstanceType(current_map.value());
+    GotoIf(IsJSFunctionInstanceType(instance_type), &if_simple_case);
+    GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), &if_proxy);
+    GotoIf(InstanceTypeEqual(instance_type, JS_BOUND_FUNCTION_TYPE),
+           &if_bound_function);
+    GotoIf(InstanceTypeEqual(instance_type, JS_WRAPPED_FUNCTION_TYPE),
+           &if_wrapped_function);
+    Goto(&if_simple_case);
   }
 
-  BIND(&is_proxy);
+  BIND(&if_proxy);
   {
     TNode<JSProxy> proxy = CAST(current.value());
     TNode<HeapObject> handler =
@@ -10236,7 +10213,7 @@ TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
   BIND(&proxy_revoked);
   { ThrowTypeError(context, MessageTemplate::kProxyRevoked, "apply"); }
 
-  BIND(&is_bound_function);
+  BIND(&if_bound_function);
   {
     TNode<JSBoundFunction> bound_function = CAST(current.value());
     TNode<JSReceiver> target = CAST(LoadObjectField(
@@ -10245,7 +10222,7 @@ TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
     Goto(&loop);
   }
 
-  BIND(&is_wrapped_function);
+  BIND(&if_wrapped_function);
   {
     TNode<JSWrappedFunction> wrapped_function = CAST(current.value());
     TNode<JSReceiver> target = CAST(LoadObjectField(
@@ -10254,13 +10231,10 @@ TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
     Goto(&loop);
   }
 
-  BIND(&is_function);
+  BIND(&if_simple_case);
   {
-    TNode<JSFunction> function = CAST(current.value());
-    TNode<Context> context =
-        CAST(LoadObjectField(function, JSFunction::kContextOffset));
-    TNode<NativeContext> native_context = LoadNativeContext(context);
-    return native_context;
+    // Load native context from the meta map.
+    return GetCreationContextFromMap(current_map.value(), if_bailout);
   }
 }
 

@@ -3393,8 +3393,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                     JSBoundFunction);
   }
 
-  SaveAndSwitchContext save(
-      isolate(), *target_function->GetCreationContext().ToHandleChecked());
+  SaveAndSwitchContext save(isolate(),
+                            target_function->GetCreationContext().value());
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;

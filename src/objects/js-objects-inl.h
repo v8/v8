@@ -871,6 +871,23 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   return PropertyArray::cast(prop);
 }
 
+base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
+  DisallowGarbageCollection no_gc;
+  Tagged<Map> meta_map = map()->map();
+  DCHECK(IsMapMap(meta_map));
+  Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
+  if (IsNull(maybe_native_context)) return {};
+  DCHECK(IsNativeContext(maybe_native_context));
+  return NativeContext::cast(maybe_native_context);
+}
+
+MaybeHandle<NativeContext> JSReceiver::GetCreationContext(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  base::Optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
+  if (!maybe_context.has_value()) return {};
+  return handle(maybe_context.value(), isolate);
+}
+
 Maybe<bool> JSReceiver::HasProperty(Isolate* isolate, Handle<JSReceiver> object,
                                     Handle<Name> name) {
   PropertyKey key(isolate, name);
