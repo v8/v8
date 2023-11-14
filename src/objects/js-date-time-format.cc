@@ -1744,7 +1744,7 @@ class CalendarCache {
     if (map_.size() > 8) {  // Cache at most 8 calendars.
       map_.clear();
     }
-    map_[key].reset(calendar.release());
+    map_[key] = std::move(calendar);
     return map_[key]->clone();
   }
 
