@@ -124,6 +124,7 @@ struct MaskBuilder {
 
 using WordBinopMask =
     MaskBuilder<WordBinopOp, FIELD(WordBinopOp, kind), FIELD(WordBinopOp, rep)>;
+using WordBinopKindMask = MaskBuilder<WordBinopOp, FIELD(WordBinopOp, kind)>;
 
 using kWord32Add =
     WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word32()>;
@@ -141,6 +142,7 @@ using kWord64Mul =
     WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word64()>;
 using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word64()>;
+using kBitwiseAnd = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseAnd>;
 
 using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
                                    FIELD(FloatUnaryOp, rep)>;
@@ -155,6 +157,9 @@ using ShiftKindMask = MaskBuilder<ShiftOp, FIELD(ShiftOp, kind)>;
 using kWord32ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word32()>;
+using kWord64ShiftRightArithmetic =
+    ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
+                   WordRepresentation::Word64()>;
 using kShiftLeft = ShiftKindMask::For<ShiftOp::Kind::kShiftLeft>;
 
 using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
@@ -170,7 +175,8 @@ using kProjection1 = ProjectionMask::For<1>;
 
 using EqualMask = MaskBuilder<EqualOp, FIELD(EqualOp, rep)>;
 
-using kWord64Equal = EqualMask::For<WordRepresentation::Word32()>;
+using kWord32Equal = EqualMask::For<WordRepresentation::Word32()>;
+using kWord64Equal = EqualMask::For<WordRepresentation::Word64()>;
 
 using ChangeOpMask =
     MaskBuilder<ChangeOp, FIELD(ChangeOp, kind), FIELD(ChangeOp, assumption),

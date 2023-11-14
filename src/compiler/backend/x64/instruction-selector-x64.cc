@@ -4142,13 +4142,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
   if (CanCover(user, value)) {
     const Operation& value_op = this->Get(value);
     if (const EqualOp* equal = value_op.TryCast<EqualOp>()) {
-      RegisterRepresentation equal_rep = equal->rep;
-      if (equal_rep == RegisterRepresentation::Tagged()) {
-        equal_rep = COMPRESS_POINTERS_BOOL
-                        ? RegisterRepresentation::Word32()
-                        : RegisterRepresentation::PointerSized();
-      }
-      switch (equal_rep.value()) {
+      switch (equal->rep.MapTaggedToWord().value()) {
         case RegisterRepresentation::Word32():
           cont->OverwriteAndNegateIfEqual(kEqual);
           return VisitWord32EqualImpl(this, value, cont);
@@ -4183,7 +4177,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
       }
     } else if (const ComparisonOp* comparison =
                    value_op.TryCast<ComparisonOp>()) {
-      switch (comparison->rep.value()) {
+      switch (comparison->rep.MapTaggedToWord().value()) {
         case RegisterRepresentation::Word32(): {
           cont->OverwriteAndNegateIfEqual(
               GetComparisonFlagCondition(*comparison));

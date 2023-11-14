@@ -199,9 +199,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addFunction("isString", makeSig([kWasmAnyRef], [kWasmI32]))
+  builder.addFunction("isString", makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprLocalGet, 0,
+    kGCPrefix, kExprAnyConvertExtern,
     kGCPrefix, kExprRefTest, kStringRefCode,
   ])
   .exportFunc();
@@ -228,6 +229,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wasm = builder.instantiate().exports;
   assertEquals(0, wasm.isString({}));
   assertEquals(0, wasm.isString(1));
+  assertEquals(0, wasm.isString(1.5));
+  assertEquals(0, wasm.isString(-0.0));
+  assertEquals(0, wasm.isString(null));
   assertEquals(1, wasm.isString("test"));
 
   assertEquals(1, wasm.factorial(1));
