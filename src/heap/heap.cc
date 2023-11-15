@@ -1538,7 +1538,7 @@ intptr_t CompareWords(int size, Tagged<HeapObject> a, Tagged<HeapObject> b) {
 }
 
 void ReportDuplicates(int size, std::vector<Tagged<HeapObject>>* objects) {
-  if (objects->size() == 0) return;
+  if (objects->empty()) return;
 
   sort(objects->begin(), objects->end(),
        [size](Tagged<HeapObject> a, Tagged<HeapObject> b) {
@@ -2978,7 +2978,7 @@ void Heap::UpdateYoungReferencesInExternalStringTable(
 
 void Heap::ExternalStringTable::UpdateReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
-  if (old_strings_.size() > 0) {
+  if (!old_strings_.empty()) {
     FullObjectSlot start(old_strings_.data());
     FullObjectSlot end(old_strings_.data() + old_strings_.size());
     for (FullObjectSlot p = start; p < end; ++p)
@@ -4283,7 +4283,7 @@ void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
 }
 
 bool Heap::InvokeNearHeapLimitCallback() {
-  if (near_heap_limit_callbacks_.size() > 0) {
+  if (!near_heap_limit_callbacks_.empty()) {
     AllowGarbageCollection allow_gc;
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_NEAR_HEAP_LIMIT);
     VMState<EXTERNAL> callback_state(isolate());

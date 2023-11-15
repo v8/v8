@@ -3398,7 +3398,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;
-  if (bound_args.length() == 0) {
+  if (bound_args.empty()) {
     bound_arguments = empty_fixed_array();
   } else {
     bound_arguments = NewFixedArray(bound_args.length());

@@ -543,7 +543,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
       }
     }
 
-    if (indices.size() == 0) {
+    if (indices.empty()) {
       it = table_map->erase(it);
     } else {
       ++it;
