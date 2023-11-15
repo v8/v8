@@ -50,11 +50,6 @@
   /* Prototype spec: https://bit.ly/wasm-imported-strings */                   \
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings, "imported strings", false)                               \
-                                                                               \
-  /* Exnref */                                                                 \
-  /* This flag enables the new exception handling proposal */                  \
-  /* V8 side owner: thibaudm */                                                \
-  V(exnref, "exnref", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -92,6 +87,11 @@
   /* Inlining of small wasm GC functions into JavaScript */                    \
   /* V8 side owner: mliedtke */                                                \
   V(js_inlining, "inline small wasm functions into JS", false)                 \
+                                                                               \
+  /* Exnref */                                                                 \
+  /* This flag enables the new exception handling proposal */                  \
+  /* V8 side owner: thibaudm */                                                \
+  V(exnref, "exnref", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
