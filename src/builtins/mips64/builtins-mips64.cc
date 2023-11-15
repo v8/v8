@@ -2950,7 +2950,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   // Push registers in reverse order so that they are on the stack like
   // in an array, with the first item being at the lowest address.
   constexpr int cnt_fp = arraysize(wasm::kFpParamRegisters);
-  constexpr int cnt_gp = arraysize(wasm::kGpParamRegisters) - 1;
+  constexpr int cnt_gp = arraysize(wasm::kGpParamRegisters);
   int required_stack_space = cnt_fp * kDoubleSize + cnt_gp * kSystemPointerSize;
   __ Dsubu(sp, sp, Operand(required_stack_space));
   for (int i = cnt_fp - 1; i >= 0; i--) {
@@ -2959,14 +2959,11 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   }
 
   // Without wasm::kGpParamRegisters[0] here.
-  for (int i = cnt_gp; i >= 1; i--) {
-    __ Sd(wasm::kGpParamRegisters[i],
-          MemOperand(sp, (i - 1) * kSystemPointerSize));
+  for (int i = cnt_gp - 1; i >= 1; i--) {
+    __ Sd(wasm::kGpParamRegisters[i], MemOperand(sp, i * kSystemPointerSize));
   }
-  // Reserve fixed slots for the CSA wrapper.
-  // Two slots for stack-switching (central stack pointer and secondary stack
-  // limit), one for the signature.
-  __ Push(zero_reg, zero_reg, zero_reg);
+  // Clear a stack slot, the signature gets written into the slot in Torque.
+  __ Sd(zero_reg, MemOperand(sp, 0));
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }
 
