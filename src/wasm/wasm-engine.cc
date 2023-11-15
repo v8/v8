@@ -1444,6 +1444,12 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     DCHECK_EQ(1, info->native_modules.count(native_module));
     info->native_modules.erase(native_module);
     info->scripts.erase(native_module);
+
+    // Flush the Wasm code lookup cache, since it may refer to some
+    // code within native modules that we are going to release (if a
+    // Managed<wasm::NativeModule> object is no longer referenced).
+    GetWasmCodeManager()->FlushCodeLookupCache(isolate);
+
     // If there are {WasmCode} objects of the deleted {NativeModule}
     // outstanding to be logged in this isolate, remove them. Decrementing the
     // ref count is not needed, since the {NativeModule} dies anyway.
@@ -1503,7 +1509,8 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
 
 namespace {
 void ReportLiveCodeFromFrameForGC(
-    StackFrame* frame, std::unordered_set<wasm::WasmCode*>& live_wasm_code) {
+    Isolate* isolate, StackFrame* frame,
+    std::unordered_set<wasm::WasmCode*>& live_wasm_code) {
   if (frame->type() != StackFrame::WASM) return;
   live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
 #if V8_TARGET_ARCH_X64
@@ -1511,7 +1518,8 @@ void ReportLiveCodeFromFrameForGC(
       Address osr_target = base::Memory<Address>(WasmFrame::cast(frame)->fp() -
                                                  kOSRTargetOffset);
       if (osr_target) {
-        WasmCode* osr_code = GetWasmCodeManager()->LookupCode(osr_target);
+        WasmCode* osr_code =
+            GetWasmCodeManager()->LookupCode(isolate, osr_target);
         DCHECK_NOT_NULL(osr_code);
         live_wasm_code.insert(osr_code);
       }
@@ -1535,17 +1543,21 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       }
       for (StackFrameIterator it(isolate, current); !it.done(); it.Advance()) {
         StackFrame* const frame = it.frame();
-        ReportLiveCodeFromFrameForGC(frame, live_wasm_code);
+        ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
       }
       current = current->next();
     } while (current != isolate->wasm_stacks());
   }
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* const frame = it.frame();
-    ReportLiveCodeFromFrameForGC(frame, live_wasm_code);
+    ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
   }
 
   CheckNoArchivedThreads(isolate);
+
+  // Flush the code lookup cache, since it may refer to some code we
+  // are going to release.
+  GetWasmCodeManager()->FlushCodeLookupCache(isolate);
 
   ReportLiveCodeForGC(
       isolate, base::OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());

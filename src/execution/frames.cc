@@ -749,8 +749,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
 #if V8_ENABLE_WEBASSEMBLY
   // If the {pc} does not point into WebAssembly code we can rely on the
   // returned {wasm_code} to be null and fall back to {GetContainingCode}.
-  wasm::WasmCodeRefScope code_ref_scope;
-  if (wasm::WasmCode* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc)) {
+  if (wasm::WasmCode* wasm_code =
+          wasm::GetWasmCodeManager()->LookupCode(isolate(), pc)) {
     switch (wasm_code->kind()) {
       case wasm::WasmCode::kWasmFunction:
         return StackFrame::WASM;
@@ -1452,15 +1452,10 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //
   // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
-  auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc());
-  DCHECK(wasm_code);
-  SafepointTable table(wasm_code);
-  SafepointEntry safepoint_entry = table.TryFindEntry(pc());
-  if (!safepoint_entry.is_initialized()) {
-    // Only for protected instructions the safepoint entry is not mandatory.
-    CHECK(wasm_code->IsProtectedInstruction(
-        pc() - WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
-  }
+  auto pair =
+      wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
+  wasm::WasmCode* wasm_code = pair.first;
+  SafepointEntry safepoint_entry = pair.second;
 
 #ifdef DEBUG
   intptr_t marker =
@@ -1884,7 +1879,7 @@ bool CommonFrame::HasTaggedOutgoingParams(
   // another function which then caused a GC, the caller would not be able to
   // determine where there might be tagged parameters.)
   wasm::WasmCode* wasm_callee =
-      wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+      wasm::GetWasmCodeManager()->LookupCode(isolate(), callee_pc());
   if (wasm_callee) return false;
 
   Tagged<Code> wrapper =
@@ -3006,7 +3001,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
-  return wasm::GetWasmCodeManager()->LookupCode(pc());
+  return wasm::GetWasmCodeManager()->LookupCode(isolate(), pc());
 }
 
 Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
@@ -3023,15 +3018,11 @@ Tagged<WasmModuleObject> WasmFrame::module_object() const {
   return wasm_instance()->module_object();
 }
 
-int WasmFrame::function_index() const {
-  wasm::WasmCodeRefScope code_ref_scope;
-  return wasm_code()->index();
-}
+int WasmFrame::function_index() const { return wasm_code()->index(); }
 
 Tagged<Script> WasmFrame::script() const { return module_object()->script(); }
 
 int WasmFrame::position() const {
-  wasm::WasmCodeRefScope code_ref_scope;
   const wasm::WasmModule* module = wasm_instance()->module_object()->module();
   return GetSourcePosition(module, function_index(), generated_code_offset(),
                            at_to_number_conversion());
@@ -3043,10 +3034,7 @@ int WasmFrame::generated_code_offset() const {
   return code->GetSourceOffsetBefore(offset);
 }
 
-bool WasmFrame::is_inspectable() const {
-  wasm::WasmCodeRefScope code_ref_scope;
-  return wasm_code()->is_inspectable();
-}
+bool WasmFrame::is_inspectable() const { return wasm_code()->is_inspectable(); }
 
 Tagged<Object> WasmFrame::context() const {
   return wasm_instance()->native_context();
@@ -3056,7 +3044,6 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
-  wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = wasm_code();
   int offset = static_cast<int>(pc() - code->instruction_start());
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
@@ -3094,7 +3081,7 @@ bool WasmFrame::at_to_number_conversion() const {
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
   wasm::WasmCode* wasm_code =
-      wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+      wasm::GetWasmCodeManager()->LookupCode(isolate(), callee_pc());
 
   if (wasm_code) {
     if (wasm_code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
@@ -3130,7 +3117,8 @@ bool WasmFrame::at_to_number_conversion() const {
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
-  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(pc());
+  wasm::WasmCode* code =
+      wasm::GetWasmCodeManager()->LookupCode(isolate(), pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
     HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
@@ -3141,10 +3129,9 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
-  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(caller_pc());
-  DCHECK(code);
-  SafepointTable table(code);
-  SafepointEntry safepoint_entry = table.FindEntry(caller_pc());
+  auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
+                                                                 caller_pc());
+  SafepointEntry safepoint_entry = pair.second;
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {

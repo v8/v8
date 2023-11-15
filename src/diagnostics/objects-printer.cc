@@ -3644,8 +3644,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 #if V8_ENABLE_WEBASSEMBLY
   {
-    i::wasm::WasmCodeRefScope scope;
-    if (auto* wasm_code = i::wasm::GetWasmCodeManager()->LookupCode(address)) {
+    if (auto* wasm_code =
+            i::wasm::GetWasmCodeManager()->LookupCode(isolate, address)) {
       i::StdoutStream os;
       wasm_code->Disassemble(nullptr, os, address);
       return;
@@ -3681,8 +3681,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
 
 #if V8_ENABLE_WEBASSEMBLY
   {
-    i::wasm::WasmCodeRefScope scope;
-    if (i::wasm::GetWasmCodeManager()->LookupCode(address)) {
+    if (i::wasm::GetWasmCodeManager()->LookupCode(isolate, address)) {
       i::PrintF("Not supported on wasm code");
       return;
     }

@@ -2136,14 +2136,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       case StackFrame::WASM: {
         if (!is_catchable_by_wasm(exception)) break;
 
-        // For WebAssembly frames we perform a lookup in the handler table.
-        // This code ref scope is here to avoid a check failure when looking up
-        // the code. It's not actually necessary to keep the code alive as it's
-        // currently being executed.
-        wasm::WasmCodeRefScope code_ref_scope;
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
         wasm::WasmCode* wasm_code =
-            wasm::GetWasmCodeManager()->LookupCode(frame->pc());
+            wasm::GetWasmCodeManager()->LookupCode(this, frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
         if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
@@ -2217,8 +2212,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
 #if defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
-        wasm::WasmCodeRefScope code_ref_scope;
-        DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(frame->pc()));
+        DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(this, frame->pc()));
 #endif  // defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
 
         // The code might be a dynamically generated stub or a turbofanned
@@ -3895,6 +3889,11 @@ void Isolate::Deinit() {
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
+  delete wasm_code_look_up_cache_;
+  wasm_code_look_up_cache_ = nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   main_thread_local_isolate_.reset();
 
   FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
@@ -4624,6 +4623,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // Requires a LocalHeap to be set up to register a GC epilogue callback.
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm_code_look_up_cache_ = new wasm::WasmCodeLookupCache;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Lock clients_mutex_ in order to prevent shared GCs from other clients
   // during deserialization.

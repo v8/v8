@@ -2517,6 +2517,47 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   return candidate ? candidate->Lookup(pc) : nullptr;
 }
 
+WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {
+  // Since kNullAddress is used as a sentinel value, we should not try
+  // to look it up in the cache
+  if (pc == kNullAddress) return nullptr;
+  // If 'isolate' is nullptr, do not use a cache. This can happen when
+  // called from function V8NameConverter::NameOfAddress
+  if (isolate) {
+    return isolate->wasm_code_look_up_cache()->GetCacheEntry(pc)->code;
+  } else {
+    wasm::WasmCodeRefScope code_ref_scope;
+    return LookupCode(pc);
+  }
+}
+
+std::pair<WasmCode*, SafepointEntry> WasmCodeManager::LookupCodeAndSafepoint(
+    Isolate* isolate, Address pc) {
+  auto* entry = isolate->wasm_code_look_up_cache()->GetCacheEntry(pc);
+  WasmCode* code = entry->code;
+  DCHECK(code);
+  if (!entry->safepoint_entry.is_initialized()) {
+    SafepointTable table(code);
+    entry->safepoint_entry = table.TryFindEntry(pc);
+    if (!entry->safepoint_entry.is_initialized()) {
+      // Only for protected instructions the safepoint entry is not mandatory.
+      // This is rare, so we don't bother caching the result in this case.
+      CHECK(code->IsProtectedInstruction(
+          pc - WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
+    }
+  } else {
+#ifdef DEBUG
+    SafepointTable table(code);
+    DCHECK_EQ(entry->safepoint_entry, table.TryFindEntry(pc));
+#endif  // DEBUG
+  }
+  return std::make_pair(code, entry->safepoint_entry);
+}
+
+void WasmCodeManager::FlushCodeLookupCache(Isolate* isolate) {
+  return isolate->wasm_code_look_up_cache()->Flush();
+}
+
 namespace {
 thread_local WasmCodeRefScope* current_code_refs_scope = nullptr;
 }  // namespace
@@ -2539,6 +2580,48 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   DCHECK_NOT_NULL(current_scope);
   current_scope->code_ptrs_.push_back(code);
   code->IncRef();
+}
+
+void WasmCodeLookupCache::Flush() {
+  for (int i = 0; i < kWasmCodeLookupCacheSize; i++)
+    cache_[i].pc.store(kNullAddress, std::memory_order_release);
+}
+
+WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(
+    Address pc) {
+  static_assert(base::bits::IsPowerOfTwo(kWasmCodeLookupCacheSize));
+  DCHECK(pc != kNullAddress);
+  uint32_t hash = ComputeAddressHash(pc);
+  uint32_t index = hash & (kWasmCodeLookupCacheSize - 1);
+  CacheEntry* entry = &cache_[index];
+  if (entry->pc.load(std::memory_order_acquire) == pc) {
+    // Code can be deallocated at two points:
+    // - when the NativeModule that references it is garbage-
+    //   collected;
+    // - when it is no longer referenced by its NativeModule, nor from
+    //   any stack.
+    // The cache is cleared when a NativeModule is destroyed, and when
+    // the isolate reports the set of code referenced from its stacks.
+    // So, if the code is the cache, it is because it was live at some
+    // point (when inserted in the cache), its native module is still
+    // considered live, and it has not yet been reported as no longer
+    // referenced from any stack. It thus cannot have been released
+    // yet.
+#ifdef DEBUG
+    wasm::WasmCodeRefScope code_ref_scope;
+    DCHECK_EQ(entry->code, wasm::GetWasmCodeManager()->LookupCode(pc));
+#endif  // DEBUG
+  } else {
+    // For WebAssembly frames we perform a lookup in the handler table.
+    // This code ref scope is here to avoid a check failure when looking up
+    // the code. It's not actually necessary to keep the code alive as it's
+    // currently being executed.
+    wasm::WasmCodeRefScope code_ref_scope;
+    entry->pc.store(pc, std::memory_order_release);
+    entry->code = wasm::GetWasmCodeManager()->LookupCode(pc);
+    entry->safepoint_entry.Reset();
+  }
+  return entry;
 }
 }  // namespace wasm
 }  // namespace internal

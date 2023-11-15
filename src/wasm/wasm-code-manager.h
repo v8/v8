@@ -21,6 +21,7 @@
 #include "src/base/macros.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
@@ -960,7 +961,16 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 #endif  // V8_OS_WIN64
 
   NativeModule* LookupNativeModule(Address pc) const;
-  WasmCode* LookupCode(Address pc) const;
+  // Returns the Wasm code that contains the given address. The result
+  // is cached. There is one cache per isolate for performance reasons
+  // (to avoid locking and reference counting). Note that the returned
+  // value is not reference counted. This should not be an issue since
+  // we expect that the code is currently being executed. If 'isolate'
+  // is nullptr, no caching occurs.
+  WasmCode* LookupCode(Isolate* isolate, Address pc) const;
+  std::pair<WasmCode*, SafepointEntry> LookupCodeAndSafepoint(Isolate* isolate,
+                                                              Address pc);
+  void FlushCodeLookupCache(Isolate* isolate);
   size_t committed_code_space() const {
     return total_committed_code_space_.load();
   }
@@ -999,6 +1009,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
  private:
   friend class WasmCodeAllocator;
   friend class WasmEngine;
+  friend class WasmCodeLookupCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmFeatures enabled_features,
@@ -1013,6 +1024,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
                         size_t committed_size);
 
   void AssignRange(base::AddressRegion, NativeModule*);
+
+  WasmCode* LookupCode(Address pc) const;
 
   const size_t max_committed_code_space_;
 
@@ -1076,6 +1089,30 @@ class GlobalWasmCodeRef {
   WasmCode* const code_;
   // Also keep the {NativeModule} alive.
   const std::shared_ptr<NativeModule> native_module_;
+};
+
+class WasmCodeLookupCache final {
+  friend WasmCodeManager;
+
+ public:
+  WasmCodeLookupCache() { Flush(); }
+
+  WasmCodeLookupCache(const WasmCodeLookupCache&) = delete;
+  WasmCodeLookupCache& operator=(const WasmCodeLookupCache&) = delete;
+
+ private:
+  struct CacheEntry {
+    std::atomic<Address> pc;
+    wasm::WasmCode* code;
+    SafepointEntry safepoint_entry;
+    CacheEntry() : safepoint_entry() {}
+  };
+
+  void Flush();
+  CacheEntry* GetCacheEntry(Address pc);
+
+  static const int kWasmCodeLookupCacheSize = 1024;
+  CacheEntry cache_[kWasmCodeLookupCacheSize];
 };
 
 }  // namespace wasm

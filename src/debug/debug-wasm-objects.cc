@@ -377,8 +377,8 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
     auto isolate = frame->isolate();
     auto debug_info = frame->native_module()->GetDebugInfo();
     // TODO(bmeurer): Check if pc is inspectable.
-    int count = debug_info->GetNumLocals(frame->pc());
-    auto function = debug_info->GetFunctionAtAddress(frame->pc());
+    int count = debug_info->GetNumLocals(frame->pc(), isolate);
+    auto function = debug_info->GetFunctionAtAddress(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count + 2);
     Handle<WasmModuleObject> module_object(
         frame->wasm_instance()->module_object(), isolate);
@@ -427,7 +427,7 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
                           ->module_object()
                           ->native_module()
                           ->GetDebugInfo();
-    int count = debug_info->GetStackDepth(frame->pc());
+    int count = debug_info->GetStackDepth(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count);
     Handle<WasmModuleObject> module_object(
         frame->wasm_instance()->module_object(), isolate);

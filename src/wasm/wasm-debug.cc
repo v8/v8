@@ -133,21 +133,21 @@ class DebugInfoImpl {
   DebugInfoImpl(const DebugInfoImpl&) = delete;
   DebugInfoImpl& operator=(const DebugInfoImpl&) = delete;
 
-  int GetNumLocals(Address pc) {
-    FrameInspectionScope scope(this, pc);
+  int GetNumLocals(Address pc, Isolate* isolate) {
+    FrameInspectionScope scope(this, pc, isolate);
     if (!scope.is_inspectable()) return 0;
     return scope.debug_side_table->num_locals();
   }
 
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate) {
-    FrameInspectionScope scope(this, pc);
+    FrameInspectionScope scope(this, pc, isolate);
     return GetValue(scope.debug_side_table, scope.debug_side_table_entry, local,
                     fp, debug_break_fp, isolate);
   }
 
-  int GetStackDepth(Address pc) {
-    FrameInspectionScope scope(this, pc);
+  int GetStackDepth(Address pc, Isolate* isolate) {
+    FrameInspectionScope scope(this, pc, isolate);
     if (!scope.is_inspectable()) return 0;
     int num_locals = scope.debug_side_table->num_locals();
     int stack_height = scope.debug_side_table_entry->stack_height();
@@ -156,7 +156,7 @@ class DebugInfoImpl {
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate) {
-    FrameInspectionScope scope(this, pc);
+    FrameInspectionScope scope(this, pc, isolate);
     int num_locals = scope.debug_side_table->num_locals();
     int value_count = scope.debug_side_table_entry->stack_height();
     if (num_locals + index >= value_count) return {};
@@ -164,8 +164,8 @@ class DebugInfoImpl {
                     num_locals + index, fp, debug_break_fp, isolate);
   }
 
-  const WasmFunction& GetFunctionAtAddress(Address pc) {
-    FrameInspectionScope scope(this, pc);
+  const WasmFunction& GetFunctionAtAddress(Address pc, Isolate* isolate) {
+    FrameInspectionScope scope(this, pc, isolate);
     auto* module = native_module_->module();
     return module->functions[scope.code->index()];
   }
@@ -530,8 +530,9 @@ class DebugInfoImpl {
 
  private:
   struct FrameInspectionScope {
-    FrameInspectionScope(DebugInfoImpl* debug_info, Address pc)
-        : code(wasm::GetWasmCodeManager()->LookupCode(pc)),
+    FrameInspectionScope(DebugInfoImpl* debug_info, Address pc,
+                         Isolate* isolate)
+        : code(wasm::GetWasmCodeManager()->LookupCode(isolate, pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
           debug_side_table(code->is_inspectable()
                                ? debug_info->GetDebugSideTable(code)
@@ -775,22 +776,27 @@ DebugInfo::DebugInfo(NativeModule* native_module)
 
 DebugInfo::~DebugInfo() = default;
 
-int DebugInfo::GetNumLocals(Address pc) { return impl_->GetNumLocals(pc); }
+int DebugInfo::GetNumLocals(Address pc, Isolate* isolate) {
+  return impl_->GetNumLocals(pc, isolate);
+}
 
 WasmValue DebugInfo::GetLocalValue(int local, Address pc, Address fp,
                                    Address debug_break_fp, Isolate* isolate) {
   return impl_->GetLocalValue(local, pc, fp, debug_break_fp, isolate);
 }
 
-int DebugInfo::GetStackDepth(Address pc) { return impl_->GetStackDepth(pc); }
+int DebugInfo::GetStackDepth(Address pc, Isolate* isolate) {
+  return impl_->GetStackDepth(pc, isolate);
+}
 
 WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
                                    Address debug_break_fp, Isolate* isolate) {
   return impl_->GetStackValue(index, pc, fp, debug_break_fp, isolate);
 }
 
-const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc) {
-  return impl_->GetFunctionAtAddress(pc);
+const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc,
+                                                          Isolate* isolate) {
+  return impl_->GetFunctionAtAddress(pc, isolate);
 }
 
 void DebugInfo::SetBreakpoint(int func_index, int offset,

@@ -180,6 +180,7 @@ class Recorder;
 
 namespace wasm {
 class StackMemory;
+class WasmCodeLookupCache;
 }
 
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
@@ -1341,6 +1342,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   InnerPointerToCodeCache* inner_pointer_to_code_cache() {
     return inner_pointer_to_code_cache_;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodeLookupCache* wasm_code_look_up_cache() {
+    return wasm_code_look_up_cache_;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
 
@@ -2614,6 +2621,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ::heap::base::Stack stack_;
 
 #ifdef V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   wasm::StackMemory* wasm_stacks_;
 #endif
 
