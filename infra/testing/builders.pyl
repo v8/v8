@@ -1887,16 +1887,28 @@
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 6},
     ],
   },
-  'V8 Mac - arm64 - release': {
+  'V8 Mac - arm64': {
     'swarming_dimensions' : {
       'os': 'Mac-13',
       'cpu': 'arm64',
       'pool': 'chromium.tests',
     },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
+    'tests': [
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
+      # Maglev -- move to extra once more architectures are supported.
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'minor_ms'},
+    ],
+  },
+  'V8 Mac - arm64 - release': {
+    'swarming_dimensions' : {
+      'os': 'Mac-13',
+      'cpu': 'arm64',
+      'pool': 'chromium.tests',
     },
     'tests': [
       {'name': 'v8testing'},
@@ -1914,11 +1926,6 @@
       'os': 'Mac-13',
       'cpu': 'arm64',
       'pool': 'chromium.tests',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
