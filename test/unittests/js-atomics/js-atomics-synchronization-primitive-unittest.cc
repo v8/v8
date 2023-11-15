@@ -83,8 +83,29 @@ class BlockingLockingThread final : public LockingThread {
     IsolateWithContextWrapper isolate_wrapper;
     Isolate* isolate = isolate_wrapper.isolate();
     EXPECT_TRUE(LockJSMutexAndSignal(isolate));
+    {
+      // Hold the js lock until the main thread notifies us.
+      base::MutexGuard guard(&mutex_for_cv_);
+      sema_execute_complete_->Signal();
+      should_wait_ = true;
+      while (should_wait_) {
+        cv_.ParkedWait(isolate->main_thread_local_isolate(), &mutex_for_cv_);
+      }
+    }
+    mutex_->Unlock(isolate);
     sema_execute_complete_->Signal();
   }
+
+  void NotifyCV() {
+    base::MutexGuard guard(&mutex_for_cv_);
+    should_wait_ = false;
+    cv_.NotifyOne();
+  }
+
+ private:
+  base::Mutex mutex_for_cv_;
+  ParkingConditionVariable cv_;
+  bool should_wait_;
 };
 
 }  // namespace
@@ -159,8 +180,11 @@ TEST_F(JSAtomicsMutexTest, Timeout) {
   }
 
   ParkingThread::ParkedJoinAll(local_isolate, threads);
-
   EXPECT_TRUE(contended_mutex->IsHeld());
+  blocking_thread->NotifyCV();
+  sema_execute_complete.ParkedWait(local_isolate);
+  EXPECT_FALSE(contended_mutex->IsHeld());
+  blocking_thread->ParkedJoin(local_isolate);
 }
 
 namespace {
