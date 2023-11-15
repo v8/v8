@@ -3927,8 +3927,6 @@ void Isolate::Deinit() {
   delete heap_profiler_;
   heap_profiler_ = nullptr;
 
-  string_table_.reset();
-
 #if USE_SIMULATOR
   delete simulator_data_;
   simulator_data_ = nullptr;
@@ -3987,9 +3985,14 @@ void Isolate::Deinit() {
 
   if (OwnsStringTables()) {
     string_forwarding_table()->TearDown();
+  } else {
+    DCHECK_NULL(string_table_.get());
+    DCHECK_NULL(string_forwarding_table_.get());
   }
 
-  shared_struct_type_registry_.reset();
+  if (!is_shared_space_isolate()) {
+    DCHECK_NULL(shared_struct_type_registry_.get());
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   external_pointer_table().TearDownSpace(heap()->external_pointer_space());
@@ -4762,14 +4765,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   SetIsolateThreadLocals(this, current_data);
 
   if (OwnsStringTables()) {
-    string_table_ = std::make_shared<StringTable>(this);
-    string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
+    string_table_ = std::make_unique<StringTable>(this);
+    string_forwarding_table_ = std::make_unique<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK(has_shared_space());
     DCHECK(!is_shared_space_isolate());
-    string_table_ = shared_space_isolate()->string_table_;
-    string_forwarding_table_ = shared_space_isolate()->string_forwarding_table_;
+    DCHECK_NOT_NULL(string_table());
+    DCHECK_NOT_NULL(string_forwarding_table());
   }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -4977,10 +4980,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // Initialize or get the struct type registry shared by all isolates.
     if (is_shared_space_isolate()) {
       shared_struct_type_registry_ =
-          std::make_shared<SharedStructTypeRegistry>();
+          std::make_unique<SharedStructTypeRegistry>();
     } else {
-      shared_struct_type_registry_ =
-          shared_space_isolate()->shared_struct_type_registry_;
+      DCHECK_NOT_NULL(shared_struct_type_registry());
     }
   }
 

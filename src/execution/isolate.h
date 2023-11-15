@@ -766,13 +766,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // The isolate's string table.
-  StringTable* string_table() const { return string_table_.get(); }
+  StringTable* string_table() const {
+    return OwnsStringTables() ? string_table_.get()
+                              : shared_space_isolate()->string_table_.get();
+  }
   StringForwardingTable* string_forwarding_table() const {
-    return string_forwarding_table_.get();
+    return OwnsStringTables()
+               ? string_forwarding_table_.get()
+               : shared_space_isolate()->string_forwarding_table_.get();
   }
 
   SharedStructTypeRegistry* shared_struct_type_registry() const {
-    return shared_struct_type_registry_.get();
+    return is_shared_space_isolate()
+               ? shared_struct_type_registry_.get()
+               : shared_space_isolate()->shared_struct_type_registry_.get();
   }
 
   Address get_address_from_id(IsolateAddressId id);
@@ -2110,7 +2117,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
-  bool OwnsStringTables() {
+  bool OwnsStringTables() const {
     return !v8_flags.shared_string_table || is_shared_space_isolate();
   }
 
@@ -2314,8 +2321,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
-  std::shared_ptr<StringTable> string_table_;
-  std::shared_ptr<StringForwardingTable> string_forwarding_table_;
+
+  // These are guaranteed empty when !OwnsStringTables().
+  std::unique_ptr<StringTable> string_table_;
+  std::unique_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   std::atomic<EntryStackItem*> entry_stack_ = nullptr;
@@ -2629,7 +2638,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::Optional<Isolate*> shared_space_isolate_;
 
   // Used to deduplicate registered SharedStructType shapes.
-  std::shared_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
+  //
+  // This is guaranteed empty when !is_shared_space_isolate().
+  std::unique_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
 
 #ifdef V8_COMPRESS_POINTERS
   // Stores the external pointer table space for the shared external pointer
