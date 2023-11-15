@@ -379,8 +379,8 @@ class SharedFunctionInfo
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 #ifdef V8_ENABLE_SANDBOX
-  inline void clear_function_data(RelaxedStoreTag);
-  inline void clear_trusted_function_data(RelaxedStoreTag);
+  inline void clear_function_data(ReleaseStoreTag);
+  inline void clear_trusted_function_data(ReleaseStoreTag);
   inline bool has_trusted_function_data() const;
 #endif
 

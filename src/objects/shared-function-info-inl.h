@@ -122,13 +122,13 @@ void SharedFunctionInfo::SetData(Tagged<Object> value, ReleaseStoreTag tag,
   if (type == DataType::kTrusted) {
     DCHECK(IsExposedTrustedObject(value));
     // Only one of trusted_function_data and function_data can be in use.
-    clear_function_data(kRelaxedStore);
     set_trusted_function_data(value, tag, mode);
+    clear_function_data(kReleaseStore);
   } else {
     DCHECK_EQ(type, DataType::kRegular);
     // Only one of trusted_function_data and function_data can be in use.
-    clear_trusted_function_data(kRelaxedStore);
     set_function_data(value, tag, mode);
+    clear_trusted_function_data(kReleaseStore);
   }
 #else
   set_function_data(value, tag, mode);
@@ -136,13 +136,13 @@ void SharedFunctionInfo::SetData(Tagged<Object> value, ReleaseStoreTag tag,
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void SharedFunctionInfo::clear_function_data(RelaxedStoreTag) {
-  TaggedField<Object, kFunctionDataOffset>::Relaxed_Store(*this,
+void SharedFunctionInfo::clear_function_data(ReleaseStoreTag) {
+  TaggedField<Object, kFunctionDataOffset>::Release_Store(*this,
                                                           Smi::FromInt(-1));
 }
 
-void SharedFunctionInfo::clear_trusted_function_data(RelaxedStoreTag) {
-  TaggedField<Object, kTrustedFunctionDataOffset>::Relaxed_Store(*this,
+void SharedFunctionInfo::clear_trusted_function_data(ReleaseStoreTag) {
+  TaggedField<Object, kTrustedFunctionDataOffset>::Release_Store(*this,
                                                                  Smi::zero());
 }
 
