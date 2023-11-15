@@ -103,12 +103,6 @@ bool Heap::IsMainThread() const {
   return isolate()->thread_id() == ThreadId::Current();
 }
 
-bool Heap::IsSharedMainThread() const {
-  if (!isolate()->has_shared_space()) return false;
-  Isolate* shared_space_isolate = isolate()->shared_space_isolate();
-  return shared_space_isolate->thread_id() == ThreadId::Current();
-}
-
 int64_t Heap::external_memory() { return external_memory_.total(); }
 
 int64_t Heap::update_external_memory(int64_t delta) {
