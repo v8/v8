@@ -93,6 +93,15 @@ class SharedStructTypeRegistry final {
  private:
   class Data;
 
+  MaybeHandle<Map> RegisterNoThrow(Isolate* isolate, Handle<String> key,
+                                   const std::vector<Handle<Name>>& field_names,
+                                   const std::set<uint32_t>& element_names);
+
+  MaybeHandle<Map> CheckIfEntryMatches(
+      Isolate* isolate, InternalIndex entry, Handle<String> key,
+      const std::vector<Handle<Name>>& field_names,
+      const std::set<uint32_t>& element_names);
+
   void EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::unique_ptr<Data> data_;

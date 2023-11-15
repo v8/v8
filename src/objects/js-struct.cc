@@ -372,41 +372,13 @@ SharedStructTypeRegistry::SharedStructTypeRegistry()
 
 SharedStructTypeRegistry::~SharedStructTypeRegistry() = default;
 
-MaybeHandle<Map> SharedStructTypeRegistry::Register(
-    Isolate* isolate, Handle<String> key,
+MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
+    Isolate* isolate, InternalIndex entry, Handle<String> key,
     const std::vector<Handle<Name>>& field_names,
     const std::set<uint32_t>& element_names) {
-#define THROW_REGISTRY_MISMATCH_ERROR(isolate, key)                          \
-  THROW_NEW_ERROR(                                                           \
-      isolate,                                                               \
-      NewTypeError(MessageTemplate::kSharedStructTypeRegistryMismatch, key), \
-      Map)
+  Tagged<Map> existing_map = Tagged<Map>::cast(data_->GetKey(isolate, entry));
 
-  key = isolate->factory()->InternalizeString(key);
-
-  base::MutexGuard data_guard(&data_mutex_);
-
-  InternalIndex entry = data_->FindEntry(isolate, key, key->hash());
-  if (entry.is_not_found()) {
-    // The entry is empty, so create a new instance map as the canonical one.
-    Handle<Map> map = JSSharedStruct::CreateInstanceMap(isolate, field_names,
-                                                        element_names, key);
-    EnsureCapacity(isolate, 1);
-
-    // Disallow GC from here to ensure the hash table doesn't resize.
-    DisallowGarbageCollection no_gc;
-    entry = data_->FindInsertionEntry(isolate, key->hash());
-    Tagged<Object> existing_key = data_->GetKey(isolate, entry);
-    if (existing_key == Data::empty_element()) {
-      data_->AddAt(isolate, entry, *map);
-    } else {
-      data_->OverwriteDeletedAt(isolate, entry, *map);
-    }
-    return map;
-  }
-
-  // There is an existing map, which is considered a match iff all of the
-  // following hold:
+  // A map is considered a match iff all of the following hold:
   // - field names are the same element-wise (in order)
   // - element indices are the same
 
@@ -414,21 +386,19 @@ MaybeHandle<Map> SharedStructTypeRegistry::Register(
   int num_descriptors = static_cast<int>(field_names.size()) + 1;
   if (!element_names.empty()) num_descriptors++;
 
-  Handle<Map> existing_map =
-      handle(Tagged<Map>::cast(data_->GetKey(isolate, entry)), isolate);
   DCHECK_EQ(
-      *JSSharedStruct::GetRegistryKey(isolate, *existing_map).ToHandleChecked(),
+      *JSSharedStruct::GetRegistryKey(isolate, existing_map).ToHandleChecked(),
       *key);
 
   if (num_descriptors != existing_map->NumberOfOwnDescriptors()) {
-    THROW_REGISTRY_MISMATCH_ERROR(isolate, key);
+    return MaybeHandle<Map>();
   }
 
   Tagged<DescriptorArray> existing_descriptors =
       existing_map->instance_descriptors(isolate);
   auto field_names_iter = field_names.begin();
   for (InternalIndex i : existing_map->IterateOwnDescriptors()) {
-    if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, *existing_map,
+    if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, existing_map,
                                                      i)) {
       Handle<NumberDictionary> elements_template(
           NumberDictionary::cast(
@@ -436,11 +406,11 @@ MaybeHandle<Map> SharedStructTypeRegistry::Register(
           isolate);
       if (static_cast<int>(element_names.size()) !=
           elements_template->NumberOfElements()) {
-        THROW_REGISTRY_MISMATCH_ERROR(isolate, key);
+        return MaybeHandle<Map>();
       }
       for (int element : element_names) {
         if (elements_template->FindEntry(isolate, element).is_not_found()) {
-          THROW_REGISTRY_MISMATCH_ERROR(isolate, key);
+          return MaybeHandle<Map>();
         }
       }
 
@@ -455,22 +425,80 @@ MaybeHandle<Map> SharedStructTypeRegistry::Register(
     DCHECK(IsUniqueName(existing_name));
     Tagged<Name> name = **field_names_iter;
     DCHECK(IsUniqueName(name));
-    if (name != existing_name) {
-      THROW_REGISTRY_MISMATCH_ERROR(isolate, key);
-    }
+    if (name != existing_name) return MaybeHandle<Map>();
     ++field_names_iter;
   }
 
-  return existing_map;
+  return handle(existing_map, isolate);
+}
 
-#undef THROW_REGISTRY_MISMATCH_ERROR
+MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
+    Isolate* isolate, Handle<String> key,
+    const std::vector<Handle<Name>>& field_names,
+    const std::set<uint32_t>& element_names) {
+  key = isolate->factory()->InternalizeString(key);
+
+  // To avoid deadlock with iteration during GC and modifying the table, no GC
+  // must occur under lock.
+
+  {
+    NoGarbageCollectionMutexGuard data_guard(&data_mutex_);
+    InternalIndex entry = data_->FindEntry(isolate, key, key->hash());
+    if (entry.is_found()) {
+      return CheckIfEntryMatches(isolate, entry, key, field_names,
+                                 element_names);
+    }
+  }
+
+  // We have a likely miss. Create a new instance map outside of the lock.
+  Handle<Map> map = JSSharedStruct::CreateInstanceMap(isolate, field_names,
+                                                      element_names, key);
+
+  // Relookup to see if it's in fact a miss.
+  NoGarbageCollectionMutexGuard data_guard(&data_mutex_);
+
+  EnsureCapacity(isolate, 1);
+  InternalIndex entry =
+      data_->FindEntryOrInsertionEntry(isolate, key, key->hash());
+  Tagged<Object> existing_key = data_->GetKey(isolate, entry);
+  if (existing_key == Data::empty_element()) {
+    data_->AddAt(isolate, entry, *map);
+    return map;
+  } else if (existing_key == Data::deleted_element()) {
+    data_->OverwriteDeletedAt(isolate, entry, *map);
+    return map;
+  } else {
+    // An entry with the same key was inserted between the two locks.
+    return CheckIfEntryMatches(isolate, entry, key, field_names, element_names);
+  }
+}
+
+MaybeHandle<Map> SharedStructTypeRegistry::Register(
+    Isolate* isolate, Handle<String> key,
+    const std::vector<Handle<Name>>& field_names,
+    const std::set<uint32_t>& element_names) {
+  MaybeHandle<Map> canonical_map =
+      RegisterNoThrow(isolate, key, field_names, element_names);
+  if (canonical_map.is_null()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kSharedStructTypeRegistryMismatch, key),
+        Map);
+  }
+  return canonical_map;
 }
 
 void SharedStructTypeRegistry::IterateElements(Isolate* isolate,
                                                RootVisitor* visitor) {
-  // This should only happen during a global safepoint, when all workers and
-  // background threads are paused, so no need to take the data mutex.
-  isolate->global_safepoint()->AssertActive();
+  // Ideally this should only happen during a global safepoint, when all
+  // workers and background threads are paused, so there would be no need to
+  // take the data mutex. However, the array left trimming has a verifier
+  // visitor that visits all roots (including weak ones), thus we take the
+  // mutex.
+  //
+  // TODO(v8:12547): Figure out how to do
+  // isolate->global_safepoint()->AssertActive() instead.
+  base::MutexGuard data_guard(&data_mutex_);
   data_->IterateElements(Root::kSharedStructTypeRegistry, visitor);
 }
 

@@ -3432,9 +3432,10 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          OffHeapObjectSlot start,
                          OffHeapObjectSlot end) override {
-    DCHECK_EQ(root, Root::kStringTable);
-    // We can skip iterating the string table, it doesn't point to any fixed
-    // arrays.
+    DCHECK(root == Root::kStringTable ||
+           root == Root::kSharedStructTypeRegistry);
+    // We can skip iterating the string table and shared struct type registry,
+    // they don't point to any fixed arrays.
   }
 
  private:
