@@ -265,7 +265,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Mac - arm64 - release builder",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "arm64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
     ),
     #TODO(liviurau): Naming pattern mismatch prevents the use of `_pair` here
     main_multibranch_builder(
@@ -279,7 +279,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Mac - arm64 - debug builder",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "arm64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
     ),
     #TODO(liviurau): Naming pattern mismatch prevents the use of `_pair` here
     main_multibranch_builder(
@@ -292,7 +292,7 @@ in_category(
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64 - no pointer compression debug",
-        dimensions = {"os": "Mac", "cpu": "arm64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         disable_resultdb_exports = True,
     ),
