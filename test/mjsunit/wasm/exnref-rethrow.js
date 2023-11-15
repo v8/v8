@@ -90,3 +90,19 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   assertEquals(23, instance.exports.rethrow_recatch(0));
   assertEquals(42, instance.exports.rethrow_recatch(1));
 })();
+
+// Test that throw-ref traps if the exception is null.
+(function TestRethrowNullTraps() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+  let if_sig = builder.addType(makeSig([kWasmExnRef], []));
+  builder.addFunction("rethrow_null", kSig_v_v)
+      .addBody([
+        kExprRefNull, kExnRefCode,
+        kExprThrowRef,
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapRethrowNull, () => instance.exports.rethrow_null());
+})();
