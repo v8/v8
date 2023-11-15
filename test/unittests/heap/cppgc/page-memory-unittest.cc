@@ -111,7 +111,7 @@ TEST(PageBackendDeathTest, ReservationIsFreed) {
   // and thus not crash.
   EXPECT_DEATH_IF_SUPPORTED(
       v8::base::PageAllocator allocator; Address base; {
-        PageBackend backend(allocator);
+        PageBackend backend(allocator, allocator);
         base = backend.TryAllocateLargePageMemory(1024);
       } access(*base);
       , "");
@@ -119,7 +119,7 @@ TEST(PageBackendDeathTest, ReservationIsFreed) {
 
 TEST(PageBackendDeathTest, FrontGuardPageAccessCrashes) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   auto* base = backend.TryAllocateNormalPageMemory();
   if (SupportsCommittingGuardPages(allocator)) {
     EXPECT_DEATH_IF_SUPPORTED(access(base[-kGuardPageSize]), "");
@@ -128,7 +128,7 @@ TEST(PageBackendDeathTest, FrontGuardPageAccessCrashes) {
 
 TEST(PageBackendDeathTest, BackGuardPageAccessCrashes) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   auto* base = backend.TryAllocateNormalPageMemory();
   if (SupportsCommittingGuardPages(allocator)) {
     EXPECT_DEATH_IF_SUPPORTED(access(base[kPageSize - 2 * kGuardPageSize]), "");
@@ -137,7 +137,7 @@ TEST(PageBackendDeathTest, BackGuardPageAccessCrashes) {
 
 TEST(PageBackendTreeTest, AddNormalLookupRemove) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   auto* writable_base = backend.TryAllocateNormalPageMemory();
   auto* reserved_base = writable_base - kGuardPageSize;
   auto& tree = backend.get_page_memory_region_tree_for_testing();
@@ -161,7 +161,7 @@ TEST(PageBackendTreeTest, AddLargeLookupRemove) {
   constexpr size_t kLargeSize = 5012;
   const size_t allocated_page_size =
       RoundUp(kLargeSize + 2 * kGuardPageSize, allocator.AllocatePageSize());
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   auto* writable_base = backend.TryAllocateLargePageMemory(kLargeSize);
   auto* reserved_base = writable_base - kGuardPageSize;
   auto& tree = backend.get_page_memory_region_tree_for_testing();
@@ -185,7 +185,7 @@ TEST(PageBackendTreeTest, AddLookupRemoveMultiple) {
   const size_t allocated_page_size =
       RoundUp(kLargeSize + 2 * kGuardPageSize, allocator.AllocatePageSize());
 
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   auto& tree = backend.get_page_memory_region_tree_for_testing();
 
   auto* writable_normal_base = backend.TryAllocateNormalPageMemory();
@@ -232,11 +232,17 @@ TEST(PageBackendTreeTest, AddLookupRemoveMultiple) {
             tree.Lookup(reserved_large_base + allocated_page_size - 1));
 }
 
+TEST(PageBackendPoolTest, ConstructorEmpty) {
+  v8::base::PageAllocator allocator;
+  PageBackend backend(allocator, allocator);
+  auto& pool = backend.get_page_pool_for_testing();
+  EXPECT_EQ(nullptr, pool.Take());
+}
+
 TEST(PageBackendPoolTest, AddTake) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
-  auto& pool = NormalPageMemoryPool::Instance();
-  pool.FlushPooledPagesForTesting();
+  PageBackend backend(allocator, allocator);
+  auto& pool = backend.get_page_pool_for_testing();
   auto& raw_pool = pool.get_raw_pool_for_testing();
 
   EXPECT_TRUE(raw_pool.empty());
@@ -257,7 +263,7 @@ TEST(PageBackendPoolTest, AddTake) {
 
 TEST(PageBackendTest, AllocateNormalUsesPool) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   Address writeable_base1 = backend.TryAllocateNormalPageMemory();
   EXPECT_NE(nullptr, writeable_base1);
   backend.FreeNormalPageMemory(writeable_base1,
@@ -269,7 +275,7 @@ TEST(PageBackendTest, AllocateNormalUsesPool) {
 
 TEST(PageBackendTest, AllocateLarge) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   Address writeable_base1 = backend.TryAllocateLargePageMemory(13731);
   EXPECT_NE(nullptr, writeable_base1);
   Address writeable_base2 = backend.TryAllocateLargePageMemory(9478);
@@ -281,7 +287,7 @@ TEST(PageBackendTest, AllocateLarge) {
 
 TEST(PageBackendTest, LookupNormal) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   Address writeable_base = backend.TryAllocateNormalPageMemory();
   if (kGuardPageSize) {
     EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
@@ -300,7 +306,7 @@ TEST(PageBackendTest, LookupNormal) {
 
 TEST(PageBackendTest, LookupLarge) {
   v8::base::PageAllocator allocator;
-  PageBackend backend(allocator);
+  PageBackend backend(allocator, allocator);
   constexpr size_t kSize = 7934;
   Address writeable_base = backend.TryAllocateLargePageMemory(kSize);
   if (kGuardPageSize) {
@@ -309,6 +315,16 @@ TEST(PageBackendTest, LookupLarge) {
   EXPECT_EQ(nullptr, backend.Lookup(writeable_base - 1));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base + kSize - 1));
+}
+
+TEST(PageBackendDeathTest, DestructingBackendDestroysPageMemory) {
+  v8::base::PageAllocator allocator;
+  Address base;
+  {
+    PageBackend backend(allocator, allocator);
+    base = backend.TryAllocateNormalPageMemory();
+  }
+  EXPECT_DEATH_IF_SUPPORTED(access(base[0]), "");
 }
 
 }  // namespace internal
