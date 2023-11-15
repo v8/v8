@@ -176,7 +176,8 @@ class UncompiledDataWithPreparseDataAndJob
 };
 
 class InterpreterData
-    : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
+    : public TorqueGeneratedInterpreterData<InterpreterData,
+                                            ExposedTrustedObject> {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
 

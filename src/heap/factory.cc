@@ -3554,6 +3554,19 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
                                kind);
 }
 
+Handle<InterpreterData> Factory::NewInterpreterData(
+    Handle<BytecodeArray> bytecode_array, Handle<Code> code) {
+  Tagged<Map> map = *interpreter_data_map();
+  Tagged<InterpreterData> interpreter_data =
+      Tagged<InterpreterData>::cast(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kOld, *interpreter_data_map()));
+  DisallowGarbageCollection no_gc;
+  interpreter_data->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  interpreter_data->set_bytecode_array(*bytecode_array);
+  interpreter_data->set_interpreter_trampoline(*code);
+  return handle(interpreter_data, isolate());
+}
+
 int Factory::NumberToStringCacheHash(Tagged<Smi> number) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   return number.value() & mask;

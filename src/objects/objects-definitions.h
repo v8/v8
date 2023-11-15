@@ -167,7 +167,6 @@ namespace internal {
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
-  V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                     \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
   V(_, PROMISE_ON_STACK_TYPE, PromiseOnStack, promise_on_stack)                \

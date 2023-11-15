@@ -745,6 +745,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
     ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
+    ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
+                 interpreter_data)
   }
 
   return true;

@@ -262,15 +262,12 @@ void CreateInterpreterDataForDeserializedCode(
     DCHECK(shared_info->HasBytecodeArray());
     Handle<SharedFunctionInfo> sfi = handle(shared_info, isolate);
 
+    Handle<BytecodeArray> bytecode(sfi->GetBytecodeArray(isolate), isolate);
     Handle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
-
     Handle<InterpreterData> interpreter_data =
-        Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
-            INTERPRETER_DATA_TYPE, AllocationType::kOld));
+        isolate->factory()->NewInterpreterData(bytecode, code);
 
-    interpreter_data->set_bytecode_array(sfi->GetBytecodeArray(isolate));
-    interpreter_data->set_interpreter_trampoline(*code);
     if (sfi->HasBaselineCode()) {
       sfi->baseline_code(kAcquireLoad)
           ->set_bytecode_or_interpreter_data(*interpreter_data);

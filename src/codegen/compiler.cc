@@ -677,11 +677,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
       Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
   Handle<InterpreterData> interpreter_data =
-      Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
-          INTERPRETER_DATA_TYPE, AllocationType::kOld));
-
-  interpreter_data->set_bytecode_array(*bytecode_array);
-  interpreter_data->set_interpreter_trampoline(*code);
+      isolate->factory()->NewInterpreterData(bytecode_array, code);
 
   if (shared_info->HasBaselineCode()) {
     shared_info->baseline_code(kAcquireLoad)

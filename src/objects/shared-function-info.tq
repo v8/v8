@@ -8,7 +8,7 @@ extern class PreparseData extends HeapObject {
   children_length: int32;
 }
 
-extern class InterpreterData extends Struct {
+extern class InterpreterData extends ExposedTrustedObject {
   // TODO(saelo): we should consider also moving InterpreterData out of the
   // sandbox as it can often occur in places where BytecodeArrays are expected
   // (which live outside of the sandbox). When we do this, this field can again

@@ -230,6 +230,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
 
+    case INTERPRETER_DATA_TYPE:
+      return kVisitInterpreterData;
+
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 

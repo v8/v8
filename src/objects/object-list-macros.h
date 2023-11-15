@@ -93,6 +93,7 @@ namespace internal {
   IF_WASM(V, WasmStruct)
 
 // TODO(jgruber): Move more types to SIMPLE_HEAP_OBJECT_LIST_GENERATOR.
+// TODO(saelo): Consider adding a TRUSTED_OBJECT_TYPE_LIST_BASE(V).
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
   V(AccessCheckNeeded)                          \
@@ -241,6 +242,7 @@ namespace internal {
   V(SeqOneByteString)                           \
   V(SeqString)                                  \
   V(SeqTwoByteString)                           \
+  V(InterpreterData)                            \
   V(SharedFunctionInfo)                         \
   V(SimpleNumberDictionary)                     \
   V(SlicedString)                               \
