@@ -747,7 +747,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void disassembleInstr(Instr instr);
+  static void disassembleInstr(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);
