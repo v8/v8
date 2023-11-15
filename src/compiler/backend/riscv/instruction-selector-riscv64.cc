@@ -2046,9 +2046,14 @@ void VisitWord64Compare(InstructionSelectorT<Adapter>* selector,
 }
 
 template <typename Adapter>
-void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-                     AtomicWidth width) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
+void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector,
+                     turboshaft::OpIndex node, AtomicWidth width) {
+  UNIMPLEMENTED();
+}
+
+void VisitAtomicLoad(InstructionSelectorT<TurbofanAdapter>* selector,
+                     Node* node, AtomicWidth width) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
@@ -2744,7 +2749,7 @@ void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2762,7 +2767,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {

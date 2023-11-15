@@ -924,9 +924,15 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
 }
 
 template <typename Adapter>
-void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-                     ArchOpcode opcode, AtomicWidth width) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
+void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector,
+                     turboshaft::OpIndex node, ArchOpcode opcode,
+                     AtomicWidth width) {
+  UNIMPLEMENTED();
+}
+
+void VisitAtomicLoad(InstructionSelectorT<TurbofanAdapter>* selector,
+                     Node* node, ArchOpcode opcode, AtomicWidth width) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   if (g.CanBeImmediate(index, opcode)) {
@@ -1237,7 +1243,7 @@ void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
