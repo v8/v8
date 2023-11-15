@@ -423,6 +423,9 @@ class IndirectPointerSlot
   IndirectPointerTag tag() const { return kIndirectPointerNullTag; }
 #endif
 
+  // Whether this slot is empty, i.e. contains a null handle.
+  inline bool IsEmpty() const;
+
   // Retrieve the object referenced by the given handle by determining the
   // appropriate pointer table to use and loading the referenced entry in it.
   // This method is used internally by load() and related functions but can

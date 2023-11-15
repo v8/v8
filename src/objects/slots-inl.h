@@ -347,6 +347,10 @@ void IndirectPointerSlot::Release_StoreHandle(
   return base::AsAtomic32::Release_Store(location(), handle);
 }
 
+bool IndirectPointerSlot::IsEmpty() const {
+  return Relaxed_LoadHandle() == kNullIndirectPointerHandle;
+}
+
 Tagged<Object> IndirectPointerSlot::ResolveHandle(
     IndirectPointerHandle handle, const Isolate* isolate) const {
 #ifdef V8_ENABLE_SANDBOX

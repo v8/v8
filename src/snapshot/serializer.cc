@@ -485,6 +485,15 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
         !serializer_->IsNotMappedSymbol(*object_),
         serializer_->reference_map()->LookupReference(object_) == nullptr);
 
+    // To support deserializing pending objects referenced through indirect
+    // pointers, we need to make sure that the 'self' indirect pointer is
+    // initialized before the pending reference is resolved. Otherwise, the
+    // object cannot be referenced.
+    if (V8_ENABLE_SANDBOX_BOOL && IsExposedTrustedObject(*object_)) {
+      sink_->Put(kInitializeSelfIndirectPointer,
+                 "InitializeSelfIndirectPointer");
+    }
+
     // Now that the object is allocated, we can resolve pending references to
     // it.
     serializer_->ResolvePendingObject(*object_);
@@ -1126,6 +1135,10 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
+  // If the slot is empty (i.e. contains a null handle), then we can just skip
+  // it since in that case the correct action is to encode the null handle as
+  // raw data, which will automatically happen if the slot is skipped here.
+  if (slot.IsEmpty()) return;
 
   // If necessary, output any raw data preceeding this slot.
   OutputRawData(slot.address());
@@ -1137,8 +1150,8 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   CHECK(IsHeapObject(*slot_value));
   bytes_processed_so_far_ += kIndirectPointerSize;
 
-  // Currently we cannot see pending objects here, but we may need to handle
-  // them here and in the deserializer in the future.
+  // Currently we cannot see pending objects here, but we may need to support
+  // them in the future. They should already be supported by the deserializer.
   CHECK(!serializer_->SerializePendingObject(*slot_value));
   sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
@@ -1155,10 +1168,8 @@ void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
   DCHECK_EQ(bytes_processed_so_far_,
             ExposedTrustedObject::kSelfIndirectPointerOffset);
 
-  // The field will be recreated during deserialization by allocating a new
-  // pointer table entry for the host object. This opcode instructs the
-  // deserializer to do so.
-  sink_->Put(kInitializeSelfIndirectPointer, "InitializeSelfIndirectPointer");
+  // Nothing to do here. We already emitted the kInitializeSelfIndirectPointer
+  // after processing the Map word in SerializePrologue.
   bytes_processed_so_far_ += kIndirectPointerSize;
 #else
   UNREACHABLE();

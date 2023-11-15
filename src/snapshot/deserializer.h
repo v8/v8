@@ -287,12 +287,12 @@ class Deserializer : public SerializerDeserializer {
   // The vector is cleared when there are no more unresolved forward refs.
   struct UnresolvedForwardRef {
     UnresolvedForwardRef(Handle<HeapObject> object, int offset,
-                         HeapObjectReferenceType ref_type)
-        : object(object), offset(offset), ref_type(ref_type) {}
+                         ReferenceDescriptor descr)
+        : object(object), offset(offset), descr(descr) {}
 
     Handle<HeapObject> object;
     int offset;
-    HeapObjectReferenceType ref_type;
+    ReferenceDescriptor descr;
   };
   std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
   int num_unresolved_forward_refs_ = 0;

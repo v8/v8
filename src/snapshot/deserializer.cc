@@ -1069,9 +1069,8 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRegisterPendingForwardRef(
     uint8_t data, SlotAccessor slot_accessor) {
   ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
-  DCHECK(!descr.is_indirect_pointer);
   unresolved_forward_refs_.emplace_back(slot_accessor.object(),
-                                        slot_accessor.offset(), descr.type);
+                                        slot_accessor.offset(), descr);
   num_unresolved_forward_refs_++;
   return 1;
 }
@@ -1082,14 +1081,15 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
     uint8_t data, SlotAccessor slot_accessor) {
   // Pending forward refs can only be resolved after the heap object's map
   // field is deserialized; currently they only appear immediately after
-  // the map field.
-  DCHECK_EQ(slot_accessor.offset(), HeapObject::kHeaderSize);
+  // the map field or after the 'self' indirect pointer for trusted objects.
+  DCHECK(slot_accessor.offset() == HeapObject::kHeaderSize ||
+         slot_accessor.offset() == ExposedTrustedObject::kHeaderSize);
   Handle<HeapObject> obj = slot_accessor.object();
   int index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
-  SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
-                                           forward_ref.offset)
-      .Write(*obj, forward_ref.ref_type);
+  auto slot = SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
+                                                       forward_ref.offset);
+  WriteHeapPointer(slot, obj, forward_ref.descr);
   num_unresolved_forward_refs_--;
   if (num_unresolved_forward_refs_ == 0) {
     // If there's no more pending fields, clear the entire pending field
