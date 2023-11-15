@@ -406,7 +406,7 @@ class ImmediatesPrinter {
 
   void TryTable(TryTableImmediate& imm) {
     const uint8_t* pc = imm.table;
-    for (uint32_t i = 0; i <= imm.table_count; i++) {
+    for (uint32_t i = 0; i < imm.table_count; i++) {
       uint8_t kind = owner_->read_u8<ValidationTag>(pc);
       pc += 1;
       out_ << " " << CatchKindToString(static_cast<CatchKind>(kind));

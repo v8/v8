@@ -273,7 +273,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       data_segments_(zone),
       element_segments_(zone),
       globals_(zone),
-      exceptions_(zone),
+      tags_(zone),
       signature_map_(zone),
       current_recursive_group_start_(-1),
       recursive_groups_(zone),
@@ -330,11 +330,11 @@ uint32_t WasmModuleBuilder::AddSignature(const FunctionSig* sig, bool is_final,
   return ForceAddSignature(sig, is_final, supertype);
 }
 
-uint32_t WasmModuleBuilder::AddException(const FunctionSig* type) {
+uint32_t WasmModuleBuilder::AddTag(const FunctionSig* type) {
   DCHECK_EQ(0, type->return_count());
   int type_index = AddSignature(type, true);
-  uint32_t except_index = static_cast<uint32_t>(exceptions_.size());
-  exceptions_.push_back(type_index);
+  uint32_t except_index = static_cast<uint32_t>(tags_.size());
+  tags_.push_back(type_index);
   return except_index;
 }
 
@@ -754,10 +754,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // Emit event section.
-  if (exceptions_.size() > 0) {
+  if (tags_.size() > 0) {
     size_t start = EmitSection(kTagSectionCode, buffer);
-    buffer->write_size(exceptions_.size());
-    for (int type : exceptions_) {
+    buffer->write_size(tags_.size());
+    for (int type : tags_) {
       buffer->write_u32v(kExceptionAttribute);
       buffer->write_u32v(type);
     }

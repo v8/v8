@@ -10,6 +10,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -36,6 +37,7 @@ constexpr int kMaxTables = 4;
 constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
+constexpr int kMaxCatchCases = 6;
 
 class DataRange {
   // data_ is used for general random values for fuzzing.
@@ -335,7 +337,7 @@ class WasmGenerator {
   void try_block_helper(ValueType return_type, DataRange* data) {
     bool has_catch_all = data->get<bool>();
     uint8_t num_catch =
-        data->get<uint8_t>() % (builder_->builder()->NumExceptions() + 1);
+        data->get<uint8_t>() % (builder_->builder()->NumTags() + 1);
     bool is_delegate = num_catch == 0 && !has_catch_all && data->get<bool>();
     // Allow one more target than there are enclosing try blocks, for delegating
     // to the caller.
@@ -349,8 +351,7 @@ class WasmGenerator {
     Generate(return_type, data);
     catch_blocks_.push_back(control_depth);
     for (int i = 0; i < num_catch; ++i) {
-      const FunctionSig* exception_type =
-          builder_->builder()->GetExceptionType(i);
+      const FunctionSig* exception_type = builder_->builder()->GetTagType(i);
       auto exception_type_vec =
           base::VectorOf(exception_type->parameters().begin(),
                          exception_type->parameter_count());
@@ -376,9 +377,118 @@ class WasmGenerator {
     try_block_helper(ValueType::Primitive(T), data);
   }
 
+  struct CatchCase {
+    int tag_index;
+    CatchKind kind;
+  };
+
+  FunctionSig* ToSig(base::Vector<const ValueType> param_types,
+                     base::Vector<const ValueType> return_types) {
+    FunctionSig::Builder builder(builder_->builder()->zone(),
+                                 return_types.size(), param_types.size());
+    for (auto& type : param_types) {
+      builder.AddParam(type);
+    }
+    for (auto& type : return_types) {
+      builder.AddReturn(type);
+    }
+    return builder.Build();
+  }
+
+  // Generates the i-th nested block for the try-table, and recursively generate
+  // the blocks inside it.
+  void try_table_rec(base::Vector<const ValueType> param_types,
+                     base::Vector<const ValueType> return_types,
+                     base::Vector<CatchCase> catch_cases, size_t i,
+                     DataRange* data) {
+    if (i == catch_cases.size()) {
+      // Base case: emit the try-table itself.
+      builder_->Emit(kExprTryTable);
+      uint32_t try_sig_index = builder_->builder()->AddSignature(
+          ToSig(param_types, return_types), v8_flags.wasm_final_types);
+      builder_->EmitI32V(try_sig_index);
+      builder_->EmitU32V(static_cast<uint32_t>(catch_cases.size()));
+      for (size_t j = 0; j < catch_cases.size(); ++j) {
+        builder_->EmitByte(catch_cases[j].kind);
+        if (catch_cases[j].kind == kCatch || catch_cases[j].kind == kCatchRef) {
+          builder_->EmitByte(catch_cases[j].tag_index);
+        }
+        builder_->EmitByte(catch_cases.size() - j - 1);
+      }
+      ConsumeAndGenerate(param_types, return_types, data);
+      builder_->Emit(kExprEnd);
+      builder_->EmitWithI32V(kExprBr, static_cast<int32_t>(catch_cases.size()));
+      return;
+    }
+
+    // Enter the i-th nested block. The signature of the block is built as
+    // follows:
+    // - The input types are the same for each block, the operands are forwarded
+    // as-is to the inner try-table.
+    // - The output types can be empty, or contain the tag types and/or an
+    // exnref depending on the catch kind
+    const FunctionSig* type =
+        builder_->builder()->GetTagType(catch_cases[i].tag_index);
+    int has_tag =
+        catch_cases[i].kind == kCatchRef || catch_cases[i].kind == kCatch;
+    int has_ref =
+        catch_cases[i].kind == kCatchAllRef || catch_cases[i].kind == kCatchRef;
+    size_t return_count =
+        (has_tag ? type->parameter_count() : 0) + (has_ref ? 1 : 0);
+    FunctionSig::Builder builder(builder_->builder()->zone(), return_count,
+                                 param_types.size());
+    for (size_t j = 0; j < param_types.size(); ++j) {
+      builder.AddParam(param_types[j]);
+    }
+    if (has_tag) {
+      for (size_t j = 0; j < type->parameter_count(); ++j) {
+        builder.AddReturn(type->GetParam(j));
+      }
+    }
+    if (has_ref) {
+      builder.AddReturn(kWasmExnRef);
+    }
+    FunctionSig* block_sig = builder.Build();
+    uint32_t sig_index =
+        builder_->builder()->AddSignature(block_sig, v8_flags.wasm_final_types);
+    builder_->Emit(kExprBlock);
+    builder_->EmitI32V(sig_index);
+    try_table_rec(param_types, return_types, catch_cases, i + 1, data);
+    builder_->Emit(kExprEnd);
+    // Catch label. Consume the unpacked values and exnref (if any), produce
+    // values that match the outer scope, and branch to it.
+    base::Vector<const ValueType> on_stack(block_sig->returns().begin(),
+                                           block_sig->return_count());
+    ConsumeAndGenerate(on_stack, return_types, data);
+    builder_->EmitWithU32V(kExprBr, static_cast<uint32_t>(i));
+  }
+
+  void try_table_block_helper(base::Vector<const ValueType> param_types,
+                              base::Vector<const ValueType> return_types,
+                              DataRange* data) {
+    uint8_t num_catch = data->get<uint8_t>() % kMaxCatchCases;
+    auto catch_cases =
+        builder_->builder()->zone()->AllocateVector<CatchCase>(num_catch);
+    for (int i = 0; i < num_catch; ++i) {
+      catch_cases[i].tag_index =
+          data->get<uint8_t>() % builder_->builder()->NumTags();
+      catch_cases[i].kind =
+          static_cast<CatchKind>(data->get<uint8_t>() % (kLastCatchKind + 1));
+    }
+
+    BlockScope block_scope(this, kExprBlock, param_types, return_types,
+                           return_types);
+    try_table_rec(param_types, return_types, catch_cases, 0, data);
+  }
+
+  template <ValueKind T>
+  void try_table_block(DataRange* data) {
+    try_table_block_helper({}, base::VectorOf({ValueType::Primitive(T)}), data);
+  }
+
   void any_block(base::Vector<const ValueType> param_types,
                  base::Vector<const ValueType> return_types, DataRange* data) {
-    uint8_t block_type = data->get<uint8_t>() % 4;
+    uint8_t block_type = data->get<uint8_t>() % 5;
     switch (block_type) {
       case 0:
         block(param_types, return_types, data);
@@ -394,6 +504,9 @@ class WasmGenerator {
         V8_FALLTHROUGH;
       case 3:
         if_(param_types, return_types, kIfElse, data);
+        return;
+      case 4:
+        try_table_block_helper(param_types, return_types, data);
         return;
     }
   }
@@ -966,9 +1079,8 @@ class WasmGenerator {
       builder_->EmitWithU32V(kExprRethrow,
                              control_depth - catch_blocks_[catch_index]);
     } else {
-      int tag = data->get<uint8_t>() % builder_->builder()->NumExceptions();
-      const FunctionSig* exception_sig =
-          builder_->builder()->GetExceptionType(tag);
+      int tag = data->get<uint8_t>() % builder_->builder()->NumTags();
+      const FunctionSig* exception_sig = builder_->builder()->GetTagType(tag);
       base::Vector<const ValueType> exception_types(
           exception_sig->parameters().begin(),
           exception_sig->parameter_count());
@@ -3292,7 +3404,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     for (int i = 0; i < num_exceptions; ++i) {
       FunctionSig* sig =
           GenerateSig(zone, &module_range, kExceptionSig, num_types);
-      builder.AddException(sig);
+      builder.AddTag(sig);
     }
 
     // Generate function declarations before tables. This will be needed once we
@@ -3404,7 +3516,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;
 }
