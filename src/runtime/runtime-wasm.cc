@@ -74,13 +74,17 @@ class FrameFinder {
   StackFrameIterator frame_iterator_;
 };
 
-Tagged<WasmInstanceObject> GetWasmInstanceOnStackTop(
-    Isolate* isolate,
-    std::initializer_list<StackFrame::Type> skipped_frame_types = {
-        StackFrame::EXIT}) {
-  return FrameFinder<WasmFrame>(isolate, skipped_frame_types)
-      .frame()
-      ->wasm_instance();
+Tagged<WasmInstanceObject> GetWasmInstanceOnStackTop(Isolate* isolate) {
+  Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
+  fp = Memory<Address>(fp + ExitFrameConstants::kCallerFPOffset);
+#ifdef DEBUG
+  intptr_t marker =
+      Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  DCHECK(StackFrame::MarkerToType(marker) == StackFrame::WASM);
+#endif
+  const int offset = WasmFrameConstants::kWasmInstanceOffset;
+  Tagged<Object> instance(Memory<Address>(fp + offset));
+  return WasmInstanceObject::cast(instance);
 }
 
 Tagged<Context> GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
