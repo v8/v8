@@ -774,7 +774,11 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
+#ifdef V8_ENABLE_SANDBOX
+  Tagged<Object> data = trusted_function_data(cage_base, kAcquireLoad);
+#else
   Tagged<Object> data = function_data(cage_base, kAcquireLoad);
+#endif
   if (IsCode(data, cage_base)) {
     DCHECK_EQ(Code::cast(data)->kind(), CodeKind::BASELINE);
     return true;
@@ -784,14 +788,18 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
   DCHECK(HasBaselineCode(cage_base));
+#ifdef V8_ENABLE_SANDBOX
+  return Code::cast(trusted_function_data(cage_base, kAcquireLoad));
+#else
   return Code::cast(function_data(cage_base, kAcquireLoad));
+#endif
 }
 
 void SharedFunctionInfo::set_baseline_code(Tagged<Code> baseline_code,
                                            ReleaseStoreTag tag,
                                            WriteBarrierMode mode) {
   DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-  SetData(baseline_code, tag, DataType::kRegular, mode);
+  SetData(baseline_code, tag, DataType::kTrusted, mode);
 }
 
 void SharedFunctionInfo::FlushBaselineCode(const Isolate* isolate) {

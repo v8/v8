@@ -3409,8 +3409,7 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
 
 TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
     TNode<SharedFunctionInfo> sfi) {
-  TNode<Object> data =
-      LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<Object> data = LoadSharedFunctionInfoData(sfi);
   return TaggedIsCode(data);
 }
 
