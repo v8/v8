@@ -13,6 +13,7 @@
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/platform.h"
 
 #if defined(CPPGC_CAGED_HEAP)
@@ -104,9 +105,18 @@ void InitializeProcess(PageAllocator* page_allocator,
 
   CHECK(!internal::g_page_allocator);
   internal::GlobalGCInfoTable::Initialize(allocator);
+
 #if defined(CPPGC_CAGED_HEAP)
   internal::CagedHeap::InitializeIfNeeded(allocator, desired_heap_size);
-#endif  // defined(CPPGC_CAGED_HEAP)
+  // Initialize the page pool with the cage-allocator.
+  internal::NormalPageMemoryPool::InitializeIfNeeded(
+      internal::CagedHeap::Instance().page_allocator());
+#else   // !defined(CPPGC_CAGED_HEAP)
+  // Initialize the page pool with the default allocator, the user-provided or
+  // the lsan-based one.
+  internal::NormalPageMemoryPool::InitializeIfNeeded(allocator);
+#endif  // !defined(CPPGC_CAGED_HEAP)
+
   internal::g_page_allocator = &allocator;
 }
 
