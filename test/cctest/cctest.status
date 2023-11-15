@@ -383,6 +383,8 @@
   # is not guaranteed. So the test fails when src bits has payload.
   'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
+
+  'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 ['arch == riscv32', {
   # Some wasm functionality is not implemented yet.
