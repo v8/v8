@@ -530,6 +530,7 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     base::SharedMutexGuard<base::kShared> lock(&queues_mutex_);
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
+      base::MutexGuard guard(&q->mutex);
       result += ContentSize(*q->units);
       result += q->top_tier_priority_units.size() * sizeof(TopTierPriorityUnit);
     }
