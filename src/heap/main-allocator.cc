@@ -618,8 +618,8 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
 
   if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
-  const bool is_main_thread =
-      heap()->IsMainThread() || heap()->IsSharedMainThread();
+  const bool is_main_thread = allocator_->is_main_thread() ||
+                              (allocator_->in_gc() && heap()->IsMainThread());
   const auto sweeping_scope_kind =
       is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
   const auto sweeping_scope_id = heap()->sweeper()->GetTracingScope(
@@ -816,7 +816,7 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeListMain(
       space_->Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
       end = limit;
     } else {
-      DCHECK(heap()->IsMainThread());
+      DCHECK(allocator_->is_main_thread());
       heap()->CreateFillerObjectAt(limit, static_cast<int>(end - limit));
     }
   }
@@ -839,7 +839,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
   Address new_limit =
       allocator_->ComputeLimit(current_top, max_limit, size_in_bytes);
   allocator_->ExtendLAB(new_limit);
-  DCHECK(heap()->IsMainThread());
+  DCHECK(allocator_->is_main_thread());
   heap()->CreateFillerObjectAt(new_limit,
                                static_cast<int>(max_limit - new_limit));
   Page* page = Page::FromAddress(current_top);
