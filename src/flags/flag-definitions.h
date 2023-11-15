@@ -1259,6 +1259,8 @@ DEFINE_BOOL(turboshaft_instruction_selection, false,
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_instruction_selection,
     "run instruction selection on Turboshaft IR directly for wasm")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
+                            "run the CSA pipeline with turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_load_elimination,
                             "enable Turboshaft's low-level load elimination")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,

@@ -526,6 +526,23 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
   DCHECK(op.rep == WordRepresentation::Word32() ||
          op.rep == WordRepresentation::Word64());
   bool word64 = op.rep == WordRepresentation::Word64();
+  Node* right = GetNode(op.right());
+  // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
+  // pipeline crashes are fixed.
+#if 0
+  if (word64) {
+    // In Turboshaft's ShiftOp, the right hand side always has Word32
+    // representation, so for 64 bit shifts, we have to zero-extend when
+    // constructing Turbofan.
+    if (const ConstantOp* constant =
+            input_graph.Get(op.right()).TryCast<Opmask::kWord32Constant>()) {
+      int64_t value = static_cast<int64_t>(constant->word32());
+      right = AddNode(common.Int64Constant(value), {});
+    } else {
+      right = AddNode(machine.ChangeUint32ToUint64(), {right});
+    }
+  }
+#endif
   const Operator* o;
   switch (op.kind) {
     case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
@@ -548,7 +565,7 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
       o = word64 ? machine.Word64Ror() : machine.Word32Ror();
       break;
   }
-  return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
+  return AddNode(o, {GetNode(op.left()), right});
 }
 Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
   const Operator* o;
@@ -1589,6 +1606,10 @@ Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
   return AddNode(pair_operator,
                  {GetNode(op.left_low()), GetNode(op.left_high()),
                   GetNode(op.right_low()), GetNode(op.right_high())});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const CommentOp& op) {
+  return AddNode(machine.Comment(op.message), {});
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY

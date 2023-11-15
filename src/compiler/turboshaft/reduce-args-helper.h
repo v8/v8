@@ -267,6 +267,8 @@ class CallWithReduceArgsHelper {
     return callback_(op.input(), op.rep);
   }
 
+  OpIndex operator()(const CommentOp& op) { return callback_(op.message); }
+
   OpIndex operator()(const BigIntBinopOp& op) {
     return callback_(op.left(), op.right(), op.frame_state(), op.kind);
   }
