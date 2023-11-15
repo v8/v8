@@ -48,6 +48,8 @@ namespace detail {
 //    and that main thread is the head of the waiter list), the Isolate's
 //    external pointer points to that WaiterQueueNode. Otherwise the external
 //    pointer points to null.
+//
+// TODO(v8:12547): Split out WaiterQueueNode and unittest it.
 class V8_NODISCARD WaiterQueueNode final {
  public:
   explicit WaiterQueueNode(Isolate* requester)
@@ -58,6 +60,13 @@ class V8_NODISCARD WaiterQueueNode final {
             requester->GetOrCreateWaiterQueueNodeExternalPointer())
 #endif  // V8_COMPRESS_POINTERS
   {
+  }
+
+  ~WaiterQueueNode() {
+    // Since waiter queue nodes are allocated on the stack, they must be removed
+    // from the intrusive linked list once they go out of scope, otherwise there
+    // will be dangling pointers.
+    VerifyNotInList();
   }
 
   template <typename T>
@@ -141,7 +150,7 @@ class V8_NODISCARD WaiterQueueNode final {
     do {
       if (matcher(cur)) {
         WaiterQueueNode* next = cur->next_;
-        if (next == original_head) {
+        if (next == cur) {
           // The queue contains exactly 1 node.
           *head = nullptr;
         } else {
@@ -352,8 +361,8 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
 
   // Get the waiter queue head.
   WaiterQueueNode* waiter_head =
-      WaiterQueueNode::DestructivelyDecodeHead<JSAtomicsCondition>(
-          requester, current_state);
+      WaiterQueueNode::DestructivelyDecodeHead<JSAtomicsMutex>(requester,
+                                                               current_state);
 
   if (waiter_head == nullptr) {
     // The queue is empty but the js mutex lock may be held by another thread,
@@ -371,7 +380,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
   // new state.
   DCHECK_EQ(state->load(), current_state | kIsWaiterQueueLockedBit);
   StateT new_state =
-      WaiterQueueNode::EncodeHead<JSAtomicsCondition>(requester, waiter_head);
+      WaiterQueueNode::EncodeHead<JSAtomicsMutex>(requester, waiter_head);
 
   if (!dequeued_node) {
     // The timed out waiter was not in the queue, so it must have been dequeued
@@ -389,13 +398,14 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     DCHECK_EQ(new_state & kIsWaiterQueueLockedBit, 0);
     current_state &= ~kIsLockedBit;
     if (state->compare_exchange_strong(current_state, new_state,
-                                       std::memory_order_acquire,
+                                       std::memory_order_acq_rel,
                                        std::memory_order_relaxed)) {
       // The CAS atomically released the waiter queue lock and acquired the js
       // mutex lock.
       return true;
     }
 
+    DCHECK(state->load() & kIsLockedBit);
     state->store(new_state, std::memory_order_release);
     return false;
   }
