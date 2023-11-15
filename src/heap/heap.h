@@ -1051,9 +1051,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
-      GCFlags gc_flags,
+      LocalHeap* local_heap, GCFlags gc_flags,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
-  void StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   // Synchronously finalizes incremental marking.
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
