@@ -708,10 +708,7 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweepingMain(
     ThreadKind sweeping_scope_kind) {
   if (!heap()->sweeping_in_progress_for_space(allocator_->identity()))
     return false;
-  if (!(allocator_->identity() == NEW_SPACE
-            ? heap()->sweeper()->AreMinorSweeperTasksRunning()
-            : heap()->sweeper()->AreMajorSweeperTasksRunning()) &&
-      heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
+  if (heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
     return false;
 
   TRACE_GC_EPOCH_WITH_FLOW(
