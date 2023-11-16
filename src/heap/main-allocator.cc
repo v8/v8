@@ -320,6 +320,12 @@ void MainAllocator::FreeLinearAllocationArea() {
   Verify();
 #endif  // DEBUG
 
+  base::Optional<CodePageHeaderModificationScope> optional_scope;
+  if (identity() == CODE_SPACE) {
+    optional_scope.emplace(
+        "FreeLinearAllocationArea writes to the page header.");
+  }
+
   BasicMemoryChunk::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
@@ -875,12 +881,6 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
                  current_max_limit == current_limit);
 
   allocator_->AdvanceAllocationObservers();
-
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (allocator_->identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "FreeLinearAllocationArea writes to the page header.");
-  }
 
   if (current_top != current_limit && allocator_->IsBlackAllocationEnabled()) {
     Page::FromAddress(current_top)
