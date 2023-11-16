@@ -560,7 +560,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
 void JSFunction::EnsureFeedbackVector(Isolate* isolate,
                                       Handle<JSFunction> function,
                                       IsCompiledScope* compiled_scope) {
-  DCHECK(compiled_scope->is_compiled());
+  CHECK(compiled_scope->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
 #if V8_ENABLE_WEBASSEMBLY
@@ -574,7 +574,7 @@ void JSFunction::EnsureFeedbackVector(Isolate* isolate,
 void JSFunction::CreateAndAttachFeedbackVector(
     Isolate* isolate, Handle<JSFunction> function,
     IsCompiledScope* compiled_scope) {
-  DCHECK(compiled_scope->is_compiled());
+  CHECK(compiled_scope->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
   DCHECK(!function->has_feedback_vector());
 #if V8_ENABLE_WEBASSEMBLY
