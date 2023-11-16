@@ -404,6 +404,7 @@ class WasmGenerator {
     if (i == catch_cases.size()) {
       // Base case: emit the try-table itself.
       builder_->Emit(kExprTryTable);
+      blocks_.emplace_back(return_types.begin(), return_types.end());
       uint32_t try_sig_index = builder_->builder()->AddSignature(
           ToSig(param_types, return_types), v8_flags.wasm_final_types);
       builder_->EmitI32V(try_sig_index);
@@ -435,31 +436,21 @@ class WasmGenerator {
         catch_cases[i].kind == kCatchAllRef || catch_cases[i].kind == kCatchRef;
     size_t return_count =
         (has_tag ? type->parameter_count() : 0) + (has_ref ? 1 : 0);
-    FunctionSig::Builder builder(builder_->builder()->zone(), return_count,
-                                 param_types.size());
-    for (size_t j = 0; j < param_types.size(); ++j) {
-      builder.AddParam(param_types[j]);
-    }
+    auto block_returns =
+        builder_->builder()->zone()->AllocateVector<ValueType>(return_count);
     if (has_tag) {
-      for (size_t j = 0; j < type->parameter_count(); ++j) {
-        builder.AddReturn(type->GetParam(j));
-      }
+      std::copy_n(type->parameters().begin(), type->parameter_count(),
+                  block_returns.begin());
     }
-    if (has_ref) {
-      builder.AddReturn(kWasmExnRef);
+    if (has_ref) block_returns.last() = kWasmExnRef;
+    {
+      BlockScope block(this, kExprBlock, param_types, block_returns,
+                       base::VectorOf(block_returns));
+      try_table_rec(param_types, return_types, catch_cases, i + 1, data);
     }
-    FunctionSig* block_sig = builder.Build();
-    uint32_t sig_index =
-        builder_->builder()->AddSignature(block_sig, v8_flags.wasm_final_types);
-    builder_->Emit(kExprBlock);
-    builder_->EmitI32V(sig_index);
-    try_table_rec(param_types, return_types, catch_cases, i + 1, data);
-    builder_->Emit(kExprEnd);
     // Catch label. Consume the unpacked values and exnref (if any), produce
     // values that match the outer scope, and branch to it.
-    base::Vector<const ValueType> on_stack(block_sig->returns().begin(),
-                                           block_sig->return_count());
-    ConsumeAndGenerate(on_stack, return_types, data);
+    ConsumeAndGenerate(block_returns, return_types, data);
     builder_->EmitWithU32V(kExprBr, static_cast<uint32_t>(i));
   }
 
