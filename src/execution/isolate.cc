@@ -3941,11 +3941,6 @@ void Isolate::Deinit() {
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = nullptr;
 
-#if V8_ENABLE_WEBASSEMBLY
-  delete wasm_code_look_up_cache_;
-  wasm_code_look_up_cache_ = nullptr;
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   main_thread_local_isolate_.reset();
 
   FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
@@ -3959,6 +3954,9 @@ void Isolate::Deinit() {
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->RemoveIsolate(this);
+
+  delete wasm_code_look_up_cache_;
+  wasm_code_look_up_cache_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
