@@ -54,7 +54,6 @@ FEATURE_FLAGS = {
     'ShadowRealm': '--harmony-shadow-realm',
     'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'array-grouping': '--harmony-array-grouping',
-    'change-array-by-copy': '--harmony-change-array-by-copy',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'arraybuffer-transfer': '--harmony-rab-gsab-transfer',

@@ -292,7 +292,6 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                      \
   V(harmony_import_assertions, "harmony import assertions")           \
-  V(harmony_change_array_by_copy, "harmony change-Array-by-copy")     \
   V(harmony_rab_gsab,                                                 \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")       \
   V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")       \

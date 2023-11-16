@@ -2583,6 +2583,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
     SimpleInstallFunction(isolate_, proto, "reduceRight",
                           Builtin::kArrayReduceRight, 1, false);
+
+    SimpleInstallFunction(isolate_, proto, "toReversed",
+                          Builtin::kArrayPrototypeToReversed, 0, true);
+    SimpleInstallFunction(isolate_, proto, "toSorted",
+                          Builtin::kArrayPrototypeToSorted, 1, false);
+    SimpleInstallFunction(isolate_, proto, "toSpliced",
+                          Builtin::kArrayPrototypeToSpliced, 2, false);
+    SimpleInstallFunction(isolate_, proto, "with", Builtin::kArrayPrototypeWith,
+                          2, true);
+
     SimpleInstallFunction(isolate_, proto, "toLocaleString",
                           Builtin::kArrayPrototypeToLocaleString, 0, false);
     array_prototype_to_string_fun =
@@ -2602,7 +2612,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallTrueValuedProperty(isolate_, unscopables, "flatMap");
     InstallTrueValuedProperty(isolate_, unscopables, "includes");
     InstallTrueValuedProperty(isolate_, unscopables, "keys");
+    InstallTrueValuedProperty(isolate_, unscopables, "toReversed");
+    InstallTrueValuedProperty(isolate_, unscopables, "toSorted");
+    InstallTrueValuedProperty(isolate_, unscopables, "toSpliced");
     InstallTrueValuedProperty(isolate_, unscopables, "values");
+
     JSObject::MigrateSlowToFast(unscopables, 0, "Bootstrapping");
     JSObject::AddProperty(
         isolate_, proto, factory->unscopables_symbol(), unscopables,
@@ -4170,6 +4184,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kTypedArrayPrototypeSort, 1, false);
     SimpleInstallFunction(isolate_, prototype, "subarray",
                           Builtin::kTypedArrayPrototypeSubArray, 2, false);
+    SimpleInstallFunction(isolate_, prototype, "toReversed",
+                          Builtin::kTypedArrayPrototypeToReversed, 0, true);
+    SimpleInstallFunction(isolate_, prototype, "toSorted",
+                          Builtin::kTypedArrayPrototypeToSorted, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "with",
+                          Builtin::kTypedArrayPrototypeWith, 2, true);
     SimpleInstallFunction(isolate_, prototype, "toLocaleString",
                           Builtin::kTypedArrayPrototypeToLocaleString, 0,
                           false);
@@ -5428,46 +5448,6 @@ void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
   SimpleInstallFunction(isolate_,
                         handle(native_context()->json_object(), isolate_),
                         "isRawJSON", Builtin::kJsonIsRawJson, 1, true);
-}
-
-void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
-  if (!v8_flags.harmony_change_array_by_copy) return;
-
-  {
-    Handle<JSFunction> array_function(native_context()->array_function(),
-                                      isolate());
-    Handle<JSObject> array_prototype(
-        JSObject::cast(array_function->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate_, array_prototype, "toReversed",
-                          Builtin::kArrayPrototypeToReversed, 0, true);
-    SimpleInstallFunction(isolate_, array_prototype, "toSorted",
-                          Builtin::kArrayPrototypeToSorted, 1, false);
-    SimpleInstallFunction(isolate_, array_prototype, "toSpliced",
-                          Builtin::kArrayPrototypeToSpliced, 2, false);
-    SimpleInstallFunction(isolate_, array_prototype, "with",
-                          Builtin::kArrayPrototypeWith, 2, true);
-
-    Handle<JSObject> unscopables = Handle<JSObject>::cast(
-        JSObject::GetProperty(isolate(), array_prototype,
-                              isolate()->factory()->unscopables_symbol())
-            .ToHandleChecked());
-
-    InstallTrueValuedProperty(isolate_, unscopables, "toReversed");
-    InstallTrueValuedProperty(isolate_, unscopables, "toSorted");
-    InstallTrueValuedProperty(isolate_, unscopables, "toSpliced");
-  }
-
-  {
-    Handle<JSObject> prototype(native_context()->typed_array_prototype(),
-                               isolate());
-    SimpleInstallFunction(isolate_, prototype, "toReversed",
-                          Builtin::kTypedArrayPrototypeToReversed, 0, true);
-    SimpleInstallFunction(isolate_, prototype, "toSorted",
-                          Builtin::kTypedArrayPrototypeToSorted, 1, false);
-    SimpleInstallFunction(isolate_, prototype, "with",
-                          Builtin::kTypedArrayPrototypeWith, 2, true);
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {
