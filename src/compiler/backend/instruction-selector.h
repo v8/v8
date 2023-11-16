@@ -379,6 +379,7 @@ class InstructionSelectorT final : public Adapter {
   using block_t = typename Adapter::block_t;
   using block_range_t = typename Adapter::block_range_t;
   using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
   using id_t = typename Adapter::id_t;
   using source_position_table_t = typename Adapter::source_position_table_t;
 
