@@ -355,7 +355,12 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NO_FRAME_TYPE),
       external_callback_scope_(isolate->external_callback_scope()),
-      top_link_register_(lr) {
+      top_link_register_(lr)
+#if V8_ENABLE_WEBASSEMBLY
+      ,
+      wasm_stacks_(isolate->wasm_stacks())
+#endif
+{
   if (!isolate->isolate_data()->stack_is_iterable()) {
     // The stack is not iterable in a short time interval during deoptimization.
     // See also: ExternalReference::stack_is_iterable_address.
@@ -1457,13 +1462,11 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   wasm::WasmCode* wasm_code = pair.first;
   SafepointEntry safepoint_entry = pair.second;
 
-#ifdef DEBUG
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type type = StackFrame::MarkerToType(marker);
   DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT);
-#endif
 
   // Determine the fixed header and spill slot area size.
   // The last value in the frame header is the calling PC, which should
@@ -1480,15 +1483,29 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   int spill_slot_space =
       wasm_code->stack_slots() * kSystemPointerSize -
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
-
   // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+
   // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
+#if V8_TARGET_ARCH_X64
+  Address central_stack_sp = Memory<Address>(
+      fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
+  FullObjectSlot parameters_limit(
+      v8_flags.experimental_wasm_stack_switching && type == WASM_TO_JS &&
+              central_stack_sp != kNullAddress
+          ? central_stack_sp
+          : frame_header_base.address() - spill_slot_space);
+#else
+  // TODO(thibaudm): Support switching to the central stack on other archs.
   FullObjectSlot parameters_limit(frame_header_base.address() -
                                   spill_slot_space);
+  USE(type);
+#endif
+  FullObjectSlot spill_space_end =
+      FullObjectSlot(frame_header_base.address() - spill_slot_space);
 
   // Visit the rest of the parameters if they are tagged.
   bool has_tagged_outgoing_params =
@@ -1503,7 +1520,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   if (safepoint_entry.is_initialized()) {
     DCHECK_GE((wasm_code->stack_slots() + kBitsPerByte) / kBitsPerByte,
               safepoint_entry.tagged_slots().size());
-    VisitSpillSlots(isolate(), v, parameters_limit,
+    VisitSpillSlots(isolate(), v, spill_space_end,
                     safepoint_entry.tagged_slots());
   }
 
@@ -1673,8 +1690,9 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
 #if V8_ENABLE_WEBASSEMBLY
-  if (code->is_builtin() &&
-      code->builtin_id() == Builtin::kWasmToJsWrapperCSA) {
+  bool is_wasm_to_js =
+      code->is_builtin() && code->builtin_id() == Builtin::kWasmToJsWrapperCSA;
+  if (is_wasm_to_js) {
     IterateParamsOfWasmToJSWrapper(v);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1699,9 +1717,29 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
   // Parameters passed to the callee.
-  FullObjectSlot parameters_base(&Memory<Address>(sp()));
+#if V8_ENABLE_WEBASSEMBLY
+  // Load the central stack SP value from the fixed slot.
+  // If it is null, the import wrapper didn't switch and the layout is the same
+  // as regular typed frames: the outgoing stack parameters end where the spill
+  // area begins.
+  // Otherwise, it holds the address in the central stack where the import
+  // wrapper switched to before pushing the outgoing stack parameters and
+  // calling the target. It marks the limit of the stack param area, and is
+  // distinct from the beginning of the spill area.
+  Address central_stack_sp =
+      Memory<Address>(fp() + WasmToJSWrapperConstants::kCentralStackSPOffset);
+  FullObjectSlot parameters_limit(
+      v8_flags.experimental_wasm_stack_switching && is_wasm_to_js &&
+              central_stack_sp != kNullAddress
+          ? central_stack_sp
+          : frame_header_base.address() - spill_slots_size);
+#else
   FullObjectSlot parameters_limit(frame_header_base.address() -
                                   spill_slots_size);
+#endif
+  FullObjectSlot parameters_base(&Memory<Address>(sp()));
+  FullObjectSlot spill_slots_end(frame_header_base.address() -
+                                 spill_slots_size);
 
   // Visit the rest of the parameters.
   if (HasTaggedOutgoingParams(code)) {
@@ -1712,7 +1750,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   // Visit pointer spill slots and locals.
   DCHECK_GE((code->stack_slots() + kBitsPerByte) / kBitsPerByte,
             safepoint_entry.tagged_slots().size());
-  VisitSpillSlots(isolate(), v, parameters_limit,
+  VisitSpillSlots(isolate(), v, spill_slots_end,
                   safepoint_entry.tagged_slots());
 
   // Visit fixed header region.
@@ -3098,8 +3136,7 @@ bool WasmFrame::at_to_number_conversion() const {
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(callee_pc());
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
-  if (!code->is_builtin() ||
-      code->builtin_id() != Builtin::kWasmToJsWrapperCSA) {
+  if (code->builtin_id() != Builtin::kWasmToJsWrapperCSA) {
     return false;
   }
 
@@ -3173,7 +3210,7 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
   //  because the return address is on a different stack.
   // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
   // value indicating how many values should be scanned from the top.
-  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+  intptr_t scan_count = Memory<intptr_t>(
       fp() + StackSwitchFrameConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
@@ -3196,6 +3233,7 @@ void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(jmpbuf->fp, kNullAddress);
   DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
+  state->pc_address = &jmpbuf->pc;
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
@@ -3206,7 +3244,7 @@ int WasmLiftoffSetupFrame::GetDeclaredFunctionIndex() const {
 }
 
 wasm::NativeModule* WasmLiftoffSetupFrame::GetNativeModule() const {
-  return *reinterpret_cast<wasm::NativeModule**>(
+  return Memory<wasm::NativeModule*>(
       sp() + WasmLiftoffSetupFrameConstants::kNativeModuleOffset);
 }
 

@@ -963,6 +963,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Stack operations.
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
+  Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
+  void SetStackPointer(Node* ptr) {
+    AddNode(machine()->SetStackPointer(), ptr);
+  }
   Node* LoadParentFramePointer() {
     return AddNode(machine()->LoadParentFramePointer());
   }
