@@ -3749,10 +3749,11 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
 
   __ Push(wasm::kGpParamRegisters[6], wasm::kGpParamRegisters[5],
           wasm::kGpParamRegisters[4], wasm::kGpParamRegisters[3]);
-  __ Push(wasm::kGpParamRegisters[2], wasm::kGpParamRegisters[1],
-          // Spill two more slots, one to allocate space for the signature,
-          // which will get spilled in Torque, and one for stack alignment.
-          xzr, xzr);
+  __ Push(wasm::kGpParamRegisters[2], wasm::kGpParamRegisters[1]);
+  // Push four more slots that will be used as fixed spill slots in the torque
+  // wrapper. Two slots for stack-switching (central stack pointer and secondary
+  // stack limit), one for the signature, and one for stack alignment.
+  __ Push(xzr, xzr, xzr, xzr);
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }
 

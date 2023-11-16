@@ -262,6 +262,10 @@ class StatsCounter;
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
           "wasm::switch_from_the_central_stack")                               \
+  IF_WASM(V, wasm_switch_to_the_central_stack_for_js,                          \
+          "wasm::switch_to_the_central_stack_for_js")                          \
+  IF_WASM(V, wasm_switch_from_the_central_stack_for_js,                        \
+          "wasm::switch_from_the_central_stack_for_js")                        \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \
   IF_WASM(V, wasm_f32_floor, "wasm::f32_floor_wrapper")                        \
   IF_WASM(V, wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")            \
