@@ -155,6 +155,9 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
 void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
   for (auto* pmr : pool_) {
     DCHECK_NOT_NULL(pmr);
+    // Unpoison the memory before giving back to the OS.
+    ASAN_UNPOISON_MEMORY_REGION(pmr->GetPageMemory().writeable_region().base(),
+                                pmr->GetPageMemory().writeable_region().size());
     CHECK(TryDiscard(page_allocator, pmr->GetPageMemory()));
   }
 }
@@ -196,6 +199,9 @@ void PageBackend::FreeNormalPageMemory(
   page_memory_region_tree_.Remove(pmr);
   page_pool_.Add(pmr);
   if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
+    // Unpoison the memory before giving back to the OS.
+    ASAN_UNPOISON_MEMORY_REGION(pmr->GetPageMemory().writeable_region().base(),
+                                pmr->GetPageMemory().writeable_region().size());
     CHECK(TryDiscard(normal_page_allocator_, pmr->GetPageMemory()));
   }
 }
