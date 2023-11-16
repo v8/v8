@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '631878bb6d0fcf6590649d85461d0a58ff645b40',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cacb5e680e8687925f1565f10af41c6320185a98',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b20d1ecc58f81e46ae241ae9a41bf624b28f81c6',
   'buildtools/linux64': {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '23e70e69e5584cd120a57befe5896df916e91dcc',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b46041dad00d5ddc3e0542b9c0ffc9a62aca7ce3',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '86c7f734f55614b17fbe8e82cd613e6a6b7fe533',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5cbc521beb5f57f2e065f0c6db2f1c203cbccbe6',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'c078b56f45230567dd7aabd6e9b7e5d79622bc5d',
     'condition': 'checkout_fuchsia',
@@ -280,7 +280,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0226cb1cdfe740b173394e1cebbd0dcf293e38ad',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '69b8c646978a1650f10ee7c355b85018a3e23909',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '7b9fd7a0610491a4d512c7a7d486e89335f84452',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
