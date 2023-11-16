@@ -296,8 +296,10 @@ in_category(
         parent_builder = "V8 Linux64 - custom snapshot - debug builder",
     ),
     main_multibranch_builder(
-        name = "V8 Mac64 GC Stress",
-        parent_builder = "V8 Mac64 - debug builder",
+        name = "V8 Mac - arm64 - gc stress",
+        parent_builder = "V8 Mac - arm64 - debug builder",
+        first_branch_version = "12.1",
+        close_tree = False,
     ),
 )
 
