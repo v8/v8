@@ -152,9 +152,10 @@ std::unique_ptr<PageBackend> HeapBase::InitializePageBackend(
     PageAllocator& allocator) {
 #if defined(CPPGC_CAGED_HEAP)
   auto& caged_heap = CagedHeap::Instance();
-  return std::make_unique<PageBackend>(caged_heap.page_allocator());
+  return std::make_unique<PageBackend>(caged_heap.page_allocator(),
+                                       caged_heap.page_allocator());
 #else   // !CPPGC_CAGED_HEAP
-  return std::make_unique<PageBackend>(allocator);
+  return std::make_unique<PageBackend>(allocator, allocator);
 #endif  // !CPPGC_CAGED_HEAP
 }
 

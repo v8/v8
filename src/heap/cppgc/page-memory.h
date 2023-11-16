@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "include/cppgc/platform.h"
-#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
@@ -115,41 +114,26 @@ class V8_EXPORT_PRIVATE PageMemoryRegionTree final {
   std::map<ConstAddress, PageMemoryRegion*> set_;
 };
 
-// A pool of PageMemory objects represented by the writeable base addresses. The
-// pool is global, i.e. shared among all Oilpan heaps.
+// A pool of PageMemory objects represented by the writeable base addresses.
+// TODO (v8:14390): Consider sharing the page-pool across multiple threads.
 class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
  public:
-  static NormalPageMemoryPool& Instance();
-  static void InitializeIfNeeded(PageAllocator& page_allocator);
-
-  NormalPageMemoryPool(const NormalPageMemoryPool&) = delete;
-  NormalPageMemoryPool& operator=(const NormalPageMemoryPool&) = delete;
-
-  // Takes a new entry entry from the pool or allocate a new one.
-  PageMemoryRegion* AllocatePageMemoryRegion();
   // Adds a new entry to the pool.
-  void FreePageMemoryRegion(PageMemoryRegion*, FreeMemoryHandling);
+  void Add(PageMemoryRegion*);
+  // Takes a new entry entry from the pool or nullptr in case the pool is empty.
+  PageMemoryRegion* Take();
 
-  // Discards (uncommits) all the pooled pages.
-  void DiscardPooledPages();
-  // Flushes the entire pool releasing all the pages.
-  void FlushPooledPagesForTesting();
+  // Returns the number of entries pooled.
+  size_t pooled() const { return pool_.size(); }
+
+  void DiscardPooledPages(PageAllocator& allocator);
 
   auto& get_raw_pool_for_testing() { return pool_; }
 
  private:
-  friend v8::base::LeakyObject<NormalPageMemoryPool>;
-  explicit NormalPageMemoryPool(PageAllocator&);
-
-  static NormalPageMemoryPool* g_instance_;
-
+  // The pool of pages that are not returned to the OS. Bounded by
+  // `primary_pool_capacity_`.
   std::vector<PageMemoryRegion*> pool_;
-  // A PageMemoryRegion for a normal page is kept alive by the
-  // `normal_page_memory_regions_` and as such is always present there.
-  std::unordered_map<PageMemoryRegion*, std::unique_ptr<PageMemoryRegion>>
-      normal_page_memory_regions_;
-  v8::base::Mutex mutex_;
-  PageAllocator& page_allocator_;
 };
 
 // A backend that is used for allocating and freeing normal and large pages.
@@ -158,7 +142,8 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 // regions alive.
 class V8_EXPORT_PRIVATE PageBackend final {
  public:
-  explicit PageBackend(PageAllocator& large_page_allocator);
+  PageBackend(PageAllocator& normal_page_allocator,
+              PageAllocator& large_page_allocator);
   ~PageBackend();
 
   // Allocates a normal page from the backend.
@@ -187,17 +172,29 @@ class V8_EXPORT_PRIVATE PageBackend final {
   PageBackend(const PageBackend&) = delete;
   PageBackend& operator=(const PageBackend&) = delete;
 
+  void DiscardPooledPages();
+
   PageMemoryRegionTree& get_page_memory_region_tree_for_testing() {
     return page_memory_region_tree_;
   }
 
+  NormalPageMemoryPool& get_page_pool_for_testing() { return page_pool_; }
+
  private:
   // Guards against concurrent uses of `Lookup()`.
   mutable v8::base::Mutex mutex_;
+  PageAllocator& normal_page_allocator_;
   PageAllocator& large_page_allocator_;
 
-  // A tree of all allocated pages for the backend instance.
+  // A PageMemoryRegion for a normal page is kept alive by the
+  // `normal_page_memory_regions_` and as such is always present there.
+  // It's present in:
+  //  - `page_pool_` when it's not used (and available for allocation),
+  //  - `page_memory_region_tree_` when used (i.e. allocated).
+  NormalPageMemoryPool page_pool_;
   PageMemoryRegionTree page_memory_region_tree_;
+  std::unordered_map<PageMemoryRegion*, std::unique_ptr<PageMemoryRegion>>
+      normal_page_memory_regions_;
   std::unordered_map<PageMemoryRegion*, std::unique_ptr<PageMemoryRegion>>
       large_page_memory_regions_;
 };
