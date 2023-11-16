@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 
+#include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/analyzer-iterator.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
@@ -220,9 +220,9 @@ struct BaseListTraits {
 struct BaseData {
   using Key = SnapshotTable<OpIndex, KeyData>::Key;
   // List of every value at this base that has an offset rather than an index.
-  DoublyThreadedList<Key, BaseListTraits> with_offsets;
+  v8::base::DoublyThreadedList<Key, BaseListTraits> with_offsets;
   // List of every value at this base that has a valid index.
-  DoublyThreadedList<Key, BaseListTraits> with_indices;
+  v8::base::DoublyThreadedList<Key, BaseListTraits> with_indices;
 };
 
 class MemoryContentTable
@@ -519,7 +519,7 @@ class MemoryContentTable
       if (offset_keys != offset_keys_.end()) {
         offset_keys->second.Add(key);
       } else {
-        DoublyThreadedList<Key, OffsetListTraits> list;
+        v8::base::DoublyThreadedList<Key, OffsetListTraits> list;
         list.Add(key);
         offset_keys_.insert({offset, std::move(list)});
       }
@@ -528,8 +528,8 @@ class MemoryContentTable
 
   void RemoveKeyFromBaseOffsetMaps(Key key) {
     // Removing from {base_keys_}.
-    DoublyThreadedList<Key, BaseListTraits>::Remove(key);
-    DoublyThreadedList<Key, OffsetListTraits>::Remove(key);
+    v8::base::DoublyThreadedList<Key, BaseListTraits>::Remove(key);
+    v8::base::DoublyThreadedList<Key, OffsetListTraits>::Remove(key);
   }
 
   SparseOpIndexSnapshotTable<bool>& non_aliasing_objects_;
@@ -542,11 +542,11 @@ class MemoryContentTable
   // Map from base OpIndex to keys associated with this base.
   ZoneAbslFlatHashMap<OpIndex, BaseData> base_keys_;
   // Map from offsets to keys associated with this offset.
-  ZoneAbslFlatHashMap<int, DoublyThreadedList<Key, OffsetListTraits>>
+  ZoneAbslFlatHashMap<int, v8::base::DoublyThreadedList<Key, OffsetListTraits>>
       offset_keys_;
 
   // List of all of the keys that have a valid index.
-  DoublyThreadedList<Key, OffsetListTraits> index_keys_;
+  v8::base::DoublyThreadedList<Key, OffsetListTraits> index_keys_;
 };
 
 class LateLoadEliminationAnalyzer {

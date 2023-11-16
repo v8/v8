@@ -2,19 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_DOUBLY_THREADED_LIST_H_
-#define V8_COMPILER_TURBOSHAFT_DOUBLY_THREADED_LIST_H_
+#ifndef V8_BASE_DOUBLY_THREADED_LIST_H_
+#define V8_BASE_DOUBLY_THREADED_LIST_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 
-// DoublyThreadedList is an intrusive doubly-linked list that threads through
-// its nodes, somewhat like ThreadedList (src/base/threaded-list.h).
-//
-// Of interest is the fact that instead of having regular next/prev pointers,
-// nodes have a regular "next" pointer, but their "prev" pointer contains the
-// address of the "next" of the previous element. This way, removing an element
-// doesn't require special treatment for the head of the list, and does not
-// even require to know the head of the list.
+namespace v8::base {
 
 template <typename T>
 struct DoublyThreadedListTraits {
@@ -23,6 +17,14 @@ struct DoublyThreadedListTraits {
   static bool non_empty(T t) { return t != nullptr; }
 };
 
+// `DoublyThreadedList` is an intrusive doubly-linked list that threads through
+// its nodes, somewhat like `v8::base::ThreadedList`.
+//
+// Of interest is the fact that instead of having regular next/prev pointers,
+// nodes have a regular "next" pointer, but their "prev" pointer contains the
+// address of the "next" of the previous element. This way, removing an element
+// doesn't require special treatment for the head of the list, and does not
+// even require to know the head of the list.
 template <class T, class DTLTraits = DoublyThreadedListTraits<T>>
 class DoublyThreadedList {
  public:
@@ -111,4 +113,6 @@ class DoublyThreadedList {
   T head_{};
 };
 
-#endif  // V8_COMPILER_TURBOSHAFT_DOUBLY_THREADED_LIST_H_
+}  // namespace v8::base
+
+#endif  // V8_BASE_DOUBLY_THREADED_LIST_H_

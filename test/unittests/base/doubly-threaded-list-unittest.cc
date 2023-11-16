@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/turboshaft/doubly-threaded-list.h"
+#include "src/base/doubly-threaded-list.h"
 
 #include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "test/unittests/test-utils.h"
 
-namespace v8::internal::compiler::turboshaft {
+namespace v8::base {
 
 class DoublyThreadedListTest : public TestWithPlatform {};
 
 TEST_F(DoublyThreadedListTest, BasicTest) {
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
   struct Elem {
     int val;
     bool operator==(const Elem& other) const {
@@ -82,9 +79,6 @@ TEST_F(DoublyThreadedListTest, BasicTest) {
 }
 
 TEST_F(DoublyThreadedListTest, IteratorTest) {
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
   struct Elem {
     int val;
     bool operator==(const Elem& other) const {
@@ -156,4 +150,4 @@ TEST_F(DoublyThreadedListTest, IteratorTest) {
   EXPECT_EQ(e4.prev_, nullptr);
 }
 
-}  // namespace v8::internal::compiler::turboshaft
+}  // namespace v8::base
