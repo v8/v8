@@ -619,13 +619,14 @@ class Graph {
       it = std::upper_bound(
           bound_blocks_.begin(), bound_blocks_.end(), index,
           [](OpIndex value, const Block* b) { return value < b->begin_; });
+      DCHECK_NE(it, bound_blocks_.begin());
     } else {
       it = std::upper_bound(
           block_permutation_.begin(), block_permutation_.end(), index,
           [](OpIndex value, const Block* b) { return value < b->begin_; });
+      DCHECK_NE(it, block_permutation_.begin());
     }
-    DCHECK_NE(it, bound_blocks_.begin());
-    --it;
+    it = std::prev(it);
     DCHECK((*it)->Contains(index));
     return (*it)->index();
   }

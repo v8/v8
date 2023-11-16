@@ -4343,6 +4343,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
             case multi(Rep::Float64(), Rep::Word32(), true, A::kNoOverflow):
               return VisitRoundFloat64ToInt32(node);
             case multi(Rep::Float64(), Rep::Word32(), false, A::kNoAssumption):
+            case multi(Rep::Float64(), Rep::Word32(), false, A::kNoOverflow):
               return VisitTruncateFloat64ToUint32(node);
             case multi(Rep::Float64(), Rep::Word64(), true, A::kReversible):
               return VisitChangeFloat64ToInt64(node);

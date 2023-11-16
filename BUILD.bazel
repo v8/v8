@@ -3071,7 +3071,7 @@ filegroup(
         "src/compiler/turboshaft/late-load-elimination-reducer.cc",
         "src/compiler/turboshaft/late-load-elimination-reducer.h",
         "src/compiler/turboshaft/layered-hash-map.h",
-        "src/compiler/turboshaft/load-simplification-reducer.h",
+        "src/compiler/turboshaft/load-store-simplification-reducer.h",
         "src/compiler/turboshaft/loop-finder.cc",
         "src/compiler/turboshaft/loop-finder.h",
         "src/compiler/turboshaft/loop-peeling-phase.cc",

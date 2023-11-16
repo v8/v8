@@ -1281,6 +1281,8 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 #ifdef V8_TARGET_ARCH_X64
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
+DEFINE_WEAK_IMPLICATION(turboshaft_future,
+                        turboshaft_wasm_instruction_selection)
 #endif
 
 #ifdef DEBUG
