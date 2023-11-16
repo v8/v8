@@ -39,8 +39,9 @@ void ThreadLocalTop::Clear() {
   current_embedder_state_ = nullptr;
   failed_access_check_callback_ = nullptr;
   thread_in_wasm_flag_address_ = kNullAddress;
-  central_stack_limit_ = kNullAddress;
+  is_on_central_stack_flag_ = true;
   central_stack_sp_ = kNullAddress;
+  central_stack_limit_ = kNullAddress;
   secondary_stack_sp_ = kNullAddress;
   secondary_stack_limit_ = kNullAddress;
 }

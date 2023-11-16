@@ -250,8 +250,6 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Whether to emit code comments.
   bool emit_code_comments = v8_flags.code_comments;
 
-  bool is_wasm = false;
-
   static AssemblerOptions Default(Isolate* isolate);
 };
 

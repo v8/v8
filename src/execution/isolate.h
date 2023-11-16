@@ -52,10 +52,6 @@
 #include "src/runtime/runtime-utils.h"
 #endif
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/stacks.h"
-#endif
-
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
 namespace U_ICU_NAMESPACE {
@@ -183,6 +179,7 @@ class Recorder;
 }  // namespace metrics
 
 namespace wasm {
+class StackMemory;
 class WasmCodeLookupCache;
 }
 
@@ -1321,7 +1318,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
-  THREAD_LOCAL_TOP_ADDRESS(uint8_t, is_on_central_stack_flag)
+  THREAD_LOCAL_TOP_ADDRESS(bool, is_on_central_stack_flag)
 
   MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;
@@ -2121,15 +2118,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ::heap::base::Stack& stack() { return stack_; }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  bool IsOnCentralStack(Address addr);
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
-  void UpdateCentralStackInfo();
+  void RecordStackSwitchForScanning();
 
   void SyncStackLimit();
-#else
-  bool IsOnCentralStack(Address addr) { return true; }
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack

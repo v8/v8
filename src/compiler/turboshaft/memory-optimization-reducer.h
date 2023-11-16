@@ -41,13 +41,11 @@ struct MemoryAnalyzer {
   const Graph& input_graph;
   Isolate* isolate_ = PipelineData::Get().isolate();
   AllocationFolding allocation_folding;
-  bool is_wasm;
   MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph,
-                 AllocationFolding allocation_folding, bool is_wasm)
+                 AllocationFolding allocation_folding)
       : phase_zone(phase_zone),
         input_graph(input_graph),
-        allocation_folding(allocation_folding),
-        is_wasm(is_wasm) {}
+        allocation_folding(allocation_folding) {}
 
   struct BlockState {
     const AllocateOp* last_allocation = nullptr;
@@ -141,18 +139,11 @@ class MemoryOptimizationReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   void Analyze() {
-    auto* info = PipelineData::Get().info();
-#if V8_ENABLE_WEBASSEMBLY
-    bool is_wasm = info->IsWasm() || info->IsWasmBuiltin();
-#else
-    bool is_wasm = false;
-#endif
     analyzer_.emplace(
         __ phase_zone(), __ input_graph(),
-        info->allocation_folding()
+        PipelineData::Get().info()->allocation_folding()
             ? MemoryAnalyzer::AllocationFolding::kDoAllocationFolding
-            : MemoryAnalyzer::AllocationFolding::kDontAllocationFolding,
-        is_wasm);
+            : MemoryAnalyzer::AllocationFolding::kDontAllocationFolding);
     analyzer_->Run();
     Next::Analyze();
   }
@@ -223,7 +214,7 @@ class MemoryOptimizationReducer : public Next {
         __ LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
 
     OpIndex allocate_builtin;
-    if (!analyzer_->is_wasm) {
+    if (isolate_ != nullptr) {
       if (type == AllocationType::kYoung) {
         allocate_builtin =
             __ BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
@@ -232,29 +223,18 @@ class MemoryOptimizationReducer : public Next {
             __ BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
       }
     } else {
-#if V8_ENABLE_WEBASSEMBLY
       // This lowering is used by Wasm, where we compile isolate-independent
       // code. Builtin calls simply encode the target builtin ID, which will
       // be patched to the builtin's address later.
-      if (isolate_ == nullptr) {
-        Builtin builtin;
-        if (type == AllocationType::kYoung) {
-          builtin = Builtin::kWasmAllocateInYoungGeneration;
-        } else {
-          builtin = Builtin::kWasmAllocateInOldGeneration;
-        }
-        static_assert(std::is_same<Smi, BuiltinPtr>(),
-                      "BuiltinPtr must be Smi");
-        allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
+#if V8_ENABLE_WEBASSEMBLY
+      Builtin builtin;
+      if (type == AllocationType::kYoung) {
+        builtin = Builtin::kAllocateInYoungGeneration;
       } else {
-        if (type == AllocationType::kYoung) {
-          allocate_builtin =
-              __ BuiltinCode(Builtin::kWasmAllocateInYoungGeneration, isolate_);
-        } else {
-          allocate_builtin =
-              __ BuiltinCode(Builtin::kWasmAllocateInOldGeneration, isolate_);
-        }
+        builtin = Builtin::kAllocateInOldGeneration;
       }
+      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
 #else
       UNREACHABLE();
 #endif

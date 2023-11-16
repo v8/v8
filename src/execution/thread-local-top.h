@@ -149,7 +149,7 @@ class ThreadLocalTop {
 
   // Wasm Stack Switching: The central stack.
   // If set, then we are currently executing code on the central stack.
-  uint8_t is_on_central_stack_flag_;
+  bool is_on_central_stack_flag_;
   // On switching from the central stack these fields are set
   // to the central stack's SP and stack limit accordingly,
   // to use for switching from secondary stacks.

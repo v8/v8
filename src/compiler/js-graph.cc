@@ -176,16 +176,6 @@ DEFINE_GETTER(AllocateInOldGenerationStubConstant, Code,
               HeapConstantNoHole(BUILTIN_CODE(isolate(),
                                               AllocateInOldGeneration)))
 
-#if V8_ENABLE_WEBASSEMBLY
-DEFINE_GETTER(WasmAllocateInYoungGenerationStubConstant, Code,
-              HeapConstantNoHole(BUILTIN_CODE(isolate(),
-                                              WasmAllocateInYoungGeneration)))
-
-DEFINE_GETTER(WasmAllocateInOldGenerationStubConstant, Code,
-              HeapConstantNoHole(BUILTIN_CODE(isolate(),
-                                              WasmAllocateInOldGeneration)))
-#endif
-
 DEFINE_GETTER(ArrayConstructorStubConstant, Code,
               HeapConstantNoHole(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
 

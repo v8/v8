@@ -11,9 +11,18 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-function GC() {
-  %CheckIsOnCentralStack();
-  gc();
+function ToPromising(wasm_export) {
+  let sig = wasm_export.type();
+  assertTrue(sig.parameters.length > 0);
+  assertEquals('externref', sig.parameters[0]);
+  assertEquals(1, sig.results.length);
+  let wrapper_sig = {
+    parameters: sig.parameters.slice(1),
+    results: ['externref']
+  };
+  return new WebAssembly.Function(
+      wrapper_sig, wasm_export, {promising: 'first'});
+
 }
 
 (function testGenericWrapper0Param() {
@@ -29,7 +38,7 @@ function GC() {
 
   let x = 12;
   function import_func() {
-    GC();
+    gc();
     x = 20;
   }
 
@@ -86,7 +95,7 @@ function GC() {
 
   let x = 12;
   function import_func(suspender, param) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param;
   }
@@ -113,12 +122,12 @@ function GC() {
 
   let x = 12;
   function import_func(suspender, param) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param;
   }
 
-  let y = { valueOf: () => { print("Hello!"); GC(); return 24; } };
+  let y = { valueOf: () => { print("Hello!"); gc(); return 24; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(main(y), v => { assertEquals(undefined, v); });
@@ -145,13 +154,13 @@ function GC() {
 
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += 2 * param1 + 3 * param2 + 4 * param3 + 5 * param4;
   }
 
-  let param2 = { valueOf: () => { GC(); return 6; } };
-  let param3 = { valueOf: () => { GC(); return 3; } };
+  let param2 = { valueOf: () => { gc(); return 6; } };
+  let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -198,16 +207,16 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4, param5,
       param6, param7, param8) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + 2 * param2 + 3 * param3 + 4 * param4 + 5 * param5
       + 6 * param6 + 7 * param7 + 8 * param8;
   }
 
-  let param1 = { valueOf: () => { GC(); return 5; } };
-  let param4 = { valueOf: () => { GC(); return 8; } };
-  let param6 = { valueOf: () => { GC(); return 10; } };
-  let param8 = { valueOf: () => { GC(); return 12; } };
+  let param1 = { valueOf: () => { gc(); return 5; } };
+  let param4 = { valueOf: () => { gc(); return 8; } };
+  let param6 = { valueOf: () => { gc(); return 10; } };
+  let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -237,12 +246,12 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + param2 + param3 + param4;
   }
 
-  let param2 = { valueOf: () => { GC(); return 3; } };
+  let param2 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(main(5, param2), v => assertEquals(undefined, v));
@@ -270,13 +279,13 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + param2 + param3 + param4;
   }
 
-  let param2 = { valueOf: () => { GC(); return 3; } };
-  let param3 = { valueOf: () => { GC(); return 6; } };
+  let param2 = { valueOf: () => { gc(); return 3; } };
+  let param3 = { valueOf: () => { gc(); return 6; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -301,7 +310,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let x = 12;
   function import_func(suspender, param) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     return x + param;
   }
@@ -364,8 +373,8 @@ let kSig_i_rlili = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI64, kWasmI
     return Number(x);
   }
 
-  let param2 = { valueOf: () => { GC(); return 6; } };
-  let param3 = { valueOf: () => { GC(); return 3n; } };
+  let param2 = { valueOf: () => { gc(); return 6; } };
+  let param3 = { valueOf: () => { gc(); return 3n; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(main(9n, param2, param3, 0), v => assertEquals(60, v));
@@ -393,13 +402,13 @@ let kSig_r_riiili = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasm
 
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4, param5) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += 2 * param1 + 3 * param2 + 4 * param3 + 5 * Number(param4) + 6 * param5;
   }
 
-  let param2 = { valueOf: () => { GC(); return 6; } };
-  let param3 = { valueOf: () => { GC(); return 3; } };
+  let param2 = { valueOf: () => { gc(); return 6; } };
+  let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -437,8 +446,8 @@ let kSig_r_riiilii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
     x += 2 * param1 + 3 * param2 + 4 * param3 + 5 * Number(param4) + 6 * param5 + 7 * param6;
   }
 
-  let param2 = { valueOf: () => { GC(); return 6; } };
-  let param3 = { valueOf: () => { GC(); return 3; } };
+  let param2 = { valueOf: () => { gc(); return 6; } };
+  let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -480,10 +489,10 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
     return x;
   }
 
-  let param1 = { valueOf: () => { GC(); return 5n; } };
-  let param4 = { valueOf: () => { GC(); return 8n; } };
-  let param6 = { valueOf: () => { GC(); return 10; } };
-  let param8 = { valueOf: () => { GC(); return 12; } };
+  let param1 = { valueOf: () => { gc(); return 5n; } };
+  let param4 = { valueOf: () => { gc(); return 8n; } };
+  let param6 = { valueOf: () => { gc(); return 10; } };
+  let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -531,7 +540,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
     .exportFunc();
 
   function import_func(suspender) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     return 10000000000n;
   }
@@ -555,7 +564,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
     .exportFunc();
 
   function import_func(suspender) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     return 0.5;
   }
@@ -579,7 +588,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
     .exportFunc();
 
   function import_func(suspender) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     return 0.25;
   }
@@ -605,7 +614,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let x = 12.5;
   function import_func(suspender, param) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param;
   }
@@ -632,7 +641,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let x = 12.5;
   function import_func(suspender, param) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param;
   }
@@ -669,16 +678,16 @@ let kSig_r_rffddddff = makeSig([kWasmExternRef, kWasmF32, kWasmF32, kWasmF64,
   let x = 12;
   function import_func(suspender, param1, param2, param3, param4, param5,
       param6, param7, param8) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + 2 * param2 + 3 * param3 + 4 * param4 + 5 * param5
       + 6 * param6 + 7 * param7 + 8 * param8;
   }
 
-  let param1 = { valueOf: () => { GC(); return 1.5; } };
-  let param4 = { valueOf: () => { GC(); return 4.5; } };
-  let param6 = { valueOf: () => { GC(); return 6.5; } };
-  let param8 = { valueOf: () => { GC(); return 8.5; } };
+  let param1 = { valueOf: () => { gc(); return 1.5; } };
+  let param4 = { valueOf: () => { gc(); return 4.5; } };
+  let param6 = { valueOf: () => { gc(); return 6.5; } };
+  let param8 = { valueOf: () => { gc(); return 8.5; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -720,7 +729,7 @@ let kSig_r_riiliffddlfdff = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI6
   let y = 1.0;
   function import_func(suspender, parami1, parami2, paraml1, parami3, paramf1,
       paramf2, paramd1, paramd2, paraml2, paramf3, paramd3, paramf4, paramf5) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += parami1 + 2 * parami2 + 3 * Number(paraml1) + 4 * parami3
       + 5 * Number(paraml2);
@@ -769,17 +778,17 @@ let kSig_r_riiliiiffddli = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI64
   let y = 1.0;
   function import_func(suspender, param1, param2, param3, param4, param5,
       param6, paramf1, paramf2, paramd1, paramd2, param7, param8) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + 2 * param2 + 3 * Number(param3) + 4 * param4 + 5 * param5
       + 6 * param6 + 7 * Number(param7) + 8 * param8;
     y += paramf1 + paramf2 + paramd1 + paramd2;
   }
 
-  let param1 = { valueOf: () => { GC(); return 5; } };
-  let param4 = { valueOf: () => { GC(); return 8; } };
-  let param6 = { valueOf: () => { GC(); return 10; } };
-  let param8 = { valueOf: () => { GC(); return 12; } };
+  let param1 = { valueOf: () => { gc(); return 5; } };
+  let param4 = { valueOf: () => { gc(); return 8; } };
+  let param6 = { valueOf: () => { gc(); return 10; } };
+  let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
   assertPromiseResult(
@@ -827,7 +836,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
   function import_func(suspender, param1, param2, param3, param4, param5,
       param6, paramf1, paramf2, paramd1, paramd2, param7, param8, paramf3,
       paramf4, paramf5, paramd3, param9) {
-    GC();
+    gc();
     assertInstanceof(suspender, WebAssembly.Suspender);
     x += param1 + 2 * param2 + 3 * Number(param3) + 4 * param4 + 5 * param5
       + 6 * param6 + 7 * Number(param7) + 8 * param8 + 9 * param9;
