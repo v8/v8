@@ -703,7 +703,7 @@ void WasmLoadEliminationAnalyzer::ProcessWasmAllocateArray(
 void WasmLoadEliminationAnalyzer::ProcessStringAsWtf16(
     OpIndex op_idx, const StringAsWtf16Op& op) {
   static constexpr int offset = wle::kStringAsWtf16Index;
-  OpIndex existing = memory_.FindLoadLike(op_idx, offset);
+  OpIndex existing = memory_.FindLoadLike(op.string(), offset);
   if (existing.valid()) {
     DCHECK_EQ(Opcode::kStringAsWtf16, graph_.Get(existing).opcode);
     replacements_[op_idx] = existing;
