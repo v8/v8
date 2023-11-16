@@ -812,7 +812,15 @@ struct alignas(OpIndex) Operation {
       return opcode == Op::opcode;
     } else {
       // Otherwise this must be OpMaskT.
-      return IsOpmask<Op>();
+      static_assert(
+          std::is_same_v<underlying_operation_t<Op>,
+                         typename OpMaskT<typename Op::operation, Op::mask,
+                                          Op::value>::operation>);
+      // We check with the given mask.
+      uint64_t b;
+      memcpy(&b, this, sizeof(uint64_t));
+      b &= Op::mask;
+      return b == Op::value;
     }
   }
   template <class Op>
@@ -858,24 +866,6 @@ struct alignas(OpIndex) Operation {
       : opcode(opcode), input_count(input_count) {
     DCHECK_LE(input_count,
               std::numeric_limits<decltype(this->input_count)>::max());
-  }
-
-  template <class OpmaskT>
-  // A Turboshaft operation can be as small as 4 Bytes while Opmasks can span up
-  // to 8 Bytes. Any mask larger than the operation it is compared with will
-  // always have a mismatch in the initialized memory. Still, there can be some
-  // uninitialized memory being compared as part of the 8 Byte comparison that
-  // this function performs.
-  V8_CLANG_NO_SANITIZE("memory") bool IsOpmask() const {
-    static_assert(std::is_same_v<
-                  underlying_operation_t<OpmaskT>,
-                  typename OpMaskT<typename OpmaskT::operation, OpmaskT::mask,
-                                   OpmaskT::value>::operation>);
-    // We check with the given mask.
-    uint64_t b;
-    memcpy(&b, this, sizeof(uint64_t));
-    b &= OpmaskT::mask;
-    return b == OpmaskT::value;
   }
 
   Operation(const Operation&) = delete;

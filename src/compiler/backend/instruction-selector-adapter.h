@@ -458,9 +458,6 @@ struct TurbofanAdapter {
            node->opcode() == IrOpcode::kLoadTransform ||
            node->opcode() == IrOpcode::kF64x2PromoteLowF32x4;
   }
-  bool is_load_root_register(node_t node) const {
-    return node->opcode() == IrOpcode::kLoadRootRegister;
-  }
   ConstantView constant_view(node_t node) const { return ConstantView{node}; }
   CallView call_view(node_t node) { return CallView{node}; }
   BranchView branch_view(node_t node) { return BranchView(node); }
@@ -1051,9 +1048,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
            || graph_->Get(node).Is<turboshaft::Simd128LoadTransformOp>()
 #endif
         ;
-  }
-  bool is_load_root_register(node_t node) const {
-    return graph_->Get(node).Is<turboshaft::LoadRootRegisterOp>();
   }
   ConstantView constant_view(node_t node) { return ConstantView{graph_, node}; }
   CallView call_view(node_t node) { return CallView{graph_, node}; }

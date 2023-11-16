@@ -33,28 +33,6 @@ class LoadStoreSimplificationReducer : public Next {
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_size_log2) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
-    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
-                            element_size_log2);
-  }
-
-  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
-                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
-                        bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
-  }
-
- private:
-  void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
-                         LoadOp::Kind& kind, int32_t& offset,
-                         uint8_t& element_size_log2) {
     if (lowering_enabled_) {
       if (element_size_log2 > kMaxElementSizeLog2) {
         DCHECK(index.valid());
@@ -89,8 +67,30 @@ class LoadStoreSimplificationReducer : public Next {
       DCHECK_IMPLIES(index.has_value(), element_size_log2 == 0);
 #endif
     }
+    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
+                            element_size_log2);
   }
 
+  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag maybe_indirect_pointer_tag) {
+    if (lowering_enabled_) {
+      if (element_size_log2 > kMaxElementSizeLog2) {
+        DCHECK(index.valid());
+        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
+        element_size_log2 = 0;
+      }
+    }
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_indirect_pointer_tag);
+  }
+
+ private:
   bool is_wasm_ = PipelineData::Get().is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
