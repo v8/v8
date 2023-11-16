@@ -35,7 +35,8 @@ static Tagged<HeapObject> AllocateUnaligned(MainAllocator* allocator,
 static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* allocator,
                                             OldLargeObjectSpace* space,
                                             int size) {
-  AllocationResult allocation = allocator->AllocateRaw(size);
+  AllocationResult allocation =
+      allocator->AllocateRaw(space->heap()->main_thread_local_heap(), size);
   CHECK(!allocation.IsFailure());
   Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
