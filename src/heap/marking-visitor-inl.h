@@ -210,18 +210,18 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+  DCHECK_NE(slot.tag(), kUnknownIndirectPointerTag);
 
+  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
   if (slot.tag() == kCodeIndirectPointerTag) {
     CodePointerTable* table = GetProcessWideCodePointerTable();
     CodePointerTable::Space* space = heap_->code_pointer_space();
     table->Mark(space, handle);
-    return;
+  } else {
+    TrustedPointerTable* table = trusted_pointer_table_;
+    TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
+    table->Mark(space, handle);
   }
-
-  TrustedPointerTable* table = trusted_pointer_table_;
-  TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  table->Mark(space, handle);
 #else
   UNREACHABLE();
 #endif

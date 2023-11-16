@@ -27,7 +27,9 @@ void TrustedPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 
 Address TrustedPointerTableEntry::GetContent() const {
   DCHECK(!IsFreelistEntry());
-  return content_.load(std::memory_order_relaxed);
+  // We reuse the heap object tag bit as marking bit, so we need to explicitly
+  // set it here when accessing the pointer.
+  return content_.load(std::memory_order_relaxed) | kMarkingBit;
 }
 
 void TrustedPointerTableEntry::SetContent(Address content) {
