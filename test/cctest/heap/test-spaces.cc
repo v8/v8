@@ -406,8 +406,7 @@ TEST(OldLargeObjectSpace) {
   size_t successful_allocations = 0;
 
   while (true) {
-    AllocationResult allocation =
-        lo->AllocateRaw(heap->main_thread_local_heap(), lo_size);
+    AllocationResult allocation = lo->AllocateRaw(lo_size);
     if (allocation.IsFailure()) break;
     successful_allocations++;
     Tagged<Object> obj = allocation.ToObjectChecked();
@@ -425,7 +424,7 @@ TEST(OldLargeObjectSpace) {
   CHECK_LT(0, successful_allocations);
 
   CHECK(!lo->IsEmpty());
-  CHECK(lo->AllocateRaw(heap->main_thread_local_heap(), lo_size).IsFailure());
+  CHECK(lo->AllocateRaw(lo_size).IsFailure());
 }
 
 #ifndef DEBUG
