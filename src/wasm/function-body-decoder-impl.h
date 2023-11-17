@@ -3472,6 +3472,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             target->br_merge()->reached = true;
           }
           stack_.shrink_to(stack_size);
+          if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
+            break;
+          }
         }
         c->reachability = reachability_at_end;
         EndControl();

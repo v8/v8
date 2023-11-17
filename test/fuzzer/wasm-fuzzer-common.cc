@@ -257,6 +257,10 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmNullFuncRef";
     case HeapType::kNoExtern:
       return "kWasmNullExternRef";
+    case HeapType::kExn:
+      return "kWasmExnRef";
+    case HeapType::kNoExn:
+      return "kWasmNullExnRef";
     case HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -553,8 +557,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "can be\n"
         "// found in the LICENSE file.\n"
         "\n"
-        "// Flags: --wasm-staging --experimental-wasm-gc\n"
-        "// Flags: --experimental-wasm-relaxed-simd\n"
+        "// Flags: --wasm-staging\n"
         "\n"
         "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
