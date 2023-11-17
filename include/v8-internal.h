@@ -1343,6 +1343,8 @@ class HandleHelper final {
   static V8_EXPORT void VerifyOnMainThread();
 };
 
+void VerifyHandleIsNonEmpty(bool is_empty);
+
 }  // namespace internal
 }  // namespace v8
 

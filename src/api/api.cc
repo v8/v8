@@ -721,6 +721,11 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
 namespace internal {
 
+void VerifyHandleIsNonEmpty(bool is_empty) {
+  Utils::ApiCheck(!is_empty, "v8::ReturnValue",
+                  "SetNonEmpty() called with empty handle.");
+}
+
 i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {

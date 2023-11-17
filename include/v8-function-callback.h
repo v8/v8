@@ -42,9 +42,15 @@ class ReturnValue {
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
+  V8_INLINE void SetNonEmpty(const Global<S>& handle);
+  template <typename S>
   V8_INLINE void Set(const BasicTracedReference<S>& handle);
   template <typename S>
+  V8_INLINE void SetNonEmpty(const BasicTracedReference<S>& handle);
+  template <typename S>
   V8_INLINE void Set(const Local<S> handle);
+  template <typename S>
+  V8_INLINE void SetNonEmpty(const Local<S> handle);
   // Fast primitive setters
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
@@ -293,6 +299,16 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
 
 template <typename T>
 template <typename S>
+void ReturnValue<T>::SetNonEmpty(const Global<S>& handle) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
+}
+
+template <typename T>
+template <typename S>
 void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
@@ -300,6 +316,16 @@ void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   } else {
     *value_ = handle.ptr();
   }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
 }
 
 template <typename T>
@@ -312,6 +338,17 @@ void ReturnValue<T>::Set(const Local<S> handle) {
   } else {
     *value_ = handle.ptr();
   }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
+  static_assert(std::is_void<T>::value || std::is_base_of<T, S>::value,
+                "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
 }
 
 template <typename T>
