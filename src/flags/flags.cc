@@ -586,6 +586,7 @@ uint32_t ComputeFlagListHash() {
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
         flag.PointsTo(&v8_flags.concurrent_recompilation) ||
+        flag.PointsTo(&v8_flags.lazy_feedback_allocation) ||
 #ifdef V8_ENABLE_MAGLEV
         flag.PointsTo(&v8_flags.maglev_deopt_data_on_background) ||
         flag.PointsTo(&v8_flags.maglev_build_code_on_background) ||
