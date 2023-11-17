@@ -595,12 +595,11 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
     // allocation function to mark the object black when incremental marking is
     // running.
     heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        allocator_->local_heap(), heap()->GCFlagsForIncrementalMarking(),
+        heap()->GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
   }
   if (allocator_->identity() == NEW_SPACE &&
       heap()->incremental_marking()->IsStopped()) {
-    DCHECK(allocator_->is_main_thread());
     heap()->StartMinorMSIncrementalMarkingIfNeeded();
   }
 

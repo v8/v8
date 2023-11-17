@@ -115,7 +115,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   }
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      heap()->main_thread_local_heap(), heap()->GCFlagsForIncrementalMarking(),
+      heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
 
   LargePage* page = AllocateLargePage(object_size, executable);
@@ -154,9 +154,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     return AllocationResult::Failure();
   }
 
-  heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      local_heap, heap()->GCFlagsForIncrementalMarking(),
-      kGCCallbackScheduleIdleGarbageCollection);
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();

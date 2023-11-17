@@ -170,14 +170,10 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 }
 
 bool ConcurrentAllocator::AllocateLab(AllocationOrigin origin) {
-  if (local_heap_) {
-    owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        local_heap_, owning_heap()->GCFlagsForIncrementalMarking(),
-        kGCCallbackScheduleIdleGarbageCollection);
-  }
-
   auto result = AllocateFromSpaceFreeList(kMinLabSize, kMaxLabSize, origin);
   if (!result) return false;
+
+  owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   FreeLinearAllocationArea();
 
@@ -323,12 +319,6 @@ ConcurrentAllocator::TryFreeListAllocation(size_t min_size_in_bytes,
 
 AllocationResult ConcurrentAllocator::AllocateOutsideLab(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  if (local_heap_) {
-    owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        local_heap_, owning_heap()->GCFlagsForIncrementalMarking(),
-        kGCCallbackScheduleIdleGarbageCollection);
-  }
-
   // Conservative estimate as we don't know the alignment of the allocation.
   const int requested_filler_size = Heap::GetMaximumFillToAlign(alignment);
   const int aligned_size_in_bytes = size_in_bytes + requested_filler_size;
@@ -336,6 +326,8 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
                                           aligned_size_in_bytes, origin);
 
   if (!result) return AllocationResult::Failure();
+
+  owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   DCHECK_GE(result->second, aligned_size_in_bytes);
 

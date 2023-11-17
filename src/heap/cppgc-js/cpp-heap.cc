@@ -983,7 +983,6 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
       if (allocated_size_ > allocated_size_limit_for_check_) {
         Heap* heap = isolate_->heap();
         heap->StartIncrementalMarkingIfAllocationLimitIsReached(
-            heap->main_thread_local_heap(),
             heap->GCFlagsForIncrementalMarking(),
             kGCCallbackScheduleIdleGarbageCollection);
         if (heap->AllocationLimitOvershotByLargeMargin() &&

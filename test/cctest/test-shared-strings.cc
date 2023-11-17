@@ -145,8 +145,6 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
-  ManualGCScope manual_gc_scope(test.i_main_isolate());
-
   IsolateParkOnDisposeWrapper isolate_wrapper(test.NewClientIsolate(),
                                               test.main_isolate());
   Isolate* i_isolate1 = test.i_main_isolate();
@@ -1765,8 +1763,6 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
 
-  ManualGCScope manual_gc_scope(i_isolate);
-
   HandleScope scope(i_isolate);
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
@@ -2060,7 +2056,6 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
-  ManualGCScope manual_gc_scope(test.i_main_isolate());
   WorkerIsolateThread thread("worker", &test);
   CHECK(thread.Start());
 
