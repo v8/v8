@@ -653,6 +653,8 @@ class MachineOptimizationReducer : public Next {
 
     if (uint64_t right_value;
         matcher.MatchIntegralWordConstant(right, rep, &right_value)) {
+      // TODO(jkummerow): computing {right_value_signed} could probably be
+      // handled by the 4th argument to {MatchIntegralWordConstant}.
       int64_t right_value_signed =
           is_64 ? static_cast<int64_t>(right_value)
                 : int64_t{static_cast<int32_t>(right_value)};
@@ -783,6 +785,68 @@ class MachineOptimizationReducer : public Next {
                   any_of(ConstantOp::Kind::kHeapObject,
                          ConstantOp::Kind::kCompressedHeapObject)) {
                 return __ WordConstant(1, rep);
+              }
+            }
+          }
+
+          // asm.js often benefits from these transformations, to optimize out
+          // unnecessary memory access alignment masks. Conventions used in
+          // the comments below:
+          // x, y: arbitrary values
+          // K, L, M: arbitrary constants
+          // (-1 << K) == mask: the right-hand side of the bitwise AND.
+          if (IsNegativePowerOfTwo(right_value_signed)) {
+            uint64_t mask = right_value;
+            int K = base::bits::CountTrailingZeros64(mask);
+            OpIndex x, y;
+            {
+              int L;
+              //   (x << L) & (-1 << K)
+              // => x << L               iff L >= K
+              if (matcher.MatchConstantLeftShift(left, &x, rep, &L) && L >= K) {
+                return left;
+              }
+            }
+
+            if (matcher.MatchWordAdd(left, &x, &y, rep)) {
+              uint64_t L;  // L == (M << K) iff (L & mask) == L.
+
+              //    (x              + (M << K)) & (-1 << K)
+              // => (x & (-1 << K)) + (M << K)
+              if (matcher.MatchIntegralWordConstant(y, rep, &L) &&
+                  (L & mask) == L) {
+                return __ WordAdd(__ WordBitwiseAnd(x, right, rep),
+                                  __ WordConstant(L, rep), rep);
+              }
+
+              //   (x1 * (M << K) + y) & (-1 << K)
+              // => x1 * (M << K) + (y & (-1 << K))
+              OpIndex x1, x2, y1, y2;
+              if (matcher.MatchWordMul(x, &x1, &x2, rep) &&
+                  matcher.MatchIntegralWordConstant(x2, rep, &L) &&
+                  (L & mask) == L) {
+                return __ WordAdd(x, __ WordBitwiseAnd(y, right, rep), rep);
+              }
+              // Same as above with swapped order:
+              //    (x              + y1 * (M << K)) & (-1 << K)
+              // => (x & (-1 << K)) + y1 * (M << K)
+              if (matcher.MatchWordMul(y, &y1, &y2, rep) &&
+                  matcher.MatchIntegralWordConstant(y2, rep, &L) &&
+                  (L & mask) == L) {
+                return __ WordAdd(__ WordBitwiseAnd(x, right, rep), y, rep);
+              }
+
+              //   ((x1 << K) + y) & (-1 << K)
+              // => (x1 << K) + (y & (-1 << K))
+              int K2;
+              if (matcher.MatchConstantLeftShift(x, &x1, rep, &K2) && K2 == K) {
+                return __ WordAdd(x, __ WordBitwiseAnd(y, right, rep), rep);
+              }
+              // Same as above with swapped order:
+              //    (x +              (y1 << K)) & (-1 << K)
+              // => (x & (-1 << K)) + (y1 << K)
+              if (matcher.MatchConstantLeftShift(y, &y1, rep, &K2) && K2 == K) {
+                return __ WordAdd(__ WordBitwiseAnd(x, right, rep), y, rep);
               }
             }
           }
@@ -2222,7 +2286,16 @@ class MachineOptimizationReducer : public Next {
     return base::nullopt;
   }
 
-  uint16_t CountLeadingSignBits(int64_t c, WordRepresentation rep) {
+  static constexpr bool IsNegativePowerOfTwo(int64_t x) {
+    if (x >= 0) return false;
+    if (x == std::numeric_limits<int64_t>::min()) return true;
+    int64_t x_abs = -x;   // This can't overflow after the check above.
+    DCHECK_GE(x_abs, 1);  // The subtraction below can't underflow.
+    return (x_abs & (x_abs - 1)) == 0;
+  }
+
+  static constexpr uint16_t CountLeadingSignBits(int64_t c,
+                                                 WordRepresentation rep) {
     return base::bits::CountLeadingSignBits(c) - (64 - rep.bit_width());
   }
 

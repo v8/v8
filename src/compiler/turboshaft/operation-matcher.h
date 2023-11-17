@@ -265,6 +265,11 @@ class OperationMatcher {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kSub, rep);
   }
 
+  bool MatchWordMul(OpIndex matched, OpIndex* left, OpIndex* right,
+                    WordRepresentation rep) const {
+    return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kMul, rep);
+  }
+
   bool MatchBitwiseAnd(OpIndex matched, OpIndex* left, OpIndex* right,
                        WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kBitwiseAnd,
@@ -358,6 +363,20 @@ class OperationMatcher {
     const ShiftOp* op = TryCast<ShiftOp>(matched);
     if (uint32_t rhs_constant;
         op && ShiftOp::IsRightShift(op->kind) && op->rep == rep &&
+        MatchIntegralWord32Constant(op->right(), &rhs_constant) &&
+        rhs_constant < static_cast<uint32_t>(rep.bit_width())) {
+      *input = op->left();
+      *amount = static_cast<int>(rhs_constant);
+      return true;
+    }
+    return false;
+  }
+
+  bool MatchConstantLeftShift(OpIndex matched, OpIndex* input,
+                              WordRepresentation rep, int* amount) const {
+    const ShiftOp* op = TryCast<ShiftOp>(matched);
+    if (uint32_t rhs_constant;
+        op && op->kind == ShiftOp::Kind::kShiftLeft && op->rep == rep &&
         MatchIntegralWord32Constant(op->right(), &rhs_constant) &&
         rhs_constant < static_cast<uint32_t>(rep.bit_width())) {
       *input = op->left();
