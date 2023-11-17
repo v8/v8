@@ -21,6 +21,7 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/main-allocator.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
@@ -120,12 +121,12 @@ void LocalHeap::SetUpMainThread() {
 
 void LocalHeap::SetUp() {
   DCHECK_NULL(old_space_allocator_);
-  old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->old_space(), ConcurrentAllocator::Context::kNotGC);
+  old_space_allocator_ =
+      std::make_unique<MainAllocator>(this, heap_->old_space());
 
   DCHECK_NULL(code_space_allocator_);
-  code_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->code_space(), ConcurrentAllocator::Context::kNotGC);
+  code_space_allocator_ =
+      std::make_unique<MainAllocator>(this, heap_->code_space());
 
   DCHECK_NULL(shared_old_space_allocator_);
   if (heap_->isolate()->has_shared_space()) {
@@ -135,8 +136,8 @@ void LocalHeap::SetUp() {
   }
 
   DCHECK_NULL(trusted_space_allocator_);
-  trusted_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-      this, heap_->trusted_space(), ConcurrentAllocator::Context::kNotGC);
+  trusted_space_allocator_ =
+      std::make_unique<MainAllocator>(this, heap_->trusted_space());
 
   DCHECK_NULL(marking_barrier_);
   marking_barrier_ = std::make_unique<MarkingBarrier>(this);

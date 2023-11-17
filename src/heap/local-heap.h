@@ -105,16 +105,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   Heap* AsHeap() const { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
-  ConcurrentAllocator* old_space_allocator() {
-    return old_space_allocator_.get();
-  }
-  ConcurrentAllocator* code_space_allocator() {
-    return code_space_allocator_.get();
-  }
+  MainAllocator* old_space_allocator() { return old_space_allocator_.get(); }
+  MainAllocator* code_space_allocator() { return code_space_allocator_.get(); }
   ConcurrentAllocator* shared_old_space_allocator() {
     return shared_old_space_allocator_.get();
   }
-  ConcurrentAllocator* trusted_space_allocator() {
+  MainAllocator* trusted_space_allocator() {
     return trusted_space_allocator_.get();
   }
 
@@ -379,10 +375,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
 
-  std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
+  std::unique_ptr<MainAllocator> old_space_allocator_;
+  std::unique_ptr<MainAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> trusted_space_allocator_;
+  std::unique_ptr<MainAllocator> trusted_space_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
 
