@@ -5341,8 +5341,13 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
       if (v8_flags.fuzzer_gc_analysis) {
         // Skips values >=100% since they already trigger marking.
         if (current_percent < 100) {
-          max_marking_limit_reached_ =
-              std::max<double>(max_marking_limit_reached_, current_percent);
+          double max_marking_limit_reached =
+              max_marking_limit_reached_.load(std::memory_order_relaxed);
+          while (current_percent > max_marking_limit_reached) {
+            max_marking_limit_reached_.compare_exchange_weak(
+                max_marking_limit_reached, current_percent,
+                std::memory_order_relaxed);
+          }
         }
       } else if (current_percent >= stress_marking_percentage_) {
         return IncrementalMarkingLimit::kHardLimit;
@@ -5703,7 +5708,7 @@ void Heap::InitializeOncePerProcess() {
 
 void Heap::PrintMaxMarkingLimitReached() {
   PrintF("\n### Maximum marking limit reached = %.02lf\n",
-         max_marking_limit_reached_);
+         max_marking_limit_reached_.load(std::memory_order_relaxed));
 }
 
 void Heap::PrintMaxNewSpaceSizeReached() {
