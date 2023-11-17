@@ -6,6 +6,7 @@
 #define V8_BASE_DOUBLY_THREADED_LIST_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 
 namespace v8::base {
@@ -28,30 +29,36 @@ struct DoublyThreadedListTraits {
 template <class T, class DTLTraits = DoublyThreadedListTraits<T>>
 class DoublyThreadedList {
  public:
-  // Defining move constructor so that when resizing container, the prev pointer
-  // of the next(head_) doesn't point to the old head_ but rather to the new
-  // one.
-  DoublyThreadedList(DoublyThreadedList&& other) V8_NOEXCEPT {
-    head_ = other.head_;
-    if (DTLTraits::non_empty(head_)) {
-      *DTLTraits::prev(head_) = &head_;
-    }
-    other.head_ = {};
-  }
-  DoublyThreadedList() = default;
+  // Since C++17, it is possible to have a sentinel end-iterator that is not an
+  // iterator itself.
+  class end_iterator {};
 
-  // Add `x` at the begining of the list. `x` will not be visible to any
-  // existing iterator. Does not invalidate any existing iterator.
-  void Add(T x) {
-    DCHECK(empty(*DTLTraits::next(x)));
-    DCHECK_EQ(*DTLTraits::prev(x), nullptr);
-    *DTLTraits::next(x) = head_;
-    *DTLTraits::prev(x) = &head_;
-    if (DTLTraits::non_empty(head_)) {
-      *DTLTraits::prev(head_) = DTLTraits::next(x);
+  class iterator : public base::iterator<std::forward_iterator_tag, T> {
+   public:
+    explicit iterator(T head) : curr_(head) {}
+
+    T operator*() { return curr_; }
+
+    iterator& operator++() {
+      DCHECK(DTLTraits::non_empty(curr_));
+      curr_ = *DTLTraits::next(curr_);
+      return *this;
     }
-    head_ = x;
-  }
+
+    iterator operator++(int) {
+      DCHECK(DTLTraits::non_empty(curr_));
+      iterator tmp(*this);
+      operator++();
+      return tmp;
+    }
+
+    bool operator==(end_iterator) { return !DTLTraits::non_empty(curr_); }
+    bool operator!=(end_iterator) { return DTLTraits::non_empty(curr_); }
+
+   private:
+    friend DoublyThreadedList;
+    T curr_;
+  };
 
   // Removes `x` from the list. Iterators that are currently on `x` are
   // invalidated. To remove while iterating, use RemoveAt.
@@ -69,30 +76,43 @@ class DoublyThreadedList {
     *DTLTraits::next(x) = {};
   }
 
-  bool empty() const { return !DTLTraits::non_empty(head_); }
+  DoublyThreadedList() = default;
 
-  // Since C++17, it is possible to have a sentinel end-iterator that is not an
-  // iterator itself.
-  class end_iterator {};
-
-  class iterator {
-   public:
-    explicit iterator(T head) : curr_(head) {}
-
-    T operator*() { return curr_; }
-
-    iterator& operator++() {
-      DCHECK(DTLTraits::non_empty(curr_));
-      curr_ = *DTLTraits::next(curr_);
-      return *this;
+  // Defining move constructor so that when resizing container, the prev pointer
+  // of the next(head_) doesn't point to the old head_ but rather to the new
+  // one.
+  DoublyThreadedList(DoublyThreadedList&& other) V8_NOEXCEPT {
+    head_ = other.head_;
+    if (DTLTraits::non_empty(head_)) {
+      *DTLTraits::prev(head_) = &head_;
     }
+    other.head_ = {};
+  }
 
-    bool operator!=(end_iterator) { return DTLTraits::non_empty(curr_); }
+  // Add `x` at the beginning of the list. `x` will not be visible to any
+  // existing iterator. Does not invalidate any existing iterator.
+  void PushFront(T x) {
+    DCHECK(empty(*DTLTraits::next(x)));
+    DCHECK_EQ(*DTLTraits::prev(x), nullptr);
+    *DTLTraits::next(x) = head_;
+    *DTLTraits::prev(x) = &head_;
+    if (DTLTraits::non_empty(head_)) {
+      *DTLTraits::prev(head_) = DTLTraits::next(x);
+    }
+    head_ = x;
+  }
 
-   private:
-    friend DoublyThreadedList;
-    T curr_;
-  };
+  T Front() const {
+    DCHECK(!empty());
+    return *begin();
+  }
+
+  void PopFront() {
+    DCHECK(!empty());
+    Remove(Front());
+  }
+
+  bool empty() const { return !DTLTraits::non_empty(head_); }
 
   iterator begin() const { return iterator{head_}; }
   end_iterator end() const { return end_iterator{}; }
@@ -106,6 +126,15 @@ class DoublyThreadedList {
     T next = *DTLTraits::next(curr);
     Remove(curr);
     return iterator{next};
+  }
+
+  bool ContainsSlow(T needle) const {
+    for (T element : *this) {
+      if (element == needle) {
+        return true;
+      }
+    }
+    return false;
   }
 
  private:

@@ -33,12 +33,12 @@ TEST_F(DoublyThreadedListTest, BasicTest) {
   Elem e3{1, nullptr, nullptr};
   Elem e4{1, nullptr, nullptr};
 
-  list.Add(&e1);
+  list.PushFront(&e1);
   EXPECT_EQ(**(list.begin()), e1);
 
-  list.Add(&e2);
-  list.Add(&e3);
-  list.Add(&e4);
+  list.PushFront(&e2);
+  list.PushFront(&e3);
+  list.PushFront(&e4);
   EXPECT_EQ(**(list.begin()), e4);
   EXPECT_EQ(*e4.next_, e3);
   EXPECT_EQ(*e3.next_, e2);
@@ -99,10 +99,10 @@ TEST_F(DoublyThreadedListTest, IteratorTest) {
   Elem e3{1, nullptr, nullptr};
   Elem e4{1, nullptr, nullptr};
 
-  list.Add(&e1);
-  list.Add(&e2);
-  list.Add(&e3);
-  list.Add(&e4);
+  list.PushFront(&e1);
+  list.PushFront(&e2);
+  list.PushFront(&e3);
+  list.PushFront(&e4);
 
   int count = 0;
   for (Elem* e : list) {

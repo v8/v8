@@ -303,10 +303,10 @@ class WasmMemoryContentTable
     OpIndex base = key.data().mem.base;
     auto base_keys = base_keys_.find(base);
     if (base_keys != base_keys_.end()) {
-      base_keys->second.with_offsets.Add(key);
+      base_keys->second.with_offsets.PushFront(key);
     } else {
       BaseData data;
-      data.with_offsets.Add(key);
+      data.with_offsets.PushFront(key);
       base_keys_.insert({base, std::move(data)});
     }
 
@@ -314,10 +314,10 @@ class WasmMemoryContentTable
     int offset = key.data().mem.offset;
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys != offset_keys_.end()) {
-      offset_keys->second.Add(key);
+      offset_keys->second.PushFront(key);
     } else {
       v8::base::DoublyThreadedList<Key, OffsetListTraits> list;
-      list.Add(key);
+      list.PushFront(key);
       offset_keys_.insert({offset, std::move(list)});
     }
   }

@@ -9,6 +9,7 @@
 
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
+#include "src/base/doubly-threaded-list.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/sanitizer/asan.h"
@@ -188,121 +189,7 @@ void TracedNode::Release() {
   set_raw_object(kGlobalHandleZapValue);
 }
 
-template <typename T, typename NodeAccessor>
-class DoublyLinkedList final {
-  template <typename U>
-  class IteratorImpl final
-      : public base::iterator<std::forward_iterator_tag, U> {
-   public:
-    explicit IteratorImpl(U* object) : object_(object) {}
-    IteratorImpl(const IteratorImpl& other) V8_NOEXCEPT
-        : object_(other.object_) {}
-    U* operator*() { return object_; }
-    bool operator==(const IteratorImpl& rhs) const {
-      return rhs.object_ == object_;
-    }
-    bool operator!=(const IteratorImpl& rhs) const { return !(*this == rhs); }
-    inline IteratorImpl& operator++() {
-      object_ = ListNodeFor(object_)->next;
-      return *this;
-    }
-    inline IteratorImpl operator++(int) {
-      IteratorImpl tmp(*this);
-      operator++();
-      return tmp;
-    }
-
-   private:
-    U* object_;
-  };
-
- public:
-  using Iterator = IteratorImpl<T>;
-  using ConstIterator = IteratorImpl<const T>;
-
-  struct ListNode {
-    T* prev = nullptr;
-    T* next = nullptr;
-  };
-
-  T* Front() { return front_; }
-
-  void PushFront(T* object) {
-    DCHECK(!Contains(object));
-    ListNodeFor(object)->next = front_;
-    if (front_) {
-      ListNodeFor(front_)->prev = object;
-    }
-    front_ = object;
-    size_++;
-  }
-
-  void PopFront() {
-    DCHECK(!Empty());
-    if (ListNodeFor(front_)->next) {
-      ListNodeFor(ListNodeFor(front_)->next)->prev = nullptr;
-    }
-    front_ = ListNodeFor(front_)->next;
-    size_--;
-  }
-
-  void Remove(T* object) {
-    DCHECK(Contains(object));
-    auto& next_object = ListNodeFor(object)->next;
-    auto& prev_object = ListNodeFor(object)->prev;
-    if (front_ == object) {
-      front_ = next_object;
-    }
-    if (next_object) {
-      ListNodeFor(next_object)->prev = prev_object;
-    }
-    if (prev_object) {
-      ListNodeFor(prev_object)->next = next_object;
-    }
-    next_object = nullptr;
-    prev_object = nullptr;
-    size_--;
-  }
-
-  bool Contains(T* object) const {
-    if (front_ == object) return true;
-    auto* list_node = ListNodeFor(object);
-    return list_node->prev || list_node->next;
-  }
-
-  size_t Size() const { return size_; }
-  bool Empty() const { return size_ == 0; }
-
-  Iterator begin() { return Iterator(front_); }
-  Iterator end() { return Iterator(nullptr); }
-  ConstIterator begin() const { return ConstIterator(front_); }
-  ConstIterator end() const { return ConstIterator(nullptr); }
-
- private:
-  static ListNode* ListNodeFor(T* object) {
-    return NodeAccessor::GetListNode(object);
-  }
-  static const ListNode* ListNodeFor(const T* object) {
-    return NodeAccessor::GetListNode(const_cast<T*>(object));
-  }
-
-  T* front_ = nullptr;
-  size_t size_ = 0;
-};
-
 class TracedNodeBlock final {
-  struct OverallListNode {
-    static auto* GetListNode(TracedNodeBlock* block) {
-      return &block->overall_list_node_;
-    }
-  };
-
-  struct UsableListNode {
-    static auto* GetListNode(TracedNodeBlock* block) {
-      return &block->usable_list_node_;
-    }
-  };
-
   class NodeIteratorImpl final
       : public base::iterator<std::forward_iterator_tag, TracedNode> {
    public:
@@ -336,9 +223,39 @@ class TracedNodeBlock final {
     TracedNode::IndexType current_index_ = 0;
   };
 
+  struct ListNode final {
+    TracedNodeBlock** prev_ = nullptr;
+    TracedNodeBlock* next_ = nullptr;
+  };
+
+  template <typename ConcreteTraits>
+  struct BaseListTraits {
+    static TracedNodeBlock*** prev(TracedNodeBlock* tnb) {
+      return &ConcreteTraits::GetListNode(tnb).prev_;
+    }
+    static TracedNodeBlock** next(TracedNodeBlock* tnb) {
+      return &ConcreteTraits::GetListNode(tnb).next_;
+    }
+    static bool non_empty(TracedNodeBlock* tnb) { return tnb != nullptr; }
+  };
+
  public:
-  using OverallList = DoublyLinkedList<TracedNodeBlock, OverallListNode>;
-  using UsableList = DoublyLinkedList<TracedNodeBlock, UsableListNode>;
+  struct OverallListTraits : BaseListTraits<OverallListTraits> {
+    static ListNode& GetListNode(TracedNodeBlock* tnb) {
+      return tnb->overall_list_node_;
+    }
+  };
+
+  struct UsableListTraits : BaseListTraits<UsableListTraits> {
+    static ListNode& GetListNode(TracedNodeBlock* tnb) {
+      return tnb->usable_list_node_;
+    }
+  };
+
+  using OverallList =
+      v8::base::DoublyThreadedList<TracedNodeBlock*, OverallListTraits>;
+  using UsableList =
+      v8::base::DoublyThreadedList<TracedNodeBlock*, UsableListTraits>;
   using Iterator = NodeIteratorImpl;
 
 #if defined(V8_USE_ADDRESS_SANITIZER)
@@ -359,7 +276,7 @@ class TracedNodeBlock final {
   static_assert(kMinCapacity <= kMaxCapacity);
   static_assert(kInvalidFreeListNodeIndex > kMaxCapacity);
 
-  static TracedNodeBlock* Create(TracedHandlesImpl&, OverallList&, UsableList&);
+  static TracedNodeBlock* Create(TracedHandlesImpl&);
   static void Delete(TracedNodeBlock*);
 
   static TracedNodeBlock& From(TracedNode& node);
@@ -391,11 +308,10 @@ class TracedNodeBlock final {
   }
 
  private:
-  TracedNodeBlock(TracedHandlesImpl&, OverallList&, UsableList&,
-                  TracedNode::IndexType);
+  TracedNodeBlock(TracedHandlesImpl&, TracedNode::IndexType);
 
-  OverallList::ListNode overall_list_node_;
-  UsableList::ListNode usable_list_node_;
+  ListNode overall_list_node_;
+  ListNode usable_list_node_;
   TracedHandlesImpl& traced_handles_;
   TracedNode::IndexType used_ = 0;
   const TracedNode::IndexType capacity_ = 0;
@@ -403,9 +319,7 @@ class TracedNodeBlock final {
 };
 
 // static
-TracedNodeBlock* TracedNodeBlock::Create(TracedHandlesImpl& traced_handles,
-                                         OverallList& overall_list,
-                                         UsableList& usable_list) {
+TracedNodeBlock* TracedNodeBlock::Create(TracedHandlesImpl& traced_handles) {
   static_assert(alignof(TracedNodeBlock) >= alignof(TracedNode));
   static_assert(sizeof(TracedNodeBlock) % alignof(TracedNode) == 0,
                 "TracedNodeBlock size is used to auto-align node FAM storage.");
@@ -418,25 +332,20 @@ TracedNodeBlock* TracedNodeBlock::Create(TracedHandlesImpl& traced_handles,
       kMaxCapacity);
   CHECK_LT(capacity, std::numeric_limits<TracedNode::IndexType>::max());
   const auto result = std::make_pair(raw_result.ptr, capacity);
-  return new (result.first)
-      TracedNodeBlock(traced_handles, overall_list, usable_list,
-                      static_cast<TracedNode::IndexType>(result.second));
+  return new (result.first) TracedNodeBlock(
+      traced_handles, static_cast<TracedNode::IndexType>(result.second));
 }
 
 // static
 void TracedNodeBlock::Delete(TracedNodeBlock* block) { free(block); }
 
 TracedNodeBlock::TracedNodeBlock(TracedHandlesImpl& traced_handles,
-                                 OverallList& overall_list,
-                                 UsableList& usable_list,
                                  TracedNode::IndexType capacity)
     : traced_handles_(traced_handles), capacity_(capacity) {
   for (TracedNode::IndexType i = 0; i < (capacity_ - 1); i++) {
     new (at(i)) TracedNode(i, i + 1);
   }
   new (at(capacity_ - 1)) TracedNode(capacity_ - 1, kInvalidFreeListNodeIndex);
-  overall_list.PushFront(this);
-  usable_list.PushFront(this);
 }
 
 // static
@@ -543,6 +452,7 @@ class TracedHandlesImpl final {
 
  private:
   TracedNode* AllocateNode();
+  V8_NOINLINE V8_PRESERVE_MOST void RefillUsableNodeBlocks();
   void FreeNode(TracedNode*);
 
   bool NeedsToBeRemembered(Tagged<Object> value, TracedNode* node,
@@ -550,6 +460,7 @@ class TracedHandlesImpl final {
                            GlobalHandleStoreMode store_mode) const;
 
   TracedNodeBlock::OverallList blocks_;
+  size_t num_blocks_ = 0;
   TracedNodeBlock::UsableList usable_blocks_;
   // List of young nodes. May refer to nodes in `blocks_`, `usable_blocks_`, and
   // `empty_block_candidates_`.
@@ -566,45 +477,52 @@ class TracedHandlesImpl final {
   size_t block_size_bytes_ = 0;
 };
 
-TracedNode* TracedHandlesImpl::AllocateNode() {
-  auto* block = usable_blocks_.Front();
-  if (!block) {
-    if (empty_blocks_.empty() && empty_block_candidates_.empty()) {
-      block = TracedNodeBlock::Create(*this, blocks_, usable_blocks_);
-      block_size_bytes_ += block->size_bytes();
-    } else {
-      // Pick a block from candidates first as such blocks may anyways still be
-      // referred to from young nodes and thus are not eligible for freeing.
-      auto& block_source = empty_block_candidates_.empty()
-                               ? empty_blocks_
-                               : empty_block_candidates_;
-      block = block_source.back();
-      block_source.pop_back();
-      DCHECK(block->IsEmpty());
-      usable_blocks_.PushFront(block);
-      blocks_.PushFront(block);
-    }
-    DCHECK_EQ(block, usable_blocks_.Front());
+void TracedHandlesImpl::RefillUsableNodeBlocks() {
+  TracedNodeBlock* block;
+  if (empty_blocks_.empty() && empty_block_candidates_.empty()) {
+    block = TracedNodeBlock::Create(*this);
+    block_size_bytes_ += block->size_bytes();
+  } else {
+    // Pick a block from candidates first as such blocks may anyways still be
+    // referred to from young nodes and thus are not eligible for freeing.
+    auto& block_source = empty_block_candidates_.empty()
+                             ? empty_blocks_
+                             : empty_block_candidates_;
+    block = block_source.back();
+    block_source.pop_back();
   }
-  auto* node = block->AllocateNode();
-  if (node) {
-    used_nodes_++;
-    return node;
-  }
+  usable_blocks_.PushFront(block);
+  blocks_.PushFront(block);
+  num_blocks_++;
+  DCHECK(block->IsEmpty());
+  DCHECK_EQ(usable_blocks_.Front(), block);
+  DCHECK(!usable_blocks_.empty());
+}
 
-  usable_blocks_.Remove(block);
-  return AllocateNode();
+TracedNode* TracedHandlesImpl::AllocateNode() {
+  if (V8_UNLIKELY(usable_blocks_.empty())) {
+    RefillUsableNodeBlocks();
+  }
+  TracedNodeBlock* block = usable_blocks_.Front();
+  auto* node = block->AllocateNode();
+  if (V8_UNLIKELY(block->IsFull())) {
+    usable_blocks_.Remove(block);
+  }
+  used_nodes_++;
+  return node;
 }
 
 void TracedHandlesImpl::FreeNode(TracedNode* node) {
   auto& block = TracedNodeBlock::From(*node);
-  if (block.IsFull() && !usable_blocks_.Contains(&block)) {
+  if (V8_UNLIKELY(block.IsFull())) {
+    DCHECK(!usable_blocks_.ContainsSlow(&block));
     usable_blocks_.PushFront(&block);
   }
   block.FreeNode(node);
   if (block.IsEmpty()) {
     usable_blocks_.Remove(&block);
     blocks_.Remove(&block);
+    num_blocks_--;
     empty_block_candidates_.push_back(&block);
   }
   used_nodes_--;
@@ -614,7 +532,7 @@ TracedHandlesImpl::TracedHandlesImpl(Isolate* isolate) : isolate_(isolate) {}
 
 TracedHandlesImpl::~TracedHandlesImpl() {
   size_t block_size_bytes = 0;
-  while (!blocks_.Empty()) {
+  while (!blocks_.empty()) {
     auto* block = blocks_.Front();
     blocks_.PopFront();
     block_size_bytes += block->size_bytes();
@@ -773,7 +691,7 @@ void TracedHandlesImpl::SetIsSweepingOnMutatorThread(bool value) {
 
 const TracedHandles::NodeBounds TracedHandlesImpl::GetNodeBounds() const {
   TracedHandles::NodeBounds block_bounds;
-  block_bounds.reserve(blocks_.Size());
+  block_bounds.reserve(num_blocks_);
   for (const auto* block : blocks_) {
     block_bounds.push_back(
         {block->nodes_begin_address(), block->nodes_end_address()});

@@ -495,32 +495,32 @@ class MemoryContentTable
     auto base_keys = base_keys_.find(base);
     if (base_keys != base_keys_.end()) {
       if (key.data().mem.index.valid()) {
-        base_keys->second.with_indices.Add(key);
+        base_keys->second.with_indices.PushFront(key);
       } else {
-        base_keys->second.with_offsets.Add(key);
+        base_keys->second.with_offsets.PushFront(key);
       }
     } else {
       BaseData data;
       if (key.data().mem.index.valid()) {
-        data.with_indices.Add(key);
+        data.with_indices.PushFront(key);
       } else {
-        data.with_offsets.Add(key);
+        data.with_offsets.PushFront(key);
       }
       base_keys_.insert({base, std::move(data)});
     }
 
     if (key.data().mem.index.valid()) {
       // Inserting in {index_keys_}.
-      index_keys_.Add(key);
+      index_keys_.PushFront(key);
     } else {
       // Inserting in {offset_keys_}.
       int offset = key.data().mem.offset;
       auto offset_keys = offset_keys_.find(offset);
       if (offset_keys != offset_keys_.end()) {
-        offset_keys->second.Add(key);
+        offset_keys->second.PushFront(key);
       } else {
         v8::base::DoublyThreadedList<Key, OffsetListTraits> list;
-        list.Add(key);
+        list.PushFront(key);
         offset_keys_.insert({offset, std::move(list)});
       }
     }
