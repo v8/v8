@@ -172,7 +172,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         if (debug_info->HasInstrumentedBytecodeArray()) {
           restore_bytecode = true;
           sfi->SetActiveBytecodeArray(
-              debug_info->OriginalBytecodeArray(isolate()));
+              debug_info->OriginalBytecodeArray(isolate()), isolate());
         }
       }
     }
@@ -180,7 +180,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (restore_bytecode) {
       DisallowGarbageCollection no_gc;
       Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
-      sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()));
+      sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
+                                  isolate());
     }
     return;
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(

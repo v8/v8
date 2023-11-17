@@ -667,7 +667,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
     LogEventListener::CodeTag log_tag) {
   DCHECK(v8_flags.interpreted_frames_native_stack);
   if (!IsBytecodeArray(shared_info->GetData())) {
-    DCHECK(!shared_info->HasInterpreterData());
+    DCHECK(!shared_info->HasInterpreterData(isolate));
     return;
   }
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
