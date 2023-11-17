@@ -1145,7 +1145,7 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
 
 void CppHeap::FinishSweepingIfRunning() {
   sweeper_.FinishIfRunning();
-  if (isolate_) {
+  if (isolate_ && ShouldReduceMemory(current_gc_flags_)) {
     isolate_->traced_handles()->DeleteEmptyBlocks();
   }
 }
