@@ -4242,6 +4242,18 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
+String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
+                                           Handle<Script> script) {
+  DCHECK(!script->has_line_ends());
+  Tagged<Object> src_obj = script->source();
+  if (IsString(src_obj)) {
+    Handle<String> src(String::cast(src_obj), isolate);
+    return String::CalculateLineEndsVector(isolate, src, true);
+  }
+
+  return String::LineEndsVector();
+}
+
 template <typename IsolateT>
 // static
 void Script::InitLineEndsInternal(IsolateT* isolate, Handle<Script> script) {
