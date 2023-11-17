@@ -2526,36 +2526,14 @@ void MacroAssembler::CallCFunction(ExternalReference function,
                                    SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
   Move(ip, function);
-  CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots, has_function_descriptor);
+  CallCFunction(ip, num_reg_arguments, num_double_arguments,
+                set_isolate_data_slots, has_function_descriptor);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                    int num_double_arguments,
                                    SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots, has_function_descriptor);
-}
-
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
-}
-
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
-}
-
-void MacroAssembler::CallCFunctionHelper(
-    Register function, int num_reg_arguments, int num_double_arguments,
-    SetIsolateDataSlots set_isolate_data_slots, bool has_function_descriptor) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
@@ -2638,6 +2616,21 @@ void MacroAssembler::CallCFunctionHelper(
   } else {
     AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
   }
+}
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
+                                   bool has_function_descriptor) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                has_function_descriptor);
+}
+
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots,
+                                   bool has_function_descriptor) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                has_function_descriptor);
 }
 
 void MacroAssembler::CheckPageFlag(

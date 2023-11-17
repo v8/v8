@@ -1798,10 +1798,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments,
-                           SetIsolateDataSlots set_isolate_data_slots);
-
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);

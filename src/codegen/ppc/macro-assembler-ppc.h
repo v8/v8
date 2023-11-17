@@ -1776,10 +1776,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments,
-                           SetIsolateDataSlots set_isolate_data_slots,
-                           bool has_function_descriptor);
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
