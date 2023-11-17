@@ -3067,19 +3067,14 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     if (!is_bytecode_live) number_of_flushed_sfis++;
 
     // Now record the slot, which has either been updated to an uncompiled data,
-    // Baseline code or BytecodeArray which is still alive.
-#ifdef V8_ENABLE_SANDBOX
-    ObjectSlot slot = flushing_candidate->RawField(
-        SharedFunctionInfo::kTrustedFunctionDataOffset);
-    if (!IsHeapObject(slot.load(heap_->isolate()))) {
-      slot =
-          flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
-    }
-#else
+    // Baseline code or BytecodeArray which is still alive. If the sandbox is
+    // enabled, the slot may be empty though as BytecodeArrays are referenced
+    // through an indirect pointer. In that case, no action is necessary here.
     ObjectSlot slot =
         flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
-#endif  // V8_ENABLE_SANDBOX
-    RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
+    if (IsHeapObject(*slot)) {
+      RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
+    }
   }
 
   if (v8_flags.trace_flush_code) {

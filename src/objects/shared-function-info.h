@@ -349,7 +349,7 @@ class SharedFunctionInfo
   // what they are interested in. It would also mean that for code flushing,
   // we'd then only have to load the code field, but then had to check if we're
   // bytecode, baseline code, or builtin code (which is never flushed).
-  inline Tagged<Object> GetData() const;
+  inline Tagged<Object> GetData(const Isolate* isolate_for_sandbox) const;
 
  private:
   // When the sandbox is enabled, the function's data is split across two
@@ -370,7 +370,19 @@ class SharedFunctionInfo
   // TODO(chromium:1490564): if we decide to do the refactoring described
   // above, the trusted part would become the code field.
 #ifdef V8_ENABLE_SANDBOX
-  DECL_RELEASE_ACQUIRE_ACCESSORS(trusted_function_data, Tagged<Object>)
+  inline Tagged<ExposedTrustedObject> trusted_function_data(
+      const Isolate* isolate_for_sandbox, AcquireLoadTag) const;
+  inline void set_trusted_function_data(
+      Tagged<ExposedTrustedObject> value, ReleaseStoreTag,
+      WriteBarrierMode = UPDATE_WRITE_BARRIER);
+
+  // Direct access to the indirect pointer handle referencing the trusted
+  // object. This is mostly useful for copying the trusted_function_data field
+  // from one SFI to another.
+  inline IndirectPointerHandle trusted_function_data_handle(
+      AcquireLoadTag) const;
+  inline void set_trusted_function_data_handle(IndirectPointerHandle handle,
+                                               ReleaseStoreTag);
 #endif
   DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Tagged<Object>)
 
@@ -439,6 +451,7 @@ class SharedFunctionInfo
   // builtin corresponds to the auto-generated Builtin enum.
   inline bool HasBuiltinId() const;
   DECL_PRIMITIVE_ACCESSORS(builtin_id, Builtin)
+
   inline bool HasUncompiledData() const;
   DECL_ACCESSORS(uncompiled_data, Tagged<UncompiledData>)
   inline bool HasUncompiledDataWithPreparseData() const;
