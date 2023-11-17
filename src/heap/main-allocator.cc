@@ -30,6 +30,7 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
       allocator_policy_(space->CreateAllocatorPolicy(this)),
       supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
   CHECK_NOT_NULL(local_heap_);
+  DCHECK_EQ(heap, space->heap());
   allocation_counter_.emplace();
   linear_area_original_data_.emplace();
 }
@@ -42,8 +43,21 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space)
       allocator_policy_(space->CreateAllocatorPolicy(this)),
       supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
   CHECK_NOT_NULL(local_heap_);
+  DCHECK_EQ(heap, space->heap());
   allocation_counter_.emplace();
   linear_area_original_data_.emplace();
+}
+
+MainAllocator::MainAllocator(LocalHeap* local_heap, SpaceWithLinearArea* space)
+    : local_heap_(local_heap),
+      heap_(local_heap->heap()),
+      space_(space),
+      allocation_info_(owned_allocation_info_),
+      allocator_policy_(space->CreateAllocatorPolicy(this)),
+      supports_extending_lab_(false) {
+  CHECK_NOT_NULL(local_heap_);
+  DCHECK(!allocation_counter_.has_value());
+  DCHECK(!linear_area_original_data_.has_value());
 }
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space, InGCTag)
