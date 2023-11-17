@@ -154,18 +154,13 @@ class MainAllocator {
   // Use this constructor on the main thread.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space);
 
-  // Use this constructor on the main thread for spaces that have allocation
-  // support in generated code (currently new and old space).
+  // This constructor allows to pass in the address of a LinearAllocationArea.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                                   LinearAllocationArea& allocation_info);
 
   // Use this constructor for GC LABs/allocations.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                                   InGCTag);
-
-  // Use this constructor on background threads.
-  V8_EXPORT_PRIVATE MainAllocator(LocalHeap* local_heap,
-                                  SpaceWithLinearArea* space);
 
   // Returns the allocation pointer in this space.
   Address start() const { return allocation_info_.start(); }
