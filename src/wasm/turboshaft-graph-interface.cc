@@ -3589,25 +3589,15 @@ class TurboshaftGraphBuildingInterface {
 #endif
         const WasmMemory& mem = mod->memories[0];
         bool memory_can_grow = mem.initial_pages != mem.maximum_pages;
-        // For now, we don't cache the size of shared growable memories.
-        // If we wanted to support this case, we would have to reload the
-        // memory size when loop stack checks detect an interrupt request.
-        // Since memory size caching is particularly important for asm.js,
-        // which never uses growable or shared memories, this limitation is
-        // considered acceptable for now.
-        memory_size_cached_ = !mem.is_shared || !memory_can_grow;
         // Trap handler enabled memories never move.
         // Memories that can't grow have no reason to move.
         // Shared memories can only be grown in-place.
         bool memory_can_move = mem.bounds_checks != kTrapHandler &&
                                memory_can_grow && !mem.is_shared;
-        if (memory_size_cached_) {
-          if (memory_can_grow) memory_size_index_ = num_mutable_fields_++;
-          mem_size_ = LoadMemSize();
-        }
-        if (memory_can_move) {
-          memory_start_index_ = num_mutable_fields_++;
-        }
+        memory_is_shared_ = mem.is_shared;
+        if (memory_can_grow) memory_size_index_ = num_mutable_fields_++;
+        mem_size_ = LoadMemSize();
+        if (memory_can_move) memory_start_index_ = num_mutable_fields_++;
         mem_start_ = LoadMemStart();
       }
     }
@@ -3616,7 +3606,18 @@ class TurboshaftGraphBuildingInterface {
     // from Turbofan.
     void ReloadCachedMemory() {
       if (memory_can_move()) mem_start_ = LoadMemStart();
-      if (memory_can_grow() && memory_size_cached_) mem_size_ = LoadMemSize();
+      if (memory_can_grow()) mem_size_ = LoadMemSize();
+    }
+
+    // We need some custom handling for sizes of shared memories (which may
+    // be grown by other threads).
+    void ReloadCachedSharedMemorySize() {
+      if (memory_is_shared_ && memory_can_grow()) mem_size_ = LoadMemSize();
+    }
+    void set_memory_size(OpIndex value) {
+      // Allow overwriting {invalid} with {invalid} to keep client code simpler.
+      DCHECK_EQ(value.valid(), mem_size_.valid());
+      mem_size_ = value;
     }
 
     uint32_t num_mutable_fields() { return num_mutable_fields_; }
@@ -3651,8 +3652,8 @@ class TurboshaftGraphBuildingInterface {
       return mem_start_;
     }
     V<WordPtr> memory0_size() {
-      DCHECK(has_memory_);
-      if (!memory_size_cached_) return LoadMemSize();
+      // We allow reading this even when it's invalid to make {StackCheck()}
+      // code simpler.
       return mem_size_;
     }
 
@@ -3687,12 +3688,12 @@ class TurboshaftGraphBuildingInterface {
     V<NativeContext> native_context_;
 
     // Cached mutable fields (must be integrated with Phi handling):
-    V<WordPtr> mem_start_;
-    V<WordPtr> mem_size_;
+    V<WordPtr> mem_start_{OpIndex::Invalid()};
+    V<WordPtr> mem_size_{OpIndex::Invalid()};
 
     // Other fields for internal usage.
     Assembler& asm_;
-    bool memory_size_cached_{false};
+    bool memory_is_shared_{false};
     uint8_t memory_size_index_{kUnused};
     uint8_t memory_start_index_{kUnused};
     uint8_t num_mutable_fields_{0};
@@ -5127,9 +5128,54 @@ class TurboshaftGraphBuildingInterface {
     CallRuntime(Runtime::kWasmTraceMemory, {info});
   }
 
+  const TSCallDescriptor* GetStackGuardDescriptor() {
+    // TODO(14108): Move the location of this cache so that the
+    // StackCheckReducer can use it too. Perhaps to the Graph?
+    if (cached_stack_guard_descriptor_ == nullptr) {
+      const CallDescriptor* call_descriptor =
+          compiler::Linkage::GetStubCallDescriptor(
+              __ graph_zone(),                      // zone
+              NoContextDescriptor{},                // descriptor
+              0,                                    // stack parameter count
+              CallDescriptor::kNoFlags,             // flags
+              Operator::kNoProperties,              // properties
+              StubCallMode::kCallWasmRuntimeStub);  // stub call mode
+      cached_stack_guard_descriptor_ = TSCallDescriptor::Create(
+          call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
+    }
+    return cached_stack_guard_descriptor_;
+  }
+
   void StackCheck(StackCheckOp::CheckKind kind) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ StackCheck(StackCheckOp::CheckOrigin::kFromWasm, kind);
+    // Function header checks are possibly eliminated later (for leaf
+    // functions), so we emit them as high-level nodes at first.
+    if (kind == StackCheckOp::CheckKind::kFunctionHeaderCheck) {
+      __ StackCheck(StackCheckOp::CheckOrigin::kFromWasm, kind);
+      return;
+    }
+    // Loop back edge checks are expanded right away, so we can insert
+    // certain nodes into the interrupt-requested branch.
+    V<WordPtr> limit = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::PointerSized(), IsolateData::jslimit_offset());
+    V<Word32> check =
+        __ StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
+
+    Label<WordPtr> done(&asm_);
+    GOTO_IF(LIKELY(check), done, instance_cache_.memory0_size());
+
+    // If we get here, the stack check failed.
+    V<WordPtr> builtin =
+        __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
+    __ Call(builtin, {}, GetStackGuardDescriptor());
+    // When other threads grow a shared memory, they request an interrupt,
+    // so reload the memory size when interrupts were requested.
+    instance_cache_.ReloadCachedSharedMemorySize();
+    GOTO(done, instance_cache_.memory0_size());
+
+    BIND(done, new_memory_size);
+    instance_cache_.set_memory_size(new_memory_size);
   }
 
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
@@ -6279,6 +6325,7 @@ class TurboshaftGraphBuildingInterface {
   const WireBytesStorage* wire_bytes_;
   const BranchHintMap* branch_hints_ = nullptr;
   InliningTree* inlining_decisions_ = nullptr;
+  const TSCallDescriptor* cached_stack_guard_descriptor_ = nullptr;
   int feedback_slot_ = -1;
   // Inlining budget in case of --no-liftoff.
   int no_liftoff_inlining_budget_ = 0;
