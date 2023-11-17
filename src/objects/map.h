@@ -459,7 +459,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // in the prototype chain. It could be a Proxy, a string wrapper,
   // an object with DICTIONARY_ELEMENTS potentially containing read-only
   // elements or an object with any frozen elements, or a slow arguments object.
-  bool MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate);
+  bool ShouldCheckForReadOnlyElementsInPrototypeChain(Isolate* isolate);
 
   inline Tagged<Map> ElementsTransitionMap(Isolate* isolate,
                                            ConcurrencyMode cmode);

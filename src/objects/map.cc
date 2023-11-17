@@ -1151,7 +1151,11 @@ bool Map::OnlyHasSimpleProperties() const {
          !IsSpecialReceiverMap(*this) && !is_dictionary_map();
 }
 
-bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
+bool Map::ShouldCheckForReadOnlyElementsInPrototypeChain(Isolate* isolate) {
+  // If this map has TypedArray elements kind, we won't look at the prototype
+  // chain, so we can return early.
+  if (IsTypedArrayElementsKind(elements_kind())) return false;
+
   for (PrototypeIterator iter(isolate, *this); !iter.IsAtEnd();
        iter.Advance()) {
     // Be conservative, don't look into any JSReceivers that may have custom
@@ -1161,6 +1165,9 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
 
     Tagged<JSObject> current = iter.GetCurrent<JSObject>();
     ElementsKind elements_kind = current->GetElementsKind(isolate);
+    // If this prototype has TypedArray elements kind, we won't look any further
+    // in the prototype chain, so we can return early.
+    if (IsTypedArrayElementsKind(elements_kind)) return false;
     if (IsFrozenElementsKind(elements_kind)) return true;
 
     if (IsDictionaryElementsKind(elements_kind) &&

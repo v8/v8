@@ -2268,7 +2268,8 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   // initializing store to array literal.
   DCHECK_IMPLIES(
       !receiver_map->has_dictionary_elements() &&
-          receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate()),
+          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+              isolate()),
       IsStoreInArrayLiteralIC());
 
   if (IsJSProxyMap(*receiver_map)) {
@@ -2349,7 +2350,8 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     Handle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
-        receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate())) {
+        receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+            isolate())) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
@@ -2542,8 +2544,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
         } else if (old_receiver_map->has_dictionary_elements() ||
-                   !old_receiver_map->MayHaveReadOnlyElementsInPrototypeChain(
-                       isolate())) {
+                   !old_receiver_map
+                        ->ShouldCheckForReadOnlyElementsInPrototypeChain(
+                            isolate())) {
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
