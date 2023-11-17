@@ -1844,6 +1844,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
 
 void MarkCompactCollector::MarkRootsFromConservativeStack(
     RootVisitor* root_visitor) {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
   heap_->IterateConservativeStackRoots(root_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 

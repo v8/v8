@@ -4843,8 +4843,6 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (!IsGCWithStack()) return;
 
-  TRACE_GC(tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
-
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
                               ? isolate()->shared_space_isolate()

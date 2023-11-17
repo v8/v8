@@ -233,13 +233,6 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   const uint64_t trace_id_;
 };
 
-namespace {
-void AssertMainThreadOrSharedMainThread(Heap* heap) {
-  DCHECK(heap->IsMainThread() || (heap->IsSharedMainThread() &&
-                                  !heap->isolate()->is_shared_space_isolate()));
-}
-}  // namespace
-
 template <Sweeper::SweepingScope scope>
 Sweeper::SweepingState<scope>::SweepingState(Sweeper* sweeper)
     : sweeper_(sweeper) {}
@@ -740,7 +733,7 @@ void Sweeper::FinishMajorJobs() {
 }
 
 void Sweeper::EnsureMajorCompleted() {
-  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(heap_->IsMainThread());
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
@@ -1086,7 +1079,7 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
 }
 
 void Sweeper::EnsurePageIsSwept(Page* page) {
-  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(heap_->IsMainThread());
   if (!sweeping_in_progress() || page->SweepingDone()) return;
   AllocationSpace space = page->owner_identity();
 
@@ -1116,7 +1109,7 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
 }
 
 void Sweeper::WaitForPageToBeSwept(Page* page) {
-  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(heap_->IsMainThread());
   DCHECK(sweeping_in_progress());
 
   base::MutexGuard guard(&mutex_);
@@ -1168,7 +1161,7 @@ void Sweeper::AddNewSpacePage(Page* page) {
 }
 
 void Sweeper::AddPageImpl(AllocationSpace space, Page* page) {
-  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(heap_->IsMainThread());
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),
                  !major_sweeping_state_.HasValidJob());
@@ -1183,7 +1176,7 @@ void Sweeper::AddPageImpl(AllocationSpace space, Page* page) {
 }
 
 void Sweeper::AddPromotedPage(MemoryChunk* chunk) {
-  AssertMainThreadOrSharedMainThread(heap_);
+  DCHECK(heap_->IsMainThread());
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
@@ -1303,9 +1296,7 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
   DCHECK_EQ(0, page->live_bytes());
   DCHECK(page->marking_bitmap()->IsClean());
-  DCHECK(heap_->IsMainThread() ||
-         (heap_->IsSharedMainThread() &&
-          !heap_->isolate()->is_shared_space_isolate()));
+  DCHECK(heap_->IsMainThread());
   DCHECK(heap_->tracer()->IsInAtomicPause());
   DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
             page->concurrent_sweeping_state());

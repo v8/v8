@@ -610,6 +610,7 @@ void MinorMarkSweepCollector::MarkRoots(
 
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
     YoungGenerationRootMarkingVisitor& root_visitor) {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
   heap_->IterateConservativeStackRoots(&root_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 }
