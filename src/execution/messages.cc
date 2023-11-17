@@ -251,6 +251,9 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     // exception instead.
 
     DCHECK(isolate->has_pending_exception());
+    if (isolate->is_execution_termination_pending()) {
+      return {};
+    }
     Handle<Object> pending_exception =
         handle(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
@@ -261,6 +264,9 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_pending_exception());
+      if (isolate->is_execution_termination_pending()) {
+        return {};
+      }
       isolate->clear_pending_exception();
       isolate->clear_pending_message();
       isolate->set_external_caught_exception(false);
