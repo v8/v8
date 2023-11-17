@@ -5215,18 +5215,14 @@ void WasmGraphBuilder::MemoryInit(const wasm::WasmMemory* memory,
 
   MemTypeToUintPtrOrOOBTrap(memory->is_memory64, {&dst}, position);
 
-  Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), GetInstance()},
-       {MachineRepresentation::kWord32, gasm_->Int32Constant(memory->index)},
-       {MachineType::PointerRepresentation(), dst},
-       {MachineRepresentation::kWord32, src},
-       {MachineRepresentation::kWord32,
-        gasm_->Uint32Constant(data_segment_index)},
-       {MachineRepresentation::kWord32, size}});
-
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                 .Params(MachineType::Pointer());
-  Node* call = BuildCCall(&sig, function, stack_slot);
+                 .Params(MachineType::Pointer(), MachineType::Uint32(),
+                         MachineType::UintPtr(), MachineType::Uint32(),
+                         MachineType::Uint32(), MachineType::Uint32());
+  Node* call = BuildCCall(&sig, function, GetInstance(),
+                          gasm_->Int32Constant(memory->index), dst, src,
+                          gasm_->Uint32Constant(data_segment_index), size);
+
   // TODO(manoskouk): Also throw kDataSegmentOutOfBounds.
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }

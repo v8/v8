@@ -99,8 +99,8 @@ inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-inline void StoreToStack(LiftoffAssembler* assm, Operand dst,
-                         LiftoffRegister src, ValueKind kind) {
+inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
+                          LiftoffRegister src, ValueKind kind) {
   switch (kind) {
     case kI32:
       assm->movl(dst, src.gp());
@@ -123,6 +123,28 @@ inline void StoreToStack(LiftoffAssembler* assm, Operand dst,
       break;
     default:
       UNREACHABLE();
+  }
+}
+
+inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
+                          const LiftoffAssembler::VarState& src) {
+  if (src.is_reg()) {
+    liftoff::StoreToMemory(assm, dst, src.reg(), src.kind());
+  } else if (src.is_const()) {
+    if (src.kind() == kI32) {
+      assm->movl(dst, Immediate(src.i32_const()));
+    } else {
+      assm->MacroAssembler::Move(dst, static_cast<int64_t>(src.i32_const()));
+    }
+  } else if (value_kind_size(src.kind()) == 4) {
+    DCHECK(src.is_stack());
+    assm->movl(kScratchRegister, liftoff::GetStackSlot(src.offset()));
+    assm->movl(dst, kScratchRegister);
+  } else {
+    DCHECK(src.is_stack());
+    DCHECK_EQ(8, value_kind_size(src.kind()));
+    assm->movq(kScratchRegister, liftoff::GetStackSlot(src.offset()));
+    assm->movq(dst, kScratchRegister);
   }
 }
 
@@ -893,7 +915,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueKind kind) {
   Operand dst(rbp, kSystemPointerSize * (caller_slot_idx + 1));
-  liftoff::StoreToStack(this, dst, src, kind);
+  liftoff::StoreToMemory(this, dst, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister reg, int offset,
@@ -4252,22 +4274,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
   int arg_offset = 0;
   for (const VarState& arg : args) {
     Operand dst{rsp, arg_offset};
-    if (arg.is_reg()) {
-      liftoff::StoreToStack(this, dst, arg.reg(), arg.kind());
-    } else if (arg.is_const()) {
-      if (arg.kind() == kI32) {
-        movl(dst, Immediate(arg.i32_const()));
-      } else {
-        MacroAssembler::Move(dst, static_cast<int64_t>(arg.i32_const()));
-      }
-    } else if (value_kind_size(arg.kind()) == 4) {
-      movl(kScratchRegister, liftoff::GetStackSlot(arg.offset()));
-      movl(dst, kScratchRegister);
-    } else {
-      DCHECK_EQ(8, value_kind_size(arg.kind()));
-      movq(kScratchRegister, liftoff::GetStackSlot(arg.offset()));
-      movq(dst, kScratchRegister);
-    }
+    liftoff::StoreToMemory(this, dst, arg);
     arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
@@ -4302,18 +4309,33 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  DCHECK_LE(args.size(), arraysize(kCArgRegs));
-  const Register* next_arg_reg = kCArgRegs;
+  // First, prepare the stack for the C call.
+  int num_args = static_cast<int>(args.size());
+  PrepareCallCFunction(num_args);
+
+  // Then execute the parallel register move and also move values to parameter
+  // stack slots.
+  int reg_args = 0;
+#ifdef V8_TARGET_OS_WIN
+  // See comment on {kWindowsHomeStackSlots}.
+  int stack_args = kWindowsHomeStackSlots;
+#else
+  int stack_args = 0;
+#endif
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
-    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
-    ++next_arg_reg;
+    if (reg_args < int{arraysize(kCArgRegs)}) {
+      parallel_move.LoadIntoRegister(LiftoffRegister{kCArgRegs[reg_args]}, arg);
+      ++reg_args;
+    } else {
+      Operand dst{rsp, stack_args * kSystemPointerSize};
+      liftoff::StoreToMemory(this, dst, arg);
+      ++stack_args;
+    }
   }
   parallel_move.Execute();
 
   // Now call the C function.
-  int num_args = static_cast<int>(args.size());
-  PrepareCallCFunction(num_args);
   CallCFunction(ext_ref, num_args);
 }
 

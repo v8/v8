@@ -463,17 +463,13 @@ constexpr int32_t kSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
-int32_t memory_init_wrapper(Address data) {
+int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,
+                            uintptr_t dst, uint32_t src, uint32_t seg_index,
+                            uint32_t size) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
-  size_t offset = 0;
-  Tagged<WasmInstanceObject> instance = WasmInstanceObject::cast(
-      ReadAndIncrementOffset<Tagged<Object>>(data, &offset));
-  uint32_t mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  uintptr_t dst = ReadAndIncrementOffset<uintptr_t>(data, &offset);
-  uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  Tagged<WasmInstanceObject> instance =
+      Tagged<WasmInstanceObject>::cast(Tagged<Object>{instance_addr});
 
   uint64_t mem_size = instance->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
