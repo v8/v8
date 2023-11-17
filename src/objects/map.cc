@@ -373,6 +373,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       if (instance_type == BYTECODE_WRAPPER_TYPE) {
         return kVisitBytecodeWrapper;
       }
+      if (instance_type == CODE_WRAPPER_TYPE) {
+        return kVisitCodeWrapper;
+      }
       if (instance_type == INTERPRETER_DATA_TYPE) {
         return kVisitInterpreterData;
       }

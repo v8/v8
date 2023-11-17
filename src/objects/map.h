@@ -45,6 +45,7 @@ enum InstanceType : uint16_t;
   V(InstructionStream)                  \
   V(CallSiteInfo)                       \
   V(Code)                               \
+  V(CodeWrapper)                        \
   V(DataHandler)                        \
   V(DebugInfo)                          \
   V(EmbedderDataArray)                  \

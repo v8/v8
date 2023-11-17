@@ -76,6 +76,7 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 
 template <typename Impl>
 Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
+  Handle<CodeWrapper> wrapper = NewCodeWrapper();
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
@@ -122,8 +123,24 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
                                                options.instruction_start);
   }
 
+  wrapper->set_code(code);
+  code->set_wrapper(*wrapper);
+
   code->clear_padding();
   return handle(code, isolate());
+}
+
+template <typename Impl>
+Handle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
+  Handle<CodeWrapper> wrapper(
+      CodeWrapper::cast(NewWithImmortalMap(read_only_roots().code_wrapper_map(),
+                                           AllocationType::kOld)),
+      isolate());
+  // The CodeWrapper is typically created before the Code object it wraps, so
+  // the code field cannot yet be set. However, as a heap verifier might see
+  // the wrapper before the field can be set, we need to clear the field here.
+  wrapper->clear_code();
+  return wrapper;
 }
 
 template <typename Impl>

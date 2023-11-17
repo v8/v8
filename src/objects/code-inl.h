@@ -133,6 +133,8 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, Tagged<ByteArray>,
                    kind() == CodeKind::BASELINE &&
                        !ObjectInYoungGeneration(value))
 
+ACCESSORS(Code, wrapper, Tagged<CodeWrapper>, kWrapperOffset)
+
 Tagged<ByteArray> Code::SourcePositionTable(
     Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const {
   if (!has_instruction_stream()) {
@@ -716,6 +718,10 @@ inline bool Code::is_baseline_trampoline_builtin() const {
 inline bool Code::is_baseline_leave_frame_builtin() const {
   return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
+
+CAST_ACCESSOR(CodeWrapper)
+OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
+CODE_POINTER_ACCESSORS(CodeWrapper, code, Code, kCodeOffset)
 
 }  // namespace internal
 }  // namespace v8

@@ -116,6 +116,7 @@ class Committee final {
   V(AccessorInfo)                    \
   V(CallHandlerInfo)                 \
   V(Code)                            \
+  V(CodeWrapper)                     \
   V(InterceptorInfo)                 \
   V(ScopeInfo)                       \
   V(SharedFunctionInfo)              \
@@ -149,6 +150,10 @@ class Committee final {
   DEF_PROMO_CANDIDATE(CallHandlerInfo)
   static bool IsPromoCandidateCode(Isolate* isolate, Tagged<Code> o) {
     return Builtins::kCodeObjectsAreInROSpace && o->is_builtin();
+  }
+  static bool IsPromoCandidateCodeWrapper(Isolate* isolate,
+                                          Tagged<CodeWrapper> o) {
+    return IsPromoCandidateCode(isolate, o->code(isolate));
   }
   DEF_PROMO_CANDIDATE(InterceptorInfo)
   DEF_PROMO_CANDIDATE(ScopeInfo)
@@ -307,6 +312,21 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
   }
 
+  static void DeleteDeadObjects(Isolate* isolate,
+                                const SafepointScope& safepoint_scope,
+                                const HeapObjectMap& moves) {
+    // After moving a source object to a new destination, overwrite the source
+    // memory with a filler. This is needed for moved objects that are verified
+    // by the heap verifier to have a 1-1 relation with some other object (e.g.
+    // objects related to trusted space). The verifier won't compute liveness
+    // and instead just iterates linearly over pages. Without this change the
+    // verifier would fail on this now-dead object.
+    for (auto [src, dst] : moves) {
+      CHECK(!src.InReadOnlySpace());
+      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
+    }
+  }
+
   static void Verify(Isolate* isolate, const SafepointScope& safepoint_scope) {
 #ifdef DEBUG
     // Verify that certain objects were promoted as expected.
@@ -428,12 +448,6 @@ class ReadOnlyPromotionImpl final : public AllStatic {
         // simply need to use the trusted pointer table for them instead.
         UNREACHABLE();
       }
-
-      // The old object (in mutable space) is dead. To preserve the 1:1
-      // relation between ExposedTrusted objects and their pointer table
-      // entries, overwrite it immediately with the filler object.
-      isolate_->heap()->CreateFillerObjectAt(dead_object.address(),
-                                             dead_object->Size(isolate_));
 #else
       UNREACHABLE();
 #endif
@@ -547,6 +561,7 @@ void ReadOnlyPromotion::Promote(Isolate* isolate,
   // Update all references to moved objects to point at their new location in
   // RO space.
   ReadOnlyPromotionImpl::UpdatePointers(isolate, safepoint_scope, moves);
+  ReadOnlyPromotionImpl::DeleteDeadObjects(isolate, safepoint_scope, moves);
   ReadOnlyPromotionImpl::Verify(isolate, safepoint_scope);
 }
 

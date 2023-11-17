@@ -32,6 +32,7 @@ namespace internal {
   V(InstructionStream)                  \
   V(CallSiteInfo)                       \
   V(Code)                               \
+  V(CodeWrapper)                        \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
   V(DebugInfo)                          \

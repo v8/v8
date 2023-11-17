@@ -97,6 +97,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
   Handle<Code> NewCode(const NewCodeOptions& options);
 
+  Handle<CodeWrapper> NewCodeWrapper();
+
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Boolean> ToBoolean(bool value);
 

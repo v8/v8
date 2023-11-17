@@ -212,6 +212,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case CODE_TYPE:
       Code::cast(*this)->CodePrint(os);
       break;
+    case CODE_WRAPPER_TYPE:
+      CodeWrapper::cast(*this)->CodeWrapperPrint(os);
+      break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
       JSSetIterator::cast(*this)->JSSetIteratorPrint(os);
@@ -2057,6 +2060,12 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
   os << "\n--- Disassembly: ---\n";
   Disassemble(name, os, Isolate::Current(), current_pc);
 #endif
+}
+
+void CodeWrapper::CodeWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "CodeWrapper");
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n    code: " << Brief(code(isolate));
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {

@@ -295,6 +295,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case CODE_TYPE:
       Code::cast(*this)->CodeVerify(isolate);
       break;
+    case CODE_WRAPPER_TYPE:
+      CodeWrapper::cast(*this)->CodeWrapperVerify(isolate);
+      break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)          \
   case TYPE:                                  \
@@ -387,6 +390,8 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     auto o = wrapper();
     Object::VerifyPointer(isolate, o);
     CHECK(IsBytecodeWrapper(o));
+    // Our wrapper must point back to us.
+    CHECK_EQ(o->bytecode(isolate), *this);
   }
   {
     auto o = source_position_table(kAcquireLoad);
@@ -1345,6 +1350,16 @@ void Code::CodeVerify(Isolate* isolate) {
     CHECK_EQ(istream->instruction_start(), instruction_start());
 #endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
+
+  // Our wrapper must point back to us.
+  CHECK_EQ(wrapper()->code(isolate), *this);
+}
+
+void CodeWrapper::CodeWrapperVerify(Isolate* isolate) {
+  if (!this->has_code()) return;
+  auto code = this->code(isolate);
+  Object::VerifyPointer(isolate, code);
+  CHECK_EQ(code->wrapper(), *this);
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {

@@ -27,3 +27,4 @@ extern class BytecodeWrapper extends Struct {
 }
 
 extern class Code extends ExposedTrustedObject;
+extern class CodeWrapper extends Struct;

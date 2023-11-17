@@ -541,6 +541,7 @@ constexpr int kTrustedPointerSize = kIndirectPointerSize;
 #else
 constexpr int kTrustedPointerSize = kTaggedSize;
 #endif
+constexpr int kCodePointerSize = kTrustedPointerSize;
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 

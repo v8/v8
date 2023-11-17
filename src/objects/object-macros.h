@@ -522,6 +522,7 @@
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
+
 #define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                         \
   /* Trusted pointers currently always have release-acquire semantics. */  \
   /* However, we still expose explicit release-acquire accessors so it */  \
@@ -558,6 +559,11 @@
     return !IsTrustedPointerFieldCleared(offset);                           \
   }                                                                         \
   void holder::clear_##name() { ClearTrustedPointerField(offset); }
+
+#define DECL_CODE_POINTER_ACCESSORS(name, type) \
+  DECL_TRUSTED_POINTER_ACCESSORS(name, type)
+#define CODE_POINTER_ACCESSORS(holder, name, type, offset) \
+  TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, kCodeIndirectPointerTag)
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
