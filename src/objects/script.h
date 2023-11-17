@@ -171,8 +171,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static inline void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
 
   // Obtain line ends as a vector, without modifying the script object
-  static String::LineEndsVector GetLineEnds(Isolate* isolate,
-                                            Handle<Script> script);
+  V8_EXPORT_PRIVATE static String::LineEndsVector GetLineEnds(
+      Isolate* isolate, Handle<Script> script);
 
   inline bool has_line_ends() const;
 
@@ -207,6 +207,12 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
                               OffsetFlag offset_flag = OffsetFlag::kWithOffset);
   V8_EXPORT_PRIVATE bool GetPositionInfo(
       int position, PositionInfo* info,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
+  V8_EXPORT_PRIVATE bool GetPositionInfoWithLineEnds(
+      int position, PositionInfo* info, const String::LineEndsVector& line_ends,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
+  V8_EXPORT_PRIVATE void AddPositionInfoOffset(
+      PositionInfo* info,
       OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
 
   // Tells whether this script should be subject to debugging, e.g. for
@@ -251,6 +257,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
+  template <typename LineEndsContainer>
+  bool GetPositionInfoInternal(const LineEndsContainer& ends, int position,
+                               Script::PositionInfo* info,
+                               const DisallowGarbageCollection& no_gc) const;
+
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;

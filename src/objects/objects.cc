@@ -4390,7 +4390,96 @@ bool GetPositionInfoSlow(const Tagged<Script> script, int position,
              : GetPositionInfoSlowImpl(flat.ToUC16Vector(), position, info);
 }
 
+int GetLineEnd(const String::LineEndsVector& vector, int line) {
+  return vector[line];
+}
+
+int GetLineEnd(const Tagged<FixedArray>& array, int line) {
+  return Smi::ToInt(array->get(line));
+}
+
+int GetLength(const String::LineEndsVector& vector) {
+  return static_cast<int>(vector.size());
+}
+
+int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
 }  // namespace
+
+void Script::AddPositionInfoOffset(PositionInfo* info,
+                                   OffsetFlag offset_flag) const {
+  // Add offsets if requested.
+  if (offset_flag == OffsetFlag::kWithOffset) {
+    if (info->line == 0) {
+      info->column += column_offset();
+    }
+    info->line += line_offset();
+  } else {
+    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
+  }
+}
+
+template <typename LineEndsContainer>
+bool Script::GetPositionInfoInternal(
+    const LineEndsContainer& ends, int position, Script::PositionInfo* info,
+    const DisallowGarbageCollection& no_gc) const {
+  const int ends_len = GetLength(ends);
+  if (ends_len == 0) return false;
+
+  // Return early on invalid positions. Negative positions behave as if 0 was
+  // passed, and positions beyond the end of the script return as failure.
+  if (position < 0) {
+    position = 0;
+  } else if (position > GetLineEnd(ends, ends_len - 1)) {
+    return false;
+  }
+
+  // Determine line number by doing a binary search on the line ends array.
+  if (GetLineEnd(ends, 0) >= position) {
+    info->line = 0;
+    info->line_start = 0;
+    info->column = position;
+  } else {
+    int left = 0;
+    int right = ends_len - 1;
+
+    while (right > 0) {
+      DCHECK_LE(left, right);
+      const int mid = left + (right - left) / 2;
+      if (position > GetLineEnd(ends, mid)) {
+        left = mid + 1;
+      } else if (position <= GetLineEnd(ends, mid - 1)) {
+        right = mid - 1;
+      } else {
+        info->line = mid;
+        break;
+      }
+    }
+    DCHECK(GetLineEnd(ends, info->line) >= position &&
+           GetLineEnd(ends, info->line - 1) < position);
+    info->line_start = GetLineEnd(ends, info->line - 1) + 1;
+    info->column = position - info->line_start;
+  }
+
+  // Line end is position of the linebreak character.
+  info->line_end = GetLineEnd(ends, info->line);
+  if (info->line_end > 0) {
+    DCHECK(IsString(source()));
+    Tagged<String> src = String::cast(source());
+    if (src->length() >= info->line_end &&
+        src->Get(info->line_end - 1) == '\r') {
+      info->line_end--;
+    }
+  }
+
+  return true;
+}
+
+template bool Script::GetPositionInfoInternal<String::LineEndsVector>(
+    const String::LineEndsVector& ends, int position,
+    Script::PositionInfo* info, const DisallowGarbageCollection& no_gc) const;
+template bool Script::GetPositionInfoInternal<Tagged<FixedArray>>(
+    const Tagged<FixedArray>& ends, int position, Script::PositionInfo* info,
+    const DisallowGarbageCollection& no_gc) const;
 
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
@@ -4420,65 +4509,21 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     DCHECK(has_line_ends());
     Tagged<FixedArray> ends = FixedArray::cast(line_ends());
 
-    const int ends_len = ends->length();
-    if (ends_len == 0) return false;
-
-    // Return early on invalid positions. Negative positions behave as if 0 was
-    // passed, and positions beyond the end of the script return as failure.
-    if (position < 0) {
-      position = 0;
-    } else if (position > Smi::ToInt(ends->get(ends_len - 1))) {
-      return false;
-    }
-
-    // Determine line number by doing a binary search on the line ends array.
-    if (Smi::ToInt(ends->get(0)) >= position) {
-      info->line = 0;
-      info->line_start = 0;
-      info->column = position;
-    } else {
-      int left = 0;
-      int right = ends_len - 1;
-
-      while (right > 0) {
-        DCHECK_LE(left, right);
-        const int mid = left + (right - left) / 2;
-        if (position > Smi::ToInt(ends->get(mid))) {
-          left = mid + 1;
-        } else if (position <= Smi::ToInt(ends->get(mid - 1))) {
-          right = mid - 1;
-        } else {
-          info->line = mid;
-          break;
-        }
-      }
-      DCHECK(Smi::ToInt(ends->get(info->line)) >= position &&
-             Smi::ToInt(ends->get(info->line - 1)) < position);
-      info->line_start = Smi::ToInt(ends->get(info->line - 1)) + 1;
-      info->column = position - info->line_start;
-    }
-
-    // Line end is position of the linebreak character.
-    info->line_end = Smi::ToInt(ends->get(info->line));
-    if (info->line_end > 0) {
-      DCHECK(IsString(source()));
-      Tagged<String> src = String::cast(source());
-      if (src->length() >= info->line_end &&
-          src->Get(info->line_end - 1) == '\r') {
-        info->line_end--;
-      }
-    }
+    if (!GetPositionInfoInternal(ends, position, info, no_gc)) return false;
   }
 
-  // Add offsets if requested.
-  if (offset_flag == OffsetFlag::kWithOffset) {
-    if (info->line == 0) {
-      info->column += column_offset();
-    }
-    info->line += line_offset();
-  } else {
-    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
-  }
+  AddPositionInfoOffset(info, offset_flag);
+
+  return true;
+}
+
+bool Script::GetPositionInfoWithLineEnds(
+    int position, PositionInfo* info, const String::LineEndsVector& line_ends,
+    OffsetFlag offset_flag) const {
+  DisallowGarbageCollection no_gc;
+  if (!GetPositionInfoInternal(line_ends, position, info, no_gc)) return false;
+
+  AddPositionInfoOffset(info, offset_flag);
 
   return true;
 }

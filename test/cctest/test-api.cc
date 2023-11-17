@@ -22934,6 +22934,98 @@ TEST(ScriptPositionInfo) {
   }
 }
 
+TEST(ScriptPositionInfoWithLineEnds) {
+  // Same as ScriptPositionInfo, but using out-of-heap cached line ends
+  // information. In this case we do not need the two passes (with heap cached)
+  // line information and without it that were required in ScriptPositionInfo.
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(v8_str(url), 13, 0);
+  v8::ScriptCompiler::Source script_source(v8_str("var foo;\n"
+                                                  "var bar;\n"
+                                                  "var fisk = foo + bar;\n"),
+                                           origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(env.local(), &script_source).ToLocalChecked();
+
+  i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
+      v8::Utils::OpenHandle(*script->GetUnboundScript()));
+  CHECK(IsScript(obj->script()));
+
+  i::Handle<i::Script> script1(i::Script::cast(obj->script()), i_isolate);
+
+  i::String::LineEndsVector line_ends =
+      i::Script::GetLineEnds(i_isolate, script1);
+
+  i::Script::PositionInfo info;
+
+  // Behave as if 0 was passed if position is negative.
+  CHECK(script1->GetPositionInfoWithLineEnds(-1, &info, line_ends));
+  CHECK_EQ(13, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(0, &info, line_ends));
+  CHECK_EQ(13, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(8, &info, line_ends));
+  CHECK_EQ(13, info.line);
+  CHECK_EQ(8, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(9, &info, line_ends));
+  CHECK_EQ(14, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(9, info.line_start);
+  CHECK_EQ(17, info.line_end);
+
+  // Fail when position is larger than script size.
+  CHECK(!script1->GetPositionInfoWithLineEnds(220384, &info, line_ends));
+
+  // Without offset.
+
+  // Behave as if 0 was passed if position is negative.
+  CHECK(script1->GetPositionInfoWithLineEnds(-1, &info, line_ends,
+                                             i::Script::OffsetFlag::kNoOffset));
+  CHECK_EQ(0, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(0, &info, line_ends,
+                                             i::Script::OffsetFlag::kNoOffset));
+  CHECK_EQ(0, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(8, &info, line_ends,
+                                             i::Script::OffsetFlag::kNoOffset));
+  CHECK_EQ(0, info.line);
+  CHECK_EQ(8, info.column);
+  CHECK_EQ(0, info.line_start);
+  CHECK_EQ(8, info.line_end);
+
+  CHECK(script1->GetPositionInfoWithLineEnds(9, &info, line_ends,
+                                             i::Script::OffsetFlag::kNoOffset));
+  CHECK_EQ(1, info.line);
+  CHECK_EQ(0, info.column);
+  CHECK_EQ(9, info.line_start);
+  CHECK_EQ(17, info.line_end);
+
+  // Fail when position is larger than script size.
+  CHECK(!script1->GetPositionInfoWithLineEnds(
+      220384, &info, line_ends, i::Script::OffsetFlag::kNoOffset));
+}
+
 template <typename T>
 void CheckMagicComments(v8::Isolate* isolate, Local<T> unbound_script,
                         const char* expected_source_url,

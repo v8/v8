@@ -20,6 +20,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
@@ -576,6 +577,12 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<Tagged<JSGlobalObject>, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
+  // The ScriptsLineEndsMap instance stores the line ends of scripts that did
+  // not get their line_ends() information populated in heap.
+  using ScriptId = int;
+  using ScriptsLineEndsMap =
+      std::unordered_map<ScriptId, String::LineEndsVector>;
+  ScriptsLineEndsMap scripts_line_ends_map_;
 
   std::vector<bool> visited_fields_;
 

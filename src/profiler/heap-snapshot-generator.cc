@@ -829,9 +829,15 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   Tagged<Script> script = Script::cast(func->shared()->script());
   int scriptId = script->id();
   int start = func->shared()->StartPosition();
-  DCHECK(script->has_line_ends());
   Script::PositionInfo info;
-  script->GetPositionInfo(start, &info);
+  if (script->has_line_ends()) {
+    script->GetPositionInfo(start, &info);
+  } else {
+    DCHECK(scripts_line_ends_map_.find(script->id()) !=
+           scripts_line_ends_map_.end());
+    script->GetPositionInfoWithLineEnds(start, &info,
+                                        scripts_line_ends_map_[script->id()]);
+  }
   snapshot_->AddLocation(entry, scriptId, info.line, info.column);
 }
 
@@ -1065,9 +1071,9 @@ void V8HeapExplorer::PopulateLineEnds() {
     }
   }
 
-  DCHECK(AllowHeapAllocation::IsAllowed());
   for (auto& script : scripts) {
-    Script::InitLineEnds(isolate(), script);
+    scripts_line_ends_map_.emplace(script->id(),
+                                   Script::GetLineEnds(isolate(), script));
   }
 }
 
