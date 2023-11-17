@@ -180,7 +180,8 @@ class MaybeRedundantStoresTable
     // aliasing. We might improve this to eliminate more precisely, if we have
     // some sort of aliasing information.
     for (Key key : active_keys_) {
-      Set(key, StoreObservability::kObservable);
+      if (key.data().offset == offset)
+        Set(key, StoreObservability::kObservable);
     }
   }
 
