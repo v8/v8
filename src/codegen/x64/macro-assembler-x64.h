@@ -748,6 +748,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void StoreIndirectPointerField(Operand dst_field_operand, Register value);
 
 #ifdef V8_ENABLE_SANDBOX
+  // Retrieve the heap object referenced by the given indirect pointer handle,
+  // which can either be a trusted pointer handle or a code pointer handle.
+  void ResolveIndirectPointerHandle(Register destination, Register handle,
+                                    IndirectPointerTag tag);
+
   // Retrieve the heap object referenced by the given trusted pointer handle.
   void ResolveTrustedPointerHandle(Register destination, Register handle,
                                    IndirectPointerTag tag);

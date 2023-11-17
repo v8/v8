@@ -1851,31 +1851,32 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
 #ifdef V8_ENABLE_SANDBOX
 TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
-  // Load the indirect pointer handle from the object.
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
+  return ResolveIndirectPointerHandle(handle, tag);
+}
 
-  // Resolve the handle. The tag implies the pointer table to use.
+TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
+    TNode<IndirectPointerHandleT> handle) {
+  return Word32Equal(Word32And(handle, Int32Constant(kCodePointerHandleMarker)),
+                     Int32Constant(0));
+}
+
+TNode<HeapObject> CodeStubAssembler::ResolveIndirectPointerHandle(
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
+  // The tag implies which pointer table to use.
   if (tag == kUnknownIndirectPointerTag) {
-    // TODO(saelo): implement once needed.
-    UNIMPLEMENTED();
+    // In this case we have to rely on the handle marking to determine which
+    // pointer table to use.
+    return Select<HeapObject>(
+        IsTrustedPointerHandle(handle),
+        [=] { return ResolveTrustedPointerHandle(handle, tag); },
+        [=] { return ResolveCodePointerHandle(handle); });
   } else if (tag == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
     return ResolveTrustedPointerHandle(handle, tag);
   }
-}
-
-TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
-    TNode<IndirectPointerHandleT> handle) {
-  TNode<Uint32T> index =
-      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
-  // We're using a 32-bit shift here to reduce code size, but for that we need
-  // to be sure that the offset will always fit into a 32-bit integer.
-  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
-  TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
-  return offset;
 }
 
 TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
@@ -1910,6 +1911,18 @@ TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   value =
       UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
   return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
+}
+
+TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
+    TNode<IndirectPointerHandleT> handle) {
+  TNode<Uint32T> index =
+      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
+  return offset;
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(

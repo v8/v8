@@ -519,20 +519,9 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
                                               Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(destination, scratch));
-
-  // Move the IndirectPointerHandle into the scratch register.
   Register handle = scratch;
   movl(handle, field_operand);
-
-  // Resolve the handle. The tag implies the pointer table to use.
-  if (tag == kUnknownIndirectPointerTag) {
-    // TODO(saelo): implement once needed.
-    UNIMPLEMENTED();
-  } else if (tag == kCodeIndirectPointerTag) {
-    ResolveCodePointerHandle(destination, handle);
-  } else {
-    ResolveTrustedPointerHandle(destination, handle, tag);
-  }
+  ResolveIndirectPointerHandle(destination, handle, tag);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -550,11 +539,33 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
 }
 
 #ifdef V8_ENABLE_SANDBOX
+void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
+                                                  Register handle,
+                                                  IndirectPointerTag tag) {
+  // The tag implies which pointer table to use.
+  if (tag == kUnknownIndirectPointerTag) {
+    // In this case we have to rely on the handle marking to determine which
+    // pointer table to use.
+    Label is_trusted_pointer_handle, done;
+    testl(handle, Immediate(kCodePointerHandleMarker));
+    j(zero, &is_trusted_pointer_handle, Label::kNear);
+    ResolveCodePointerHandle(destination, handle);
+    jmp(&done, Label::kNear);
+    bind(&is_trusted_pointer_handle);
+    ResolveTrustedPointerHandle(destination, handle,
+                                kUnknownIndirectPointerTag);
+    bind(&done);
+  } else if (tag == kCodeIndirectPointerTag) {
+    ResolveCodePointerHandle(destination, handle);
+  } else {
+    ResolveTrustedPointerHandle(destination, handle, tag);
+  }
+}
+
 void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
                                                  Register handle,
                                                  IndirectPointerTag tag) {
   DCHECK_NE(tag, kCodeIndirectPointerTag);
-  DCHECK_NE(tag, kUnknownIndirectPointerTag);
   DCHECK(!AreAliased(handle, destination));
   CHECK(root_array_available_);
   Register table = destination;

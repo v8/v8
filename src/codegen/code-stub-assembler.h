@@ -1207,21 +1207,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  // Only available when the sandbox is enabled.
   TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
                                                   int offset,
                                                   IndirectPointerTag tag);
+
+  // Determines whether the given indirect pointer handle is a trusted pointer
+  // handle or a code pointer handle.
+  TNode<BoolT> IsTrustedPointerHandle(TNode<IndirectPointerHandleT> handle);
+
+  // Retrieve the heap object referenced by the given indirect pointer handle,
+  // which can either be a trusted pointer handle or a code pointer handle.
+  TNode<HeapObject> ResolveIndirectPointerHandle(
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+
+  // Retrieve the Code object referenced by the given trusted pointer handle.
+  TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
+
+  // Retrieve the heap object referenced by the given trusted pointer handle.
+  TNode<HeapObject> ResolveTrustedPointerHandle(
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Helper function to compute the offset into the code pointer table from a
   // code pointer handle.
   TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
       TNode<IndirectPointerHandleT> handle);
-
-  // Retrieve the Code object referenced by the given trusted pointer handle.
-  TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
-  // Retrieve the heap object referenced by the given trusted pointer handle.
-  TNode<HeapObject> ResolveTrustedPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Load the pointer to a Code's entrypoint via code pointer.
   // Only available when the sandbox is enabled as it requires the code pointer
