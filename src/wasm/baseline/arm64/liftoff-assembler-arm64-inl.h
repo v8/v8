@@ -3543,9 +3543,8 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
-  DCHECK_LE(args.size(), arraysize(kArgRegs));
-  const Register* next_arg_reg = kArgRegs;
+  DCHECK_LE(args.size(), arraysize(kCArgRegs));
+  const Register* next_arg_reg = kCArgRegs;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
     parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);

@@ -1476,7 +1476,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                 SaveRegisterStateForCall save_register_state(masm, snapshot);
                 AllowExternalCallThatCantCauseGC scope(masm);
                 __ PrepareCallCFunction(1);
-                __ Move(arg_reg_1, object);
+                __ Move(kCArgRegs[0], object);
                 __ CallCFunction(
                     ExternalReference::string_to_array_index_function(), 1);
                 // No need for safepoint since this is a fast C call.
@@ -5140,7 +5140,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
     __ Move(ExitFrameStackSlotOperand(FCA::kLengthOffset), scratch);
   }
 
-  Register function_callback_info_arg = arg_reg_1;
+  Register function_callback_info_arg = kCArgRegs[0];
 
   __ RecordComment("v8::FunctionCallback's argument.");
   __ LoadAddress(function_callback_info_arg,

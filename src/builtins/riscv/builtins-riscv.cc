@@ -3342,7 +3342,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //  -- ...
   //  -- sp[(argc) * 8]      : last argument
   // -----------------------------------
-  Register function_callback_info_arg = arg_reg_1;
+  Register function_callback_info_arg = kCArgRegs[0];
 
   Register api_function_address = no_reg;
   Register argc = no_reg;
@@ -3576,10 +3576,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[6 * kSystemPointerSize]: kDataIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
-  Register name_arg = arg_reg_1;
-  Register property_callback_info_arg = arg_reg_2;
+  Register name_arg = kCArgRegs[0];
+  Register property_callback_info_arg = kCArgRegs[1];
 
-  Register api_function_address = arg_reg_3;
+  Register api_function_address = kCArgRegs[2];
 
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
@@ -4033,9 +4033,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ Push(kInterpreterAccumulatorRegister);
   {
-    __ Move(arg_reg_1, code_obj);
-    __ Move(arg_reg_2, kInterpreterBytecodeOffsetRegister);
-    __ Move(arg_reg_3, kInterpreterBytecodeArrayRegister);
+    __ Move(kCArgRegs[0], code_obj);
+    __ Move(kCArgRegs[1], kInterpreterBytecodeOffsetRegister);
+    __ Move(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PrepareCallCFunction(3, 0, a4);
     __ CallCFunction(get_baseline_pc, 3, 0);

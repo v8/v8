@@ -1215,11 +1215,11 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch,
   static constexpr int num_arguments = 4;
   __ PrepareCallCFunction(num_arguments, scratch);
   // Extra space for variables to consider in stack check.
-  __ mov(arg_reg_4, extra_space);
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mov(arg_reg_3, frame_pointer());
+  __ mov(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(arg_reg_2, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =

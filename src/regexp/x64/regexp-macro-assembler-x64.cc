@@ -354,8 +354,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   size_t byte_length - length of capture in bytes(!)
     //   Isolate* isolate.
 #ifdef V8_TARGET_OS_WIN
-    DCHECK(rcx == arg_reg_1);
-    DCHECK(rdx == arg_reg_2);
+    DCHECK(rcx == kCArgRegs[0]);
+    DCHECK(rdx == kCArgRegs[1]);
     // Compute and set byte_offset1 (start of capture).
     __ leaq(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
@@ -364,8 +364,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
       __ subq(rdx, rbx);
     }
 #else  // AMD64 calling convention
-    DCHECK(rdi == arg_reg_1);
-    DCHECK(rsi == arg_reg_2);
+    DCHECK(rdi == kCArgRegs[0]);
+    DCHECK(rsi == kCArgRegs[1]);
     // Compute byte_offset2 (current position = rsi+rdi).
     __ leaq(rax, Operand(rsi, rdi, times_1, 0));
     // Compute and set byte_offset1 (start of capture).
@@ -378,9 +378,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif  // V8_TARGET_OS_WIN
 
     // Set byte_length.
-    __ movq(arg_reg_3, rbx);
+    __ movq(kCArgRegs[2], rbx);
     // Isolate.
-    __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
+    __ LoadAddress(kCArgRegs[3], ExternalReference::isolate_address(isolate()));
 
     {
       AllowExternalCallThatCantCauseGC scope(&masm_);
@@ -550,9 +550,9 @@ void RegExpMacroAssemblerX64::CallIsCharacterInRangeArray(
   static const int kNumArguments = 3;
   __ PrepareCallCFunction(kNumArguments);
 
-  __ Move(arg_reg_1, current_character());
-  __ Move(arg_reg_2, GetOrAddRangeArray(ranges));
-  __ LoadAddress(arg_reg_3, ExternalReference::isolate_address(isolate()));
+  __ Move(kCArgRegs[0], current_character());
+  __ Move(kCArgRegs[1], GetOrAddRangeArray(ranges));
+  __ LoadAddress(kCArgRegs[2], ExternalReference::isolate_address(isolate()));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
@@ -777,11 +777,11 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #ifdef V8_TARGET_OS_WIN
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots.
-  __ movq(Operand(rbp, kInputStringOffset), arg_reg_1);
+  __ movq(Operand(rbp, kInputStringOffset), kCArgRegs[0]);
   __ movq(Operand(rbp, kStartIndexOffset),
-          arg_reg_2);  // Passed as int32 in edx.
-  __ movq(Operand(rbp, kInputStartOffset), arg_reg_3);
-  __ movq(Operand(rbp, kInputEndOffset), arg_reg_4);
+          kCArgRegs[1]);  // Passed as int32 in edx.
+  __ movq(Operand(rbp, kInputStartOffset), kCArgRegs[2]);
+  __ movq(Operand(rbp, kInputEndOffset), kCArgRegs[3]);
 
   static_assert(kNumCalleeSaveRegisters == 3);
   static_assert(kBackupRsiOffset == -2 * kSystemPointerSize);
@@ -799,10 +799,10 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   static_assert(kInputEndOffset == -5 * kSystemPointerSize);
   static_assert(kRegisterOutputOffset == -6 * kSystemPointerSize);
   static_assert(kNumOutputRegistersOffset == -7 * kSystemPointerSize);
-  __ pushq(arg_reg_1);
-  __ pushq(arg_reg_2);
-  __ pushq(arg_reg_3);
-  __ pushq(arg_reg_4);
+  __ pushq(kCArgRegs[0]);
+  __ pushq(kCArgRegs[1]);
+  __ pushq(kCArgRegs[2]);
+  __ pushq(kCArgRegs[3]);
   __ pushq(r8);
   __ pushq(r9);
 
@@ -1092,7 +1092,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     static constexpr int kNumArguments = 1;
     __ PrepareCallCFunction(kNumArguments);
-    __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
+    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address(isolate()));
 
     ExternalReference grow_stack = ExternalReference::re_grow_stack();
     CallCFunctionFromIrregexpCode(grow_stack, kNumArguments);
@@ -1276,25 +1276,25 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState(Immediate extra_space) {
   __ PrepareCallCFunction(num_arguments);
 #ifdef V8_TARGET_OS_WIN
   // Fourth argument: Extra space for variables.
-  __ movq(arg_reg_4, extra_space);
+  __ movq(kCArgRegs[3], extra_space);
   // Second argument: InstructionStream of self. (Do this before overwriting
-  // r8 (arg_reg_3)).
-  __ movq(arg_reg_2, code_object_pointer());
+  // r8 (kCArgRegs[2])).
+  __ movq(kCArgRegs[1], code_object_pointer());
   // Third argument: RegExp code frame pointer.
-  __ movq(arg_reg_3, rbp);
+  __ movq(kCArgRegs[2], rbp);
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leaq(arg_reg_1, Operand(rsp, -kSystemPointerSize));
+  __ leaq(kCArgRegs[0], Operand(rsp, -kSystemPointerSize));
 #else
   // Fourth argument: Extra space for variables.
-  __ movq(arg_reg_4, extra_space);
+  __ movq(kCArgRegs[3], extra_space);
   // Third argument: RegExp code frame pointer.
-  __ movq(arg_reg_3, rbp);
+  __ movq(kCArgRegs[2], rbp);
   // Second argument: InstructionStream of self.
-  __ movq(arg_reg_2, code_object_pointer());
+  __ movq(kCArgRegs[1], code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leaq(arg_reg_1, Operand(rsp, -kSystemPointerSize));
+  __ leaq(kCArgRegs[0], Operand(rsp, -kSystemPointerSize));
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state();

@@ -4273,7 +4273,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
   DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
-  movq(arg_reg_1, rsp);
+  movq(kCArgRegs[0], rsp);
 
   constexpr int kNumCCallArgs = 1;
 
@@ -4302,9 +4302,8 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
-  DCHECK_LE(args.size(), arraysize(kArgRegs));
-  const Register* next_arg_reg = kArgRegs;
+  DCHECK_LE(args.size(), arraysize(kCArgRegs));
+  const Register* next_arg_reg = kCArgRegs;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
     parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);

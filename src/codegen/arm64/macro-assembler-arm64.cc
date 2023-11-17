@@ -2072,9 +2072,6 @@ void MacroAssembler::CallCFunction(ExternalReference function,
                 set_isolate_data_slots);
 }
 
-static const int kRegisterPassedArguments = 8;
-static const int kFPRegisterPassedArguments = 8;
-
 void MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
                                    int num_of_double_args,
                                    SetIsolateDataSlots set_isolate_data_slots) {
@@ -4399,10 +4396,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Register prev_limit_reg = x20;
   Register prev_level_reg = w21;
 
-  // C arguments (arg_reg_1/2) are expected to be initialized outside, so this
-  // function must not corrupt them (return_value overlaps with arg_reg_1 but
-  // that's ok because we start using it only after the C call).
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2,  // C args
+  // C arguments (kCArgRegs[0/1]) are expected to be initialized outside, so
+  // this function must not corrupt them (return_value overlaps with
+  // kCArgRegs[0] but that's ok because we start using it only after the C
+  // call).
+  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1],  // C args
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
   // corrupted them until the call is made (i.e. overlap with return_value is
@@ -4537,9 +4535,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Save the return value in a callee-save register.
     Register saved_result = prev_limit_reg;
     __ Mov(saved_result, x0);
-    __ Mov(arg_reg_1, ER::isolate_address(isolate));
+    __ Mov(kCArgRegs[0], ER::isolate_address(isolate));
     __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
-    __ Mov(arg_reg_1, saved_result);
+    __ Mov(kCArgRegs[0], saved_result);
     __ B(&leave_exit_frame);
   }
 }

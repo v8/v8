@@ -371,8 +371,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 #endif
 
     // Initialize the root register.
-    // C calling convention. The first argument is passed in arg_reg_1.
-    __ movq(kRootRegister, arg_reg_1);
+    // C calling convention. The first argument is passed in kCArgRegs[0].
+    __ movq(kRootRegister, kCArgRegs[0]);
 
 #ifdef V8_COMPRESS_POINTERS
     // Initialize the pointer cage base register.
@@ -556,8 +556,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r8  : argc
     // r9  : argv
 
-    __ movq(rdi, arg_reg_3);
-    __ Move(rdx, arg_reg_2);
+    __ movq(rdi, kCArgRegs[2]);
+    __ Move(rdx, kCArgRegs[1]);
     // rdi : function
     // rdx : new_target
 
@@ -585,7 +585,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Load the number of arguments and setup pointer to the arguments.
     __ movq(rax, r8);
     __ movq(rbx, r9);
-    __ movq(r9, arg_reg_4);  // Temporarily saving the receiver.
+    __ movq(r9, kCArgRegs[3]);  // Temporarily saving the receiver.
 #endif  // V8_TARGET_OS_WIN
 
     // Current stack contents:
@@ -645,8 +645,8 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
-  // arg_reg_2: microtask_queue
-  __ movq(RunMicrotasksDescriptor::MicrotaskQueueRegister(), arg_reg_2);
+  // kCArgRegs[1]: microtask_queue
+  __ movq(RunMicrotasksDescriptor::MicrotaskQueueRegister(), kCArgRegs[1]);
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
@@ -3281,7 +3281,7 @@ void SyncStackLimit(MacroAssembler* masm, const Register& keep1,
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Move(arg_reg_1, ExternalReference::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
   }
@@ -3971,7 +3971,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
 
   // Using arg1-2 regs as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2, kOldSPRegister, rax, rbx, r15));
+  DCHECK(
+      !AreAliased(kCArgRegs[0], kCArgRegs[1], kOldSPRegister, rax, rbx, r15));
 
   ER on_central_stack_flag = ER::Create(
       IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
@@ -3985,14 +3986,14 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
   __ movq(kOldSPRegister, rsp);
 
   static constexpr Register argc_input = rax;
-  Register central_stack_sp = arg_reg_2;
+  Register central_stack_sp = kCArgRegs[1];
   DCHECK(!AreAliased(central_stack_sp, argc_input));
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ pushq(argc_input);
 
-    __ Move(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ Move(arg_reg_2, kOldSPRegister);
+    __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[1], kOldSPRegister);
     __ PrepareCallCFunction(2);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
     __ movq(central_stack_sp, kReturnRegister0);
@@ -4035,7 +4036,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
     __ pushq(kReturnRegister0);
     __ pushq(kReturnRegister1);
 
-    __ Move(arg_reg_1, ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
 
@@ -4125,18 +4126,18 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (result_size <= kMaxRegisterResultSize) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax), or a register pair (rax, rdx).
-    __ movq(arg_reg_1, rax);            // argc.
-    __ movq(arg_reg_2, kArgvRegister);  // argv.
-    __ Move(arg_reg_3, ER::isolate_address(masm->isolate()));
+    __ movq(kCArgRegs[0], rax);            // argc.
+    __ movq(kCArgRegs[1], kArgvRegister);  // argv.
+    __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
   } else {
 #ifdef V8_TARGET_OS_WIN
     DCHECK_LE(result_size, 2);
     // Pass a pointer to the result location as the first argument.
-    __ leaq(arg_reg_1, ExitFrameStackSlotOperand(0 * kSystemPointerSize));
+    __ leaq(kCArgRegs[0], ExitFrameStackSlotOperand(0 * kSystemPointerSize));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movq(arg_reg_2, rax);            // argc.
-    __ movq(arg_reg_3, kArgvRegister);  // argv.
-    __ Move(arg_reg_4, ER::isolate_address(masm->isolate()));
+    __ movq(kCArgRegs[1], rax);            // argc.
+    __ movq(kCArgRegs[2], kArgvRegister);  // argv.
+    __ Move(kCArgRegs[3], ER::isolate_address(masm->isolate()));
 #else
     UNREACHABLE();
 #endif  // V8_TARGET_OS_WIN
@@ -4207,9 +4208,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   ER find_handler = ER::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Move(arg_reg_1, 0);  // argc.
-    __ Move(arg_reg_2, 0);  // argv.
-    __ Move(arg_reg_3, ER::isolate_address(masm->isolate()));
+    __ Move(kCArgRegs[0], 0);  // argc.
+    __ Move(kCArgRegs[1], 0);  // argv.
+    __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(3);
     __ CallCFunction(find_handler, 3);
   }
@@ -4345,7 +4346,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //  -- rsp[(argc + 1) * 8] : argument argc
   // -----------------------------------
 
-  Register function_callback_info_arg = arg_reg_1;
+  Register function_callback_info_arg = kCArgRegs[0];
 
   Register api_function_address = no_reg;
   Register argc = no_reg;
@@ -4530,8 +4531,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  -- rsp[0]              : return address
   // -----------------------------------
 
-  Register name_arg = arg_reg_1;
-  Register property_callback_info_arg = arg_reg_2;
+  Register name_arg = kCArgRegs[0];
+  Register property_callback_info_arg = kCArgRegs[1];
 
   Register api_function_address = r8;
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
@@ -4681,11 +4682,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movq(arg_reg_3, Operand(rsp, kCurrentOffsetToReturnAddress));
+  __ movq(kCArgRegs[2], Operand(rsp, kCurrentOffsetToReturnAddress));
   // Load the fp-to-sp-delta.
-  __ leaq(arg_reg_4, Operand(rsp, kCurrentOffsetToParentSP));
-  __ subq(arg_reg_4, rbp);
-  __ negq(arg_reg_4);
+  __ leaq(kCArgRegs[3], Operand(rsp, kCurrentOffsetToParentSP));
+  __ subq(kCArgRegs[3], rbp);
+  __ negq(kCArgRegs[3]);
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(5);
@@ -4695,8 +4696,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ JumpIfSmi(rdi, &context_check);
   __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ movq(arg_reg_1, rax);
-  __ Move(arg_reg_2, static_cast<int>(deopt_kind));
+  __ movq(kCArgRegs[0], rax);
+  __ Move(kCArgRegs[1], static_cast<int>(deopt_kind));
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
@@ -4706,7 +4707,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
   __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
-  // r8 is arg_reg_5 on Linux
+  // r8 is kCArgRegs[4] on Linux
   __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
 #endif
 
@@ -4763,8 +4764,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Compute the output frame in the deoptimizer.
   __ pushq(rax);
   __ PrepareCallCFunction(2);
-  __ movq(arg_reg_1, rax);
-  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate));
+  __ movq(kCArgRegs[0], rax);
+  __ LoadAddress(kCArgRegs[1], ExternalReference::isolate_address(isolate));
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
@@ -4967,9 +4968,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PrepareCallCFunction(3);
-    __ movq(arg_reg_1, code_obj);
-    __ movq(arg_reg_2, kInterpreterBytecodeOffsetRegister);
-    __ movq(arg_reg_3, kInterpreterBytecodeArrayRegister);
+    __ movq(kCArgRegs[0], code_obj);
+    __ movq(kCArgRegs[1], kInterpreterBytecodeOffsetRegister);
+    __ movq(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
   __ LoadCodeInstructionStart(code_obj, code_obj);

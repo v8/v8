@@ -1245,11 +1245,11 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch,
   __ StoreU64WithUpdate(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
 
   // Extra space for variables to consider in stack check.
-  __ mov(arg_reg_4, extra_space);
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mr(arg_reg_3, frame_pointer());
+  __ mr(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(arg_reg_2, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
   // r3 will point to the return address, placed by DirectCEntry.
   __ addi(r3, sp, Operand(kStackFrameExtraParamSlot * kSystemPointerSize));
 

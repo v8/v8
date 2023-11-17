@@ -286,10 +286,7 @@ DEFINE_REGISTER_NAMES(MSARegister, SIMD128_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 
-constexpr Register arg_reg_1 = a0;
-constexpr Register arg_reg_2 = a1;
-constexpr Register arg_reg_3 = a2;
-constexpr Register arg_reg_4 = a3;
+constexpr Register kCArgRegs[] = {a0, a1, a2, a3};
 
 constexpr Register kReturnRegister0 = v0;
 constexpr Register kReturnRegister1 = v1;

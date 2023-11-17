@@ -911,7 +911,7 @@ void MacroAssembler::Abort(AbortReason reason) {
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
-    Move(arg_reg_1, static_cast<int>(reason));
+    Move(kCArgRegs[0], static_cast<int>(reason));
     PrepareCallCFunction(1);
     LoadAddress(rax, ExternalReference::abort_with_reason());
     call(rax);
@@ -4023,7 +4023,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
       ER::handle_scope_level_address(isolate), no_reg);
 
   Register return_value = rax;
-  Register scratch = arg_reg_4;
+  Register scratch = kCArgRegs[3];
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
@@ -4031,10 +4031,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Register prev_next_address_reg = r12;
   Register prev_limit_reg = r15;
 
-  // C arguments (arg_reg_1/2) are expected to be initialized outside, so this
-  // function must not corrupt them. kScratchRegister might be used implicitly
-  // by the macro assembler.
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2,  // C args
+  // C arguments (kCArgRegs[0/1]) are expected to be initialized outside, so
+  // this function must not corrupt them. kScratchRegister might be used
+  // implicitly by the macro assembler.
+  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1],  // C args
                      return_value, scratch, kScratchRegister,
                      prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
@@ -4154,7 +4154,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Save the return value in a callee-save register.
     Register saved_result = prev_limit_reg;
     __ movq(saved_result, return_value);
-    __ LoadAddress(arg_reg_1, ER::isolate_address(isolate));
+    __ LoadAddress(kCArgRegs[0], ER::isolate_address(isolate));
     __ Call(ER::delete_handle_scope_extensions());
     __ movq(return_value, saved_result);
     __ jmp(&leave_exit_frame);

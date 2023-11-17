@@ -90,7 +90,7 @@ TEST_F(MacroAssemblerX64Test, TestCheck) {
 
   // Fail if the first parameter is 17.
   __ movl(rax, Immediate(17));
-  __ cmpl(rax, arg_reg_1);
+  __ cmpl(rax, kCArgRegs[0]);
   __ Check(Condition::not_equal, AbortReason::kNoReason);
   __ ret(0);
 
@@ -1134,13 +1134,13 @@ TEST_F(MacroAssemblerX64Test, S256Select) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load src1, src2, mask
-  __ vmovdqu(src1, Operand(arg_reg_1, 0));
-  __ vmovdqu(src2, Operand(arg_reg_2, 0));
-  __ vmovdqu(mask, Operand(arg_reg_3, 0));
+  __ vmovdqu(src1, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(src2, Operand(kCArgRegs[1], 0));
+  __ vmovdqu(mask, Operand(kCArgRegs[2], 0));
   // Bitselect
   __ S256Select(dst, mask, src1, src2, tmp);
   // Store result
-  __ vmovdqu(Operand(arg_reg_4, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[3], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1251,12 +1251,12 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   const XMMRegister tmp2 = xmm4;
 
   // Load array
-  __ movdqu(lhs, Operand(arg_reg_1, 0));
-  __ movdqu(rhs, Operand(arg_reg_2, 0));
+  __ movdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ movdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ I64x2Mul(dst, lhs, rhs, tmp1, tmp2);
   // Store result array
-  __ movdqu(Operand(arg_reg_3, 0), dst);
+  __ movdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1312,12 +1312,12 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ I64x4Mul(dst, lhs, rhs, tmp1, tmp2);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1375,12 +1375,12 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
     CpuFeatureScope avx2_scope(masm, AVX2);                                   \
                                                                               \
     /* src is register */                                                     \
-    __ name(ymm0, arg_reg_1);                                                 \
-    __ vmovdqu(Operand(arg_reg_3, 0), ymm0);                                  \
+    __ name(ymm0, kCArgRegs[0]);                                              \
+    __ vmovdqu(Operand(kCArgRegs[2], 0), ymm0);                               \
                                                                               \
     /* src is address*/                                                       \
-    __ name(ymm0, Operand(arg_reg_2, 0));                                     \
-    __ vmovdqu(Operand(arg_reg_4, 0), ymm0);                                  \
+    __ name(ymm0, Operand(kCArgRegs[1], 0));                                  \
+    __ vmovdqu(Operand(kCArgRegs[3], 0), ymm0);                               \
     __ ret(0);                                                                \
                                                                               \
     CodeDesc desc;                                                            \
@@ -1430,12 +1430,12 @@ TEST_F(MacroAssemblerX64Test, F64x4Min) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ F64x4Min(dst, lhs, rhs, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1497,12 +1497,12 @@ TEST_F(MacroAssemblerX64Test, F64x4Max) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ F64x4Max(dst, lhs, rhs, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1564,12 +1564,12 @@ TEST_F(MacroAssemblerX64Test, F32x8Min) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ F32x8Min(dst, lhs, rhs, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1634,12 +1634,12 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
   __ F32x8Max(dst, lhs, rhs, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1707,8 +1707,8 @@ void RunExtMulTest(Isolate* isolate, OpType expected_op) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
-  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  __ vmovdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(rhs, Operand(kCArgRegs[1], 0));
 
   bool is_signed = std::is_signed_v<T>;
   // Calculation
@@ -1727,7 +1727,7 @@ void RunExtMulTest(Isolate* isolate, OpType expected_op) {
   }
 
   // Store result array
-  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1817,11 +1817,11 @@ TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16S) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
   // Calculation
   __ I32x8ExtAddPairwiseI16x16S(dst, src, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1875,11 +1875,11 @@ TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32S) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
   // Calculation
   __ I16x16ExtAddPairwiseI8x32S(dst, src, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1937,11 +1937,11 @@ TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16U) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
   // Calculation
   __ I32x8ExtAddPairwiseI16x16U(dst, src, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -1994,11 +1994,11 @@ TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32U) {
   CpuFeatureScope avx2_scope(masm, AVX2);
 
   // Load array
-  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
   // Calculation
   __ I16x16ExtAddPairwiseI8x32U(dst, src, tmp);
   // Store result array
-  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
   __ ret(0);
 
   CodeDesc desc;
@@ -2049,9 +2049,9 @@ TEST_F(MacroAssemblerX64Test, F64x4Splat) {
   CpuFeatureScope avx_scope(masm, AVX);
   CpuFeatureScope avx2_scope(masm, AVX2);
 
-  __ vmovsd(xmm1, Operand(arg_reg_1, 0));
+  __ vmovsd(xmm1, Operand(kCArgRegs[0], 0));
   __ F64x4Splat(ymm2, xmm1);
-  __ vmovdqu(Operand(arg_reg_2, 0), ymm2);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), ymm2);
   __ ret(0);
 
   CodeDesc desc;
@@ -2083,9 +2083,9 @@ TEST_F(MacroAssemblerX64Test, F32x8Splat) {
   CpuFeatureScope avx_scope(masm, AVX);
   CpuFeatureScope avx2_scope(masm, AVX2);
 
-  __ vmovss(xmm1, Operand(arg_reg_1, 0));
+  __ vmovss(xmm1, Operand(kCArgRegs[0], 0));
   __ F32x8Splat(ymm2, xmm1);
-  __ vmovdqu(Operand(arg_reg_2, 0), ymm2);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), ymm2);
   __ ret(0);
 
   CodeDesc desc;

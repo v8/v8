@@ -4473,14 +4473,13 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
-  const Register* next_arg_reg = kArgRegs;
+  const Register* next_arg_reg = kCArgRegs;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
-    DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+    DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
     Register dst_lo = *next_arg_reg++;
     if (arg.kind() == kI64) {
-      DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+      DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
       Register dst_hi = *next_arg_reg++;
       parallel_move.LoadIntoRegister(LiftoffRegister::ForPair(dst_lo, dst_hi),
                                      arg);

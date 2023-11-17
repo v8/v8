@@ -1166,11 +1166,11 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState(Operand extra_space) {
   __ PrepareCallCFunction(4);
 
   // Extra space for variables to consider in stack check.
-  __ mov(arg_reg_4, extra_space);
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mov(arg_reg_3, frame_pointer());
+  __ mov(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(arg_reg_2, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
 
   // We need to make room for the return address on the stack.
   int stack_alignment = base::OS::ActivationFrameAlignment();

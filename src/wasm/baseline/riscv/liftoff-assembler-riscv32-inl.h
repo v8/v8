@@ -446,15 +446,15 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Register dst_addr,
                           StoreType type, Binop op) {
   ASM_CODE_COMMENT(lasm);
   FrameScope scope(lasm, StackFrame::MANUAL);
-  RegList c_params = {arg_reg_1, arg_reg_2, arg_reg_3};
+  RegList c_params = {kCArgRegs[0], kCArgRegs[1], kCArgRegs[2]};
   RegList result_list = {result.low_gp(), result.high_gp()};
   // Result registers does not need to be pushed.
   __ MultiPush(c_params - result_list);
   liftoff::CalculateActualAddress(lasm, dst_addr, offset_reg, offset_imm,
                                   kScratchReg);
-  __ Mv(arg_reg_2, value.low_gp());
-  __ Mv(arg_reg_3, value.high_gp());
-  __ Mv(arg_reg_1, kScratchReg);
+  __ Mv(kCArgRegs[1], value.low_gp());
+  __ Mv(kCArgRegs[2], value.high_gp());
+  __ Mv(kCArgRegs[0], kScratchReg);
   __ MultiPush(kJSCallerSaved - c_params - result_list);
   __ PrepareCallCFunction(3, 0, kScratchReg);
   ExternalReference extern_func_ref;
@@ -889,7 +889,8 @@ void LiftoffAssembler::AtomicCompareExchange(
     // NOTE:
     // a0~a4 are caller-saved registers and also used
     // to pass parameters for C functions.
-    RegList c_params = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4, a4};
+    RegList c_params = {kCArgRegs[0], kCArgRegs[1], kCArgRegs[2], kCArgRegs[3],
+                        a4};
     RegList result_list = {result.low_gp(), result.high_gp()};
     MultiPush(c_params - result_list);
 
@@ -2161,14 +2162,13 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  constexpr Register kArgRegs[] = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4};
-  const Register* next_arg_reg = kArgRegs;
+  const Register* next_arg_reg = kCArgRegs;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
-    DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+    DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
     Register dst_lo = *next_arg_reg++;
     if (arg.kind() == kI64) {
-      DCHECK_GT(std::end(kArgRegs), next_arg_reg);
+      DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
       Register dst_hi = *next_arg_reg++;
       parallel_move.LoadIntoRegister(LiftoffRegister::ForPair(dst_lo, dst_hi),
                                      arg);
