@@ -7,6 +7,7 @@
 #define V8_COMPILER_TURBOSHAFT_LOAD_STORE_SIMPLIFICATION_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -33,6 +34,28 @@ class LoadStoreSimplificationReducer : public Next {
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_size_log2) {
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
+                            element_size_log2);
+  }
+
+  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag maybe_indirect_pointer_tag) {
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_indirect_pointer_tag);
+  }
+
+ private:
+  void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
+                         LoadOp::Kind& kind, int32_t& offset,
+                         uint8_t& element_size_log2) {
     if (lowering_enabled_) {
       if (element_size_log2 > kMaxElementSizeLog2) {
         DCHECK(index.valid());
@@ -44,22 +67,27 @@ class LoadStoreSimplificationReducer : public Next {
       // have loads with the base + index * element_size + offset pattern.
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64
       // If an index is present, the element_size_log2 is changed to zero
-      // (above). So any load follows the form *(base + offset) where offset can
-      // either be a dynamic value ("index" in the LoadOp) or a static value
-      // ("offset" in the LoadOp). Similarly, as tagged loads result in
-      // modfiying the offset by -1, those loads are converted into raw loads.
+      // (above). So any load follows the form *(base + offset). To simplify
+      // instruction selection, both static and dynamic offsets are stored in
+      // the index input.
+      // As tagged loads result in modfiying the offset by -1, those loads are
+      // converted into raw loads.
 
       if (kind.tagged_base) {
         kind.tagged_base = false;
         offset -= kHeapObjectTag;
         base = __ BitcastTaggedToWord(base);
       }
-      if (index.has_value() && offset != 0) {
+
+      DCHECK_EQ(element_size_log2, 0);
+      if (!index.has_value() || matcher_.MatchIntegralZero(index.value())) {
+        index = __ IntPtrConstant(offset);
+      } else if (offset != 0) {
         index = __ WordPtrAdd(index.value(), offset);
-        offset = 0;
       }
-      // A lowered load can have either an index or an offset != 0.
-      DCHECK_IMPLIES(index.has_value(), offset == 0);
+      // Lowered loads always have an index. The offset is 0.
+      offset = 0;
+      DCHECK(index.has_value());
       // If it has an index, the "element size" has to be 1 Byte.
       // Note that the element size does not encode the size of the loaded value
       // as that is encoded by the MemoryRepresentation, it only specifies a
@@ -67,36 +95,16 @@ class LoadStoreSimplificationReducer : public Next {
       DCHECK_IMPLIES(index.has_value(), element_size_log2 == 0);
 #endif
     }
-    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
-                            element_size_log2);
   }
 
-  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
-                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
-                        bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
-    if (lowering_enabled_) {
-      if (element_size_log2 > kMaxElementSizeLog2) {
-        DCHECK(index.valid());
-        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
-        element_size_log2 = 0;
-      }
-    }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
-  }
-
- private:
   bool is_wasm_ = PipelineData::Get().is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
   bool lowering_enabled_ =
       (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection) ||
       (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
+
+  OperationMatcher matcher_{__ output_graph()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

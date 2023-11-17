@@ -66,16 +66,11 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
   // Use the provided node if it has the required value, or create a
   // TempImmediate otherwise.
-  InstructionOperand UseImmediateOrTemp(Node* node, int32_t value) {
-    if (GetIntegerConstantValue(node) == value) {
+  InstructionOperand UseImmediateOrTemp(node_t node, int32_t value) {
+    if (selector()->integer_constant(node) == value) {
       return UseImmediate(node);
     }
     return TempImmediate(value);
-  }
-
-  bool IsIntegerConstant(Node* node) {
-    return (node->opcode() == IrOpcode::kInt32Constant) ||
-           (node->opcode() == IrOpcode::kInt64Constant);
   }
 
   int64_t GetIntegerConstantValue(Node* node) {
@@ -86,8 +81,8 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return OpParameter<int64_t>(node->op());
   }
 
-  bool IsIntegerConstant(typename Adapter::ConstantView constant) {
-    return constant.is_int32() || constant.is_int64();
+  bool IsIntegerConstant(node_t node) const {
+    return selector()->is_integer_constant(node);
   }
 
   int64_t GetIntegerConstantValue(typename Adapter::ConstantView constant) {
@@ -98,13 +93,9 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return constant.int64_value();
   }
 
-  base::Optional<int64_t> GetOptionalIntegerConstant(
-      InstructionSelectorT<TurboshaftAdapter>* selector,
-      turboshaft::OpIndex operation) {
-    if (!this->is_constant(operation)) return {};
-    auto constant = selector->constant_view(operation);
-    if (!this->IsIntegerConstant(constant)) return {};
-    return this->GetIntegerConstantValue(constant);
+  base::Optional<int64_t> GetOptionalIntegerConstant(node_t operation) {
+    if (!this->IsIntegerConstant(operation)) return {};
+    return this->GetIntegerConstantValue(selector()->constant_view(operation));
   }
 
   bool IsFloatConstant(Node* node) {
@@ -837,7 +828,7 @@ void VisitAddSub(InstructionSelectorT<TurboshaftAdapter>* selector,
   const WordBinopOp& add_sub = selector->Get(node).Cast<WordBinopOp>();
 
   if (base::Optional<int64_t> constant_rhs =
-          g.GetOptionalIntegerConstant(selector, add_sub.right())) {
+          g.GetOptionalIntegerConstant(add_sub.right())) {
     if (constant_rhs < 0 && constant_rhs > std::numeric_limits<int>::min() &&
         g.CanBeImmediate(-*constant_rhs, kArithmeticImm)) {
       selector->Emit(negate_opcode, g.DefineAsRegister(node),
@@ -871,7 +862,7 @@ int32_t LeftShiftForReducedMultiply(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex rhs) {
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
-  if (auto constant = g.GetOptionalIntegerConstant(selector, rhs)) {
+  if (auto constant = g.GetOptionalIntegerConstant(rhs)) {
     int64_t value_minus_one = constant.value() - 1;
     if (base::bits::IsPowerOfTwo(value_minus_one)) {
       return base::bits::WhichPowerOfTwo(value_minus_one);
@@ -929,7 +920,7 @@ bool TryEmitMultiplyNegate(InstructionSelectorT<TurboshaftAdapter>* selector,
   const WordBinopOp& sub = mul_lhs.Cast<WordBinopOp>();
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
   base::Optional<int64_t> sub_lhs_constant =
-      g.GetOptionalIntegerConstant(selector, sub.left());
+      g.GetOptionalIntegerConstant(sub.left());
   if (!sub_lhs_constant.has_value() || sub_lhs_constant != 0) return false;
   selector->Emit(mneg_opcode, g.DefineAsRegister(mul),
                  g.UseRegister(sub.right()), g.UseRegister(rhs));
@@ -1070,16 +1061,12 @@ void InstructionSelectorT<Adapter>::VisitTraceInstruction(node_t node) {}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
-    OperandGenerator g(this);
+  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
+  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  OperandGenerator g(this);
 
-    Emit(kArchStackSlot, g.DefineAsRegister(node),
-         sequence()->AddImmediate(Constant(slot)), 0, nullptr);
-  }
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
 template <typename Adapter>
@@ -1162,9 +1149,12 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
   const LoadOp& load = selector->Get(node).Cast<LoadOp>();
 
+  // The LoadStoreSimplificationReducer transforms all loads into
+  // *(base + index).
   OpIndex base = load.base();
-  OptionalOpIndex index = load.index();
-  intptr_t offset = load.offset;
+  OpIndex index = load.index().value();
+  DCHECK_EQ(load.offset, 0);
+  DCHECK_EQ(load.element_size_log2, 0);
 
   InstructionOperand inputs[3];
   size_t input_count = 0;
@@ -1180,9 +1170,9 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
   }
 
   if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(!index.valid());
+    DCHECK(selector->is_integer_constant(index));
     input_count = 1;
-    inputs[0] = g.UseImmediate64(offset);
+    inputs[0] = g.UseImmediate64(selector->integer_constant(index));
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -1190,27 +1180,25 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
 
   inputs[0] = g.UseRegister(base);
 
-  if (!index.has_value()) {
+  if (selector->is_integer_constant(index)) {
+    int64_t offset = selector->integer_constant(index);
     if (g.CanBeImmediate(offset, immediate_mode)) {
       input_count = 2;
       inputs[1] = g.UseImmediate64(offset);
       opcode |= AddressingModeField::encode(kMode_MRI);
     } else {
-      // TODO(mliedtke): What to do if the constant offset can't be stored in an
-      // immediate?
-      UNIMPLEMENTED();
-      // input_count = 2;
-      // inputs[1] = g.UseRegister(offset);
-      // opcode |= AddressingModeField::encode(kMode_MRR);
+      input_count = 2;
+      inputs[1] = g.UseRegister(index);
+      opcode |= AddressingModeField::encode(kMode_MRR);
     }
   } else {
-    if (TryMatchLoadStoreShift(&g, selector, rep, node, index.value(),
-                               &inputs[1], &inputs[2])) {
+    if (TryMatchLoadStoreShift(&g, selector, rep, node, index, &inputs[1],
+                               &inputs[2])) {
       input_count = 3;
       opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
     } else {
       input_count = 2;
-      inputs[1] = g.UseRegister(index.value());
+      inputs[1] = g.UseRegister(index);
       opcode |= AddressingModeField::encode(kMode_MRR);
     }
   }
@@ -1467,90 +1455,20 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
-  VisitStore(node);
-  }
-}
+    auto rep_pair = StorePairRepresentationOf(node->op());
+    CHECK_EQ(rep_pair.first.write_barrier_kind(), kNoWriteBarrier);
+    CHECK_EQ(rep_pair.second.write_barrier_kind(),
+             rep_pair.first.write_barrier_kind());
+    DCHECK(!v8_flags.enable_unconditional_write_barriers);
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
-  UNREACHABLE();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
-  const bool kStorePair = node->opcode() == IrOpcode::kStorePair;
-
-  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
-  WriteBarrierKind write_barrier_kind;
-  if (kStorePair) {
-    auto store_rep = StorePairRepresentationOf(node->op());
-    write_barrier_kind = store_rep.first.write_barrier_kind();
-    CHECK_EQ(write_barrier_kind, kNoWriteBarrier);
-    CHECK_EQ(store_rep.second.write_barrier_kind(), write_barrier_kind);
-  } else {
-    write_barrier_kind = StoreRepresentationOf(node->op()).write_barrier_kind();
-  }
-
-  // TODO(arm64): I guess this could be done in a better way.
-  if (write_barrier_kind != kNoWriteBarrier &&
-      !v8_flags.disable_write_barriers) {
-    CHECK(!kStorePair);
-    MachineRepresentation representation =
-        StoreRepresentationOf(node->op()).representation();
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(representation));
-    AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
-    inputs[input_count++] = g.UseUniqueRegister(base);
-    // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
-    // can trust the assembler to generate extra instructions if the index does
-    // not fit into add or sub. So here only check the immediate for a store.
-    if (g.CanBeImmediate(index, COMPRESS_POINTERS_BOOL ? kLoadStoreImm32
-                                                       : kLoadStoreImm64)) {
-      inputs[input_count++] = g.UseImmediate(index);
-      addressing_mode = kMode_MRI;
-    } else {
-      inputs[input_count++] = g.UseUniqueRegister(index);
-      addressing_mode = kMode_MRR;
-    }
-    inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode =
-        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionCode code;
-    if (representation == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(node->opcode(), IrOpcode::kStoreIndirectPointer);
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
-      Node* tag = node->InputAt(3);
-      inputs[input_count++] = g.UseImmediate(tag);
-    } else {
-      code = kArchStoreWithWriteBarrier;
-    }
-    code |= AddressingModeField::encode(addressing_mode);
-    code |= RecordWriteModeField::encode(record_write_mode);
-    if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    }
-    Emit(code, 0, nullptr, input_count, inputs);
-    return;
-  }
 
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-
-  InstructionCode opcode = kArchNop;
-  ImmediateMode immediate_mode = kNoImmediate;
-  MachineRepresentation approx_rep;
-  if (kStorePair) {
-    auto rep_pair = StorePairRepresentationOf(node->op());
+    MachineRepresentation approx_rep;
     auto info1 =
         GetStoreOpcodeAndImmediate(rep_pair.first.representation(), true);
     auto info2 =
@@ -1567,37 +1485,140 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
       default:
         UNREACHABLE();
     }
-    opcode = std::get<InstructionCode>(info1);
-    immediate_mode = std::get<ImmediateMode>(info1);
+    InstructionCode opcode = std::get<InstructionCode>(info1);
+    ImmediateMode immediate_mode = std::get<ImmediateMode>(info1);
     CHECK_EQ(opcode, std::get<InstructionCode>(info2));
     CHECK_EQ(immediate_mode, std::get<ImmediateMode>(info2));
-  } else {
-    approx_rep = StoreRepresentationOf(node->op()).representation();
-    auto info = GetStoreOpcodeAndImmediate(approx_rep, false);
-    opcode = std::get<InstructionCode>(info);
-    immediate_mode = std::get<ImmediateMode>(info);
+
+    node_t base = this->input_at(node, 0);
+    node_t index = this->input_at(node, 1);
+    node_t value = this->input_at(node, 2);
+
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
+    inputs[input_count++] =
+        g.UseRegisterOrImmediateZero(this->input_at(node, 3));
+
+    if (this->is_load_root_register(base)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      opcode |= AddressingModeField::encode(kMode_Root);
+      Emit(opcode, 0, nullptr, input_count, inputs);
+      return;
+    }
+
+    inputs[input_count++] = g.UseRegister(base);
+
+    if (g.CanBeImmediate(index, immediate_mode)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      opcode |= AddressingModeField::encode(kMode_MRI);
+    } else if (TryMatchLoadStoreShift(&g, this, approx_rep, node, index,
+                                      &inputs[input_count],
+                                      &inputs[input_count + 1])) {
+      input_count += 2;
+      opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
+    } else {
+      inputs[input_count++] = g.UseRegister(index);
+      opcode |= AddressingModeField::encode(kMode_MRR);
+    }
+
+    Emit(opcode, 0, nullptr, input_count, inputs);
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
+  typename Adapter::StoreView store_view = this->store_view(node);
+  DCHECK_EQ(store_view.displacement(), 0);
+  WriteBarrierKind write_barrier_kind =
+      store_view.stored_rep().write_barrier_kind();
+  MachineRepresentation representation =
+      store_view.stored_rep().representation();
+
+  Arm64OperandGeneratorT<Adapter> g(this);
+
+  // TODO(arm64): I guess this could be done in a better way.
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(representation));
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseUniqueRegister(store_view.base());
+    // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
+    // can trust the assembler to generate extra instructions if the index does
+    // not fit into add or sub. So here only check the immediate for a store.
+    node_t index = this->value(store_view.index());
+    if (g.CanBeImmediate(index, COMPRESS_POINTERS_BOOL ? kLoadStoreImm32
+                                                       : kLoadStoreImm64)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      addressing_mode = kMode_MRI;
+    } else {
+      inputs[input_count++] = g.UseUniqueRegister(index);
+      addressing_mode = kMode_MRR;
+    }
+    inputs[input_count++] = g.UseUniqueRegister(store_view.value());
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+    InstructionCode code;
+    if (representation == MachineRepresentation::kIndirectPointer) {
+      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
+      code = kArchStoreIndirectWithWriteBarrier;
+      node_t tag = store_view.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate(tag);
+    } else {
+      code = kArchStoreWithWriteBarrier;
+    }
+    code |= AddressingModeField::encode(addressing_mode);
+    code |= RecordWriteModeField::encode(record_write_mode);
+    if (store_view.is_store_trap_on_null()) {
+      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+    }
+    Emit(code, 0, nullptr, input_count, inputs);
+    return;
   }
 
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+
+  MachineRepresentation approx_rep = representation;
+  auto info = GetStoreOpcodeAndImmediate(approx_rep, false);
+  InstructionCode opcode = std::get<InstructionCode>(info);
+  ImmediateMode immediate_mode = std::get<ImmediateMode>(info);
+
   if (v8_flags.enable_unconditional_write_barriers) {
-    CHECK(!kStorePair);
-    if (CanBeTaggedOrCompressedPointer(
-            StoreRepresentationOf(node->op()).representation())) {
+    if (CanBeTaggedOrCompressedPointer(representation)) {
       write_barrier_kind = kFullWriteBarrier;
     }
   }
 
-  ExternalReferenceMatcher m(base);
-  if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
-      CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
-    CHECK(!kStorePair);
+  base::Optional<ExternalReference> external_base;
+  if constexpr (Adapter::IsTurboshaft) {
+    ExternalReference value;
+    if (this->MatchExternalConstant(store_view.base(), &value)) {
+      external_base = value;
+    }
+  } else {
+    ExternalReferenceMatcher m(store_view.base());
+    if (m.HasResolvedValue()) {
+      external_base = m.ResolvedValue();
+    }
+  }
+
+  base::Optional<int64_t> constant_index;
+  if (this->valid(store_view.index())) {
+    node_t index = this->value(store_view.index());
+    constant_index = g.GetOptionalIntegerConstant(index);
+  }
+  if (external_base.has_value() && constant_index.has_value() &&
+      CanAddressRelativeToRootsRegister(*external_base)) {
     ptrdiff_t const delta =
-        g.GetIntegerConstantValue(index) +
+        *constant_index +
         MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-            isolate(), m.ResolvedValue());
+            isolate(), *external_base);
     if (is_int32(delta)) {
       input_count = 2;
       InstructionOperand inputs[2];
-      inputs[0] = g.UseRegister(value);
+      inputs[0] = g.UseRegister(store_view.value());
       inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
       opcode |= AddressingModeField::encode(kMode_Root);
       Emit(opcode, 0, nullptr, input_count, inputs);
@@ -1605,14 +1626,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     }
   }
 
-  inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
+  node_t base = store_view.base();
+  node_t index = this->value(store_view.index());
 
-  if (kStorePair) {
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(node->InputAt(3));
-  }
+  inputs[input_count++] = g.UseRegisterOrImmediateZero(store_view.value());
 
-  if (base->opcode() == IrOpcode::kLoadRootRegister) {
-    // This will only work if {index} is a constant.
+  if (this->is_load_root_register(base)) {
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_Root);
     Emit(opcode, 0, nullptr, input_count, inputs);
@@ -1634,10 +1653,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
 
-  if (node->opcode() == IrOpcode::kProtectedStore) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-  } else if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
+  if (store_view.is_store_trap_on_null()) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+  } else if (store_view.access_kind() == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
   Emit(opcode, 0, nullptr, input_count, inputs);
@@ -1732,10 +1751,131 @@ static void VisitLogical(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 }
 
+static void VisitLogical(InstructionSelectorT<TurboshaftAdapter>* selector,
+                         turboshaft::OpIndex node,
+                         turboshaft::WordRepresentation rep, ArchOpcode opcode,
+                         bool left_can_cover, bool right_can_cover,
+                         ImmediateMode imm_mode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  const WordBinopOp& logical_op = selector->Get(node).Cast<WordBinopOp>();
+  const Operation& lhs = selector->Get(logical_op.left());
+  const Operation& rhs = selector->Get(logical_op.right());
+
+  // Map instruction to equivalent operation with inverted right input.
+  ArchOpcode inv_opcode = opcode;
+  switch (opcode) {
+    case kArm64And32:
+      inv_opcode = kArm64Bic32;
+      break;
+    case kArm64And:
+      inv_opcode = kArm64Bic;
+      break;
+    case kArm64Or32:
+      inv_opcode = kArm64Orn32;
+      break;
+    case kArm64Or:
+      inv_opcode = kArm64Orn;
+      break;
+    case kArm64Eor32:
+      inv_opcode = kArm64Eon32;
+      break;
+    case kArm64Eor:
+      inv_opcode = kArm64Eon;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  // Select Logical(y, ~x) for Logical(Xor(x, -1), y).
+  if (lhs.Is<Opmask::kBitwiseXor>() && left_can_cover) {
+    const WordBinopOp& xor_op = lhs.Cast<WordBinopOp>();
+    int64_t xor_rhs_val;
+    if (selector->MatchSignedIntegralConstant(xor_op.right(), &xor_rhs_val) &&
+        xor_rhs_val == -1) {
+      // TODO(all): support shifted operand on right.
+      selector->Emit(inv_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(logical_op.right()),
+                     g.UseRegister(xor_op.left()));
+      return;
+    }
+  }
+
+  // Select Logical(x, ~y) for Logical(x, Xor(y, -1)).
+  if (rhs.Is<Opmask::kBitwiseXor>() && right_can_cover) {
+    const WordBinopOp& xor_op = rhs.Cast<WordBinopOp>();
+    int64_t xor_rhs_val;
+    if (selector->MatchSignedIntegralConstant(xor_op.right(), &xor_rhs_val) &&
+        xor_rhs_val == -1) {
+      // TODO(all): support shifted operand on right.
+      selector->Emit(inv_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(logical_op.left()),
+                     g.UseRegister(xor_op.left()));
+      return;
+    }
+  }
+
+  int64_t xor_rhs_val;
+  if (logical_op.Is<Opmask::kBitwiseXor>() &&
+      selector->MatchSignedIntegralConstant(logical_op.right(), &xor_rhs_val) &&
+      xor_rhs_val == -1) {
+    const WordBinopOp& xor_op = logical_op.Cast<Opmask::kBitwiseXor>();
+    bool is32 = rep == WordRepresentation::Word32();
+    ArchOpcode opcode = is32 ? kArm64Not32 : kArm64Not;
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(xor_op.left()));
+  } else {
+    VisitBinop(selector, node, rep, opcode, imm_mode);
+  }
+}
+
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
+    turboshaft::OpIndex node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const WordBinopOp& bitwise_and =
+      this->Get(node).Cast<Opmask::kWord32BitwiseAnd>();
+  const Operation& lhs = this->Get(bitwise_and.left());
+  if (lhs.Is<Opmask::kWord32ShiftRightLogical>() &&
+      CanCover(node, bitwise_and.left()) &&
+      this->is_integer_constant(bitwise_and.right())) {
+    int64_t constant_rhs = this->integer_constant(bitwise_and.right());
+    DCHECK(base::IsInRange(constant_rhs, uint32_t{0},
+                           std::numeric_limits<uint32_t>::max()));
+    uint32_t mask = static_cast<uint32_t>(constant_rhs);
+    uint32_t mask_width = base::bits::CountPopulation(mask);
+    uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+    if ((mask_width != 0) && (mask_width != 32) &&
+        (mask_msb + mask_width == 32)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+
+      // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
+      // significant bits.
+      const ShiftOp& lhs_shift = lhs.Cast<Opmask::kWord32ShiftRightLogical>();
+      if (this->is_integer_constant(lhs_shift.right())) {
+        // Any shift value can match; int32 shifts use `value % 32`.
+        uint32_t lsb = this->integer_constant(lhs_shift.right()) & 0x1F;
+
+        // Ubfx cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use ubfx with a smaller mask and the remaining bits will be
+        // zeros.
+        if (lsb + mask_width > 32) mask_width = 32 - lsb;
+
+        Emit(kArm64Ubfx32, g.DefineAsRegister(node),
+             g.UseRegister(lhs_shift.left()),
+             g.UseImmediateOrTemp(lhs_shift.right(), lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
+  VisitLogical(this, node, bitwise_and.rep, kArm64And32,
+               CanCover(node, bitwise_and.left()),
+               CanCover(node, bitwise_and.right()), kLogical32Imm);
 }
 
 template <>
@@ -3169,7 +3309,40 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
 template <>
 bool InstructionSelectorT<TurboshaftAdapter>::ZeroExtendsWord32ToWord64NoPhis(
     node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(!this->Get(node).Is<PhiOp>());
+  const Operation& op = this->Get(node);
+  // 32-bit operations will write their result in a W register (implicitly
+  // clearing the top 32-bit of the corresponding X register) so the
+  // zero-extension is a no-op.
+  switch (op.opcode) {
+    case Opcode::kWordBinop:
+      return op.Cast<WordBinopOp>().rep == WordRepresentation::Word32();
+    case Opcode::kShift:
+      return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
+    case Opcode::kEqual:
+      return op.Cast<EqualOp>().rep == RegisterRepresentation::Word32();
+    case Opcode::kComparison:
+      return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
+    case Opcode::kOverflowCheckedBinop:
+      return op.Cast<OverflowCheckedBinopOp>().rep ==
+             WordRepresentation::Word32();
+    case Opcode::kLoad: {
+      MemoryRepresentation rep = op.Cast<LoadOp>().loaded_rep;
+      return rep == MemoryRepresentation::Int8() ||
+             rep == MemoryRepresentation::Int16() ||
+             rep == MemoryRepresentation::Int32();
+    }
+    default:
+      if (op.outputs_rep() ==
+          base::VectorOf({RegisterRepresentation::Word32()})) {
+        // Assumption: Every operation that can produce a word32 should
+        // probably return true. For now, keeping the explicit list and
+        // verifying this assumption seems like the more conservative approach.
+        DCHECK_WITH_MSG(false, "32 bit operation not marked as zero-extends");
+      }
+      return false;
+  }
 }
 
 template <>
@@ -3226,16 +3399,12 @@ bool InstructionSelectorT<TurbofanAdapter>::ZeroExtendsWord32ToWord64NoPhis(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    Node* value = node->InputAt(0);
-    if (ZeroExtendsWord32ToWord64(value)) {
-      return EmitIdentity(node);
-    }
-    Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
+  Arm64OperandGeneratorT<Adapter> g(this);
+  node_t value = this->input_at(node, 0);
+  if (ZeroExtendsWord32ToWord64(value)) {
+    return EmitIdentity(node);
   }
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
 template <typename Adapter>
