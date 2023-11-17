@@ -646,6 +646,9 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
   static const int kStackGuardSize = 8 * kApiSystemPointerSize;
+  static const int kNumberOfBooleanFlags = 6;
+  static const int kErrorMessageParamSize = 1;
+  static const int kTablesAlignmentPaddingSize = 1;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
@@ -665,8 +668,11 @@ class Internals {
       kIsolateCageBaseOffset + kApiSystemPointerSize;
   static const int kVariousBooleanFlagsOffset =
       kIsolateStackGuardOffset + kStackGuardSize;
-  static const int kBuiltinTier0EntryTableOffset =
-      kVariousBooleanFlagsOffset + 8;
+  static const int kErrorMessageParamOffset =
+      kVariousBooleanFlagsOffset + kNumberOfBooleanFlags;
+  static const int kBuiltinTier0EntryTableOffset = kErrorMessageParamOffset +
+                                                   kErrorMessageParamSize +
+                                                   kTablesAlignmentPaddingSize;
   static const int kBuiltinTier0TableOffset =
       kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
   static const int kNewAllocationInfoOffset =

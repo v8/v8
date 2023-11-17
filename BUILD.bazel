@@ -1239,6 +1239,7 @@ filegroup(
         "src/builtins/builtins-weak-refs.cc",
         "src/builtins/constants-table-builder.cc",
         "src/builtins/constants-table-builder.h",
+        "src/builtins/data-view-ops.h",
         "src/builtins/profile-data-reader.h",
         "src/codegen/aligned-slot-allocator.cc",
         "src/codegen/aligned-slot-allocator.h",

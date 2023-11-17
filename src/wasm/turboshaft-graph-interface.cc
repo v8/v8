@@ -4,6 +4,7 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include "src/builtins/data-view-ops.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/dataview-reducer.h"
@@ -72,25 +73,6 @@ using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
 
 namespace {
-
-#define DATAVIEW_OP_LIST(V) \
-  V(BigInt64)               \
-  V(BigUint64)              \
-  V(Float32)                \
-  V(Float64)                \
-  V(Int8)                   \
-  V(Int16)                  \
-  V(Int32)                  \
-  V(Uint8)                  \
-  V(Uint16)                 \
-  V(Uint32)
-
-enum class DataViewOp {
-#define V(Name) kGet##Name, kSet##Name,
-  DATAVIEW_OP_LIST(V)
-#undef V
-      kByteLength
-};
 
 ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
   switch (op_type) {
@@ -1070,76 +1052,32 @@ class TurboshaftGraphBuildingInterface {
     BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
   }
 
+  void SetDataViewOpForErrorMessage(DataViewOp op_type) {
+    OpIndex isolate_root = __ LoadRootRegister();
+    __ Store(isolate_root, __ Word32Constant(op_type),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+             compiler::kNoWriteBarrier, Isolate::error_message_param_offset());
+  }
+
   void ThrowDataViewTypeError(FullDecoder* decoder, V<Tagged> dataview,
                               DataViewOp op_type) {
-    Builtin builtin_to_call;
-    switch (op_type) {
-#define GET(Name)                                                  \
-  case DataViewOp::kGet##Name:                                     \
-    builtin_to_call = Builtin::kThrowDataViewGet##Name##TypeError; \
-    break;
-#define SET(Name)                                                  \
-  case DataViewOp::kSet##Name:                                     \
-    builtin_to_call = Builtin::kThrowDataViewSet##Name##TypeError; \
-    break;
-      DATAVIEW_OP_LIST(GET);
-      DATAVIEW_OP_LIST(SET);
-#undef GET
-#undef SET
-      case DataViewOp::kByteLength:
-        builtin_to_call = Builtin::kThrowDataViewByteLengthTypeError;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    CallBuiltinThroughJumptable(decoder, builtin_to_call, {dataview});
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable(decoder, Builtin::kThrowDataViewTypeError,
+                                {dataview});
     __ Unreachable();
   }
 
   void ThrowDataViewOutOfBoundsError(FullDecoder* decoder, DataViewOp op_type) {
-    Builtin builtin_to_call;
-    switch (op_type) {
-#define GET(Name)                                                    \
-  case DataViewOp::kGet##Name:                                       \
-    builtin_to_call = Builtin::kThrowDataViewGet##Name##OutOfBounds; \
-    break;
-#define SET(Name)                                                    \
-  case DataViewOp::kSet##Name:                                       \
-    builtin_to_call = Builtin::kThrowDataViewSet##Name##OutOfBounds; \
-    break;
-      DATAVIEW_OP_LIST(GET);
-      DATAVIEW_OP_LIST(SET);
-#undef GET
-#undef SET
-      default:
-        UNREACHABLE();
-    }
-    CallBuiltinThroughJumptable(decoder, builtin_to_call, {});
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable(decoder, Builtin::kThrowDataViewOutOfBounds,
+                                {});
     __ Unreachable();
   }
 
   void ThrowDataViewDetachedError(FullDecoder* decoder, DataViewOp op_type) {
-    Builtin builtin_to_call;
-    switch (op_type) {
-#define GET(Name)                                                      \
-  case DataViewOp::kGet##Name:                                         \
-    builtin_to_call = Builtin::kThrowDataViewGet##Name##DetachedError; \
-    break;
-#define SET(Name)                                                      \
-  case DataViewOp::kSet##Name:                                         \
-    builtin_to_call = Builtin::kThrowDataViewSet##Name##DetachedError; \
-    break;
-      DATAVIEW_OP_LIST(GET);
-      DATAVIEW_OP_LIST(SET);
-#undef GET
-#undef SET
-      case DataViewOp::kByteLength:
-        builtin_to_call = Builtin::kThrowDataViewByteLengthDetachedError;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    CallBuiltinThroughJumptable(decoder, builtin_to_call, {});
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable(decoder, Builtin::kThrowDataViewDetachedError,
+                                {});
     __ Unreachable();
   }
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
@@ -305,6 +306,35 @@ RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewRangeError(message_id));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
+  DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+  // TODO(evih): Change the expected spelling from "byte_length" to
+  // "byteLength".
+  Handle<String> op_name = isolate->factory()->NewStringFromAsciiChecked(
+      op == DataViewOp::kByteLength ? "get DataView.prototype.byte_length"
+                                    : ToString(op, true));
+  Handle<Object> value(args[1], isolate);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(message_id, op_name, value));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
+  DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+  Handle<String> op_name =
+      isolate->factory()->NewStringFromAsciiChecked(ToString(op, true));
+
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, op_name));
+}
+
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
@@ -312,16 +342,6 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   Handle<Object> arg(args[1], isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, arg));
-}
-
-RUNTIME_FUNCTION(Runtime_WasmThrowTypeErrorTwoArgs) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
-  Handle<Object> arg(args[1], isolate);
-  Handle<Object> arg2(args[2], isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, arg, arg2));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {

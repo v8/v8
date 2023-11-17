@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-descriptors.h"
+#include "src/builtins/data-view-ops.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -247,7 +248,7 @@ const char* Builtins::name(Builtin builtin) {
 }
 
 // static
-const char* Builtins::NameForStackTrace(Builtin builtin) {
+const char* Builtins::NameForStackTrace(Isolate* isolate, Builtin builtin) {
 #if V8_ENABLE_WEBASSEMBLY
   // Most builtins are never shown in stack traces. Those that are exposed
   // to JavaScript get their name from the object referring to them. Here
@@ -263,109 +264,60 @@ const char* Builtins::NameForStackTrace(Builtin builtin) {
     case Builtin::kThrowIndexOfCalledOnNull:
       return "String.indexOf";
     case Builtin::kDataViewPrototypeGetBigInt64:
-    case Builtin::kThrowDataViewGetBigInt64DetachedError:
-    case Builtin::kThrowDataViewGetBigInt64OutOfBounds:
-    case Builtin::kThrowDataViewGetBigInt64TypeError:
       return "DataView.getBigInt64";
     case Builtin::kDataViewPrototypeGetBigUint64:
-    case Builtin::kThrowDataViewGetBigUint64DetachedError:
-    case Builtin::kThrowDataViewGetBigUint64OutOfBounds:
-    case Builtin::kThrowDataViewGetBigUint64TypeError:
       return "DataView.getBigUint64";
     case Builtin::kDataViewPrototypeGetFloat32:
-    case Builtin::kThrowDataViewGetFloat32DetachedError:
-    case Builtin::kThrowDataViewGetFloat32OutOfBounds:
-    case Builtin::kThrowDataViewGetFloat32TypeError:
       return "DataView.getFloat32";
     case Builtin::kDataViewPrototypeGetFloat64:
-    case Builtin::kThrowDataViewGetFloat64DetachedError:
-    case Builtin::kThrowDataViewGetFloat64OutOfBounds:
-    case Builtin::kThrowDataViewGetFloat64TypeError:
       return "DataView.getFloat64";
     case Builtin::kDataViewPrototypeGetInt8:
-    case Builtin::kThrowDataViewGetInt8DetachedError:
-    case Builtin::kThrowDataViewGetInt8OutOfBounds:
-    case Builtin::kThrowDataViewGetInt8TypeError:
       return "DataView.getInt8";
     case Builtin::kDataViewPrototypeGetInt16:
-    case Builtin::kThrowDataViewGetInt16DetachedError:
-    case Builtin::kThrowDataViewGetInt16OutOfBounds:
-    case Builtin::kThrowDataViewGetInt16TypeError:
       return "DataView.getInt16";
     case Builtin::kDataViewPrototypeGetInt32:
-    case Builtin::kThrowDataViewGetInt32DetachedError:
-    case Builtin::kThrowDataViewGetInt32OutOfBounds:
-    case Builtin::kThrowDataViewGetInt32TypeError:
       return "DataView.getInt32";
     case Builtin::kDataViewPrototypeGetUint8:
-    case Builtin::kThrowDataViewGetUint8DetachedError:
-    case Builtin::kThrowDataViewGetUint8OutOfBounds:
-    case Builtin::kThrowDataViewGetUint8TypeError:
       return "DataView.getUint8";
     case Builtin::kDataViewPrototypeGetUint16:
-    case Builtin::kThrowDataViewGetUint16DetachedError:
-    case Builtin::kThrowDataViewGetUint16OutOfBounds:
-    case Builtin::kThrowDataViewGetUint16TypeError:
       return "DataView.getUint16";
     case Builtin::kDataViewPrototypeGetUint32:
-    case Builtin::kThrowDataViewGetUint32DetachedError:
-    case Builtin::kThrowDataViewGetUint32OutOfBounds:
-    case Builtin::kThrowDataViewGetUint32TypeError:
       return "DataView.getUint32";
     case Builtin::kDataViewPrototypeSetBigInt64:
-    case Builtin::kThrowDataViewSetBigInt64DetachedError:
-    case Builtin::kThrowDataViewSetBigInt64OutOfBounds:
-    case Builtin::kThrowDataViewSetBigInt64TypeError:
       return "DataView.setBigInt64";
     case Builtin::kDataViewPrototypeSetBigUint64:
-    case Builtin::kThrowDataViewSetBigUint64DetachedError:
-    case Builtin::kThrowDataViewSetBigUint64OutOfBounds:
-    case Builtin::kThrowDataViewSetBigUint64TypeError:
       return "DataView.setBigUint64";
     case Builtin::kDataViewPrototypeSetFloat32:
-    case Builtin::kThrowDataViewSetFloat32DetachedError:
-    case Builtin::kThrowDataViewSetFloat32OutOfBounds:
-    case Builtin::kThrowDataViewSetFloat32TypeError:
       return "DataView.setFloat32";
     case Builtin::kDataViewPrototypeSetFloat64:
-    case Builtin::kThrowDataViewSetFloat64DetachedError:
-    case Builtin::kThrowDataViewSetFloat64OutOfBounds:
-    case Builtin::kThrowDataViewSetFloat64TypeError:
       return "DataView.setFloat64";
     case Builtin::kDataViewPrototypeSetInt8:
-    case Builtin::kThrowDataViewSetInt8DetachedError:
-    case Builtin::kThrowDataViewSetInt8OutOfBounds:
-    case Builtin::kThrowDataViewSetInt8TypeError:
       return "DataView.setInt8";
     case Builtin::kDataViewPrototypeSetInt16:
-    case Builtin::kThrowDataViewSetInt16DetachedError:
-    case Builtin::kThrowDataViewSetInt16OutOfBounds:
-    case Builtin::kThrowDataViewSetInt16TypeError:
       return "DataView.setInt16";
     case Builtin::kDataViewPrototypeSetInt32:
-    case Builtin::kThrowDataViewSetInt32DetachedError:
-    case Builtin::kThrowDataViewSetInt32OutOfBounds:
-    case Builtin::kThrowDataViewSetInt32TypeError:
       return "DataView.setInt32";
     case Builtin::kDataViewPrototypeSetUint8:
-    case Builtin::kThrowDataViewSetUint8DetachedError:
-    case Builtin::kThrowDataViewSetUint8OutOfBounds:
-    case Builtin::kThrowDataViewSetUint8TypeError:
       return "DataView.setUint8";
     case Builtin::kDataViewPrototypeSetUint16:
-    case Builtin::kThrowDataViewSetUint16DetachedError:
-    case Builtin::kThrowDataViewSetUint16OutOfBounds:
-    case Builtin::kThrowDataViewSetUint16TypeError:
       return "DataView.setUint16";
     case Builtin::kDataViewPrototypeSetUint32:
-    case Builtin::kThrowDataViewSetUint32DetachedError:
-    case Builtin::kThrowDataViewSetUint32OutOfBounds:
-    case Builtin::kThrowDataViewSetUint32TypeError:
       return "DataView.setUint32";
-    case Builtin::kThrowDataViewByteLengthTypeError:
-      return "get byteLength";
-    case Builtin::kThrowDataViewByteLengthDetachedError:
-      return "get byteLength [as byteLength]";
+    case Builtin::kThrowDataViewTypeError: {
+      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+      return op == DataViewOp::kByteLength ? "get byteLength"
+                                           : ToString(op, false);
+    }
+    case Builtin::kThrowDataViewDetachedError: {
+      // TODO(evih): See if we can drop the useless "[as byteLength]".
+      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+      return op == DataViewOp::kByteLength ? "get byteLength [as byteLength]"
+                                           : ToString(op, false);
+    }
+    case Builtin::kThrowDataViewOutOfBounds: {
+      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+      return ToString(op, false);
+    }
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif

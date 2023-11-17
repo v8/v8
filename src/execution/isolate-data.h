@@ -34,7 +34,8 @@ class Isolate;
   V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                   \
   V(kExecutionModeOffset, kUInt8Size, execution_mode)                         \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
-  V(kTablesAlignmentPaddingOffset, 2, tables_alignment_padding)               \
+  V(kErrorMessageParam, kUInt8Size, error_message_param)                      \
+  V(kTablesAlignmentPaddingOffset, 1, tables_alignment_padding)               \
   /* Tier 0 tables (small but fast access). */                                \
   V(kBuiltinTier0EntryTableOffset,                                            \
     Builtins::kBuiltinTier0Count* kSystemPointerSize,                         \
@@ -240,6 +241,11 @@ class IsolateData final {
   // Whether the StackFrameIteratorForProfiler can successfully iterate the
   // current stack. The only valid values are 0 or 1.
   uint8_t stack_is_iterable_ = 1;
+
+  // Field to pass value for error throwing builtins. Currently, it is used to
+  // pass the type of the `Dataview` operation to print out operation's name in
+  // case of an error.
+  uint8_t error_message_param_;
 
   // Ensure the following tables are kSystemPointerSize-byte aligned.
   static_assert(FIELD_SIZE(kTablesAlignmentPaddingOffset) > 0);

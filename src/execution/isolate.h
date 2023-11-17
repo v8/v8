@@ -1326,6 +1326,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
+  static uint32_t error_message_param_offset() {
+    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
+                                 OFFSET_OF(IsolateData, error_message_param_) -
+                                 isolate_root_bias());
+  }
+
+  uint8_t error_message_param() { return isolate_data_.error_message_param_; }
+
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
   THREAD_LOCAL_TOP_ADDRESS(uint8_t, is_on_central_stack_flag)

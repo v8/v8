@@ -3745,6 +3745,9 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateStackGuardOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.is_marking_flag_)),
            Internals::kVariousBooleanFlagsOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.error_message_param_)),
+      Internals::kErrorMessageParamOffset);
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.builtin_tier0_entry_table_)),
            Internals::kBuiltinTier0EntryTableOffset);

@@ -3127,6 +3127,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.h",
     "src/builtins/constants-table-builder.h",
+    "src/builtins/data-view-ops.h",
     "src/builtins/profile-data-reader.h",
     "src/codegen/aligned-slot-allocator.h",
     "src/codegen/assembler-arch.h",

@@ -301,13 +301,14 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
   if (info->IsBuiltin()) {
     Builtin builtin = Builtins::FromInt(Smi::cast(info->function()).value());
     return isolate->factory()->NewStringFromAsciiChecked(
-        Builtins::NameForStackTrace(builtin));
+        Builtins::NameForStackTrace(isolate, builtin));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
   if (function->shared()->HasBuiltinId()) {
     Builtin builtin = function->shared()->builtin_id();
-    const char* maybe_known_name = Builtins::NameForStackTrace(builtin);
+    const char* maybe_known_name =
+        Builtins::NameForStackTrace(isolate, builtin);
     if (maybe_known_name) {
       // This is for cases where using the builtin's name allows us to print
       // e.g. "String.indexOf", instead of just "indexOf" which is what we
