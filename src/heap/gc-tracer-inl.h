@@ -29,8 +29,9 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
       scope_(scope),
       thread_kind_(thread_kind),
       start_time_(base::TimeTicks::Now()) {
-  DCHECK_IMPLIES(thread_kind_ == ThreadKind::kMain,
-                 tracer_->heap_->IsMainThread());
+  DCHECK_IMPLIES(
+      thread_kind_ == ThreadKind::kMain,
+      tracer_->heap_->IsMainThread() || tracer_->heap_->IsSharedMainThread());
 
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;

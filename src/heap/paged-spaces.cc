@@ -579,7 +579,10 @@ void PagedSpaceBase::RefillFreeList() {
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
          identity() == SHARED_SPACE || identity() == NEW_SPACE ||
          identity() == TRUSTED_SPACE);
-  DCHECK_IMPLIES(identity() == NEW_SPACE, heap_->IsMainThread());
+  DCHECK_IMPLIES(
+      identity() == NEW_SPACE,
+      heap_->IsMainThread() || (heap_->IsSharedMainThread() &&
+                                !heap_->isolate()->is_shared_space_isolate()));
   DCHECK(!is_compaction_space());
 
   for (Page* p : heap()->sweeper()->GetAllSweptPagesSafe(this)) {
