@@ -3293,7 +3293,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   }
   // Decrement the stack to allocate a stack slot. The signature gets written
   // into the slot in Torque.
-  __ Push(zero_reg);
+  __ Push(zero_reg, zero_reg, zero_reg);
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }
 
