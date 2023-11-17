@@ -2690,31 +2690,13 @@ void MacroAssembler::CallCFunction(ExternalReference function,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Move(scratch, function);
-  CallCFunctionHelper(scratch, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  CallCFunction(scratch, num_reg_arguments, num_double_arguments,
+                set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                    int num_double_arguments,
                                    SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
-}
-
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
-}
-
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
-}
-
-void MacroAssembler::CallCFunctionHelper(
-    Register function, int num_reg_arguments, int num_double_arguments,
-    SetIsolateDataSlots set_isolate_data_slots) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -2799,6 +2781,17 @@ void MacroAssembler::CallCFunctionHelper(
   } else {
     add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
+}
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+}
+
+void MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                   SetIsolateDataSlots set_isolate_data_slots) {
+  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
 }
 
 void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
