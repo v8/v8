@@ -84,14 +84,15 @@ bool RiscvOperandGeneratorT<Adapter>::CanBeImmediate(int64_t value,
 
 template <typename Adapter>
 struct ExtendingLoadMatcher {
-  ExtendingLoadMatcher(Node* node, InstructionSelectorT<Adapter>* selector)
-      : matches_(false), selector_(selector), base_(nullptr), immediate_(0) {
+  ExtendingLoadMatcher(typename Adapter::node_t node,
+                       InstructionSelectorT<Adapter>* selector)
+      : matches_(false), selector_(selector), immediate_(0) {
     Initialize(node);
   }
 
   bool Matches() const { return matches_; }
 
-  Node* base() const {
+  typename Adapter::node_t base() const {
     DCHECK(Matches());
     return base_;
   }
@@ -107,7 +108,7 @@ struct ExtendingLoadMatcher {
  private:
   bool matches_;
   InstructionSelectorT<Adapter>* selector_;
-  Node* base_;
+  typename Adapter::node_t base_{};
   int64_t immediate_;
   ArchOpcode opcode_;
 
@@ -146,11 +147,45 @@ struct ExtendingLoadMatcher {
       }
     }
   }
+
+  void Initialize(turboshaft::OpIndex node) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shift = selector_->Get(node).template Cast<ShiftOp>();
+    DCHECK(shift.kind == ShiftOp::Kind::kShiftRightArithmetic ||
+           shift.kind == ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros);
+    // When loading a 64-bit value and shifting by 32, we should
+    // just load and sign-extend the interesting 4 bytes instead.
+    // This happens, for example, when we're loading and untagging SMIs.
+    const Operation& lhs = selector_->Get(shift.left());
+    int64_t constant_rhs;
+
+    if (lhs.Is<LoadOp>() &&
+        selector_->MatchIntegralWord64Constant(shift.right(), &constant_rhs) &&
+        constant_rhs == 32 && selector_->CanCover(node, shift.left())) {
+      RiscvOperandGeneratorT<Adapter> g(selector_);
+      const LoadOp& load = lhs.Cast<LoadOp>();
+      base_ = load.base();
+      opcode_ = kRiscvLw;
+      if (load.index().has_value()) {
+        int64_t index_constant;
+        if (selector_->MatchIntegralWord64Constant(load.index().value(),
+                                                   &index_constant)) {
+          DCHECK_EQ(load.element_size_log2, 0);
+          immediate_ = index_constant + 4;
+          matches_ = g.CanBeImmediate(immediate_, kRiscvLw);
+        }
+      } else {
+        immediate_ = load.offset + 4;
+        matches_ = g.CanBeImmediate(immediate_, kRiscvLw);
+      }
+    }
+  }
 };
 
 template <typename Adapter>
-bool TryEmitExtendingLoad(InstructionSelectorT<Adapter>* selector, Node* node,
-                          Node* output_node) {
+bool TryEmitExtendingLoad(InstructionSelectorT<Adapter>* selector,
+                          typename Adapter::node_t node,
+                          typename Adapter::node_t output_node) {
   ExtendingLoadMatcher<Adapter> m(node, selector);
   RiscvOperandGeneratorT<Adapter> g(selector);
   if (m.Matches()) {
@@ -513,16 +548,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
-  VisitBinop<TurbofanAdapter, Int32BinopMatcher>(this, node, kRiscvAnd32, true,
-                                                 kRiscvAnd32);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
+  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvAnd32, true,
+                                         kRiscvAnd32);
 }
 
 template <typename Adapter>
@@ -651,7 +680,26 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(shift_op.left());
+    const Operation& rhs = this->Get(shift_op.right());
+    if ((lhs.Is<Opmask::kChangeInt32ToInt64>() ||
+         lhs.Is<Opmask::kChangeUint32ToUint64>()) &&
+        rhs.Is<Opmask::kWord32Constant>()) {
+      int64_t shift_by = rhs.Cast<ConstantOp>().signed_integral();
+      if (base::IsInRange(shift_by, 32, 63) &&
+          CanCover(node, shift_op.left())) {
+        RiscvOperandGeneratorT<Adapter> g(this);
+        // There's no need to sign/zero-extend to 64-bit if we shift out the
+        // upper 32 bits anyway.
+        Emit(kRiscvShl64, g.DefineSameAsFirst(node),
+             g.UseRegister(lhs.Cast<ChangeOp>().input()),
+             g.UseImmediate64(shift_by));
+        return;
+      }
+    }
+    VisitRRO(this, kRiscvShl64, node);
   } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
@@ -705,9 +753,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     if (TryEmitExtendingLoad(this, node, node)) return;
     Int64BinopMatcher m(node);
     if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue() &&
@@ -724,7 +769,33 @@ void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
       }
     }
     VisitRRO(this, kRiscvSar64, node);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Sar(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (TryEmitExtendingLoad(this, node, node)) return;
+  // Select Sbfx(x, imm, 32-imm) for Word64Sar(ChangeInt32ToInt64(x), imm)
+  // where possible
+  const ShiftOp& shiftop = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shiftop.left());
+
+  int64_t constant_rhs;
+  if (lhs.Is<Opmask::kChangeInt32ToInt64>() &&
+      MatchIntegralWord64Constant(shiftop.right(), &constant_rhs) &&
+      is_uint5(constant_rhs) && CanCover(node, shiftop.left())) {
+    // Don't select Sbfx here if Asr(Ldrsw(x), imm) can be selected for
+    // Word64Sar(ChangeInt32ToInt64(Load(x)), imm)
+    OpIndex input = lhs.Cast<ChangeOp>().input();
+    if (!Get(input).Is<LoadOp>() || !CanCover(shiftop.left(), input)) {
+      RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+      int right = static_cast<int>(constant_rhs);
+      Emit(kRiscvSar32, g.DefineAsRegister(node), g.UseRegister(input),
+           g.UseImmediate(right));
+      return;
+    }
   }
+  VisitRRO(this, kRiscvSar64, node);
 }
 
 template <typename Adapter>
@@ -1535,9 +1606,6 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Node* value = node->InputAt(0);
     if (CanCover(node, value)) {
@@ -1568,124 +1636,102 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
     // value; for riscv, we do sign-extension of the truncated value
     Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)), g.TempImmediate(0));
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  auto value = input_at(node, 0);
+  if (CanCover(node, value)) {
+    if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      if (CanCover(value, input_at(value, 0)) &&
+          TryEmitExtendingLoad(this, value, node)) {
+        return;
+      } else {
+        auto constant = constant_view(input_at(value, 1)).int64_value();
+        if (constant <= 63 && constant >= 32) {
+          // After smi untagging no need for truncate. Combine sequence.
+          Emit(kRiscvSar64, g.DefineSameAsFirst(node),
+               g.UseRegister(input_at(value, 0)),
+               g.UseImmediate(input_at(value, 1)));
+          return;
+        }
+      }
+    }
   }
+  // Semantics of this machine IR is not clear. For example, x86 zero-extend
+  // the truncated value; arm treats it as nop thus the upper 32-bit as
+  // undefined; Riscv emits ext instruction which zero-extend the 32-bit
+  // value; for riscv, we do sign-extension of the truncated value
+  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+       g.UseRegister(input_at(node, 0)), g.TempImmediate(0));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvCvtSL, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvCvtDL, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvCvtSUl, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvCvtDUl, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat32ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvBitcastFloat32ToInt32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvBitcastDL, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastInt32ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvBitcastInt32ToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvBitcastLD, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat64RoundDown, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat32RoundUp, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvFloat64RoundUp, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat32RoundTruncate, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat64RoundTruncate, node);
-  }
 }
 
 template <typename Adapter>
@@ -1695,38 +1741,22 @@ void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat32RoundTiesEven, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvFloat64RoundTiesEven, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvNegS, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
   VisitRR(this, kRiscvNegD, node);
-  }
 }
 
 template <typename Adapter>
@@ -2521,9 +2551,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     Node* const user = node;
     FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
     Int32BinopMatcher m(user);
@@ -2566,7 +2593,44 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
       }
     }
     VisitWord32Compare(this, node, &cont);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& equal = Get(node);
+  DCHECK(equal.Is<EqualOp>() || equal.Is<ComparisonOp>());
+  OpIndex left = equal.input(0);
+  OpIndex right = equal.input(1);
+  OpIndex user = node;
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+
+  if (MatchZero(right)) {
+    return VisitWordCompareZero(user, left, &cont);
   }
+
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+    RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+    const RootsTable& roots_table = isolate()->roots_table();
+    RootIndex root_index;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    if (MatchTaggedConstant(node, &right) && !right.is_null() &&
+        roots_table.IsRootHandle(right, &root_index)) {
+      if (RootsTable::IsReadOnly(root_index)) {
+        Tagged_t ptr =
+            MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+        if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
+          return VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
+                              g.TempImmediate(int32_t(ptr)), &cont);
+        }
+      }
+    }
+  }
+  VisitWord32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
@@ -2694,7 +2758,13 @@ void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Equal(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+    const EqualOp& equal = this->Get(node).template Cast<EqualOp>();
+    if (this->MatchIntegralZero(equal.right())) {
+      return VisitWordCompareZero(node, equal.left(), &cont);
+    }
+    VisitWord64Compare(this, node, &cont);
   } else {
     FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
     Int64BinopMatcher m(node);

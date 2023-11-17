@@ -280,6 +280,7 @@ Condition FlagsConditionToConditionOvf(FlagsCondition condition) {
   UNREACHABLE();
 }
 #endif
+
 FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
                                              FlagsCondition condition) {
   switch (condition) {
@@ -290,12 +291,14 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = false;
       return EQ;
     case kUnsignedLessThan:
+    case kFloatLessThan:
       *predicate = true;
       return LT;
     case kUnsignedGreaterThanOrEqual:
       *predicate = false;
       return LT;
     case kUnsignedLessThanOrEqual:
+    case kFloatLessThanOrEqual:
       *predicate = true;
       return LE;
     case kUnsignedGreaterThan:
@@ -305,6 +308,12 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     case kUnorderedNotEqual:
       *predicate = true;
       break;
+    case kFloatGreaterThan:
+      *predicate = true;
+      return GT;
+    case kFloatGreaterThanOrEqual:
+      *predicate = true;
+      return GE;
     default:
       *predicate = true;
       break;

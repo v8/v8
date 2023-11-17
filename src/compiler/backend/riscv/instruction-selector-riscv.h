@@ -148,16 +148,20 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   UNIMPLEMENTED();
 }
 
-template <typename T>
-void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
-  UNIMPLEMENTED();
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
+             typename Adapter::node_t node) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
-void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector,
-             InstructionCode opcode, Node* node) {
-  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
+             typename Adapter::node_t node) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -231,11 +235,11 @@ void VisitRRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
 
 template <typename Adapter>
 static void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
+                     typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseOperand(node->InputAt(1), opcode));
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseOperand(selector->input_at(node, 1), opcode));
 }
 
 template <typename Adapter>
@@ -520,7 +524,24 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node,
                          FlagsContinuationT<Adapter>* cont) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    RiscvOperandGeneratorT<Adapter> g(selector);
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    // A comparison can either be a CompareOp or an EqualOp.
+    const Operation& compare = selector->Get(node);
+    DCHECK(compare.Is<ComparisonOp>() || compare.Is<EqualOp>());
+    OpIndex lhs = compare.input(0);
+    OpIndex rhs = compare.input(1);
+    if (selector->MatchZero(rhs)) {
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseImmediate(0),
+                   cont);
+    } else if (selector->MatchZero(lhs)) {
+      cont->Commute();
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(rhs), g.UseImmediate(0),
+                   cont);
+    } else {
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseRegister(rhs),
+                   cont);
+    }
   } else {
     RiscvOperandGeneratorT<Adapter> g(selector);
     Float64BinopMatcher m(node);
@@ -1057,7 +1078,8 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat32(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    // todo(RISCV): Optimize it
+    VisitRRO(this, kRiscvShl32, node);
   } else {
     Int32BinopMatcher m(node);
     if (m.left().IsWord32And() && CanCover(node, m.left().node()) &&
@@ -1091,17 +1113,14 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitRRO(this, kRiscvShr32, node);
-  }
+  VisitRRO(this, kRiscvShr32, node);
 }
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Sar(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
+    turboshaft::OpIndex node) {
+  // todo(RISCV): Optimize it
+  VisitRRO(this, kRiscvSar32, node);
 }
 
 template <>
