@@ -1939,7 +1939,7 @@ void Heap::CollectGarbage(AllocationSpace space,
   if (collector == GarbageCollector::SCAVENGER) {
     DCHECK(!v8_flags.minor_ms);
     StartIncrementalMarkingIfAllocationLimitIsReached(
-        GCFlagsForIncrementalMarking(),
+        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
   }
 
@@ -1981,6 +1981,15 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   // This helps avoid large CompleteSweep blocks on the main thread when major
   // incremental marking should be scheduled following a minor GC.
   if (sweeper()->AreMinorSweeperTasksRunning()) return;
+
+  if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
+    // Do not start incremental marking while invoking GC callbacks.
+    // Heap::CollectGarbage already decided which GC is going to be
+    // invoked. In case it chose a young-gen GC, starting an incremental
+    // full GC during callbacks would break the separate GC phases
+    // guarantee.
+    return;
+  }
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung();
@@ -2077,27 +2086,31 @@ void Heap::CompleteSweepingFull() {
 
 void Heap::StartIncrementalMarkingOnInterrupt() {
   StartIncrementalMarkingIfAllocationLimitIsReached(
-      GCFlagsForIncrementalMarking(), kGCCallbackScheduleIdleGarbageCollection);
+      main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+      kGCCallbackScheduleIdleGarbageCollection);
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
-    GCFlags gc_flags, const GCCallbackFlags gc_callback_flags) {
-  if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
-    // Do not start incremental marking while invoking GC callbacks.
-    // Heap::CollectGarbage already decided which GC is going to be invoked. In
-    // case it chose a young-gen GC, starting an incremental full GC during
-    // callbacks would break the separate GC phases guarantee.
-    return;
-  }
-  if (incremental_marking()->IsStopped()) {
+    LocalHeap* local_heap, GCFlags gc_flags,
+    const GCCallbackFlags gc_callback_flags) {
+  if (incremental_marking()->IsStopped() &&
+      incremental_marking()->CanBeStarted()) {
     switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
-        StartIncrementalMarking(
-            gc_flags,
-            OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
-                ? GarbageCollectionReason::kAllocationLimit
-                : GarbageCollectionReason::kGlobalAllocationLimit,
-            gc_callback_flags);
+        if (local_heap->is_main_thread() && local_heap->heap() == this) {
+          StartIncrementalMarking(
+              gc_flags,
+              OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
+                  ? GarbageCollectionReason::kAllocationLimit
+                  : GarbageCollectionReason::kGlobalAllocationLimit,
+              gc_callback_flags);
+        } else {
+          ExecutionAccess access(isolate());
+          isolate()->stack_guard()->RequestStartIncrementalMarking();
+          if (auto* job = incremental_marking()->incremental_marking_job()) {
+            job->ScheduleTask();
+          }
+        }
         break;
       case IncrementalMarkingLimit::kSoftLimit:
         if (auto* job = incremental_marking()->incremental_marking_job()) {
@@ -2113,30 +2126,6 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
         break;
       case IncrementalMarkingLimit::kNoLimit:
         break;
-    }
-  }
-}
-
-void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
-  // TODO(v8:13012): Consider finalizing minor incremental marking when we need
-  // to start a full GC.
-  if (incremental_marking()->IsMarking() ||
-      !incremental_marking()->CanBeStarted()) {
-    return;
-  }
-
-  const size_t old_generation_space_available = OldGenerationSpaceAvailable();
-
-  if (old_generation_space_available < NewSpaceTargetCapacity()) {
-    if (auto* job = incremental_marking()->incremental_marking_job()) {
-      job->ScheduleTask();
-    }
-    if (old_generation_space_available == 0) {
-      // Fulfil the role of IncrementalMarkingLimitReached() == kHardLimit and
-      // try to start incremental marking ASAP.
-      // TODO(dinfuehr): Unify this logic with the main thread
-      // IncrementalMarkingLimitReached() call.
-      isolate()->stack_guard()->RequestStartIncrementalMarking();
     }
   }
 }
