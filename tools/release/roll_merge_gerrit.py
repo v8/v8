@@ -5,19 +5,18 @@
 
 import argparse
 import logging
-import os
 import re
 import sys
 import time
 import datetime
 import urllib.parse
 
+from pathlib import Path
+
 # Add depot tools to the sys path, for gerrit_util
-sys.path.append(
-    os.path.abspath(
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '../../third_party/depot_tools')))
+BASE_PATH = Path(__file__).resolve().parent.parent.parent
+DEPOT_TOOLS_PATH = BASE_PATH / 'third_party' / 'depot_tools'
+sys.path.append(str(DEPOT_TOOLS_PATH))
 
 import gerrit_util
 
@@ -46,7 +45,8 @@ def ExtractVersion(include_file_text):
   return version
 
 
-def main():
+def main(sys_args=None):
+  sys_args = sys_args or sys.argv[1:]
   parser = argparse.ArgumentParser(
       description="Use the gerrit API to cherry-pick a revision")
   parser.add_argument(
@@ -63,7 +63,7 @@ def main():
   # onto it as additional patches.
   parser.add_argument("revision", nargs=1, help="The revision to merge.")
 
-  options = parser.parse_args()
+  options = parser.parse_args(sys_args)
 
   branch = options.branch
   if branch is None:
