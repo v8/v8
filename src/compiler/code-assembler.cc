@@ -1102,7 +1102,7 @@ Node* CodeAssembler::CallRuntimeImpl(
 
   NodeArray<kMaxNumArgs + 4> inputs;
   inputs.Add(centry);
-  for (auto arg : args) inputs.Add(arg);
+  for (const auto& arg : args) inputs.Add(arg);
   inputs.Add(ref);
   inputs.Add(arity);
   inputs.Add(context);
@@ -1145,7 +1145,7 @@ void CodeAssembler::TailCallRuntimeImpl(
 
   NodeArray<kMaxNumArgs + 4> inputs;
   inputs.Add(centry);
-  for (auto arg : args) inputs.Add(arg);
+  for (const auto& arg : args) inputs.Add(arg);
   inputs.Add(ref);
   inputs.Add(arity);
   inputs.Add(context);

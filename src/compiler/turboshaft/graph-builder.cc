@@ -218,7 +218,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
               });
 
     OpIndex dominating_frame_state = OpIndex::Invalid();
-    if (predecessors.size() > 0) {
+    if (!predecessors.empty()) {
       dominating_frame_state =
           block_mapping[predecessors[0]->rpo_number()].final_frame_state;
       for (size_t i = 1; i < predecessors.size(); ++i) {
