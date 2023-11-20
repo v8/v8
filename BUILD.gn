@@ -856,6 +856,8 @@ config("external_startup_data") {
 
 # List of defines that can appear in externally visible header files and that
 # are controlled by args.gn.
+# Make sure the |v8_generate_features_json| action is also updated when adding
+# or removing defines below.
 external_v8_defines = [
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
@@ -2680,6 +2682,44 @@ action("v8_dump_build_config") {
     "verify_heap=$v8_enable_verify_heap",
     "verify_predictable=$v8_enable_verify_predictable",
   ]
+}
+
+# Generate a json file containing essential V8 build flags.
+# This json file is consumed by embedders like Node.js and Electron to provide
+# information for building third party modules. There is currently no exact
+# rules on which build flags should be outputed in the json file, but anything
+# affecting the |external_v8_defines| list must be listed here and added to
+# the common.gypi file in Node.js repo.
+generated_file("v8_generate_features_json") {
+  outputs = [ "$root_out_dir/v8_features.json" ]
+  output_conversion = "json"
+  contents = {
+    v8_deprecation_warnings = v8_deprecation_warnings
+    v8_enable_31bit_smis_on_64bit_arch = v8_enable_31bit_smis_on_64bit_arch
+    v8_enable_conservative_stack_scanning = v8_enable_conservative_stack_scanning
+    v8_enable_direct_local = v8_enable_direct_local
+    v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
+    v8_enable_gdbjit = v8_enable_gdbjit
+    v8_enable_hugepage = v8_enable_hugepage
+    v8_enable_i18n_support = v8_enable_i18n_support
+    v8_enable_javascript_promise_hooks = v8_enable_javascript_promise_hooks
+    v8_enable_lite_mode = v8_enable_lite_mode
+    v8_enable_map_packing = v8_enable_map_packing
+    v8_enable_object_print = v8_enable_object_print
+    v8_enable_pointer_compression = v8_enable_pointer_compression
+    v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression_shared_cage
+    v8_enable_sandbox = v8_enable_sandbox
+    v8_enable_shared_ro_heap = v8_enable_shared_ro_heap
+    v8_enable_short_builtin_calls = v8_enable_short_builtin_calls
+    v8_enable_v8_checks = v8_enable_v8_checks
+    v8_enable_webassembly = v8_enable_webassembly
+    v8_enable_zone_compression = v8_enable_zone_compression
+    v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings
+    v8_optimized_debug = v8_optimized_debug
+    v8_random_seed = v8_random_seed
+    v8_use_perfetto = v8_use_perfetto
+    v8_use_siphash = v8_use_siphash
+  }
 }
 
 ###############################################################################
