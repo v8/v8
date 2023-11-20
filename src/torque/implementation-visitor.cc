@@ -306,7 +306,7 @@ VisitResult ImplementationVisitor::InlineMacro(
   }
 
   size_t count = 0;
-  for (auto arg : arguments) {
+  for (const auto& arg : arguments) {
     if (this_reference && count == signature.implicit_count) count++;
     const bool mark_as_used = signature.implicit_count > count;
     const Identifier* name = macro->parameter_names()[count++];
@@ -1535,7 +1535,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
   const ClassType* class_type = *object.type()->ClassSupertype();
   std::map<std::string, LocalValue> bindings;
   bool before_current = true;
-  for (Field f : class_type->ComputeAllFields()) {
+  for (const Field& f : class_type->ComputeAllFields()) {
     if (field.name_and_type.name == f.name_and_type.name) {
       before_current = false;
     }
@@ -1567,7 +1567,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
 
   StackScope stack_scope(this);
   std::map<std::string, LocalValue> bindings;
-  for (Field f : class_type->ComputeAllFields()) {
+  for (const Field& f : class_type->ComputeAllFields()) {
     if (f.index) break;
     const std::string& fieldname = f.name_and_type.name;
     VisitResult value = initializer_results.field_value_map.at(fieldname);
@@ -2804,7 +2804,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     ++current;
   }
 
-  for (auto arg : arguments.parameters) {
+  for (const auto& arg : arguments.parameters) {
     const Type* to_type = (current >= callable->signature().types().size())
                               ? TypeOracle::GetObjectType()
                               : callable->signature().types()[current++];
@@ -2912,7 +2912,7 @@ VisitResult ImplementationVisitor::GenerateCall(
           break;
         }
       }
-      for (VisitResult arg : converted_arguments) {
+      for (const VisitResult& arg : converted_arguments) {
         DCHECK(!arg.IsOnStack());
         if (!first) {
           result << ", ";
@@ -2924,6 +2924,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       return VisitResult(return_type, result.str());
     } else if (inline_macro) {
       std::vector<Block*> label_blocks;
+      label_blocks.reserve(arguments.labels.size());
       for (Binding<LocalLabel>* label : arguments.labels) {
         label_blocks.push_back(label->block);
       }
@@ -3136,7 +3137,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       std::vector<std::string> constexpr_arguments_for_getter;
 
       size_t arg_count = 0;
-      for (auto arg : arguments_to_getter.parameters) {
+      for (const auto& arg : arguments_to_getter.parameters) {
         DCHECK_LT(arg_count, getter->signature().types().size());
         const Type* to_type = getter->signature().types()[arg_count++];
         AddCallParameter(getter, arg, to_type, &converted_arguments_for_getter,
@@ -4155,7 +4156,7 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << "\n";
   ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
                               type_->GetSuperClass());
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
   }
@@ -4226,7 +4227,7 @@ void CppClassGenerator::GenerateClass() {
       allocated_size_f.PrintInlineDefinition(hdr_, [&](std::ostream& stream) {
         stream << "    return SizeFor(";
         bool first = true;
-        for (auto field : *index_fields) {
+        for (const auto& field : *index_fields) {
           if (!first) stream << ", ";
           stream << "this->" << field.name_and_type.name << "()";
           first = false;
@@ -4271,14 +4272,14 @@ void CppClassGenerator::GenerateCppObjectDefinitionAsserts() {
 
   ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
                               type_->GetSuperClass());
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
   }
   g.Finish();
   hdr_ << "\n";
 
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     hdr_ << "  static_assert(" << field_offset << " == D::" << field_offset
@@ -4796,7 +4797,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
         bool first = true;
         auto index_fields = GetOrderedUniqueIndexFields(*type);
         CHECK(index_fields.has_value());
-        for (auto index_field : *index_fields) {
+        for (const auto& index_field : *index_fields) {
           if (!first) {
             factory_impl << ", ";
           }
@@ -5291,7 +5292,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       cc_contents << "  CHECK(Is" << name << "(o, isolate));\n";
 
       // Third, verify its properties.
-      for (auto f : type->fields()) {
+      for (const auto& f : type->fields()) {
         GenerateClassFieldVerifier(name, *type, f, h_contents, cc_contents);
       }
 
