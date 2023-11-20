@@ -347,7 +347,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 // Things get more complex if we also need to reload the memory context.
-(function UnandledInHandledWithMemoryTest() {
+(function UnhandledInHandledWithMemoryTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 

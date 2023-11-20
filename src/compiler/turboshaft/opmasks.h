@@ -132,6 +132,13 @@ using kWord32Sub =
     WordBinopMask::For<WordBinopOp::Kind::kSub, WordRepresentation::Word32()>;
 using kWord32Mul =
     WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word32()>;
+using kWord32SignedMulOverflownBits =
+    WordBinopMask::For<WordBinopOp::Kind::kSignedMulOverflownBits,
+                       WordRepresentation::Word32()>;
+using kWord32UnsignedMulOverflownBits =
+    WordBinopMask::For<WordBinopOp::Kind::kUnsignedMulOverflownBits,
+                       WordRepresentation::Word32()>;
+
 using kWord32BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word32()>;
 using kWord64Add =
@@ -149,13 +156,31 @@ using kBitwiseXor = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseXor>;
 using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
                                    FIELD(FloatUnaryOp, rep)>;
 
+using kFloat32Negate = FloatUnaryMask::For<FloatUnaryOp::Kind::kNegate,
+                                           FloatRepresentation::Float32()>;
 using kFloat64Abs = FloatUnaryMask::For<FloatUnaryOp::Kind::kAbs,
+                                        FloatRepresentation::Float64()>;
+using kFloat64Negate = FloatUnaryMask::For<FloatUnaryOp::Kind::kNegate,
+                                           FloatRepresentation::Float64()>;
+
+using FloatBinopMask = MaskBuilder<FloatBinopOp, FIELD(FloatBinopOp, kind),
+                                   FIELD(FloatBinopOp, rep)>;
+
+using kFloat32Sub = FloatBinopMask::For<FloatBinopOp::Kind::kSub,
+                                        FloatRepresentation::Float32()>;
+using kFloat32Mul = FloatBinopMask::For<FloatBinopOp::Kind::kMul,
+                                        FloatRepresentation::Float32()>;
+using kFloat64Sub = FloatBinopMask::For<FloatBinopOp::Kind::kSub,
+                                        FloatRepresentation::Float64()>;
+using kFloat64Mul = FloatBinopMask::For<FloatBinopOp::Kind::kMul,
                                         FloatRepresentation::Float64()>;
 
 using ShiftMask =
     MaskBuilder<ShiftOp, FIELD(ShiftOp, kind), FIELD(ShiftOp, rep)>;
 using ShiftKindMask = MaskBuilder<ShiftOp, FIELD(ShiftOp, kind)>;
 
+using kWord32ShiftLeft =
+    ShiftMask::For<ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32()>;
 using kWord32ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word32()>;
@@ -196,6 +221,14 @@ using kChangeInt32ToInt64 = ChangeOpMask::For<
 using kChangeUint32ToUint64 = ChangeOpMask::For<
     ChangeOp::Kind::kZeroExtend, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word32(), RegisterRepresentation::Word64()>;
+using kFloat64ExtractHighWord32 = ChangeOpMask::For<
+    ChangeOp::Kind::kExtractHighHalf, ChangeOp::Assumption::kNoAssumption,
+    RegisterRepresentation::Float64(), RegisterRepresentation::Word32()>;
+using kTruncateFloat64ToInt64OverflowToMin =
+    ChangeOpMask::For<ChangeOp::Kind::kSignedFloatTruncateOverflowToMin,
+                      ChangeOp::Assumption::kNoAssumption,
+                      RegisterRepresentation::Float64(),
+                      RegisterRepresentation::Word64()>;
 
 #undef FIELD
 
