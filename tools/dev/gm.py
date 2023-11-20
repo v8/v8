@@ -554,7 +554,8 @@ class ArgumentParser(object):
     if not args_gn.is_file():
       return False
     if path not in self.configs:
-      self.configs[path] = RawConfig(path, targets, tests, clean)
+      self.configs[path] = RawConfig(path, targets, tests, clean,
+                                     self.testrunner_args)
     else:
       self.configs[path].extend(targets, tests, clean)
     return True
