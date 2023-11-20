@@ -58,6 +58,7 @@ class Isolate;
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
   V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
     api_callback_thunk_argument)                                              \
+  V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                          \
   V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,             \
     continuation_preserved_embedder_data)                                     \
   /* Full tables (arbitrary size, potentially slower access). */              \
@@ -293,6 +294,11 @@ class IsolateData final {
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
+
+  // An offset that always generates an invalid address when added to any
+  // start address of a Wasm memory. This is used to force an out-of-bounds
+  // access on Wasm memory64.
+  int64_t wasm64_oob_offset_ = 0xf000'0000'0000'0000;
 
   // This is data that should be preserved on newly created continuations.
   Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();

@@ -5004,14 +5004,15 @@ class TurboshaftGraphBuildingInterface {
     DCHECK(base::IsInBounds(offset, static_cast<uintptr_t>(repr.SizeInBytes()),
                             memory->max_memory_size));
 
+    wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
     // Convert the index to uintptr.
     if (!memory->is_memory64) {
       index = __ ChangeUint32ToUintPtr(index);
     } else if (kSystemPointerSize == kInt32Size) {
       // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero
       // to succeed the bounds check.
-      DCHECK_NE(kTrapHandler, memory->bounds_checks);
-      if (memory->bounds_checks == wasm::kExplicitBoundsChecks) {
+      DCHECK_NE(kTrapHandler, bounds_checks);
+      if (bounds_checks == wasm::kExplicitBoundsChecks) {
         V<Word32> high_word =
             __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
         __ TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
@@ -5020,17 +5021,32 @@ class TurboshaftGraphBuildingInterface {
       index = __ TruncateWord64ToWord32(index);
     }
 
-    //  If no bounds checks should be performed (for testing), just return the
+    // If no bounds checks should be performed (for testing), just return the
     // converted index and assume it to be in-bounds.
-    if (memory->bounds_checks == wasm::kNoBoundsChecks) {
+    if (bounds_checks == wasm::kNoBoundsChecks) {
       return {index, compiler::BoundsCheckResult::kInBounds};
     }
 
+    // We already checked that offset is below the max memory size.
+    DCHECK_LT(offset, memory->max_memory_size);
+
     // TODO(14108): Optimize constant index as per wasm-compiler.cc.
 
-    if (memory->bounds_checks == kTrapHandler &&
+    using Implementation = compiler::turboshaft::SelectOp::Implementation;
+    if (bounds_checks == kTrapHandler &&
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
+      if (memory->is_memory64) {
+        index = __ Select(
+            __ Word64ShiftRightLogical(
+                index, memory->GetMemory64GuardsShift()),  // cond
+            __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                    MemoryRepresentation::PointerSized(),
+                    IsolateData::wasm64_oob_offset_offset()),  // vtrue
+            index,                                             // vfalse
+            RegisterRepresentation::Word64(), BranchHint::kNone,
+            Implementation::kCMove);
+      }
       return {index, compiler::BoundsCheckResult::kTrapHandler};
     }
 

@@ -3587,6 +3587,8 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
     EnforceBoundsCheck enforce_check) {
   DCHECK_LE(1, access_size);
 
+  wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
+
   // The function body decoder already validated that the access is not
   // statically OOB.
   DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
@@ -3598,8 +3600,8 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   } else if (kSystemPointerSize == kInt32Size) {
     // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
     // succeed the bounds check.
-    DCHECK_NE(wasm::kTrapHandler, memory->bounds_checks);
-    if (memory->bounds_checks == wasm::kExplicitBoundsChecks) {
+    DCHECK_NE(wasm::kTrapHandler, bounds_checks);
+    if (bounds_checks == wasm::kExplicitBoundsChecks) {
       Node* high_word = gasm_->TruncateInt64ToInt32(
           gasm_->Word64Shr(index, Int32Constant(32)));
       TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
@@ -3610,8 +3612,11 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
 
   // If no bounds checks should be performed (for testing), just return the
   // converted index and assume it to be in-bounds.
-  if (memory->bounds_checks == wasm::kNoBoundsChecks)
+  if (bounds_checks == wasm::kNoBoundsChecks)
     return {index, BoundsCheckResult::kInBounds};
+
+  // We already checked that offset is below the max memory size.
+  DCHECK_LT(offset, memory->max_memory_size);
 
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
@@ -3632,9 +3637,20 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
     return {index, BoundsCheckResult::kInBounds};
   }
 
-  if (memory->bounds_checks == wasm::kTrapHandler &&
+  if (bounds_checks == wasm::kTrapHandler &&
       enforce_check == EnforceBoundsCheck::kCanOmitBoundsCheck) {
-    return {index, BoundsCheckResult::kTrapHandler};
+    if (memory->is_memory64) {
+      Node* true_node =
+          gasm_->LoadImmutable(MachineType::Uint64(), BuildLoadIsolateRoot(),
+                               IsolateData::wasm64_oob_offset_offset());
+      Node* cond = gasm_->Word64Shr(
+          index, Int64Constant(memory->GetMemory64GuardsShift()));
+      Node* modified_index = mcgraph()->graph()->NewNode(
+          mcgraph()->machine()->Word64Select().op(), cond, true_node, index);
+      return {modified_index, BoundsCheckResult::kTrapHandler};
+    } else {
+      return {index, BoundsCheckResult::kTrapHandler};
+    }
   }
 
   Node* mem_size = MemSize(memory->index);

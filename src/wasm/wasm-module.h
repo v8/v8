@@ -131,6 +131,11 @@ struct WasmMemory {
   uintptr_t min_memory_size = 0;  // smallest size of any memory in bytes
   uintptr_t max_memory_size = 0;  // largest size of any memory in bytes
   BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
+
+  inline int GetMemory64GuardsShift() const {
+    return GetMemory64GuardsShift(maximum_pages * kWasmPageSize);
+  }
+  static int GetMemory64GuardsShift(uint64_t max_memory_size);
 };
 
 inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
@@ -151,10 +156,11 @@ inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
   } else if (origin != kWasmOrigin) {
     // Asm.js modules can't use trap handling.
     memory->bounds_checks = kExplicitBoundsChecks;
-  } else if (memory->is_memory64) {
+  } else if (memory->is_memory64 && !v8_flags.wasm_memory64_trap_handling) {
     // Memory64 currently always requires explicit bounds checks.
     memory->bounds_checks = kExplicitBoundsChecks;
   } else if (trap_handler::IsTrapHandlerEnabled()) {
+    if constexpr (kSystemPointerSize == 4) UNREACHABLE();
     memory->bounds_checks = kTrapHandler;
   } else {
     // If the trap handler is not enabled, fall back to explicit bounds checks.

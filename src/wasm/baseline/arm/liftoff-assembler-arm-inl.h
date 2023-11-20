@@ -4325,6 +4325,11 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   vsub(dst.high_fp(), src3.high_fp(), scratch.high());
 }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
+                                             MemOperand oob_offset) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   UseScratchRegisterScope temps(this);
   Register limit_address = temps.Acquire();

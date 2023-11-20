@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "src/base/bits.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
@@ -16,6 +17,7 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -33,7 +35,8 @@ namespace {
 constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
 
 #if V8_TARGET_ARCH_64_BIT
-constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
+constexpr uint64_t kFullGuardSize32 = uint64_t{10} * GB;
+constexpr uint64_t kFullGuardSize64 = uint64_t{32} * GB;
 #endif
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -55,21 +58,32 @@ enum class AllocationStatus {
 };
 
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
-                                      void* buffer_start,
+                                      bool is_wasm_memory64, void* buffer_start,
                                       size_t byte_capacity) {
 #if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
   if (has_guard_regions) {
-    // Guard regions always look like this:
-    // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
-    //              ^ buffer_start
-    //                              ^ byte_length
-    // ^ negative guard region           ^ positive guard region
-
     Address start = reinterpret_cast<Address>(buffer_start);
     DCHECK_EQ(8, sizeof(size_t));  // only use on 64-bit
     DCHECK_EQ(0, start % AllocatePageSize());
-    return base::AddressRegion(start - kNegativeGuardSize,
-                               static_cast<size_t>(kFullGuardSize));
+    if (is_wasm_memory64) {
+      DCHECK(v8_flags.wasm_memory64_trap_handling);
+      static_assert(kFullGuardSize64 ==
+                    2 * wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
+      DCHECK_LE(byte_capacity,
+                wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
+      return base::AddressRegion(
+          start,
+          1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity));
+    } else {
+      // Guard regions always look like this:
+      // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
+      //              ^ buffer_start
+      //                              ^ byte_length
+      // ^ negative guard region           ^ positive guard region
+
+      return base::AddressRegion(start - kNegativeGuardSize,
+                                 static_cast<size_t>(kFullGuardSize32));
+    }
   }
 #endif
 
@@ -78,12 +92,22 @@ base::AddressRegion GetReservedRegion(bool has_guard_regions,
                              byte_capacity);
 }
 
-size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
+size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity,
+                          bool is_wasm_memory64) {
 #if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
   if (has_guard_regions) {
-    static_assert(kFullGuardSize > size_t{4} * GB);
-    DCHECK_LE(byte_capacity, size_t{4} * GB);
-    return kFullGuardSize;
+    if (is_wasm_memory64) {
+      DCHECK(v8_flags.wasm_memory64_trap_handling);
+      static_assert(kFullGuardSize64 ==
+                    2 * wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
+      DCHECK_LE(byte_capacity,
+                wasm::kV8MaxWasmMemory64Pages * wasm::kWasmPageSize);
+      return 1ULL << wasm::WasmMemory::GetMemory64GuardsShift(byte_capacity);
+    } else {
+      static_assert(kFullGuardSize32 >= size_t{4} * GB);
+      DCHECK_LE(byte_capacity, size_t{4} * GB);
+      return kFullGuardSize32;
+    }
   }
 #else
   DCHECK(!has_guard_regions);
@@ -108,8 +132,9 @@ struct SharedWasmMemoryData {
 BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                            size_t max_byte_length, size_t byte_capacity,
                            SharedFlag shared, ResizableFlag resizable,
-                           bool is_wasm_memory, bool has_guard_regions,
-                           bool custom_deleter, bool empty_deleter)
+                           bool is_wasm_memory, bool is_wasm_memory64,
+                           bool has_guard_regions, bool custom_deleter,
+                           bool empty_deleter)
     : buffer_start_(buffer_start),
       byte_length_(byte_length),
       max_byte_length_(max_byte_length),
@@ -118,6 +143,7 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
       is_shared_(shared == SharedFlag::kShared),
       is_resizable_by_js_(resizable == ResizableFlag::kResizable),
       is_wasm_memory_(is_wasm_memory),
+      is_wasm_memory64_(is_wasm_memory64),
       holds_shared_ptr_to_allocator_(false),
       has_guard_regions_(has_guard_regions),
       globally_registered_(false),
@@ -156,8 +182,8 @@ BackingStore::~BackingStore() {
   auto FreeResizableMemory = [this] {
     DCHECK(!custom_deleter_);
     DCHECK(is_resizable_by_js_ || is_wasm_memory_);
-    auto region =
-        GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
+    auto region = GetReservedRegion(has_guard_regions_, is_wasm_memory64_,
+                                    buffer_start_, byte_capacity_);
 
     PageAllocator* page_allocator = GetArrayBufferPageAllocator();
     if (!region.is_empty()) {
@@ -170,8 +196,8 @@ BackingStore::~BackingStore() {
   if (is_wasm_memory_) {
     // TODO(v8:11111): RAB / GSAB - Wasm integration.
     DCHECK(!is_resizable_by_js_);
-    size_t reservation_size =
-        GetReservationSize(has_guard_regions_, byte_capacity_);
+    size_t reservation_size = GetReservationSize(
+        has_guard_regions_, byte_capacity_, is_wasm_memory64_);
     TRACE_BS(
         "BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
         this, buffer_start_, byte_length(), byte_capacity_, reservation_size);
@@ -254,6 +280,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,   // is_wasm_memory
+                                 false,   // is_wasm_memory64
                                  false,   // has_guard_regions
                                  false,   // custom_deleter
                                  false);  // empty_deleter
@@ -291,10 +318,13 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   TRACE_BS("BSw:try   %zu pages, %zu max\n", initial_pages, maximum_pages);
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool guards = wasm_memory == WasmMemoryFlag::kWasmMemory32 &&
-                trap_handler::IsTrapHandlerEnabled();
+  bool is_wasm_memory64 = wasm_memory == WasmMemoryFlag::kWasmMemory64;
+  bool guards = trap_handler::IsTrapHandlerEnabled() &&
+                (wasm_memory == WasmMemoryFlag::kWasmMemory32 ||
+                 (is_wasm_memory64 && v8_flags.wasm_memory64_trap_handling));
 #else
   CHECK_EQ(WasmMemoryFlag::kNotWasm, wasm_memory);
+  constexpr bool is_wasm_memory64 = false;
   constexpr bool guards = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -318,7 +348,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   };
 
   size_t byte_capacity = maximum_pages * page_size;
-  size_t reservation_size = GetReservationSize(guards, byte_capacity);
+  size_t reservation_size =
+      GetReservationSize(guards, byte_capacity, is_wasm_memory64);
 
   //--------------------------------------------------------------------------
   // Allocate pages (inaccessible by default).
@@ -342,8 +373,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // Get a pointer to the start of the buffer, skipping negative guard region
   // if necessary.
 #if V8_ENABLE_WEBASSEMBLY
-  uint8_t* buffer_start = reinterpret_cast<uint8_t*>(allocation_base) +
-                          (guards ? kNegativeGuardSize : 0);
+  uint8_t* buffer_start =
+      reinterpret_cast<uint8_t*>(allocation_base) +
+      (guards && !is_wasm_memory64 ? kNegativeGuardSize : 0);
 #else
   DCHECK(!guards);
   uint8_t* buffer_start = reinterpret_cast<uint8_t*>(allocation_base);
@@ -376,16 +408,17 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
 
-  auto result = new BackingStore(buffer_start,     // start
-                                 byte_length,      // length
-                                 max_byte_length,  // max_byte_length
-                                 byte_capacity,    // capacity
-                                 shared,           // shared
-                                 resizable,        // resizable
-                                 is_wasm_memory,   // is_wasm_memory
-                                 guards,           // has_guard_regions
-                                 false,            // custom_deleter
-                                 false);           // empty_deleter
+  auto result = new BackingStore(buffer_start,      // start
+                                 byte_length,       // length
+                                 max_byte_length,   // max_byte_length
+                                 byte_capacity,     // capacity
+                                 shared,            // shared
+                                 resizable,         // resizable
+                                 is_wasm_memory,    // is_wasm_memory
+                                 is_wasm_memory64,  // is_wasm_memory64
+                                 guards,            // has_guard_regions
+                                 false,             // custom_deleter
+                                 false);            // empty_deleter
 
   TRACE_BS(
       "BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
@@ -686,6 +719,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,              // is_wasm_memory
+                                 false,              // is_wasm_memory64
                                  false,              // has_guard_regions
                                  true,               // custom_deleter
                                  is_empty_deleter);  // empty_deleter
@@ -704,6 +738,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,   // is_wasm_memory
+                                 false,   // is_wasm_memory64
                                  false,   // has_guard_regions
                                  false,   // custom_deleter
                                  false);  // empty_deleter

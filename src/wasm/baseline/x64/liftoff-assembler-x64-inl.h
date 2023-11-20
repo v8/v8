@@ -4191,6 +4191,13 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   F64x2Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(), kScratchDoubleReg);
 }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
+                                             MemOperand oob_offset) {
+  movq(kScratchRegister, index);
+  shrq(kScratchRegister, Immediate(oob_shift));
+  cmovq(not_equal, index, oob_offset);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   cmpq(rsp, StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
   j(below_equal, ool_code);

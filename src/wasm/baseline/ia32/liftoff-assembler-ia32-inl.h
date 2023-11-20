@@ -4649,6 +4649,11 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
             liftoff::kScratchDoubleReg);
 }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
+                                             MemOperand oob_offset) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   CompareStackLimit(esp, StackLimitKind::kInterruptStackLimit);
   j(below_equal, ool_code);

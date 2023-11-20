@@ -3088,6 +3088,8 @@ class LiftoffCompiler {
     DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
                                        memory->max_memory_size));
 
+    wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
+
     // After bounds checking, we know that the index must be ptrsize, hence only
     // look at the lower word on 32-bit systems (the high word is bounds-checked
     // further down).
@@ -3095,14 +3097,27 @@ class LiftoffCompiler {
         kNeedI64RegPair && index.is_gp_pair() ? index.low_gp() : index.gp();
 
     // Without bounds checks (testing only), just return the ptrsize index.
-    if (V8_UNLIKELY(memory->bounds_checks == kNoBoundsChecks)) {
+    if (V8_UNLIKELY(bounds_checks == kNoBoundsChecks)) {
       return index_ptrsize;
     }
 
+    // We already checked that offset is below the max memory size.
+    DCHECK_LT(offset, memory->max_memory_size);
+
     // Early return for trap handler.
-    DCHECK_IMPLIES(memory->is_memory64,
-                   memory->bounds_checks == kExplicitBoundsChecks);
-    if (!force_check && memory->bounds_checks == kTrapHandler) {
+    DCHECK_IMPLIES(memory->is_memory64 && !v8_flags.wasm_memory64_trap_handling,
+                   bounds_checks == kExplicitBoundsChecks);
+    if (!force_check && bounds_checks == kTrapHandler) {
+      if (memory->is_memory64) {
+        SCOPED_CODE_COMMENT("bounds check memory");
+        // If index is outside the guards pages, sets index to a value that will
+        // certainly cause (memory_start + offset + index) to be not accessible,
+        // to make sure that the OOB access will be caught by the trap handler.
+        __ set_trap_on_oob_mem64(
+            index_ptrsize, memory->GetMemory64GuardsShift(),
+            MemOperand(kRootRegister, IsolateData::wasm64_oob_offset_offset()));
+      }
+
       // With trap handlers we should not have a register pair as input (we
       // would only return the lower half).
       DCHECK(index.is_gp());
@@ -3112,7 +3127,7 @@ class LiftoffCompiler {
     SCOPED_CODE_COMMENT("bounds check memory");
 
     // Set {pc} of the OOL code to {0} to avoid generation of protected
-    // instruction information (see {GenerateOutOfLineCode}.
+    // instruction information (see {GenerateOutOfLineCode}).
     Label* trap_label =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
 
