@@ -125,7 +125,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cd2687c456137bfc010e8bb096713fddf080f73e',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '51b30feb6fa387428928692e33ecfbc3a996d064',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2895795509ad9d48b962cc9f3c69ef5d831f58e3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e04aba79979be87883ec296d65d2b77f88a55821',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bd17576ac2d58104cb43d375ff282fde394ecb44',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -276,11 +276,11 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '038521e9561dab50fc8b50ef987e87225f39c8f6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'a96e76348a51cb38e2120a7333c49884e5737768',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '79413b1359092d6feb34874e9a819466518b7262',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '371593893aeee51ecfb785093115fd846c3b73ca',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '668c76fe4d440ee5e36971c9ca39f1b616af8078',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '85df028e4c5e8a3eaa38fe75e0d78157bee2d668',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
