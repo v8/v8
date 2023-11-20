@@ -157,7 +157,7 @@ class BasicTracedReference : public TracedReferenceBase {
    */
   BasicTracedReference() = default;
 
-  V8_INLINE static internal::Address* New(
+  V8_INLINE static internal::Address* NewFromNonEmptyValue(
       Isolate* isolate, T* that, internal::Address** slot,
       internal::GlobalHandleStoreMode store_mode);
 
@@ -195,10 +195,13 @@ class TracedReference : public BasicTracedReference<T> {
    */
   template <class S>
   TracedReference(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
-    this->slot() =
-        this->New(isolate, *that, &this->slot(),
-                  internal::GlobalHandleStoreMode::kInitializingStore);
     static_assert(std::is_base_of<T, S>::value, "type check");
+    if (V8_UNLIKELY(that.IsEmpty())) {
+      return;
+    }
+    this->slot() = this->NewFromNonEmptyValue(
+        isolate, *that, &this->slot(),
+        internal::GlobalHandleStoreMode::kInitializingStore);
   }
 
   /**
@@ -277,10 +280,9 @@ class TracedReference : public BasicTracedReference<T> {
 
 // --- Implementation ---
 template <class T>
-internal::Address* BasicTracedReference<T>::New(
+internal::Address* BasicTracedReference<T>::NewFromNonEmptyValue(
     Isolate* isolate, T* that, internal::Address** slot,
     internal::GlobalHandleStoreMode store_mode) {
-  if (internal::ValueHelper::IsEmpty(that)) return nullptr;
   return internal::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate),
       internal::ValueHelper::ValueAsAddress(that),
@@ -288,7 +290,9 @@ internal::Address* BasicTracedReference<T>::New(
 }
 
 void TracedReferenceBase::Reset() {
-  if (IsEmpty()) return;
+  if (V8_UNLIKELY(IsEmpty())) {
+    return;
+  }
   internal::DisposeTracedReference(slot());
   SetSlotThreadSafe(nullptr);
 }
@@ -332,10 +336,12 @@ template <class S>
 void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   this->Reset();
-  if (other.IsEmpty()) return;
-  this->SetSlotThreadSafe(
-      this->New(isolate, *other, &this->slot(),
-                internal::GlobalHandleStoreMode::kAssigningStore));
+  if (V8_UNLIKELY(other.IsEmpty())) {
+    return;
+  }
+  this->SetSlotThreadSafe(this->NewFromNonEmptyValue(
+      isolate, *other, &this->slot(),
+      internal::GlobalHandleStoreMode::kAssigningStore));
 }
 
 template <class T>

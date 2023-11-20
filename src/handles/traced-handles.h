@@ -41,7 +41,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   TracedHandles(const TracedHandles&) = delete;
   TracedHandles& operator=(const TracedHandles&) = delete;
 
-  Handle<Object> Create(Address value, Address* slot,
+  FullObjectSlot Create(Address value, Address* slot,
                         GlobalHandleStoreMode store_mode);
 
   using NodeBounds = std::vector<std::pair<const void*, const void*>>;

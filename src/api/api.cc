@@ -729,18 +729,9 @@ void VerifyHandleIsNonEmpty(bool is_empty) {
 i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {
-  API_RCS_SCOPE(i_isolate, TracedGlobal, New);
-#ifdef DEBUG
-  Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
-                  "the address slot must be not null");
-#endif
-  auto result = i_isolate->traced_handles()->Create(value, slot, store_mode);
-#ifdef VERIFY_HEAP
-  if (i::v8_flags.verify_heap) {
-    Object::ObjectVerify(i::Tagged<i::Object>(value), i_isolate);
-  }
-#endif  // VERIFY_HEAP
-  return result.location();
+  return i_isolate->traced_handles()
+      ->Create(value, slot, store_mode)
+      .location();
 }
 
 void MoveTracedReference(internal::Address** from, internal::Address** to) {
