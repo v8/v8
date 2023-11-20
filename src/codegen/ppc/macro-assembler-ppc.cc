@@ -2534,6 +2534,7 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                    int num_double_arguments,
                                    SetIsolateDataSlots set_isolate_data_slots,
                                    bool has_function_descriptor) {
+  ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
