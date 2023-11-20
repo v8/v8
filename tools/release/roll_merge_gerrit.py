@@ -28,7 +28,7 @@ ROLLER_BOT_EMAIL = "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceac
 
 AUTO_ROLLER_URL = 'https://autoroll.skia.org/r/v8-chromium-autoroll'
 
-VERSION_RE = re.compile(r"\d+(?:\.\d+){2,3}")
+VERSION_RE = re.compile(r"^\d+(?:\.\d+){2,3}$")
 
 
 def ExtractVersion(include_file_text):

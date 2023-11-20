@@ -36,7 +36,7 @@ class TestStats(unittest.TestCase):
       None,
       {'labels': {'Code-Review': {'all': [{'value': 1}]}}},
       {'ref': 'refs/heads/roll', 'revision': 'beefdead'},
-      {'tags': ['1.2.1']},
+      {'tags': ['1.2.1', '1.2.1-pgo']},
       {'revision': 'deadbeefce'}])
   @patch('gerrit_util.ChangeEdit')
   @patch('gerrit_util.GetChangeCommit', side_effect=[
