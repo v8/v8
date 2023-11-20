@@ -2092,10 +2092,10 @@ void MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
 
     // See x64 code for reasoning about how to address the isolate data fields.
     if (root_array_available()) {
-      Str(pc_scratch, MemOperand(kRootRegister,
-                                 IsolateData::fast_c_call_caller_pc_offset()));
-      Str(fp, MemOperand(kRootRegister,
-                         IsolateData::fast_c_call_caller_fp_offset()));
+      constexpr int fp_offset = IsolateData::fast_c_call_caller_fp_offset();
+      static_assert(IsolateData::fast_c_call_caller_pc_offset() ==
+                    fp_offset + 8);
+      Stp(fp, pc_scratch, MemOperand(kRootRegister, fp_offset));
     } else {
       DCHECK_NOT_NULL(isolate());
       Mov(addr_scratch,
