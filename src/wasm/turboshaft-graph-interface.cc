@@ -2526,17 +2526,15 @@ class TurboshaftGraphBuildingInterface {
         MemoryIndexToUintPtrOrOOBTrap(is_memory_64, src.op);
     V<WordPtr> size_uintptr =
         MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
-    V<Word32> result = CallCStackSlotToInt32(
-        ExternalReference::wasm_memory_copy(),
-        {{__ BitcastTaggedToWord(instance_node()),
-          MemoryRepresentation::PointerSized()},
-         {__ Word32Constant(imm.memory_dst.index),
-          MemoryRepresentation::Int32()},
-         {__ Word32Constant(imm.memory_src.index),
-          MemoryRepresentation::Int32()},
-         {dst_uintptr, MemoryRepresentation::PointerSized()},
-         {src_uintptr, MemoryRepresentation::PointerSized()},
-         {size_uintptr, MemoryRepresentation::PointerSized()}});
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32(),
+                           MachineType::Uint32(), MachineType::UintPtr(),
+                           MachineType::UintPtr(), MachineType::UintPtr());
+    V<Word32> result = CallC(&sig, ExternalReference::wasm_memory_copy(),
+                             {__ BitcastTaggedToWord(instance_node()),
+                              __ Word32Constant(imm.memory_dst.index),
+                              __ Word32Constant(imm.memory_src.index),
+                              dst_uintptr, src_uintptr, size_uintptr});
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }
 
@@ -5645,6 +5643,7 @@ class TurboshaftGraphBuildingInterface {
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args) {
     DCHECK_LE(sig->return_count(), 1);
+    DCHECK_EQ(sig->parameter_count(), args.size());
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(

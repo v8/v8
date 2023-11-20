@@ -112,7 +112,9 @@ int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,
 
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
-int32_t memory_copy_wrapper(Address data);
+int32_t memory_copy_wrapper(Address instance_addr, uint32_t dst_mem_index,
+                            uint32_t src_mem_index, uintptr_t dst,
+                            uintptr_t src, uintptr_t size);
 
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.

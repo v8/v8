@@ -484,17 +484,13 @@ int32_t memory_init_wrapper(Address instance_addr, uint32_t mem_index,
   return kSuccess;
 }
 
-int32_t memory_copy_wrapper(Address data) {
+int32_t memory_copy_wrapper(Address instance_addr, uint32_t dst_mem_index,
+                            uint32_t src_mem_index, uintptr_t dst,
+                            uintptr_t src, uintptr_t size) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
-  size_t offset = 0;
-  Tagged<WasmInstanceObject> instance = WasmInstanceObject::cast(
-      ReadAndIncrementOffset<Tagged<Object>>(data, &offset));
-  uint32_t dst_mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  uint32_t src_mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  uintptr_t dst = ReadAndIncrementOffset<uintptr_t>(data, &offset);
-  uintptr_t src = ReadAndIncrementOffset<uintptr_t>(data, &offset);
-  uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
+  Tagged<WasmInstanceObject> instance =
+      Tagged<WasmInstanceObject>::cast(Tagged<Object>{instance_addr});
 
   uint64_t dst_mem_size = instance->memory_size(dst_mem_index);
   uint64_t src_mem_size = instance->memory_size(src_mem_index);
