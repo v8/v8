@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:bc5744174d9ea1c292f3f08cfb95fa97ea5c595e',
+  'gn_version': 'git_revision:c7b223bfb225ce87a72a244d016ffdfcf227fa5e',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -322,7 +322,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'd1c140e8b7c827d19208c870177477a9c69cbdf9',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1e8861f03f7c24314aca1c5294d33f337a9b5d37',
     'condition': 'not build_with_chromium',
   }
 }
