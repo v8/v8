@@ -2547,14 +2547,14 @@ class TurboshaftGraphBuildingInterface {
         MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
     V<WordPtr> size_uintptr =
         MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
-    V<Word32> result = CallCStackSlotToInt32(
-        ExternalReference::wasm_memory_fill(),
-        {{__ BitcastTaggedToWord(instance_node()),
-          MemoryRepresentation::PointerSized()},
-         {__ Word32Constant(imm.index), MemoryRepresentation::Int32()},
-         {dst_uintptr, MemoryRepresentation::PointerSized()},
-         {value.op, MemoryRepresentation::Int32()},
-         {size_uintptr, MemoryRepresentation::PointerSized()}});
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32(),
+                           MachineType::UintPtr(), MachineType::Uint8(),
+                           MachineType::UintPtr());
+    V<Word32> result = CallC(
+        &sig, ExternalReference::wasm_memory_fill(),
+        {__ BitcastTaggedToWord(instance_node()), __ Word32Constant(imm.index),
+         dst_uintptr, value.op, size_uintptr});
 
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }

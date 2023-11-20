@@ -5648,16 +5648,14 @@ class LiftoffCompiler {
                         no_reg, trapping);
     }
 
-    // We don't need the instance anymore after the call. We can use the
-    // register for the result.
-    LiftoffRegister result(instance);
-    GenerateCCallWithStackBuffer(&result, kI32, kVoid,
-                                 {{kIntPtrKind, LiftoffRegister{instance}, 0},
-                                  {kI32, static_cast<int32_t>(imm.index), 0},
-                                  dst,
-                                  value,
-                                  size},
-                                 ExternalReference::wasm_memory_fill());
+    LiftoffRegister result =
+        GenerateCCall(kI32,
+                      {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                       {kI32, static_cast<int32_t>(imm.index), 0},
+                       dst,
+                       value,
+                       size},
+                      ExternalReference::wasm_memory_fill());
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
   }

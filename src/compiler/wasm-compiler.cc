@@ -5319,16 +5319,13 @@ void WasmGraphBuilder::MemoryFill(const wasm::WasmMemory* memory, Node* dst,
 
   MemTypeToUintPtrOrOOBTrap(memory->is_memory64, {&dst, &size}, position);
 
-  Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), GetInstance()},
-       {MachineRepresentation::kWord32, gasm_->Int32Constant(memory->index)},
-       {MachineType::PointerRepresentation(), dst},
-       {MachineRepresentation::kWord32, value},
-       {MachineType::PointerRepresentation(), size}});
-
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                 .Params(MachineType::Pointer());
-  Node* call = BuildCCall(&sig, function, stack_slot);
+                 .Params(MachineType::Pointer(), MachineType::Uint32(),
+                         MachineType::UintPtr(), MachineType::Uint8(),
+                         MachineType::UintPtr());
+  Node* call =
+      BuildCCall(&sig, function, GetInstance(),
+                 gasm_->Int32Constant(memory->index), dst, value, size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 

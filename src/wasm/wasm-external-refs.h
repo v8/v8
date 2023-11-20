@@ -116,7 +116,8 @@ int32_t memory_copy_wrapper(Address data);
 
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
-int32_t memory_fill_wrapper(Address data);
+int32_t memory_fill_wrapper(Address instance_addr, uint32_t mem_index,
+                            uintptr_t dst, uint8_t value, uintptr_t size);
 
 // Assumes copy ranges are in-bounds and length > 0.
 void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
