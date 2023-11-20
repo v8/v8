@@ -4491,7 +4491,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           break;
         case ConstantOp::Kind::kRelocatableWasmCall:
         case ConstantOp::Kind::kRelocatableWasmStubCall:
-          UNIMPLEMENTED();
+          break;
       }
       VisitConstant(node);
       break;

@@ -341,3 +341,45 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapNullDereference, () => wasm.get(null));
 
 })();
+
+(function I64BitAnd() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("and", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64And,
+    ])
+    .exportFunc();
+
+  builder.addFunction("maskAfterShift", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      // return (local[0] >> 3) & 7;
+      kExprLocalGet, 0,
+      kExprI64Const, 3,
+      kExprI64ShrU,
+      kExprI64Const, 7,
+      kExprI64And,
+    ])
+    .exportFunc();
+
+  builder.addFunction("shiftAfterMask", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      // return (local[0] & 56) >> 3;
+      kExprLocalGet, 0,
+      kExprI64Const, 56,
+      kExprI64And,
+      kExprI64Const, 3,
+      kExprI64ShrU,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(
+    0b10101010_00000000_01010101_00000000n, wasm.and(
+    0b10101010_00000000_11111111_01010101n,
+    0b11111111_11111111_01010101_00000000n));
+  assertEquals(0b101n, wasm.maskAfterShift(0b1010101010101010n));
+  assertEquals(0b101n, wasm.shiftAfterMask(0b1010101010101010n));
+})();

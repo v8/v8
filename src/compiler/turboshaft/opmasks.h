@@ -165,6 +165,9 @@ using kWord32ShiftRightLogical =
 using kWord64ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word64()>;
+using kWord64ShiftRightLogical =
+    ShiftMask::For<ShiftOp::Kind::kShiftRightLogical,
+                   WordRepresentation::Word64()>;
 using kShiftLeft = ShiftKindMask::For<ShiftOp::Kind::kShiftLeft>;
 
 using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;

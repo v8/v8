@@ -3436,6 +3436,9 @@ struct CallOp : OperationT<CallOp> {
     return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,
                      frame_state, arguments, descriptor, effects);
   }
+  // TODO(mliedtke): Should the hash function be overwritten, so that calls (and
+  // potentially tail calls) can participate in GVN? Right now this is prevented
+  // by every call descriptor being a different pointer.
   auto options() const { return std::tuple{descriptor}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -3596,6 +3599,7 @@ struct TailCallOp : OperationT<TailCallOp> {
                      descriptor);
   }
   auto options() const { return std::tuple{descriptor}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 // Control-flow should never reach here.

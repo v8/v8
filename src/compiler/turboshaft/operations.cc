@@ -89,6 +89,10 @@ void CallOp::PrintOptions(std::ostream& os) const {
   os << '[' << *descriptor->descriptor << ']';
 }
 
+void TailCallOp::PrintOptions(std::ostream& os) const {
+  os << '[' << *descriptor->descriptor << ']';
+}
+
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
