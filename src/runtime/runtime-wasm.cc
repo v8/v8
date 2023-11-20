@@ -312,11 +312,8 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-  // TODO(evih): Change the expected spelling from "byte_length" to
-  // "byteLength".
-  Handle<String> op_name = isolate->factory()->NewStringFromAsciiChecked(
-      op == DataViewOp::kByteLength ? "get DataView.prototype.byte_length"
-                                    : ToString(op, true));
+  Handle<String> op_name =
+      isolate->factory()->NewStringFromAsciiChecked(ToString(op));
   Handle<Object> value(args[1], isolate);
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
@@ -330,7 +327,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
   Handle<String> op_name =
-      isolate->factory()->NewStringFromAsciiChecked(ToString(op, true));
+      isolate->factory()->NewStringFromAsciiChecked(ToString(op));
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, op_name));
 }

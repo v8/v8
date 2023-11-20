@@ -685,7 +685,7 @@ void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
 }
 
 // Returns true iff
-// 1. the subject ends with '.' + pattern, or
+// 1. the subject ends with '.' + pattern or ' ' + pattern, or
 // 2. subject == pattern.
 bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
                               Handle<String> pattern) {
@@ -703,7 +703,7 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
 
     const base::uc32 subject_char = subject_reader.Get(subject_index);
     if (i == pattern_reader.length()) {
-      if (subject_char != '.') return false;
+      if (subject_char != '.' && subject_char != ' ') return false;
     } else if (subject_char != pattern_reader.Get(pattern_index)) {
       return false;
     }

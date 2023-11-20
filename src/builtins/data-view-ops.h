@@ -27,21 +27,17 @@ enum DataViewOp : uint8_t {
       kByteLength
 };
 
-constexpr const char* ToString(DataViewOp op, bool add_prototype_str) {
-  // TODO(evih): Include the ".prototype" by default.
+constexpr const char* ToString(DataViewOp op) {
   switch (op) {
-#define V(Name)                                                   \
-  case DataViewOp::kGet##Name:                                    \
-    if (add_prototype_str) return "DataView.prototype.get" #Name; \
-    return "DataView.get" #Name;                                  \
-  case DataViewOp::kSet##Name:                                    \
-    if (add_prototype_str) return "DataView.prototype.set" #Name; \
-    return "DataView.set" #Name;
+#define V(Name)                            \
+  case DataViewOp::kGet##Name:             \
+    return "DataView.prototype.get" #Name; \
+  case DataViewOp::kSet##Name:             \
+    return "DataView.prototype.set" #Name;
     DATAVIEW_OP_LIST(V)
 #undef V
     case DataViewOp::kByteLength:
-      if (add_prototype_str) return "DataView.prototype.byteLength";
-      return "DataView.byteLength";
+      return "get DataView.prototype.byteLength";
   }
 }
 

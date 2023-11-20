@@ -258,66 +258,59 @@ const char* Builtins::NameForStackTrace(Isolate* isolate, Builtin builtin) {
   // - builtins that throw the same error as one of those above, but would
   //   lose information and e.g. print "indexOf" instead of "String.indexOf".
   switch (builtin) {
+    case Builtin::kDataViewPrototypeGetBigInt64:
+      return "DataView.prototype.getBigInt64";
+    case Builtin::kDataViewPrototypeGetBigUint64:
+      return "DataView.prototype.getBigUint64";
+    case Builtin::kDataViewPrototypeGetFloat32:
+      return "DataView.prototype.getFloat32";
+    case Builtin::kDataViewPrototypeGetFloat64:
+      return "DataView.prototype.getFloat64";
+    case Builtin::kDataViewPrototypeGetInt8:
+      return "DataView.prototype.getInt8";
+    case Builtin::kDataViewPrototypeGetInt16:
+      return "DataView.prototype.getInt16";
+    case Builtin::kDataViewPrototypeGetInt32:
+      return "DataView.prototype.getInt32";
+    case Builtin::kDataViewPrototypeGetUint8:
+      return "DataView.prototype.getUint8";
+    case Builtin::kDataViewPrototypeGetUint16:
+      return "DataView.prototype.getUint16";
+    case Builtin::kDataViewPrototypeGetUint32:
+      return "DataView.prototype.getUint32";
+    case Builtin::kDataViewPrototypeSetBigInt64:
+      return "DataView.prototype.setBigInt64";
+    case Builtin::kDataViewPrototypeSetBigUint64:
+      return "DataView.prototype.setBigUint64";
+    case Builtin::kDataViewPrototypeSetFloat32:
+      return "DataView.prototype.setFloat32";
+    case Builtin::kDataViewPrototypeSetFloat64:
+      return "DataView.prototype.setFloat64";
+    case Builtin::kDataViewPrototypeSetInt8:
+      return "DataView.prototype.setInt8";
+    case Builtin::kDataViewPrototypeSetInt16:
+      return "DataView.prototype.setInt16";
+    case Builtin::kDataViewPrototypeSetInt32:
+      return "DataView.prototype.setInt32";
+    case Builtin::kDataViewPrototypeSetUint8:
+      return "DataView.prototype.setUint8";
+    case Builtin::kDataViewPrototypeSetUint16:
+      return "DataView.prototype.setUint16";
+    case Builtin::kDataViewPrototypeSetUint32:
+      return "DataView.prototype.setUint32";
+    case Builtin::kDataViewPrototypeGetByteLength:
+      return "get DataView.prototype.byteLength";
+    case Builtin::kThrowDataViewDetachedError:
+    case Builtin::kThrowDataViewOutOfBounds:
+    case Builtin::kThrowDataViewTypeError: {
+      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
+      return ToString(op);
+    }
     case Builtin::kStringPrototypeToLocaleLowerCase:
       return "String.toLocaleLowerCase";
     case Builtin::kStringPrototypeIndexOf:
     case Builtin::kThrowIndexOfCalledOnNull:
       return "String.indexOf";
-    case Builtin::kDataViewPrototypeGetBigInt64:
-      return "DataView.getBigInt64";
-    case Builtin::kDataViewPrototypeGetBigUint64:
-      return "DataView.getBigUint64";
-    case Builtin::kDataViewPrototypeGetFloat32:
-      return "DataView.getFloat32";
-    case Builtin::kDataViewPrototypeGetFloat64:
-      return "DataView.getFloat64";
-    case Builtin::kDataViewPrototypeGetInt8:
-      return "DataView.getInt8";
-    case Builtin::kDataViewPrototypeGetInt16:
-      return "DataView.getInt16";
-    case Builtin::kDataViewPrototypeGetInt32:
-      return "DataView.getInt32";
-    case Builtin::kDataViewPrototypeGetUint8:
-      return "DataView.getUint8";
-    case Builtin::kDataViewPrototypeGetUint16:
-      return "DataView.getUint16";
-    case Builtin::kDataViewPrototypeGetUint32:
-      return "DataView.getUint32";
-    case Builtin::kDataViewPrototypeSetBigInt64:
-      return "DataView.setBigInt64";
-    case Builtin::kDataViewPrototypeSetBigUint64:
-      return "DataView.setBigUint64";
-    case Builtin::kDataViewPrototypeSetFloat32:
-      return "DataView.setFloat32";
-    case Builtin::kDataViewPrototypeSetFloat64:
-      return "DataView.setFloat64";
-    case Builtin::kDataViewPrototypeSetInt8:
-      return "DataView.setInt8";
-    case Builtin::kDataViewPrototypeSetInt16:
-      return "DataView.setInt16";
-    case Builtin::kDataViewPrototypeSetInt32:
-      return "DataView.setInt32";
-    case Builtin::kDataViewPrototypeSetUint8:
-      return "DataView.setUint8";
-    case Builtin::kDataViewPrototypeSetUint16:
-      return "DataView.setUint16";
-    case Builtin::kDataViewPrototypeSetUint32:
-      return "DataView.setUint32";
-    case Builtin::kThrowDataViewTypeError: {
-      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-      return op == DataViewOp::kByteLength ? "get byteLength"
-                                           : ToString(op, false);
-    }
-    case Builtin::kThrowDataViewDetachedError: {
-      // TODO(evih): See if we can drop the useless "[as byteLength]".
-      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-      return op == DataViewOp::kByteLength ? "get byteLength [as byteLength]"
-                                           : ToString(op, false);
-    }
-    case Builtin::kThrowDataViewOutOfBounds: {
-      DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-      return ToString(op, false);
-    }
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif
