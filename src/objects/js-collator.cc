@@ -567,6 +567,7 @@ class CollatorAvailableLocales {
     const icu::Locale* icu_available_locales =
         icu::Collator::getAvailableLocales(num_locales);
     std::vector<std::string> locales;
+    locales.reserve(num_locales);
     for (int32_t i = 0; i < num_locales; ++i) {
       locales.push_back(
           Intl::ToLanguageTag(icu_available_locales[i]).FromJust());

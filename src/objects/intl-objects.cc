@@ -2153,7 +2153,7 @@ MaybeHandle<JSArray> VectorToJSArray(Isolate* isolate,
   Handle<FixedArray> fixed_array =
       factory->NewFixedArray(static_cast<int32_t>(array.size()));
   int32_t index = 0;
-  for (std::string item : array) {
+  for (const std::string& item : array) {
     Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
     fixed_array->set(index++, *str);
   }
@@ -2256,7 +2256,7 @@ MaybeHandle<JSArray> AvailableUnits(Isolate* isolate) {
   Handle<FixedArray> fixed_array =
       factory->NewFixedArray(static_cast<int32_t>(sanctioned.size()));
   int32_t index = 0;
-  for (std::string item : sanctioned) {
+  for (const std::string& item : sanctioned) {
     Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
     fixed_array->set(index++, *str);
   }

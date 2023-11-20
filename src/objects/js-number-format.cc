@@ -786,7 +786,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
     return "";
   }
   // Find the end of the subtype.
-  size_t end = str.find(" ", begin);
+  size_t end = str.find(' ', begin);
   // Ex:
   // "unit/acre .### rounding-mode-half-up"
   //       b   e
