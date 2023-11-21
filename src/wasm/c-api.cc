@@ -1684,7 +1684,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   i::Tagged<i::Object> raw_function_data =
-      func->v8_object()->shared()->GetData(isolate);
+      func->v8_object()->shared()->GetData();
 
   // WasmCapiFunctions can be called directly.
   if (IsWasmCapiFunctionData(raw_function_data)) {
@@ -1715,7 +1715,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
     if (IsWasmApiFunctionRef(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::JSFunction::cast(
           i::WasmApiFunctionRef::cast(*object_ref)->callable());
-      i::Tagged<i::Object> data = jsfunc->shared()->GetData(isolate);
+      i::Tagged<i::Object> data = jsfunc->shared()->GetData();
       if (IsWasmCapiFunctionData(data)) {
         return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
                                     results);

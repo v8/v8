@@ -65,7 +65,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // With that, the function_data field would no longer require custom weak
   // marking as that is only required for (byte)code flushing.
   @if(V8_ENABLE_SANDBOX)
-      @customWeakMarking trusted_function_data: IndirectPointer;
+      @customWeakMarking trusted_function_data: Object;
   @customWeakMarking function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;

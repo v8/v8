@@ -181,16 +181,15 @@ void LazyCompileDispatcher::Enqueue(
 }
 
 bool LazyCompileDispatcher::IsEnqueued(
-    Handle<SharedFunctionInfo> shared) const {
-  if (!shared->HasUncompiledData()) return false;
+    Handle<SharedFunctionInfo> function) const {
   Job* job = nullptr;
-  Tagged<UncompiledData> data = shared->uncompiled_data();
-  if (IsUncompiledDataWithPreparseDataAndJob(data)) {
+  Tagged<Object> function_data = function->GetData();
+  if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(data)->job());
-  } else if (IsUncompiledDataWithoutPreparseDataWithJob(data)) {
+        UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
+  } else if (IsUncompiledDataWithoutPreparseDataWithJob(function_data)) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(data)->job());
+        UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }
   return job != nullptr;
 }
@@ -375,14 +374,13 @@ void LazyCompileDispatcher::AbortAll() {
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
-  if (!shared->HasUncompiledData()) return nullptr;
-  Tagged<UncompiledData> data = shared->uncompiled_data();
-  if (IsUncompiledDataWithPreparseDataAndJob(data)) {
+  Tagged<Object> function_data = shared->GetData();
+  if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(data)->job());
-  } else if (IsUncompiledDataWithoutPreparseDataWithJob(data)) {
+        UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
+  } else if (IsUncompiledDataWithoutPreparseDataWithJob(function_data)) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(data)->job());
+        UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }
   return nullptr;
 }
