@@ -5978,8 +5978,6 @@ void MacroAssembler::Float64MinOutOfLine(FPURegister dst, FPURegister src1,
   add_d(dst, src1, src2);
 }
 
-static const int kRegisterPassedArguments = 8;
-
 int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;

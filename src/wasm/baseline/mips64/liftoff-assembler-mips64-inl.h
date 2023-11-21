@@ -102,9 +102,8 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
   }
 }
 
-inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
-                  LiftoffRegister src, ValueKind kind) {
-  MemOperand dst(base, offset);
+inline void Store(LiftoffAssembler* assm, MemOperand dst, LiftoffRegister src,
+                  ValueKind kind) {
   switch (kind) {
     case kI32:
       assm->Usw(src.gp(), dst);
@@ -127,6 +126,12 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     default:
       UNREACHABLE();
   }
+}
+
+inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
+                  LiftoffRegister src, ValueKind kind) {
+  MemOperand dst(base, offset);
+  Store(assm, dst, src, kind);
 }
 
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
@@ -1957,6 +1962,38 @@ inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->bind(&all_true);
 }
 
+inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
+                          const LiftoffAssembler::VarState& src) {
+  if (src.is_reg()) {
+    Store(assm, dst, src.reg(), src.kind());
+    return;
+  }
+
+  UseScratchRegisterScope temps(assm);
+  Register temp = temps.Acquire();
+  if (src.is_const()) {
+    if (src.i32_const() == 0) {
+      temp = zero_reg;
+    } else {
+      assm->li(temp, src.i32_const());
+    }
+  } else {
+    DCHECK(src.is_stack());
+    if (value_kind_size(src.kind()) == 4) {
+      assm->Lw(temp, liftoff::GetStackSlot(src.offset()));
+    } else {
+      assm->Ld(temp, liftoff::GetStackSlot(src.offset()));
+    }
+  }
+
+  if (value_kind_size(src.kind()) == 4) {
+    assm->Sw(temp, dst);
+  } else {
+    DCHECK_EQ(8, value_kind_size(src.kind()));
+    assm->Sd(temp, dst);
+  }
+}
+
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
@@ -3658,41 +3695,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
   int arg_offset = 0;
   for (const VarState& arg : args) {
-    if (arg.is_reg()) {
-      liftoff::Store(this, sp, arg_offset, arg.reg(), arg.kind());
-    } else if (arg.is_const()) {
-      if (arg.kind() == kI32) {
-        if (arg.i32_const() == 0) {
-          Sw(zero_reg, MemOperand(sp, arg_offset));
-        } else {
-          UseScratchRegisterScope temps(this);
-          Register src = temps.Acquire();
-          li(src, arg.i32_const());
-          Sw(src, MemOperand(sp, arg_offset));
-        }
-      } else {
-        if (arg.i32_const() == 0) {
-          Usd(zero_reg, MemOperand(sp, arg_offset));
-        } else {
-          Register src = kScratchReg;
-          li(src, static_cast<int64_t>(arg.i32_const()));
-          Usd(src, MemOperand(sp, arg_offset));
-        }
-      }
-    } else if (value_kind_size(arg.kind()) == 4) {
-      // Stack to stack move.
-      UseScratchRegisterScope temps(this);
-      Register src = temps.Acquire();
-      Lw(src, liftoff::GetStackSlot(arg.offset()));
-      Sw(src, MemOperand(sp, arg_offset));
-    } else {
-      // Stack to stack move.
-      DCHECK_EQ(8, value_kind_size(arg.kind()));
-      UseScratchRegisterScope temps(this);
-      Register src = temps.Acquire();
-      Ld(src, liftoff::GetStackSlot(arg.offset()));
-      Sd(src, MemOperand(sp, arg_offset));
-    }
+    liftoff::StoreToMemory(this, MemOperand{sp, arg_offset}, arg);
     arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
@@ -3737,20 +3740,27 @@ void LiftoffAssembler::CallCWithStackBuffer(
   Daddu(sp, sp, stack_bytes);
 }
 
-void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args_list,
                              ExternalReference ext_ref) {
-  DCHECK_LE(args.size(), arraysize(kCArgRegs));
-  const Register* next_arg_reg = kCArgRegs;
+  // First, prepare the stack for the C call.
+  const int num_args = static_cast<int>(args_list.size());
+  PrepareCallCFunction(num_args, kScratchReg);
+
+  // Note: If we ever need more than eight arguments we would need to load the
+  // stack arguments to registers (via LoadToRegister), then push them to the
+  // stack.
+
+  // Execute the parallel register move for register parameters.
+  DCHECK_GE(arraysize(kCArgRegs), num_args);
+  const VarState* const args = args_list.begin();
   ParallelMove parallel_move{this};
-  for (const VarState& arg : args) {
-    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
-    ++next_arg_reg;
+  for (int reg_arg = 0; reg_arg < num_args; ++reg_arg) {
+    parallel_move.LoadIntoRegister(LiftoffRegister{kCArgRegs[reg_arg]},
+                                   args[reg_arg]);
   }
   parallel_move.Execute();
 
   // Now call the C function.
-  int num_args = static_cast<int>(args.size());
-  PrepareCallCFunction(num_args, kScratchReg);
   CallCFunction(ext_ref, num_args);
 }
 
