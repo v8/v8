@@ -698,7 +698,7 @@ class WasmGraphBuilder {
   Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
-                        IsReturnCall continuation);
+                        IsReturnCall continuation, Node* frame_state = nullptr);
   Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                      base::Vector<Node*> rets, CheckForNull null_check,
                      IsReturnCall continuation,

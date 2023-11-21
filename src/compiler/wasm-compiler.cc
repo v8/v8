@@ -2803,12 +2803,10 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
                          gasm_->Uint32Constant(func_index), continuation);
 }
 
-Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
-                                        base::Vector<Node*> args,
-                                        base::Vector<Node*> rets,
-                                        wasm::WasmCodePosition position,
-                                        Node* func_index,
-                                        IsReturnCall continuation) {
+Node* WasmGraphBuilder::BuildImportCall(
+    const wasm::FunctionSig* sig, base::Vector<Node*> args,
+    base::Vector<Node*> rets, wasm::WasmCodePosition position, Node* func_index,
+    IsReturnCall continuation, Node* frame_state) {
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
@@ -2832,7 +2830,7 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, ref_node);
+      return BuildWasmCall(sig, args, rets, position, ref_node, frame_state);
     case kReturnCall:
       DCHECK(rets.empty());
       return BuildWasmReturnCall(sig, args, position, ref_node);
@@ -7460,7 +7458,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         Node* function_index = gasm_->BuildChangeSmiToInt32(
             gasm_->LoadExportedFunctionIndexAsSmi(function_data));
         BuildImportCall(sig_, base::VectorOf(args), base::VectorOf(rets),
-                        wasm::kNoCodePosition, function_index, kCallContinues);
+                        wasm::kNoCodePosition, function_index, kCallContinues,
+                        frame_state);
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
