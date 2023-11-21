@@ -102,11 +102,11 @@
 #include <sys/mman.h>  // For MultiMappedAllocator.
 #endif
 
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>
-#else
+#if defined(V8_OS_WIN)
 #include <windows.h>
-#endif                // !defined(_WIN32) && !defined(_WIN64)
+#else
+#include <unistd.h>
+#endif  // defined(V8_OS_WIN)
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -1027,7 +1027,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 namespace {
 
 bool IsAbsolutePath(const std::string& path) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(V8_OS_WIN)
   // This is an incorrect approximation, but should
   // work for all our test-running cases.
   return path.find(':') != std::string::npos;
@@ -1037,7 +1037,7 @@ bool IsAbsolutePath(const std::string& path) {
 }
 
 std::string GetWorkingDirectory() {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(V8_OS_WIN)
   char system_buffer[MAX_PATH];
   // Unicode paths are unsupported, which is fine as long as
   // the test directory doesn't include any such paths.

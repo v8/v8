@@ -417,16 +417,16 @@ class V8_BASE_EXPORT OS {
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
 V8_BASE_EXPORT void EnsureConsoleOutputWin32();
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 
 inline void EnsureConsoleOutput() {
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
   // Windows requires extra calls to send assert output to the console
   // rather than a dialog box.
   EnsureConsoleOutputWin32();
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 }
 
 // ----------------------------------------------------------------------------
