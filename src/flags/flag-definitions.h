@@ -547,7 +547,7 @@ DEFINE_BOOL(maglev_destroy_on_background, true,
 DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
+DEFINE_WEAK_NEG_IMPLICATION(maglev_future, maglev_loop_peeling_only_trivial)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
