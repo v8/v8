@@ -26,8 +26,6 @@ template CallOptimization::CallOptimization(LocalIsolate* isolate,
 base::Optional<Tagged<NativeContext>> CallOptimization::GetAccessorContext(
     Tagged<Map> holder_map) const {
   if (is_constant_call()) {
-    DCHECK_EQ(holder_map->map()->native_context_or_null(),
-              constant_function_->native_context());
     return constant_function_->native_context();
   }
   Tagged<Object> maybe_native_context =
