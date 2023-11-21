@@ -128,8 +128,8 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 void IncrementalMarking::Start(GarbageCollector garbage_collector,
                                GarbageCollectionReason gc_reason) {
   DCHECK(CanBeStarted());
-  DCHECK(!heap_->sweeping_in_progress());
-  DCHECK(IsStopped());
+  CHECK(!heap_->sweeping_in_progress());
+  CHECK(IsStopped());
 
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const size_t old_generation_size_mb =
