@@ -15,7 +15,7 @@ from blinkpy.w3c.common import read_credentials
 from blinkpy.w3c.test_importer import TestImporter
 
 TEST_FILE_REFERENCE_IN_STATUS_FILE = re.compile("^\s*'(.*)':.*,$")
-TEST262_FAILURE_LINE = re.compile("^test262/(.*) default: FAIL")
+TEST262_FAILURE_LINE = re.compile("=== test262/(.*) ===")
 TEST262_REPO_URL = 'https://chromium.googlesource.com/external/github.com/tc39/test262'
 V8_TEST262_ROLLS_META_BUG = 'v8:7834'
 
@@ -26,7 +26,7 @@ class GitFileStatus(Enum):
   ADDED = 'A'
   DELETED = 'D'
   MODIFIED = 'M'
-  UNKOWN = 'X'
+  UNKNOWN = 'X'
 
 
 class V8TestImporter(TestImporter):
@@ -165,7 +165,7 @@ class V8TestImporter(TestImporter):
     ]).splitlines()
     assert len(status_line) < 2, f'Expected zero or one line, got {status_line}'
     if len(status_line) == 0:
-      return GitFileStatus.UNKOWN
+      return GitFileStatus.UNKNOWN
     return GitFileStatus(status_line[0][0])
 
   def update_file(self, local_file, status, source_file):
@@ -180,22 +180,22 @@ class V8TestImporter(TestImporter):
 
   def build_and_test(self):
     """Builds and run test262 tests V8."""
-    gn_gen = self.host.executive.run_command(['gn', 'gen', '-C', 'out/Default'],
-                                             cwd=self.project_root)
-    print(gn_gen)
+    _log.info('Building V8')
+    build_config = 'x64.release'
     self.host.executive.run_command(
-        ['autoninja', '-C', 'out/Default'], cwd=self.project_root)
+        [sys.executable, 'tools/dev/gm.py', build_config],
+        cwd=self.project_root)
+    _log.info('Running test262 tests')
     test_results = self.host.executive.run_command(
         [
-            sys.executable, 'tools/run-tests.py', '--outdir=out/Default',
-            '--progress=verbose', '--exit-after-n-failures=0', 'test262'
+            sys.executable, 'tools/run-tests.py',
+            f'--outdir=out/{build_config}', '--progress=verbose',
+            '--exit-after-n-failures=0', 'test262'
         ],
         error_handler=testing_error_handler,
         cwd=self.project_root).splitlines()
     failure_matches = [TEST262_FAILURE_LINE.match(l) for l in test_results]
-    # Ensure we have no duplicates
-    failure_lines = sorted(set(m.group(1) for m in failure_matches if m))
-    return failure_lines
+    return uniq(m.group(1) for m in failure_matches if m)
 
   def failure_lines_from_file(self):
     if not self.test262_failure_file:
@@ -207,23 +207,22 @@ class V8TestImporter(TestImporter):
 
   def update_status_file(self, v8_test262_revision, test262_revision,
                          failure_lines):
-    updated_status, removed_lines = self.remove_deleted_tests(
-        v8_test262_revision, test262_revision)
+    _log.info(f'Updating status file')
+    updated_status = self.remove_deleted_tests(v8_test262_revision,
+                                               test262_revision)
 
-    added_lines = self.detected_skip_lines(failure_lines)
-    if removed_lines or added_lines:
+    added_lines = self.detected_fail_lines(failure_lines)
+    if added_lines:
       updated_status = self.rewrite_status_file_content(updated_status,
-                                                        removed_lines,
                                                         added_lines,
                                                         v8_test262_revision,
                                                         test262_revision)
-      with open(self.test262_status_file, 'w') as w_file:
-        w_file.writelines(updated_status)
+    with open(self.test262_status_file, 'w') as w_file:
+      w_file.writelines(updated_status)
 
   def remove_deleted_tests(self, v8_test262_revision, test262_revision):
     _log.info(f'Remove deleted tests references from status file')
     updated_status = []
-    removed_lines = []
     deleted_tests = self.get_updated_tests(
         v8_test262_revision, test262_revision, update_kind='D')
     with open(self.test262_status_file, 'r') as r_file:
@@ -231,17 +230,15 @@ class V8TestImporter(TestImporter):
         result = TEST_FILE_REFERENCE_IN_STATUS_FILE.match(line)
         if result and (result.group(1) in deleted_tests):
           _log.info(f'... removing {result.group(1)}')
-          removed_lines.append(line)
         else:
           updated_status.append(line)
-    return updated_status, removed_lines
+    return updated_status
 
-  def detected_skip_lines(self, failure_lines):
-    return [f"  '{test}': [SKIP],\n" for test in failure_lines]
+  def detected_fail_lines(self, failure_lines):
+    return [f"  '{test}': [FAIL],\n" for test in failure_lines]
 
-  def rewrite_status_file_content(self, updated_status, removed_lines,
-                                  added_lines, v8_test262_revision,
-                                  test262_revision):
+  def rewrite_status_file_content(self, updated_status, added_lines,
+                                  v8_test262_revision, test262_revision):
     # TODO(liviurau): This is easy to unit test. Add unit tests.
     status_lines_before_eof = updated_status[:-2]
     eof_status_lines = updated_status[-2:]
@@ -249,18 +246,14 @@ class V8TestImporter(TestImporter):
         '\n', ']\n'
     ], f'Unexpected status file eof. {eof_status_lines}'
     import_header_lines = [
-        '\n####', f'# Import test262@{test262_revision[:8]}',
+        '\n####', f'# Import test262@{test262_revision[:8]}\n',
         f'# {TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}\n'
-    ]
-    deleted_mentions_comment_lines = [
-        f'# Removed {removed}' for removed in removed_lines
     ]
     new_failing_tests_lines = ['[ALWAYS, {\n'] + added_lines + [
         '}],\n', f'# End import test262@{test262_revision[:8]}\n', '####\n'
     ]
     return (status_lines_before_eof + import_header_lines +
-            deleted_mentions_comment_lines + new_failing_tests_lines +
-            eof_status_lines)
+            new_failing_tests_lines + eof_status_lines)
 
   def get_updated_tests(self,
                         v8_test262_revision,
@@ -295,6 +288,10 @@ class V8TestImporter(TestImporter):
     ])
 
     _log.info(f'Issue: {self.project_git.run(["cl", "issue"]).strip()}')
+
+
+def uniq(lst):
+  return sorted(set(lst))
 
 
 def testing_error_handler(error):
