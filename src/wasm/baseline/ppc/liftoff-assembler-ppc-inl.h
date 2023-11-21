@@ -2543,6 +2543,11 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                          kScratchSimd128Reg);
 }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
+                                             MemOperand oob_offset) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit_address = ip;
   LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit, r0);

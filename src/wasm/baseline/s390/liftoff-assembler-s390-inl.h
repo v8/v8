@@ -2971,6 +2971,11 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
   emit_s128_select(dst, src1, src2, mask);
 }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
+                                             MemOperand oob_offset) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit_address = ip;
   LoadStackLimit(limit_address, StackLimitKind::kInterruptStackLimit);
