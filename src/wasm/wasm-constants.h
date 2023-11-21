@@ -196,6 +196,11 @@ constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif
 
+enum FPRelativeScope {
+  kEnterFPRelativeOnlyScope,
+  kLeaveFPRelativeOnlyScope,
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

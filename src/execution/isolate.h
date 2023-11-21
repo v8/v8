@@ -2136,7 +2136,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ::heap::base::Stack& stack() { return stack_; }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  bool IsOnCentralStack(Address addr);
+  bool IsOnCentralStack();
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
@@ -2144,7 +2144,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SyncStackLimit();
 #else
-  bool IsOnCentralStack(Address addr) { return true; }
+  bool IsOnCentralStack() { return true; }
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2319,6 +2319,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the Exception sentinel.
   Tagged<Object> ThrowInternal(Tagged<Object> exception,
                                MessageLocation* location);
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsOnCentralStack(Address addr);
+#else
+  bool IsOnCentralStack(Address addr) { return true; }
+#endif
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode

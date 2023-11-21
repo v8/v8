@@ -2653,6 +2653,7 @@ const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
   return zone_->New<ExtractF128Operator>(lane_index);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 const Operator* MachineOperatorBuilder::LoadStackPointer() {
   class LoadStackPointerOperator final : public Operator {
    public:
@@ -2663,15 +2664,19 @@ const Operator* MachineOperatorBuilder::LoadStackPointer() {
   return zone_->New<LoadStackPointerOperator>();
 }
 
-const Operator* MachineOperatorBuilder::SetStackPointer() {
-  class SetStackPointerOperator final : public Operator {
+const Operator* MachineOperatorBuilder::SetStackPointer(
+    wasm::FPRelativeScope fp_scope) {
+  class SetStackPointerOperator final
+      : public Operator1<wasm::FPRelativeScope> {
    public:
-    SetStackPointerOperator()
-        : Operator(IrOpcode::kSetStackPointer, kNoProperties, "SetStackPointer",
-                   1, 1, 0, 0, 1, 0) {}
+    explicit SetStackPointerOperator(wasm::FPRelativeScope fp_scope)
+        : Operator1<wasm::FPRelativeScope>(IrOpcode::kSetStackPointer,
+                                           kNoProperties, "SetStackPointer", 1,
+                                           1, 0, 0, 1, 0, fp_scope) {}
   };
-  return zone_->New<SetStackPointerOperator>();
+  return zone_->New<SetStackPointerOperator>(fp_scope);
 }
+#endif
 
 #undef PURE_BINARY_OP_LIST_32
 #undef PURE_BINARY_OP_LIST_64

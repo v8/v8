@@ -17771,7 +17771,7 @@ TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStackForJS(
                     std::make_pair(MachineType::Pointer(), stack_limit_slot)));
 
   TNode<RawPtrT> old_sp = LoadStackPointer();
-  SetStackPointer(central_stack_sp);
+  SetStackPointer(central_stack_sp, wasm::kEnterFPRelativeOnlyScope);
   StoreNoWriteBarrier(
       MachineType::PointerRepresentation(), LoadFramePointer(),
       IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
@@ -17795,7 +17795,7 @@ void CodeStubAssembler::SwitchFromTheCentralStackForJS(TNode<RawPtrT> old_sp,
       MachineType::PointerRepresentation(), LoadFramePointer(),
       IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
       IntPtrConstant(0));
-  SetStackPointer(old_sp);
+  SetStackPointer(old_sp, wasm::kLeaveFPRelativeOnlyScope);
 }
 
 TNode<Object> CodeStubAssembler::CallOnCentralStack(TNode<Context> context,
@@ -17807,7 +17807,7 @@ TNode<Object> CodeStubAssembler::CallOnCentralStack(TNode<Context> context,
   // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
   // that the graph structure does not depend on the value of the predicate
   // (BoolConstant uses cached nodes).
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   auto is_supported_arch = UniqueInt32Constant(1);
 #else
   auto is_supported_arch = UniqueInt32Constant(0);

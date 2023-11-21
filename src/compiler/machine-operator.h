@@ -1205,9 +1205,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // Access to the machine stack.
   const Operator* LoadFramePointer();
-  const Operator* LoadStackPointer();
-  const Operator* SetStackPointer();
   const Operator* LoadParentFramePointer();
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* LoadStackPointer();
+  const Operator* SetStackPointer(wasm::FPRelativeScope fp_scope);
+#endif
 
   // Compares: stack_pointer [- offset] > value. The offset is optionally
   // applied for kFunctionEntry stack checks.

@@ -853,8 +853,8 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   ClearThreadInWasmScope flag_scope(isolate);
-#if V8_TARGET_ARCH_X64
-  DCHECK(isolate->IsOnCentralStack(GetCurrentStackPosition()));
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+  DCHECK(isolate->IsOnCentralStack());
 #endif
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());

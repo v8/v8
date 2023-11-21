@@ -753,9 +753,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<RawPtrT> LoadParentFramePointer();
   TNode<RawPtrT> StackSlotPtr(int size, int alignment);
 
+#if V8_ENABLE_WEBASSEMBLY
   // Access to the stack pointer.
   TNode<RawPtrT> LoadStackPointer();
-  void SetStackPointer(TNode<RawPtrT> ptr);
+  void SetStackPointer(TNode<RawPtrT> ptr, wasm::FPRelativeScope fp_scope);
+#endif
 
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
   TNode<Uint8T> LoadUint8FromRootRegister(TNode<IntPtrT> offset);

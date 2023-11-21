@@ -720,7 +720,8 @@ intptr_t switch_to_the_central_stack_for_js(Address raw_callable,
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
   *stack_limit_slot = stack_guard->real_jslimit();
-  stack_guard->SetStackLimit(thread_local_top->central_stack_limit_);
+  stack_guard->SetStackLimitForStackSwitching(
+      thread_local_top->central_stack_limit_);
   thread_local_top->is_on_central_stack_flag_ = true;
   return thread_local_top->central_stack_sp_;
 }
@@ -732,7 +733,7 @@ void switch_from_the_central_stack_for_js(Address raw_callable,
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;
   StackGuard* stack_guard = isolate->stack_guard();
-  stack_guard->SetStackLimit(stack_limit);
+  stack_guard->SetStackLimitForStackSwitching(stack_limit);
 }
 
 }  // namespace v8::internal::wasm

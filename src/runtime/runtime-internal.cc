@@ -483,8 +483,8 @@ class SaveAndClearThreadInWasmFlag {};
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
-#ifdef V8_TARGET_ARCH_X64
-  DCHECK(isolate->IsOnCentralStack(GetCurrentStackPosition()));
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+  DCHECK(isolate->IsOnCentralStack());
 #endif
   DCHECK_EQ(2, args.length());
   // TODO(v8:13070): Align allocations in the builtins that call this.

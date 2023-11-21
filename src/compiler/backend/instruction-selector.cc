@@ -1804,13 +1804,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadStackPointer(Node* node) {
   Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  OperandGenerator g(this);
-  auto input = g.UseAny(node->InputAt(0));
-  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(node_t node) {
   OperandGenerator g(this);

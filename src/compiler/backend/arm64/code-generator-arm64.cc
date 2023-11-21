@@ -268,8 +268,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     if (offset.from_frame_pointer()) {
       int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
       // Convert FP-offsets to SP-offsets if it results in better code.
-      if (Assembler::IsImmLSUnscaled(from_sp) ||
-          Assembler::IsImmLSScaled(from_sp, 3)) {
+      if (!frame_access_state()->FPRelativeOnly() &&
+          (Assembler::IsImmLSUnscaled(from_sp) ||
+           Assembler::IsImmLSScaled(from_sp, 3))) {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
@@ -975,8 +976,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArchStackPointer:
-    case kArchSetStackPointer:
-      UNREACHABLE();
+      // The register allocator expects an allocatable register for the output,
+      // we cannot use sp directly.
+      __ mov(i.OutputRegister(), sp);
+      break;
+    case kArchSetStackPointer: {
+      DCHECK(instr->InputAt(0)->IsRegister());
+#if USE_SIMULATOR
+      __ RecordComment("-- Set simulator stack limit --");
+      DCHECK(__ TmpList()->IncludesAliasOf(kSimulatorHltArgument));
+      __ LoadStackLimit(kSimulatorHltArgument, StackLimitKind::kRealStackLimit);
+      __ hlt(kImmExceptionIsSwitchStackLimit);
+#endif
+      __ mov(sp, i.InputRegister(0));
+      auto fp_scope = static_cast<wasm::FPRelativeScope>(
+          MiscField::decode(instr->opcode()));
+      if (fp_scope == wasm::kEnterFPRelativeOnlyScope) {
+        DCHECK(frame_access_state()->has_frame());
+        frame_access_state()->SetFrameAccessToFP();
+      } else {
+        frame_access_state()->SetFrameAccessToDefault();
+      }
+      frame_access_state()->SetFPRelativeOnly(fp_scope ==
+                                              wasm::kEnterFPRelativeOnlyScope);
+      break;
+    }
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
       // comparison to consider the size difference of an optimized frame versus
@@ -3355,7 +3379,19 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Claim(required_slots);
         break;
       }
-      case CallDescriptor::kCallWasmImportWrapper:
+      case CallDescriptor::kCallWasmImportWrapper: {
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        // This stack slot is only used for printing stack traces in V8. Also,
+        // it holds a WasmApiFunctionRef instead of the instance itself, which
+        // is taken care of in the frames accessors.
+        __ Push(scratch, kWasmInstanceRegister);
+        __ Push(xzr, xzr);
+        __ Claim(required_slots);
+        break;
+      }
       case CallDescriptor::kCallWasmCapiFunction: {
         UseScratchRegisterScope temps(masm());
         Register scratch = temps.AcquireX();
@@ -3365,11 +3401,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // it holds a WasmApiFunctionRef instead of the instance itself, which
         // is taken care of in the frames accessors.
         __ Push(scratch, kWasmInstanceRegister);
-        int extra_slots =
-            call_descriptor->kind() == CallDescriptor::kCallWasmImportWrapper
-                ? 0   // Import wrapper: none.
-                : 1;  // C-API function: PC.
-        __ Claim(required_slots + extra_slots);
+        __ Claim(required_slots + 1 /* PC */);
         break;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
