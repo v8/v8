@@ -685,7 +685,8 @@ class MaglevGraphBuilder {
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
         BasicBlock* predecessor;
-        if (merge_state->is_loop() && need_checkpointed_loop_entry()) {
+        if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
+            need_checkpointed_loop_entry()) {
           predecessor =
               FinishBlock<CheckpointedJump>({}, &jump_targets_[offset]);
         } else {

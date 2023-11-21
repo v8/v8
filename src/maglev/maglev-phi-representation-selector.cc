@@ -120,16 +120,28 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
           // respective checked conversion form within the loop to wire up the
           // feedback collection.
           if (v8_flags.maglev_speculative_hoist_phi_untagging) {
+            if (input->Is<InitialValue>()) {
+              hoist_untagging = HoistType::kPrologue;
+              continue;
+            }
             // TODO(olivf): Currently there is no hard guarantee that the phi
             // merge state has a checkpointed jump.
             if (dominator->control_node()->Is<CheckpointedJump>()) {
+              DCHECK(!node->merge_state()->is_resumable_loop());
               hoist_untagging = HoistType::kLoopEntry;
               continue;
             }
           }
         }
       }
-      // This input can't be untagged.
+
+      // This input is tagged, didn't require a tagging operation to be
+      // tagged and we decided not to hosit; we won't untag {node}.
+      // TODO(dmercadier): this is a bit suboptimal, because some nodes start
+      // tagged, and later become untagged (parameters for instance). Such nodes
+      // will have their untagged alternative passed to {node} without any
+      // explicit conversion, and we thus won't untag {node} even though we
+      // could have.
       input_reprs.RemoveAll();
       break;
     }

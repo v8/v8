@@ -673,8 +673,9 @@ void MaglevGraphBuilder::StartPrologue() {
 
 BasicBlock* MaglevGraphBuilder::EndPrologue() {
   BasicBlock* first_block;
-  if (v8_flags.maglev_hoist_osr_value_phi_untagging && graph_->is_osr() &&
-      !is_inline()) {
+  if (!is_inline() &&
+      (v8_flags.maglev_speculative_hoist_phi_untagging ||
+       (v8_flags.maglev_hoist_osr_value_phi_untagging && graph_->is_osr()))) {
     first_block =
         FinishBlock<CheckpointedJump>({}, &jump_targets_[entrypoint_]);
   } else {
