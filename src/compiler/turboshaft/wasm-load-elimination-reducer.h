@@ -357,11 +357,9 @@ class WasmLoadEliminationAnalyzer {
   using MemoryKey = wle::WasmMemoryContentTable::Key;
   using MemorySnapshot = wle::WasmMemoryContentTable::Snapshot;
 
-  WasmLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone,
-                              JSHeapBroker* broker)
+  WasmLoadEliminationAnalyzer(Graph& graph, Zone* phase_zone)
       : graph_(graph),
         phase_zone_(phase_zone),
-        broker_(broker),
         replacements_(graph.op_id_count(), phase_zone, &graph),
         non_aliasing_objects_(phase_zone),
         memory_(phase_zone, non_aliasing_objects_, replacements_),
@@ -451,7 +449,6 @@ class WasmLoadEliminationAnalyzer {
 
   Graph& graph_;
   Zone* phase_zone_;
-  JSHeapBroker* broker_;
 
   FixedOpIndexSidetable<OpIndex> replacements_;
 
@@ -525,8 +522,7 @@ class WasmLoadEliminationReducer : public Next {
 
  private:
   WasmLoadEliminationAnalyzer analyzer_{Asm().modifiable_input_graph(),
-                                        Asm().phase_zone(),
-                                        PipelineData::Get().broker()};
+                                        Asm().phase_zone()};
 };
 
 void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
@@ -749,13 +745,12 @@ void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
-  if (!op.Effects().can_write()) return;
-  if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
-    // This is a stack check that cannot write heap memory.
+  if (!op.Effects().can_write()) {
     return;
   }
   // TODO(jkummerow): Add special handling to builtins that are known not to
-  // have relevant side effects.
+  // have relevant side effects. Alternatively, specify their effects to not
+  // include `CanWriteMemory()`.
 #if 0
   if (auto builtin_id = TryGetBuiltinId(
           graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {

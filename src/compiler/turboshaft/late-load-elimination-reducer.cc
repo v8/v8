@@ -107,7 +107,7 @@ bool RepIsCompatible(RegisterRepresentation actual,
 
 void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& load) {
-  if (!load.kind.always_canonically_accessed) {
+  if (!load.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
     return;
@@ -155,7 +155,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
-  if (!store.kind.always_canonically_accessed) {
+  if (!store.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
     return;
@@ -183,6 +183,8 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
   if (!op.Effects().can_write()) return;
+  // Note: This does not detect wasm stack checks, but those are detected by the
+  // check just above.
   if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
     // This is a stack check that cannot write heap memory.
     return;

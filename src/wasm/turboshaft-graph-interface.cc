@@ -3661,6 +3661,9 @@ class TurboshaftGraphBuildingInterface {
 
     V<WordPtr> LoadMemStart() {
       DCHECK(has_memory_);
+      // In contrast to memory size loads, we can mark memory start loads as
+      // eliminable: shared memories never move, and non-shared memories can't
+      // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
       if (!memory_can_move()) kind = kind.Immutable();
       return __ Load(instance_node_, kind, kMaybeSandboxedPointer,
@@ -3670,6 +3673,11 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> LoadMemSize() {
       DCHECK(has_memory_);
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+      if (memory_is_shared_ && memory_can_grow()) {
+        // Memory size loads should not be load-eliminated as the memory size
+        // can be modified by another thread.
+        kind = kind.NotLoadEliminable();
+      }
       if (!memory_can_grow()) kind = kind.Immutable();
       return __ Load(instance_node_, kind, MemoryRepresentation::PointerSized(),
                      WasmInstanceObject::kMemory0SizeOffset);
@@ -5121,7 +5129,7 @@ class TurboshaftGraphBuildingInterface {
     } else {
       result = LoadOp::Kind::RawAligned();
     }
-    return result.NotAlwaysCanonicallyAccessed();
+    return result.NotLoadEliminable();
   }
 
   void TraceMemoryOperation(bool is_store, MemoryRepresentation repr,
@@ -5171,8 +5179,10 @@ class TurboshaftGraphBuildingInterface {
     }
     // Loop back edge checks are expanded right away, so we can insert
     // certain nodes into the interrupt-requested branch.
+    // Loads of the stack limit should not be load-eliminated as it can be
+    // modified by another thread.
     V<WordPtr> limit = __ Load(
-        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
         MemoryRepresentation::PointerSized(), IsolateData::jslimit_offset());
     V<Word32> check =
         __ StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
@@ -5183,7 +5193,12 @@ class TurboshaftGraphBuildingInterface {
     // If we get here, the stack check failed.
     V<WordPtr> builtin =
         __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
-    __ Call(builtin, {}, GetStackGuardDescriptor());
+    // Pass custom effects to the `Call` node to mark it as non-writing.
+    __ Call(builtin, {}, GetStackGuardDescriptor(),
+            compiler::turboshaft::OpEffects()
+                .CanReadMemory()
+                .RequiredWhenUnused()
+                .CanCreateIdentity());
     // When other threads grow a shared memory, they request an interrupt,
     // so reload the memory size when interrupts were requested.
     instance_cache_.ReloadCachedSharedMemorySize();

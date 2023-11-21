@@ -60,10 +60,9 @@ class DataViewReducer : public Next {
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
-    OpIndex value =
-        __ Load(storage, index,
-                LoadOp::Kind::RawUnaligned().NotAlwaysCanonicallyAccessed(),
-                MemoryRepresentation::FromMachineType(machine_type));
+    OpIndex value = __ Load(
+        storage, index, LoadOp::Kind::RawUnaligned().NotLoadEliminable(),
+        MemoryRepresentation::FromMachineType(machine_type));
 
     Variable result = Asm().NewLoopInvariantVariable(
         RegisterRepresentationForArrayType(element_type));
@@ -116,7 +115,7 @@ class DataViewReducer : public Next {
     END_IF
 
     __ Store(storage, index, Asm().GetVariable(value_to_store),
-             StoreOp::Kind::RawUnaligned().NotAlwaysCanonicallyAccessed(),
+             StoreOp::Kind::RawUnaligned().NotLoadEliminable(),
              MemoryRepresentation::FromMachineType(machine_type),
              WriteBarrierKind::kNoWriteBarrier);
 

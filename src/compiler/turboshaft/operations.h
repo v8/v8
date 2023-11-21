@@ -2370,7 +2370,7 @@ struct LoadOp : OperationT<LoadOp> {
     bool maybe_unaligned : 1;
     // There is a Wasm trap handler for out-of-bounds accesses.
     bool with_trap_handler : 1;
-    // If {always_canonically_accessed} is true, then:
+    // If {load_eliminable} is true, then:
     //   - Stores/Loads at this address cannot overlap. Concretely, it means
     //     that something like this cannot happen:
     //
@@ -2388,13 +2388,17 @@ struct LoadOp : OperationT<LoadOp> {
     //         ta2[0] = 0xff;
     //         ta1[100] = 42; // Same destination as the previous store!
     //
+    //   - No other thread can modify the underlying value. E.g. in the case of
+    //     loading the wasm stack limit, other threads can modify the loaded
+    //     value, so we always have to reload it.
+    //
     // This is mainly used for load elimination: when stores/loads don't have
-    // the {always_canonically_accessed} bit set to true, more things need
-    // to be invalidated.
+    // the {load_eliminable} bit set to true, more things need to be
+    // invalidated.
     // In the main JS pipeline, only ArrayBuffers (= TypedArray/DataView)
-    // loads/stores have this {always_canonically_accessed} set to false,
+    // loads/stores have this {load_eliminable} set to false,
     // and all other loads have it to true.
-    bool always_canonically_accessed : 1;
+    bool load_eliminable : 1;
     // The loaded value may not change.
     bool is_immutable : 1;
     // The load should be atomic.
@@ -2426,9 +2430,9 @@ struct LoadOp : OperationT<LoadOp> {
       return {true, false, true, true, false, false};
     }
 
-    constexpr Kind NotAlwaysCanonicallyAccessed() {
+    constexpr Kind NotLoadEliminable() {
       Kind kind = *this;
-      kind.always_canonically_accessed = false;
+      kind.load_eliminable = false;
       return kind;
     }
 
@@ -2448,7 +2452,7 @@ struct LoadOp : OperationT<LoadOp> {
       return tagged_base == other.tagged_base &&
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
-             always_canonically_accessed == other.always_canonically_accessed &&
+             load_eliminable == other.load_eliminable &&
              is_immutable == other.is_immutable && is_atomic == other.is_atomic;
     }
   };
@@ -2529,7 +2533,7 @@ struct LoadOp : OperationT<LoadOp> {
 V8_INLINE size_t hash_value(LoadOp::Kind kind) {
   return base::hash_value(
       static_cast<int>(kind.tagged_base) | (kind.maybe_unaligned << 1) |
-      (kind.always_canonically_accessed << 2) | (kind.is_immutable << 3) |
+      (kind.load_eliminable << 2) | (kind.is_immutable << 3) |
       (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
 }
 
@@ -3406,7 +3410,7 @@ struct CallOp : OperationT<CallOp> {
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(1 + HasFrameState(), input_count);
   }
-  // Returns true if this call is a stack check.
+  // Returns true if this call is a JS (but not wasm) stack check.
   bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
                     StackCheckKind kind) const;
 
