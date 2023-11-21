@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c7b223bfb225ce87a72a244d016ffdfcf227fa5e',
+  'gn_version': 'git_revision:92e63272dc04ee7cc1eaae2633c25da06e4f9c03',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b753759df3ff0f2e0e138122fe39a6d3dc80ce46',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '74fa4382054c72ee8708cd2af239af24f5f19bc3',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4f46c73c174e08b6dc072b7081ced2c4938281f8',
   'buildtools/linux64': {
