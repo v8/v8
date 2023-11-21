@@ -13837,7 +13837,14 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
           i::Page::FromHeapObject(foo->abstract_code(i_isolate))->owner());
       i::PagedSpace* bar_owning_space = reinterpret_cast<i::PagedSpace*>(
           i::Page::FromHeapObject(bar->abstract_code(i_isolate))->owner());
-      CHECK_EQ(foo_owning_space, bar_owning_space);
+
+      // TODO(saelo): Currently, BytecodeArrays live in trusted space while
+      // Code objects still live inside the sandbox. As such, the following
+      // CHECK_EQ does not currently hold. However, once Code also moves into
+      // trusted space, it should be enabled again.
+      static_assert(!i::kCodeObjectLiveInTrustedSpace);
+      USE(bar_owning_space);
+      // CHECK_EQ(foo_owning_space, bar_owning_space);
       i::heap::SimulateFullSpace(foo_owning_space);
 
       // Clear the compilation cache to get more wastage.

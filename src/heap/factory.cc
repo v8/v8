@@ -2673,7 +2673,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
   Tagged<BytecodeArray> copy = BytecodeArray::cast(AllocateRawWithImmortalMap(
-      size, AllocationType::kOld, *bytecode_array_map()));
+      size, AllocationType::kTrusted, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
   copy->init_self_indirect_pointer(isolate());

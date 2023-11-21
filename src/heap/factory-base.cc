@@ -290,7 +290,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      size, AllocationType::kOld, read_only_roots().bytecode_array_map());
+      size, AllocationType::kTrusted, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = BytecodeArray::cast(result);
   instance->init_self_indirect_pointer(isolate());
