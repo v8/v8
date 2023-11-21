@@ -1299,7 +1299,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
       if (NodeTypeIsSmi(old_type)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
-        return alternative.set_int32(AddNewNode<UnsafeSmiUntag>({value}));
+        return alternative.set_int32(BuildSmiUntag(value));
       }
       if (desired_type == NodeType::kSmi) {
         return alternative.set_int32(AddNewNode<CheckedSmiUntag>({value}));
@@ -3017,6 +3017,11 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   if (EnsureType(node, NodeType::kSmi)) {
+    if (SmiValuesAre31Bits()) {
+      if (auto phi = node->TryCast<Phi>()) {
+        phi->SetUseRequires31BitValue();
+      }
+    }
     return AddNewNode<UnsafeSmiUntag>({node});
   } else {
     return AddNewNode<CheckedSmiUntag>({node});
@@ -3041,7 +3046,7 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
   if (EnsureType(node, TaggedToFloat64ConversionTypeToNodeType(conversion_type),
                  &old_type)) {
     if (old_type == NodeType::kSmi) {
-      ValueNode* untagged_smi = AddNewNode<UnsafeSmiUntag>({node});
+      ValueNode* untagged_smi = BuildSmiUntag(node);
       return AddNewNode<ChangeInt32ToFloat64>({untagged_smi});
     }
     return AddNewNode<UncheckedNumberOrOddballToFloat64>({node},
