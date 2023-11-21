@@ -1751,6 +1751,7 @@
   'regress/regress-1424415': [SKIP],
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
+  'regress/wasm/regress-v8-14471': [SKIP]
 }], # single_generation
 
 ################################################################################
@@ -1904,7 +1905,8 @@
   # Stack switching is only supported on x64/arm64.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-export': [SKIP],
-  'wasm/stack-switching-generic-wrapper': [SKIP]
+  'wasm/stack-switching-generic-wrapper': [SKIP],
+  'regress/wasm/regress-v8-14471': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32)
 
 ##############################################################################

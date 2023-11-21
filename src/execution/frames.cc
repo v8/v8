@@ -1623,8 +1623,8 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
           break;
         }
       }
-      // Caller FP + return address + signature.
-      size_t param_start_offset = 2 + size_of_sig;
+      // Caller FP + return address + signature + two stack-switching slots.
+      size_t param_start_offset = 2 + size_of_sig + 2;
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;
@@ -1634,13 +1634,13 @@ void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
       // back to a positive offset (to be added to the frame's FP to find the
       // slot).
       int slot_offset = -l.GetLocation() - 1;
-      // Caller FP + return address + signature + spilled registers (without
-      // the instance register).
+      // Caller FP + return address + signature + two stack-switching slots +
+      // spilled registers (without the instance register).
       size_t slots_per_float64 = kDoubleSize / kSystemPointerSize;
       size_t param_start_offset =
           arraysize(wasm::kGpParamRegisters) - 1 +
           (arraysize(wasm::kFpParamRegisters) * slots_per_float64) + 2 +
-          size_of_sig;
+          size_of_sig + 2;
 
       // The wasm-to-js wrapper pushes all but the first gp parameter register
       // on the stack, so if the number of gp parameter registers is even, this
