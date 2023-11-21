@@ -130,8 +130,9 @@ void LocalHeap::SetUp() {
 
   DCHECK_NULL(shared_old_space_allocator_);
   if (heap_->isolate()->has_shared_space()) {
-    shared_old_space_allocator_ =
-        std::make_unique<MainAllocator>(this, heap_->shared_allocation_space());
+    shared_old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+        this, heap_->shared_allocation_space(),
+        ConcurrentAllocator::Context::kNotGC);
   }
 
   DCHECK_NULL(trusted_space_allocator_);

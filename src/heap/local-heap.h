@@ -107,7 +107,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   MainAllocator* old_space_allocator() { return old_space_allocator_.get(); }
   MainAllocator* code_space_allocator() { return code_space_allocator_.get(); }
-  MainAllocator* shared_old_space_allocator() {
+  ConcurrentAllocator* shared_old_space_allocator() {
     return shared_old_space_allocator_.get();
   }
   MainAllocator* trusted_space_allocator() {
@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::unique_ptr<MainAllocator> old_space_allocator_;
   std::unique_ptr<MainAllocator> code_space_allocator_;
-  std::unique_ptr<MainAllocator> shared_old_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
   std::unique_ptr<MainAllocator> trusted_space_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
