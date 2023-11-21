@@ -2162,24 +2162,51 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  const Register* next_arg_reg = kCArgRegs;
+  // First, prepare the stack for the C call.
+  int num_args = static_cast<int>(args.size());
+  PrepareCallCFunction(num_args, kScratchReg);
+  // Then execute the parallel register move and also move values to parameter
+  // stack slots.
+  int reg_args = 0;
+  int stack_args = 0;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
-    DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
-    Register dst_lo = *next_arg_reg++;
-    if (arg.kind() == kI64) {
-      DCHECK_GT(std::end(kCArgRegs), next_arg_reg);
-      Register dst_hi = *next_arg_reg++;
-      parallel_move.LoadIntoRegister(LiftoffRegister::ForPair(dst_lo, dst_hi),
-                                     arg);
+    if (needs_gp_reg_pair(arg.kind())) {
+      // All i64 arguments (currently) fully fit in the register parameters.
+      DCHECK_LE(reg_args + 2, arraysize(kCArgRegs));
+      parallel_move.LoadIntoRegister(
+          LiftoffRegister::ForPair(kCArgRegs[reg_args],
+                                   kCArgRegs[reg_args + 1]),
+          arg);
+      reg_args += 2;
+      continue;
+    }
+    if (reg_args < int{arraysize(kCArgRegs)}) {
+      parallel_move.LoadIntoRegister(LiftoffRegister{kCArgRegs[reg_args]}, arg);
+      ++reg_args;
+      continue;
+    }
+    MemOperand dst{sp, stack_args * kSystemPointerSize};
+    ++stack_args;
+    if (arg.is_reg()) {
+      liftoff::Store(this, dst.rm(), dst.offset(), arg.reg(), arg.kind());
+      continue;
+    }
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      li(scratch, Operand(arg.i32_const()));
+      Sw(scratch, dst);
     } else {
-      parallel_move.LoadIntoRegister(LiftoffRegister{dst_lo}, arg);
+      // Stack to stack move.
+      MemOperand src = liftoff::GetStackSlot(arg.offset());
+      Lw(scratch, src);
+      Sw(scratch, dst);
     }
   }
   parallel_move.Execute();
-
   // Now call the C function.
-  int num_args = static_cast<int>(args.size());
   PrepareCallCFunction(num_args, kScratchReg);
   CallCFunction(ext_ref, num_args);
 }

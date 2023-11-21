@@ -6217,8 +6217,6 @@ void MacroAssembler::Float64Min(FPURegister dst, FPURegister src1,
   FloatMinMaxHelper<double>(dst, src1, src2, MaxMinKind::kMin);
 }
 
-static const int kRegisterPassedArguments = 8;
-
 int MacroAssembler::CalculateStackPassedDWords(int num_gp_arguments,
                                                int num_fp_arguments) {
   int stack_passed_dwords = 0;
