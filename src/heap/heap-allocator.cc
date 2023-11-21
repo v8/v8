@@ -36,9 +36,8 @@ void HeapAllocator::Setup(LinearAllocationArea& new_allocation_info,
   if (heap_->isolate()->has_shared_space()) {
     Heap* heap = heap_->isolate()->shared_space_isolate()->heap();
 
-    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        heap_->main_thread_local_heap(), heap->shared_space_,
-        ConcurrentAllocator::Context::kNotGC);
+    shared_space_allocator_.emplace(heap_->main_thread_local_heap(),
+                                    heap->shared_space_);
 
     shared_lo_space_ = heap->shared_lo_allocation_space();
   }

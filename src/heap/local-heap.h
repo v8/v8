@@ -107,7 +107,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   MainAllocator* old_space_allocator() { return old_space_allocator_.get(); }
   MainAllocator* code_space_allocator() { return code_space_allocator_.get(); }
-  ConcurrentAllocator* shared_old_space_allocator() {
+  MainAllocator* shared_old_space_allocator() {
     return shared_old_space_allocator_.get();
   }
   MainAllocator* trusted_space_allocator() {
@@ -171,6 +171,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
                               ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
+  bool is_main_thread_for(Heap* heap) const {
+    return is_main_thread() && heap_ == heap;
+  }
   bool is_in_trampoline() const { return heap_->stack().IsMarkerSet(); }
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
@@ -377,7 +380,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::unique_ptr<MainAllocator> old_space_allocator_;
   std::unique_ptr<MainAllocator> code_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
+  std::unique_ptr<MainAllocator> shared_old_space_allocator_;
   std::unique_ptr<MainAllocator> trusted_space_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
