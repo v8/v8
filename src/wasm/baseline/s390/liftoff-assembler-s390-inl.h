@@ -50,6 +50,47 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
+inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
+                          const LiftoffAssembler::VarState& src,
+                          Register scratch) {
+  if (src.is_reg()) {
+    switch (src.kind()) {
+      case kI32:
+        assm->StoreU32(src.reg().gp(), dst);
+        break;
+      case kI64:
+        assm->StoreU64(src.reg().gp(), dst);
+        break;
+      case kF32:
+        assm->StoreF32(src.reg().fp(), dst);
+        break;
+      case kF64:
+        assm->StoreF64(src.reg().fp(), dst);
+        break;
+      case kS128:
+        assm->StoreV128(src.reg().fp(), dst, scratch);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (src.is_const()) {
+    if (src.kind() == kI32) {
+      assm->mov(scratch, Operand(src.i32_const()));
+      assm->StoreU32(scratch, dst);
+    } else {
+      assm->mov(scratch, Operand(static_cast<int64_t>(src.i32_const())));
+      assm->StoreU64(scratch, dst);
+    }
+  } else if (value_kind_size(src.kind()) == 4) {
+    assm->LoadU32(scratch, liftoff::GetStackSlot(src.offset()), scratch);
+    assm->StoreU32(scratch, dst);
+  } else {
+    DCHECK_EQ(8, value_kind_size(src.kind()));
+    assm->LoadU64(scratch, liftoff::GetStackSlot(src.offset()), scratch);
+    assm->StoreU64(scratch, dst);
+  }
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -2997,44 +3038,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
   int arg_offset = 0;
   for (const VarState& arg : args) {
     MemOperand dst{sp, arg_offset};
-    if (arg.is_reg()) {
-      switch (arg.kind()) {
-        case kI32:
-          StoreU32(arg.reg().gp(), MemOperand(sp, arg_offset));
-          break;
-        case kI64:
-          StoreU64(arg.reg().gp(), MemOperand(sp, arg_offset));
-          break;
-        case kF32:
-          StoreF32(arg.reg().fp(), MemOperand(sp, arg_offset));
-          break;
-        case kF64:
-          StoreF64(arg.reg().fp(), MemOperand(sp, arg_offset));
-          break;
-        case kS128:
-          StoreV128(arg.reg().fp(), MemOperand(sp, arg_offset), r0);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else if (arg.is_const()) {
-      if (arg.kind() == kI32) {
-        mov(r0, Operand(arg.i32_const()));
-        StoreU32(r0, dst);
-      } else {
-        mov(r0, Operand(static_cast<int64_t>(arg.i32_const())));
-        StoreU64(r0, dst);
-      }
-    } else if (value_kind_size(arg.kind()) == 4) {
-      MemOperand src = liftoff::GetStackSlot(arg.offset());
-      LoadU32(r0, src);
-      StoreU32(r0, dst);
-    } else {
-      DCHECK_EQ(8, value_kind_size(arg.kind()));
-      MemOperand src = liftoff::GetStackSlot(arg.offset());
-      LoadU64(r0, src);
-      StoreU64(r0, dst);
-    }
+    liftoff::StoreToMemory(this, dst, arg, r0);
     arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
@@ -3087,18 +3091,35 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
-  DCHECK_LE(args.size(), arraysize(kCArgRegs));
-  const Register* next_arg_reg = kCArgRegs;
+  // First, prepare the stack for the C call.
+  int num_args = static_cast<int>(args.size());
+  PrepareCallCFunction(num_args, r0);
+
+  // Then execute the parallel register move and also move values to parameter
+  // stack slots.
+  int reg_args = 0;
+  int stack_args = 0;
   ParallelMove parallel_move{this};
   for (const VarState& arg : args) {
-    parallel_move.LoadIntoRegister(LiftoffRegister{*next_arg_reg}, arg);
-    ++next_arg_reg;
+    if (reg_args < int{arraysize(kCArgRegs)}) {
+      parallel_move.LoadIntoRegister(LiftoffRegister{kCArgRegs[reg_args]}, arg);
+      ++reg_args;
+    } else {
+      int bias = 0;
+      // On BE machines values with less than 8 bytes are right justified.
+      // bias here is relative to the stack pointer.
+      if (arg.kind() == kI32 || arg.kind() == kF32) bias = -stack_bias;
+      // zLinux ABI requires caller frames to include sufficient space for
+      // callee preserved register save area.
+      MemOperand dst{sp, (stack_args * kSystemPointerSize) +
+                             kCalleeRegisterSaveAreaSize + bias};
+      liftoff::StoreToMemory(this, dst, arg, r0);
+      ++stack_args;
+    }
   }
   parallel_move.Execute();
 
   // Now call the C function.
-  int num_args = static_cast<int>(args.size());
-  PrepareCallCFunction(num_args, r0);
   CallCFunction(ext_ref, num_args);
 }
 

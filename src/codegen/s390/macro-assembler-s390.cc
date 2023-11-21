@@ -2451,8 +2451,6 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
 
 #endif  // V8_ENABLE_DEBUG_CODE
 
-static const int kRegisterPassedArguments = 5;
-
 int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
