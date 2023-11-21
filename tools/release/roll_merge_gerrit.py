@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 import argparse
+import base64
 import logging
 import re
 import sys
@@ -240,6 +241,13 @@ def main(sys_args=None):
         reqtype='GET',
         accept_statuses=[200, 404])
 
+  def gerrit_file_content(commit, file_name):
+    file_name = urllib.parse.quote_plus(file_name)
+    url = f'projects/{project}/commits/{commit}/files/{file_name}/content'
+    conn = gerrit_util.CreateHttpConn(GERRIT_HOST, url)
+    fh = gerrit_util.ReadHttpResponse(conn, accept_statuses=[200, 404])
+    return base64.b64decode(fh.read()).decode('utf-8')
+
   def is_safe_to_open_roller():
     """Return True if V8's infrastructure detected the patched roll and
     reset the roll ref.
@@ -248,14 +256,13 @@ def main(sys_args=None):
     assert ref_info['ref'] == 'refs/heads/roll'
     revision = ref_info['revision']
 
-    commit_info = gerrit_project_get(f'commits/{revision}/in')
-    version_tags = [
-        tag for tag in commit_info['tags'] if VERSION_RE.match(tag)]
-
-    assert len(version_tags) == 1, f'Need exactly one tag: {version_tags}'
+    version_file = urllib.parse.quote_plus(VERSION_FILE)
+    roll_version_file = gerrit_file_content(revision, version_file)
+    roll_version = '{major}.{minor}.{build}.{patch}'.format(
+        **ExtractVersion(roll_version_file))
 
     # The version V8's infra is currently trying to roll.
-    roll_version = normalize_version(version_tags[0])
+    roll_version = normalize_version(roll_version)
 
     # The new version we want to roll now after the patch.
     next_version = normalize_version(version_string)
