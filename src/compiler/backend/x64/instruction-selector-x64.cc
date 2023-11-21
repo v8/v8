@@ -6843,7 +6843,9 @@ void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
   DCHECK_EQ(this->value_input_count(node), 1);
   InstructionCode code = kX64F64x2PromoteLowF32x4;
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this special case for turboshaft.
+    // TODO(nicohartmann@): Implement this special case for turboshaft. Note
+    // that this special case may require adaptions in instruction-selector.cc
+    // in `FinishEmittedInstructions`, similar to what exists for TurboFan.
   } else {
     node_t input = this->input_at(node, 0);
     LoadTransformMatcher m(input);

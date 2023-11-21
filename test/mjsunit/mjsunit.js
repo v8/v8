@@ -122,6 +122,13 @@ var assertNotNull;
 // compared to the message of the thrown exception.
 var assertThrows;
 
+// Asserts that the found value is an exception of specific type with a specific
+// error message. The optional second argument is an exception constructor that
+// the thrown exception is checked against with "instanceof". The optional third
+// argument is a message type string or RegExp object that is compared to the
+// message of the thrown exception.
+var assertException;
+
 // Assert that the passed function throws an exception.
 // The exception is checked against the second argument using assertEquals.
 var assertThrowsEquals;
@@ -583,7 +590,7 @@ var prettyPrinted;
         ': <' + prettyPrinted(code) + '>');
   }
 
-  function checkException(e, type_opt, cause_opt) {
+  assertException = function assertException(e, type_opt, cause_opt) {
     if (type_opt !== undefined) {
       assertEquals('function', typeof type_opt);
       assertInstanceof(e, type_opt);
@@ -606,7 +613,7 @@ var prettyPrinted;
     try {
       executeCode(code);
     } catch (e) {
-      checkException(e, type_opt, cause_opt);
+      assertException(e, type_opt, cause_opt);
       return;
     }
     let msg = 'Did not throw exception';
@@ -641,14 +648,14 @@ var prettyPrinted;
         // Use setTimeout to throw the error again to get out of the promise
         // chain.
         res => setTimeout(_ => fail('<throw>', res, msg), 0),
-        e => checkException(e, type_opt, cause_opt));
+        e => assertException(e, type_opt, cause_opt));
   };
 
   assertEarlyError = function assertEarlyError(code) {
     try {
       new Function(code);
     } catch (e) {
-      checkException(e, SyntaxError);
+      assertException(e, SyntaxError);
       return;
     }
     failWithMessage('Did not throw exception while parsing');

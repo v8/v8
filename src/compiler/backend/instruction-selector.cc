@@ -1683,6 +1683,21 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
     if constexpr (Adapter::IsTurboshaft) {
       source_position = (*source_positions_)[node];
     } else {
+      if (V8_UNLIKELY(node->opcode() == IrOpcode::kF64x2PromoteLowF32x4)) {
+        // On x64 there exists an optimization that folds
+        // `kF64x2PromoteLowF32x4` and `kS128Load64Zero` together into a single
+        // instruction. If the instruction causes an out-of-bounds memory
+        // access exception, then the stack trace has to show the source
+        // position of the `kS128Load64Zero` and not of the
+        // `kF64x2PromoteLowF32x4`.
+        node_t input = node->InputAt(0);
+        LoadTransformMatcher m(input);
+
+        if (m.Is(LoadTransformation::kS128Load64Zero) &&
+            CanCover(node, input)) {
+          node = input;
+        }
+      }
       source_position = source_positions_->GetSourcePosition(node);
     }
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
