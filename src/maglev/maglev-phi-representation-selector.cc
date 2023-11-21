@@ -120,10 +120,6 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
           // respective checked conversion form within the loop to wire up the
           // feedback collection.
           if (v8_flags.maglev_speculative_hoist_phi_untagging) {
-            if (input->Is<InitialValue>()) {
-              hoist_untagging = HoistType::kPrologue;
-              continue;
-            }
             // TODO(olivf): Currently there is no hard guarantee that the phi
             // merge state has a checkpointed jump.
             if (dominator->control_node()->Is<CheckpointedJump>()) {
