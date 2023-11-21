@@ -2222,6 +2222,8 @@ filegroup(
         "src/sandbox/trusted-pointer-table-inl.h",
         "src/sandbox/code-pointer.h",
         "src/sandbox/code-pointer-inl.h",
+        "src/sandbox/isolate.h",
+        "src/sandbox/isolate-inl.h",
         "src/sandbox/indirect-pointer.h",
         "src/sandbox/indirect-pointer-tag.h",
         "src/sandbox/indirect-pointer-inl.h",

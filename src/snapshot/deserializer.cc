@@ -1221,7 +1221,7 @@ int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
 
   Tagged<ExposedTrustedObject> host =
       ExposedTrustedObject::cast(*slot_accessor.object());
-  host->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  host->init_self_indirect_pointer(isolate());
 
   return 1;
 #else

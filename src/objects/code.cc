@@ -25,7 +25,7 @@ Tagged<ByteArray> Code::raw_position_table() const {
 }
 
 Tagged<HeapObject> Code::raw_deoptimization_data_or_interpreter_data(
-    const Isolate* isolate) const {
+    IsolateForSandbox isolate) const {
   Tagged<HeapObject> value =
       TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
           *this);

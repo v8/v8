@@ -2676,7 +2676,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
       size, AllocationType::kOld, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
-  copy->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  copy->init_self_indirect_pointer(isolate());
   copy->set_length(raw_source->length());
   copy->set_frame_size(raw_source->frame_size());
   copy->set_parameter_count(raw_source->parameter_count());
@@ -3561,7 +3561,7 @@ Handle<InterpreterData> Factory::NewInterpreterData(
       Tagged<InterpreterData>::cast(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
-  interpreter_data->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  interpreter_data->init_self_indirect_pointer(isolate());
   interpreter_data->set_bytecode_array(*bytecode_array);
   interpreter_data->set_interpreter_trampoline(*code);
   return handle(interpreter_data, isolate());

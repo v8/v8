@@ -70,16 +70,6 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
     return (LocalIsolate*)this;  // NOLINT(readability/casting)
   }
 
-  // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when the sandbox is enabled.
-  Isolate* isolate_for_sandbox() {
-#ifdef V8_ENABLE_SANDBOX
-    return isolate_for_sandbox_;
-#else
-    return nullptr;
-#endif  // V8_ENABLE_SANDBOX
-  }
-
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
   inline AllocationType AllocationTypeForInPlaceInternalizableString();
@@ -90,9 +80,6 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // ------
 
   ReadOnlyRoots roots_;
-#ifdef V8_ENABLE_SANDBOX
-  Isolate* isolate_for_sandbox_;
-#endif
 #ifdef DEBUG
   bool a_script_was_added_to_the_script_list_ = false;
 #endif

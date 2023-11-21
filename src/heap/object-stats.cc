@@ -593,7 +593,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
   if (IsJSGlobalObject(object)) return;
 
   // Uncompiled JSFunction has a separate type.
-  if (IsJSFunction(object) && !JSFunction::cast(object)->is_compiled()) {
+  if (IsJSFunction(object) &&
+      !JSFunction::cast(object)->is_compiled(isolate())) {
     RecordSimpleVirtualObjectStats(HeapObject(), object,
                                    ObjectStats::JS_UNCOMPILED_FUNCTION_TYPE);
   }

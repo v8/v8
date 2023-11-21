@@ -27966,7 +27966,7 @@ void CallAndDeopt() {
   CHECK(function->IsFunction());
   i::Handle<i::JSFunction> ifunction =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
-  CHECK(ifunction->HasAttachedOptimizedCode());
+  CHECK(ifunction->HasAttachedOptimizedCode(CcTest::i_isolate()));
 }
 
 void CallNoFallback(int32_t expected_value) {

@@ -2042,9 +2042,9 @@ EnumerateCompiledFunctions(Heap* heap) {
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
       // only on a type feedback vector. We should make this more precise.
-      if (function->HasAttachedOptimizedCode() &&
+      if (function->HasAttachedOptimizedCode(isolate) &&
           Script::cast(function->shared()->script())->HasValidSource()) {
-        record(function->shared(), AbstractCode::cast(function->code()));
+        record(function->shared(), AbstractCode::cast(function->code(isolate)));
 #if V8_ENABLE_WEBASSEMBLY
       } else if (WasmJSFunction::IsWasmJSFunction(function)) {
         record(function->shared(),

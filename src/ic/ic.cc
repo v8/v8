@@ -151,17 +151,18 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   int code_offset = 0;
   Tagged<AbstractCode> code = function->abstract_code(isolate_);
-  if (function->ActiveTierIsIgnition()) {
+  if (function->ActiveTierIsIgnition(isolate())) {
     code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
-  } else if (function->ActiveTierIsBaseline()) {
+  } else if (function->ActiveTierIsBaseline(isolate())) {
     // TODO(pthier): AbstractCode should fully support Baseline code.
     BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
     code_offset = baseline_frame->GetBytecodeOffset();
     code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
   } else {
-    code_offset = static_cast<int>(frame->pc() - function->instruction_start());
+    code_offset =
+        static_cast<int>(frame->pc() - function->instruction_start(isolate()));
   }
-  JavaScriptFrame::CollectFunctionAndOffsetForICStats(function, code,
+  JavaScriptFrame::CollectFunctionAndOffsetForICStats(isolate(), function, code,
                                                       code_offset);
 
   // Reserve enough space for IC transition state, the longest length is 17.

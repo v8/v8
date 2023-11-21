@@ -2226,6 +2226,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
 
+  // See IsolateForSandbox.
+  Isolate* ForSandbox() { return this; }
+
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
   void FireCallCompletedCallbackInternal(MicrotaskQueue* microtask_queue);
@@ -2704,6 +2707,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class GlobalSafepoint;
   friend class TestSerializer;
   friend class SharedHeapNoClientsTest;
+  friend class IsolateForSandbox;
 };
 
 // The current entered Isolate and its thread data. Do not access these

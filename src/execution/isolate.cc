@@ -718,7 +718,7 @@ bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
                        Builtin builtin) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> const function = JSFunction::cast(object);
-  return function->code() == isolate->builtins()->code(builtin);
+  return function->code(isolate) == isolate->builtins()->code(builtin);
 }
 
 // Check if the function is one of the known async function or
@@ -828,7 +828,7 @@ class CallSiteBuilder {
 
     Handle<Object> receiver(combinator->native_context()->promise_function(),
                             isolate_);
-    Handle<Code> code(combinator->code(), isolate_);
+    Handle<Code> code(combinator->code(isolate_), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();

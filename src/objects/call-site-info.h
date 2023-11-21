@@ -45,7 +45,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsPromiseAny() const;
   bool IsNative() const;
 
-  inline Tagged<HeapObject> code_object(const Isolate* isolate) const;
+  inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
   inline void set_code_object(Tagged<HeapObject> code, WriteBarrierMode mode);
 
   // Dispatched behavior.

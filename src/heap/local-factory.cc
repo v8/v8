@@ -22,12 +22,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_ENABLE_SANDBOX
-LocalFactory::LocalFactory(Isolate* isolate)
-    : roots_(isolate), isolate_for_sandbox_(isolate) {}
-#else
 LocalFactory::LocalFactory(Isolate* isolate) : roots_(isolate) {}
-#endif
 
 void LocalFactory::ProcessNewScript(Handle<Script> script,
                                     ScriptEventType script_event_type) {

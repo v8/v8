@@ -400,21 +400,20 @@ class SharedFunctionInfo
   // Like set_bytecode_array but allows overwriting existing bytecode.
   inline void overwrite_bytecode_array(Tagged<BytecodeArray> bytecode);
 
-  inline Tagged<Code> InterpreterTrampoline(
-      const Isolate* isolate_for_sandbox) const;
-  inline bool HasInterpreterData(const Isolate* isolate_for_sandbox) const;
+  inline Tagged<Code> InterpreterTrampoline(IsolateForSandbox isolate) const;
+  inline bool HasInterpreterData(IsolateForSandbox isolate) const;
   inline Tagged<InterpreterData> interpreter_data(
-      const Isolate* isolate_for_sandbox) const;
+      IsolateForSandbox isolate) const;
   inline void set_interpreter_data(
       Tagged<InterpreterData> interpreter_data,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
-  inline void FlushBaselineCode(const Isolate* isolate_for_sandbox);
+  inline void FlushBaselineCode(IsolateForSandbox isolate);
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(
-      const Isolate* isolate_for_sandbox) const;
+      IsolateForSandbox isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,
-                                     const Isolate* isolate_for_sandbox);
+                                     IsolateForSandbox isolate);
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool HasAsmWasmData() const;

@@ -95,7 +95,7 @@ bool IsAsmWasmFunction(Isolate* isolate, Tagged<JSFunction> function) {
   // For simplicity we include invalid asm.js functions whose code hasn't yet
   // been updated to CompileLazy but is still the InstantiateAsmJs builtin.
   return function->shared()->HasAsmWasmData() ||
-         function->code()->builtin_id() == Builtin::kInstantiateAsmJs;
+         function->code(isolate)->builtin_id() == Builtin::kInstantiateAsmJs;
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -199,7 +199,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
-  if (function->HasAttachedOptimizedCode()) {
+  if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
@@ -219,7 +219,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (function->HasAttachedOptimizedCode()) {
+  if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
@@ -329,11 +329,11 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
                                                               *function);
   }
 
-  if (function->HasAvailableCodeKind(target_kind) ||
-      function->HasAvailableHigherTierCodeThan(target_kind) ||
+  if (function->HasAvailableCodeKind(isolate, target_kind) ||
+      function->HasAvailableHigherTierCodeThan(isolate, target_kind) ||
       IsInProgress(function->tiering_state())) {
-    DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksTieringState());
+    DCHECK(function->HasAttachedOptimizedCode(isolate) ||
+           function->ChecksTieringState(isolate));
     return false;
   }
 
@@ -371,7 +371,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   // This function may not have been lazily compiled yet, even though its shared
   // function has.
-  if (!function->is_compiled()) {
+  if (!function->is_compiled(isolate)) {
     DCHECK(function->shared()->HasBytecodeArray());
     Tagged<Code> code = *BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
     if (function->shared()->HasBaselineCode()) {
@@ -498,28 +498,28 @@ RUNTIME_FUNCTION(Runtime_ActiveTierIsIgnition) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  return isolate->heap()->ToBoolean(function->ActiveTierIsIgnition());
+  return isolate->heap()->ToBoolean(function->ActiveTierIsIgnition(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsSparkplug) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  return isolate->heap()->ToBoolean(function->ActiveTierIsBaseline());
+  return isolate->heap()->ToBoolean(function->ActiveTierIsBaseline(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsMaglev) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  return isolate->heap()->ToBoolean(function->ActiveTierIsMaglev());
+  return isolate->heap()->ToBoolean(function->ActiveTierIsMaglev(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ActiveTierIsTurbofan) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  return isolate->heap()->ToBoolean(function->ActiveTierIsTurbofan());
+  return isolate->heap()->ToBoolean(function->ActiveTierIsTurbofan(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_IsSparkplugEnabled) {
@@ -715,10 +715,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
                                                               *function);
   }
 
-  if (function->HasAvailableOptimizedCode() &&
-      (!function->code()->is_maglevved() || !v8_flags.osr_from_maglev)) {
-    DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksTieringState());
+  if (function->HasAvailableOptimizedCode(isolate) &&
+      (!function->code(isolate)->is_maglevved() || !v8_flags.osr_from_maglev)) {
+    DCHECK(function->HasAttachedOptimizedCode(isolate) ||
+           function->ChecksTieringState(isolate));
     // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -923,8 +923,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       break;
   }
 
-  if (function->HasAttachedOptimizedCode()) {
-    Tagged<Code> code = function->code();
+  if (function->HasAttachedOptimizedCode(isolate)) {
+    Tagged<Code> code = function->code(isolate);
     if (code->marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
@@ -936,13 +936,13 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
-  if (function->HasAttachedCodeKind(CodeKind::BASELINE)) {
+  if (function->HasAttachedCodeKind(isolate, CodeKind::BASELINE)) {
     status |= static_cast<int>(OptimizationStatus::kBaseline);
   }
-  if (function->ActiveTierIsIgnition()) {
+  if (function->ActiveTierIsIgnition(isolate)) {
     status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
-  if (!function->is_compiled()) {
+  if (!function->is_compiled(isolate)) {
     status |= static_cast<int>(OptimizationStatus::kIsLazy);
   }
 
@@ -1032,7 +1032,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
 
   SharedFunctionInfo::DiscardCompiled(
       isolate, handle(function->shared(isolate), isolate));
-  function->ResetIfCodeFlushed();
+  function->ResetIfCodeFlushed(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1524,14 +1524,14 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   // Get the function and make sure it is compiled.
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
-  if (!func->is_compiled() && func->HasAvailableOptimizedCode()) {
+  if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
     func->set_code(func->feedback_vector()->optimized_code());
   }
   CHECK(func->shared()->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
   StdoutStream os;
-  Print(func->code(), os);
+  Print(func->code(isolate), os);
   os << std::endl;
 #endif  // DEBUG
   return ReadOnlyRoots(isolate).undefined_value();

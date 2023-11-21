@@ -131,7 +131,7 @@ void CallOptimization::Initialize(
 template <class IsolateT>
 void CallOptimization::Initialize(IsolateT* isolate,
                                   Handle<JSFunction> function) {
-  if (function.is_null() || !function->is_compiled()) return;
+  if (function.is_null() || !function->is_compiled(isolate)) return;
 
   constant_function_ = function;
   AnalyzePossibleApiFunction(isolate, function);

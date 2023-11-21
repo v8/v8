@@ -34,8 +34,8 @@ class AccessorInfo
   // returns/accepts C function and converts the value from and to redirected
   // pointer.
   DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
-  inline void init_getter_redirection(Isolate* isolate);
-  inline void remove_getter_redirection(Isolate* isolate);
+  inline void init_getter_redirection(IsolateForSandbox isolate);
+  inline void remove_getter_redirection(IsolateForSandbox isolate);
   inline bool has_getter(Isolate* isolate);
 
   // The field contains the address of the C function.
@@ -130,8 +130,8 @@ class CallHandlerInfo
   // returns/accepts C function and converts the value from and to redirected
   // pointer.
   DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(callback, Address)
-  inline void init_callback_redirection(i::Isolate* isolate);
-  inline void remove_callback_redirection(i::Isolate* isolate);
+  inline void init_callback_redirection(i::IsolateForSandbox isolate);
+  inline void remove_callback_redirection(i::IsolateForSandbox isolate);
 
   class BodyDescriptor;
 

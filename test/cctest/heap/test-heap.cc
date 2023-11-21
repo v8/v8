@@ -1127,11 +1127,11 @@ TEST(TestBytecodeFlushing) {
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared()->is_compiled());
-    CHECK(!function->is_compiled());
+    CHECK(!function->is_compiled(i_isolate));
     // Call foo to get it recompiled.
     CompileRun("foo()");
     CHECK(function->shared()->is_compiled());
-    CHECK(function->is_compiled());
+    CHECK(function->is_compiled(i_isolate));
   }
 }
 
@@ -1202,7 +1202,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
     // shared SFI is marked old but BytecodeArray is kept alive by copy.
     CHECK(shared->is_compiled());
     CHECK(copy->is_compiled());
-    CHECK(function->is_compiled());
+    CHECK(function->is_compiled(i_isolate));
 
     // The feedback metadata for both SharedFunctionInfo instances should have
     // been reset.
@@ -1278,7 +1278,7 @@ HEAP_TEST(Regress10560) {
 
     CHECK(function->has_feedback_vector());
     CHECK(function->shared()->is_compiled());
-    CHECK(function->is_compiled());
+    CHECK(function->is_compiled(i_isolate));
   }
 }
 
@@ -1442,7 +1442,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   heap::InvokeMajorGC(CcTest::heap());
 
   CHECK(!function->shared()->is_compiled());
-  CHECK(!function->is_compiled());
+  CHECK(!function->is_compiled(isolate));
 
   // This compile will compile the function again.
   {
@@ -1465,7 +1465,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   // Simulate one final GC and make sure the candidate wasn't flushed.
   heap::InvokeMajorGC(CcTest::heap());
   CHECK(function->shared()->is_compiled());
-  CHECK(function->is_compiled());
+  CHECK(function->is_compiled(isolate));
 }
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
@@ -1495,7 +1495,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
       Object::GetProperty(isolate, isolate->global_object(), f_name)
           .ToHandleChecked();
   Handle<JSFunction> f_function = Handle<JSFunction>::cast(f_value);
-  CHECK(f_function->is_compiled());
+  CHECK(f_function->is_compiled(isolate));
 
   // Check g is not compiled.
   Handle<String> g_name = factory->InternalizeUtf8String("g");
@@ -1503,7 +1503,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
       Object::GetProperty(isolate, isolate->global_object(), g_name)
           .ToHandleChecked();
   Handle<JSFunction> g_function = Handle<JSFunction>::cast(g_value);
-  CHECK(!g_function->is_compiled());
+  CHECK(!g_function->is_compiled(isolate));
 
   heap::SimulateIncrementalMarking(heap);
   CompileRun("%OptimizeFunctionOnNextCall(f); f();");
@@ -1512,7 +1512,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   // CompileLazy built-in will discover it and install it in the closure, and
   // the incremental write barrier should be used.
   CompileRun("g();");
-  CHECK(g_function->is_compiled());
+  CHECK(g_function->is_compiled(isolate));
 }
 
 void CompilationCacheCachingBehavior(bool retain_script) {
@@ -2539,7 +2539,8 @@ TEST(InstanceOfStubWriteBarrier) {
 #endif
 
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
+  Isolate* isolate = CcTest::i_isolate();
+  if (!isolate->use_optimizer()) return;
   if (v8_flags.force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -2571,12 +2572,12 @@ TEST(InstanceOfStubWriteBarrier) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  CHECK(f->HasAttachedOptimizedCode());
+  CHECK(f->HasAttachedOptimizedCode(isolate));
 
   MarkingState* marking_state = CcTest::heap()->marking_state();
 
   static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
-  while (!marking_state->IsMarked(f->code())) {
+  while (!marking_state->IsMarked(f->code(isolate))) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
     CHECK(!marking->IsMajorMarkingComplete());
@@ -4187,7 +4188,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK_EQ(dependency->length(), DependentCode::kSlotsPerEntry);
     MaybeObject code = dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code->IsWeak());
-    CHECK_EQ(bar_handle->code(), Code::cast(code.GetHeapObjectAssumeWeak()));
+    CHECK_EQ(bar_handle->code(isolate),
+             Code::cast(code.GetHeapObjectAssumeWeak()));
     Tagged<Smi> groups =
         dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
@@ -4342,7 +4344,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(bar->code(), isolate);
+    code = handle(bar->code(isolate), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4389,7 +4391,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(bar->code(), isolate);
+    code = handle(bar->code(isolate), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4452,8 +4454,8 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 #ifdef VERIFY_HEAP
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
-    CHECK(!bar->code()->marked_for_deoptimization());
-    code = handle(bar->code(), isolate);
+    CHECK(!bar->code(isolate)->marked_for_deoptimization());
+    code = handle(bar->code(isolate), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4500,7 +4502,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(bar->code(), isolate);
+    code = handle(bar->code(isolate), isolate);
     code = scope.CloseAndEscape(code);
   }
 

@@ -77,13 +77,12 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 template <typename Impl>
 Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Handle<CodeWrapper> wrapper = NewCodeWrapper();
-  Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
   Tagged<Code> code = Tagged<Code>::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  code->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  code->init_self_indirect_pointer(isolate());
   code->initialize_flags(options.kind, options.is_turbofanned,
                          options.stack_slots);
   code->set_builtin_id(options.builtin);
@@ -114,12 +113,11 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
         "Setting the instruction_stream can trigger a write to the marking "
         "bitmap.");
     DCHECK_EQ(options.instruction_start, kNullAddress);
-    code->SetInstructionStreamAndInstructionStart(isolate_for_sandbox,
-                                                  *istream);
+    code->SetInstructionStreamAndInstructionStart(isolate(), *istream);
   } else {
     DCHECK_NE(options.instruction_start, kNullAddress);
     code->set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
-    code->SetInstructionStartForOffHeapBuiltin(isolate_for_sandbox,
+    code->SetInstructionStartForOffHeapBuiltin(isolate(),
                                                options.instruction_start);
   }
 
@@ -295,7 +293,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, AllocationType::kOld, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = BytecodeArray::cast(result);
-  instance->init_self_indirect_pointer(isolate()->AsLocalIsolate());
+  instance->init_self_indirect_pointer(isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);

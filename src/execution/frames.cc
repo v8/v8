@@ -2077,7 +2077,7 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 Tagged<HeapObject> CommonFrameWithJSLinkage::unchecked_code() const {
-  return function()->code();
+  return function()->code(isolate());
 }
 
 int TurbofanFrame::ComputeParametersCount() const {
@@ -2246,13 +2246,14 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
 
 // static
 void JavaScriptFrame::CollectFunctionAndOffsetForICStats(
-    Tagged<JSFunction> function, Tagged<AbstractCode> code, int code_offset) {
+    IsolateForSandbox isolate, Tagged<JSFunction> function,
+    Tagged<AbstractCode> code, int code_offset) {
   auto ic_stats = ICStats::instance();
   ICInfo& ic_info = ic_stats->Current();
   PtrComprCageBase cage_base = GetPtrComprCageBase(function);
   Tagged<SharedFunctionInfo> shared = function->shared(cage_base);
 
-  ic_info.function_name = ic_stats->GetOrCacheFunctionName(function);
+  ic_info.function_name = ic_stats->GetOrCacheFunctionName(isolate, function);
   ic_info.script_offset = code_offset;
 
   int source_pos = code->SourcePosition(cage_base, code_offset);
@@ -2767,7 +2768,7 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
   DCHECK(is_optimized());
 
   Tagged<JSFunction> opt_function = function();
-  Tagged<Code> code = opt_function->code();
+  Tagged<Code> code = opt_function->code(isolate());
 
   // The code object may have been replaced by lazy deoptimization. Fall back
   // to a slow search in this case to find the original optimized code object.

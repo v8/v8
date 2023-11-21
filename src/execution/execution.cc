@@ -545,7 +545,7 @@ MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,
                                            Handle<JSFunction> builtin,
                                            Handle<Object> receiver, int argc,
                                            Handle<Object> argv[]) {
-  DCHECK(builtin->code()->is_builtin());
+  DCHECK(builtin->code(isolate)->is_builtin());
   DisableBreak no_break(isolate->debug());
   return Invoke(isolate, InvokeParams::SetUpForCall(isolate, builtin, receiver,
                                                     argc, argv));

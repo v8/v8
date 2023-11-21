@@ -26,7 +26,6 @@ namespace internal {
 class Isolate;
 class LocalLogger;
 class RuntimeCallStats;
-class TrustedPointerTable;
 
 // HiddenLocalFactory parallels Isolate's HiddenFactory
 class V8_EXPORT_PRIVATE HiddenLocalFactory : private LocalFactory {
@@ -100,12 +99,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 
-#ifdef V8_COMPRESS_POINTERS
-  TrustedPointerTable* trusted_pointer_table() const {
-    return &isolate_->trusted_pointer_table();
-  }
-#endif
-
   bool has_pending_exception() const { return false; }
   bool serializer_enabled() const { return isolate_->serializer_enabled(); }
 
@@ -173,6 +166,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  private:
   friend class v8::internal::LocalFactory;
   friend class LocalIsolateFactory;
+  friend class IsolateForSandbox;
+
+  // See IsolateForSandbox.
+  Isolate* ForSandbox() { return isolate_; }
 
   void InitializeBigIntProcessor();
 

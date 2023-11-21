@@ -468,6 +468,15 @@ V8_INLINE static constexpr bool IsSharedExternalPointerType(
   return tag >= kFirstSharedTag && tag <= kLastSharedTag;
 }
 
+// True if the external pointer may live in a read-only object, in which case
+// the table entry will be in the shared read-only segment of the external
+// pointer table.
+V8_INLINE static constexpr bool IsMaybeReadOnlyExternalPointerType(
+    ExternalPointerTag tag) {
+  return tag == kAccessorInfoGetterTag || tag == kAccessorInfoSetterTag ||
+         tag == kCallHandlerInfoCallbackTag;
+}
+
 // Sanity checks.
 #define CHECK_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
   static_assert(IsSharedExternalPointerType(Tag));

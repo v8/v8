@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +30,7 @@ namespace internal {
 //
 // Only available when the sandbox is enabled.
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
-                                            LocalIsolate* isolate,
+                                            IsolateForSandbox isolate,
                                             Tagged<HeapObject> host,
                                             IndirectPointerTag tag);
 
@@ -42,7 +43,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
 // Only available when the sandbox is enabled.
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
-                                                  const Isolate* isolate);
+                                                  IsolateForSandbox isolate);
 
 // Loads the 'self' IndirectPointerHandle from the given object and stores it
 // into the indirect pointer field. In this way, the field becomes a (indirect)

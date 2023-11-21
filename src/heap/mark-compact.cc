@@ -3187,7 +3187,8 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
                                      Tagged<Object> target) {
       RecordSlot(object, slot, HeapObject::cast(target));
     };
-    flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
+    flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
+                                            gc_notify_updated_slot);
   }
 }
 
@@ -3201,7 +3202,8 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
                                      Tagged<Object> target) {
       RecordSlot(object, slot, HeapObject::cast(target));
     };
-    flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
+    flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
+                                            gc_notify_updated_slot);
 
 #ifndef V8_ENABLE_SANDBOX
     // Record the code slot that has been updated either to CompileLazy,
@@ -3806,8 +3808,8 @@ static inline void UpdateStrongCodeSlot(Tagged<HeapObject> host,
         slot.address() - Code::kInstructionStreamOffset));
     Tagged<InstructionStream> instruction_stream =
         code->instruction_stream(code_cage_base);
-    Isolate* isolate_for_sandbox = GetIsolateForSandbox(host);
-    code->UpdateInstructionStart(isolate_for_sandbox, instruction_stream);
+    code->UpdateInstructionStart(GetIsolateForSandbox(host),
+                                 instruction_stream);
   }
 }
 

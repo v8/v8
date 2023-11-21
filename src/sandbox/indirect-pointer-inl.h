@@ -7,17 +7,16 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
-#include "src/execution/isolate.h"
-#include "src/execution/local-isolate-inl.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer.h"
+#include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
 namespace v8 {
 namespace internal {
 
 V8_INLINE void InitSelfIndirectPointerField(Address field_address,
-                                            LocalIsolate* isolate,
+                                            IsolateForSandbox isolate,
                                             Tagged<HeapObject> host,
                                             IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
@@ -28,15 +27,12 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   IndirectPointerHandle handle;
   if (tag == kCodeIndirectPointerTag) {
     CodePointerTable::Space* space =
-        ReadOnlyHeap::Contains(field_address)
-            ? isolate->read_only_heap()->code_pointer_space()
-            : isolate->heap()->code_pointer_space();
+        isolate.GetCodePointerTableSpaceFor(field_address);
     handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
         space, host.ptr(), kNullAddress);
   } else {
-    TrustedPointerTable::Space* space =
-        isolate->heap()->trusted_pointer_space();
-    handle = isolate->trusted_pointer_table()->AllocateAndInitializeEntry(
+    TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
+    handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(
         space, host.ptr());
   }
 
@@ -54,8 +50,8 @@ namespace {
 #ifdef V8_ENABLE_SANDBOX
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
-    IndirectPointerHandle handle, const Isolate* isolate) {
-  const TrustedPointerTable& table = isolate->trusted_pointer_table();
+    IndirectPointerHandle handle, IsolateForSandbox isolate) {
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
   return Tagged<Object>(table.Get(handle));
 }
 
@@ -69,7 +65,7 @@ V8_INLINE Tagged<Object> ResolveCodePointerHandle(
 
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
-                                                  const Isolate* isolate) {
+                                                  IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
   // Load the indirect pointer handle from the object.
   auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);

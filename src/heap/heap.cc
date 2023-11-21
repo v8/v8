@@ -3914,7 +3914,9 @@ class ExternalPointerSlotInvalidator : public ObjectVisitor {
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override {
     DCHECK_EQ(target_, host);
-    ExternalPointerTable::Space* space = slot.GetOwningSpace(isolate_);
+    ExternalPointerTable::Space* space =
+        IsolateForSandbox(isolate_).GetExternalPointerTableSpaceFor(
+            slot.tag(), slot.address());
     space->NotifyExternalPointerFieldInvalidated(slot.address());
     num_invalidated_slots++;
   }

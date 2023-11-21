@@ -260,7 +260,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.
     if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
-        js_function->NeedsResetDueToFlushedBytecode()) {
+        js_function->NeedsResetDueToFlushedBytecode(heap_->isolate())) {
       local_weak_objects_->flushed_js_functions_local.Push(js_function);
     }
   }
@@ -404,7 +404,8 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // See crbug.com/v8/11972 for more details on acquire / release semantics for
   // code field. We don't use release stores when copying code pointers from
   // SFI / FV to JSFunction but it is safe in practice.
-  Tagged<Object> maybe_code = js_function->raw_code(kAcquireLoad);
+  Tagged<Object> maybe_code =
+      js_function->raw_code(heap_->isolate(), kAcquireLoad);
 
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence

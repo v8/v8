@@ -3961,6 +3961,8 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/indirect-pointer-inl.h",
     "src/sandbox/indirect-pointer-tag.h",
     "src/sandbox/indirect-pointer.h",
+    "src/sandbox/isolate-inl.h",
+    "src/sandbox/isolate.h",
     "src/sandbox/sandbox.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",

@@ -198,7 +198,8 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
 
     // If another racing task has already finished compiling and installing the
     // requested code kind on the function, throw out the current job.
-    if (!info->is_osr() && function->HasAvailableCodeKind(info->code_kind())) {
+    if (!info->is_osr() &&
+        function->HasAvailableCodeKind(isolate_, info->code_kind())) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Aborting compilation for ");
         ShortPrint(*function);

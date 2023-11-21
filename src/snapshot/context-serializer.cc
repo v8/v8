@@ -173,8 +173,8 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       if (closure->shared()->HasBytecodeArray()) {
         closure->SetInterruptBudget(isolate());
       }
-      closure->ResetIfCodeFlushed();
-      if (closure->is_compiled()) {
+      closure->ResetIfCodeFlushed(isolate());
+      if (closure->is_compiled(isolate())) {
         if (closure->shared()->HasBaselineCode()) {
           closure->shared()->FlushBaselineCode(isolate());
         }

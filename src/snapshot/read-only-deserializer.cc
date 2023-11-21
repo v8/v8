@@ -274,7 +274,7 @@ class ObjectPostProcessor final {
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {
-    o->init_self_indirect_pointer(isolate_->AsLocalIsolate());
+    o->init_self_indirect_pointer(isolate_);
     o->wrapper()->set_code(o);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.

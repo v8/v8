@@ -431,8 +431,8 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  function->ResetIfCodeFlushed();
-  if (code.is_null()) code = function->code();
+  function->ResetIfCodeFlushed(isolate);
+  if (code.is_null()) code = function->code(isolate);
 
   if (CodeKindCanDeoptimize(code->kind())) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -906,7 +906,7 @@ void Deoptimizer::DoComputeOutputFrames() {
                         DeoptimizeReason::kOSREarlyExit;
   if (IsJSFunction(function_) &&
       (compiled_code_->osr_offset().IsNone()
-           ? function_->code() == compiled_code_
+           ? function_->code(isolate()) == compiled_code_
            : (!osr_early_exit &&
               DeoptExitIsInsideOsrLoop(isolate(), function_,
                                        bytecode_offset_in_outermost_frame_,

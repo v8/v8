@@ -723,7 +723,8 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(Tagged<JSFunction> function,
+  static void CollectFunctionAndOffsetForICStats(IsolateForSandbox isolate,
+                                                 Tagged<JSFunction> function,
                                                  Tagged<AbstractCode> code,
                                                  int code_offset);
 

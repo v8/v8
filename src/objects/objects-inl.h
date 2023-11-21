@@ -50,6 +50,7 @@
 #include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -761,27 +762,28 @@ void HeapObject::WriteBoundedSizeField(size_t offset, size_t value) {
 }
 
 template <ExternalPointerTag tag>
-void HeapObject::InitExternalPointerField(size_t offset, Isolate* isolate,
+void HeapObject::InitExternalPointerField(size_t offset,
+                                          IsolateForSandbox isolate,
                                           Address value) {
   i::InitExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 template <ExternalPointerTag tag>
 Address HeapObject::ReadExternalPointerField(size_t offset,
-                                             Isolate* isolate) const {
+                                             IsolateForSandbox isolate) const {
   return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
 }
 
 template <ExternalPointerTag tag>
-void HeapObject::WriteExternalPointerField(size_t offset, Isolate* isolate,
+void HeapObject::WriteExternalPointerField(size_t offset,
+                                           IsolateForSandbox isolate,
                                            Address value) {
   i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 template <ExternalPointerTag tag>
-void HeapObject::WriteLazilyInitializedExternalPointerField(size_t offset,
-                                                            Isolate* isolate,
-                                                            Address value) {
+void HeapObject::WriteLazilyInitializedExternalPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value) {
   i::WriteLazilyInitializedExternalPointerField<tag>(field_address(offset),
                                                      isolate, value);
 }
@@ -791,7 +793,7 @@ void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
 }
 
 void HeapObject::InitSelfIndirectPointerField(size_t offset,
-                                              LocalIsolate* isolate) {
+                                              IsolateForSandbox isolate) {
   DCHECK(IsExposedTrustedObject(*this));
   InstanceType instance_type = map()->instance_type();
   IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
@@ -800,7 +802,7 @@ void HeapObject::InitSelfIndirectPointerField(size_t offset,
 
 template <IndirectPointerTag tag>
 Tagged<Object> HeapObject::ReadIndirectPointerField(
-    size_t offset, const Isolate* isolate) const {
+    size_t offset, IsolateForSandbox isolate) const {
   return i::ReadIndirectPointerField<tag>(field_address(offset), isolate);
 }
 
@@ -812,7 +814,7 @@ void HeapObject::WriteIndirectPointerField(size_t offset,
 
 template <IndirectPointerTag tag>
 Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, const Isolate* isolate) const {
+    size_t offset, IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   Tagged<Object> object = ReadIndirectPointerField<tag>(offset, isolate);
   DCHECK(IsExposedTrustedObject(object));
@@ -854,11 +856,10 @@ void HeapObject::ClearTrustedPointerField(size_t offset) {
 #endif
 }
 
-Tagged<Code> HeapObject::ReadCodePointerField(size_t offset) const {
-  // The isolate is not needed for code pointers since these use the per-process
-  // code pointer table, not the per-Isolate trusted pointer table.
+Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
+                                              IsolateForSandbox isolate) const {
   return Code::cast(
-      ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, nullptr));
+      ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate));
 }
 
 void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {

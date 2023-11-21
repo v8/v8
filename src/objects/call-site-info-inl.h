@@ -32,7 +32,7 @@ BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
 BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
 
-Tagged<HeapObject> CallSiteInfo::code_object(const Isolate* isolate) const {
+Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   DCHECK(!IsTrustedPointerFieldCleared(kCodeObjectOffset));
   // The field can contain either a Code or a BytecodeArray, so we need to use
   // the kUnknownIndirectPointerTag. Since we can then no longer rely on the

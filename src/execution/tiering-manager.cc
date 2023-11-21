@@ -160,7 +160,7 @@ bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
          // batch compilation yet. This ensures we tier-up to sparkplug when the
          // feedback vector is allocated eagerly (e.g. for logging function
          // events; see JSFunction::InitializeFeedbackCell()).
-         (function->ActiveTierIsIgnition() &&
+         (function->ActiveTierIsIgnition(isolate) &&
           CanCompileWithBaseline(isolate, function->shared()) &&
           !function->shared()->sparkplug_compiled());
 }
@@ -213,9 +213,10 @@ int TieringManager::InterruptBudgetFor(
     // operation for forward jump.
     return INT_MAX / 2;
   }
-  return ::i::InterruptBudgetFor(
-      override_active_tier ? override_active_tier : function->GetActiveTier(),
-      function->tiering_state(), bytecode_length);
+  return ::i::InterruptBudgetFor(override_active_tier
+                                     ? override_active_tier
+                                     : function->GetActiveTier(isolate),
+                                 function->tiering_state(), bytecode_length);
 }
 
 namespace {
@@ -296,9 +297,9 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   if (IsRequestTurbofan(tiering_state) ||
       (maglev_osr && IsRequestMaglev(tiering_state)) ||
       (current_code_kind < CodeKind::TURBOFAN &&
-       function->HasAvailableCodeKind(CodeKind::TURBOFAN)) ||
+       function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN)) ||
       (maglev_osr && current_code_kind < CodeKind::MAGLEV &&
-       function->HasAvailableCodeKind(CodeKind::MAGLEV))) {
+       function->HasAvailableCodeKind(isolate_, CodeKind::MAGLEV))) {
     if (maglev_osr && current_code_kind == CodeKind::MAGLEV &&
         !v8_flags.osr_from_maglev)
       return;
@@ -313,7 +314,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   }
 
   DCHECK(!IsRequestTurbofan(tiering_state));
-  DCHECK(!function->HasAvailableCodeKind(CodeKind::TURBOFAN));
+  DCHECK(!function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN));
   OptimizationDecision d =
       ShouldOptimize(function->feedback_vector(), current_code_kind);
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
@@ -322,7 +323,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   if (!maglev_osr && d.should_optimize() && d.code_kind == CodeKind::MAGLEV) {
     bool is_marked_for_maglev_optimization =
         IsRequestMaglev(tiering_state) ||
-        function->HasAvailableCodeKind(CodeKind::MAGLEV);
+        function->HasAvailableCodeKind(isolate_, CodeKind::MAGLEV);
     if (is_marked_for_maglev_optimization) {
       d = ShouldOptimize(function->feedback_vector(), CodeKind::MAGLEV);
     }
@@ -399,7 +400,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
       FirstTimeTierUpToSparkplug(isolate_, *function);
   const bool compile_sparkplug =
       CanCompileWithBaseline(isolate_, function->shared()) &&
-      function->ActiveTierIsIgnition();
+      function->ActiveTierIsIgnition(isolate_);
 
   // Ensure that the feedback vector has been allocated.
   if (!had_feedback_vector) {

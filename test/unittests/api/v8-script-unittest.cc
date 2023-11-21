@@ -154,7 +154,7 @@ class CompileHintsTest : public ScriptTest {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     return builtin != i::Builtin::kCompileLazy;
   }
@@ -541,7 +541,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was not compiled lazily.
     EXPECT_NE(i::Builtin::kCompileLazy, builtin);
@@ -559,7 +559,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasic) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f2 was not compiled lazily.
     EXPECT_NE(i::Builtin::kCompileLazy, builtin);
@@ -600,7 +600,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was compiled lazily.
     EXPECT_EQ(i::Builtin::kCompileLazy, builtin);
@@ -619,7 +619,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBetweenFunctions) {
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
 
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f2 was not compiled lazily.
     EXPECT_NE(i::Builtin::kCompileLazy, builtin);
@@ -659,7 +659,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was compiled lazily.
     EXPECT_EQ(i::Builtin::kCompileLazy, builtin);
@@ -714,7 +714,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f1 was not compiled lazily.
     EXPECT_NE(i::Builtin::kCompileLazy, builtin);
@@ -732,7 +732,7 @@ TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
 
     auto function = i::Handle<i::JSFunction>::cast(
         Utils::OpenHandle(*result2.ToLocalChecked()));
-    i::Builtin builtin = function->code()->builtin_id();
+    i::Builtin builtin = function->code(i_isolate())->builtin_id();
 
     // f2 was not compiled lazily.
     EXPECT_NE(i::Builtin::kCompileLazy, builtin);

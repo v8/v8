@@ -91,12 +91,12 @@ class Code : public ExposedTrustedObject {
   inline Address instruction_end() const;
 
   inline void SetInstructionStreamAndInstructionStart(
-      Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
+      IsolateForSandbox isolate, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+  inline void SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
                                                    Address entry);
-  inline void ClearInstructionStartForSerialization(Isolate* isolate);
-  inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
+  inline void ClearInstructionStartForSerialization(IsolateForSandbox isolate);
+  inline void UpdateInstructionStart(IsolateForSandbox isolate,
                                      Tagged<InstructionStream> istream);
 
   inline void initialize_flags(CodeKind kind, bool is_turbofanned,
@@ -129,7 +129,7 @@ class Code : public ExposedTrustedObject {
   // This is transparent for the caller.
   static_assert(!kCodeObjectLiveInTrustedSpace);
   inline Tagged<HeapObject> bytecode_or_interpreter_data(
-      const Isolate* isolate) const;
+      IsolateForSandbox isolate) const;
   inline void set_bytecode_or_interpreter_data(
       Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
@@ -404,12 +404,12 @@ class Code : public ExposedTrustedObject {
   static const int kMaxArguments = (1 << kArgumentsBits) - 2;
 
  private:
-  inline void set_instruction_start(Isolate* isolate, Address value);
+  inline void set_instruction_start(IsolateForSandbox isolate, Address value);
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
   Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data(
-      const Isolate* isolate) const;
+      IsolateForSandbox isolate) const;
   Tagged<ByteArray> raw_position_table() const;
 
   enum BytecodeToPCPosition {
@@ -494,7 +494,7 @@ class GcSafeCode : public HeapObject {
 // pointers inside an array or similar container datastructure.
 class CodeWrapper : public Struct {
  public:
-  DECL_CODE_POINTER_ACCESSORS(code, Code)
+  DECL_CODE_POINTER_ACCESSORS(code)
 
   DECL_CAST(CodeWrapper)
   DECL_PRINTER(CodeWrapper)

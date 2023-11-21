@@ -1539,7 +1539,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   Handle<Object> value_of = value_of_it.GetDataValue();
   if (!IsJSFunction(*value_of)) return false;
   Builtin value_of_builtin_id =
-      Handle<JSFunction>::cast(value_of)->code()->builtin_id();
+      Handle<JSFunction>::cast(value_of)->code(isolate)->builtin_id();
   if (value_of_builtin_id != Builtin::kObjectPrototypeValueOf) return false;
 
   // The {toString} member must be the default "FunctionPrototypeToString".
@@ -1549,7 +1549,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   Handle<Object> to_string = to_string_it.GetDataValue();
   if (!IsJSFunction(*to_string)) return false;
   Builtin to_string_builtin_id =
-      Handle<JSFunction>::cast(to_string)->code()->builtin_id();
+      Handle<JSFunction>::cast(to_string)->code(isolate)->builtin_id();
   if (to_string_builtin_id != Builtin::kFunctionPrototypeToString) return false;
 
   // Just a default function, which will convert to "Nan". Accept this.

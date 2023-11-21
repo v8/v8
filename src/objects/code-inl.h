@@ -101,7 +101,7 @@ ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<FixedArray>,
                        !ObjectInYoungGeneration(value))
 
 Tagged<HeapObject> Code::bytecode_or_interpreter_data(
-    const Isolate* isolate) const {
+    IsolateForSandbox isolate) const {
   DCHECK_EQ(kind(), CodeKind::BASELINE);
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   Tagged<HeapObject> value =
@@ -622,7 +622,7 @@ DEF_GETTER(Code, instruction_start, Address) {
 #endif
 }
 
-void Code::set_instruction_start(Isolate* isolate, Address value) {
+void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
   WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value);
 #else
@@ -631,19 +631,19 @@ void Code::set_instruction_start(Isolate* isolate, Address value) {
 }
 
 void Code::SetInstructionStreamAndInstructionStart(
-    Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
+    IsolateForSandbox isolate, Tagged<InstructionStream> code,
     WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
-  set_instruction_start(isolate_for_sandbox, code->instruction_start());
+  set_instruction_start(isolate, code->instruction_start());
 }
 
-void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+void Code::SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
                                                 Address entry) {
   DCHECK(!has_instruction_stream());
-  set_instruction_start(isolate_for_sandbox, entry);
+  set_instruction_start(isolate, entry);
 }
 
-void Code::ClearInstructionStartForSerialization(Isolate* isolate) {
+void Code::ClearInstructionStartForSerialization(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
   // The instruction start is stored in this object's code pointer table.
   WriteField<CodePointerHandle>(kSelfIndirectPointerOffset,
@@ -653,10 +653,10 @@ void Code::ClearInstructionStartForSerialization(Isolate* isolate) {
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void Code::UpdateInstructionStart(Isolate* isolate_for_sandbox,
+void Code::UpdateInstructionStart(IsolateForSandbox isolate,
                                   Tagged<InstructionStream> istream) {
   DCHECK_EQ(raw_instruction_stream(), istream);
-  set_instruction_start(isolate_for_sandbox, istream->instruction_start());
+  set_instruction_start(isolate, istream->instruction_start());
 }
 
 void Code::clear_padding() {
@@ -721,7 +721,7 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
 
 CAST_ACCESSOR(CodeWrapper)
 OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
-CODE_POINTER_ACCESSORS(CodeWrapper, code, Code, kCodeOffset)
+CODE_POINTER_ACCESSORS(CodeWrapper, code, kCodeOffset)
 
 }  // namespace internal
 }  // namespace v8

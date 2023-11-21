@@ -3020,7 +3020,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK_EQ(isolate->factory()
                ->promise_capability_default_resolve_shared_fun()
                ->GetCode(isolate),
-           fun->code());
+           fun->code(isolate));
 }
 
 TEST(CreatePromiseGetCapabilitiesExecutorContext) {

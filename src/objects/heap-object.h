@@ -10,6 +10,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/tagged-field.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/isolate.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -214,35 +215,32 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExternalPointer_t field accessors.
   //
   template <ExternalPointerTag tag>
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+  inline void InitExternalPointerField(size_t offset, IsolateForSandbox isolate,
                                        Address value);
   template <ExternalPointerTag tag>
   inline Address ReadExternalPointerField(size_t offset,
-                                          Isolate* isolate) const;
+                                          IsolateForSandbox isolate) const;
   template <ExternalPointerTag tag>
-  inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
+  inline void WriteExternalPointerField(size_t offset,
+                                        IsolateForSandbox isolate,
                                         Address value);
 
   template <ExternalPointerTag tag>
-  inline void WriteLazilyInitializedExternalPointerField(size_t offset,
-                                                         Isolate* isolate,
-                                                         Address value);
+  inline void WriteLazilyInitializedExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, Address value);
 
   inline void ResetLazilyInitializedExternalPointerField(size_t offset);
 
   //
   // Indirect pointers.
   //
-  // Indirect pointer fields can be initialized on background threads, so take a
-  // LocalIsolate instead of an Isolate as parameter.
-  //
   // These are only available when the sandbox is enabled.
   inline void InitSelfIndirectPointerField(size_t offset,
-                                           LocalIsolate* isolate);
+                                           IsolateForSandbox isolate);
 
   template <IndirectPointerTag tag>
-  inline Tagged<Object> ReadIndirectPointerField(size_t offset,
-                                                 const Isolate* isolate) const;
+  inline Tagged<Object> ReadIndirectPointerField(
+      size_t offset, IsolateForSandbox isolate) const;
 
   template <IndirectPointerTag tag>
   inline void WriteIndirectPointerField(size_t offset,
@@ -257,7 +255,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // trusted pointer table.
   template <IndirectPointerTag tag>
   inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
-      size_t offset, const Isolate* isolate) const;
+      size_t offset, IsolateForSandbox isolate) const;
   template <IndirectPointerTag tag>
   inline void WriteTrustedPointerField(size_t offset,
                                        Tagged<ExposedTrustedObject> value);
@@ -276,7 +274,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // objects. When the sandbox is enabled, they are indirect pointers using the
   // code pointer table (CPT) instead of the TrustedPointerTable. When the
   // sandbox is disabled, they are regular tagged pointers.
-  inline Tagged<Code> ReadCodePointerField(size_t offset) const;
+  inline Tagged<Code> ReadCodePointerField(size_t offset,
+                                           IsolateForSandbox isolate) const;
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
   inline Address ReadCodeEntrypointViaCodePointerField(size_t offset) const;

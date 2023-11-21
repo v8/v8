@@ -478,23 +478,25 @@
   }
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
-#define DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)  \
-  inline type name(i::Isolate* isolate_for_sandbox) const;                \
-  inline void init_##name(i::Isolate* isolate, const type initial_value); \
-  inline void set_##name(i::Isolate* isolate, const type value);
+#define DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
+  inline type name(i::IsolateForSandbox isolate) const;                  \
+  inline void init_##name(i::IsolateForSandbox isolate,                  \
+                          const type initial_value);                     \
+  inline void set_##name(i::IsolateForSandbox isolate, const type value);
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
 #define EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, \
                                                         offset, tag)        \
-  type holder::name(i::Isolate* isolate_for_sandbox) const {                \
+  type holder::name(i::IsolateForSandbox isolate) const {                   \
     /* This is a workaround for MSVC error C2440 not allowing  */           \
     /* reinterpret casts to the same type. */                               \
     struct C2440 {};                                                        \
-    Address result = HeapObject::ReadExternalPointerField<tag>(             \
-        offset, isolate_for_sandbox);                                       \
+    Address result =                                                        \
+        HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
     return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
   }                                                                         \
-  void holder::init_##name(i::Isolate* isolate, const type initial_value) { \
+  void holder::init_##name(i::IsolateForSandbox isolate,                    \
+                           const type initial_value) {                      \
     /* This is a workaround for MSVC error C2440 not allowing  */           \
     /* reinterpret casts to the same type. */                               \
     struct C2440 {};                                                        \
@@ -502,7 +504,7 @@
         reinterpret_cast<const C2440*>(initial_value));                     \
     HeapObject::InitExternalPointerField<tag>(offset, isolate, the_value);  \
   }                                                                         \
-  void holder::set_##name(i::Isolate* isolate, const type value) {          \
+  void holder::set_##name(i::IsolateForSandbox isolate, const type value) { \
     /* This is a workaround for MSVC error C2440 not allowing  */           \
     /* reinterpret casts to the same type. */                               \
     struct C2440 {};                                                        \
@@ -517,53 +519,53 @@
 
 #define EXTERNAL_POINTER_ACCESSORS(holder, name, type, offset, tag)           \
   type holder::name() const {                                                 \
-    i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);            \
-    return holder::name(isolate_for_sandbox);                                 \
+    i::IsolateForSandbox isolate = GetIsolateForSandbox(*this);               \
+    return holder::name(isolate);                                             \
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
 
-#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                         \
-  /* Trusted pointers currently always have release-acquire semantics. */  \
-  /* However, we still expose explicit release-acquire accessors so it */  \
-  /* can be made clear when they are required. */                          \
-  /* If desired, we could create separate {Read|Write}TrustedPointer */    \
-  /* routines for relaxed- and release-acquire semantics in the future. */ \
-  inline Tagged<type> name(const Isolate* isolate) const;                  \
-  inline Tagged<type> name(const Isolate* isolate, AcquireLoadTag) const;  \
-  inline void set_##name(Tagged<type> value,                               \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
-  inline void set_##name(Tagged<type> value, ReleaseStoreTag,              \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
-  inline bool has_##name() const;                                          \
+#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                           \
+  /* Trusted pointers currently always have release-acquire semantics. */    \
+  /* However, we still expose explicit release-acquire accessors so it */    \
+  /* can be made clear when they are required. */                            \
+  /* If desired, we could create separate {Read|Write}TrustedPointer */      \
+  /* routines for relaxed- and release-acquire semantics in the future. */   \
+  inline Tagged<type> name(IsolateForSandbox isolate) const;                 \
+  inline Tagged<type> name(IsolateForSandbox isolate, AcquireLoadTag) const; \
+  inline void set_##name(Tagged<type> value,                                 \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,                \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
+  inline bool has_##name() const;                                            \
   inline void clear_##name();
 
-#define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)          \
-  Tagged<type> holder::name(const Isolate* isolate) const {                 \
-    return name(isolate, kAcquireLoad);                                     \
-  }                                                                         \
-  Tagged<type> holder::name(const Isolate* isolate, AcquireLoadTag) const { \
-    DCHECK(has_##name());                                                   \
-    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));       \
-  }                                                                         \
-  void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {      \
-    set_##name(value, kReleaseStore, mode);                                 \
-  }                                                                         \
-  void holder::set_##name(Tagged<type> value, ReleaseStoreTag,              \
-                          WriteBarrierMode mode) {                          \
-    WriteTrustedPointerField<tag>(offset, value);                           \
-    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,    \
-                                              mode);                        \
-  }                                                                         \
-  bool holder::has_##name() const {                                         \
-    return !IsTrustedPointerFieldCleared(offset);                           \
-  }                                                                         \
+#define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)             \
+  Tagged<type> holder::name(IsolateForSandbox isolate) const {                 \
+    return name(isolate, kAcquireLoad);                                        \
+  }                                                                            \
+  Tagged<type> holder::name(IsolateForSandbox isolate, AcquireLoadTag) const { \
+    DCHECK(has_##name());                                                      \
+    return type::cast(ReadTrustedPointerField<tag>(offset, isolate));          \
+  }                                                                            \
+  void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {         \
+    set_##name(value, kReleaseStore, mode);                                    \
+  }                                                                            \
+  void holder::set_##name(Tagged<type> value, ReleaseStoreTag,                 \
+                          WriteBarrierMode mode) {                             \
+    WriteTrustedPointerField<tag>(offset, value);                              \
+    CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,       \
+                                              mode);                           \
+  }                                                                            \
+  bool holder::has_##name() const {                                            \
+    return !IsTrustedPointerFieldCleared(offset);                              \
+  }                                                                            \
   void holder::clear_##name() { ClearTrustedPointerField(offset); }
 
-#define DECL_CODE_POINTER_ACCESSORS(name, type) \
-  DECL_TRUSTED_POINTER_ACCESSORS(name, type)
-#define CODE_POINTER_ACCESSORS(holder, name, type, offset) \
-  TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, kCodeIndirectPointerTag)
+#define DECL_CODE_POINTER_ACCESSORS(name) \
+  DECL_TRUSTED_POINTER_ACCESSORS(name, Code)
+#define CODE_POINTER_ACCESSORS(holder, name, offset) \
+  TRUSTED_POINTER_ACCESSORS(holder, name, Code, offset, kCodeIndirectPointerTag)
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \

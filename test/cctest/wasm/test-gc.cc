@@ -1474,8 +1474,9 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       WasmInternalFunction::GetOrCreateExternal(
           Handle<WasmInternalFunction>::cast(result_cast_reference));
 
-  CHECK_EQ(cast_function->code()->instruction_start(),
-           cast_function_reference->code()->instruction_start());
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  CHECK_EQ(cast_function->code(i_isolate)->instruction_start(),
+           cast_function_reference->code(i_isolate)->instruction_start());
 
   tester.CheckResult(test, 1);
   tester.CheckResult(test_fail, 0);

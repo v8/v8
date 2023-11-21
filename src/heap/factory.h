@@ -1139,16 +1139,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
 
-  // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when the sandbox is enabled.
-  Isolate* isolate_for_sandbox() const {
-#ifdef V8_ENABLE_SANDBOX
-    return isolate();
-#else
-    return nullptr;
-#endif  // V8_ENABLE_SANDBOX
-  }
-
   V8_INLINE HeapAllocator* allocator() const;
 
   bool CanAllocateInReadOnlySpace();

@@ -939,7 +939,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (auto& js_function : data->js_functions) {
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
-      if (!js_function->is_compiled()) continue;
+      if (!js_function->is_compiled(isolate)) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared()->is_compiled_scope(isolate));
       JSFunction::EnsureFeedbackVector(isolate, js_function,
@@ -988,7 +988,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
-      if (!js_function->is_compiled()) continue;
+      if (!js_function->is_compiled(isolate)) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared()->is_compiled_scope(isolate));
       JSFunction::EnsureFeedbackVector(isolate, js_function,

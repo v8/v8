@@ -1687,7 +1687,7 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
        obj = iterator.Next()) {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = JSFunction::cast(obj);
-      if (fun->shared() == shared && fun->ActiveTierIsBaseline()) {
+      if (fun->shared() == shared && fun->ActiveTierIsBaseline(isolate_)) {
         fun->set_code(*trampoline);
       }
     }
@@ -1705,7 +1705,7 @@ void Debug::DiscardAllBaselineCode() {
        obj = iterator.Next()) {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = JSFunction::cast(obj);
-      if (fun->ActiveTierIsBaseline()) {
+      if (fun->ActiveTierIsBaseline(isolate_)) {
         fun->set_code(*trampoline);
       }
     } else if (IsSharedFunctionInfo(obj)) {
@@ -1823,7 +1823,7 @@ void Debug::InstallDebugBreakTrampoline() {
         continue;
       } else if (IsJSFunctionAndNeedsTrampoline(isolate_, obj)) {
         Tagged<JSFunction> fun = JSFunction::cast(obj);
-        if (!fun->is_compiled()) {
+        if (!fun->is_compiled(isolate_)) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun->set_code(*trampoline);
@@ -3058,7 +3058,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
   DisallowJavascriptExecution no_js(isolate_);
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate_));
-  if (!function->is_compiled() &&
+  if (!function->is_compiled(isolate_) &&
       !Compiler::Compile(isolate_, function, Compiler::KEEP_EXCEPTION,
                          &is_compiled_scope)) {
     return false;

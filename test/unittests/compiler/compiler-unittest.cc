@@ -308,7 +308,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
-  EXPECT_TRUE(f->HasAttachedOptimizedCode());
+  EXPECT_TRUE(f->HasAttachedOptimizedCode(i_isolate()));
   object = f->feedback_vector()->Get(slot_for_a);
   {
     Tagged<HeapObject> heap_object;
@@ -390,11 +390,11 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
                 ->Global()
                 ->Get(context(), NewString("closure2"))
                 .ToLocalChecked())));
-    EXPECT_TRUE(fun1->HasAttachedOptimizedCode() ||
+    EXPECT_TRUE(fun1->HasAttachedOptimizedCode(i_isolate()) ||
                 !i_isolate()->use_optimizer());
-    EXPECT_TRUE(fun2->HasAttachedOptimizedCode() ||
+    EXPECT_TRUE(fun2->HasAttachedOptimizedCode(i_isolate()) ||
                 !i_isolate()->use_optimizer());
-    EXPECT_EQ(fun1->code(), fun2->code());
+    EXPECT_EQ(fun1->code(i_isolate()), fun2->code(i_isolate()));
   }
 }
 

@@ -342,13 +342,9 @@ MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
 
   Factory::CodeBuilder code_builder(local_isolate, desc, CodeKind::BASELINE);
   code_builder.set_bytecode_offset_table(bytecode_offset_table);
-  // TODO(saelo): consider introducing a AsIsolateForSandbox(). It's only needed
-  // for pointer table access.
-  Isolate* isolate_for_sandbox = local_isolate->GetMainThreadIsolateUnsafe();
-  if (shared_function_info_->HasInterpreterData(isolate_for_sandbox)) {
-    code_builder.set_interpreter_data(
-        handle(shared_function_info_->interpreter_data(isolate_for_sandbox),
-               local_isolate));
+  if (shared_function_info_->HasInterpreterData(local_isolate)) {
+    code_builder.set_interpreter_data(handle(
+        shared_function_info_->interpreter_data(local_isolate), local_isolate));
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }

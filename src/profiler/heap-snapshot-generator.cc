@@ -1369,7 +1369,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     TagObject(js_fun->context(), "(context)");
     SetInternalReference(entry, "context", js_fun->context(),
                          JSFunction::kContextOffset);
-    SetInternalReference(entry, "code", js_fun->code(),
+    SetInternalReference(entry, "code", js_fun->code(isolate),
                          JSFunction::kCodeOffset);
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = JSGlobalObject::cast(obj);

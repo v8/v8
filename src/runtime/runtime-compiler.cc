@@ -54,7 +54,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
 
-  DCHECK(!function->is_compiled());
+  DCHECK(!function->is_compiled(isolate));
 #ifdef DEBUG
   if (v8_flags.trace_lazy && sfi->is_compiled()) {
     PrintF("[unoptimized: %s]\n", function->DebugNameCStr().get());
@@ -68,8 +68,8 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     LogExecution(isolate, function);
   }
-  DCHECK(function->is_compiled());
-  return function->code();
+  DCHECK(function->is_compiled(isolate));
+  return function->code(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
@@ -79,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DCHECK(sfi->HasBaselineCode());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
-  DCHECK(!function->HasAvailableOptimizedCode());
+  DCHECK(!function->HasAvailableOptimizedCode(isolate));
   DCHECK(!function->has_feedback_vector());
   JSFunction::CreateAndAttachFeedbackVector(isolate, function,
                                             &is_compiled_scope);
@@ -139,11 +139,11 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
 
   Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
-  DCHECK(function->is_compiled());
+  DCHECK(function->is_compiled(isolate));
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     LogExecution(isolate, function);
   }
-  return function->code();
+  return function->code(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
@@ -152,7 +152,7 @@ RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
   Handle<JSFunction> js_function = args.at<JSFunction>(0);
   DCHECK(v8_flags.log_function_events);
   LogExecution(isolate, js_function);
-  return js_function->code();
+  return js_function->code(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
@@ -164,7 +164,7 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
 
   function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
       isolate, function->shared(), "Runtime_HealOptimizedCodeSlot");
-  return function->code();
+  return function->code(isolate);
 }
 
 // The enum values need to match "AsmJsInstantiateResult" in
@@ -211,7 +211,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   shared->set_is_asm_wasm_broken(true);
 #endif
-  DCHECK_EQ(function->code(), *BUILTIN_CODE(isolate, InstantiateAsmJs));
+  DCHECK_EQ(function->code(isolate), *BUILTIN_CODE(isolate, InstantiateAsmJs));
   function->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   DCHECK(!isolate->has_pending_exception());
   return Smi::zero();
@@ -466,7 +466,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
     // 1) we've started a concurrent compilation job - everything is fine.
     // 2) synchronous compilation failed for some reason.
 
-    if (!function->HasAttachedOptimizedCode()) {
+    if (!function->HasAttachedOptimizedCode(isolate)) {
       function->set_code(function->shared()->GetCode(isolate));
     }
 
@@ -532,7 +532,7 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
              "concurrent_osr is disabled. function: %s, osr offset: %d]\n",
              function->DebugNameCStr().get(), osr_offset.ToInt());
     }
-    return function->code();
+    return function->code(isolate);
   }
 
   return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN, osr_offset);
@@ -570,7 +570,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
   if (*function != frame->function()) {
     // We are OSRing an inlined function. Mark the top frame one for
     // optimization.
-    if (!frame->function()->ActiveTierIsTurbofan()) {
+    if (!frame->function()->ActiveTierIsTurbofan(isolate)) {
       isolate->tiering_manager()->MarkForTurboFanOptimization(
           frame->function());
     }
