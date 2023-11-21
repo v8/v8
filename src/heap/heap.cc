@@ -5802,7 +5802,7 @@ void Heap::NotifyOldGenerationExpansion(LocalHeap* local_heap,
   }
 
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
-  if (local_heap->is_main_thread_for(this) && memory_reducer() != nullptr &&
+  if (local_heap->is_main_thread() && memory_reducer() != nullptr &&
       old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
                                      kMemoryReducerActivationThreshold &&
