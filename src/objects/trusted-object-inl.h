@@ -29,7 +29,7 @@ void ExposedTrustedObject::init_self_indirect_pointer(
 
 IndirectPointerHandle ExposedTrustedObject::self_indirect_pointer() const {
 #ifdef V8_ENABLE_SANDBOX
-  return ReadField<IndirectPointerHandle>(kSelfIndirectPointerOffset);
+  return Relaxed_ReadField<IndirectPointerHandle>(kSelfIndirectPointerOffset);
 #else
   UNREACHABLE();
 #endif
