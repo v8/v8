@@ -3792,6 +3792,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                      "Graph generation");
 
+    data.BeginPhaseKind("V8.WasmOptimization");
+
     if (v8_flags.wasm_loop_peeling) {
       pipeline.Run<turboshaft::LoopPeelingPhase>();
     }
@@ -3800,9 +3802,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       pipeline.Run<turboshaft::LoopUnrollingPhase>();
     }
 
-    // TODO(mliedtke): This phase could potentially be skipped for non-wasm-gc
-    // functions.
-    if (v8_flags.wasm_opt) {
+    if (v8_flags.wasm_opt && (detected->has_gc() || detected->has_stringref() ||
+                              detected->has_imported_strings())) {
       pipeline.Run<turboshaft::WasmGCOptimizePhase>();
     }
 
@@ -3830,6 +3831,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       // debug features.
       pipeline.Run<turboshaft::DebugFeatureLoweringPhase>();
     }
+
+    data.BeginPhaseKind("V8.InstructionSelection");
 
     if (v8_flags.turboshaft_wasm_instruction_selection) {
       // Run Turboshaft instruction selection.
