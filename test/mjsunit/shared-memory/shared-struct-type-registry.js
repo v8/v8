@@ -91,3 +91,10 @@
     new SharedStructType([2, 3], 'MismatchElements');
   }, TypeError);
 })();
+
+(function TestRegistryMismatchElements2() {
+  let T1 = new SharedStructType(['x'], 'MismatchElements2');
+  assertThrows(() => {
+    new SharedStructType([0, 1], 'MismatchElements2');
+  }, TypeError);
+})();

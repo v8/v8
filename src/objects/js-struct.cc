@@ -143,10 +143,10 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
                                    Tagged<Symbol> special_slot_name) {
   DisallowGarbageCollection no_gc;
   MaybeHandle<T> result;
-  InternalIndex entry = GetSpecialSlotIndex(*instance_map, *special_slot_name);
+  InternalIndex entry = GetSpecialSlotIndex(instance_map, special_slot_name);
   if (entry.is_found()) {
     DCHECK_IMPLIES(
-        *special_slot_name ==
+        special_slot_name ==
             ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol(),
         entry.as_int() == 0);
     result =
@@ -382,13 +382,18 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
   // - field names are the same element-wise (in order)
   // - element indices are the same
 
-  // Add 1 for the registry key descriptor.
-  int num_descriptors = static_cast<int>(field_names.size()) + 1;
-  if (!element_names.empty()) num_descriptors++;
-
+  // Registered types always have the key as the first descriptor.
   DCHECK_EQ(
       *JSSharedStruct::GetRegistryKey(isolate, existing_map).ToHandleChecked(),
       *key);
+
+  int num_descriptors = static_cast<int>(field_names.size()) + 1;
+  if (!element_names.empty()) {
+    if (JSSharedStruct::GetElementsTemplate(isolate, existing_map).is_null()) {
+      return MaybeHandle<Map>();
+    }
+    num_descriptors++;
+  }
 
   if (num_descriptors != existing_map->NumberOfOwnDescriptors()) {
     return MaybeHandle<Map>();
@@ -417,7 +422,7 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
       continue;
     }
 
-    if (JSSharedStruct::IsRegistryKeyDescriptor(isolate, *existing_map, i)) {
+    if (JSSharedStruct::IsRegistryKeyDescriptor(isolate, existing_map, i)) {
       continue;
     }
 
