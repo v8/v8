@@ -16,7 +16,6 @@ namespace internal {
 
 class AllocationObserver;
 class CodeLargeObjectSpace;
-class ConcurrentAllocator;
 class Heap;
 class LinearAllocationArea;
 class MainAllocator;
@@ -119,8 +118,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   MainAllocator* code_space_allocator() {
     return &code_space_allocator_.value();
   }
-  ConcurrentAllocator* shared_space_allocator() {
-    return shared_space_allocator_.get();
+  MainAllocator* shared_space_allocator() {
+    return &shared_space_allocator_.value();
   }
 
  private:
@@ -161,7 +160,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   base::Optional<MainAllocator> code_space_allocator_;
 
   // Allocators for the shared spaces.
-  std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
+  base::Optional<MainAllocator> shared_space_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

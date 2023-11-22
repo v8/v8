@@ -98,8 +98,10 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
 }
 
 bool MainAllocator::IsBlackAllocationEnabled() const {
+  // Use the space heap to check whether black allocation is enabled. For shared
+  // space this might be different from the LocalHeap's heap.
   return identity() != NEW_SPACE &&
-         heap()->incremental_marking()->black_allocation();
+         space_->heap()->incremental_marking()->black_allocation();
 }
 
 void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {

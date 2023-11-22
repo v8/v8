@@ -46,6 +46,7 @@ void SetupClientIsolateAndRunCallback(Callback callback) {
   IsolateWrapper isolate_wrapper(kNoCounters);
   v8::Isolate* client_isolate = isolate_wrapper.isolate();
   Isolate* i_client_isolate = reinterpret_cast<Isolate*>(client_isolate);
+  v8::Isolate::Scope isolate_scope(client_isolate);
 
   callback(client_isolate, i_client_isolate);
 }
