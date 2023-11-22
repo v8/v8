@@ -2255,7 +2255,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             }
           }
         }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 #endif  // V8_ENABLE_WEBASSEMBLY
 
         // The code might be a dynamically generated stub or a turbofanned
@@ -3379,7 +3379,7 @@ void Isolate::UpdateCentralStackInfo() {
   // only contain frames that use precise scanning.
   // Otherwise register the active secondary stack start and the bounds of the
   // inactive stacks in the Stack object.
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
   stack().ClearStackSegments();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
 #endif
