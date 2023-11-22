@@ -2372,6 +2372,9 @@ struct LoadOp : OperationT<LoadOp> {
     bool maybe_unaligned : 1;
     // There is a Wasm trap handler for out-of-bounds accesses.
     bool with_trap_handler : 1;
+    // The wasm trap handler is used for null accesses. Note that this requires
+    // with_trap_handler as well.
+    bool trap_on_null : 1;
     // If {load_eliminable} is true, then:
     //   - Stores/Loads at this address cannot overlap. Concretely, it means
     //     that something like this cannot happen:
@@ -2417,19 +2420,19 @@ struct LoadOp : OperationT<LoadOp> {
 
     // TODO(dmercadier): use designed initializers once we move to C++20.
     static constexpr Kind TaggedBase() {
-      return {true, false, false, true, false, false};
+      return {true, false, false, false, true, false, false};
     }
     static constexpr Kind RawAligned() {
-      return {false, false, false, true, false, false};
+      return {false, false, false, false, true, false, false};
     }
     static constexpr Kind RawUnaligned() {
-      return {false, true, false, true, false, false};
+      return {false, true, false, false, true, false, false};
     }
     static constexpr Kind Protected() {
-      return {false, false, true, true, false, false};
+      return {false, false, true, false, true, false, false};
     }
     static constexpr Kind TrapOnNull() {
-      return {true, false, true, true, false, false};
+      return {true, false, true, true, true, false, false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
       return rep == MemoryRepresentation::Int8() ||
@@ -2462,7 +2465,8 @@ struct LoadOp : OperationT<LoadOp> {
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
              load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
+             is_immutable == other.is_immutable &&
+             is_atomic == other.is_atomic && trap_on_null == other.trap_on_null;
     }
   };
   Kind kind;

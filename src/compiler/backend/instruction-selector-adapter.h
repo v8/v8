@@ -809,13 +809,13 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     bool is_protected(bool* traps_on_null) const {
       if (load_) {
         if (load_->kind.with_trap_handler) {
-          *traps_on_null = load_->kind.tagged_base;
+          *traps_on_null = load_->kind.trap_on_null;
           return true;
         }
 #if V8_ENABLE_WEBASSEMBLY
       } else {
         if (load_transform_->load_kind.with_trap_handler) {
-          DCHECK(!load_transform_->load_kind.tagged_base);
+          DCHECK(!load_transform_->load_kind.trap_on_null);
           *traps_on_null = false;
           return true;
         }
@@ -928,7 +928,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
 
     bool is_store_trap_on_null() const {
-      return op_->kind.with_trap_handler && op_->kind.tagged_base;
+      return op_->kind.with_trap_handler && op_->kind.trap_on_null;
     }
 
     operator node_t() const { return node_; }
