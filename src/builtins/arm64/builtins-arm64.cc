@@ -400,18 +400,19 @@ static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
   DCHECK(!AreAliased(data, scratch));
   DCHECK(!AreAliased(sfi, scratch));
   // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label done;
-  // data and sfi might be aliased, so use a scratch register
-  __ LoadTaggedField(
-      scratch,
-      FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+  Label use_tagged_field, done;
+  __ Ldr(scratch.W(),
+         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-  __ Cbnz(scratch.W(), &done);
-  __ LoadTaggedField(
-      scratch, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+  __ Cbz(scratch.W(), &use_tagged_field);
+  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
+  __ B(&done);
 
-  __ bind(&done);
-  __ Move(data, scratch);
+  __ Bind(&use_tagged_field);
+  __ LoadTaggedField(
+      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+
+  __ Bind(&done);
 #else
   __ LoadTaggedField(
       data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));

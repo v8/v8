@@ -422,7 +422,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
   DisallowGarbageCollection no_gc;
 
   shared->clear_padding();
-  shared->CopyFrom(*other);
+  shared->CopyFrom(*other, isolate());
 
   return handle(shared, isolate());
 }

@@ -3399,23 +3399,21 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoData(
 #ifdef V8_ENABLE_SANDBOX
   // Return the trusted_function_data part if it is non-empty, otherwise the
   // regular function_data.
-  TNode<Smi> smi_zero = SmiConstant(0);
+  TNode<IndirectPointerHandleT> trusted_data_handle =
+      LoadObjectField<IndirectPointerHandleT>(
+          sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
 
-  TNode<Object> trusted_data = LoadObjectField<Object>(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
-  TVARIABLE(Object, var_result, trusted_data);
-  Label done(this, &var_result);
-  Label use_untrusted_data(this);
-  GotoIf(TaggedEqual(trusted_data, smi_zero), &use_untrusted_data);
-  Goto(&done);
-
-  BIND(&use_untrusted_data);
-  var_result =
-      LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-  Goto(&done);
-
-  BIND(&done);
-  return var_result.value();
+  return Select<Object>(
+      Word32Equal(trusted_data_handle,
+                  Int32Constant(kNullIndirectPointerHandle)),
+      [=] {
+        return LoadObjectField<Object>(sfi,
+                                       SharedFunctionInfo::kFunctionDataOffset);
+      },
+      [=] {
+        return ResolveIndirectPointerHandle(trusted_data_handle,
+                                            kUnknownIndirectPointerTag);
+      });
 #else
   return LoadObjectField<Object>(sfi, SharedFunctionInfo::kFunctionDataOffset);
 #endif

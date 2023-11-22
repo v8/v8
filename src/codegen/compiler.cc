@@ -667,7 +667,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     LogEventListener::CodeTag log_tag) {
   DCHECK(v8_flags.interpreted_frames_native_stack);
-  if (!IsBytecodeArray(shared_info->GetData())) {
+  if (!IsBytecodeArray(shared_info->GetData(isolate))) {
     DCHECK(!shared_info->HasInterpreterData(isolate));
     return;
   }
@@ -2195,7 +2195,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       // cached_sfi to new_sfi, and then copy every field using CopyFrom.
       new_compiled_data.new_sfi->set_script(
           new_compiled_data.cached_sfi->script(kAcquireLoad), kReleaseStore);
-      new_compiled_data.cached_sfi->CopyFrom(*new_compiled_data.new_sfi);
+      new_compiled_data.cached_sfi->CopyFrom(*new_compiled_data.new_sfi,
+                                             isolate);
     }
   }
   for (Handle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
@@ -2357,7 +2358,7 @@ bool BackgroundCompileTask::FinalizeFunction(
                                  finalize_unoptimized_compilation_data_);
 
   // Move the compiled data from the placeholder SFI back to the real SFI.
-  input_shared_info->CopyFrom(*result);
+  input_shared_info->CopyFrom(*result, isolate);
 
   return true;
 }
