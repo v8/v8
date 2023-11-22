@@ -139,24 +139,26 @@ void RunWithProfiler(void (*test)()) {
 
 
 static int signature_callback_count;
-static Local<Value> signature_expected_receiver;
+static v8::Global<Value> signature_expected_receiver_global;
 static void IncrementingSignatureCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   signature_callback_count++;
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<Value> signature_expected_receiver =
+      signature_expected_receiver_global.Get(isolate);
   CHECK(signature_expected_receiver
-            ->Equals(info.GetIsolate()->GetCurrentContext(), info.Holder())
+            ->Equals(isolate->GetCurrentContext(), info.Holder())
             .FromJust());
   CHECK(signature_expected_receiver
-            ->Equals(info.GetIsolate()->GetCurrentContext(), info.This())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
-  v8::Local<v8::Array> result =
-      v8::Array::New(info.GetIsolate(), info.Length());
+  v8::Local<v8::Array> result = v8::Array::New(isolate, info.Length());
   for (int i = 0; i < info.Length(); i++) {
     CHECK(result
-              ->Set(info.GetIsolate()->GetCurrentContext(),
-                    v8::Integer::New(info.GetIsolate(), i), info[i])
+              ->Set(isolate->GetCurrentContext(), v8::Integer::New(isolate, i),
+                    info[i])
               .FromJust());
   }
   info.GetReturnValue().Set(result);
@@ -213,7 +215,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                      "}",
                      operation);
   signature_callback_count = 0;
-  signature_expected_receiver = receiver;
+  signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
   CompileRun(source.begin());
@@ -228,6 +230,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                            .ToLocalChecked())
               .FromJust());
   }
+  signature_expected_receiver_global.Reset();
 }
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
@@ -244,7 +247,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                      "test()",
                      operation);
   signature_callback_count = 0;
-  signature_expected_receiver = receiver;
+  signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
   CompileRun(source.begin());
@@ -259,6 +262,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                            .ToLocalChecked())
               .FromJust());
   }
+  signature_expected_receiver_global.Reset();
 }
 
 static void TestSignature(const char* operation, Local<Value> receiver,
@@ -2755,27 +2759,28 @@ THREADED_TEST(UndefinedIsNotEnumerable) {
   CHECK(result->IsFalse());
 }
 
-
-v8::Local<Script> call_recursively_script;
+v8::Global<Script> call_recursively_script_global;
 static const int kTargetRecursionDepth = 100;  // near maximum
 
 static void CallScriptRecursivelyCall(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
   ApiTestFuzzer::Fuzz();
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   int depth = args.This()
                   ->Get(context, v8_str("depth"))
                   .ToLocalChecked()
                   ->Int32Value(context)
                   .FromJust();
   if (depth == kTargetRecursionDepth) return;
-  CHECK(args.This()
-            ->Set(context, v8_str("depth"),
-                  v8::Integer::New(args.GetIsolate(), depth + 1))
-            .FromJust());
-  args.GetReturnValue().Set(
-      call_recursively_script->Run(context).ToLocalChecked());
+  CHECK(
+      args.This()
+          ->Set(context, v8_str("depth"), v8::Integer::New(isolate, depth + 1))
+          .FromJust());
+  args.GetReturnValue().Set(call_recursively_script_global.Get(isolate)
+                                ->Run(context)
+                                .ToLocalChecked());
 }
 
 
@@ -2820,9 +2825,11 @@ THREADED_TEST(DeepCrossLanguageRecursion) {
   CHECK(env->Global()
             ->Set(env.local(), v8_str("depth"), v8::Integer::New(isolate, 0))
             .FromJust());
-  call_recursively_script = v8_compile("callScriptRecursively()");
+  v8::Local<Script> call_recursively_script =
+      v8_compile("callScriptRecursively()");
+  call_recursively_script_global.Reset(isolate, call_recursively_script);
   call_recursively_script->Run(env.local()).ToLocalChecked();
-  call_recursively_script = v8::Local<Script>();
+  call_recursively_script_global.Reset();
 
   CHECK(env->Global()
             ->Set(env.local(), v8_str("depth"), v8::Integer::New(isolate, 0))
@@ -8090,8 +8097,6 @@ THREADED_TEST(GCFromWeakCallbacks) {
   }
 }
 
-v8::Local<Function> args_fun;
-
 
 static void ArgumentsTestCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -8115,10 +8120,6 @@ THREADED_TEST(Arguments) {
   global->Set(isolate, "f",
               v8::FunctionTemplate::New(isolate, ArgumentsTestCallback));
   LocalContext context(nullptr, global);
-  args_fun = context->Global()
-                 ->Get(context.local(), v8_str("f"))
-                 .ToLocalChecked()
-                 .As<Function>();
   v8_compile("f(1, 2, 3)")->Run(context.local()).ToLocalChecked();
 }
 
@@ -21398,13 +21399,12 @@ TEST(RequestInterruptSmallScripts) {
   CHECK(interrupt_was_called);
 }
 
-
-static Local<Value> function_new_expected_env;
+static v8::Global<Value> function_new_expected_env_global;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
-  CHECK(
-      function_new_expected_env->Equals(info.GetIsolate()->GetCurrentContext(),
-                                        info.Data())
-          .FromJust());
+  v8::Isolate* isolate = info.GetIsolate();
+  CHECK(function_new_expected_env_global.Get(isolate)
+            ->Equals(isolate->GetCurrentContext(), info.Data())
+            .FromJust());
   info.GetReturnValue().Set(17);
 }
 
@@ -21414,7 +21414,7 @@ THREADED_TEST(FunctionNew) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   Local<Object> data = v8::Object::New(isolate);
-  function_new_expected_env = data;
+  function_new_expected_env_global.Reset(isolate, data);
   Local<Function> func =
       Function::New(env.local(), FunctionNewCallback, data).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
@@ -21430,7 +21430,7 @@ THREADED_TEST(FunctionNew) {
 
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
-  function_new_expected_env = data2;
+  function_new_expected_env_global.Reset(isolate, data2);
   Local<Function> func2 =
       Function::New(env.local(), FunctionNewCallback, data2).ToLocalChecked();
   CHECK(!func2->IsNull());
@@ -21438,6 +21438,8 @@ THREADED_TEST(FunctionNew) {
   CHECK(env->Global()->Set(env.local(), v8_str("func2"), func2).FromJust());
   Local<Value> result2 = CompileRun("func2();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result2).FromJust());
+
+  function_new_expected_env_global.Reset();
 }
 
 namespace {
@@ -21636,23 +21638,23 @@ TEST(Regress239669) {
 
 class ApiCallOptimizationChecker {
  private:
-  static Local<Object> data;
-  static Local<Object> receiver;
-  static Local<Object> holder;
-  static Local<Object> callee;
+  static v8::Global<Object> data;
+  static v8::Global<Object> receiver;
+  static v8::Global<Object> holder;
+  static v8::Global<Object> callee;
   static int count;
 
   static void OptimizationCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    CHECK(data == info.Data());
-    CHECK(receiver == info.This());
+    CHECK_EQ(data, info.Data());
+    CHECK_EQ(receiver, info.This());
     if (info.Length() == 1) {
       CHECK(v8_num(1)
                 ->Equals(info.GetIsolate()->GetCurrentContext(), info[0])
                 .FromJust());
     }
-    CHECK(holder == info.Holder());
+    CHECK_EQ(holder, info.Holder());
     count++;
     Local<Value> return_value = info.GetReturnValue().Get();
     CHECK(return_value->IsUndefined());
@@ -21717,9 +21719,10 @@ class ApiCallOptimizationChecker {
     // Get the holder objects.
     Local<Object> inner_global =
         Local<Object>::Cast(context->Global()->GetPrototype());
-    data = Object::New(isolate);
+    Local<Object> new_object = Object::New(isolate);
+    data.Reset(isolate, new_object);
     Local<FunctionTemplate> function_template = FunctionTemplate::New(
-        isolate, OptimizationCallback, data, signature);
+        isolate, OptimizationCallback, new_object, signature);
     Local<Function> function =
         function_template->GetFunction(context).ToLocalChecked();
     Local<Object> global_holder = inner_global;
@@ -21733,28 +21736,32 @@ class ApiCallOptimizationChecker {
     function_holder->Set(context, v8_str("f"), function).FromJust();
     function_holder->SetAccessorProperty(v8_str("acc"), function, function);
     // Initialize expected values.
-    callee = function;
+    callee.Reset(isolate, function);
     count = 0;
     if (global) {
-      receiver = context->Global();
-      holder = inner_global;
+      receiver.Reset(isolate, context->Global());
+      holder.Reset(isolate, inner_global);
     } else {
-      holder = function_receiver;
+      holder.Reset(isolate, function_receiver);
       // If not using a signature, add something else to the prototype chain
       // to test the case that holder != receiver
       if (signature_type == kNoSignature) {
-        receiver = Local<Object>::Cast(CompileRun(
-            "var receiver_subclass = {};\n"
-            "receiver_subclass.__proto__ = function_receiver;\n"
-            "receiver_subclass"));
+        receiver.Reset(isolate,
+                       Local<Object>::Cast(CompileRun(
+                           "var receiver_subclass = {};\n"
+                           "receiver_subclass.__proto__ = function_receiver;\n"
+                           "receiver_subclass")));
       } else {
-        receiver = Local<Object>::Cast(CompileRun(
-          "var receiver_subclass = function_receiver;\n"
-          "receiver_subclass"));
+        receiver.Reset(isolate,
+                       Local<Object>::Cast(CompileRun(
+                           "var receiver_subclass = function_receiver;\n"
+                           "receiver_subclass")));
       }
     }
     // With no signature, the holder is not set.
-    if (signature_type == kNoSignature) holder = receiver;
+    if (signature_type == kNoSignature) {
+      holder.Reset(isolate, receiver);
+    }
     // build wrap_function
     v8::base::ScopedVector<char> wrap_function(200);
     if (global) {
@@ -21808,14 +21815,18 @@ class ApiCallOptimizationChecker {
     CompileRun(source.begin());
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
+
+    data.Reset();
+    receiver.Reset();
+    holder.Reset();
+    callee.Reset();
   }
 };
 
-
-Local<Object> ApiCallOptimizationChecker::data;
-Local<Object> ApiCallOptimizationChecker::receiver;
-Local<Object> ApiCallOptimizationChecker::holder;
-Local<Object> ApiCallOptimizationChecker::callee;
+v8::Global<Object> ApiCallOptimizationChecker::data;
+v8::Global<Object> ApiCallOptimizationChecker::receiver;
+v8::Global<Object> ApiCallOptimizationChecker::holder;
+v8::Global<Object> ApiCallOptimizationChecker::callee;
 int ApiCallOptimizationChecker::count = 0;
 
 
@@ -25500,10 +25511,14 @@ THREADED_TEST(ImmutableProto) {
             .FromJust());
 }
 
-Local<v8::Context> call_eval_context;
-Local<v8::Function> call_eval_bound_function;
+v8::Global<v8::Context> call_eval_context_global;
+v8::Global<v8::Function> call_eval_bound_function_global;
 
 static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  Local<v8::Context> call_eval_context = call_eval_context_global.Get(isolate);
+  Local<v8::Function> call_eval_bound_function =
+      call_eval_bound_function_global.Get(isolate);
   v8::Context::Scope scope(call_eval_context);
   args.GetReturnValue().Set(
       call_eval_bound_function
@@ -25516,10 +25531,12 @@ TEST(CrossActivationEval) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   {
-    call_eval_context = v8::Context::New(isolate);
+    Local<v8::Context> call_eval_context = v8::Context::New(isolate);
+    call_eval_context_global.Reset(isolate, call_eval_context);
     v8::Context::Scope context_scope(call_eval_context);
-    call_eval_bound_function =
+    v8::Local<v8::Function> call_eval_bound_function =
         Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
+    call_eval_bound_function_global.Reset(isolate, call_eval_bound_function);
   }
   env->Global()
       ->Set(env.local(), v8_str("CallEval"),
@@ -25530,6 +25547,8 @@ TEST(CrossActivationEval) {
   Local<Value> result = CompileRun("CallEval();");
   CHECK(result->IsInt32());
   CHECK_EQ(1, result->Int32Value(env.local()).FromJust());
+  call_eval_context_global.Reset();
+  call_eval_bound_function_global.Reset();
 }
 
 TEST(EvalInAccessCheckedContext) {
