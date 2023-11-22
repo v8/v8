@@ -823,8 +823,8 @@
   V(Float64Select)                       \
   V(LoadStackCheckOffset)                \
   V(LoadFramePointer)                    \
-  V(LoadStackPointer)                    \
-  V(SetStackPointer)                     \
+  IF_WASM(V, LoadStackPointer)           \
+  IF_WASM(V, SetStackPointer)            \
   V(LoadParentFramePointer)              \
   V(LoadRootRegister)                    \
   V(UnalignedLoad)                       \

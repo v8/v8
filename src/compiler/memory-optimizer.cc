@@ -46,8 +46,10 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kSetStackPointer:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kStaticAssert:
     // TODO(turbofan): Store nodes might do a bump-pointer allocation.
     //              We should introduce a special bump-pointer store node to

@@ -3733,6 +3733,13 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  // TODO(thibaudm): Implement.
+  UNREACHABLE();
+}
+
 #else
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
@@ -4178,12 +4185,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  // TODO(thibaudm): Implement.
-  UNREACHABLE();
-}
 
 }  // namespace compiler
 }  // namespace internal

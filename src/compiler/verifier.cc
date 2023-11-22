@@ -1725,6 +1725,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWasmArrayInitializeLength:
     case IrOpcode::kStringAsWtf16:
     case IrOpcode::kStringPrepareForGetCodeunit:
+    case IrOpcode::kLoadStackPointer:
+    case IrOpcode::kSetStackPointer:
       // TODO(7748): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1919,8 +1921,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairSar:
     case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
-    case IrOpcode::kLoadStackPointer:
-    case IrOpcode::kSetStackPointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kLoadRootRegister:
     case IrOpcode::kUnalignedLoad:

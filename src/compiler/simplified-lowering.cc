@@ -3723,6 +3723,7 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineType::PointerRepresentation());
         return;
       }
+#if V8_ENABLE_WEBASSEMBLY
       case IrOpcode::kLoadStackPointer: {
         SetOutput<T>(node, MachineType::PointerRepresentation());
         return;
@@ -3731,6 +3732,7 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       case IrOpcode::kLoadMessage: {
         if (truncation.IsUnused()) return VisitUnused<T>(node);
         VisitUnop<T>(node, UseInfo::Word(), MachineRepresentation::kTagged);

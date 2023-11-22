@@ -103,7 +103,9 @@ class MachineRepresentationInferrer {
           case IrOpcode::kLoadParentFramePointer:
           case IrOpcode::kStackSlot:
           case IrOpcode::kLoadRootRegister:
+#if V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kLoadStackPointer:
+#endif  // V8_ENABLE_WEBASSEMBLY
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -678,11 +680,10 @@ class MachineRepresentationChecker {
             }
             break;
           }
-          case IrOpcode::kStackPointerGreaterThan:
-            CheckValueInputRepresentationIs(
-                node, 0, MachineType::PointerRepresentation());
-            break;
+#if V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kSetStackPointer:
+#endif  // V8_ENABLE_WEBASSEMBLY
+          case IrOpcode::kStackPointerGreaterThan:
             CheckValueInputRepresentationIs(
                 node, 0, MachineType::PointerRepresentation());
             break;

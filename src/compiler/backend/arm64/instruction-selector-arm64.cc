@@ -7078,6 +7078,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  OperandGenerator g(this);
+  auto input = g.UseRegister(node->InputAt(0));
+  auto fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
+  Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
+       &input);
+}
+
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(
@@ -7270,15 +7280,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  OperandGenerator g(this);
-  auto input = g.UseRegister(node->InputAt(0));
-  auto fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
-  Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
-       &input);
-}
 
 }  // namespace compiler
 }  // namespace internal

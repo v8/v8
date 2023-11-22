@@ -1813,11 +1813,13 @@ void InstructionSelectorT<Adapter>::VisitLoadFramePointer(node_t node) {
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(node_t node) {
@@ -3052,7 +3054,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
       return VisitTrapUnless(node, TrapIdOf(node->op()));
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
@@ -3456,10 +3458,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return VisitLoadStackCheckOffset(node);
     case IrOpcode::kLoadFramePointer:
       return VisitLoadFramePointer(node);
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
     case IrOpcode::kSetStackPointer:
       return VisitSetStackPointer(node);
+#endif  // V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
     case IrOpcode::kLoadRootRegister:
@@ -5002,7 +5006,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       return VisitTrapIf(node, trap_if.trap_id);
     }
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
     case Opcode::kCatchBlockBegin:
       MarkAsTagged(node);
       return VisitIfException(node);

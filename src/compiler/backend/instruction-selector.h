@@ -943,8 +943,8 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word32AtomicPairExchange)
   DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
   DECLARE_GENERATOR(Simd128ReverseBytes)
-  DECLARE_GENERATOR(LoadStackPointer)
-  DECLARE_GENERATOR(SetStackPointer)
+  IF_WASM(DECLARE_GENERATOR, LoadStackPointer)
+  IF_WASM(DECLARE_GENERATOR, SetStackPointer)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.

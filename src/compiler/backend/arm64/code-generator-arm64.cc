@@ -975,6 +975,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), fp);
       }
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       // The register allocator expects an allocatable register for the output,
       // we cannot use sp directly.
@@ -1001,6 +1002,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                               wasm::kEnterFPRelativeOnlyScope);
       break;
     }
+#endif
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
       // comparison to consider the size difference of an optimized frame versus

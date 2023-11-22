@@ -1538,6 +1538,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchFramePointer:
       __ movq(i.OutputRegister(), rbp);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
       break;
@@ -1548,6 +1549,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movq(rsp, i.InputOperand(0));
       }
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
         __ movq(i.OutputRegister(), Operand(rbp, 0));
