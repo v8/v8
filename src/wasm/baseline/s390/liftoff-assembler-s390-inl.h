@@ -3114,10 +3114,9 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
       // On BE machines values with less than 8 bytes are right justified.
       // bias here is relative to the stack pointer.
       if (arg.kind() == kI32 || arg.kind() == kF32) bias = -stack_bias;
-      // zLinux ABI requires caller frames to include sufficient space for
-      // callee preserved register save area.
-      MemOperand dst{sp, (stack_args * kSystemPointerSize) +
-                             kCalleeRegisterSaveAreaSize + bias};
+      int offset =
+          (kStackFrameExtraParamSlot + stack_args) * kSystemPointerSize;
+      MemOperand dst{sp, offset + bias};
       liftoff::StoreToMemory(this, dst, arg, r0);
       ++stack_args;
     }
