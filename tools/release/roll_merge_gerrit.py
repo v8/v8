@@ -256,8 +256,7 @@ def main(sys_args=None):
     assert ref_info['ref'] == 'refs/heads/roll'
     revision = ref_info['revision']
 
-    version_file = urllib.parse.quote_plus(VERSION_FILE)
-    roll_version_file = gerrit_file_content(revision, version_file)
+    roll_version_file = gerrit_file_content(revision, VERSION_FILE)
     roll_version = '{major}.{minor}.{build}.{patch}'.format(
         **ExtractVersion(roll_version_file))
 
