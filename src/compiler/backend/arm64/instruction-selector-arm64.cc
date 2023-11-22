@@ -221,26 +221,23 @@ void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
                  g.UseRegister(selector->input_at(node, 1)));
 }
 
-void VisitSimdShiftRRR(InstructionSelectorT<TurboshaftAdapter>* selector,
-                       ArchOpcode opcode, turboshaft::OpIndex node, int width) {
-  UNIMPLEMENTED();
-}
-
-void VisitSimdShiftRRR(InstructionSelectorT<TurbofanAdapter>* selector,
-                       ArchOpcode opcode, Node* node, int width) {
-  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
-  if (g.IsIntegerConstant(node->InputAt(1))) {
-    if (g.GetIntegerConstantValue(node->InputAt(1)) % width == 0) {
+template <typename Adapter>
+void VisitSimdShiftRRR(InstructionSelectorT<Adapter>* selector,
+                       ArchOpcode opcode, typename Adapter::node_t node,
+                       int width) {
+  Arm64OperandGeneratorT<Adapter> g(selector);
+  if (selector->is_integer_constant(selector->input_at(node, 1))) {
+    if (selector->integer_constant(selector->input_at(node, 1)) % width == 0) {
       selector->EmitIdentity(node);
     } else {
       selector->Emit(opcode, g.DefineAsRegister(node),
-                     g.UseRegister(node->InputAt(0)),
-                     g.UseImmediate(node->InputAt(1)));
+                     g.UseRegister(selector->input_at(node, 0)),
+                     g.UseImmediate(selector->input_at(node, 1)));
     }
   } else {
     selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(1)));
+                   g.UseRegister(selector->input_at(node, 0)),
+                   g.UseRegister(selector->input_at(node, 1)));
   }
 }
 
@@ -1371,7 +1368,85 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitLoadTransform(node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LoadTransformOp& op =
+      this->Get(node).Cast<Simd128LoadTransformOp>();
+  InstructionCode opcode = kArchNop;
+  bool require_add = false;
+  switch (op.transform_kind) {
+    case Simd128LoadTransformOp::TransformKind::k8Splat:
+      opcode = kArm64LoadSplat;
+      opcode |= LaneSizeField::encode(8);
+      require_add = true;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16Splat:
+      opcode = kArm64LoadSplat;
+      opcode |= LaneSizeField::encode(16);
+      require_add = true;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32Splat:
+      opcode = kArm64LoadSplat;
+      opcode |= LaneSizeField::encode(32);
+      require_add = true;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k64Splat:
+      opcode = kArm64LoadSplat;
+      opcode |= LaneSizeField::encode(64);
+      require_add = true;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k8x8S:
+      opcode = kArm64S128Load8x8S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k8x8U:
+      opcode = kArm64S128Load8x8U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16x4S:
+      opcode = kArm64S128Load16x4S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k16x4U:
+      opcode = kArm64S128Load16x4U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32x2S:
+      opcode = kArm64S128Load32x2S;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32x2U:
+      opcode = kArm64S128Load32x2U;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k32Zero:
+      opcode = kArm64LdrS;
+      break;
+    case Simd128LoadTransformOp::TransformKind::k64Zero:
+      opcode = kArm64LdrD;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+  // ARM64 supports unaligned loads
+  DCHECK(!op.load_kind.maybe_unaligned);
+
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  node_t base = input_at(node, 0);
+  node_t index = input_at(node, 1);
+  InstructionOperand inputs[2];
+  InstructionOperand outputs[1];
+
+  inputs[0] = g.UseRegister(base);
+  inputs[1] = g.UseRegister(index);
+  outputs[0] = g.DefineAsRegister(node);
+
+  if (require_add) {
+    // ld1r uses post-index, so construct address first.
+    // TODO(v8:9886) If index can be immediate, use vldr without this add.
+    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &opcode);
+    inputs[1] = g.TempImmediate(0);
+    opcode |= AddressingModeField::encode(kMode_MRI);
+  } else {
+    opcode |= AddressingModeField::encode(kMode_MRR);
+  }
+  if (op.load_kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  Emit(opcode, 1, outputs, 2, inputs);
 }
 
 template <>
@@ -3197,13 +3272,9 @@ namespace {
 template <typename Adapter>
 void VisitExtMul(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                  typename Adapter::node_t node, int dst_lane_size) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    InstructionCode code = opcode;
-    code |= LaneSizeField::encode(dst_lane_size);
-    VisitRRR(selector, code, node);
-  }
+  InstructionCode code = opcode;
+  code |= LaneSizeField::encode(dst_lane_size);
+  VisitRRR(selector, code, node);
 }
 }  // namespace
 
@@ -3268,14 +3339,10 @@ void InstructionSelectorT<Adapter>::VisitI64x2ExtMulHighI32x4U(node_t node) {
 }
 
 namespace {
-void VisitExtAddPairwise(InstructionSelectorT<TurboshaftAdapter>* selector,
-                         ArchOpcode opcode, turboshaft::OpIndex node,
+template <typename Adapter>
+void VisitExtAddPairwise(InstructionSelectorT<Adapter>* selector,
+                         ArchOpcode opcode, typename Adapter::node_t node,
                          int dst_lane_size) {
-  UNIMPLEMENTED();
-}
-
-void VisitExtAddPairwise(InstructionSelectorT<TurbofanAdapter>* selector,
-                         ArchOpcode opcode, Node* node, int dst_lane_size) {
   InstructionCode code = opcode;
   code |= LaneSizeField::encode(dst_lane_size);
   VisitRR(selector, code, node);
@@ -3359,16 +3426,11 @@ void InstructionSelectorT<Adapter>::VisitInt64MulHigh(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    InstructionOperand const smull_operand = g.TempRegister();
-    Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)));
-    Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand,
-         g.TempImmediate(32));
-  }
+  Arm64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand const smull_operand = g.TempRegister();
+  Emit(kArm64Umull, smull_operand, g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)));
+  Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
 }
 
 template <typename Adapter>
@@ -3397,11 +3459,19 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& op = this->Get(node);
+    InstructionCode opcode = kArm64Float32ToUint32;
+    if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
+      opcode |= MiscField::encode(true);
+    }
 
+    Emit(opcode, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+
+  } else {
     InstructionCode opcode = kArm64Float32ToUint32;
     TruncateKind kind = OpParameter<TruncateKind>(node->op());
     if (kind == TruncateKind::kSetOverflowToMin) {
@@ -4338,9 +4408,12 @@ void VisitWord32Compare(InstructionSelectorT<TurboshaftAdapter>* selector,
     }
   } else if (right.Is<Opmask::kWord32Sub>() &&
              (cond == kEqual || cond == kNotEqual)) {
-    // TODO(mliedtke): The Turbofan implementation modifies the node in-place,
-    // so porting this case might not be that straightforward.
-    UNIMPLEMENTED();
+    const WordBinopOp& sub = right.Cast<WordBinopOp>();
+    if (selector->MatchIntegralZero(sub.left())) {
+      // TODO(mliedtke): The Turbofan implementation modifies the node in-place,
+      // so porting this case might not be that straightforward.
+      UNIMPLEMENTED();
+    }
   }
   VisitBinop(selector, node, RegisterRepresentation::Word32(), opcode,
              immediate_mode, cont);
@@ -5996,7 +6069,22 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
     node_t node) {
-  UNIMPLEMENTED();
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  ArchOpcode opcode;
+  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    opcode = kAtomicCompareExchangeUint8;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    opcode = kAtomicCompareExchangeUint16;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    opcode = kAtomicCompareExchangeWord32;
+  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    opcode = kArm64Word64AtomicCompareExchangeUint64;
+  } else {
+    UNREACHABLE();
+  }
+  VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord64,
+                             atomic_op.memory_access_kind);
 }
 
 template <>
@@ -6263,18 +6351,19 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(I8x16MinU, kArm64IMinU, 8)                         \
   V(I8x16MaxU, kArm64IMaxU, 8)
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitS128Const(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitS128Const(Node* node) {
-  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
   static const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
-  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd128ConstantOp& constant =
+        this->Get(node).template Cast<turboshaft::Simd128ConstantOp>();
+    memcpy(val, constant.value, kSimd128Size);
+  } else {
+    memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  }
   Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
        g.UseImmediate(val[1]), g.UseImmediate(val[2]), g.UseImmediate(val[3]));
 }
@@ -6289,13 +6378,14 @@ struct BicImmParam {
   uint8_t shift_amount;
 };
 
+template <typename node_t>
 struct BicImmResult {
-  BicImmResult(base::Optional<BicImmParam> param, Node* const_node,
-               Node* other_node)
+  BicImmResult(base::Optional<BicImmParam> param, node_t const_node,
+               node_t other_node)
       : param(param), const_node(const_node), other_node(other_node) {}
   base::Optional<BicImmParam> param;
-  Node* const_node;
-  Node* other_node;
+  node_t const_node;
+  node_t other_node;
 };
 
 base::Optional<BicImmParam> BicImm16bitHelper(uint16_t val) {
@@ -6337,7 +6427,44 @@ base::Optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
   return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
 }
 
-base::Optional<BicImmResult> BicImmHelper(Node* and_node, bool not_imm) {
+base::Optional<BicImmParam> BicImmConstHelper(const turboshaft::Operation& op,
+                                              bool not_imm) {
+  const int kUint32Immediates = 4;
+  uint32_t val[kUint32Immediates];
+  static_assert(sizeof(val) == kSimd128Size);
+  memcpy(val, op.Cast<turboshaft::Simd128ConstantOp>().value, kSimd128Size);
+  // If 4 uint32s are not the same, cannot emit Bic
+  if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
+    return base::nullopt;
+  }
+  return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
+}
+
+base::Optional<BicImmResult<turboshaft::OpIndex>> BicImmHelper(
+    InstructionSelectorT<TurboshaftAdapter>* selector,
+    turboshaft::OpIndex and_node, bool not_imm) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128BinopOp& op = selector->Get(and_node).Cast<Simd128BinopOp>();
+  // If we are negating the immediate then we are producing And(x, imm), and so
+  // can take the immediate from the left or right input. Otherwise we are
+  // producing And(x, Not(imm)), which can only be used when the immediate is
+  // the right (negated) input.
+  if (not_imm && selector->Get(op.left()).Is<Simd128ConstantOp>()) {
+    return BicImmResult<OpIndex>(
+        BicImmConstHelper(selector->Get(op.left()), not_imm), op.left(),
+        op.right());
+  }
+  if (selector->Get(op.right()).Is<Simd128ConstantOp>()) {
+    return BicImmResult<OpIndex>(
+        BicImmConstHelper(selector->Get(op.right()), not_imm), op.right(),
+        op.left());
+  }
+  return base::nullopt;
+}
+
+base::Optional<BicImmResult<Node*>> BicImmHelper(
+    InstructionSelectorT<TurbofanAdapter>* selector, Node* and_node,
+    bool not_imm) {
   Node* left = and_node->InputAt(0);
   Node* right = and_node->InputAt(1);
   // If we are negating the immediate then we are producing And(x, imm), and so
@@ -6345,23 +6472,20 @@ base::Optional<BicImmResult> BicImmHelper(Node* and_node, bool not_imm) {
   // producing And(x, Not(imm)), which can only be used when the immediate is
   // the right (negated) input.
   if (not_imm && left->opcode() == IrOpcode::kS128Const) {
-    return BicImmResult(BicImmConstHelper(left, not_imm), left, right);
+    return BicImmResult<Node*>(BicImmConstHelper(left, not_imm), left, right);
   }
   if (right->opcode() == IrOpcode::kS128Const) {
-    return BicImmResult(BicImmConstHelper(right, not_imm), right, left);
+    return BicImmResult<Node*>(BicImmConstHelper(right, not_imm), right, left);
   }
   return base::nullopt;
 }
 
-bool TryEmitS128AndNotImm(InstructionSelectorT<TurboshaftAdapter>* selector,
-                          turboshaft::OpIndex node, bool not_imm) {
-  UNIMPLEMENTED();
-}
-
-bool TryEmitS128AndNotImm(InstructionSelectorT<TurbofanAdapter>* selector,
-                          Node* node, bool not_imm) {
-  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
-  base::Optional<BicImmResult> result = BicImmHelper(node, not_imm);
+template <typename Adapter>
+bool TryEmitS128AndNotImm(InstructionSelectorT<Adapter>* selector,
+                          typename Adapter::node_t node, bool not_imm) {
+  Arm64OperandGeneratorT<Adapter> g(selector);
+  base::Optional<BicImmResult<typename Adapter::node_t>> result =
+      BicImmHelper(selector, node, not_imm);
   if (!result.has_value()) return false;
   base::Optional<BicImmParam> param = result->param;
   if (param.has_value()) {
@@ -6402,16 +6526,13 @@ void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    InstructionOperand output = CpuFeatures::IsSupported(DOTPROD)
-                                    ? g.DefineSameAsInput(node, 2)
-                                    : g.DefineAsRegister(node);
-    Emit(kArm64I32x4DotI8x16AddS, output, g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
-  }
+  Arm64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand output = CpuFeatures::IsSupported(DOTPROD)
+                                  ? g.DefineSameAsInput(node, 2)
+                                  : g.DefineAsRegister(node);
+  Emit(kArm64I32x4DotI8x16AddS, output, g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 2)));
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                     \
@@ -6778,7 +6899,19 @@ VISIT_SIMD_ADD(I16x8, I8x16, 16)
   template <>                                                                 \
   void InstructionSelectorT<TurboshaftAdapter>::Visit##Type##Sub(             \
       node_t node) {                                                          \
-    UNIMPLEMENTED();                                                          \
+    using namespace turboshaft; /* NOLINT(build/namespaces) */                \
+    Arm64OperandGeneratorT<TurboshaftAdapter> g(this);                        \
+    const Simd128BinopOp& sub = Get(node).Cast<Simd128BinopOp>();             \
+    const Operation& right = Get(sub.right());                                \
+    /* Select Mls(z, x, y) for Sub(z, Mul(x, y)). */                          \
+    if (right.Is<Opmask::kSimd128##Type##Mul>() &&                            \
+        CanCover(node, sub.right())) {                                        \
+      Emit(kArm64Mls | LaneSizeField::encode(LaneSize),                       \
+           g.DefineSameAsFirst(node), g.UseRegister(sub.left()),              \
+           g.UseRegister(right.input(0)), g.UseRegister(right.input(1)));     \
+      return;                                                                 \
+    }                                                                         \
+    VisitRRR(this, kArm64ISub | LaneSizeField::encode(LaneSize), node);       \
   }                                                                           \
   template <>                                                                 \
   void InstructionSelectorT<TurbofanAdapter>::Visit##Type##Sub(Node* node) {  \
@@ -6871,14 +7004,11 @@ VISIT_SIMD_CM(I8x16, I, GeS, LeS, 8)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(this);
-    Emit(kArm64S128Select, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseRegister(node->InputAt(2)));
-  }
+  Arm64OperandGeneratorT<Adapter> g(this);
+  Emit(kArm64S128Select, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 2)));
 }
 
 template <typename Adapter>
@@ -6998,9 +7128,10 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 }
 
 template <typename Adapter>
-void ArrangeShuffleTable(Arm64OperandGeneratorT<Adapter>* g, Node* input0,
-                         Node* input1, InstructionOperand* src0,
-                         InstructionOperand* src1) {
+void ArrangeShuffleTable(Arm64OperandGeneratorT<Adapter>* g,
+                         typename Adapter::node_t input0,
+                         typename Adapter::node_t input1,
+                         InstructionOperand* src0, InstructionOperand* src1) {
   if (input0 == input1) {
     // Unary, any q-register can be the table.
     *src0 = *src1 = g->UseRegister(input0);
@@ -7013,29 +7144,23 @@ void ArrangeShuffleTable(Arm64OperandGeneratorT<Adapter>* g, Node* input0,
 
 }  // namespace
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
-  // TODO(nicohartmann@): Properly use view here once Turboshaft support is
-  // implemented.
   auto view = this->simd_shuffle_view(node);
   CanonicalizeShuffle(view, shuffle, &is_swizzle);
+  node_t input0 = view.input(0);
+  node_t input1 = view.input(1);
   uint8_t shuffle32x4[4];
-  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
+  Arm64OperandGeneratorT<Adapter> g(this);
   ArchOpcode opcode;
   if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
                           is_swizzle, &opcode)) {
-    VisitRRR(this, opcode, node);
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1));
     return;
   }
-  Node* input0 = node->InputAt(0);
-  Node* input1 = node->InputAt(1);
   uint8_t offset;
   if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
     Emit(kArm64S8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
@@ -7049,7 +7174,11 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
       Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(4), g.UseImmediate(index % 4));
     } else if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
-      EmitIdentity(node);
+      // Bypass normal shuffle code generation in this case.
+      // EmitIdentity
+      MarkAsUsed(input0);
+      MarkAsDefined(node);
+      SetRename(node, input0);
     } else {
       Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseRegister(input1),
@@ -7125,16 +7254,12 @@ namespace {
 template <typename Adapter>
 void VisitPminOrPmax(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                      typename Adapter::node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    // Need all unique registers because we first compare the two inputs, then
-    // we need the inputs to remain unchanged for the bitselect later.
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseUniqueRegister(node->InputAt(0)),
-                   g.UseUniqueRegister(node->InputAt(1)));
-  }
+  Arm64OperandGeneratorT<Adapter> g(selector);
+  // Need all unique registers because we first compare the two inputs, then
+  // we need the inputs to remain unchanged for the bitselect later.
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(selector->input_at(node, 0)),
+                 g.UseUniqueRegister(selector->input_at(node, 1)));
 }
 }  // namespace
 

@@ -234,6 +234,20 @@ using kTruncateFloat32ToInt32OverflowToMin =
                       ChangeOp::Assumption::kNoAssumption,
                       RegisterRepresentation::Float32(),
                       RegisterRepresentation::Word32()>;
+using kTruncateFloat32ToUint32OverflowToMin =
+    ChangeOpMask::For<ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin,
+                      ChangeOp::Assumption::kNoAssumption,
+                      RegisterRepresentation::Float32(),
+                      RegisterRepresentation::Word32()>;
+
+#if V8_ENABLE_WEBASSEMBLY
+
+using Simd128BinopMask =
+    MaskBuilder<Simd128BinopOp, FIELD(Simd128BinopOp, kind)>;
+using kSimd128I32x4Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI32x4Mul>;
+using kSimd128I16x8Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI16x8Mul>;
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #undef FIELD
 
