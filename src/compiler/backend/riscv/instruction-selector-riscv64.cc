@@ -737,11 +737,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRO(this, kRiscvShr64, node);
-  }
 }
 
 template <typename Adapter>
@@ -807,11 +803,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Rol(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRO(this, kRiscvRor32, node);
-  }
 }
 
 template <typename Adapter>
@@ -826,24 +818,16 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvByteSwap64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvByteSwap32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -853,53 +837,33 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvCtz64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvPopcnt32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Popcnt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvPopcnt64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRO(this, kRiscvRor64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kRiscvClz64, node);
-  }
 }
 
 template <>
@@ -977,38 +941,22 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kRiscvMulHigh32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     return VisitRRR(this, kRiscvMulHigh64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kRiscvMulHighU32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kRiscvMulHighU64, node);
-  }
 }
 
 template <>
