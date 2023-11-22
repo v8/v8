@@ -6,7 +6,8 @@ load("//lib/lib.star", "RECLIENT", "defaults_ci", "v8_builder")
 load(
     "//lib/service-accounts.star",
     "V8_CI_ACCOUNT",
-    "V8_TEST262_IMPEXP_ACCOUNT",
+    "V8_TEST262_EXPORT_ACCOUNT",
+    "V8_TEST262_IMPORT_ACCOUNT",
 )
 
 v8_builder(
@@ -37,7 +38,7 @@ v8_builder(
     name = "Test262 exporter",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    service_account = V8_TEST262_IMPEXP_ACCOUNT,
+    service_account = V8_TEST262_EXPORT_ACCOUNT,
     executable = "recipe:v8/test262_export",
     schedule = "* * * * * 1970",
     in_list = "tools",
@@ -49,7 +50,7 @@ v8_builder(
     name = "Test262 importer",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    service_account = V8_TEST262_IMPEXP_ACCOUNT,
+    service_account = V8_TEST262_IMPORT_ACCOUNT,
     executable = "recipe:v8/test262_import",
     schedule = "* * * * * 1970",
     in_list = "tools",
@@ -61,7 +62,7 @@ v8_builder(
     name = "Test262 import watcher",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    service_account = V8_TEST262_IMPEXP_ACCOUNT,
+    service_account = V8_TEST262_IMPORT_ACCOUNT,
     executable = "recipe:v8/roll_watch",
     schedule = "* * * * * 1970",
     in_list = "tools",
@@ -73,7 +74,7 @@ v8_builder(
             "subject": "[test262] Roll test262",
             "review-host": "chromium-review.googlesource.com",
             "project": "v8/v8",
-            "account": V8_TEST262_IMPEXP_ACCOUNT,
+            "account": V8_TEST262_IMPORT_ACCOUNT,
         }],
     },
 )
