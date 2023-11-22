@@ -4189,7 +4189,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     MaybeObject code = dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code->IsWeak());
     CHECK_EQ(bar_handle->code(isolate),
-             Code::cast(code.GetHeapObjectAssumeWeak()));
+             CodeWrapper::cast(code.GetHeapObjectAssumeWeak())->code(isolate));
     Tagged<Smi> groups =
         dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
