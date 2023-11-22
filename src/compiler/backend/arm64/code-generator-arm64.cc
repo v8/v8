@@ -3275,6 +3275,39 @@ void CodeGenerator::AssembleConstructFrame() {
       // Update required_slots count since we have just claimed one extra slot.
       static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
       required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
+    } else if (call_descriptor->IsWasmFunctionCall() ||
+               call_descriptor->IsWasmCapiFunction() ||
+               call_descriptor->IsWasmImportWrapper() ||
+               (call_descriptor->IsCFunctionCall() &&
+                info()->GetOutputStackFrameType() ==
+                    StackFrame::C_WASM_ENTRY)) {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.AcquireX();
+      __ Mov(scratch,
+             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, kWasmInstanceRegister);
+      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+      __ Add(fp, sp, kSPToFPDelta);
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // The C-API function has one extra slot for the PC.
+        required_slots++;
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        required_slots += 2;
+      }
+    } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.AcquireX();
+      __ Mov(scratch,
+             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, padreg);
+      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+      __ Add(fp, sp, kSPToFPDelta);
+      // One of the extra slots has just been claimed when pushing the padreg.
+      // We also know that we have at least one slot to claim here, as the typed
+      // frame has an odd number of fixed slots, and all other parts of the
+      // total frame slots are even, leaving {required_slots} to be odd.
+      DCHECK_GE(required_slots, 1);
+      required_slots--;
     } else {
       __ Push<MacroAssembler::kSignLR>(lr, fp);
       __ Mov(fp, sp);
@@ -3321,15 +3354,6 @@ void CodeGenerator::AssembleConstructFrame() {
         __ B(hs, &done);
       }
 
-      {
-        // Finish the frame that hasn't been fully built yet.
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.AcquireX();
-        __ Mov(scratch,
-               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Push(scratch, kWasmInstanceRegister);
-      }
-
       __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
               RelocInfo::WASM_STUB_CALL);
       // The call does not return, hence we can ignore any references and just
@@ -3346,80 +3370,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= saves_fp.Count();
     required_slots -= returns;
 
-    // Build remainder of frame, including accounting for and filling-in
-    // frame-specific header information, i.e. claiming the extra slot that
-    // other platforms explicitly push for STUB (code object) frames and frames
-    // recording their argument count.
-    switch (call_descriptor->kind()) {
-      case CallDescriptor::kCallJSFunction:
-        __ Claim(required_slots);
-        break;
-      case CallDescriptor::kCallCodeObject: {
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.AcquireX();
-        __ Mov(scratch,
-               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Push(scratch, padreg);
-        // One of the extra slots has just been claimed when pushing the frame
-        // type marker above. We also know that we have at least one slot to
-        // claim here, as the typed frame has an odd number of fixed slots, and
-        // all other parts of the total frame slots are even, leaving
-        // {required_slots} to be odd.
-        DCHECK_GE(required_slots, 1);
-        __ Claim(required_slots - 1);
-        break;
-      }
-#if V8_ENABLE_WEBASSEMBLY
-      case CallDescriptor::kCallWasmFunction: {
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.AcquireX();
-        __ Mov(scratch,
-               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Push(scratch, kWasmInstanceRegister);
-        __ Claim(required_slots);
-        break;
-      }
-      case CallDescriptor::kCallWasmImportWrapper: {
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.AcquireX();
-        __ Mov(scratch,
-               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        // This stack slot is only used for printing stack traces in V8. Also,
-        // it holds a WasmApiFunctionRef instead of the instance itself, which
-        // is taken care of in the frames accessors.
-        __ Push(scratch, kWasmInstanceRegister);
-        __ Push(xzr, xzr);
-        __ Claim(required_slots);
-        break;
-      }
-      case CallDescriptor::kCallWasmCapiFunction: {
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.AcquireX();
-        __ Mov(scratch,
-               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        // This stack slot is only used for printing stack traces in V8. Also,
-        // it holds a WasmApiFunctionRef instead of the instance itself, which
-        // is taken care of in the frames accessors.
-        __ Push(scratch, kWasmInstanceRegister);
-        __ Claim(required_slots + 1 /* PC */);
-        break;
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-      case CallDescriptor::kCallAddress:
-#if V8_ENABLE_WEBASSEMBLY
-        if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
-          UseScratchRegisterScope temps(masm());
-          Register scratch = temps.AcquireX();
-          __ Mov(scratch, StackFrame::TypeToMarker(StackFrame::C_WASM_ENTRY));
-          __ Push(scratch, padreg);
-          // The additional slot will be used for the saved c_entry_fp.
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
-        __ Claim(required_slots);
-        break;
-      default:
-        UNREACHABLE();
-    }
+    __ Claim(required_slots);
   }
 
   // Save FP registers.
