@@ -189,6 +189,8 @@ class BlockAssessments : public ZoneObject {
  private:
   OperandMap map_;
   OperandMap map_for_moves_;
+  // TODOC(dmercadier): how do stack slots become stale exactly? What are the
+  // implications of a stack slot being stale?
   OperandSet stale_ref_stack_slots_;
   int spill_slot_delta_;
   Zone* zone_;

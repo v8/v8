@@ -874,6 +874,8 @@ class V8_EXPORT_PRIVATE ParallelMove final
 
 std::ostream& operator<<(std::ostream&, const ParallelMove&);
 
+// TODOC(dmercadier): what is a ReferenceMap exactly, what does it contain,
+// when is it created, and what is it used for?
 class ReferenceMap final : public ZoneObject {
  public:
   explicit ReferenceMap(Zone* zone)
