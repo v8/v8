@@ -56,6 +56,7 @@ class Test262GitHub(GitHubRepo):
         "46c933180967191758afd0427f9d0ba02a4d24a3",
         "85bf69fd70e118b1ace64110ed82cb1ff0d58533",
         "b97d50ae5e4bb6b5abfc811c0b618d888c3f1377",
+        "c4946b3e60c597fb9d9cccb2b100647a945e309d",
     ]
 
 

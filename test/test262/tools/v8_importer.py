@@ -285,6 +285,9 @@ class V8TestImporter(TestImporter):
         '-f',
         '-b',
         V8_TEST262_ROLLS_META_BUG,
+        '-d',
+        '--hashtag',
+        'noexport=true',
     ])
 
     _log.info(f'Issue: {self.project_git.run(["cl", "issue"]).strip()}')
