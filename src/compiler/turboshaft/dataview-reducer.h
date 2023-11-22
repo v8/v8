@@ -59,10 +59,13 @@ class DataViewReducer : public Next {
                                       ExternalArrayType element_type) {
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
+    const MemoryRepresentation memory_rep =
+        MemoryRepresentation::FromMachineType(machine_type);
 
-    OpIndex value = __ Load(
-        storage, index, LoadOp::Kind::RawUnaligned().NotLoadEliminable(),
-        MemoryRepresentation::FromMachineType(machine_type));
+    OpIndex value =
+        __ Load(storage, index,
+                LoadOp::Kind::MaybeUnaligned(memory_rep).NotLoadEliminable(),
+                memory_rep);
 
     Variable result = Asm().NewLoopInvariantVariable(
         RegisterRepresentationForArrayType(element_type));
@@ -113,11 +116,11 @@ class DataViewReducer : public Next {
 #endif  // V8_TARGET_LITTLE_ENDIAN
     }
     END_IF
-
+    const MemoryRepresentation memory_rep =
+        MemoryRepresentation::FromMachineType(machine_type);
     __ Store(storage, index, Asm().GetVariable(value_to_store),
-             StoreOp::Kind::RawUnaligned().NotLoadEliminable(),
-             MemoryRepresentation::FromMachineType(machine_type),
-             WriteBarrierKind::kNoWriteBarrier);
+             StoreOp::Kind::MaybeUnaligned(memory_rep).NotLoadEliminable(),
+             memory_rep, WriteBarrierKind::kNoWriteBarrier);
 
     // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
     // alive so that the GC will not release the JSArrayBuffer (if there's any)

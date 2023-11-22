@@ -834,10 +834,12 @@ class MemoryRepresentation {
   static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
-V8_INLINE bool operator==(MemoryRepresentation a, MemoryRepresentation b) {
+V8_INLINE constexpr bool operator==(MemoryRepresentation a,
+                                    MemoryRepresentation b) {
   return a.value() == b.value();
 }
-V8_INLINE bool operator!=(MemoryRepresentation a, MemoryRepresentation b) {
+V8_INLINE constexpr bool operator!=(MemoryRepresentation a,
+                                    MemoryRepresentation b) {
   return a.value() != b.value();
 }
 

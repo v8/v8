@@ -5678,8 +5678,9 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> stack_slot_param = __ StackSlot(slot_size, 0);
     int offset = 0;
     for (auto arg : args) {
-      __ Store(stack_slot_param, arg.first, StoreOp::Kind::RawUnaligned(),
-               arg.second, compiler::WriteBarrierKind::kNoWriteBarrier, offset);
+      __ Store(stack_slot_param, arg.first,
+               StoreOp::Kind::MaybeUnaligned(arg.second), arg.second,
+               compiler::WriteBarrierKind::kNoWriteBarrier, offset);
       offset += arg.second.SizeInBytes();
     }
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
