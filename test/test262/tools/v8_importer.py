@@ -275,6 +275,7 @@ class V8TestImporter(TestImporter):
     self.project_git.run([
         'commit', '-a', '-m', '[test262] Roll test262', '-m',
         f'{TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}'
+        '-m', 'no-export: true',
     ])
 
     _log.info('Uploading changes.')
@@ -286,8 +287,6 @@ class V8TestImporter(TestImporter):
         '-b',
         V8_TEST262_ROLLS_META_BUG,
         '-d',
-        '--hashtag',
-        'noexport=true',
     ])
 
     _log.info(f'Issue: {self.project_git.run(["cl", "issue"]).strip()}')
