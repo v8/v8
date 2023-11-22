@@ -3770,10 +3770,14 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
 
   // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
   // of size {v8_flags.wasm_caching_threshold}.
-  if (dynamic_tiering_ && static_cast<size_t>(v8_flags.wasm_caching_threshold) <
-                              bytes_since_last_chunk_) {
-    if (v8_flags.wasm_caching_timeout_ms <= 0) {
-      // Trigger immediately.
+  if (dynamic_tiering_ &&
+      static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
+          bytes_since_last_chunk_) {
+    // Trigger caching immediately if there is no timeout or the hard threshold
+    // was reached.
+    if (v8_flags.wasm_caching_timeout_ms <= 0 ||
+        static_cast<size_t>(v8_flags.wasm_caching_hard_threshold) <=
+            bytes_since_last_chunk_) {
       triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
       bytes_since_last_chunk_ = 0;
     } else if (last_top_tier_compilation_timestamp_.IsNull()) {
@@ -3837,6 +3841,11 @@ void CompilationStateImpl::TriggerCallbacks(
 
 void CompilationStateImpl::TriggerCachingAfterTimeout() {
   base::MutexGuard guard{&callbacks_mutex_};
+
+  // It can happen that we reached the hard threshold while waiting for the
+  // timeout to expire. In that case, {bytes_since_last_chunk_} might be zero
+  // and there is nothing new to cache.
+  if (bytes_since_last_chunk_ == 0) return;
 
   DCHECK(!last_top_tier_compilation_timestamp_.IsNull());
   base::TimeTicks caching_time =

@@ -1608,6 +1608,76 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
   CHECK(!WaitForCaching(no_caching_expected_timeout_ms));
 }
 
+STREAM_TEST(TestHardCachingThreshold) {
+  // The "more functions can be serialized" callback will only be triggered with
+  // dynamic tiering, so skip this test if dynamic tiering is disabled.
+  if (!v8_flags.wasm_dynamic_tiering) return;
+
+  // Reduce the caching threshold to 1 byte and set the hard threshold to 10
+  // bytes so that one small function hits both thresholds.
+  FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, 1);
+  FlagScope<int> hard_caching_threshold(&v8_flags.wasm_caching_hard_threshold,
+                                        10);
+  // Set a caching timeout such that the hard threshold has any meaning. This
+  // timeout should never be reached.
+  constexpr int kCachingTimeoutMs = 1000;
+  FlagScope<int> caching_timeout(&v8_flags.wasm_caching_timeout_ms,
+                                 kCachingTimeoutMs);
+
+  // Use a semaphore to wait for the caching event on the main thread.
+  std::atomic<bool> caching_was_triggered{false};
+  StreamTester tester(isolate);
+  tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
+      [&](const std::shared_ptr<NativeModule>& module) {
+        caching_was_triggered = true;
+      });
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+      SECTION(Type,
+              ENTRY_COUNT(1),                      // type count
+              SIG_ENTRY_x_x(kI32Code, kI32Code)),  // signature entry
+      SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
+      SECTION(Export, ENTRY_COUNT(1),                             // 1 export
+              ADD_COUNT('a'), kExternalFunction, FUNC_INDEX(0)),  // "a" (0)
+      SECTION(Code,
+              U32V_1(1),                              // functions count
+              ADD_COUNT(U32V_1(0),                    // locals count
+                        kExprLocalGet, 0, kExprEnd))  // body
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+
+  CHECK(!caching_was_triggered);
+
+  // Create an instance.
+  auto* i_isolate = CcTest::i_isolate();
+  ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
+  Handle<WasmInstanceObject> instance =
+      GetWasmEngine()
+          ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {}, {})
+          .ToHandleChecked();
+  CHECK(!thrower.error());
+  CHECK(!caching_was_triggered);
+
+  // Execute the function 100 times (which triggers tier-up and hence caching).
+  Handle<WasmExportedFunction> func_a =
+      testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
+  Handle<Object> receiver = ReadOnlyRoots{i_isolate}.undefined_value_handle();
+  for (int i = 0; i < 100; ++i) {
+    Execution::Call(i_isolate, func_a, receiver, 0, nullptr).Check();
+  }
+
+  // Ensure that background compilation is being executed.
+  tester.RunCompilerTasks();
+
+  // Caching should have been triggered now.
+  CHECK(caching_was_triggered);
+}
+
 // Test that a compile error contains the name of the function, even if the name
 // section is not present at the time the error is detected.
 STREAM_TEST(TestCompileErrorFunctionName) {
