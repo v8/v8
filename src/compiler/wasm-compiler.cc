@@ -1926,14 +1926,9 @@ Node* WasmGraphBuilder::BuildI32AsmjsUConvertF64(Node* input) {
 
 Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
                                              MachineRepresentation input_type) {
-  Node* stack_slot_param = StoreArgsInStackSlot({{input_type, input}});
-
-  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
-  MachineSignature sig(1, 1, sig_types);
-
-  Node* function = gasm_->ExternalConstant(ref);
-
-  return BuildCCall(&sig, function, stack_slot_param);
+  auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                 .Params(MachineType::TypeForRepresentation(input_type, false));
+  return BuildCCall(&sig, gasm_->ExternalConstant(ref), input);
 }
 
 Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
@@ -1942,9 +1937,39 @@ Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
 }
 
 Node* WasmGraphBuilder::BuildI64Ctz(Node* input) {
-  return Unop(wasm::kExprI64UConvertI32,
-              BuildBitCountingCall(input, ExternalReference::wasm_word64_ctz(),
-                                   MachineRepresentation::kWord64));
+  if (mcgraph()->machine()->Is32()) {
+    Node* upper_word = gasm_->TruncateInt64ToInt32(
+        Binop(wasm::kExprI64ShrU, input, Int64Constant(32)));
+    Node* lower_word = gasm_->TruncateInt64ToInt32(input);
+    // return lower_word == 0 ? 32 + CTZ32(upper_word) : CTZ32(lower_word);
+    // Build control flow because Word32Select is not always available.
+    Diamond d{graph(), mcgraph()->common(),
+              gasm_->Word32Equal(lower_word, gasm_->Uint32Constant(0))};
+    d.Chain(control());
+    Node* original_effect = gasm_->effect();
+    // Build the path that uses the upper word.
+    SetControl(d.if_true);
+    Node* result_from_upper = gasm_->Int32Add(
+        BuildBitCountingCall(upper_word, ExternalReference::wasm_word32_ctz(),
+                             MachineRepresentation::kWord32),
+        gasm_->Int32Constant(32));
+    Node* effect_after_upper = gasm_->effect();
+    // Build the path that uses the lower word.
+    SetEffectControl(original_effect, d.if_false);
+    Node* result_from_lower =
+        BuildBitCountingCall(lower_word, ExternalReference::wasm_word32_ctz(),
+                             MachineRepresentation::kWord32);
+    Node* effect_after_lower = gasm_->effect();
+    // Merge the two paths.
+    Node* ephi = d.EffectPhi(effect_after_upper, effect_after_lower);
+    SetEffectControl(ephi, d.merge);
+    Node* result_32 = d.Phi(MachineRepresentation::kWord32, result_from_upper,
+                            result_from_lower);
+    return gasm_->ChangeUint32ToUint64(result_32);
+  }
+  return gasm_->ChangeUint32ToUint64(
+      BuildBitCountingCall(input, ExternalReference::wasm_word64_ctz(),
+                           MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
@@ -1953,8 +1978,20 @@ Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
 }
 
 Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
-  return Unop(
-      wasm::kExprI64UConvertI32,
+  if (mcgraph()->machine()->Is32()) {
+    // Emit two calls to wasm_word32_popcnt.
+    Node* upper_word = gasm_->TruncateInt64ToInt32(
+        Binop(wasm::kExprI64ShrU, input, Int64Constant(32)));
+    Node* lower_word = gasm_->TruncateInt64ToInt32(input);
+    return gasm_->ChangeUint32ToUint64(gasm_->Int32Add(
+        BuildBitCountingCall(lower_word,
+                             ExternalReference::wasm_word32_popcnt(),
+                             MachineRepresentation::kWord32),
+        BuildBitCountingCall(upper_word,
+                             ExternalReference::wasm_word32_popcnt(),
+                             MachineRepresentation::kWord32)));
+  }
+  return gasm_->ChangeUint32ToUint64(
       BuildBitCountingCall(input, ExternalReference::wasm_word64_popcnt(),
                            MachineRepresentation::kWord64));
 }

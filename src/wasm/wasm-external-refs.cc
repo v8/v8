@@ -328,22 +328,6 @@ int32_t uint64_mod_wrapper(Address data) {
   return 1;
 }
 
-uint32_t word32_ctz_wrapper(Address data) {
-  return base::bits::CountTrailingZeros(ReadUnalignedValue<uint32_t>(data));
-}
-
-uint32_t word64_ctz_wrapper(Address data) {
-  return base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(data));
-}
-
-uint32_t word32_popcnt_wrapper(Address data) {
-  return base::bits::CountPopulation(ReadUnalignedValue<uint32_t>(data));
-}
-
-uint32_t word64_popcnt_wrapper(Address data) {
-  return base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(data));
-}
-
 uint32_t word32_rol_wrapper(uint32_t input, uint32_t shift) {
   return (input << (shift & 31)) | (input >> ((32 - shift) & 31));
 }

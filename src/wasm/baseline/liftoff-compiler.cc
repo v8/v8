@@ -2004,21 +2004,21 @@ class LiftoffCompiler {
         return EmitUnOp<kI32, kI32>(
             [this](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
-              GenerateCCallWithStackBuffer(
-                  &dst, kI32, kVoid, {VarState{kI32, src, 0}},
-                  ExternalReference::wasm_word32_popcnt());
+              LiftoffRegister result =
+                  GenerateCCall(kI32, {VarState{kI32, src, 0}},
+                                ExternalReference::wasm_word32_popcnt());
+              if (result != dst) __ Move(dst.gp(), result.gp(), kI32);
             });
       case kExprI64Popcnt:
         return EmitUnOp<kI64, kI64>(
             [this](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i64_popcnt(dst, src)) return;
               // The c function returns i32. We will zero-extend later.
-              LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
-              GenerateCCallWithStackBuffer(
-                  &c_call_dst, kI32, kVoid, {VarState{kI64, src, 0}},
-                  ExternalReference::wasm_word64_popcnt());
+              LiftoffRegister result =
+                  GenerateCCall(kI32, {VarState{kI64, src, 0}},
+                                ExternalReference::wasm_word64_popcnt());
               // Now zero-extend the result to i64.
-              __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
+              __ emit_type_conversion(kExprI64UConvertI32, dst, result,
                                       nullptr);
             });
       case kExprRefIsNull:

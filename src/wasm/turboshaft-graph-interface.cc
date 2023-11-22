@@ -4389,17 +4389,19 @@ class TurboshaftGraphBuildingInterface {
           return __ Word32CountTrailingZeros(arg);
         } else {
           // TODO(14108): Use reverse_bits if supported.
-          return CallCStackSlotToInt32(arg,
-                                       ExternalReference::wasm_word32_ctz(),
-                                       MemoryRepresentation::Int32());
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return CallC(&sig, ExternalReference::wasm_word32_ctz(), arg);
         }
       case kExprI32Popcnt:
         if (SupportedOperations::word32_popcnt()) {
           return __ Word32PopCount(arg);
         } else {
-          return CallCStackSlotToInt32(arg,
-                                       ExternalReference::wasm_word32_popcnt(),
-                                       MemoryRepresentation::Int32());
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return CallC(&sig, ExternalReference::wasm_word32_popcnt(), arg);
         }
       case kExprF32Floor:
         if (SupportedOperations::float32_round_down()) {
@@ -4501,20 +4503,59 @@ class TurboshaftGraphBuildingInterface {
         if (SupportedOperations::word64_ctz() ||
             (!Is64() && SupportedOperations::word32_ctz())) {
           return __ Word64CountTrailingZeros(arg);
-        } else {
+        } else if (Is64()) {
           // TODO(14108): Use reverse_bits if supported.
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint64());
           return __ ChangeUint32ToUint64(
-              CallCStackSlotToInt32(arg, ExternalReference::wasm_word64_ctz(),
-                                    MemoryRepresentation::Int64()));
+              CallC(&sig, ExternalReference::wasm_word64_ctz(), arg));
+        } else {
+          // lower_word == 0 ? 32 + CTZ32(upper_word) : CTZ32(lower_word);
+          OpIndex upper_word =
+              __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(arg, 32));
+          OpIndex lower_word = __ TruncateWord64ToWord32(arg);
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          Label<Word32> done(&asm_);
+          IF (__ Word32Equal(lower_word, 0)) {
+            GOTO(done,
+                 __ Word32Add(CallC(&sig, ExternalReference::wasm_word32_ctz(),
+                                    upper_word),
+                              32));
+          }
+          ELSE {
+            GOTO(done,
+                 CallC(&sig, ExternalReference::wasm_word32_ctz(), lower_word));
+          }
+          END_IF
+          BIND(done, result);
+          return __ ChangeUint32ToUint64(result);
         }
       case kExprI64Popcnt:
         if (SupportedOperations::word64_popcnt() ||
             (!Is64() && SupportedOperations::word32_popcnt())) {
           return __ Word64PopCount(arg);
+        } else if (Is64()) {
+          // Call wasm_word64_popcnt.
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint64());
+          return __ ChangeUint32ToUint64(
+              CallC(&sig, ExternalReference::wasm_word64_popcnt(), arg));
         } else {
-          return __ ChangeUint32ToUint64(CallCStackSlotToInt32(
-              arg, ExternalReference::wasm_word64_popcnt(),
-              MemoryRepresentation::Int64()));
+          // Emit two calls to wasm_word32_popcnt.
+          OpIndex upper_word =
+              __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(arg, 32));
+          OpIndex lower_word = __ TruncateWord64ToWord32(arg);
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return __ ChangeUint32ToUint64(__ Word32Add(
+              CallC(&sig, ExternalReference::wasm_word32_popcnt(), lower_word),
+              CallC(&sig, ExternalReference::wasm_word32_popcnt(),
+                    upper_word)));
         }
       case kExprI64Eqz:
         return __ Word64Equal(arg, 0);
