@@ -1104,11 +1104,6 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore: {
       OpIndex base = Map(node->InputAt(0));
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      DCHECK_NE(PipelineData::Get().pipeline_kind(),
-                TurboshaftPipelineKind::kCSA);
-#if 0
       if (PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA) {
         // TODO(nicohartmann@): This is currently required to properly compile
         // builtins. We should fix them and remove this.
@@ -1117,7 +1112,6 @@ OpIndex GraphBuilder::Process(
           base = __ BitcastTaggedToWord(base);
         }
       }
-#endif
       bool aligned = opcode != IrOpcode::kUnalignedStore;
       StoreRepresentation store_rep =
           aligned ? StoreRepresentationOf(op)
@@ -1235,9 +1229,6 @@ OpIndex GraphBuilder::Process(
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
       }
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-#if 0
       OpEffects effects = OpEffects().CanCallAnything();
       // TODO(nicohartmann@): Disabling `can_allocate` effect is currently
       // broken and causes crashes. We think there is a builtin that has the
@@ -1250,10 +1241,6 @@ OpIndex GraphBuilder::Process(
       OpIndex result =
           __ Call(callee, frame_state_idx, base::VectorOf(arguments),
                   ts_descriptor, effects);
-#else
-      OpIndex result = __ Call(callee, frame_state_idx,
-                               base::VectorOf(arguments), ts_descriptor);
-#endif
       if (is_final_control) {
         // The `__ Call()` before has already created exceptional control flow
         // and bound a new block for the success case. So we can just `Goto` the

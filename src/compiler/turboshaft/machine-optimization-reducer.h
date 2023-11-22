@@ -1824,14 +1824,16 @@ class MachineOptimizationReducer : public Next {
           DCHECK_NE(broker, nullptr);
 #if 0
           if (broker != nullptr) {
-            UnparkedScopeIfNeeded scope(broker);
-            AllowHandleDereference allow_handle_dereference;
+#endif
+          UnparkedScopeIfNeeded scope(broker);
+          AllowHandleDereference allow_handle_dereference;
 
-            OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
-            if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
-              broker->dependencies()->DependOnStableMap(*map);
-              return __ HeapConstant(map->object());
-            }
+          OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
+          if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
+            broker->dependencies()->DependOnStableMap(*map);
+            return __ HeapConstant(map->object());
+          }
+#if 0
           }
 #endif
         }
