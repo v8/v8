@@ -1473,8 +1473,7 @@ template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
-  const Simd128LaneMemoryOp& store =
-      this->Get(node).Cast<Simd128LaneMemoryOp>();
+  const Simd128LaneMemoryOp& store = Get(node).Cast<Simd128LaneMemoryOp>();
   InstructionCode opcode = kArchNop;
   switch (store.lane_kind) {
     case Simd128LaneMemoryOp::LaneKind::k8:

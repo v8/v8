@@ -7174,7 +7174,8 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
 struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   enum class Mode : bool { kLoad, kStore };
   using Kind = LoadOp::Kind;
-  enum class LaneKind : uint8_t { k8, k16, k32, k64 };
+  // The values encode the element_size_log2.
+  enum class LaneKind : uint8_t { k8 = 0, k16 = 1, k32 = 2, k64 = 3 };
 
   Mode mode;
   Kind kind;
@@ -7214,6 +7215,7 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   OpIndex base() const { return input(0); }
   OpIndex index() const { return input(1); }
   OpIndex value() const { return input(2); }
+  uint8_t lane_size() const { return 1 << static_cast<uint8_t>(lane_kind); }
 
   void Validate(const Graph& graph) {
     DCHECK(!kind.tagged_base);
