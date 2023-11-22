@@ -6922,8 +6922,6 @@ if (current_toolchain == v8_generator_toolchain) {
 
 if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
-    visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
     sources = [
       "src/snapshot/embedded/embedded-empty.cc",
       "src/snapshot/embedded/embedded-file-writer.cc",
