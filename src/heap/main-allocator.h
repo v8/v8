@@ -41,10 +41,10 @@ class AllocatorPolicy {
   virtual bool SupportsExtendingLAB() const { return false; }
 
  protected:
-  Heap* heap() const { return heap_; }
+  Heap* space_heap() const;
+  Heap* isolate_heap() const;
 
   MainAllocator* const allocator_;
-  Heap* const heap_;
 };
 
 class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
@@ -326,11 +326,17 @@ class MainAllocator {
 
   LocalHeap* local_heap() const { return local_heap_; }
 
-  Heap* heap() const { return heap_; }
+  // The heap for the current thread (respectively LocalHeap). See comment for
+  // `space_heap()` as well.
+  Heap* isolate_heap() const { return isolate_heap_; }
+
+  // Returns the space's heap. Note that this might differ from `isolate_heap()`
+  // for shared space in worker isolates.
+  Heap* space_heap() const;
 
   // The current main or background thread's LocalHeap. nullptr for GC threads.
   LocalHeap* const local_heap_;
-  Heap* const heap_;
+  Heap* const isolate_heap_;
   SpaceWithLinearArea* const space_;
 
   base::Optional<AllocationCounter> allocation_counter_;
