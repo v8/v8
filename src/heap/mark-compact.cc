@@ -3093,9 +3093,6 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   Isolate* const isolate = heap_->isolate();
   const bool bytecode_already_decompiled =
       flushing_candidate->HasUncompiledData();
-  // This should currently be dead code. This CHECK is here to verify that this
-  // is indeed dead code so that we can remove it afterwards.
-  CHECK(!bytecode_already_decompiled);
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
