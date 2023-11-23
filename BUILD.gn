@@ -1432,11 +1432,6 @@ config("toolchain") {
   # TODO(infra): Support v8_enable_prof on Windows.
   # TODO(infra): Add support for compiling with simulators.
 
-  if (v8_enable_debugging_features) {
-    if ((is_linux || is_chromeos) && v8_enable_backtrace) {
-      ldflags += [ "-rdynamic" ]
-    }
-  }
   if (v8_enable_debugging_features || dcheck_always_on) {
     defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {

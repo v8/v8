@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '968682938bfa7d3a01317bec20f99eb796ed6fc6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'eb410d53b341d011a0f1967f010340b7819ecfd2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '92b79f4d75d03c629b76142b521d998eff56089f',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '38b8de056ebb9d0aa138f09907fa83c5b6107bb5',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8efb05d3d47993d37b5139eb8832167ae7d0b09d',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'c078b56f45230567dd7aabd6e9b7e5d79622bc5d',
     'condition': 'checkout_fuchsia',
@@ -306,7 +306,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5daffc716bb6bc93b91e0724385f5bdd55959ec6',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9db1a23b048abc77c2649412775752e67e07e8f1',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9fbc780088a01c4e5e5551c63f1af2a2ea0e2efc',
   'tools/luci-go': {
       'packages': [
         {
@@ -322,7 +322,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1e8861f03f7c24314aca1c5294d33f337a9b5d37',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '3747d5b3f12271338f27ce8cc8dabc8d4b8c1142',
     'condition': 'not build_with_chromium',
   }
 }
