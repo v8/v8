@@ -867,6 +867,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
+    case kArchStackPointer:
+    case kArchSetStackPointer:
+      UNREACHABLE();
     case kArchStackPointerGreaterThan:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
