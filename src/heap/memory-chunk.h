@@ -195,7 +195,7 @@ class MemoryChunk : public BasicMemoryChunk {
     DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
     // On MacOS on ARM64 RWX permissions are allowed to be set only when
     // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
-    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && v8_flags.write_code_using_rwx
+    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !v8_flags.jitless
                ? PageAllocator::kReadWriteExecute
                : PageAllocator::kReadWrite;
   }

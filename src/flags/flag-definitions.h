@@ -968,10 +968,6 @@ DEFINE_SIZE_T(
     "max size of the shared heap (in Mbytes); "
     "other heap size flags (e.g. max_shared_heap_size) take precedence")
 
-DEFINE_BOOL(write_code_using_rwx, true,
-            "flip permissions to rwx to write page instead of rw")
-DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
-
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
