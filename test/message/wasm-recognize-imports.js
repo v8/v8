@@ -95,6 +95,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let kSig_e_d = makeSig([kWasmF64], [kRefExtern]);
   let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
   let kSig_i_rr = makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]);
+  let kSig_e_r = makeSig([kWasmExternRef], [kRefExtern]);
   let kSig_e_i = makeSig([kWasmI32], [kRefExtern]);
   let kSig_e_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32],
                           [kRefExtern]);
@@ -110,6 +111,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let a16ref = wasmRefNullType(kArrayI16);
   let a8ref = wasmRefNullType(kArrayI8);
 
+  builder.addImport('String', 'cast', kSig_e_r);
+  builder.addImport('String', 'test', kSig_i_r);
   builder.addImport('String', 'fromWtf16Array',
                     makeSig([a16ref, kWasmI32, kWasmI32], [kRefExtern]));
   builder.addImport('String', 'fromWtf8Array',

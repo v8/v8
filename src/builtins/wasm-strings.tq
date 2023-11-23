@@ -9,6 +9,20 @@ macro Trap(context: Context, error: constexpr MessageTemplate): never {
   runtime::ThrowWasmError(context, SmiConstant(error));
 }
 
+transitioning javascript builtin WebAssemblyStringCast(
+    js-implicit context: Context)(...arguments): String {
+  try {
+    return Cast<String>(arguments[0]) otherwise goto IllegalCast;
+  } label IllegalCast deferred {
+    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
+  }
+}
+
+transitioning javascript builtin WebAssemblyStringTest(
+    js-implicit context: Context)(...arguments): Smi {
+  return Is<String>(arguments[0]) ? SmiConstant(1) : SmiConstant(0);
+}
+
 extern runtime WasmCastToSpecialPrimitiveArray(Context, Object, Smi): WasmArray;
 
 transitioning javascript builtin WebAssemblyStringFromWtf16Array(

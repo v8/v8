@@ -207,7 +207,9 @@ class WasmGCTypeReducer : public Next {
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
                                    type_check.config.to.heap_type(), module_,
-                                   module_)) {
+                                   module_) &&
+          !wasm::IsImplicitInternalization(type, type_check.config.to,
+                                           module_)) {
         if (to_nullable && type.is_nullable()) {
           return __ IsNull(__ MapToNewGraph(type_check.object()), type);
         } else {

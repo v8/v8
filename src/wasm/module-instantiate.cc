@@ -386,6 +386,20 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       // Contrary to the optional/unobservable internal optimizations
       // handled by this function, the JS String Builtins spec wants us
       // to throw a LinkError when the signature was incorrect.
+      case Builtin::kWebAssemblyStringCast:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringCast;
+        }
+        return kLinkError;
+      case Builtin::kWebAssemblyStringTest:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringTest;
+        }
+        return kLinkError;
       case Builtin::kWebAssemblyStringCharCodeAt:
         if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&

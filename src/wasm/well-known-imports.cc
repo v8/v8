@@ -71,6 +71,10 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "ParseFloat";
 
       // JS String Builtins:
+    case WellKnownImport::kStringCast:
+      return "String.cast";
+    case WellKnownImport::kStringTest:
+      return "String.test";
     case WellKnownImport::kStringCharCodeAt:
       return "String.charCodeAt";
     case WellKnownImport::kStringCodePointAt:

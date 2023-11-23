@@ -766,6 +766,10 @@ class WasmGraphBuildingInterface {
         return false;
 
       // WebAssembly.String.* imports.
+      case WKI::kStringCast:
+      case WKI::kStringTest:
+        // Implemented only for Turboshaft.
+        return false;
       case WKI::kStringCharCodeAt: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         TFNode* view = builder_->StringAsWtf16(

@@ -2978,6 +2978,10 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
 void InstallStrings(Isolate* isolate, Handle<JSObject> webassembly) {
   Handle<JSObject> string = isolate->factory()->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, webassembly, "String", string, DONT_ENUM);
+  SimpleInstallFunction(isolate, string, "cast",
+                        Builtin::kWebAssemblyStringCast, 1, true);
+  SimpleInstallFunction(isolate, string, "test",
+                        Builtin::kWebAssemblyStringTest, 1, true);
   SimpleInstallFunction(isolate, string, "fromWtf16Array",
                         Builtin::kWebAssemblyStringFromWtf16Array, 3, true);
   SimpleInstallFunction(isolate, string, "toWtf16Array",

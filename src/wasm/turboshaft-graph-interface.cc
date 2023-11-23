@@ -1011,6 +1011,12 @@ class TurboshaftGraphBuildingInterface {
     instance_cache_.ReloadCachedMemory();
   }
 
+  V<Word32> IsExternRefString(const Value value) {
+    compiler::WasmTypeCheckConfig config{value.type, kWasmRefString};
+    V<Map> rtt = OpIndex::Invalid();
+    return __ WasmTypeCheck(value.op, rtt, config);
+  }
+
   V<Tagged> ExternRefToString(const Value value, bool null_succeeds = false) {
     wasm::ValueType target_type =
         null_succeeds ? kWasmStringRef : kWasmRefString;
@@ -1309,6 +1315,16 @@ class TurboshaftGraphBuildingInterface {
         return false;
 
       // WebAssembly.String.* imports.
+      case WKI::kStringCast: {
+        result = ExternRefToString(args[0]);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringTest: {
+        result = IsExternRefString(args[0]);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringCharCodeAt: {
         V<Tagged> string = ExternRefToString(args[0]);
         V<Tagged> view = __ StringAsWtf16(string);

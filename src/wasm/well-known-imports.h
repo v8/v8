@@ -54,6 +54,8 @@ enum class WellKnownImport : uint8_t {
 
   // JS String Builtins
   // https://github.com/WebAssembly/js-string-builtins
+  kStringCast,
+  kStringTest,
   kStringCharCodeAt,
   kStringCodePointAt,
   kStringCompare,

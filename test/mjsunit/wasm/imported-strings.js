@@ -67,6 +67,8 @@ function encodeWtf16LE(str) {
 
 let kArrayI16;
 let kArrayI8;
+let kStringCast;
+let kStringTest;
 let kStringFromWtf16Array;
 let kStringFromWtf8Array;
 let kStringToWtf16Array;
@@ -91,6 +93,8 @@ function MakeBuilder() {
   let arrayref = wasmRefNullType(kArrayI16);
   let array8ref = wasmRefNullType(kArrayI8);
 
+  kStringCast = builder.addImport('String', 'cast', kSig_e_r);
+  kStringTest = builder.addImport('String', 'test', kSig_i_r);
   kStringFromWtf16Array = builder.addImport(
       'String', 'fromWtf16Array',
       makeSig([arrayref, kWasmI32, kWasmI32], [kRefExtern]));
@@ -117,6 +121,72 @@ let kImports = {
   String: WebAssembly.String,
   strings: interestingStrings,
 };
+
+(function TestStringCast() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("cast", kSig_e_r)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringCast,
+    ]);
+
+  builder.addFunction("cast_null", kSig_e_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kExternRefCode,
+      kExprCallFunction, kStringCast,
+    ]);
+
+  let instance = builder.instantiate(kImports);
+
+  assertEquals('foo', instance.exports.cast('foo'));
+  assertThrows(
+      () => instance.exports.cast(123), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.cast(undefined), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.cast(true), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.cast(null), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.cast_null(), WebAssembly.RuntimeError,
+      'illegal cast');
+})();
+
+(function TestStringTest() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("test", kSig_i_r)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringTest,
+    ]);
+
+  builder.addFunction("test_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kExternRefCode,
+      kExprCallFunction, kStringTest,
+    ]);
+
+  let instance = builder.instantiate(kImports);
+
+  assertEquals(1, instance.exports.test("foo"));
+  assertEquals(0, instance.exports.test(123));
+  assertEquals(0, instance.exports.test(undefined));
+  assertEquals(0, instance.exports.test(true));
+  assertEquals(0, instance.exports.test(null));
+  assertEquals(0, instance.exports.test_null());
+})();
 
 (function TestStringConst() {
   print(arguments.callee.name);
