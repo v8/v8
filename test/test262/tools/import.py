@@ -39,6 +39,11 @@ def main():
       help=('Absolute path to a file with names of the test to be skipped for '
             'this import. Used only in PREBUILD phase.'),
       default=None)
+  parser.add_argument(
+      '--v8-test262-last-revision',
+      help=('Used only in POSTBUILD when called separately. The old revision was'
+            ' overwritten at this point by the PREBUILD phase.'),
+      default=None)
   args, exporter_args = parser.parse_known_args(sys.argv)
 
   sys.path.append(args.blink_tools_path)
@@ -54,7 +59,8 @@ def main():
   importer = V8TestImporter(
       phase=args.phase,
       host=host,
-      test262_failure_file=args.test262_failure_file)
+      test262_failure_file=args.test262_failure_file,
+      v8_test262_last_revision=args.v8_test262_last_revision)
   try:
     success = importer.main(exporter_args[1:])
     host.exit(0 if success else 1)

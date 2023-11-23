@@ -35,13 +35,15 @@ class V8TestImporter(TestImporter):
                phase,
                host,
                test262_github=None,
-               test262_failure_file=None):
+               test262_failure_file=None,
+               v8_test262_last_revision=None):
     super().__init__(host, test262_github, wpt_manifests=None)
     self.project_config = host.project_config
     self.project_root = Path(self.project_config.project_root)
     self.test262_status_file = self.project_root / 'test' / 'test262' / 'test262.status'
     self.phase = phase
     self.test262_failure_file = test262_failure_file
+    self.v8_test262_last_revision = v8_test262_last_revision
 
   def main(self, argv=None):
     options = self.parse_args(argv)
@@ -69,7 +71,8 @@ class V8TestImporter(TestImporter):
                                                      gh_token)
 
     test262_revision = self.fetch_test262(gh_token)
-    v8_test262_revision = self.find_current_test262_revision()
+    v8_test262_revision = (self.v8_test262_last_revision or
+                           self.find_current_test262_revision())
 
     if self.run_prebuild_phase():
       if test262_revision == v8_test262_revision:
@@ -274,7 +277,7 @@ class V8TestImporter(TestImporter):
     _log.info('Committing changes.')
     self.project_git.run([
         'commit', '-a', '-m', '[test262] Roll test262', '-m',
-        f'{TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}'
+        f'{TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}',
         '-m', 'no-export: true',
     ])
 
