@@ -3520,6 +3520,13 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
   }
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  // TODO(thibaudm): Implement.
+  UNREACHABLE();
+}
+
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
@@ -3823,12 +3830,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  // TODO(thibaudm): Implement.
-  UNREACHABLE();
-}
 
 }  // namespace compiler
 }  // namespace internal
