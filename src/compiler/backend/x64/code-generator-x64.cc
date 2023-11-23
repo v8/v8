@@ -6827,11 +6827,20 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
     // target = table + (target - table)
     __ addq(input, kScratchRegister);
     // Jump to the target.
+#ifdef V8_ENABLE_CET_IBT
+    // Add the notrack prefix to disable landing pad enforcement.
+    __ jmp(input, /*notrack=*/true);
+#else
     __ jmp(input);
+#endif
   } else {
     // For non builtins, the value in the table is 'target_address' (8 bytes)
     // jmp [table + index*8]
+#ifdef V8_ENABLE_CET_IBT
+    __ jmp(Operand(kScratchRegister, input, times_8, 0), /*notrack=*/true);
+#else
     __ jmp(Operand(kScratchRegister, input, times_8, 0));
+#endif
   }
 }
 

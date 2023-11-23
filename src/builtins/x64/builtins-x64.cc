@@ -44,6 +44,8 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
+  __ CodeEntry();
+
   __ LoadAddress(kJavaScriptCallExtraArg1Register,
                  ExternalReference::Create(address));
   __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
@@ -430,7 +432,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
   __ jmp(&invoke);
-  __ bind(&handler_entry);
+  __ BindExceptionHandler(&handler_entry);
 
   // Store the current pc as the handler offset. It's used later to create the
   // handler table.
@@ -3453,6 +3455,11 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
                                          Label* return_promise) {
   int catch_handler = __ pc_offset();
+
+#ifdef V8_ENABLE_CET_IBT
+  __ endbr64();
+#endif
+
   // Restore rsp to free the reserved stack slots for the sections.
   __ leaq(rsp, MemOperand(rbp, StackSwitchFrameConstants::kLastSpillOffset));
 
@@ -3658,6 +3665,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     SwitchBackAndReturnPromise(masm, r8, rdi, &return_promise);
   }
   __ bind(&suspend);
+#ifdef V8_ENABLE_CET_IBT
+  __ endbr64();
+#endif
 
   __ LeaveFrame(stack_switch ? StackFrame::STACK_SWITCH
                              : StackFrame::JS_TO_WASM);
@@ -3803,6 +3813,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
   __ bind(&resume);
+#ifdef V8_ENABLE_CET_IBT
+  __ endbr64();
+#endif
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ ret(0);
 }
@@ -3934,6 +3947,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   }
   __ Trap();
   __ bind(&suspend);
+#ifdef V8_ENABLE_CET_IBT
+  __ endbr64();
+#endif
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   // Pop receiver + parameter.
   __ ret(2 * kSystemPointerSize);

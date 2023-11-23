@@ -654,13 +654,18 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Control-flow integrity:
 
-  // Define a function entrypoint. This doesn't emit any code for this
-  // architecture, as control-flow integrity is not supported for it.
-  void CodeEntry() {}
+  // Define a function entrypoint which will emit a landing pad instruction if
+  // required by the build config.
+  void CodeEntry();
   // Define an exception handler.
-  void ExceptionHandler() {}
+  void ExceptionHandler() { CodeEntry(); }
   // Define an exception handler and bind a label.
-  void BindExceptionHandler(Label* label) { bind(label); }
+  void BindExceptionHandler(Label* label) { BindJumpTarget(label); }
+  // Bind a jump target and mark it as a valid code entry.
+  void BindJumpTarget(Label* label) {
+    bind(label);
+    CodeEntry();
+  }
 
   // ---------------------------------------------------------------------------
   // Pointer compression support

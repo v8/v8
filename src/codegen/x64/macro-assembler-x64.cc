@@ -51,6 +51,12 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
   return Operand(rsp, kPCOnStackSize + index * kSystemPointerSize);
 }
 
+void MacroAssembler::CodeEntry() {
+#ifdef V8_ENABLE_CET_IBT
+  endbr64();
+#endif
+}
+
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
@@ -2192,7 +2198,12 @@ void MacroAssembler::Switch(Register scratch, Register reg, int case_value_base,
   cmpq(reg, Immediate(num_labels));
   j(above_equal, &fallthrough);
   leaq(table, MemOperand(&jump_table));
+#ifdef V8_ENABLE_CET_IBT
+  // Add the notrack prefix to disable landing pad enforcement.
+  jmp(MemOperand(table, reg, times_8, 0), /*notrack=*/true);
+#else
   jmp(MemOperand(table, reg, times_8, 0));
+#endif
   // Emit the jump table inline, under the assumption that it's not too big.
   Align(kSystemPointerSize);
   bind(&jump_table);

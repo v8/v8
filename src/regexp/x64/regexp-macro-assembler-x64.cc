@@ -110,6 +110,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_() {
   DCHECK_EQ(0, registers_to_save % 2);
+  __ CodeEntry();
   __ jmp(&entry_label_);   // We'll write the entry code when we know more.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -170,7 +171,13 @@ void RegExpMacroAssemblerX64::Backtrack() {
   // and jump to location.
   Pop(rbx);
   __ addq(rbx, code_object_pointer());
+#ifdef V8_ENABLE_CET_IBT
+  // TODO(sroettger): This jump needs an endbr64 instruction but the code is
+  // performance sensitive. Needs more thought how to do this in a fast way.
+  __ jmp(rbx, /*notrack=*/true);
+#else
   __ jmp(rbx);
+#endif
 }
 
 
@@ -714,6 +721,12 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
       // Match any character.
       return true;
   }
+}
+
+void RegExpMacroAssemblerX64::BindJumpTarget(Label* label) {
+  Bind(label);
+  // TODO(sroettger): There should be an endbr64 instruction here, but it needs
+  // more thought how to avoid perf regressions.
 }
 
 void RegExpMacroAssemblerX64::Fail() {

@@ -1321,6 +1321,14 @@ void Assembler::hlt() {
   emit(0xF4);
 }
 
+void Assembler::endbr64() {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit(0x0f);
+  emit(0x1e);
+  emit(0xfa);
+}
+
 void Assembler::emit_idiv(Register src, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(src, size);
@@ -1588,6 +1596,32 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
+#ifdef V8_ENABLE_CET_IBT
+
+void Assembler::jmp(Register target, bool notrack) {
+  EnsureSpace ensure_space(this);
+  if (notrack) {
+    emit(0x3e);
+  }
+  // Opcode FF/4 r64.
+  emit_optional_rex_32(target);
+  emit(0xFF);
+  emit_modrm(0x4, target);
+}
+
+void Assembler::jmp(Operand src, bool notrack) {
+  EnsureSpace ensure_space(this);
+  if (notrack) {
+    emit(0x3e);
+  }
+  // Opcode FF/4 m64.
+  emit_optional_rex_32(src);
+  emit(0xFF);
+  emit_operand(0x4, src);
+}
+
+#else  // V8_ENABLE_CET_IBT
+
 void Assembler::jmp(Register target) {
   EnsureSpace ensure_space(this);
   // Opcode FF/4 r64.
@@ -1603,6 +1637,8 @@ void Assembler::jmp(Operand src) {
   emit(0xFF);
   emit_operand(0x4, src);
 }
+
+#endif
 
 void Assembler::emit_lea(Register dst, Operand src, int size) {
   EnsureSpace ensure_space(this);

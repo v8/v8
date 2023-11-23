@@ -1226,7 +1226,11 @@ TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
+
     masm.bind(&before_exit);
+    if (kind == DeoptimizeKind::kLazy) {
+      masm.CodeEntry();
+    }
     Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
     masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                nullptr);

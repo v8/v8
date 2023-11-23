@@ -1137,6 +1137,9 @@ config("features") {
   if (v8_enable_cet_shadow_stack) {
     defines += [ "V8_ENABLE_CET_SHADOW_STACK" ]
   }
+  if (v8_enable_cet_ibt) {
+    defines += [ "V8_ENABLE_CET_IBT" ]
+  }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
   }

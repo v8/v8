@@ -75,14 +75,20 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Use a push, because mov to an extended register takes 6 bytes.
-  pushq_imm32(func_index);            // 5 bytes
-  EmitJumpSlot(lazy_compile_target);  // 5 bytes
+  pushq_imm32(func_index);  // 5 bytes
+  intptr_t displacement =
+      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(lazy_compile_target) -
+                            (pc_ + kNearJmpInstrSize));
+  DCHECK(is_int32(displacement));
+  near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t displacement = static_cast<intptr_t>(
-      reinterpret_cast<uint8_t*>(target) - pc_ - kNearJmpInstrSize);
+  intptr_t displacement =
+      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(target) -
+                            (pc_ + kEndbrSize + kNearJmpInstrSize));
   if (!is_int32(displacement)) return false;
+  CodeEntry();                                 // kEndbrSize bytes (0 or 4)
   near_jmp(displacement, RelocInfo::NO_INFO);  // 5 bytes
   return true;
 }
