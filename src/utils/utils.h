@@ -13,6 +13,7 @@
 #include <string>
 #include <type_traits>
 
+#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -26,6 +27,12 @@
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
+#endif
+
+#if defined(V8_TARGET_ARCH_ARM64) && \
+    (defined(__ARM_NEON) || defined(__ARM_NEON__))
+#define V8_OPTIMIZE_WITH_NEON
+#include <arm_neon.h>
 #endif
 
 namespace v8 {
@@ -316,13 +323,77 @@ class SetOncePointer {
   T* pointer_ = nullptr;
 };
 
+#if defined(V8_OPTIMIZE_WITH_NEON)
+template <typename IntType, typename Char>
+V8_INLINE bool OverlappingCompare(const Char* lhs, const Char* rhs,
+                                  size_t count) {
+  static_assert(sizeof(Char) == 1);
+  return *reinterpret_cast<const IntType*>(lhs) ==
+             *reinterpret_cast<const IntType*>(rhs) &&
+         *reinterpret_cast<const IntType*>(lhs + count - sizeof(IntType)) ==
+             *reinterpret_cast<const IntType*>(rhs + count - sizeof(IntType));
+}
+
+template <typename Char>
+V8_INLINE bool SimdMemcmp(const Char* lhs, const Char* rhs, size_t count) {
+  static_assert(sizeof(Char) == 1);
+  if (count == 0) {
+    return true;
+  }
+  if (count == 1) {
+    return *lhs == *rhs;
+  }
+  const size_t order =
+      sizeof(count) * CHAR_BIT - base::bits::CountLeadingZeros(count - 1);
+  switch (order) {
+    case 1:  // count: [2, 2]
+      return *reinterpret_cast<const uint16_t*>(lhs) ==
+             *reinterpret_cast<const uint16_t*>(rhs);
+    case 2:  // count: [3, 4]
+      return OverlappingCompare<uint16_t>(lhs, rhs, count);
+    case 3:  // count: [5, 8]
+      return OverlappingCompare<uint32_t>(lhs, rhs, count);
+    case 4:  // count: [9, 16]
+      return OverlappingCompare<uint64_t>(lhs, rhs, count);
+    case 5:  // count: [17, 32]
+    {
+      // Utilize more simd registers for better pipelining.
+      const auto lhs0 = vld1q_u8(lhs);
+      const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
+      const auto rhs0 = vld1q_u8(rhs);
+      const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
+      return static_cast<bool>(
+          vminvq_u8(vandq_u8(vceqq_u8(lhs0, rhs0), vceqq_u8(lhs1, rhs1))));
+    }
+    default:  // count: [33, ...]
+    {
+      const auto lhs0 = vld1q_u8(lhs);
+      const auto rhs0 = vld1q_u8(rhs);
+      if (!static_cast<bool>(vminvq_u8(vceqq_u8(lhs0, rhs0)))) return false;
+      for (size_t i = count % sizeof(uint8x16_t); i < count;
+           i += sizeof(uint8x16_t)) {
+        const auto lhs0 = vld1q_u8(lhs + i);
+        const auto rhs0 = vld1q_u8(rhs + i);
+        if (!static_cast<bool>(vminvq_u8(vceqq_u8(lhs0, rhs0)))) return false;
+      }
+      return true;
+    }
+  }
+}
+#endif  // defined(V8_OPTIMIZE_WITH_NEON)
+
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
   static_assert(std::is_unsigned<lchar>::value);
   static_assert(std::is_unsigned<rchar>::value);
-  if (sizeof(*lhs) == sizeof(*rhs)) {
+  if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
+#if defined(V8_OPTIMIZE_WITH_NEON)
+    if constexpr (sizeof(*lhs) == 1) {
+      return SimdMemcmp(lhs, rhs, chars);
+    }
+#endif
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
     return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
