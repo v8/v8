@@ -1757,7 +1757,8 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
-  global_allocation_limit_ = new_global_allocation_limit;
+  global_allocation_limit_.store(new_global_allocation_limit,
+                                 std::memory_order_relaxed);
   old_generation_allocation_limit_configured_ = true;
 }
 
@@ -2637,14 +2638,14 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
             max_global_memory_size_, new_space_capacity, global_growing_factor,
             mode);
     new_global_allocation_limit =
-        std::min(new_global_allocation_limit, global_allocation_limit_);
+        std::min(new_global_allocation_limit, global_allocation_limit());
     SetOldGenerationAndGlobalAllocationLimit(
         new_old_generation_allocation_limit, new_global_allocation_limit);
   }
 
   CHECK_EQ(max_global_memory_size_,
            GlobalMemorySizeFromV8Size(max_old_generation_size_));
-  CHECK_GE(global_allocation_limit_, old_generation_allocation_limit_);
+  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -3224,10 +3225,10 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
         new_old_generation_allocation_limit, old_generation_allocation_limit());
     size_t new_global_allocation_limit = std::max(
         GlobalSizeOfObjects() + minimum_growing_step,
-        static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
+        static_cast<size_t>(static_cast<double>(global_allocation_limit()) *
                             (tracer()->AverageSurvivalRatio() / 100)));
     new_global_allocation_limit =
-        std::min(new_global_allocation_limit, global_allocation_limit_);
+        std::min(new_global_allocation_limit, global_allocation_limit());
     SetOldGenerationAndGlobalAllocationLimit(
         new_old_generation_allocation_limit, new_global_allocation_limit);
     // We need to update limits but still remain in the "not configured" state.
@@ -5161,10 +5162,10 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   const size_t v8_overshoot = old_generation_allocation_limit() < size_now
                                   ? size_now - old_generation_allocation_limit()
                                   : 0;
+  const size_t global_limit = global_allocation_limit();
+  const size_t global_size = GlobalSizeOfObjects();
   const size_t global_overshoot =
-      global_allocation_limit_ < GlobalSizeOfObjects()
-          ? GlobalSizeOfObjects() - global_allocation_limit_
-          : 0;
+      global_limit < global_size ? global_size - global_limit : 0;
 
   // Bail out if the V8 and global sizes are still below their respective
   // limits.
@@ -5178,8 +5179,8 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
       std::max(old_generation_allocation_limit() / 2, kMarginForSmallHeaps),
       (max_old_generation_size() - old_generation_allocation_limit()) / 2);
   const size_t global_margin =
-      std::min(std::max(global_allocation_limit_ / 2, kMarginForSmallHeaps),
-               (max_global_memory_size_ - global_allocation_limit_) / 2);
+      std::min(std::max(global_limit / 2, kMarginForSmallHeaps),
+               (max_global_memory_size_ - global_limit) / 2);
 
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
 }
@@ -5279,11 +5280,13 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
 
 base::Optional<size_t> Heap::GlobalMemoryAvailable() {
   size_t global_size = GlobalSizeOfObjects();
+  size_t global_limit = global_allocation_limit();
 
-  if (global_size < global_allocation_limit_)
-    return global_allocation_limit_ - global_size;
-
-  return 0;
+  if (global_size < global_limit) {
+    return global_limit - global_size;
+  } else {
+    return 0;
+  }
 }
 
 double Heap::PercentToOldGenerationLimit() {

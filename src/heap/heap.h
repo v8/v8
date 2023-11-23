@@ -1909,7 +1909,9 @@ class Heap final {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);
   }
 
-  size_t global_allocation_limit() const { return global_allocation_limit_; }
+  size_t global_allocation_limit() const {
+    return global_allocation_limit_.load(std::memory_order_relaxed);
+  }
 
   size_t max_old_generation_size() const {
     return max_old_generation_size_.load(std::memory_order_relaxed);
@@ -2192,7 +2194,7 @@ class Heap final {
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
   std::atomic<size_t> old_generation_allocation_limit_{0};
-  size_t global_allocation_limit_ = 0;
+  std::atomic<size_t> global_allocation_limit_{0};
 
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
