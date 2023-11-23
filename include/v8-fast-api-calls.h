@@ -438,6 +438,16 @@ struct FastApiCallbackOptions;
 struct AnyCType {
   AnyCType() : int64_value(0) {}
 
+#if defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, Local<T> is not trivially copyable and the implicit
+  // copy constructor and copy assignment for the union are deleted.
+  AnyCType(const AnyCType& other) : int64_value(other.int64_value) {}
+  AnyCType& operator=(const AnyCType& other) {
+    int64_value = other.int64_value;
+    return *this;
+  }
+#endif
+
   union {
     bool bool_value;
     int32_t int32_value;

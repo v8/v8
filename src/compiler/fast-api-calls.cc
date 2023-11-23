@@ -8,6 +8,23 @@
 #include "src/compiler/globals.h"
 
 namespace v8 {
+
+// Local handles should be trivially copyable, so that they can be efficiently
+// passed by value. If they are not trivially copyable, they cannot be passed in
+// registers.
+ASSERT_TRIVIALLY_COPYABLE(IndirectHandleBase);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+ASSERT_TRIVIALLY_COPYABLE(DirectHandleBase);
+#endif
+ASSERT_TRIVIALLY_COPYABLE(LocalBase<Object>);
+
+#if !(defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI)
+// ...except in debug builds where we can check that they are stack-allocated.
+ASSERT_TRIVIALLY_COPYABLE(Local<Object>);
+ASSERT_TRIVIALLY_COPYABLE(internal::LocalUnchecked<Object>);
+ASSERT_TRIVIALLY_COPYABLE(MaybeLocal<Object>);
+#endif
+
 namespace internal {
 namespace compiler {
 namespace fast_api_call {

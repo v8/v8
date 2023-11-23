@@ -339,7 +339,7 @@ static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 
 // ----------------------------------------------------------------------------
 // Base class for DirectHandle instantiations. Don't use directly.
-class DirectHandleBase {
+class V8_TRIVIAL_ABI DirectHandleBase {
  public:
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase& that) const;
@@ -351,13 +351,18 @@ class DirectHandleBase {
  protected:
   friend class HandleBase;
 
+#if defined(DEBUG) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, DirectHandleBase becomes not trivially copyable.
+  V8_INLINE DirectHandleBase(const DirectHandleBase& other) V8_NOEXCEPT
+      : obj_(other.obj_) {
+    VerifyOnStackAndMainThread();
+  }
+  DirectHandleBase& operator=(const DirectHandleBase&) V8_NOEXCEPT = default;
+#endif
+
   V8_INLINE explicit DirectHandleBase(Address object) : obj_(object) {
     VerifyOnStackAndMainThread();
   }
-
-  V8_INLINE explicit DirectHandleBase(Address object, Isolate* isolate);
-  V8_INLINE explicit DirectHandleBase(Address object, LocalIsolate* isolate);
-  V8_INLINE explicit DirectHandleBase(Address object, LocalHeap* local_heap);
 
 #ifdef DEBUG
   V8_EXPORT_PRIVATE bool IsDereferenceAllowed() const;

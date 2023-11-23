@@ -682,10 +682,12 @@ path. Add it with -I<path> to the command line
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(trivial_abi)
 #define V8_TRIVIAL_ABI [[clang::trivial_abi]]
+#define V8_HAS_ATTRIBUTE_TRIVIAL_ABI 1
 #endif // __has_attribute(trivial_abi)
 #endif // defined(__clang__) && defined(__has_attribute)
 #if !defined(V8_TRIVIAL_ABI)
 #define V8_TRIVIAL_ABI
+#define V8_HAS_ATTRIBUTE_TRIVIAL_ABI 0
 #endif //!defined(V8_TRIVIAL_ABI)
 
 // Helper macro to define no_sanitize attributes only with clang.

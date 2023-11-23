@@ -38,8 +38,12 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 
+#if !(defined(DEBUG) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI)
+// Direct handles should be trivially copyable, except in debug builds where we
+// can check that they are stack-allocated.
 ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(MaybeDirectHandle<Object>);
+#endif
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
 

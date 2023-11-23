@@ -245,9 +245,15 @@ class LocalBase : public IndirectHandleBase {
  * to these values as to their handles.
  */
 template <class T>
-class Local : public LocalBase<T> {
+class V8_TRIVIAL_ABI Local : public LocalBase<T> {
  public:
   V8_INLINE Local() : LocalBase<T>() { VerifyOnStack(); }
+
+#if defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, Local<T> becomes not trivially copyable.
+  V8_INLINE Local(const Local& other) : LocalBase<T>(other) { VerifyOnStack(); }
+  Local& operator=(const Local&) = default;
+#endif
 
   template <class S>
   V8_INLINE Local(Local<S> that) : LocalBase<T>(that) {
@@ -429,11 +435,15 @@ namespace internal {
 // A local variant that is suitable for off-stack allocation.
 // Used internally by LocalVector<T>. Not to be used directly!
 template <typename T>
-class LocalUnchecked : public Local<T> {
+class V8_TRIVIAL_ABI LocalUnchecked : public Local<T> {
  public:
   LocalUnchecked() : Local<T>(do_not_check) {}
+
+#if defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, LocalUnchecked<T> becomes not trivially copyable.
   LocalUnchecked(const LocalUnchecked& other) : Local<T>(other, do_not_check) {}
   LocalUnchecked& operator=(const LocalUnchecked&) = default;
+#endif
 
   // Implicit conversion from Local.
   LocalUnchecked(const Local<T>& other)  // NOLINT(runtime/explicit)
