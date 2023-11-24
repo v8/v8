@@ -11,6 +11,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
+#include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "src/utils/memcopy.h"
 
@@ -23,14 +24,15 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Derived: must have a Smi slot at kCapacityOffset.
-template <class Derived, class ShapeT>
-class TaggedArrayBase : public HeapObject {
-  OBJECT_CONSTRUCTORS(TaggedArrayBase, HeapObject);
+template <class Derived, class ShapeT, class Super = HeapObject>
+class TaggedArrayBase : public Super {
+  OBJECT_CONSTRUCTORS(TaggedArrayBase, Super);
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(ShapeT::kElementSize == kTaggedSize);
   static_assert(is_subtype_v<ElementT, Object> ||
                 is_subtype_v<ElementT, MaybeObject>);
+  static_assert(std::is_base_of<HeapObject, Super>::value);
 
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
@@ -131,7 +133,7 @@ class TaggedArrayBase : public HeapObject {
   // Shape::kHeaderSize) / Shape::kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
   static constexpr int kMaxCapacity =
-      128 * MB - kHeaderSize / Shape::kElementSize;
+      128 * MB - Super::kHeaderSize / Shape::kElementSize;
   static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
 
   // Maximally allowed length for regular (non large object space) object.
@@ -234,6 +236,49 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
       Isolate* isolate, Handle<FixedArray> xs, int new_capacity,
       AllocationType allocation = AllocationType::kYoung,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+};
+
+class TrustedArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = Object;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// A FixedArray in trusted space and with a unique instance type.
+// TODO(saelo): we should probably not expose trusted fixed arrays directly to
+// objects inside the sandbox, so consider using TrustedObject as parent class
+// once we support direct trusted -> trusted references without an indirection.
+class TrustedFixedArray
+    : public TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
+                             ExposedTrustedObject> {
+  using Super = TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
+                                ExposedTrustedObject>;
+  OBJECT_CONSTRUCTORS(TrustedFixedArray, Super);
+
+ public:
+  template <class IsolateT>
+  static inline Handle<TrustedFixedArray> New(IsolateT* isolate, int capacity);
+
+  DECL_CAST(TrustedFixedArray)
+  DECL_PRINTER(TrustedFixedArray)
+  DECL_VERIFIER(TrustedFixedArray)
+
+  class BodyDescriptor;
+
+  static constexpr int kLengthOffset =
+      TrustedFixedArray::Shape::kCapacityOffset;
+  static constexpr int kMaxLength = TrustedFixedArray::kMaxCapacity;
+  static constexpr int kMaxRegularLength =
+      TrustedFixedArray::kMaxRegularCapacity;
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which

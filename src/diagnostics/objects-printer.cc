@@ -781,7 +781,8 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
 }
 
 namespace {
-void PrintFixedArrayWithHeader(std::ostream& os, Tagged<FixedArray> array,
+template <typename T>
+void PrintFixedArrayWithHeader(std::ostream& os, Tagged<T> array,
                                const char* type) {
   array->PrintHeader(os, type);
   os << "\n - length: " << array->length();
@@ -857,7 +858,11 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
 }
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "FixedArray");
+  PrintFixedArrayWithHeader(os, Tagged{*this}, "FixedArray");
+}
+
+void TrustedFixedArray::TrustedFixedArrayPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, Tagged{*this}, "TrustedFixedArray");
 }
 
 void ArrayList::ArrayListPrint(std::ostream& os) {

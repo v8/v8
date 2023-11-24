@@ -138,6 +138,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<FixedArray> NewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocates a trusted fixed array in trusted space, initialized with zeros.
+  Handle<TrustedFixedArray> NewTrustedFixedArray(int length);
+
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   Handle<FixedArray> NewFixedArrayWithMap(
@@ -397,7 +400,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationAlignment alignment = kTaggedAligned);
 
   friend TorqueGeneratedFactory<Impl>;
-  template <class Derived, class Shape>
+  template <class Derived, class Shape, class Super>
   friend class TaggedArrayBase;
   template <class Derived, class Shape>
   friend class PrimitiveArrayBase;

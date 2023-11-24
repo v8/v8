@@ -1514,6 +1514,14 @@ class FixedArray::BodyDescriptor final
   }
 };
 
+class TrustedFixedArray::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<ExposedTrustedObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return TrustedFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
 class SloppyArgumentsElements::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:

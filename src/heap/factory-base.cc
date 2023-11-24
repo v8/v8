@@ -148,6 +148,11 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 }
 
 template <typename Impl>
+Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
+  return TrustedFixedArray::New(isolate(), length);
+}
+
+template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
     Handle<Map> map, int length, AllocationType allocation) {
   // Zero-length case must be handled outside, where the knowledge about
