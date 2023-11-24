@@ -1041,77 +1041,72 @@ class AssemblerOpInterface {
     return ShiftLeft(left, this->Word32Constant(right), rep);
   }
 
-  OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
-    return ReduceIfReachableEqual(left, right, rep);
+  V<Word32> Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+    return Comparison(left, right, ComparisonOp::Kind::kEqual, rep);
   }
 
-#define DECL_SINGLE_REP_EQUAL_V(name, operation, tag)                  \
-  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {            \
-    return ReduceIfReachable##operation(resolve(left), resolve(right), \
-                                        V<tag>::rep);                  \
+  V<Word32> TaggedEqual(V<Object> left, V<Object> right) {
+    return Equal(left, right, RegisterRepresentation::Tagged());
   }
-  DECL_SINGLE_REP_EQUAL_V(Word32Equal, Equal, Word32)
-  DECL_SINGLE_REP_EQUAL_V(Word64Equal, Equal, Word64)
-  DECL_SINGLE_REP_EQUAL_V(WordPtrEqual, Equal, WordPtr)
-  DECL_SINGLE_REP_EQUAL_V(Float32Equal, Equal, Float32)
-  DECL_SINGLE_REP_EQUAL_V(Float64Equal, Equal, Float64)
+
+#define DECL_SINGLE_REP_EQUAL_V(name, tag)                            \
+  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {           \
+    return ReduceIfReachableComparison(resolve(left), resolve(right), \
+                                       ComparisonOp::Kind::kEqual,    \
+                                       V<tag>::rep);                  \
+  }
+  DECL_SINGLE_REP_EQUAL_V(Word32Equal, Word32)
+  DECL_SINGLE_REP_EQUAL_V(Word64Equal, Word64)
+  DECL_SINGLE_REP_EQUAL_V(WordPtrEqual, WordPtr)
+  DECL_SINGLE_REP_EQUAL_V(Float32Equal, Float32)
+  DECL_SINGLE_REP_EQUAL_V(Float64Equal, Float64)
 #undef DECL_SINGLE_REP_EQUAL_V
 
-  DECL_SINGLE_REP_BINOP_NO_KIND(TaggedEqual, Equal,
-                                RegisterRepresentation::Tagged())
-
-#define DECL_SINGLE_REP_COMPARISON_V(name, operation, kind, tag)       \
-  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {            \
-    return ReduceIfReachable##operation(resolve(left), resolve(right), \
-                                        operation##Op::Kind::k##kind,  \
-                                        V<tag>::rep);                  \
+#define DECL_SINGLE_REP_COMPARISON_V(name, kind, tag)                 \
+  V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {           \
+    return ReduceIfReachableComparison(resolve(left), resolve(right), \
+                                       ComparisonOp::Kind::k##kind,   \
+                                       V<tag>::rep);                  \
   }
 
   DECL_MULTI_REP_BINOP(IntLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
-  DECL_SINGLE_REP_COMPARISON_V(Int32LessThan, Comparison, SignedLessThan,
-                               Word32)
-  DECL_SINGLE_REP_COMPARISON_V(Int64LessThan, Comparison, SignedLessThan,
-                               Word64)
-  DECL_SINGLE_REP_COMPARISON_V(IntPtrLessThan, Comparison, SignedLessThan,
-                               WordPtr)
+  DECL_SINGLE_REP_COMPARISON_V(Int32LessThan, SignedLessThan, Word32)
+  DECL_SINGLE_REP_COMPARISON_V(Int64LessThan, SignedLessThan, Word64)
+  DECL_SINGLE_REP_COMPARISON_V(IntPtrLessThan, SignedLessThan, WordPtr)
 
   DECL_MULTI_REP_BINOP(UintLessThan, Comparison, RegisterRepresentation,
                        UnsignedLessThan)
-  DECL_SINGLE_REP_COMPARISON_V(Uint32LessThan, Comparison, UnsignedLessThan,
-                               Word32)
-  DECL_SINGLE_REP_COMPARISON_V(Uint64LessThan, Comparison, UnsignedLessThan,
-                               Word64)
+  DECL_SINGLE_REP_COMPARISON_V(Uint32LessThan, UnsignedLessThan, Word32)
+  DECL_SINGLE_REP_COMPARISON_V(Uint64LessThan, UnsignedLessThan, Word64)
   DECL_SINGLE_REP_BINOP(UintPtrLessThan, Comparison, UnsignedLessThan,
                         WordRepresentation::PointerSized())
   DECL_MULTI_REP_BINOP(FloatLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
-  DECL_SINGLE_REP_COMPARISON_V(Float32LessThan, Comparison, SignedLessThan,
-                               Float32)
-  DECL_SINGLE_REP_COMPARISON_V(Float64LessThan, Comparison, SignedLessThan,
-                               Float64)
+  DECL_SINGLE_REP_COMPARISON_V(Float32LessThan, SignedLessThan, Float32)
+  DECL_SINGLE_REP_COMPARISON_V(Float64LessThan, SignedLessThan, Float64)
 
   DECL_MULTI_REP_BINOP(IntLessThanOrEqual, Comparison, RegisterRepresentation,
                        SignedLessThanOrEqual)
-  DECL_SINGLE_REP_COMPARISON_V(Int32LessThanOrEqual, Comparison,
-                               SignedLessThanOrEqual, Word32)
-  DECL_SINGLE_REP_COMPARISON_V(Int64LessThanOrEqual, Comparison,
-                               SignedLessThanOrEqual, Word64)
+  DECL_SINGLE_REP_COMPARISON_V(Int32LessThanOrEqual, SignedLessThanOrEqual,
+                               Word32)
+  DECL_SINGLE_REP_COMPARISON_V(Int64LessThanOrEqual, SignedLessThanOrEqual,
+                               Word64)
   DECL_MULTI_REP_BINOP(UintLessThanOrEqual, Comparison, RegisterRepresentation,
                        UnsignedLessThanOrEqual)
-  DECL_SINGLE_REP_COMPARISON_V(Uint32LessThanOrEqual, Comparison,
-                               UnsignedLessThanOrEqual, Word32)
-  DECL_SINGLE_REP_COMPARISON_V(Uint64LessThanOrEqual, Comparison,
-                               UnsignedLessThanOrEqual, Word64)
+  DECL_SINGLE_REP_COMPARISON_V(Uint32LessThanOrEqual, UnsignedLessThanOrEqual,
+                               Word32)
+  DECL_SINGLE_REP_COMPARISON_V(Uint64LessThanOrEqual, UnsignedLessThanOrEqual,
+                               Word64)
   DECL_SINGLE_REP_BINOP(UintPtrLessThanOrEqual, Comparison,
                         UnsignedLessThanOrEqual,
                         WordRepresentation::PointerSized())
   DECL_MULTI_REP_BINOP(FloatLessThanOrEqual, Comparison, RegisterRepresentation,
                        SignedLessThanOrEqual)
-  DECL_SINGLE_REP_COMPARISON_V(Float32LessThanOrEqual, Comparison,
-                               SignedLessThanOrEqual, Float32)
-  DECL_SINGLE_REP_COMPARISON_V(Float64LessThanOrEqual, Comparison,
-                               SignedLessThanOrEqual, Float64)
+  DECL_SINGLE_REP_COMPARISON_V(Float32LessThanOrEqual, SignedLessThanOrEqual,
+                               Float32)
+  DECL_SINGLE_REP_COMPARISON_V(Float64LessThanOrEqual, SignedLessThanOrEqual,
+                               Float64)
 #undef DECL_SINGLE_REP_COMPARISON_V
 
   OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,

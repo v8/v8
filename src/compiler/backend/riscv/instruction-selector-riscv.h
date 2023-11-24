@@ -522,9 +522,8 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
   if constexpr (Adapter::IsTurboshaft) {
     RiscvOperandGeneratorT<Adapter> g(selector);
     using namespace turboshaft;  // NOLINT(build/namespaces)
-    // A comparison can either be a CompareOp or an EqualOp.
     const Operation& compare = selector->Get(node);
-    DCHECK(compare.Is<ComparisonOp>() || compare.Is<EqualOp>());
+    DCHECK(compare.Is<ComparisonOp>());
     OpIndex lhs = compare.input(0);
     OpIndex rhs = compare.input(1);
     if (selector->MatchZero(rhs)) {

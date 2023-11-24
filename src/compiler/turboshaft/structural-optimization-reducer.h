@@ -9,6 +9,7 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/zone/zone.h"
 
 // The StructuralOptimizationReducer reducer is suitable for changing the
@@ -102,11 +103,11 @@ class StructuralOptimizationReducer : public Next {
     while (true) {
       // If we encounter a condition that is not equality, we can't turn it
       // into a switch case.
-      const EqualOp* equal = Asm()
-                                 .input_graph()
-                                 .Get(current_branch->condition())
-                                 .template TryCast<EqualOp>();
-      if (!equal || equal->rep != RegisterRepresentation::Word32()) {
+      const ComparisonOp* equal = Asm()
+                                      .input_graph()
+                                      .Get(current_branch->condition())
+                                      .template TryCast<Opmask::kWord32Equal>();
+      if (!equal) {
         TRACE(
             "\t [bailout] Branch with different condition than Word32 "
             "Equal.\n");

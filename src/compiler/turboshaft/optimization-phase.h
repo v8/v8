@@ -759,10 +759,6 @@ class GraphVisitor {
     return assembler().ReduceShift(MapToNewGraph(op.left()),
                                    MapToNewGraph(op.right()), op.kind, op.rep);
   }
-  OpIndex AssembleOutputGraphEqual(const EqualOp& op) {
-    return assembler().ReduceEqual(MapToNewGraph(op.left()),
-                                   MapToNewGraph(op.right()), op.rep);
-  }
   OpIndex AssembleOutputGraphComparison(const ComparisonOp& op) {
     return assembler().ReduceComparison(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);

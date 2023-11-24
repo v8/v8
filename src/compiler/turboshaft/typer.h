@@ -1431,6 +1431,7 @@ class Typer {
     auto l = TruncateWord32Input(lhs, true, zone);
     auto r = TruncateWord32Input(rhs, true, zone);
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1447,6 +1448,7 @@ class Typer {
                                    ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1465,6 +1467,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<32>::LessThan(lhs.AsFloat32(),
                                                  rhs.AsFloat32(), zone);
@@ -1481,6 +1486,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<64>::LessThan(lhs.AsFloat64(),
                                                  rhs.AsFloat64(), zone);

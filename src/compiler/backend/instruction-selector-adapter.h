@@ -1295,8 +1295,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return turboshaft::OverflowCheckedBinopOp::IsCommutative(binop->kind);
     } else if (const auto binop = op.TryCast<turboshaft::FloatBinopOp>()) {
       return turboshaft::FloatBinopOp::IsCommutative(binop->kind);
-    } else if (op.Is<turboshaft::EqualOp>()) {
-      return turboshaft::EqualOp::IsCommutative();
+    } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
+      return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
     }
     return false;
   }

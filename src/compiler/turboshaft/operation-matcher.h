@@ -278,8 +278,10 @@ class OperationMatcher {
 
   bool MatchEqual(OpIndex matched, OpIndex* left, OpIndex* right,
                   WordRepresentation rep) const {
-    const EqualOp* op = TryCast<EqualOp>(matched);
-    if (!op || rep != op->rep) return false;
+    const ComparisonOp* op = TryCast<ComparisonOp>(matched);
+    if (!op || op->kind != ComparisonOp::Kind::kEqual || rep != op->rep) {
+      return false;
+    }
     *left = op->left();
     *right = op->right();
     return true;

@@ -67,8 +67,6 @@ bool StaticCanonicalForLoopMatcher::MatchPhiCompareCst(
 
   if (const ComparisonOp* cmp = cond.TryCast<ComparisonOp>()) {
     *cmp_op = ComparisonKindToCmpOp(cmp->kind);
-  } else if (cond.Is<EqualOp>()) {
-    *cmp_op = CmpOp::kEqual;
   } else {
     return false;
   }
@@ -371,6 +369,8 @@ bool StaticCanonicalForLoopMatcher::HasFewIterations(
 constexpr StaticCanonicalForLoopMatcher::CmpOp
 StaticCanonicalForLoopMatcher::ComparisonKindToCmpOp(ComparisonOp::Kind kind) {
   switch (kind) {
+    case ComparisonOp::Kind::kEqual:
+      return CmpOp::kEqual;
     case ComparisonOp::Kind::kSignedLessThan:
       return CmpOp::kSignedLessThan;
     case ComparisonOp::Kind::kSignedLessThanOrEqual:

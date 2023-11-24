@@ -84,10 +84,6 @@ class CallWithReduceArgsHelper {
     return callback_(op.left(), op.right(), op.kind, op.rep);
   }
 
-  OpIndex operator()(const EqualOp& op) {
-    return callback_(op.left(), op.right(), op.rep);
-  }
-
   OpIndex operator()(const ComparisonOp& op) {
     return callback_(op.left(), op.right(), op.kind, op.rep);
   }

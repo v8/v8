@@ -567,34 +567,14 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
   }
   return AddNode(o, {GetNode(op.left()), right});
 }
-Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
-  const Operator* o;
-  switch (op.rep.value()) {
-    case RegisterRepresentation::Word32():
-      o = machine.Word32Equal();
-      break;
-    case RegisterRepresentation::Word64():
-      o = machine.Word64Equal();
-      break;
-    case RegisterRepresentation::Float32():
-      o = machine.Float32Equal();
-      break;
-    case RegisterRepresentation::Float64():
-      o = machine.Float64Equal();
-      break;
-    case RegisterRepresentation::Tagged():
-      o = machine.TaggedEqual();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
-}
 Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
   const Operator* o;
   switch (op.rep.value()) {
     case RegisterRepresentation::Word32():
       switch (op.kind) {
+        case ComparisonOp::Kind::kEqual:
+          o = machine.Word32Equal();
+          break;
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Int32LessThan();
           break;
@@ -611,6 +591,9 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
       break;
     case RegisterRepresentation::Word64():
       switch (op.kind) {
+        case ComparisonOp::Kind::kEqual:
+          o = machine.Word64Equal();
+          break;
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Int64LessThan();
           break;
@@ -627,6 +610,9 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
       break;
     case RegisterRepresentation::Float32():
       switch (op.kind) {
+        case ComparisonOp::Kind::kEqual:
+          o = machine.Float32Equal();
+          break;
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Float32LessThan();
           break;
@@ -640,12 +626,27 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
       break;
     case RegisterRepresentation::Float64():
       switch (op.kind) {
+        case ComparisonOp::Kind::kEqual:
+          o = machine.Float64Equal();
+          break;
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Float64LessThan();
           break;
         case ComparisonOp::Kind::kSignedLessThanOrEqual:
           o = machine.Float64LessThanOrEqual();
           break;
+        case ComparisonOp::Kind::kUnsignedLessThan:
+        case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+          UNREACHABLE();
+      }
+      break;
+    case RegisterRepresentation::Tagged():
+      switch (op.kind) {
+        case ComparisonOp::Kind::kEqual:
+          o = machine.TaggedEqual();
+          break;
+        case ComparisonOp::Kind::kSignedLessThan:
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
         case ComparisonOp::Kind::kUnsignedLessThan:
         case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
           UNREACHABLE();

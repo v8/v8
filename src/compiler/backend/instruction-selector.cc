@@ -1756,6 +1756,8 @@ FlagsCondition InstructionSelectorT<Adapter>::GetComparisonFlagCondition(
     const turboshaft::ComparisonOp& op) const {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   switch (op.kind) {
+    case ComparisonOp::Kind::kEqual:
+      return kEqual;
     case ComparisonOp::Kind::kSignedLessThan:
       return kSignedLessThan;
     case ComparisonOp::Kind::kSignedLessThanOrEqual:
@@ -4868,32 +4870,23 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     }
     case Opcode::kStackPointerGreaterThan:
       return VisitStackPointerGreaterThan(node);
-    case Opcode::kEqual: {
-      const turboshaft::EqualOp& equal = op.Cast<turboshaft::EqualOp>();
-      switch (equal.rep.value()) {
-        case Rep::Word32():
-          return VisitWord32Equal(node);
-        case Rep::Word64():
-          return VisitWord64Equal(node);
-        case Rep::Float32():
-          return VisitFloat32Equal(node);
-        case Rep::Float64():
-          return VisitFloat64Equal(node);
-        case Rep::Tagged():
-          if constexpr (Is64() && !COMPRESS_POINTERS_BOOL) {
-            return VisitWord64Equal(node);
-          }
-          return VisitWord32Equal(node);
-        case Rep::Simd128():
-        case Rep::Compressed():
-          UNIMPLEMENTED();
-      }
-      UNREACHABLE();
-    }
     case Opcode::kComparison: {
       const ComparisonOp& comparison = op.Cast<ComparisonOp>();
       using Kind = ComparisonOp::Kind;
       switch (multi(comparison.kind, comparison.rep)) {
+        case multi(Kind::kEqual, Rep::Word32()):
+          return VisitWord32Equal(node);
+        case multi(Kind::kEqual, Rep::Word64()):
+          return VisitWord64Equal(node);
+        case multi(Kind::kEqual, Rep::Float32()):
+          return VisitFloat32Equal(node);
+        case multi(Kind::kEqual, Rep::Float64()):
+          return VisitFloat64Equal(node);
+        case multi(Kind::kEqual, Rep::Tagged()):
+          if constexpr (Is64() && !COMPRESS_POINTERS_BOOL) {
+            return VisitWord64Equal(node);
+          }
+          return VisitWord32Equal(node);
         case multi(Kind::kSignedLessThan, Rep::Word32()):
           return VisitInt32LessThan(node);
         case multi(Kind::kSignedLessThan, Rep::Word64()):

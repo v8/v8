@@ -231,7 +231,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WordUnary)                               \
   V(FloatUnary)                              \
   V(Shift)                                   \
-  V(Equal)                                   \
   V(Comparison)                              \
   V(Change)                                  \
   V(TryChange)                               \
@@ -1594,53 +1593,9 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
 };
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind);
 
-struct EqualOp : FixedArityOperationT<2, EqualOp> {
-  RegisterRepresentation rep;
-
-  static constexpr OpEffects effects = OpEffects();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32()>();
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InputsRepFactory::PairOf(rep);
-  }
-
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
-
-  static bool IsCommutative() { return true; }
-
-  bool ValidInputRep(
-      base::Vector<const RegisterRepresentation> input_reps) const;
-
-  EqualOp(OpIndex left, OpIndex right, RegisterRepresentation rep)
-      : Base(left, right), rep(rep) {}
-
-  void Validate(const Graph& graph) const {
-#ifdef DEBUG
-    DCHECK(rep == any_of(RegisterRepresentation::Word32(),
-                         RegisterRepresentation::Word64(),
-                         RegisterRepresentation::Float32(),
-                         RegisterRepresentation::Float64(),
-                         RegisterRepresentation::Tagged()));
-    RegisterRepresentation input_rep = rep;
-#ifdef V8_COMPRESS_POINTERS
-    // In the presence of pointer compression, we only compare the lower 32bit.
-    if (input_rep == RegisterRepresentation::Tagged()) {
-      input_rep = RegisterRepresentation::Compressed();
-    }
-#endif  // V8_COMPRESS_POINTERS
-    DCHECK(ValidOpInputRep(graph, left(), input_rep));
-    DCHECK(ValidOpInputRep(graph, right(), input_rep));
-#endif  // DEBUG
-  }
-  auto options() const { return std::tuple{rep}; }
-};
-
 struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   enum class Kind : uint8_t {
+    kEqual,
     kSignedLessThan,
     kSignedLessThanOrEqual,
     kUnsignedLessThan,
@@ -1659,6 +1614,8 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
     return InputsRepFactory::PairOf(rep);
   }
 
+  static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
+
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
@@ -1667,51 +1624,39 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
       : Base(left, right), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK_EQ(rep, any_of(RegisterRepresentation::Word32(),
-                          RegisterRepresentation::Word64(),
-                          RegisterRepresentation::Float32(),
-                          RegisterRepresentation::Float64()));
-    DCHECK_IMPLIES(
-        rep == any_of(RegisterRepresentation::Float32(),
-                      RegisterRepresentation::Float64()),
-        kind == any_of(Kind::kSignedLessThan, Kind::kSignedLessThanOrEqual));
+    if (kind == Kind::kEqual) {
+      DCHECK(rep == any_of(RegisterRepresentation::Word32(),
+                           RegisterRepresentation::Word64(),
+                           RegisterRepresentation::Float32(),
+                           RegisterRepresentation::Float64(),
+                           RegisterRepresentation::Tagged()));
+
+      RegisterRepresentation input_rep = rep;
+#ifdef V8_COMPRESS_POINTERS
+      // In the presence of pointer compression, we only compare the lower
+      // 32bit.
+      if (input_rep == RegisterRepresentation::Tagged()) {
+        input_rep = RegisterRepresentation::Compressed();
+      }
+#endif  // V8_COMPRESS_POINTERS
+      DCHECK(ValidOpInputRep(graph, left(), input_rep));
+      DCHECK(ValidOpInputRep(graph, right(), input_rep));
+      USE(input_rep);
+    } else {
+      DCHECK_EQ(rep, any_of(RegisterRepresentation::Word32(),
+                            RegisterRepresentation::Word64(),
+                            RegisterRepresentation::Float32(),
+                            RegisterRepresentation::Float64()));
+      DCHECK_IMPLIES(
+          rep == any_of(RegisterRepresentation::Float32(),
+                        RegisterRepresentation::Float64()),
+          kind == any_of(Kind::kSignedLessThan, Kind::kSignedLessThanOrEqual));
+    }
   }
   auto options() const { return std::tuple{kind, rep}; }
-
-  static bool IsLessThan(Kind kind) {
-    switch (kind) {
-      case Kind::kSignedLessThan:
-      case Kind::kUnsignedLessThan:
-        return true;
-      case Kind::kSignedLessThanOrEqual:
-      case Kind::kUnsignedLessThanOrEqual:
-        return false;
-    }
-  }
-  static bool IsSigned(Kind kind) {
-    switch (kind) {
-      case Kind::kSignedLessThan:
-      case Kind::kSignedLessThanOrEqual:
-        return true;
-      case Kind::kUnsignedLessThan:
-      case Kind::kUnsignedLessThanOrEqual:
-        return false;
-    }
-  }
-  static Kind SetSigned(Kind kind, bool is_signed) {
-    switch (kind) {
-      case Kind::kSignedLessThan:
-      case Kind::kUnsignedLessThan:
-        return is_signed ? Kind::kSignedLessThan : Kind::kUnsignedLessThan;
-      case Kind::kSignedLessThanOrEqual:
-      case Kind::kUnsignedLessThanOrEqual:
-        return is_signed ? Kind::kSignedLessThanOrEqual
-                         : Kind::kUnsignedLessThanOrEqual;
-    }
-  }
 };
 std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind);
-DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 4)
+DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 8)
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   enum class Kind : uint8_t {

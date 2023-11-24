@@ -2405,39 +2405,19 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  const EqualOp* equal = TryCast<EqualOp>(value);
-  while (equal != nullptr && CanCover(user, value)) {
+  while (const ComparisonOp* equal =
+             this->TryCast<Opmask::kWord32Equal>(value)) {
+    if (!CanCover(user, value)) break;
     if (!MatchIntegralZero(equal->right())) break;
+
     user = value;
     value = equal->left();
     cont->Negate();
-    equal = TryCast<EqualOp>(value);
   }
+
   const Operation& value_op = Get(value);
   if (CanCover(user, value)) {
-    if (const EqualOp* equal = value_op.TryCast<EqualOp>()) {
-      switch (equal->rep.value()) {
-        case RegisterRepresentation::Word32():
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitWord32Compare(this, value, cont);
-
-        case RegisterRepresentation::Word64():
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitWord64Compare(this, value, cont);
-
-        case RegisterRepresentation::Float32():
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitFloat32Compare(this, value, cont);
-
-        case RegisterRepresentation::Float64():
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitFloat64Compare(this, value, cont);
-
-        default:
-          break;
-      }
-    } else if (const ComparisonOp* comparison =
-                   value_op.TryCast<ComparisonOp>()) {
+    if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
       switch (comparison->rep.value()) {
         case RegisterRepresentation::Word32():
           cont->OverwriteAndNegateIfEqual(
@@ -2450,26 +2430,36 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
           return VisitWord64Compare(this, value, cont);
 
         case RegisterRepresentation::Float32():
-          if (comparison->kind == ComparisonOp::Kind::kSignedLessThan) {
-            cont->OverwriteAndNegateIfEqual(kFloatLessThan);
-            return VisitFloat32Compare(this, value, cont);
-          } else {
-            CHECK_EQ(comparison->kind,
-                     ComparisonOp::Kind::kSignedLessThanOrEqual);
-            cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
-            return VisitFloat32Compare(this, value, cont);
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat32Compare(this, value, cont);
+            default:
+              UNREACHABLE();
           }
+          break;
 
         case RegisterRepresentation::Float64():
-          if (comparison->kind == ComparisonOp::Kind::kSignedLessThan) {
-            cont->OverwriteAndNegateIfEqual(kFloatLessThan);
-            return VisitFloat64Compare(this, value, cont);
-          } else {
-            CHECK_EQ(comparison->kind,
-                     ComparisonOp::Kind::kSignedLessThanOrEqual);
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat64Compare(this, value, cont);
+          case ComparisonOp::Kind::kSignedLessThanOrEqual);
             cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
             return VisitFloat64Compare(this, value, cont);
+            default:
+            UNREACHABLE();
           }
+          break;
 
         default:
           break;
@@ -2565,7 +2555,7 @@ template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const Operation& equal = Get(node);
-  DCHECK(equal.Is<EqualOp>() || equal.Is<ComparisonOp>());
+  DCHECK(equal.Is<ComparisonOp>());
   OpIndex left = equal.input(0);
   OpIndex right = equal.input(1);
   OpIndex user = node;
@@ -2726,7 +2716,8 @@ void InstructionSelectorT<Adapter>::VisitWord64Equal(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-    const EqualOp& equal = this->Get(node).template Cast<EqualOp>();
+    const ComparisonOp& equal = this->Get(node).template Cast<ComparisonOp>();
+    DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
     if (this->MatchIntegralZero(equal.right())) {
       return VisitWordCompareZero(node, equal.left(), &cont);
     }

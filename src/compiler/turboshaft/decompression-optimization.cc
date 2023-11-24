@@ -103,14 +103,6 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
       }
       break;
     }
-    case Opcode::kEqual: {
-      auto& equal = op.Cast<EqualOp>();
-      if (equal.rep == WordRepresentation::Word64()) {
-        MarkAsNeedsDecompression(equal.left());
-        MarkAsNeedsDecompression(equal.right());
-      }
-      break;
-    }
     case Opcode::kComparison: {
       auto& comp = op.Cast<ComparisonOp>();
       if (comp.rep == WordRepresentation::Word64()) {

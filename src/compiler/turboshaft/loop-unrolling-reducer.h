@@ -100,7 +100,7 @@ class LoopUnrollingAnalyzer {
   //    for (let i = 0; i < 4; i++) { ... }
   //
   // where `i++` could alternatively be pretty much any WordBinopOp or
-  // OverflowCheckedBinopOp, and `i < 4` could be any ComparisonOp or EqualOp.
+  // OverflowCheckedBinopOp, and `i < 4` could be any ComparisonOp.
   // Such loops, if small enough, could be fully unrolled.
   //
   // Loops that don't have statically-known bounds could still be partially

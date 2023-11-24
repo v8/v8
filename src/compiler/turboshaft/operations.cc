@@ -301,6 +301,8 @@ std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind) {
 
 std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind) {
   switch (kind) {
+    case ComparisonOp::Kind::kEqual:
+      return os << "Equal";
     case ComparisonOp::Kind::kSignedLessThan:
       return os << "SignedLessThan";
     case ComparisonOp::Kind::kSignedLessThanOrEqual:
