@@ -11,6 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-entity-table.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -124,13 +125,14 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Sets the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline void Set(TrustedPointerHandle handle, Address value);
+  inline void Set(TrustedPointerHandle handle, Address pointer,
+                  IndirectPointerTag tag);
 
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
-  inline TrustedPointerHandle AllocateAndInitializeEntry(Space* space,
-                                                          Address value);
+  inline TrustedPointerHandle AllocateAndInitializeEntry(
+      Space* space, Address pointer, IndirectPointerTag tag);
 
   // Marks the specified entry as alive.
   //
@@ -151,6 +153,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
  private:
   inline uint32_t HandleToIndex(TrustedPointerHandle handle) const;
   inline TrustedPointerHandle IndexToHandle(uint32_t index) const;
+
+  // Ensure that the value is valid before storing it into this table.
+  inline void Validate(Address pointer, IndirectPointerTag tag);
 };
 
 static_assert(sizeof(TrustedPointerTable) == TrustedPointerTable::kSize);

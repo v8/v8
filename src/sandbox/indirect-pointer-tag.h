@@ -87,6 +87,17 @@ V8_INLINE constexpr bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
 #undef VALID_INDIRECT_POINTER_TAG_CASE
 }
 
+// Migrating objects into trusted space is typically performed in multiple
+// steps, where all references to the object from inside the sandbox are first
+// changed to indirect pointers before actually moving the object out of the
+// sandbox. As we have CHECKs that trusted pointer table entries point outside
+// of the sandbox, we need this helper function to disable that CHECK for
+// objects that are in the process of being migrated into trusted space.
+V8_INLINE constexpr bool IsTrustedSpaceMigrationInProgressForObjectsWithTag(
+    IndirectPointerTag tag) {
+  return tag == kInterpreterDataIndirectPointerTag;
+}
+
 // The null tag is also considered an invalid tag since no indirect pointer
 // field should be using this tag.
 static_assert(!IsValidIndirectPointerTag(kIndirectPointerNullTag));

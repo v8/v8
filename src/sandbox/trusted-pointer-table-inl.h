@@ -6,6 +6,7 @@
 #define V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_
 
 #include "src/sandbox/external-entity-table-inl.h"
+#include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
 #ifdef V8_ENABLE_SANDBOX
@@ -75,17 +76,20 @@ Address TrustedPointerTable::Get(TrustedPointerHandle handle) const {
   return at(index).GetContent();
 }
 
-void TrustedPointerTable::Set(TrustedPointerHandle handle, Address content) {
+void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
+                              IndirectPointerTag tag) {
   DCHECK_NE(kNullTrustedPointerHandle, handle);
+  Validate(pointer, tag);
   uint32_t index = HandleToIndex(handle);
-  at(index).SetContent(content);
+  at(index).SetContent(pointer);
 }
 
 TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
-    Space* space, Address content) {
+    Space* space, Address pointer, IndirectPointerTag tag) {
   DCHECK(space->BelongsTo(this));
+  Validate(pointer, tag);
   uint32_t index = AllocateEntry(space);
-  at(index).MakeTrustedPointerEntry(content);
+  at(index).MakeTrustedPointerEntry(pointer);
   return IndexToHandle(index);
 }
 
@@ -110,6 +114,20 @@ TrustedPointerHandle TrustedPointerTable::IndexToHandle(uint32_t index) const {
   TrustedPointerHandle handle = index << kTrustedPointerHandleShift;
   DCHECK_EQ(index, handle >> kTrustedPointerHandleShift);
   return handle;
+}
+
+void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
+  if (IsTrustedSpaceMigrationInProgressForObjectsWithTag(tag)) {
+    // This CHECK is mostly just here to force tags to be taken out of the
+    // IsTrustedSpaceMigrationInProgressForObjectsWithTag function once the
+    // objects are fully migrated into trusted space.
+    DCHECK(GetProcessWideSandbox()->Contains(pointer));
+    return;
+  }
+
+  // Entries must never point into the sandbox, as they couldn't be trusted in
+  // that case. This CHECK is a defense-in-depth mechanism to guarantee this.
+  CHECK(!GetProcessWideSandbox()->Contains(pointer));
 }
 
 }  // namespace internal

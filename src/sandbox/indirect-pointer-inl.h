@@ -33,7 +33,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   } else {
     TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
     handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(
-        space, host.ptr());
+        space, host.ptr(), tag);
   }
 
   // Use a Release_Store to ensure that the store of the pointer into the table

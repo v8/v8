@@ -1312,6 +1312,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                             IndirectPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
+    DCHECK(IsValidIndirectPointerTag(slot.tag()));
+
     // When an object with a "self" indirect pointer is relocated, it needs to
     // update the pointer table entry to point to its new location.
     // TODO(saelo): This is probably not quite the right place for this code,
@@ -1325,7 +1327,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
       GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
     } else {
       TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
-      table.Set(handle, host.ptr());
+      table.Set(handle, host.ptr(), slot.tag());
     }
 #else
     UNREACHABLE();
