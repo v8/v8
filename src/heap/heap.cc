@@ -524,6 +524,10 @@ bool Heap::ShouldUseBackgroundThreads() const {
          !isolate()->IsIsolateInBackground();
 }
 
+bool Heap::ShouldOptimizeForBattery() const {
+  return v8_flags.optimize_gc_for_battery;
+}
+
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
                                               const char** reason) const {

@@ -688,6 +688,9 @@ class Heap final {
 
   V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsage();
 
+  // Returns true when GC should optimize for battery.
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForBattery() const;
+
   bool HighMemoryPressure() {
     return memory_pressure_level_.load(std::memory_order_relaxed) !=
            v8::MemoryPressureLevel::kNone;
