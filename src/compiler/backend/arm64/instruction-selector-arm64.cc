@@ -221,6 +221,7 @@ void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
                  g.UseRegister(selector->input_at(node, 1)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
 void VisitSimdShiftRRR(InstructionSelectorT<Adapter>* selector,
                        ArchOpcode opcode, typename Adapter::node_t node,
@@ -260,15 +261,6 @@ void VisitRRI(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 }
 
 template <typename Adapter>
-void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-              typename Adapter::node_t node, ImmediateMode operand_mode) {
-  Arm64OperandGeneratorT<Adapter> g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseOperand(selector->input_at(node, 1), operand_mode));
-}
-
-template <typename Adapter>
 void VisitRRIR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
                typename Adapter::node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
@@ -284,6 +276,16 @@ void VisitRRIR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
                    g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                    g.UseUniqueRegister(node->InputAt(1)));
   }
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+template <typename Adapter>
+void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
+              typename Adapter::node_t node, ImmediateMode operand_mode) {
+  Arm64OperandGeneratorT<Adapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseOperand(selector->input_at(node, 1), operand_mode));
 }
 
 template <typename Adapter>
@@ -1284,6 +1286,7 @@ InstructionOperand EmitAddBeforeLoadOrStore(
 }
 }  // namespace
 
+#if V8_ENABLE_WEBASSEMBLY
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
@@ -1529,6 +1532,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
@@ -2849,14 +2853,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(Word64ReverseBits, kArm64Rbit)                            \
   V(Word32ReverseBytes, kArm64Rev32)                          \
   V(Word64ReverseBytes, kArm64Rev)                            \
-  V(F32x4Ceil, kArm64Float32RoundUp)                          \
-  V(F32x4Floor, kArm64Float32RoundDown)                       \
-  V(F32x4Trunc, kArm64Float32RoundTruncate)                   \
-  V(F32x4NearestInt, kArm64Float32RoundTiesEven)              \
-  V(F64x2Ceil, kArm64Float64RoundUp)                          \
-  V(F64x2Floor, kArm64Float64RoundDown)                       \
-  V(F64x2Trunc, kArm64Float64RoundTruncate)                   \
-  V(F64x2NearestInt, kArm64Float64RoundTiesEven)
+  IF_WASM(V, F32x4Ceil, kArm64Float32RoundUp)                 \
+  IF_WASM(V, F32x4Floor, kArm64Float32RoundDown)              \
+  IF_WASM(V, F32x4Trunc, kArm64Float32RoundTruncate)          \
+  IF_WASM(V, F32x4NearestInt, kArm64Float32RoundTiesEven)     \
+  IF_WASM(V, F64x2Ceil, kArm64Float64RoundUp)                 \
+  IF_WASM(V, F64x2Floor, kArm64Float64RoundDown)              \
+  IF_WASM(V, F64x2Trunc, kArm64Float64RoundTruncate)          \
+  IF_WASM(V, F64x2NearestInt, kArm64Float64RoundTiesEven)
 
 #define RRR_OP_T_LIST(V)          \
   V(Int32Div, kArm64Idiv32)       \
@@ -2877,7 +2881,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
   V(Float64Min, kArm64Float64Min) \
-  V(I8x16Swizzle, kArm64I8x16Swizzle)
+  IF_WASM(V, I8x16Swizzle, kArm64I8x16Swizzle)
 
 #define RR_VISITOR(Name, opcode)                                 \
   template <typename Adapter>                                    \
@@ -3268,6 +3272,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt64Mul(Node* node) {
   VisitRRR(this, kArm64Mul, node);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 template <typename Adapter>
 void VisitExtMul(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
@@ -3337,17 +3342,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2ExtMulHighI32x4U(node_t node) {
   VisitExtMul(this, kArm64Umull2, node, 64);
 }
-
-namespace {
-template <typename Adapter>
-void VisitExtAddPairwise(InstructionSelectorT<Adapter>* selector,
-                         ArchOpcode opcode, typename Adapter::node_t node,
-                         int dst_lane_size) {
-  InstructionCode code = opcode;
-  code |= LaneSizeField::encode(dst_lane_size);
-  VisitRR(selector, code, node);
-}
-}  // namespace
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <>
 Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
@@ -3386,6 +3381,18 @@ InstructionSelectorT<TurboshaftAdapter>::FindProjection(
   return turboshaft::OpIndex::Invalid();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+namespace {
+template <typename Adapter>
+void VisitExtAddPairwise(InstructionSelectorT<Adapter>* selector,
+                         ArchOpcode opcode, typename Adapter::node_t node,
+                         int dst_lane_size) {
+  InstructionCode code = opcode;
+  code |= LaneSizeField::encode(dst_lane_size);
+  VisitRR(selector, code, node);
+}
+}  // namespace
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8S(
     node_t node) {
@@ -3409,6 +3416,7 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
     node_t node) {
   VisitExtAddPairwise(this, kArm64Uaddlp, node, 16);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
@@ -6229,6 +6237,7 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 #define SIMD_UNOP_LIST(V)                                       \
   V(F64x2ConvertLowI32x4S, kArm64F64x2ConvertLowI32x4S)         \
   V(F64x2ConvertLowI32x4U, kArm64F64x2ConvertLowI32x4U)         \
@@ -6638,7 +6647,6 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
   Node* dup_node = nullptr;
 
   int index = 0;
-#if V8_ENABLE_WEBASSEMBLY
   BinopWithShuffleMatcher m = BinopWithShuffleMatcher(node);
   ShuffleMatcher left = m.left();
   ShuffleMatcher right = m.right();
@@ -6661,7 +6669,6 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
     dup_node = right.node()->InputAt(index < LANES ? 0 : 1);
     input = left.node();
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Canonicalization would get rid of this too.
   index %= LANES;
@@ -7049,7 +7056,6 @@ VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
-#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct ShuffleEntry {
@@ -7217,12 +7223,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
        &input);
 }
 
-#else
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(
-    typename Adapter::node_t node) {
-  UNREACHABLE();
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
@@ -7250,6 +7250,7 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
   VisitRR(this, kArm64Sxtw, node);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 template <typename Adapter>
 void VisitPminOrPmax(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
@@ -7360,6 +7361,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Popcnt(node_t node) {
   code |= LaneSizeField::encode(8);
   VisitRR(this, code, node);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(

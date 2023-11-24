@@ -149,6 +149,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       case MachineRepresentation::kFloat64:
         element = __ LoadHeapNumberValue(__ CAST(element));
         break;
+#if V8_ENABLE_WEBASSEMBLY
       case MachineRepresentation::kSimd128: {
         Node* vector = tester.raw_assembler_for_testing()->AddNode(
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
@@ -164,6 +165,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
         element = vector;
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
     }
@@ -244,6 +246,7 @@ Handle<Code> BuildTeardownFunction(
             __ IntPtrConstant(HeapNumber::kValueOffset),
             __ UncheckedCast<Float64T>(param));
       } break;
+#if V8_ENABLE_WEBASSEMBLY
       case MachineRepresentation::kSimd128: {
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
@@ -259,6 +262,7 @@ Handle<Code> BuildTeardownFunction(
         }
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
     }

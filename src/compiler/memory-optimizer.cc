@@ -37,8 +37,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadField:
     case IrOpcode::kLoadFromObject:
     case IrOpcode::kLoadImmutableFromObject:
-    case IrOpcode::kLoadLane:
-    case IrOpcode::kLoadTransform:
     case IrOpcode::kMemoryBarrier:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kLoadTrapOnNull:
@@ -47,6 +45,9 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
 #if V8_ENABLE_WEBASSEMBLY
+    case IrOpcode::kLoadLane:
+    case IrOpcode::kLoadTransform:
+    case IrOpcode::kStoreLane:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kSetStackPointer:
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -57,7 +58,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
-    case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
     case IrOpcode::kTraceInstruction:
     case IrOpcode::kInitializeImmutableInObject:

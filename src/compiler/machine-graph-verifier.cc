@@ -228,11 +228,14 @@ class MachineRepresentationInferrer {
           case IrOpcode::kTruncateFloat32ToInt32:
           case IrOpcode::kTruncateFloat32ToUint32:
           case IrOpcode::kBitcastFloat32ToInt32:
+#if V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kI32x4ExtractLane:
           case IrOpcode::kI16x8ExtractLaneU:
           case IrOpcode::kI16x8ExtractLaneS:
           case IrOpcode::kI8x16ExtractLaneU:
           case IrOpcode::kI8x16ExtractLaneS:
+          case IrOpcode::kI8x16BitMask:
+#endif  // V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kInt32Constant:
           case IrOpcode::kRelocatableInt32Constant:
           case IrOpcode::kTruncateFloat64ToWord32:
@@ -243,7 +246,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kFloat64ExtractLowWord32:
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kWord32Popcnt:
-          case IrOpcode::kI8x16BitMask:
             MACHINE_UNOP_32_LIST(LABEL)
             MACHINE_BINOP_32_LIST(LABEL) {
               representation_vector_[node->id()] =
@@ -295,6 +297,7 @@ class MachineRepresentationInferrer {
                   MachineRepresentation::kFloat64;
             }
             break;
+#if V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kI32x4ReplaceLane:
           case IrOpcode::kI32x4Splat:
           case IrOpcode::kI8x16Splat:
@@ -302,6 +305,7 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] =
                 MachineRepresentation::kSimd128;
             break;
+#endif  // V8_ENABLE_WEBASSEMBLY
 #undef LABEL
           default:
             break;
@@ -409,6 +413,7 @@ class MachineRepresentationChecker {
             CheckValueInputForInt64Op(node, 0);
             CheckValueInputForInt64Op(node, 1);
             break;
+#if V8_ENABLE_WEBASSEMBLY
           case IrOpcode::kI32x4ExtractLane:
           case IrOpcode::kI16x8ExtractLaneU:
           case IrOpcode::kI16x8ExtractLaneS:
@@ -433,6 +438,7 @@ class MachineRepresentationChecker {
             CheckValueInputRepresentationIs(node, 1,
                                             MachineRepresentation::kSimd128);
             break;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define LABEL(opcode) case IrOpcode::k##opcode:
           case IrOpcode::kChangeInt32ToTagged:

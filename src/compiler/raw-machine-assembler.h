@@ -943,6 +943,20 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->Float64SilenceNaN(), a);
   }
 
+  // Stack operations.
+  Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
+  Node* LoadParentFramePointer() {
+    return AddNode(machine()->LoadParentFramePointer());
+  }
+
+  // SIMD operations that are needed outside of Wasm (e.g. in swisstable).
+  Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
+  Node* I8x16BitMask(Node* a) { return AddNode(machine()->I8x16BitMask(), a); }
+  Node* I8x16Eq(Node* a, Node* b) {
+    return AddNode(machine()->I8x16Eq(), a, b);
+  }
+
+#if V8_ENABLE_WEBASSEMBLY
   // SIMD operations.
   Node* S128Const(const uint8_t value[16]) {
     return AddNode(machine()->S128Const(value));
@@ -953,20 +967,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* I32x4Splat(Node* a) { return AddNode(machine()->I32x4Splat(), a); }
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
-  Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
 
-  Node* I8x16BitMask(Node* a) { return AddNode(machine()->I8x16BitMask(), a); }
-
-  Node* I8x16Eq(Node* a, Node* b) {
-    return AddNode(machine()->I8x16Eq(), a, b);
-  }
-
-  // Stack operations.
-  Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
-  Node* LoadParentFramePointer() {
-    return AddNode(machine()->LoadParentFramePointer());
-  }
-#if V8_ENABLE_WEBASSEMBLY
   Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
   void SetStackPointer(Node* ptr, wasm::FPRelativeScope fp_scope) {
     AddNode(machine()->SetStackPointer(fp_scope), ptr);

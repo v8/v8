@@ -200,8 +200,10 @@ struct TurbofanAdapter {
     LoadRepresentation loaded_rep() const {
       if (is_atomic()) {
         return AtomicLoadParametersOf(node_->op()).representation();
+#if V8_ENABLE_WEBASSEMBLY
       } else if (node_->opcode() == IrOpcode::kF64x2PromoteLowF32x4) {
         return LoadRepresentation::Simd128();
+#endif  // V8_ENABLE_WEBASSEMBLY
       }
       return LoadRepresentationOf(node_->op());
     }
@@ -449,14 +451,21 @@ struct TurbofanAdapter {
     }
   }
   bool is_load(node_t node) const {
-    return node->opcode() == IrOpcode::kLoad ||
-           node->opcode() == IrOpcode::kLoadImmutable ||
-           node->opcode() == IrOpcode::kProtectedLoad ||
-           node->opcode() == IrOpcode::kLoadTrapOnNull ||
-           node->opcode() == IrOpcode::kWord32AtomicLoad ||
-           node->opcode() == IrOpcode::kWord64AtomicLoad ||
-           node->opcode() == IrOpcode::kLoadTransform ||
-           node->opcode() == IrOpcode::kF64x2PromoteLowF32x4;
+    switch (node->opcode()) {
+      case IrOpcode::kLoad:
+      case IrOpcode::kLoadImmutable:
+      case IrOpcode::kProtectedLoad:
+      case IrOpcode::kLoadTrapOnNull:
+      case IrOpcode::kWord32AtomicLoad:
+      case IrOpcode::kWord64AtomicLoad:
+#if V8_ENABLE_WEBASSEMBLY
+      case IrOpcode::kLoadTransform:
+      case IrOpcode::kF64x2PromoteLowF32x4:
+#endif  // V8_ENABLE_WEBASSEMBLY
+        return true;
+      default:
+        return false;
+    }
   }
   bool is_load_root_register(node_t node) const {
     return node->opcode() == IrOpcode::kLoadRootRegister;

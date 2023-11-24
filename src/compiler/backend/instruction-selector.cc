@@ -1590,11 +1590,13 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
       case IrOpcode::kProtectedStore:
       case IrOpcode::kLoadTrapOnNull:
       case IrOpcode::kStoreTrapOnNull:
+#if V8_ENABLE_WEBASSEMBLY
       case IrOpcode::kLoadTransform:
       case IrOpcode::kLoadLane:
+      case IrOpcode::kStoreLane:
+#endif  // V8_ENABLE_WEBASSEMBLY
       case IrOpcode::kLoad:
       case IrOpcode::kStore:
-      case IrOpcode::kStoreLane:
       case IrOpcode::kWord32AtomicLoad:
       case IrOpcode::kWord32AtomicStore:
       case IrOpcode::kWord32AtomicAdd:
@@ -1683,6 +1685,7 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
     if constexpr (Adapter::IsTurboshaft) {
       source_position = (*source_positions_)[node];
     } else {
+#if V8_ENABLE_WEBASSEMBLY
       if (V8_UNLIKELY(node->opcode() == IrOpcode::kF64x2PromoteLowF32x4)) {
         // On x64 there exists an optimization that folds
         // `kF64x2PromoteLowF32x4` and `kS128Load64Zero` together into a single
@@ -1698,6 +1701,7 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
           node = input;
         }
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       source_position = source_positions_->GetSourcePosition(node);
     }
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
@@ -1782,6 +1786,7 @@ void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(node_t node) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI8x16RelaxedSwizzle(
     node_t node) {
@@ -1793,6 +1798,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16RelaxedSwizzle(
     node_t node) {
   return VisitI8x16Swizzle(node);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(node_t node) {
@@ -2135,8 +2141,8 @@ VISIT_UNSUPPORTED_OP(Word64AtomicCompareExchange)
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
 // This is only needed on 32-bit to split the 64-bit value into two operands.
-VISIT_UNSUPPORTED_OP(I64x2SplatI32Pair)
-VISIT_UNSUPPORTED_OP(I64x2ReplaceLaneI32Pair)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2SplatI32Pair)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ReplaceLaneI32Pair)
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&
         // !V8_TARGET_ARCH_RISCV32
 
@@ -2145,9 +2151,9 @@ VISIT_UNSUPPORTED_OP(I64x2ReplaceLaneI32Pair)
 #if !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 && \
     !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_RISCV64
 
-VISIT_UNSUPPORTED_OP(I64x2Splat)
-VISIT_UNSUPPORTED_OP(I64x2ExtractLane)
-VISIT_UNSUPPORTED_OP(I64x2ReplaceLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2Splat)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ExtractLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ReplaceLane)
 
 #endif  // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
@@ -3086,6 +3092,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);
     }
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kLoadTransform: {
       LoadTransformParameters params = LoadTransformParametersOf(node->op());
       if (params.transformation >= LoadTransformation::kFirst256Transform) {
@@ -3099,6 +3106,11 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadLane(node);
     }
+    case IrOpcode::kStoreLane: {
+      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      return VisitStoreLane(node);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kStore:
     case IrOpcode::kStoreIndirectPointer:
       return VisitStore(node);
@@ -3107,10 +3119,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStoreTrapOnNull:
       return VisitProtectedStore(node);
-    case IrOpcode::kStoreLane: {
-      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
-      return VisitStoreLane(node);
-    }
     case IrOpcode::kWord32And:
       return MarkAsWord32(node), VisitWord32And(node);
     case IrOpcode::kWord32Or:
@@ -3575,6 +3583,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitSignExtendWord16ToInt64(node);
     case IrOpcode::kSignExtendWord32ToInt64:
       return MarkAsWord64(node), VisitSignExtendWord32ToInt64(node);
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kF64x2Splat:
       return MarkAsSimd128(node), VisitF64x2Splat(node);
     case IrOpcode::kF64x2ExtractLane:
@@ -4288,7 +4297,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI8x32Shuffle(node);
     case IrOpcode::kExtractF128:
       return MarkAsSimd128(node), VisitExtractF128(node);
-#endif  //  V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());

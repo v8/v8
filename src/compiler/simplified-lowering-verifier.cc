@@ -731,7 +731,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         break;
       }
       MACHINE_SIMD128_OP_LIST(CASE)
-      MACHINE_SIMD256_OP_LIST(CASE)
+      IF_WASM(MACHINE_SIMD256_OP_LIST, CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

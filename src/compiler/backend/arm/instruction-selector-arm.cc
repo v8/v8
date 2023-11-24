@@ -111,6 +111,7 @@ void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
                  g.UseRegister(node->InputAt(1)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void VisitSimdShiftRRR(InstructionSelectorT<TurboshaftAdapter>* selector,
                        ArchOpcode opcode, turboshaft::OpIndex node, int width) {
   UNIMPLEMENTED();
@@ -133,7 +134,6 @@ void VisitSimdShiftRRR(InstructionSelectorT<TurbofanAdapter>* selector,
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 void VisitRRRShuffle(InstructionSelectorT<TurbofanAdapter>* selector,
                      ArchOpcode opcode, Node* node) {
   ArmOperandGeneratorT<TurbofanAdapter> g(selector);
@@ -597,6 +597,7 @@ void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
   UNIMPLEMENTED();
@@ -705,6 +706,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   EmitAddBeforeS128LoadStore(this, &opcode, &input_count, &inputs[0]);
   Emit(opcode, 1, &output, input_count, inputs);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
@@ -1849,24 +1851,24 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   V(Float64Sqrt, kArmVsqrtF64)                       \
   V(Word32Clz, kArmClz)
 
-#define RR_OP_T_LIST_V8(V)                \
-  V(Float32RoundDown, kArmVrintmF32)      \
-  V(Float64RoundDown, kArmVrintmF64)      \
-  V(Float32RoundUp, kArmVrintpF32)        \
-  V(Float64RoundUp, kArmVrintpF64)        \
-  V(Float32RoundTruncate, kArmVrintzF32)  \
-  V(Float64RoundTruncate, kArmVrintzF64)  \
-  V(Float64RoundTiesAway, kArmVrintaF64)  \
-  V(Float32RoundTiesEven, kArmVrintnF32)  \
-  V(Float64RoundTiesEven, kArmVrintnF64)  \
-  V(F64x2Ceil, kArmF64x2Ceil)             \
-  V(F64x2Floor, kArmF64x2Floor)           \
-  V(F64x2Trunc, kArmF64x2Trunc)           \
-  V(F64x2NearestInt, kArmF64x2NearestInt) \
-  V(F32x4Ceil, kArmVrintpF32)             \
-  V(F32x4Floor, kArmVrintmF32)            \
-  V(F32x4Trunc, kArmVrintzF32)            \
-  V(F32x4NearestInt, kArmVrintnF32)
+#define RR_OP_T_LIST_V8(V)                         \
+  V(Float32RoundDown, kArmVrintmF32)               \
+  V(Float64RoundDown, kArmVrintmF64)               \
+  V(Float32RoundUp, kArmVrintpF32)                 \
+  V(Float64RoundUp, kArmVrintpF64)                 \
+  V(Float32RoundTruncate, kArmVrintzF32)           \
+  V(Float64RoundTruncate, kArmVrintzF64)           \
+  V(Float64RoundTiesAway, kArmVrintaF64)           \
+  V(Float32RoundTiesEven, kArmVrintnF32)           \
+  V(Float64RoundTiesEven, kArmVrintnF64)           \
+  IF_WASM(V, F64x2Ceil, kArmF64x2Ceil)             \
+  IF_WASM(V, F64x2Floor, kArmF64x2Floor)           \
+  IF_WASM(V, F64x2Trunc, kArmF64x2Trunc)           \
+  IF_WASM(V, F64x2NearestInt, kArmF64x2NearestInt) \
+  IF_WASM(V, F32x4Ceil, kArmVrintpF32)             \
+  IF_WASM(V, F32x4Floor, kArmVrintmF32)            \
+  IF_WASM(V, F32x4Trunc, kArmVrintzF32)            \
+  IF_WASM(V, F32x4NearestInt, kArmVrintnF32)
 
 #define RRR_OP_T_LIST(V)        \
   V(Float64Div, kArmVdivF64)    \
@@ -3043,12 +3045,6 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
        temps);
 }
 
-#define SIMD_TYPE_LIST(V) \
-  V(F32x4)                \
-  V(I32x4)                \
-  V(I16x8)                \
-  V(I8x16)
-
 #define SIMD_UNOP_LIST(V)                               \
   V(F64x2Abs, kArmF64x2Abs)                             \
   V(F64x2Neg, kArmF64x2Neg)                             \
@@ -3187,6 +3183,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
   V(S128Xor, kArmS128Xor)                             \
   V(S128AndNot, kArmS128AndNot)
 
+#if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4DotI16x8S(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
@@ -3260,15 +3257,30 @@ void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
   }
 }
 
-#define SIMD_VISIT_SPLAT(Type)                                          \
-  template <typename Adapter>                                           \
-  void InstructionSelectorT<Adapter>::Visit##Type##Splat(node_t node) { \
-    VisitRR(this, kArm##Type##Splat, node);                             \
-  }
-SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
-SIMD_VISIT_SPLAT(F64x2)
-#undef SIMD_VISIT_SPLAT
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Splat(node_t node) {
+  VisitRR(this, kArmF64x2Splat, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
+  VisitRR(this, kArmF32x4Splat, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4Splat(node_t node) {
+  VisitRR(this, kArmI32x4Splat, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8Splat(node_t node) {
+  VisitRR(this, kArmI16x8Splat, node);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16Splat(node_t node) {
+  VisitRR(this, kArmI8x16Splat, node);
+}
+
+#if V8_ENABLE_WEBASSEMBLY
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                           \
   template <typename Adapter>                                         \
   void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign( \
@@ -3284,15 +3296,26 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                         \
-  template <typename Adapter>                                                 \
-  void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
-    VisitRRIR(this, kArm##Type##ReplaceLane, node);                           \
-  }
-SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
-SIMD_VISIT_REPLACE_LANE(F64x2)
-#undef SIMD_VISIT_REPLACE_LANE
-#undef SIMD_TYPE_LIST
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2ReplaceLane(node_t node) {
+  VisitRRIR(this, kArmF64x2ReplaceLane, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4ReplaceLane(node_t node) {
+  VisitRRIR(this, kArmF32x4ReplaceLane, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4ReplaceLane(node_t node) {
+  VisitRRIR(this, kArmI32x4ReplaceLane, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8ReplaceLane(node_t node) {
+  VisitRRIR(this, kArmI16x8ReplaceLane, node);
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16ReplaceLane(node_t node) {
+  VisitRRIR(this, kArmI8x16ReplaceLane, node);
+}
 
 #define SIMD_VISIT_UNOP(Name, instruction)                       \
   template <typename Adapter>                                    \
@@ -3498,7 +3521,6 @@ VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
-#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct ShuffleEntry {
@@ -3663,13 +3685,6 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
   UNREACHABLE();
 }
 
-#else
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
-  UNREACHABLE();
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
@@ -3683,6 +3698,8 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
          g.UseRegister(node->InputAt(1)));
   }
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
@@ -3736,6 +3753,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16BitMask(node_t node) {
   VisitBitMask<Adapter, kArmI8x16BitMask>(this, node);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x8BitMask(node_t node) {
   VisitBitMask<Adapter, kArmI16x8BitMask>(this, node);
@@ -3847,40 +3865,6 @@ VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, NeonS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, NeonU16)
 #undef VISIT_EXTADD_PAIRWISE
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    ArmOperandGeneratorT<Adapter> g(this);
-
-    InstructionCode opcode = kArmVcvtS32F32;
-    TruncateKind kind = OpParameter<TruncateKind>(node->op());
-    if (kind == TruncateKind::kSetOverflowToMin) {
-      opcode |= MiscField::encode(true);
-    }
-
-    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    ArmOperandGeneratorT<Adapter> g(this);
-
-    InstructionCode opcode = kArmVcvtU32F32;
-    TruncateKind kind = OpParameter<TruncateKind>(node->op());
-    if (kind == TruncateKind::kSetOverflowToMin) {
-      opcode |= MiscField::encode(true);
-    }
-
-    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
-  }
-}
-
 // TODO(v8:9780)
 // These double precision conversion instructions need a low Q register (q0-q7)
 // because the codegen accesses the S registers they overlap with.
@@ -3960,6 +3944,41 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF64x2UZero(
     node_t node) {
   VisitI32x4TruncSatF64x2UZero(node);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+
+    InstructionCode opcode = kArmVcvtS32F32;
+    TruncateKind kind = OpParameter<TruncateKind>(node->op());
+    if (kind == TruncateKind::kSetOverflowToMin) {
+      opcode |= MiscField::encode(true);
+    }
+
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+
+    InstructionCode opcode = kArmVcvtU32F32;
+    TruncateKind kind = OpParameter<TruncateKind>(node->op());
+    if (kind == TruncateKind::kSetOverflowToMin) {
+      opcode |= MiscField::encode(true);
+    }
+
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <typename Adapter>
