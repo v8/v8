@@ -32,3 +32,4 @@ Testing imported strings
 [import 13 is well-known built-in String.compare]
 [import 14 is well-known built-in IntToString]
 [import 15 is well-known built-in DoubleToString]
+[import 16 is well-known built-in String.indexOf]

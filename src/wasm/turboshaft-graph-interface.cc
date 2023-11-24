@@ -68,6 +68,7 @@ using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::TSCallDescriptor;
 using compiler::turboshaft::Uninitialized;
 using compiler::turboshaft::V;
+using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
@@ -1025,6 +1026,37 @@ class TurboshaftGraphBuildingInterface {
     return __ WasmTypeCast(value.op, rtt, config);
   }
 
+  bool IsExplicitStringCast(const Value value) {
+    if (__ generating_unreachable_operations()) return false;
+    const WasmTypeCastOp* cast =
+        __ output_graph().Get(value.op).TryCast<WasmTypeCastOp>();
+    return cast && cast->config.to == kWasmRefString;
+  }
+
+  V<Word32> GetStringIndexOf(FullDecoder* decoder, V<Tagged> string,
+                             V<Tagged> search, V<Word32> start) {
+    // Clamp the start index.
+    Label<Word32> clamped_start_label(&asm_);
+    GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label,
+            __ Word32Constant(0));
+    V<Word32> length = __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
+    GOTO_IF(__ Int32LessThan(start, length), clamped_start_label, start);
+    GOTO(clamped_start_label, length);
+    BIND(clamped_start_label, clamped_start);
+    start = clamped_start;
+
+    // This can't overflow because we've clamped `start` above.
+    V<Smi> start_smi = __ TagSmi(start);
+    BuildModifyThreadInWasmFlag(false);
+    V<Smi> result_value = CallBuiltinThroughJumptable(
+        decoder, Builtin::kStringIndexOf, {string, search, start_smi},
+        Operator::kEliminatable);
+    BuildModifyThreadInWasmFlag(true);
+
+    return __ UntagSmi(result_value);
+  }
+
   void BuildModifyThreadInWasmFlagHelper(OpIndex thread_in_wasm_flag_address,
                                          bool new_value) {
     if (v8_flags.debug_code) {
@@ -1508,26 +1540,24 @@ class TurboshaftGraphBuildingInterface {
           search = search_value;
         }
 
-        // Clamp the start index.
-        Label<Word32> clamped_start_label(&asm_);
-        GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label,
-                __ Word32Constant(0));
-        V<Word32> length = __ template LoadField<Word32>(
-            string, compiler::AccessBuilder::ForStringLength());
-        GOTO_IF(__ Int32LessThan(start, length), clamped_start_label, start);
-        GOTO(clamped_start_label, length);
-        BIND(clamped_start_label, clamped_start);
-        start = clamped_start;
-
-        // This can't overflow because we've clamped `start` above.
-        V<Smi> start_smi = __ TagSmi(start);
-        BuildModifyThreadInWasmFlag(false);
-        V<Smi> result_value = CallBuiltinThroughJumptable(
-            decoder, Builtin::kStringIndexOf, {string, search, start_smi},
-            Operator::kEliminatable);
-        BuildModifyThreadInWasmFlag(true);
-        result = __ UntagSmi(result_value);
+        result = GetStringIndexOf(decoder, string, search, start);
         decoder->detected_->Add(kFeature_stringref);
+        break;
+      }
+      case WKI::kStringIndexOfImported: {
+        // As the the `string` and `search` parameters are externrefs, we have
+        // to make sure they are strings. To enforce this, we inline only if a
+        // (successful) `WebAssembly.String.cast` was performed before.
+        if (!(IsExplicitStringCast(args[0]) && IsExplicitStringCast(args[1]))) {
+          return false;
+        }
+        result = __ Word32Constant(123);
+        V<Tagged> string = args[0].op;
+        V<Tagged> search = args[1].op;
+        V<Word32> start = args[2].op;
+
+        result = GetStringIndexOf(decoder, string, search, start);
+        decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
       case WKI::kStringToLocaleLowerCaseStringref:

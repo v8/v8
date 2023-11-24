@@ -906,6 +906,7 @@ class WasmGraphBuildingInterface {
         decoder->detected_->Add(kFeature_stringref);
         break;
         // Not implementing for Turbofan.
+      case WKI::kStringIndexOfImported:
       case WKI::kDataViewGetBigInt64:
       case WKI::kDataViewGetBigUint64:
       case WKI::kDataViewGetFloat32:

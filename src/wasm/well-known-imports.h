@@ -66,6 +66,7 @@ enum class WellKnownImport : uint8_t {
   kStringFromWtf16Array,
   kStringFromWtf8Array,
   kStringIndexOf,
+  kStringIndexOfImported,
   kStringLength,
   kStringSubstring,
   kStringToLocaleLowerCaseStringref,

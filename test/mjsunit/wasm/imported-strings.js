@@ -17,6 +17,7 @@ let kSig_e_v = makeSig([], [kRefExtern]);
 let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
 let kSig_i_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_rr = makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]);
+let sig_i_rri = makeSig([kWasmExternRef, kWasmExternRef, kWasmI32], [kWasmI32]);
 let kSig_i_riii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32],
                           [kWasmI32]);
 let kSig_ii_riii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32],
@@ -81,6 +82,7 @@ let kStringConcat;
 let kStringSubstring;
 let kStringEquals;
 let kStringCompare;
+let kStringIndexOfImported;
 
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
@@ -113,6 +115,7 @@ function MakeBuilder() {
   kStringSubstring = builder.addImport('String', 'substring', kSig_e_rii);
   kStringEquals = builder.addImport('String', 'equals', kSig_i_rr);
   kStringCompare = builder.addImport('String', 'compare', kSig_i_rr);
+  kStringIndexOfImported = builder.addImport('m', 'indexOf', sig_i_rri);
 
   return builder;
 }
@@ -120,6 +123,7 @@ function MakeBuilder() {
 let kImports = {
   String: WebAssembly.String,
   strings: interestingStrings,
+  m: {indexOf: Function.prototype.call.bind(String.prototype.indexOf)},
 };
 
 (function TestStringCast() {
@@ -186,6 +190,46 @@ let kImports = {
   assertEquals(0, instance.exports.test(true));
   assertEquals(0, instance.exports.test(null));
   assertEquals(0, instance.exports.test_null());
+})();
+
+(function TestIndexOfImportedStrings() {
+  print(arguments.callee.name);
+  let builder = new MakeBuilder();
+
+  builder.addFunction('indexOf', sig_i_rri).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprCallFunction, kStringCast,
+    kExprLocalGet, 1,
+    kExprCallFunction, kStringCast,
+    kExprLocalGet, 2,
+    kExprCallFunction, kStringIndexOfImported,
+  ]);
+  let instance = builder.instantiate(kImports);
+
+  assertEquals(2, instance.exports.indexOf('xxfooxx', 'foo', 0));
+  assertEquals(2, instance.exports.indexOf('xxfooxx', 'foo', -2));
+  assertEquals(-1, instance.exports.indexOf('xxfooxx', 'foo', 100));
+  // Make sure we don't lose bits when Smi-tagging of the start position.
+  assertEquals(-1, instance.exports.indexOf('xxfooxx', 'foo', 0x4000_0000));
+  assertEquals(-1, instance.exports.indexOf('xxfooxx', 'foo', 0x2000_0000));
+  assertEquals(
+      2,
+      instance.exports.indexOf(
+          'xxfooxx', 'foo', 0x8000_0000));  // Negative i32.
+
+  // Both first and second args should be strings.
+  assertThrows(
+      () => instance.exports.indexOf('xxnullxx', null, 0),
+      WebAssembly.RuntimeError, 'illegal cast');
+  assertThrows(
+      () => instance.exports.indexOf(12345, 234, 0), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.indexOf(null, 'foo', 0), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.indexOf(null, 'null', 0), WebAssembly.RuntimeError,
+      'illegal cast');
 })();
 
 (function TestStringConst() {

@@ -94,6 +94,7 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kStringFromWtf8Array:
       return "String.fromWtf8Array";
     case WellKnownImport::kStringIndexOf:
+    case WellKnownImport::kStringIndexOfImported:
       return "String.indexOf";
     case WellKnownImport::kStringLength:
       return "String.length";
