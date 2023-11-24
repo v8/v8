@@ -1545,13 +1545,12 @@ class TurboshaftGraphBuildingInterface {
         break;
       }
       case WKI::kStringIndexOfImported: {
-        // As the the `string` and `search` parameters are externrefs, we have
-        // to make sure they are strings. To enforce this, we inline only if a
+        // As the `string` and `search` parameters are externrefs, we have to
+        // make sure they are strings. To enforce this, we inline only if a
         // (successful) `WebAssembly.String.cast` was performed before.
         if (!(IsExplicitStringCast(args[0]) && IsExplicitStringCast(args[1]))) {
           return false;
         }
-        result = __ Word32Constant(123);
         V<Tagged> string = args[0].op;
         V<Tagged> search = args[1].op;
         V<Word32> start = args[2].op;

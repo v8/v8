@@ -17,7 +17,7 @@ let kSig_e_v = makeSig([], [kRefExtern]);
 let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
 let kSig_i_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_rr = makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]);
-let sig_i_rri = makeSig([kWasmExternRef, kWasmExternRef, kWasmI32], [kWasmI32]);
+let kSig_i_rri = makeSig([kWasmExternRef, kWasmExternRef, kWasmI32], [kWasmI32]);
 let kSig_i_riii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32],
                           [kWasmI32]);
 let kSig_ii_riii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32],
@@ -115,7 +115,7 @@ function MakeBuilder() {
   kStringSubstring = builder.addImport('String', 'substring', kSig_e_rii);
   kStringEquals = builder.addImport('String', 'equals', kSig_i_rr);
   kStringCompare = builder.addImport('String', 'compare', kSig_i_rr);
-  kStringIndexOfImported = builder.addImport('m', 'indexOf', sig_i_rri);
+  kStringIndexOfImported = builder.addImport('m', 'indexOf', kSig_i_rri);
 
   return builder;
 }
@@ -196,7 +196,7 @@ let kImports = {
   print(arguments.callee.name);
   let builder = new MakeBuilder();
 
-  builder.addFunction('indexOf', sig_i_rri).exportFunc().addBody([
+  builder.addFunction('indexOf', kSig_i_rri).exportFunc().addBody([
     kExprLocalGet, 0,
     kExprCallFunction, kStringCast,
     kExprLocalGet, 1,
