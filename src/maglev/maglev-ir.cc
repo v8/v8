@@ -1554,10 +1554,12 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
 
   bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
 
-  // Exprimentally figured out map limit (with slack) which allows us to use
-  // near jumps in the code below
+  // Experimentally figured out map limit (with slack) which allows us to use
+  // near jumps in the code below. If --deopt-every-n-times is on, we generate
+  // a bit more code, so disable the near jump optimization.
   constexpr int kMapCountForNearJumps = kTaggedSize == 4 ? 10 : 5;
-  Label::Distance jump_distance = maps().size() <= kMapCountForNearJumps
+  Label::Distance jump_distance = (maps().size() <= kMapCountForNearJumps &&
+                                   v8_flags.deopt_every_n_times <= 0)
                                       ? Label::Distance::kNear
                                       : Label::Distance::kFar;
 
