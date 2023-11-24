@@ -707,14 +707,19 @@ class Internals {
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
       kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
+#ifdef V8_ENABLE_SANDBOX
   static const int kIsolateTrustedPointerTableOffset =
       kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
 #else
   static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
+#endif  // V8_ENABLE_SANDBOX
+#else
+  static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
-#endif
+#endif  // V8_COMPRESS_POINTERS
   static const int kWasm64OOBOffsetOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =

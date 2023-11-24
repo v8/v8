@@ -2077,7 +2077,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
+#endif  // V8_COMPRESS_POINTERS
 
+#ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable& trusted_pointer_table() {
     return isolate_data_.trusted_pointer_table_;
   }
@@ -2089,7 +2091,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address trusted_pointer_table_base_address() const {
     return isolate_data_.trusted_pointer_table_.base_address();
   }
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
   Address continuation_preserved_embedder_data_address() {
     return reinterpret_cast<Address>(

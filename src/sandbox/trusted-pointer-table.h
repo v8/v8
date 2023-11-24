@@ -12,7 +12,7 @@
 #include "src/common/globals.h"
 #include "src/sandbox/external-entity-table.h"
 
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,8 @@ class Counters;
  * Each entry contains an (absolute) pointer to a TrustedObject.
  */
 struct TrustedPointerTableEntry {
-  // Make this entry a "regular" entry, containing an absolute pointer to a TrustedObject.
+  // Make this entry a "regular" entry, containing an absolute pointer to a
+  // TrustedObject.
   inline void MakeTrustedPointerEntry(Address value);
 
   // Make this entry a freelist entry, containing the index of the next entry
@@ -157,6 +158,6 @@ static_assert(sizeof(TrustedPointerTable) == TrustedPointerTable::kSize);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_TRUSTED_POINTER_TABLE_H_

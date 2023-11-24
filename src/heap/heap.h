@@ -802,13 +802,13 @@ class Heap final {
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
   }
-
-  TrustedPointerTable::Space* trusted_pointer_space() {
-    return &trusted_pointer_space_;
-  }
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
+  TrustedPointerTable::Space* trusted_pointer_space() {
+    return &trusted_pointer_space_;
+  }
+
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -2146,12 +2146,12 @@ class Heap final {
   ExternalPointerTable::Space external_pointer_space_;
   // Likewise but for slots in host objects in ReadOnlySpace.
   ExternalPointerTable::Space read_only_external_pointer_space_;
-
-  // Likewise, but for the trusted pointer table.
-  TrustedPointerTable::Space trusted_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
+  // Likewise, but for the trusted pointer table.
+  TrustedPointerTable::Space trusted_pointer_space_;
+
   // The space in the process-wide code pointer table managed by this heap.
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX

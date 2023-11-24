@@ -56,6 +56,7 @@ class Isolate;
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
     embedder_data)                                                            \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
+  ISOLATE_DATA_FIELDS_SANDBOX(V)                                              \
   V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
     api_callback_thunk_argument)                                              \
   V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                          \
@@ -76,12 +77,18 @@ class Isolate;
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
     external_pointer_table)                                   \
   V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
-    shared_external_pointer_table)                            \
-  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize,   \
-    trusted_pointer_table)
+    shared_external_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                      \
+  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize, \
+    trusted_pointer_table)
+#else
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)
+#endif  // V8_ENABLE_SANDBOX
 
 // This class contains a collection of data accessible from both C++ runtime
 // and compiled code (including builtins, interpreter bytecode handlers and
@@ -288,8 +295,10 @@ class IsolateData final {
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable trusted_pointer_table_;
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.

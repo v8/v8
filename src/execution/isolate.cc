@@ -3795,6 +3795,8 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
+#endif
+#ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.trusted_pointer_table_)),
            Internals::kIsolateTrustedPointerTableOffset);
@@ -4020,11 +4022,12 @@ void Isolate::Deinit() {
     delete shared_external_pointer_space_;
     shared_external_pointer_space_ = nullptr;
   }
-  trusted_pointer_table().TearDownSpace(heap()->trusted_pointer_space());
-  trusted_pointer_table().TearDown();
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
+  trusted_pointer_table().TearDownSpace(heap()->trusted_pointer_space());
+  trusted_pointer_table().TearDown();
+
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
 #endif
 
@@ -4760,10 +4763,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().AttachSpaceToReadOnlySegment(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+#endif  // V8_COMPRESS_POINTERS
 
+#ifdef V8_ENABLE_SANDBOX
     trusted_pointer_table().Initialize();
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
   }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces(isolate_data_.new_allocation_info_,

@@ -8,7 +8,7 @@
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -115,6 +115,6 @@ TrustedPointerHandle TrustedPointerTable::IndexToHandle(uint32_t index) const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_

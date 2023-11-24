@@ -8,7 +8,7 @@
 #include "src/logging/counters.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -22,4 +22,4 @@ uint32_t TrustedPointerTable::Sweep(Space* space, Counters* counters) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
