@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2cde4f3eacfac3259a374e366ba866b750f54191',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6355ffc8d8a78ec90aa50be73ab4e19410cadecc',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2a8d2c5eab77c3bda4dcd740c100044a58fe2a7d',
   'buildtools/linux64': {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b80aa2639fb10ad27cde55d4ff91add5541b693e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f0228fa92b0a808e6a34cb73c834017ec350e866',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -278,7 +278,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '4b348d339bf7240f4fe173b0b78774661bc95bd9',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '371593893aeee51ecfb785093115fd846c3b73ca',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e6a7fd81edcf7c3effe2a815a1d7937cbeaacc59',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '85df028e4c5e8a3eaa38fe75e0d78157bee2d668',
   'third_party/logdog/logdog':
@@ -304,7 +304,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5daffc716bb6bc93b91e0724385f5bdd55959ec6',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '22124f50e9d3d72aad1766fb340303d4f05434a5',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9fbc780088a01c4e5e5551c63f1af2a2ea0e2efc',
   'tools/luci-go': {
