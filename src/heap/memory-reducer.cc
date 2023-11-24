@@ -121,6 +121,7 @@ void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
 }
 
 void MemoryReducer::NotifyPossibleGarbage() {
+  if (!v8_flags.incremental_marking) return;
   const MemoryReducer::Event event{MemoryReducer::kPossibleGarbage,
                                    heap()->MonotonicallyIncreasingTimeInMs(),
                                    0,
