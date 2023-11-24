@@ -5600,9 +5600,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   bool receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
   PossibleMaps receiver_maps_before_loop(node_info->possible_maps());
 
-  // Create a sub graph builder with one variable (for the index)
-  MaglevSubGraphBuilder sub_builder(this, 1);
+  // Create a sub graph builder with two variable (index and length)
+  MaglevSubGraphBuilder sub_builder(this, 2);
   MaglevSubGraphBuilder::Variable var_index(0);
+  MaglevSubGraphBuilder::Variable var_length(1);
 
   MaglevSubGraphBuilder::Label loop_end(&sub_builder, 1);
 
@@ -5611,8 +5612,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // bind loop_header
   // ```
   sub_builder.set(var_index, GetSmiConstant(0));
+  sub_builder.set(var_length, original_length);
   MaglevSubGraphBuilder::LoopLabel loop_header =
-      sub_builder.BeginLoop({&var_index});
+      sub_builder.BeginLoop({&var_index, &var_length});
 
   // Reset known state that is cleared by BeginLoop, but is known to be true on
   // the first iteration, and will be re-checked at the end of the loop.
@@ -5628,9 +5630,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     DCHECK_EQ(node_info->possible_maps().size(),
               receiver_maps_before_loop.size());
   }
-  // Reset the cached loaded array length to the original length.
-  RecordKnownProperty(receiver, broker()->length_string(), original_length,
-                      false, compiler::AccessMode::kLoad);
+  // Reset the cached loaded array length to the length var.
+  RecordKnownProperty(receiver, broker()->length_string(),
+                      sub_builder.get(var_length), false,
+                      compiler::AccessMode::kLoad);
 
   // ```
   // if (index_int32 < length_int32)
@@ -5722,18 +5725,16 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   DCHECK_IMPLIES(result.IsDoneWithAbort(), current_block_ == nullptr);
 
-  // If any of the receiver's maps were unstable maps, we have to re-check the
-  // maps on each iteration, in case the callback changed them. That said, we
-  // know that the maps are valid on the first iteration, so we can rotate the
-  // check to _after_ the callback, and then elide it if the receiver maps are
-  // still known to be valid (i.e. the known maps after the call are contained
-  // inside the known maps before the call).
-  bool recheck_maps_after_call = receiver_maps_were_unstable;
-  if (recheck_maps_after_call) {
-    if (current_block_ == nullptr) {
-      // No need to recheck maps if this code is unreachable.
-      recheck_maps_after_call = false;
-    } else {
+  // No need to finish the loop if this code is unreachable.
+  if (!result.IsDoneWithAbort()) {
+    // If any of the receiver's maps were unstable maps, we have to re-check the
+    // maps on each iteration, in case the callback changed them. That said, we
+    // know that the maps are valid on the first iteration, so we can rotate the
+    // check to _after_ the callback, and then elide it if the receiver maps are
+    // still known to be valid (i.e. the known maps after the call are contained
+    // inside the known maps before the call).
+    bool recheck_maps_after_call = receiver_maps_were_unstable;
+    if (recheck_maps_after_call) {
       // No need to recheck maps if there are known maps...
       if (auto receiver_info_after_call =
               known_node_aspects().TryGetInfoFor(receiver)) {
@@ -5746,9 +5747,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
         }
       }
     }
-  }
 
-  {
     // Make sure to finish the loop if we eager deopt in the map check or index
     // check.
     DeoptFrameScope eager_deopt_scope(
@@ -5776,6 +5775,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // Check if the index is still in bounds, in case the callback changed the
     // length.
     ValueNode* current_length = BuildLoadJSArrayLength(receiver).value();
+    sub_builder.set(var_length, current_length);
+
     // Reference compare the loaded length against the original length. If this
     // is the same value node, then we didn't have any side effects and didn't
     // clear the cached length.
