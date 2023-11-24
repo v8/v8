@@ -461,6 +461,25 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
       DCHECK_EQ(space, SnapshotSpace::kOld);
       DCHECK(IsContext(map->native_context_or_null()));
       sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
+
+      // Defer serialization of the native context in order to break
+      // a potential cycle through the map slot:
+      //   MAP -> meta map -> NativeContext -> ... -> MAP
+      // Otherwise it'll be a "forward ref to a map" problem: deserializer
+      // will not be able to create {obj} because {MAP} is not deserialized yet.
+      Tagged<NativeContext> native_context = map->native_context();
+
+      // Sanity check - the native context must not be serialized yet since
+      // it has a contextful map and thus the respective meta map must be
+      // serialized first. So we don't have to search the native context
+      // among the back refs before adding it to the deferred queue.
+      DCHECK_NULL(
+          serializer_->reference_map()->LookupReference(native_context));
+
+      if (!serializer_->forward_refs_per_pending_object_.Find(native_context)) {
+        serializer_->RegisterObjectIsPending(native_context);
+        serializer_->QueueDeferredObject(native_context);
+      }
     }
     DCHECK_EQ(size, Map::kSize);
   } else {
