@@ -2196,38 +2196,19 @@ OpIndex GraphBuilder::Process(
       return Map(node->InputAt(0));
 
     case IrOpcode::kAbortCSADcheck:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       // TODO(nicohartmann@):
       return OpIndex::Invalid();
-#endif
 
     case IrOpcode::kDebugBreak:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       __ DebugBreak();
       return OpIndex::Invalid();
-#endif
 
     case IrOpcode::kComment:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
-     __ Comment(OpParameter<const char*>(node->op()));
+      __ Comment(OpParameter<const char*>(node->op()));
       return OpIndex::Invalid();
-#endif
 
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
-    // TODO(nicohartmann@): We might want a dedicated operation/kind for that
+      // TODO(nicohartmann@): We might want a dedicated operation/kind for that
       // as well.
       DCHECK_EQ(PipelineData::Get().pipeline_kind(),
                 TurboshaftPipelineKind::kCSA);
@@ -2238,14 +2219,9 @@ OpIndex GraphBuilder::Process(
       return __ TaggedBitcast(Map(node->InputAt(0)),
                               RegisterRepresentation::PointerSized(),
                               RegisterRepresentation::Tagged());
-#endif
 
     case IrOpcode::kWord32AtomicLoad:
     case IrOpcode::kWord64AtomicLoad: {
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       OpIndex base = Map(node->InputAt(0));
       OpIndex offset = Map(node->InputAt(1));
       const AtomicLoadParameters& p = AtomicLoadParametersOf(node->op());
@@ -2268,16 +2244,11 @@ OpIndex GraphBuilder::Process(
                          ? RegisterRepresentation::Word32()
                          : RegisterRepresentation::Word64(),
                      0, 0);
-#endif
     }
 
     case IrOpcode::kWord32AtomicStore:
     case IrOpcode::kWord64AtomicStore: {
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
-  OpIndex base = Map(node->InputAt(0));
+      OpIndex base = Map(node->InputAt(0));
       OpIndex offset = Map(node->InputAt(1));
       OpIndex value = Map(node->InputAt(2));
       const AtomicStoreParameters& p = AtomicStoreParametersOf(node->op());
@@ -2299,7 +2270,6 @@ OpIndex GraphBuilder::Process(
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
           p.write_barrier_kind(), 0, 0, true);
       return OpIndex::Invalid();
-#endif
     }
 
     case IrOpcode::kWord32AtomicAdd:
@@ -2316,10 +2286,6 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kWord64AtomicXor:
     case IrOpcode::kWord64AtomicExchange:
     case IrOpcode::kWord64AtomicCompareExchange: {
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       int input_index = 0;
       OpIndex base = Map(node->InputAt(input_index++));
       OpIndex offset = Map(node->InputAt(input_index++));
@@ -2361,40 +2327,21 @@ OpIndex GraphBuilder::Process(
         default:
           UNREACHABLE();
       }
-#endif
     }
 
     case IrOpcode::kWord32AtomicPairLoad:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       return __ AtomicWord32PairLoad(Map(node->InputAt(0)),
                                      Map(node->InputAt(1)), 0);
-#endif
     case IrOpcode::kWord32AtomicPairStore:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       return __ AtomicWord32PairStore(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
           Map(node->InputAt(3)), 0);
-#endif
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-#if 0
 #define ATOMIC_WORD32_PAIR_BINOP(kind)                                       \
   case IrOpcode::kWord32AtomicPair##kind:                                    \
     return __ AtomicWord32PairBinop(                                         \
         Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)), \
         Map(node->InputAt(3)), AtomicRMWOp::BinOp::k##kind, 0);
-#else
-#define ATOMIC_WORD32_PAIR_BINOP(kind)    \
-  case IrOpcode::kWord32AtomicPair##kind: \
-    UNIMPLEMENTED();
-#endif
       ATOMIC_WORD32_PAIR_BINOP(Add)
       ATOMIC_WORD32_PAIR_BINOP(Sub)
       ATOMIC_WORD32_PAIR_BINOP(And)
@@ -2402,139 +2349,66 @@ OpIndex GraphBuilder::Process(
       ATOMIC_WORD32_PAIR_BINOP(Xor)
       ATOMIC_WORD32_PAIR_BINOP(Exchange)
     case IrOpcode::kWord32AtomicPairCompareExchange:
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       return __ AtomicWord32PairCompareExchange(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(4)),
           Map(node->InputAt(5)), Map(node->InputAt(2)), Map(node->InputAt(3)),
           0);
-#endif
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_BINOP(name)                                              \
   case IrOpcode::k##name:                                                \
     return __ Simd128Binop(Map(node->InputAt(0)), Map(node->InputAt(1)), \
                            Simd128BinopOp::Kind::k##name);
-#else
-#define SIMD128_BINOP(name) \
-  case IrOpcode::k##name:   \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_BINARY_BASIC_OPCODE(SIMD128_BINOP)
 #undef SIMD128_BINOP
     case IrOpcode::kI8x16Swizzle: {
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
       bool relaxed = OpParameter<bool>(node->op());
       return __ Simd128Binop(Map(node->InputAt(0)), Map(node->InputAt(1)),
                              relaxed
                                  ? Simd128BinopOp::Kind::kI8x16RelaxedSwizzle
                                  : Simd128BinopOp::Kind::kI8x16Swizzle);
-#endif
     }
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_UNOP(name)                        \
   case IrOpcode::k##name:                         \
     return __ Simd128Unary(Map(node->InputAt(0)), \
                            Simd128UnaryOp::Kind::k##name);
-#else
-#define SIMD128_UNOP(name) \
-  case IrOpcode::k##name:  \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_UNARY_OPCODE(SIMD128_UNOP)
 #undef SIMD128_UNOP
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_SHIFT(name)                                              \
   case IrOpcode::k##name:                                                \
     return __ Simd128Shift(Map(node->InputAt(0)), Map(node->InputAt(1)), \
                            Simd128ShiftOp::Kind::k##name);
-#else
-#define SIMD128_SHIFT(name) \
-  case IrOpcode::k##name:   \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_SHIFT_OPCODE(SIMD128_SHIFT)
 #undef SIMD128_UNOP
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_TEST(name) \
   case IrOpcode::k##name:  \
     return __ Simd128Test(Map(node->InputAt(0)), Simd128TestOp::Kind::k##name);
-#else
-#define SIMD128_TEST(name) \
-  case IrOpcode::k##name:  \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_TEST_OPCODE(SIMD128_TEST)
 #undef SIMD128_UNOP
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_SPLAT(name)                       \
   case IrOpcode::k##name##Splat:                  \
     return __ Simd128Splat(Map(node->InputAt(0)), \
                            Simd128SplatOp::Kind::k##name);
-#else
-#define SIMD128_SPLAT(name)      \
-  case IrOpcode::k##name##Splat: \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_SPLAT_OPCODE(SIMD128_SPLAT)
 #undef SIMD128_SPLAT
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_TERNARY(name)                                              \
   case IrOpcode::k##name:                                                  \
     return __ Simd128Ternary(Map(node->InputAt(0)), Map(node->InputAt(1)), \
                              Map(node->InputAt(2)),                        \
                              Simd128TernaryOp::Kind::k##name);
-#else
-#define SIMD128_TERNARY(name) \
-  case IrOpcode::k##name:     \
-    UNIMPLEMENTED();
-#endif
       FOREACH_SIMD_128_TERNARY_OPCODE(SIMD128_TERNARY)
 #undef SIMD128_TERNARY
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_EXTRACT_LANE(name, suffix)                                    \
   case IrOpcode::k##name##ExtractLane##suffix:                                \
     return __ Simd128ExtractLane(Map(node->InputAt(0)),                       \
                                  Simd128ExtractLaneOp::Kind::k##name##suffix, \
                                  OpParameter<int32_t>(node->op()));
-#else
-#define SIMD128_EXTRACT_LANE(name, suffix)     \
-  case IrOpcode::k##name##ExtractLane##suffix: \
-    UNIMPLEMENTED();
-#endif
       SIMD128_EXTRACT_LANE(I8x16, S)
       SIMD128_EXTRACT_LANE(I8x16, U)
       SIMD128_EXTRACT_LANE(I16x8, S)
@@ -2545,20 +2419,11 @@ OpIndex GraphBuilder::Process(
       SIMD128_EXTRACT_LANE(F64x2, )
 #undef SIMD128_LANE
 
-      // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-      // pipeline crashes are fixed.
-      UNIMPLEMENTED();
-#if 0
 #define SIMD128_REPLACE_LANE(name)                                             \
   case IrOpcode::k##name##ReplaceLane:                                         \
     return __ Simd128ReplaceLane(Map(node->InputAt(0)), Map(node->InputAt(1)), \
                                  Simd128ReplaceLaneOp::Kind::k##name,          \
                                  OpParameter<int32_t>(node->op()));
-#else
-#define SIMD128_REPLACE_LANE(name)     \
-  case IrOpcode::k##name##ReplaceLane: \
-    UNIMPLEMENTED();
-#endif
       SIMD128_REPLACE_LANE(I8x16)
       SIMD128_REPLACE_LANE(I16x8)
       SIMD128_REPLACE_LANE(I32x4)
