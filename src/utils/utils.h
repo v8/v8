@@ -335,7 +335,7 @@ V8_INLINE bool OverlappingCompare(const Char* lhs, const Char* rhs,
 }
 
 template <typename Char>
-V8_INLINE bool SimdMemcmp(const Char* lhs, const Char* rhs, size_t count) {
+V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
   static_assert(sizeof(Char) == 1);
   if (count == 0) {
     return true;
@@ -362,19 +362,25 @@ V8_INLINE bool SimdMemcmp(const Char* lhs, const Char* rhs, size_t count) {
       const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
       const auto rhs0 = vld1q_u8(rhs);
       const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
-      return static_cast<bool>(
-          vminvq_u8(vandq_u8(vceqq_u8(lhs0, rhs0), vceqq_u8(lhs1, rhs1))));
+      const auto xored0 = veorq_u8(lhs0, rhs0);
+      const auto xored1 = veorq_u8(lhs1, rhs1);
+      const auto ored = vorrq_u8(xored0, xored1);
+      return !static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(ored, ored), 0));
     }
     default:  // count: [33, ...]
     {
       const auto lhs0 = vld1q_u8(lhs);
       const auto rhs0 = vld1q_u8(rhs);
-      if (!static_cast<bool>(vminvq_u8(vceqq_u8(lhs0, rhs0)))) return false;
+      const auto xored = veorq_u8(lhs0, rhs0);
+      if (static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(xored, xored), 0)))
+        return false;
       for (size_t i = count % sizeof(uint8x16_t); i < count;
            i += sizeof(uint8x16_t)) {
         const auto lhs0 = vld1q_u8(lhs + i);
         const auto rhs0 = vld1q_u8(rhs + i);
-        if (!static_cast<bool>(vminvq_u8(vceqq_u8(lhs0, rhs0)))) return false;
+        const auto xored = veorq_u8(lhs0, rhs0);
+        if (static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(xored, xored), 0)))
+          return false;
       }
       return true;
     }
@@ -391,7 +397,7 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
   if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
 #if defined(V8_OPTIMIZE_WITH_NEON)
     if constexpr (sizeof(*lhs) == 1) {
-      return SimdMemcmp(lhs, rhs, chars);
+      return SimdMemEqual(lhs, rhs, chars);
     }
 #endif
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
