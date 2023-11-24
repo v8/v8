@@ -3956,8 +3956,9 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
       : FieldOffsetsGenerator(type),
         hdr_(header),
         inl_(inline_header),
-        previous_field_end_((parent && parent->IsShape()) ? "P::kSize"
-                                                          : "P::kHeaderSize"),
+        previous_field_end_(type->IsLayoutDefinedInCpp()    ? "sizeof(P)"
+                            : (parent && parent->IsShape()) ? "P::kSize"
+                                                            : "P::kHeaderSize"),
         gen_name_(gen_name) {}
 
   void WriteField(const Field& f, const std::string& size_string) override {
@@ -4022,6 +4023,7 @@ class CppClassGenerator {
 
   void GenerateClass();
   void GenerateCppObjectDefinitionAsserts();
+  void GenerateCppObjectLayoutDefinitionAsserts();
 
  private:
   SourcePosition Position();
@@ -4292,6 +4294,36 @@ void CppClassGenerator::GenerateCppObjectDefinitionAsserts() {
   }
 
   hdr_ << "};\n\n";
+}
+
+void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
+  inl_ << "// Definition " << Position() << "\n"
+       << template_decl() << "\n"
+       << "class " << gen_name_ << "Asserts {\n";
+
+  ClassFieldOffsetGenerator g(inl_, inl_, type_, gen_name_,
+                              type_->GetSuperClass());
+  for (auto f : type_->fields()) {
+    CurrentSourcePosition::Scope scope(f.pos);
+    g.RecordOffsetFor(f);
+  }
+  g.Finish();
+  inl_ << "\n";
+
+  for (auto f : type_->fields()) {
+    std::string field_offset =
+        "k" + CamelifyString(f.name_and_type.name) + "Offset";
+    inl_ << "  static_assert(" << field_offset << " == offsetof(D, "
+         << f.name_and_type.name << "_),\n"
+         << "                \"Value of " << name_ << "::" << field_offset
+         << " defined in Torque and offset of field " << name_
+         << "::" << f.name_and_type.name << " in C++ do not match\");\n";
+  }
+  if (!type_->IsAbstract() && type_->HasStaticSize()) {
+    inl_ << "  static_assert(kSize == sizeof(D));\n";
+  }
+
+  inl_ << "};\n\n";
 }
 
 void CppClassGenerator::GenerateClassCasts() {
@@ -4759,6 +4791,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       } else if (type->ShouldGenerateCppObjectDefinitionAsserts()) {
         CppClassGenerator g(type, header, inline_header, implementation);
         g.GenerateCppObjectDefinitionAsserts();
+      } else if (type->ShouldGenerateCppObjectLayoutDefinitionAsserts()) {
+        CppClassGenerator g(type, header, inline_header, implementation);
+        g.GenerateCppObjectLayoutDefinitionAsserts();
       }
       for (const Field& f : type->fields()) {
         const Type* field_type = f.name_and_type.type;

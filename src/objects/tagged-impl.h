@@ -214,6 +214,9 @@ class TaggedImpl {
     return T::cast(Tagged<Object>(ptr_));
   }
 
+ protected:
+  StorageType* ptr_location() { return &ptr_; }
+
  private:
   friend class CompressedObjectSlot;
   friend class FullObjectSlot;

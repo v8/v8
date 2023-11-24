@@ -62,6 +62,13 @@ struct MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(object.ptr() & ~kPageAlignmentMask);
   }
 
+  V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
+      const HeapObjectLayout* object) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(object) &
+                                          ~kPageAlignmentMask);
+  }
+
   V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
 
   V8_INLINE bool InWritableSharedSpace() const {
@@ -190,6 +197,20 @@ inline void CombinedWriteBarrier(Tagged<HeapObject> host, MaybeObjectSlot slot,
   if (!value->GetHeapObject(&value_object)) return;
   heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
                                                value_object, mode);
+}
+
+inline void CombinedWriteBarrier(HeapObjectLayout* host,
+                                 TaggedMemberBase* member, Tagged<Object> value,
+                                 WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
+  if (!value.IsHeapObject()) return;
+  heap_internals::CombinedWriteBarrierInternal(
+      Tagged(host), HeapObjectSlot(ObjectSlot(member)), HeapObject::cast(value),
+      mode);
 }
 
 inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
@@ -428,6 +449,16 @@ void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
+  if (BasicMemoryChunk::FromHeapObject(host)->InYoungGeneration()) return false;
+  if (IsSmi(value)) return false;
+  if (value.IsCleared()) return false;
+  Tagged<HeapObject> target = value.GetHeapObject();
+  if (ReadOnlyHeap::Contains(target)) return false;
+  return !IsImmortalImmovableHeapObject(target);
+}
+// static
+template <typename T>
+bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
   if (BasicMemoryChunk::FromHeapObject(host)->InYoungGeneration()) return false;
   if (IsSmi(value)) return false;
   if (value.IsCleared()) return false;

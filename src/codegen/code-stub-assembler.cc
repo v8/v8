@@ -1621,13 +1621,13 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   // Undefined is the first root, so it's the smallest possible pointer
   // value, which means we don't have to subtract it for the range check.
   ReadOnlyRoots roots(isolate());
-  static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
                 StaticReadOnlyRoot::kNullValue);
-  static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
                 StaticReadOnlyRoot::kempty_string);
   static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
                 StaticReadOnlyRoot::kFalseValue);
-  static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
                 StaticReadOnlyRoot::kTrueValue);
   TNode<Word32T> object_as_word32 =
       TruncateIntPtrToInt32(BitcastTaggedToWord(value_heapobject));
@@ -6199,7 +6199,8 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
       }
 
       BIND(&is_oddball);
-      var_value = LoadObjectField(value_heap_object, Oddball::kToNumberOffset);
+      var_value =
+          LoadObjectField(value_heap_object, offsetof(Oddball, to_number_));
       OverwriteFeedback(feedback.var_feedback,
                         BinaryOperationFeedback::kNumberOrOddball);
       Goto(&check_if_smi);
@@ -8312,7 +8313,7 @@ void CodeStubAssembler::TryPlainPrimitiveNonNumberToNumber(
   GotoIfNot(InstanceTypeEqual(input_instance_type, ODDBALL_TYPE), if_bailout);
 
   // The {input} is an Oddball, we just need to load the Number value of it.
-  *var_result = LoadObjectField<Number>(input, Oddball::kToNumberOffset);
+  *var_result = LoadObjectField<Number>(input, offsetof(Oddball, to_number_));
   Goto(&done);
 
   BIND(&if_inputisstring);
@@ -8974,7 +8975,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       GotoIfNot(InstanceTypeEqual(var_instance_type.value(), ODDBALL_TYPE),
                 if_bailout);
       *var_unique =
-          LoadObjectField<String>(CAST(key), Oddball::kToStringOffset);
+          LoadObjectField<String>(CAST(key), offsetof(Oddball, to_string_));
       Goto(if_keyisunique);
     }
   }
@@ -12113,7 +12114,7 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
+                                    offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
 
@@ -12169,7 +12170,7 @@ TNode<Float32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float32T>(
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
+                                    offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
 
@@ -12217,7 +12218,7 @@ TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
+                                    offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
 
@@ -13900,7 +13901,8 @@ TNode<Boolean> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
           {
             CombineFeedback(var_type_feedback,
                             CompareOperationFeedback::kBoolean);
-            var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
+            var_right =
+                LoadObjectField(CAST(right), offsetof(Oddball, to_number_));
             Goto(&loop);
           }
         }
@@ -13995,7 +13997,7 @@ TNode<Boolean> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
               CombineFeedback(var_type_feedback,
                               CompareOperationFeedback::kBoolean);
               var_right =
-                  LoadObjectField(CAST(right), Oddball::kToNumberOffset);
+                  LoadObjectField(CAST(right), offsetof(Oddball, to_number_));
               Goto(&loop);
             }
           }
@@ -14055,7 +14057,8 @@ TNode<Boolean> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
         {
           CombineFeedback(var_type_feedback,
                           CompareOperationFeedback::kBoolean);
-          var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
+          var_right =
+              LoadObjectField(CAST(right), offsetof(Oddball, to_number_));
           Goto(&loop);
         }
       }
@@ -14131,7 +14134,7 @@ TNode<Boolean> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
           GotoIf(TaggedEqual(right_map, left_map), &if_notequal);
 
           // Otherwise, convert {left} to number and try again.
-          var_left = LoadObjectField(CAST(left), Oddball::kToNumberOffset);
+          var_left = LoadObjectField(CAST(left), offsetof(Oddball, to_number_));
           Goto(&loop);
         }
       }
@@ -14993,7 +14996,7 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
   BIND(&if_oddball);
   {
     TNode<String> type =
-        CAST(LoadObjectField(value_heap_object, Oddball::kTypeOfOffset));
+        CAST(LoadObjectField(value_heap_object, offsetof(Oddball, type_of_)));
     result_var = type;
     Goto(&return_result);
   }

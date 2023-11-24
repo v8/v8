@@ -1029,6 +1029,12 @@ class Symbol;
 template <typename T>
 class Tagged;
 class Variable;
+namespace maglev {
+class MaglevAssembler;
+}
+namespace compiler {
+class AccessBuilder;
+}
 
 // Slots are either full-pointer slots or compressed slots depending on whether
 // pointer compression is enabled or not.

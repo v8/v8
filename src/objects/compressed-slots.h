@@ -7,6 +7,7 @@
 
 #include "include/v8config.h"
 #include "src/objects/slots.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8::internal {
 
@@ -33,6 +34,8 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   inline explicit CompressedObjectSlot(Tagged<Object>* object);
   explicit CompressedObjectSlot(Tagged<Object> const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit CompressedObjectSlot(TaggedMemberBase* member)
+      : SlotBase(reinterpret_cast<Address>(member->ptr_location())) {}
   template <typename T>
   explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}

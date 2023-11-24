@@ -1372,8 +1372,7 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, clobbered_src, conversion_type,
                                      fail);
-  static_assert(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  __ LoadHeapNumberValue(dst, clobbered_src);
+  __ LoadHeapNumberOrOddballValue(dst, clobbered_src);
   __ bind(&done);
 }
 
@@ -1416,10 +1415,9 @@ void EmitTruncateNumberOrOddballToInt32(
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, value, conversion_type,
                                      not_a_number);
-  static_assert(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
   MaglevAssembler::ScratchRegisterScope temps(masm);
   DoubleRegister double_value = temps.GetDefaultScratchDoubleRegister();
-  __ LoadHeapNumberValue(double_value, value);
+  __ LoadHeapNumberOrOddballValue(double_value, value);
   __ TruncateDoubleToInt32(result_reg, double_value);
   __ bind(&done);
 }

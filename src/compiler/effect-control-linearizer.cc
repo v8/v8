@@ -2225,9 +2225,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2247,9 +2246,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   vfalse = __ ChangeFloat64ToUint32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2269,9 +2267,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
   __ Goto(&done, ChangeSmiToInt64(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   vfalse = __ ChangeFloat64ToInt64(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2296,9 +2293,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
   __ Goto(&done, value);
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   vfalse = ChangeInt32ToSmi(vfalse);
   __ Goto(&done, vfalse);
@@ -2321,9 +2317,8 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
   __ Goto(&done, vtrue);
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -4114,8 +4109,6 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
       __ DeoptimizeIfNot(DeoptimizeReason::kNotANumberOrBoolean, feedback,
                          __ TaggedEqual(value_map, __ BooleanMapConstant()),
                          frame_state);
-      STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                        Oddball::kToNumberRawOffset);
       __ Goto(&check_done);
 
       __ Bind(&check_done);
@@ -4133,15 +4126,13 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
           __ Word32Equal(instance_type, __ Int32Constant(ODDBALL_TYPE));
       __ DeoptimizeIfNot(DeoptimizeReason::kNotANumberOrOddball, feedback,
                          check_oddball, frame_state);
-      STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                        Oddball::kToNumberRawOffset);
       __ Goto(&check_done);
 
       __ Bind(&check_done);
       break;
     }
   }
-  return __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  return __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
 }
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
@@ -4436,9 +4427,8 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
   vfalse = __ TruncateFloat64ToWord32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -5060,10 +5050,8 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
                 ChangeIntPtrToSmi(length));
 
   // Initialize the backing store with holes.
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* the_hole =
-      __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
+  Node* the_hole = __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(),
+                                __ TheHoleConstant());
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);

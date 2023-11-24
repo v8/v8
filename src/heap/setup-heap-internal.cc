@@ -383,11 +383,11 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   Tagged<Type> name = Type::unchecked_cast(obj);                           \
   set_##name(name)
 
-    ALLOCATE_AND_SET_ROOT(Undefined, undefined_value, Undefined::kSize);
-    ALLOCATE_AND_SET_ROOT(Null, null_value, Null::kSize);
+    ALLOCATE_AND_SET_ROOT(Undefined, undefined_value, sizeof(Undefined));
+    ALLOCATE_AND_SET_ROOT(Null, null_value, sizeof(Null));
     ALLOCATE_AND_SET_ROOT(SeqOneByteString, empty_string, String::kHeaderSize);
-    ALLOCATE_AND_SET_ROOT(False, false_value, False::kSize);
-    ALLOCATE_AND_SET_ROOT(True, true_value, True::kSize);
+    ALLOCATE_AND_SET_ROOT(False, false_value, sizeof(False));
+    ALLOCATE_AND_SET_ROOT(True, true_value, sizeof(True));
 
     for (const StringTypeInit& entry : kStringTypeTable) {
       {
@@ -410,9 +410,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     // Then, initialise the initial maps.
     InitializePartialMap(meta_map, meta_map, MAP_TYPE, Map::kSize);
     InitializePartialMap(undefined_map, meta_map, ODDBALL_TYPE,
-                         Undefined::kSize);
-    InitializePartialMap(null_map, meta_map, ODDBALL_TYPE, Null::kSize);
-    InitializePartialMap(boolean_map, meta_map, ODDBALL_TYPE, Boolean::kSize);
+                         sizeof(Undefined));
+    InitializePartialMap(null_map, meta_map, ODDBALL_TYPE, sizeof(Null));
+    InitializePartialMap(boolean_map, meta_map, ODDBALL_TYPE, sizeof(Boolean));
     boolean_map->SetConstructorFunctionIndex(Context::BOOLEAN_FUNCTION_INDEX);
 
     for (const StringTypeInit& entry : kStringTypeTable) {

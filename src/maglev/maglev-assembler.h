@@ -586,6 +586,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void SetMapAsRoot(Register object, RootIndex map);
 
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
+  inline void LoadHeapNumberOrOddballValue(DoubleRegister result,
+                                           Register object);
 
   void LoadDataField(const PolymorphicAccessInfo& access_info, Register result,
                      Register object, Register scratch);

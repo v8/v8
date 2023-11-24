@@ -520,7 +520,7 @@ extras_accessors = [
     'Map, bit_field2, char, kBitField2Offset',
     'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
-    'Oddball, kind_offset, int, kKindOffset',
+    'Oddball, kind, int, offsetof(Oddball, kind_)',
     'HeapNumber, value, double, kValueOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
@@ -568,10 +568,11 @@ expected_classes = [
 # The following structures store high-level representations of the structures
 # for which we're going to emit descriptive constants.
 #
-types = {};       # set of all type names
-typeclasses = {};       # maps type names to corresponding class names
-klasses = {};     # known classes, including parents
-fields = [];      # field declarations
+types = {}  # set of all type names
+typeclasses = {}  # maps type names to corresponding class names
+klasses = {}  # known classes, including parents
+fields = []  # field declarations
+offsetof_fields = []  # field declarations using offsetof
 
 header = '''
 /*
@@ -707,10 +708,10 @@ def load_objects_from_file(objfilename, checktypes):
 
     uncommented_file += '\n' + line
 
-  for match in re.finditer(r'\nclass(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
-         r'\s+(\w[^:;]*)'
-         r'(?:: public (\w[^{]*))?\s*{\s*',
-         uncommented_file):
+  for match in re.finditer(
+      r'\n(?:V8_OBJECT\s+)?class(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
+      r'\s+(\w[^:;]*)'
+      r'(?:: public (\w[^{]*))?\s*{\s*', uncommented_file):
     klass = match.group(1).strip();
     pklass = match.group(2);
     if (pklass):
@@ -827,7 +828,7 @@ def parse_field(call):
   idx = call.find('(');
   kind = call[0:idx];
   rest = call[idx + 1: len(call) - 1];
-  args = re.split(r'\s*,\s*', rest)
+  args = re.findall(r'[^\s,][^(),]*(?:\([^()]*\))?(?=\s*(?:,|$))', rest)
 
   klass = args[0];
   field = args[1];
@@ -843,12 +844,14 @@ def parse_field(call):
     offset = args[2];
     dtype = 'SMI'
 
+  if offset.startswith("offsetof("):
+    offsetof_fields.append((klass, field, offset))
+    value = 'OffsetsForDebug::%s_%s' % (klass, field)
+  else:
+    value = '%s::%s' % (klass, offset)
 
   assert(offset is not None and dtype is not None);
-  return ({
-      'name': 'class_%s__%s__%s' % (klass, field, dtype),
-      'value': '%s::%s' % (klass, offset)
-  });
+  return ({'name': 'class_%s__%s__%s' % (klass, field, dtype), 'value': value})
 
 #
 # Load field offset information from objects-inl.h etc.
@@ -943,6 +946,11 @@ def emit_config():
   out = open(sys.argv[1], 'w');
 
   out.write(header);
+
+  out.write("struct OffsetsForDebug {\n")
+  for (klass, field, offset) in offsetof_fields:
+    out.write("  static const int %s_%s = %s;\n" % (klass, field, offset))
+  out.write("};\n")
 
   out.write('/* miscellaneous constants */\n');
   emit_constants(out, consts_misc);

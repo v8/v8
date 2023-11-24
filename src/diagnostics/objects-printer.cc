@@ -1498,7 +1498,7 @@ void FeedbackNexus::Print(std::ostream& os) {
 }
 
 void Oddball::OddballPrint(std::ostream& os) {
-  PrintHeapObjectHeaderWithoutMap(*this, os, "Oddball");
+  PrintHeapObjectHeaderWithoutMap(Tagged<HeapObject>(this), os, "Oddball");
   os << ": ";
   Tagged<String> s = to_string();
   os << s->PrefixForDebugPrint();

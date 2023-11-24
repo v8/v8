@@ -989,7 +989,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
-       ANNOTATION_CPP_OBJECT_DEFINITION},
+       ANNOTATION_CPP_OBJECT_DEFINITION,
+       ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
        ANNOTATION_INSTANCE_TYPE_VALUE});
   ClassFlags flags = ClassFlag::kNone;
@@ -1036,6 +1037,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_CPP_OBJECT_DEFINITION)) {
     flags |= ClassFlag::kCppObjectDefinition;
+  }
+  if (annotations.Contains(ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION)) {
+    flags |= ClassFlag::kCppObjectLayoutDefinition;
   }
 
   auto is_extern = child_results->NextAs<bool>();

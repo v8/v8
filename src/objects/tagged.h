@@ -17,10 +17,9 @@ namespace internal {
 class Object;
 class Smi;
 class HeapObject;
+class HeapObjectLayout;
 class TaggedIndex;
 class FieldType;
-
-class HeapObjectLayout;
 
 // Tagged<T> represents an uncompressed V8 tagged pointer.
 //
@@ -75,7 +74,24 @@ template <>
 struct is_subtype<FieldType, Object> : public std::true_type {};
 template <typename Base>
 struct is_subtype<Base, Object,
-                  std::enable_if_t<std::is_base_of_v<HeapObject, Base>>>
+                  std::enable_if_t<std::disjunction_v<
+                      std::is_base_of<HeapObject, Base>,
+                      std::is_base_of<HeapObjectLayout, Base>>>>
+    : public std::true_type {};
+template <typename Base>
+struct is_subtype<Base, HeapObject,
+                  std::enable_if_t<std::disjunction_v<
+                      std::is_base_of<HeapObject, Base>,
+                      std::is_base_of<HeapObjectLayout, Base>>>>
+    : public std::true_type {};
+
+class PrimitiveHeapObject;
+class PrimitiveHeapObjectLayout;
+template <typename Base>
+struct is_subtype<Base, PrimitiveHeapObject,
+                  std::enable_if_t<std::disjunction_v<
+                      std::is_base_of<PrimitiveHeapObject, Base>,
+                      std::is_base_of<PrimitiveHeapObjectLayout, Base>>>>
     : public std::true_type {};
 
 // For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
@@ -122,6 +138,7 @@ DEF_FIXED_ARRAY_SUBTYPE(ArrayList)
 
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
+static_assert(is_subtype_v<HeapObject, HeapObject>);
 
 // `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
 // de-facto being a subtype of Object.
@@ -316,6 +333,8 @@ class Tagged<HeapObject> : public TaggedBase {
   }
 
   V8_INLINE constexpr Tagged() = default;
+  V8_INLINE explicit Tagged(const HeapObjectLayout* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
 
   // Implicit conversion for subclasses.
   template <typename U,
@@ -412,6 +431,11 @@ class Tagged : public detail::BaseForTagged<T>::type {
   }
 
   V8_INLINE constexpr Tagged() = default;
+  template <typename U = T>
+  V8_INLINE explicit Tagged(const T* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {
+    static_assert(std::is_base_of_v<HeapObjectLayout, U>);
+  }
 
   // Implicit conversion for subclasses.
   template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
@@ -425,7 +449,24 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(Tagged<U> other) : Base(other) {}
 
-  V8_INLINE constexpr T operator*() const { return ToRawPtr(); }
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T& operator*() const {
+    return *ToRawPtr();
+  }
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T* operator->() const {
+    return ToRawPtr();
+  }
+
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE constexpr T operator*() const {
+    return ToRawPtr();
+  }
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
   V8_INLINE constexpr detail::TaggedOperatorArrowRef<T> operator->() const {
     return detail::TaggedOperatorArrowRef<T>{ToRawPtr()};
   }
@@ -452,21 +493,43 @@ class Tagged : public detail::BaseForTagged<T>::type {
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
 
   V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T* ToRawPtr() const {
+    // Check whether T is taggable on raw ptr access rather than top-level, to
+    // allow forward declarations.
+    static_assert(is_taggable_v<T>);
+    return reinterpret_cast<T*>(this->ptr() - kHeapObjectTag);
+  }
+
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
   V8_INLINE constexpr T ToRawPtr() const {
     // Check whether T is taggable on raw ptr access rather than top-level, to
     // allow forward declarations.
     static_assert(is_taggable_v<T>);
     return T(this->ptr(), typename T::SkipTypeCheckTag{});
   }
-};
+};  // namespace internal
 
 // Deduction guide to simplify Foo->Tagged<Foo> transition.
 // TODO(leszeks): Remove once we're using Tagged everywhere.
 static_assert(kTaggedCanConvertToRawObjects);
 template <class T>
 Tagged(T object) -> Tagged<T>;
+
+Tagged(const HeapObjectLayout* object) -> Tagged<HeapObject>;
+Tagged(const PrimitiveHeapObjectLayout* object) -> Tagged<PrimitiveHeapObject>;
+
+template <class T>
+Tagged(const T* object) -> Tagged<T>;
+template <class T>
+Tagged(T* object) -> Tagged<T>;
 
 template <typename T>
 struct RemoveTagged {

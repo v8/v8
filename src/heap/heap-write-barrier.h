@@ -41,6 +41,9 @@ void CombinedWriteBarrier(Tagged<HeapObject> object, ObjectSlot slot,
 void CombinedWriteBarrier(Tagged<HeapObject> object, MaybeObjectSlot slot,
                           MaybeObject value, WriteBarrierMode mode);
 
+void CombinedWriteBarrier(HeapObjectLayout* object, TaggedMemberBase* slot,
+                          Tagged<Object> value, WriteBarrierMode mode);
+
 void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> object,
                                    ObjectSlot slot, Tagged<Object> value,
                                    WriteBarrierMode mode);
@@ -97,6 +100,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 #ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
+  template <typename T>
+  static inline bool IsRequired(const HeapObjectLayout* host, T value);
   static bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);
 #endif
 

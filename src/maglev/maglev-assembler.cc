@@ -168,13 +168,13 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   // Undefined is the first root, so it's the smallest possible pointer
   // value, which means we don't have to subtract it for the range check.
   ReadOnlyRoots roots(isolate_);
-  static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
                 StaticReadOnlyRoot::kNullValue);
-  static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
                 StaticReadOnlyRoot::kempty_string);
   static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
                 StaticReadOnlyRoot::kFalseValue);
-  static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
                 StaticReadOnlyRoot::kTrueValue);
   CompareInt32AndJumpIf(value, StaticReadOnlyRoot::kTrueValue,
                         kUnsignedLessThan, *is_false);

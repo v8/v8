@@ -1881,6 +1881,10 @@ void HeapObject::IterateBody(Tagged<Map> map, int object_size,
   IterateBodyFast<ObjectVisitor>(map, object_size, v);
 }
 
+int HeapObjectLayout::SizeFromMap(Tagged<Map> map) const {
+  return Tagged<HeapObject>(this)->SizeFromMap(map);
+}
+
 int HeapObject::SizeFromMap(Tagged<Map> map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
@@ -4158,12 +4162,12 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   return value;
 }
 
-STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                  Oddball::kToNumberRawOffset);
-
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, uint8_t kind) {
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                    offsetof(Oddball, to_number_raw_));
+
   Handle<String> internalized_to_string =
       isolate->factory()->InternalizeUtf8String(to_string);
   Handle<String> internalized_type_of =

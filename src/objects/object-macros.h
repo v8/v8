@@ -62,10 +62,12 @@
   explicit constexpr V8_INLINE Type(Address ptr, HeapObject::SkipTypeCheckTag) \
       : __VA_ARGS__(ptr, HeapObject::SkipTypeCheckTag()) {}                    \
                                                                                \
+  inline void CheckTypeOnCast();                                               \
   explicit inline Type(Address ptr)
 
-#define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
-  inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type(*this)); }
+#define OBJECT_CONSTRUCTORS_IMPL(Type, Super)                           \
+  inline void Type::CheckTypeOnCast() { SLOW_DCHECK(Is##Type(*this)); } \
+  inline Type::Type(Address ptr) : Super(ptr) { CheckTypeOnCast(); }
 
 #define NEVER_READ_ONLY_SPACE   \
   inline Heap* GetHeap() const; \
@@ -623,6 +625,7 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
+#define WRITE_BARRIER_CPP(object, offset, value)
 #else
 #define WRITE_BARRIER(object, offset, value)                              \
   do {                                                                    \

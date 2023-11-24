@@ -26,14 +26,40 @@ template <typename T, typename CompressionScheme>
 class TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
-#ifdef V8_COMPRESS_POINTERS
-  constexpr explicit TaggedMember(Tagged<T> value)
-      : TaggedMemberBase(CompressionScheme::CompressObject(value.ptr())) {}
-#else
-  constexpr explicit TaggedMember(Tagged<T> value)
-      : TaggedMemberBase(value.ptr()) {}
-#endif
+
+  inline Tagged<T> load() const;
+  inline void store(HeapObjectLayout* host, Tagged<T> value,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+ private:
+  inline void store_no_write_barrier(Tagged<T> value);
+  inline void Relaxed_Store_no_write_barrier(Tagged<T> value);
+
+  static inline Address tagged_to_full(Tagged_t tagged_value);
+  static inline Tagged_t full_to_tagged(Address value);
 };
+
+static_assert(alignof(TaggedMember<Object>) == alignof(Tagged_t));
+static_assert(sizeof(TaggedMember<Object>) == sizeof(Tagged_t));
+
+class UnalignedDoubleMember {
+ public:
+  UnalignedDoubleMember() = default;
+  double value() const {
+    double ret;
+    memcpy(&ret, storage_, sizeof(double));
+    return ret;
+  }
+  void set_value(double value) { memcpy(storage_, &value, sizeof(double)); }
+  void set_value_as_bits(uint64_t value) {
+    memcpy(storage_, &value, sizeof(double));
+  }
+
+ private:
+  alignas(alignof(Tagged_t)) char storage_[sizeof(double)];
+};
+static_assert(alignof(UnalignedDoubleMember) == alignof(Tagged_t));
+static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.

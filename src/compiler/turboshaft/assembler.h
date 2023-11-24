@@ -1411,7 +1411,7 @@ class AssemblerOpInterface {
                                      uint64_t{static_cast<uint32_t>(value)});
   }
   template <typename T,
-            typename = std::enable_if_t<std::is_base_of_v<HeapObject, T>>>
+            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
   V<T> HeapConstant(Handle<T> value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject,
                                      ConstantOp::Storage{value});

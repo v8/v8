@@ -343,6 +343,12 @@ inline void MaglevAssembler::LoadAndUntagTaggedSignedField(Register result,
   MacroAssembler::SmiUntagField(result, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::LoadHeapNumberOrOddballValue(DoubleRegister result,
+                                                          Register object) {
+  static_assert(HeapNumber::kValueOffset == offsetof(Oddball, to_number_raw_));
+  LoadHeapNumberValue(result, object);
+}
+
 namespace detail {
 
 #ifdef DEBUG

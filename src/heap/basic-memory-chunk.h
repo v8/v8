@@ -156,6 +156,13 @@ class BasicMemoryChunk {
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
   }
 
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  static BasicMemoryChunk* FromHeapObject(const HeapObjectLayout* o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<BasicMemoryChunk*>(
+        BaseAddress(reinterpret_cast<Address>(o)));
+  }
+
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;
     // Need to subtract one from the mark because when a chunk is full the

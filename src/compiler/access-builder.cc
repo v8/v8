@@ -47,6 +47,13 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForHeapNumberOrOddballValue() {
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                    offsetof(Oddball, to_number_raw_));
+  return ForHeapNumberValue();
+}
+
+// static
 FieldAccess AccessBuilder::ForBigIntBitfield() {
   FieldAccess access = {
       kTaggedBase,      BigInt::kBitfieldOffset,  MaybeHandle<Name>(),

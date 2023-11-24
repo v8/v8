@@ -567,10 +567,8 @@ class MachineLoweringReducer : public Next {
         Label<Smi> done(this);
         GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done, V<Smi>::Cast(input));
 
-        STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                          Oddball::kToNumberRawOffset);
         V<Float64> value = __ template LoadField<Float64>(
-            input, AccessBuilder::ForHeapNumberValue());
+            input, AccessBuilder::ForHeapNumberOrOddballValue());
         GOTO(done, __ TagSmi(__ ReversibleFloat64ToInt32(value)));
 
         BIND(done, result);
@@ -954,10 +952,8 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ UntagSmi(object));
           }
           ELSE {
-            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                              Oddball::kToNumberRawOffset);
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberValue());
+                object, AccessBuilder::ForHeapNumberOrOddballValue());
             GOTO(done, __ ReversibleFloat64ToInt32(value));
           }
           END_IF
@@ -992,10 +988,8 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ ChangeInt32ToInt64(__ UntagSmi(object)));
           }
           ELSE {
-            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                              Oddball::kToNumberRawOffset);
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberValue());
+                object, AccessBuilder::ForHeapNumberOrOddballValue());
             GOTO(done, __ ReversibleFloat64ToInt64(value));
           }
           END_IF
@@ -1014,10 +1008,8 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ UntagSmi(object));
         }
         ELSE {
-          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                            Oddball::kToNumberRawOffset);
           V<Float64> value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
+              object, AccessBuilder::ForHeapNumberOrOddballValue());
           GOTO(done, __ ReversibleFloat64ToUint32(value));
         }
         END_IF
@@ -1038,10 +1030,8 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ ChangeInt32ToFloat64(__ UntagSmi(object)));
           }
           ELSE {
-            STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                              Oddball::kToNumberRawOffset);
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberValue());
+                object, AccessBuilder::ForHeapNumberOrOddballValue());
             GOTO(done, value);
           }
           END_IF
@@ -1255,10 +1245,8 @@ class MachineLoweringReducer : public Next {
           GOTO(done, __ UntagSmi(object));
         }
         ELSE {
-          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                            Oddball::kToNumberRawOffset);
           V<Float64> number_value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
+              object, AccessBuilder::ForHeapNumberOrOddballValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(number_value));
         }
         END_IF
@@ -1311,13 +1299,13 @@ class MachineLoweringReducer : public Next {
         // Undefined is the first root, so it's the smallest possible pointer
         // value, which means we don't have to subtract it for the range check.
         ReadOnlyRoots roots(isolate_);
-        static_assert(StaticReadOnlyRoot::kUndefinedValue + Undefined::kSize ==
+        static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
                       StaticReadOnlyRoot::kNullValue);
-        static_assert(StaticReadOnlyRoot::kNullValue + Null::kSize ==
+        static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
                       StaticReadOnlyRoot::kempty_string);
         static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
                       StaticReadOnlyRoot::kFalseValue);
-        static_assert(StaticReadOnlyRoot::kFalseValue + False::kSize ==
+        static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
                       StaticReadOnlyRoot::kTrueValue);
         V<Word32> object_as_word32 =
             __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(object));
@@ -1541,11 +1529,9 @@ class MachineLoweringReducer : public Next {
         access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
                   compiler::Type::NumberOrHole(), MachineType::Float64(),
                   kNoWriteBarrier};
-        STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                          Oddball::kToNumberRawOffset);
         the_hole_value = __ template LoadField<Float64>(
             __ HeapConstant(factory_->the_hole_value()),
-            AccessBuilder::ForHeapNumberValue());
+            AccessBuilder::ForHeapNumberOrOddballValue());
         break;
       }
       case NewArrayOp::Kind::kObject: {
@@ -2952,8 +2938,6 @@ class MachineLoweringReducer : public Next {
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrBoolean: {
         IF_NOT(check_number) {
-          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                            Oddball::kToNumberRawOffset);
           __ DeoptimizeIfNot(
               __ TaggedEqual(map, __ HeapConstant(factory_->boolean_map())),
               frame_state, DeoptimizeReason::kNotANumberOrBoolean, feedback);
@@ -2966,8 +2950,6 @@ class MachineLoweringReducer : public Next {
         IF_NOT(check_number) {
           // For oddballs also contain the numeric value, let us just check that
           // we have an oddball here.
-          STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                            Oddball::kToNumberRawOffset);
           V<Word32> instance_type = __ LoadInstanceTypeField(map);
           __ DeoptimizeIfNot(__ Word32Equal(instance_type, ODDBALL_TYPE),
                              frame_state,
@@ -2977,8 +2959,8 @@ class MachineLoweringReducer : public Next {
         break;
       }
     }
-    return __ template LoadField<Float64>(heap_object,
-                                          AccessBuilder::ForHeapNumberValue());
+    return __ template LoadField<Float64>(
+        heap_object, AccessBuilder::ForHeapNumberOrOddballValue());
   }
 
   OpIndex LoadFromSeqString(V<Tagged> receiver, V<WordPtr> position,

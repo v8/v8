@@ -7212,7 +7212,7 @@ TEST(Regress10900) {
   UseScratchRegisterScope temps(&masm);
   Register tmp = temps.AcquireX();
   masm.Mov(tmp, Operand(static_cast<int32_t>(
-                    ReadOnlyRoots(heap).undefined_value_handle()->ptr())));
+                    ReadOnlyRoots(heap).undefined_value().ptr())));
   masm.Push(tmp, tmp);
 #else
   masm.Push(ReadOnlyRoots(heap).undefined_value_handle());

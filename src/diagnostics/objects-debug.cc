@@ -1230,9 +1230,13 @@ void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
 }
 
+void PrimitiveHeapObjectLayout::PrimitiveHeapObjectVerify(Isolate* isolate) {
+  CHECK(IsPrimitiveHeapObject(this, isolate));
+}
+
 void Oddball::OddballVerify(Isolate* isolate) {
   PrimitiveHeapObjectVerify(isolate);
-  CHECK(IsOddball(*this, isolate));
+  CHECK(IsOddball(this, isolate));
 
   Heap* heap = isolate->heap();
   Tagged<Object> string = to_string();
@@ -1241,7 +1245,7 @@ void Oddball::OddballVerify(Isolate* isolate) {
   Tagged<Object> type = type_of();
   Object::VerifyPointer(isolate, type);
   CHECK(IsString(type));
-  Tagged<Object> kind_value = TaggedField<Object>::load(*this, kKindOffset);
+  Tagged<Object> kind_value = kind_.load();
   Object::VerifyPointer(isolate, kind_value);
   CHECK(IsSmi(kind_value));
 
@@ -1262,11 +1266,11 @@ void Oddball::OddballVerify(Isolate* isolate) {
 
   ReadOnlyRoots roots(heap);
   if (map() == roots.undefined_map()) {
-    CHECK(*this == roots.undefined_value());
+    CHECK(this == roots.undefined_value());
   } else if (map() == roots.null_map()) {
-    CHECK(*this == roots.null_value());
+    CHECK(this == roots.null_value());
   } else if (map() == roots.boolean_map()) {
-    CHECK(*this == roots.true_value() || *this == roots.false_value());
+    CHECK(this == roots.true_value() || this == roots.false_value());
   } else {
     UNREACHABLE();
   }

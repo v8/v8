@@ -93,21 +93,27 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
          IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject>::cast(obj));
 }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                                       \
-  bool Is##type_(Tagged<Object> obj) {                                    \
-    return IsHeapObject(obj) && Is##type_(Tagged<HeapObject>::cast(obj)); \
-  }                                                                       \
-  bool Is##type_(Tagged<Object> obj, PtrComprCageBase cage_base) {        \
-    return IsHeapObject(obj) &&                                           \
-           Is##type_(Tagged<HeapObject>::cast(obj), cage_base);           \
-  }                                                                       \
-  bool Is##type_(HeapObject obj) {                                        \
-    static_assert(kTaggedCanConvertToRawObjects);                         \
-    return Is##type_(Tagged<HeapObject>(obj));                            \
-  }                                                                       \
-  bool Is##type_(HeapObject obj, PtrComprCageBase cage_base) {            \
-    static_assert(kTaggedCanConvertToRawObjects);                         \
-    return Is##type_(Tagged<HeapObject>(obj), cage_base);                 \
+#define IS_TYPE_FUNCTION_DEF(type_)                                         \
+  bool Is##type_(Tagged<Object> obj) {                                      \
+    return IsHeapObject(obj) && Is##type_(Tagged<HeapObject>::cast(obj));   \
+  }                                                                         \
+  bool Is##type_(Tagged<Object> obj, PtrComprCageBase cage_base) {          \
+    return IsHeapObject(obj) &&                                             \
+           Is##type_(Tagged<HeapObject>::cast(obj), cage_base);             \
+  }                                                                         \
+  bool Is##type_(HeapObject obj) {                                          \
+    static_assert(kTaggedCanConvertToRawObjects);                           \
+    return Is##type_(Tagged<HeapObject>(obj));                              \
+  }                                                                         \
+  bool Is##type_(HeapObject obj, PtrComprCageBase cage_base) {              \
+    static_assert(kTaggedCanConvertToRawObjects);                           \
+    return Is##type_(Tagged<HeapObject>(obj), cage_base);                   \
+  }                                                                         \
+  bool Is##type_(const HeapObjectLayout* obj) {                             \
+    return Is##type_(Tagged<HeapObject>(obj));                              \
+  }                                                                         \
+  bool Is##type_(const HeapObjectLayout* obj, PtrComprCageBase cage_base) { \
+    return Is##type_(Tagged<HeapObject>(obj), cage_base);                   \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
@@ -135,6 +141,12 @@ bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
   }                                                                      \
   bool Is##Type(HeapObject obj) {                                        \
     static_assert(kTaggedCanConvertToRawObjects);                        \
+    return Is##Type(Tagged<HeapObject>(obj));                            \
+  }                                                                      \
+  bool Is##Type(const HeapObjectLayout* obj, Isolate* isolate) {         \
+    return Is##Type(Tagged<HeapObject>(obj), isolate);                   \
+  }                                                                      \
+  bool Is##Type(const HeapObjectLayout* obj) {                           \
     return Is##Type(Tagged<HeapObject>(obj));                            \
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
@@ -1004,6 +1016,11 @@ Tagged<Map> HeapObject::map(PtrComprCageBase cage_base) const {
   return map_word(cage_base, kRelaxedLoad).ToMap();
 }
 
+Tagged<Map> HeapObjectLayout::map() const {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->map();
+}
+
 void HeapObject::set_map(Tagged<Map> value) {
   set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
                                   VerificationMode::kPotentialLayoutChange);
@@ -1084,6 +1101,12 @@ void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
     }
   }
 #endif
+}
+
+void HeapObjectLayout::set_map_after_allocation(Tagged<Map> value,
+                                                WriteBarrierMode mode) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  Tagged<HeapObject>(this)->set_map_after_allocation(value, mode);
 }
 
 void HeapObject::set_map_after_allocation(Tagged<Map> value,

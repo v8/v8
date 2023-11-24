@@ -26,11 +26,46 @@ class ExposedTrustedObject;
 class ObjectVisitor;
 
 V8_OBJECT class HeapObjectLayout {
+ public:
+  // [map]: Contains a map which contains the object's reflective
+  // information.
+  inline Tagged<Map> map() const;
+
+  // Initialize the map immediately after the object is allocated.
+  // Do not use this outside Heap.
+  inline void set_map_after_allocation(
+      Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Given a heap object's map pointer, returns the heap size in bytes
+  // Useful when the map pointer field is used for other purposes.
+  // GC internal.
+  V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+
  private:
   friend class HeapObject;
 
   TaggedMember<Map> map_;
 } V8_OBJECT_END;
+
+static_assert(sizeof(HeapObjectLayout) == kTaggedSize);
+
+inline bool operator==(const HeapObjectLayout* obj, TaggedBase ptr) {
+  return Tagged<HeapObject>(obj) == ptr;
+}
+inline bool operator==(TaggedBase ptr, const HeapObjectLayout* obj) {
+  return ptr == Tagged<HeapObject>(obj);
+}
+inline bool operator!=(const HeapObjectLayout* obj, TaggedBase ptr) {
+  return Tagged<HeapObject>(obj) != ptr;
+}
+inline bool operator!=(TaggedBase ptr, const HeapObjectLayout* obj) {
+  return ptr != Tagged<HeapObject>(obj);
+}
+
+template <typename T>
+struct ObjectTraits {
+  using BodyDescriptor = typename T::BodyDescriptor;
+};
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
@@ -424,7 +459,10 @@ constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
   V8_INLINE bool Is##Type(HeapObject obj);                                     \
-  V8_INLINE bool Is##Type(HeapObject obj, PtrComprCageBase cage_base);
+  V8_INLINE bool Is##Type(HeapObject obj, PtrComprCageBase cage_base);         \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* obj);                        \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* obj,                         \
+                          PtrComprCageBase cage_base);
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
@@ -432,9 +470,11 @@ IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
 // an Isolate/LocalIsolate/ReadOnlyRoots parameter.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)      \
-  V8_INLINE bool Is##Type(Tagged<HeapObject> obj); \
-  V8_INLINE bool Is##Type(HeapObject obj);
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                             \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                        \
+  V8_INLINE bool Is##Type(HeapObject obj);                                \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* obj, Isolate* isolate); \
+  V8_INLINE bool Is##Type(const HeapObjectLayout* obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
@@ -444,7 +484,10 @@ IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj);                             \
   V8_INLINE bool Is##Name(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
   V8_INLINE bool Is##Name(HeapObject obj);                                     \
-  V8_INLINE bool Is##Name(HeapObject obj, PtrComprCageBase cage_base);
+  V8_INLINE bool Is##Name(HeapObject obj, PtrComprCageBase cage_base);         \
+  V8_INLINE bool Is##Name(const HeapObjectLayout* obj);                        \
+  V8_INLINE bool Is##Name(const HeapObjectLayout* obj,                         \
+                          PtrComprCageBase cage_base);
 STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

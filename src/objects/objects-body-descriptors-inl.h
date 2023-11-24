@@ -1086,8 +1086,9 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
 
 template <typename Op, typename... Args>
 auto BodyDescriptorApply(InstanceType type, Args&&... args) {
-#define CALL_APPLY(ClassName) \
-  Op::template apply<ClassName::BodyDescriptor>(std::forward<Args>(args)...)
+#define CALL_APPLY(ClassName)                                  \
+  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor>( \
+      std::forward<Args>(args)...)
 
   if (type < FIRST_NONSTRING_TYPE) {
     switch (type & kStringRepresentationMask) {
