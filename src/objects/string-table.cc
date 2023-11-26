@@ -517,6 +517,29 @@ StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
   return data;
 }
 
+namespace {
+template <typename Char>
+class CharBuffer {
+ public:
+  void Reset(size_t length) {
+    if (length >= kInlinedBufferSize)
+      outofline_ = std::make_unique<Char[]>(length);
+  }
+
+  Char* Data() {
+    if (outofline_)
+      return outofline_.get();
+    else
+      return inlined_;
+  }
+
+ private:
+  static constexpr size_t kInlinedBufferSize = 256;
+  Char inlined_[kInlinedBufferSize];
+  std::unique_ptr<Char[]> outofline_;
+};
+}  // namespace
+
 // static
 template <typename Char>
 Address StringTable::Data::TryStringToIndexOrLookupExisting(
@@ -546,15 +569,16 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
 
   uint64_t seed = HashSeed(isolate);
 
-  std::unique_ptr<Char[]> buffer;
+  CharBuffer<Char> buffer;
   const Char* chars;
 
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   if (IsConsString(source, isolate)) {
     DCHECK(!source->IsFlat(isolate));
-    buffer.reset(new Char[length]);
-    String::WriteToFlat(source, buffer.get(), 0, length, isolate, access_guard);
-    chars = buffer.get();
+    buffer.Reset(length);
+    String::WriteToFlat(source, buffer.Data(), 0, length, isolate,
+                        access_guard);
+    chars = buffer.Data();
   } else {
     chars = source->GetDirectStringChars<Char>(isolate, no_gc, access_guard) +
             start;
