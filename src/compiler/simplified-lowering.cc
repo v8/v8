@@ -2371,6 +2371,11 @@ class RepresentationSelector {
           if (lower<T>()) ChangeOp(node, Int32Op(node));
           return;
         }
+        if (lhs_type.Is(Type::Boolean()) && rhs_type.Is(Type::Boolean())) {
+          VisitBinop<T>(node, UseInfo::Bool(), MachineRepresentation::kBit);
+          if (lower<T>()) ChangeOp(node, lowering->machine()->Word32Equal());
+          return;
+        }
         // => Float64Cmp
         VisitBinop<T>(node, UseInfo::TruncatingFloat64(kIdentifyZeros),
                       MachineRepresentation::kBit);
@@ -2434,6 +2439,12 @@ class RepresentationSelector {
           VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                         MachineRepresentation::kBit);
           if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+          return;
+        } else if (lhs_type.Is(Type::Boolean()) &&
+                   rhs_type.Is(Type::Boolean())) {
+          VisitBinop<T>(node, UseInfo::Bool(), MachineRepresentation::kBit);
+          if (lower<T>())
+            ChangeToPureOp(node, lowering->machine()->Word32Equal());
           return;
         }
         // Try to use type feedback.
