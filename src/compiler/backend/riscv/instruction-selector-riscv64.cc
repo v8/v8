@@ -2443,8 +2443,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
             default:
               UNREACHABLE();
           }
-          break;
-
         case RegisterRepresentation::Float64():
           switch (comparison->kind) {
             case ComparisonOp::Kind::kEqual:
@@ -2453,14 +2451,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
             case ComparisonOp::Kind::kSignedLessThan:
               cont->OverwriteAndNegateIfEqual(kFloatLessThan);
               return VisitFloat64Compare(this, value, cont);
-          case ComparisonOp::Kind::kSignedLessThanOrEqual);
-            cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
-            return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat64Compare(this, value, cont);
             default:
-            UNREACHABLE();
+              UNREACHABLE();
           }
-          break;
-
         default:
           break;
       }
