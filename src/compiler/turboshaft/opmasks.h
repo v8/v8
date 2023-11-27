@@ -250,6 +250,24 @@ using Simd128BinopMask =
 using kSimd128I32x4Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI32x4Mul>;
 using kSimd128I16x8Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI16x8Mul>;
 
+using Simd128UnaryMask =
+    MaskBuilder<Simd128UnaryOp, FIELD(Simd128UnaryOp, kind)>;
+using kSimd128I16x8ExtAddPairwiseI8x16S =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI16x8ExtAddPairwiseI8x16S>;
+using kSimd128I16x8ExtAddPairwiseI8x16U =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI16x8ExtAddPairwiseI8x16U>;
+using kSimd128I32x4ExtAddPairwiseI16x8S =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S>;
+using kSimd128I32x4ExtAddPairwiseI16x8U =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U>;
+
+using Simd128ShiftMask =
+    MaskBuilder<Simd128ShiftOp, FIELD(Simd128ShiftOp, kind)>;
+#define SIMD_SHIFT_MASK(kind) \
+  using kSimd128##kind = Simd128ShiftMask::For<Simd128ShiftOp::Kind::k##kind>;
+FOREACH_SIMD_128_SHIFT_OPCODE(SIMD_SHIFT_MASK)
+#undef SIMD_SHIFT_MASK
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #undef FIELD

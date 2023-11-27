@@ -6622,6 +6622,15 @@ struct MulWithDupResult {
   explicit operator bool() const { return dup_node != nullptr; }
 };
 
+// Struct holding the result of pattern-matching a mul+dup.
+struct MulWithDup {
+  turboshaft::OpIndex input;     // Node holding the vector elements.
+  turboshaft::OpIndex dup_node;  // Node holding the lane to multiply.
+  int index;
+  // Pattern-match is successful if dup_node is set.
+  explicit operator bool() const { return dup_node.valid(); }
+};
+
 template <int LANES>
 MulWithDupResult TryMatchMulWithDup(Node* node) {
   // Pattern match:
@@ -6661,11 +6670,63 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
 
   return {input, dup_node, index};
 }
+
+template <int LANES>
+MulWithDup TryMatchMulWithDup(InstructionSelectorT<TurboshaftAdapter>* selector,
+                              turboshaft::OpIndex node) {
+  // Pattern match:
+  //   f32x4.mul(x, shuffle(x, y, indices)) => f32x4.mul(x, y, laneidx)
+  //   f64x2.mul(x, shuffle(x, y, indices)) => f64x2.mul(x, y, laneidx)
+  //   where shuffle(x, y, indices) = dup(x[laneidx]) or dup(y[laneidx])
+  // f32x4.mul and f64x2.mul are commutative, so use BinopMatcher.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  OpIndex input;
+  OpIndex dup_node;
+
+  int index = 0;
+#if V8_ENABLE_WEBASSEMBLY
+  const Simd128BinopOp& mul = selector->Get(node).Cast<Simd128BinopOp>();
+  const Operation& left = selector->Get(mul.left());
+  const Operation& right = selector->Get(mul.right());
+
+  // TODO(zhin): We can canonicalize first to avoid checking index < LANES.
+  // e.g. shuffle(x, y, [16, 17, 18, 19...]) => shuffle(y, y, [0, 1, 2,
+  // 3]...). But doing so can mutate the inputs of the shuffle node without
+  // updating the shuffle immediates themselves. Fix that before we
+  // canonicalize here. We don't want CanCover here because in many use cases,
+  // the shuffle is generated early in the function, but the f32x4.mul happens
+  // in a loop, which won't cover the shuffle since they are different basic
+  // blocks.
+  if (left.Is<Simd128ShuffleOp>() &&
+      wasm::SimdShuffle::TryMatchSplat<LANES>(
+          left.Cast<Simd128ShuffleOp>().shuffle, &index)) {
+    dup_node = left.input(index < LANES ? 0 : 1);
+    input = mul.right();
+  } else if (right.Is<Simd128ShuffleOp>() &&
+             wasm::SimdShuffle::TryMatchSplat<LANES>(
+                 right.Cast<Simd128ShuffleOp>().shuffle, &index)) {
+    dup_node = right.input(index < LANES ? 0 : 1);
+    input = mul.left();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Canonicalization would get rid of this too.
+  index %= LANES;
+
+  return {input, dup_node, index};
+}
 }  // namespace
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitF32x4Mul(node_t node) {
-  UNIMPLEMENTED();
+  if (MulWithDup result = TryMatchMulWithDup<4>(this, node)) {
+    Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+    Emit(kArm64FMulElement | LaneSizeField::encode(32),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
+  } else {
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(32), node);
+  }
 }
 
 template <>
@@ -6682,7 +6743,14 @@ void InstructionSelectorT<TurbofanAdapter>::VisitF32x4Mul(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2Mul(node_t node) {
-  UNIMPLEMENTED();
+  if (MulWithDup result = TryMatchMulWithDup<2>(this, node)) {
+    Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+    Emit(kArm64FMulElement | LaneSizeField::encode(64),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
+  } else {
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(64), node);
+  }
 }
 
 template <>
@@ -6737,104 +6805,207 @@ struct SimdAddOpMatcher : public NodeMatcher {
   Node* right_;
 };
 
-template <typename Adapter>
-bool ShraHelper(InstructionSelectorT<Adapter>* selector,
-                typename Adapter::node_t node, int lane_size,
-                InstructionCode shra_code, InstructionCode add_code,
-                IrOpcode::Value shift_op) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    SimdAddOpMatcher m(node, shift_op);
-    if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
-    if (!g.IsIntegerConstant(m.left()->InputAt(1))) return false;
-
-    // If shifting by zero, just do the addition
-    if (g.GetIntegerConstantValue(m.left()->InputAt(1)) % lane_size == 0) {
-      selector->Emit(add_code, g.DefineAsRegister(node),
-                     g.UseRegister(m.left()->InputAt(0)),
-                     g.UseRegister(m.right()));
-    } else {
-      selector->Emit(shra_code | LaneSizeField::encode(lane_size),
-                     g.DefineSameAsFirst(node), g.UseRegister(m.right()),
-                     g.UseRegister(m.left()->InputAt(0)),
-                     g.UseImmediate(m.left()->InputAt(1)));
+// Tries to match either input of a commutative binop to a given Opmask.
+class SimdBinopMatcherTurboshaft {
+ public:
+  SimdBinopMatcherTurboshaft(InstructionSelectorT<TurboshaftAdapter>* selector,
+                             turboshaft::OpIndex node)
+      : selector_(selector), node_(node) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Simd128BinopOp& add_op = selector->Get(node).Cast<Simd128BinopOp>();
+    DCHECK(Simd128BinopOp::IsCommutative(add_op.kind));
+    input0_ = add_op.left();
+    input1_ = add_op.right();
+  }
+  template <typename OpmaskT>
+  bool InputMatches() {
+    if (selector_->Get(input1_).Is<OpmaskT>()) {
+      std::swap(input0_, input1_);
+      return true;
     }
-    return true;
+    return selector_->Get(input0_).Is<OpmaskT>();
   }
-}
+  turboshaft::OpIndex matched_input() const { return input0_; }
+  turboshaft::OpIndex other_input() const { return input1_; }
 
-template <typename Adapter>
-bool AdalpHelper(InstructionSelectorT<Adapter>* selector,
-                 typename Adapter::node_t node, int lane_size,
-                 InstructionCode adalp_code, IrOpcode::Value ext_op) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    SimdAddOpMatcher m(node, ext_op);
-    if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
-    selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), g.UseRegister(m.right()),
-                   g.UseRegister(m.left()->InputAt(0)));
-    return true;
-  }
-}
+ private:
+  InstructionSelectorT<TurboshaftAdapter>* selector_;
+  turboshaft::OpIndex node_;
+  turboshaft::OpIndex input0_;
+  turboshaft::OpIndex input1_;
+};
 
-template <typename Adapter>
-bool MlaHelper(InstructionSelectorT<Adapter>* selector,
-               typename Adapter::node_t node, InstructionCode mla_code,
-               IrOpcode::Value mul_op) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    SimdAddOpMatcher m(node, mul_op);
-    if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
-    selector->Emit(mla_code, g.DefineSameAsFirst(node),
-                   g.UseRegister(m.right()),
+bool ShraHelper(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+                int lane_size, InstructionCode shra_code,
+                InstructionCode add_code, IrOpcode::Value shift_op) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+  SimdAddOpMatcher m(node, shift_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  if (!g.IsIntegerConstant(m.left()->InputAt(1))) return false;
+
+  // If shifting by zero, just do the addition
+  if (g.GetIntegerConstantValue(m.left()->InputAt(1)) % lane_size == 0) {
+    selector->Emit(add_code, g.DefineAsRegister(node),
                    g.UseRegister(m.left()->InputAt(0)),
-                   g.UseRegister(m.left()->InputAt(1)));
-    return true;
-  }
-}
-
-template <typename Adapter>
-bool SmlalHelper(InstructionSelectorT<Adapter>* selector,
-                 typename Adapter::node_t node, int lane_size,
-                 InstructionCode smlal_code, IrOpcode::Value ext_mul_op) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+                   g.UseRegister(m.right()));
   } else {
-    Arm64OperandGeneratorT<Adapter> g(selector);
-    SimdAddOpMatcher m(node, ext_mul_op);
-    if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
-
-    selector->Emit(smlal_code | LaneSizeField::encode(lane_size),
+    selector->Emit(shra_code | LaneSizeField::encode(lane_size),
                    g.DefineSameAsFirst(node), g.UseRegister(m.right()),
                    g.UseRegister(m.left()->InputAt(0)),
-                   g.UseRegister(m.left()->InputAt(1)));
-    return true;
+                   g.UseImmediate(m.left()->InputAt(1)));
   }
+  return true;
+}
+
+template <typename OpmaskT>
+bool ShraHelper(InstructionSelectorT<TurboshaftAdapter>* selector,
+                turboshaft::OpIndex node, int lane_size,
+                InstructionCode shra_code, InstructionCode add_code) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input())) {
+    return false;
+  }
+  const Simd128ShiftOp& shiftop =
+      selector->Get(m.matched_input()).Cast<Simd128ShiftOp>();
+  if (!selector->is_integer_constant(shiftop.shift())) return false;
+
+  // If shifting by zero, just do the addition
+  if (selector->integer_constant(shiftop.shift()) % lane_size == 0) {
+    selector->Emit(add_code, g.DefineAsRegister(node),
+                   g.UseRegister(shiftop.input()),
+                   g.UseRegister(m.other_input()));
+  } else {
+    selector->Emit(shra_code | LaneSizeField::encode(lane_size),
+                   g.DefineSameAsFirst(node), g.UseRegister(m.other_input()),
+                   g.UseRegister(shiftop.input()),
+                   g.UseImmediate(shiftop.shift()));
+  }
+  return true;
+}
+
+bool AdalpHelper(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+                 int lane_size, InstructionCode adalp_code,
+                 IrOpcode::Value ext_op) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+  SimdAddOpMatcher m(node, ext_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)));
+  return true;
+}
+
+template <typename OpmaskT>
+bool AdalpHelper(InstructionSelectorT<TurboshaftAdapter>* selector,
+                 turboshaft::OpIndex node, int lane_size,
+                 InstructionCode adalp_code) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input())) {
+    return false;
+  }
+  selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.other_input()),
+                 g.UseRegister(selector->Get(m.matched_input()).input(0)));
+  return true;
+}
+
+bool MlaHelper(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+               InstructionCode mla_code, IrOpcode::Value mul_op) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+  SimdAddOpMatcher m(node, mul_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  selector->Emit(mla_code, g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)),
+                 g.UseRegister(m.left()->InputAt(1)));
+  return true;
+}
+
+template <typename OpmaskT>
+bool MlaHelper(InstructionSelectorT<TurboshaftAdapter>* selector,
+               turboshaft::OpIndex node, InstructionCode mla_code) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input())) {
+    return false;
+  }
+  const Operation& mul = selector->Get(m.matched_input());
+  selector->Emit(mla_code, g.DefineSameAsFirst(node),
+                 g.UseRegister(m.other_input()), g.UseRegister(mul.input(0)),
+                 g.UseRegister(mul.input(1)));
+  return true;
+}
+
+bool SmlalHelper(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+                 int lane_size, InstructionCode smlal_code,
+                 IrOpcode::Value ext_mul_op) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
+  SimdAddOpMatcher m(node, ext_mul_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+
+  selector->Emit(smlal_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)),
+                 g.UseRegister(m.left()->InputAt(1)));
+  return true;
+}
+
+template <turboshaft::Simd128BinopOp::Kind kind>
+bool SmlalHelper(InstructionSelectorT<TurboshaftAdapter>* selector,
+                 turboshaft::OpIndex node, int lane_size,
+                 InstructionCode smlal_code) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  using OpmaskT = Opmask::Simd128BinopMask::For<kind>;
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input()))
+    return false;
+
+  const Operation& matched = selector->Get(m.matched_input());
+  selector->Emit(smlal_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.other_input()),
+                 g.UseRegister(matched.input(0)),
+                 g.UseRegister(matched.input(1)));
+  return true;
 }
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Add(node_t node) {
-  if (!ShraHelper(this, node, 64, kArm64Ssra,
-                  kArm64IAdd | LaneSizeField::encode(64),
-                  IrOpcode::kI64x2ShrS) &&
-      !ShraHelper(this, node, 64, kArm64Usra,
-                  kArm64IAdd | LaneSizeField::encode(64),
-                  IrOpcode::kI64x2ShrU)) {
-    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2Add(node_t node) {
+  if (ShraHelper(this, node, 64, kArm64Ssra,
+                 kArm64IAdd | LaneSizeField::encode(64),
+                 IrOpcode::kI64x2ShrS) ||
+      ShraHelper(this, node, 64, kArm64Usra,
+                 kArm64IAdd | LaneSizeField::encode(64),
+                 IrOpcode::kI64x2ShrU)) {
+    return;
   }
+  VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Add(node_t node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2Add(
+    turboshaft::OpIndex node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (ShraHelper<Opmask::kSimd128I64x2ShrS>(
+          this, node, 64, kArm64Ssra, kArm64IAdd | LaneSizeField::encode(64)) ||
+      ShraHelper<Opmask::kSimd128I64x2ShrU>(
+          this, node, 64, kArm64Usra, kArm64IAdd | LaneSizeField::encode(64))) {
+    return;
+  }
+  VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Add(node_t node) {
   if (!ShraHelper(this, node, 8, kArm64Ssra,
                   kArm64IAdd | LaneSizeField::encode(8),
                   IrOpcode::kI8x16ShrS) &&
@@ -6845,43 +7016,98 @@ void InstructionSelectorT<Adapter>::VisitI8x16Add(node_t node) {
   }
 }
 
-#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                       \
-  template <typename Adapter>                                              \
-  void InstructionSelectorT<Adapter>::Visit##Type##Add(node_t node) {      \
-    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                       \
-    if (MlaHelper(this, node, kArm64Mla | LaneSizeField::encode(LaneSize), \
-                  IrOpcode::k##Type##Mul)) {                               \
-      return;                                                              \
-    }                                                                      \
-    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */             \
-    if (AdalpHelper(this, node, LaneSize, kArm64Sadalp,                    \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S) || \
-        AdalpHelper(this, node, LaneSize, kArm64Uadalp,                    \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U)) { \
-      return;                                                              \
-    }                                                                      \
-    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */              \
-    if (ShraHelper(this, node, LaneSize, kArm64Ssra,                       \
-                   kArm64IAdd | LaneSizeField::encode(LaneSize),           \
-                   IrOpcode::k##Type##ShrS) ||                             \
-        ShraHelper(this, node, LaneSize, kArm64Usra,                       \
-                   kArm64IAdd | LaneSizeField::encode(LaneSize),           \
-                   IrOpcode::k##Type##ShrU)) {                             \
-      return;                                                              \
-    }                                                                      \
-    /* Select Smlal/Umlal(x, y, z) for Add(x, ExtMulLow(y, z)) and         \
-     * Smlal2/Umlal2(x, y, z) for Add(x, ExtMulHigh(y, z)). */             \
-    if (SmlalHelper(this, node, LaneSize, kArm64Smlal,                     \
-                    IrOpcode::k##Type##ExtMulLow##PairwiseType##S) ||      \
-        SmlalHelper(this, node, LaneSize, kArm64Smlal2,                    \
-                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##S) ||     \
-        SmlalHelper(this, node, LaneSize, kArm64Umlal,                     \
-                    IrOpcode::k##Type##ExtMulLow##PairwiseType##U) ||      \
-        SmlalHelper(this, node, LaneSize, kArm64Umlal2,                    \
-                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##U)) {     \
-      return;                                                              \
-    }                                                                      \
-    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);    \
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Add(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (!ShraHelper<Opmask::kSimd128I8x16ShrS>(
+          this, node, 8, kArm64Ssra, kArm64IAdd | LaneSizeField::encode(8)) &&
+      !ShraHelper<Opmask::kSimd128I8x16ShrU>(
+          this, node, 8, kArm64Usra, kArm64IAdd | LaneSizeField::encode(8))) {
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(8), node);
+  }
+}
+
+#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                          \
+  template <>                                                                 \
+  void InstructionSelectorT<TurbofanAdapter>::Visit##Type##Add(node_t node) { \
+    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                          \
+    if (MlaHelper(this, node, kArm64Mla | LaneSizeField::encode(LaneSize),    \
+                  IrOpcode::k##Type##Mul)) {                                  \
+      return;                                                                 \
+    }                                                                         \
+    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */                \
+    if (AdalpHelper(this, node, LaneSize, kArm64Sadalp,                       \
+                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S) ||    \
+        AdalpHelper(this, node, LaneSize, kArm64Uadalp,                       \
+                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U)) {    \
+      return;                                                                 \
+    }                                                                         \
+    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */                 \
+    if (ShraHelper(this, node, LaneSize, kArm64Ssra,                          \
+                   kArm64IAdd | LaneSizeField::encode(LaneSize),              \
+                   IrOpcode::k##Type##ShrS) ||                                \
+        ShraHelper(this, node, LaneSize, kArm64Usra,                          \
+                   kArm64IAdd | LaneSizeField::encode(LaneSize),              \
+                   IrOpcode::k##Type##ShrU)) {                                \
+      return;                                                                 \
+    }                                                                         \
+    /* Select Smlal/Umlal(x, y, z) for Add(x, ExtMulLow(y, z)) and            \
+     * Smlal2/Umlal2(x, y, z) for Add(x, ExtMulHigh(y, z)). */                \
+    if (SmlalHelper(this, node, LaneSize, kArm64Smlal,                        \
+                    IrOpcode::k##Type##ExtMulLow##PairwiseType##S) ||         \
+        SmlalHelper(this, node, LaneSize, kArm64Smlal2,                       \
+                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##S) ||        \
+        SmlalHelper(this, node, LaneSize, kArm64Umlal,                        \
+                    IrOpcode::k##Type##ExtMulLow##PairwiseType##U) ||         \
+        SmlalHelper(this, node, LaneSize, kArm64Umlal2,                       \
+                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##U)) {        \
+      return;                                                                 \
+    }                                                                         \
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);       \
+  }                                                                           \
+                                                                              \
+  template <>                                                                 \
+  void InstructionSelectorT<TurboshaftAdapter>::Visit##Type##Add(             \
+      node_t node) {                                                          \
+    using namespace turboshaft; /*NOLINT(build/namespaces)*/                  \
+    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                          \
+    if (MlaHelper<Opmask::kSimd128##Type##Mul>(                               \
+            this, node, kArm64Mla | LaneSizeField::encode(LaneSize))) {       \
+      return;                                                                 \
+    }                                                                         \
+    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */                \
+    if (AdalpHelper<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##S>( \
+            this, node, LaneSize, kArm64Sadalp) ||                            \
+        AdalpHelper<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##U>( \
+            this, node, LaneSize, kArm64Uadalp)) {                            \
+      return;                                                                 \
+    }                                                                         \
+    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */                 \
+    if (ShraHelper<Opmask::kSimd128##Type##ShrS>(                             \
+            this, node, LaneSize, kArm64Ssra,                                 \
+            kArm64IAdd | LaneSizeField::encode(LaneSize)) ||                  \
+        ShraHelper<Opmask::kSimd128##Type##ShrU>(                             \
+            this, node, LaneSize, kArm64Usra,                                 \
+            kArm64IAdd | LaneSizeField::encode(LaneSize))) {                  \
+      return;                                                                 \
+    }                                                                         \
+    /* Select Smlal/Umlal(x, y, z) for Add(x, ExtMulLow(y, z)) and            \
+     * Smlal2/Umlal2(x, y, z) for Add(x, ExtMulHigh(y, z)). */                \
+    if (SmlalHelper<                                                          \
+            Simd128BinopOp::Kind::k##Type##ExtMulLow##PairwiseType##S>(       \
+            this, node, LaneSize, kArm64Smlal) ||                             \
+        SmlalHelper<                                                          \
+            Simd128BinopOp::Kind::k##Type##ExtMulHigh##PairwiseType##S>(      \
+            this, node, LaneSize, kArm64Smlal2) ||                            \
+        SmlalHelper<                                                          \
+            Simd128BinopOp::Kind::k##Type##ExtMulLow##PairwiseType##U>(       \
+            this, node, LaneSize, kArm64Umlal) ||                             \
+        SmlalHelper<                                                          \
+            Simd128BinopOp::Kind::k##Type##ExtMulHigh##PairwiseType##U>(      \
+            this, node, LaneSize, kArm64Umlal2)) {                            \
+      return;                                                                 \
+    }                                                                         \
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);       \
   }
 
 VISIT_SIMD_ADD(I32x4, I16x8, 32)
@@ -6927,9 +7153,7 @@ VISIT_SIMD_SUB(I16x8, 16)
 #undef VISIT_SIMD_SUB
 
 namespace {
-template <typename Adapter>
-bool isSimdZero(InstructionSelectorT<Adapter>* selector,
-                typename Adapter::node_t node) {
+bool isSimdZero(InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   auto m = V128ConstMatcher(node);
   if (m.HasResolvedValue()) {
     auto imms = m.ResolvedValue().immediate();
@@ -6938,7 +7162,6 @@ bool isSimdZero(InstructionSelectorT<Adapter>* selector,
   return node->opcode() == IrOpcode::kS128Zero;
 }
 
-template <>
 bool isSimdZero(InstructionSelectorT<TurboshaftAdapter>* selector,
                 turboshaft::OpIndex node) {
   const turboshaft::Operation& op = selector->Get(node);
@@ -7024,17 +7247,14 @@ void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(node_t node) {
   VisitS128Select(node);
 }
 
-#define VISIT_SIMD_QFMOP(op)                                                 \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##op(node_t node) {               \
-    if constexpr (Adapter::IsTurboshaft) {                                   \
-      UNIMPLEMENTED();                                                       \
-    } else {                                                                 \
-      Arm64OperandGeneratorT<Adapter> g(this);                               \
-      Emit(kArm64##op, g.DefineSameAsInput(node, 2),                         \
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
-           g.UseRegister(node->InputAt(2)));                                 \
-    }                                                                        \
+#define VISIT_SIMD_QFMOP(op)                                   \
+  template <typename Adapter>                                  \
+  void InstructionSelectorT<Adapter>::Visit##op(node_t node) { \
+    Arm64OperandGeneratorT<Adapter> g(this);                   \
+    Emit(kArm64##op, g.DefineSameAsInput(node, 2),             \
+         g.UseRegister(this->input_at(node, 0)),               \
+         g.UseRegister(this->input_at(node, 1)),               \
+         g.UseRegister(this->input_at(node, 2)));              \
   }
 VISIT_SIMD_QFMOP(F64x2Qfma)
 VISIT_SIMD_QFMOP(F64x2Qfms)

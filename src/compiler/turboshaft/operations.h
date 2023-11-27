@@ -6664,6 +6664,19 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
 
   Kind kind;
 
+  static bool IsCommutative(Kind kind) {
+    switch (kind) {
+      // TODO(14108): Explicitly list all commutative SIMD operations.
+      case Kind::kI64x2Add:
+      case Kind::kI32x4Add:
+      case Kind::kI16x8Add:
+      case Kind::kI8x16Add:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
