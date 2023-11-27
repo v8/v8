@@ -144,8 +144,6 @@ in_category(
             "target_bits": 64,
         },
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
-        first_branch_version = "11.7",
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim",

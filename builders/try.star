@@ -198,7 +198,7 @@ try_builder(
 try_builder(
     name = "v8_linux64_arm64_no_wasm_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
