@@ -154,7 +154,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     Tagged<InstructionStream> raw_istream = InstructionStream::Initialize(
         istream_allocation,
         ReadOnlyRoots(local_isolate_).instruction_stream_map(),
-        code_desc_.body_size(), *reloc_info);
+        code_desc_.body_size(), code_desc_.constant_pool_offset, *reloc_info);
     istream = handle(raw_istream, local_isolate_);
     DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
     DCHECK_IMPLIES(

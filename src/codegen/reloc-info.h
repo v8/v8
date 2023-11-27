@@ -549,15 +549,10 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class V8_EXPORT_PRIVATE RelocIterator : public RelocIteratorBase<RelocInfo> {
  public:
   // Prefer using this ctor when possible:
+  explicit RelocIterator(Tagged<InstructionStream> istream, int mode_mask);
+  // Convenience wrapper.
   explicit RelocIterator(Tagged<Code> code, int mode_mask = kAllModesMask);
-  // For when GC may be in progress and thus pointers on the Code object may be
-  // stale (or forwarding pointers); or when objects are not fully constructed,
-  // or we're operating on fake objects for some reason. Then, we pass relevant
-  // objects explicitly. Note they must all refer to the same underlying
-  // {Code,IStream} composite object.
-  explicit RelocIterator(Tagged<Code> code,
-                         Tagged<InstructionStream> instruction_stream,
-                         Tagged<ByteArray> relocation_info, int mode_mask);
+
   // For Wasm.
   explicit RelocIterator(base::Vector<uint8_t> instructions,
                          base::Vector<const uint8_t> reloc_info,

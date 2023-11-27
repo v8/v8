@@ -78,6 +78,8 @@ class InstructionStream : public HeapObject {
   inline bool TryGetCodeUnchecked(Tagged<Code>* code_out,
                                   AcquireLoadTag tag) const;
 
+  inline Address constant_pool() const;
+
   // [relocation_info]: InstructionStream relocation information.
   inline Tagged<ByteArray> relocation_info() const;
   // Unchecked accessor to be used during GC.
@@ -89,7 +91,7 @@ class InstructionStream : public HeapObject {
 
   // The size of the entire body section, containing instructions and inlined
   // metadata.
-  DECL_PRIMITIVE_ACCESSORS(body_size, uint32_t)
+  DECL_PRIMITIVE_GETTER(body_size, uint32_t)
   inline Address body_end() const;
 
   static constexpr int TrailingPaddingSizeFor(uint32_t body_size) {
@@ -110,24 +112,26 @@ class InstructionStream : public HeapObject {
 
   static V8_INLINE Tagged<InstructionStream> Initialize(
       Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
-      Tagged<ByteArray> reloc_info);
+      int constant_pool_offset, Tagged<ByteArray> reloc_info);
   V8_INLINE void Finalize(Tagged<Code> code, Tagged<ByteArray> reloc_info,
                           CodeDesc desc, Heap* heap);
+  V8_INLINE bool IsFullyInitialized();
 
   DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
   DECL_VERIFIER(InstructionStream)
 
   // Layout description.
-#define ISTREAM_FIELDS(V)                                             \
-  V(kStartOfStrongFieldsOffset, 0)                                    \
-  V(kCodeOffset, kTaggedSize)                                         \
-  V(kRelocationInfoOffset, kTaggedSize)                               \
-  V(kEndOfStrongFieldsOffset, 0)                                      \
-  /* Data or code not directly visited by GC directly starts here. */ \
-  V(kDataStart, 0)                                                    \
-  V(kBodySizeOffset, kUInt32Size)                                     \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))           \
+#define ISTREAM_FIELDS(V)                                                     \
+  V(kStartOfStrongFieldsOffset, 0)                                            \
+  V(kCodeOffset, kTaggedSize)                                                 \
+  V(kRelocationInfoOffset, kTaggedSize)                                       \
+  V(kEndOfStrongFieldsOffset, 0)                                              \
+  /* Data or code not directly visited by GC directly starts here. */         \
+  V(kDataStart, 0)                                                            \
+  V(kBodySizeOffset, kUInt32Size)                                             \
+  V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
   V(kHeaderSize, 0)
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS

@@ -948,10 +948,8 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
                     v);
 
     Tagged<InstructionStream> istream = InstructionStream::unchecked_cast(obj);
-    Tagged<Code> code;
-    if (istream->TryGetCodeUnchecked(&code, kAcquireLoad)) {
-      RelocIterator it(code, istream, istream->unchecked_relocation_info(),
-                       kRelocModeMask);
+    if (istream->IsFullyInitialized()) {
+      RelocIterator it(istream, kRelocModeMask);
       v->VisitRelocInfo(istream, &it);
     }
   }

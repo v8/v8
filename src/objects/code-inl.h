@@ -65,10 +65,6 @@ Address GcSafeCode::InstructionEnd(Isolate* isolate, Address pc) const {
   return UnsafeCastToCode()->InstructionEnd(isolate, pc);
 }
 
-Address GcSafeCode::constant_pool(Tagged<InstructionStream> istream) const {
-  return UnsafeCastToCode()->constant_pool(istream);
-}
-
 bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
   Tagged<DeoptimizationData> deopt_data = DeoptimizationData::unchecked_cast(
       UnsafeCastToCode()->unchecked_deoptimization_data());
@@ -448,14 +444,6 @@ void Code::set_constant_pool_offset(int value) {
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
   return metadata_start() + constant_pool_offset();
-}
-
-Address Code::constant_pool(
-    Tagged<InstructionStream> instruction_stream) const {
-  if (!has_constant_pool()) return kNullAddress;
-  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  return instruction_stream->instruction_start() + instruction_size() +
-         constant_pool_offset();
 }
 
 Address Code::code_comments() const {
