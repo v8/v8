@@ -5683,7 +5683,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // ```
     // if (element is hole) goto skip_call
     // ```
-    skip_call.emplace(&sub_builder, 2);
+    skip_call.emplace(
+        &sub_builder, 2,
+        std::initializer_list<MaglevSubGraphBuilder::Variable*>{&var_length});
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
       sub_builder.GotoIfTrue<BranchIfFloat64IsHole>(&*skip_call, {element});
     } else {
