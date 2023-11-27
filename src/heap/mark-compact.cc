@@ -1520,7 +1520,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
   EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,
-                      ConcurrentAllocator* shared_old_allocator,
+                      MainAllocator* shared_old_allocator,
                       RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         local_allocator_(local_allocator),
@@ -1592,7 +1592,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
-  ConcurrentAllocator* shared_old_allocator_;
+  MainAllocator* shared_old_allocator_;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
@@ -1607,7 +1607,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
   explicit EvacuateNewSpaceVisitor(
       Heap* heap, EvacuationAllocator* local_allocator,
-      ConcurrentAllocator* shared_old_allocator,
+      MainAllocator* shared_old_allocator,
       RecordMigratedSlotVisitor* record_visitor,
       PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
@@ -1739,7 +1739,7 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap, EvacuationAllocator* local_allocator,
-                          ConcurrentAllocator* shared_old_allocator,
+                          MainAllocator* shared_old_allocator,
                           RecordMigratedSlotVisitor* record_visitor)
       : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
                             record_visitor) {}
@@ -3971,11 +3971,11 @@ void MarkCompactCollector::EvacuateEpilogue() {
 }
 
 namespace {
-ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
+MainAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_space() &&
       !heap->isolate()->is_shared_space_isolate()) {
-    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
-                                   ConcurrentAllocator::Context::kGC);
+    return new MainAllocator(heap, heap->shared_allocation_space(),
+                             MainAllocator::kInGC);
   }
 
   return nullptr;
@@ -4058,7 +4058,7 @@ class Evacuator final : public Malloced {
   EvacuationAllocator local_allocator_;
 
   // Allocator for the shared heap.
-  std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
+  std::unique_ptr<MainAllocator> shared_old_allocator_;
 
   RecordMigratedSlotVisitor record_visitor_;
 

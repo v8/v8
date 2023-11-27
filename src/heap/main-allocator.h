@@ -318,7 +318,14 @@ class MainAllocator {
     return linear_area_original_data_.has_value();
   }
 
+  // Returns true when this LAB is used during GC.
   bool in_gc() const { return local_heap_ == nullptr; }
+
+  // Returns true when this LAB is used during GC and the space is in the heap
+  // that is currently collected. This is needed because a GC can directly
+  // promote new space objects into shared space (which might not be currently
+  // collected in worker isolates).
+  bool in_gc_for_space() const;
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
 
