@@ -350,15 +350,19 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = false;
       return CEQ;
     case kUnsignedLessThan:
+    case kFloatLessThan:
       *predicate = true;
       return CLT;
     case kUnsignedGreaterThanOrEqual:
+    case kFloatGreaterThanOrEqual:
       *predicate = false;
       return CLT;
     case kUnsignedLessThanOrEqual:
+    case kFloatLessThanOrEqual:
       *predicate = true;
       return CLE;
     case kUnsignedGreaterThan:
+    case kFloatGreaterThan:
       *predicate = false;
       return CLE;
     case kUnorderedEqual:
