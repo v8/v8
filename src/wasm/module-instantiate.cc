@@ -541,6 +541,10 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
           IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetReturn(0))) {
         return WellKnownImport::kStringToLowerCaseStringref;
+      } else if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+                 sig->GetParam(0) == wasm::kWasmExternRef &&
+                 sig->GetReturn(0) == wasm::kWasmExternRef) {
+        return WellKnownImport::kStringToLowerCaseImported;
       }
       break;
 #endif

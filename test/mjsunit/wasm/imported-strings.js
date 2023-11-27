@@ -83,6 +83,7 @@ let kStringSubstring;
 let kStringEquals;
 let kStringCompare;
 let kStringIndexOfImported;
+let kStringToLowerCaseImported;
 
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
@@ -116,6 +117,7 @@ function MakeBuilder() {
   kStringEquals = builder.addImport('String', 'equals', kSig_i_rr);
   kStringCompare = builder.addImport('String', 'compare', kSig_i_rr);
   kStringIndexOfImported = builder.addImport('m', 'indexOf', kSig_i_rri);
+  kStringToLowerCaseImported = builder.addImport('m', 'toLowerCase', kSig_r_r);
 
   return builder;
 }
@@ -123,7 +125,10 @@ function MakeBuilder() {
 let kImports = {
   String: WebAssembly.String,
   strings: interestingStrings,
-  m: {indexOf: Function.prototype.call.bind(String.prototype.indexOf)},
+  m: {
+    indexOf: Function.prototype.call.bind(String.prototype.indexOf),
+    toLowerCase: Function.prototype.call.bind(String.prototype.toLowerCase),
+  },
 };
 
 (function TestStringCast() {
@@ -217,7 +222,7 @@ let kImports = {
       instance.exports.indexOf(
           'xxfooxx', 'foo', 0x8000_0000));  // Negative i32.
 
-  // Both first and second args should be strings.
+  // Both first and second args should be non-null strings.
   assertThrows(
       () => instance.exports.indexOf('xxnullxx', null, 0),
       WebAssembly.RuntimeError, 'illegal cast');
@@ -229,6 +234,30 @@ let kImports = {
       'illegal cast');
   assertThrows(
       () => instance.exports.indexOf(null, 'null', 0), WebAssembly.RuntimeError,
+      'illegal cast');
+})();
+
+(function TestStringToLowerCaseImported() {
+  print(arguments.callee.name);
+  let builder = new MakeBuilder();
+
+  builder.addFunction('toLowerCase', kSig_r_r).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprCallFunction, kStringCast,
+    kExprCallFunction, kStringToLowerCaseImported,
+  ]);
+  let instance = builder.instantiate(kImports);
+
+  assertEquals(
+      'make this lowercase!',
+      instance.exports.toLowerCase('MAKE THIS LOWERCASE!'));
+
+  // The argument should be a non-null string.
+  assertThrows(
+      () => instance.exports.toLowerCase(null), WebAssembly.RuntimeError,
+      'illegal cast');
+  assertThrows(
+      () => instance.exports.toLowerCase(123), WebAssembly.RuntimeError,
       'illegal cast');
 })();
 

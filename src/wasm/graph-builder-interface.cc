@@ -907,6 +907,7 @@ class WasmGraphBuildingInterface {
         break;
         // Not implementing for Turbofan.
       case WKI::kStringIndexOfImported:
+      case WKI::kStringToLowerCaseImported:
       case WKI::kDataViewGetBigInt64:
       case WKI::kDataViewGetBigUint64:
       case WKI::kDataViewGetFloat32:

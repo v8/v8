@@ -33,3 +33,4 @@ Testing imported strings
 [import 14 is well-known built-in IntToString]
 [import 15 is well-known built-in DoubleToString]
 [import 16 is well-known built-in String.indexOf]
+[import 17 is well-known built-in String.toLowerCase]

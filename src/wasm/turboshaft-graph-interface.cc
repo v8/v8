@@ -1090,6 +1090,17 @@ class TurboshaftGraphBuildingInterface {
     BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
   }
 
+#if V8_INTL_SUPPORT
+  V<Tagged> CallStringToLowercase(FullDecoder* decoder, V<Tagged> string) {
+    BuildModifyThreadInWasmFlag(false);
+    OpIndex result = CallBuiltinThroughJumptable(
+        decoder, Builtin::kStringToLowerCaseIntl,
+        {string, __ NoContextConstant()}, Operator::kEliminatable);
+    BuildModifyThreadInWasmFlag(true);
+    return __ AnnotateWasmType(result, kWasmRefString);
+  }
+#endif
+
   void SetDataViewOpForErrorMessage(DataViewOp op_type) {
     OpIndex isolate_root = __ LoadRootRegister();
     __ Store(isolate_root, __ Word32Constant(op_type),
@@ -1573,14 +1584,25 @@ class TurboshaftGraphBuildingInterface {
             __ Unreachable();
           }
           END_IF
-          BuildModifyThreadInWasmFlag(false);
-          result = CallBuiltinThroughJumptable(
-              decoder, Builtin::kStringToLowerCaseIntl,
-              {string, __ NoContextConstant()}, Operator::kEliminatable);
-          result = __ AnnotateWasmType(result, kWasmRefString);
-          BuildModifyThreadInWasmFlag(true);
         }
+        result = CallStringToLowercase(decoder, string);
         decoder->detected_->Add(kFeature_stringref);
+        break;
+#else
+        return false;
+#endif
+      }
+      case WKI::kStringToLowerCaseImported: {
+        // We have to make sure that the externref `string` parameter is a
+        // string. To enforce this, we inline only if a (successful)
+        // `WebAssembly.String.cast` was performed before.
+#if V8_INTL_SUPPORT
+        if (!(IsExplicitStringCast(args[0]))) {
+          return false;
+        }
+        V<Tagged> string = args[0].op;
+        result = CallStringToLowercase(decoder, string);
+        decoder->detected_->Add(kFeature_imported_strings);
         break;
 #else
         return false;

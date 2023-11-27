@@ -103,6 +103,7 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kStringToLocaleLowerCaseStringref:
       return "String.toLocaleLowerCase";
     case WellKnownImport::kStringToLowerCaseStringref:
+    case WellKnownImport::kStringToLowerCaseImported:
       return "String.toLowerCase";
     case WellKnownImport::kStringToWtf16Array:
       return "String.toWtf16Array";
