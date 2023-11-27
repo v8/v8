@@ -818,7 +818,7 @@ Expression* Parser::WrapREPLResult(Expression* value) {
   // object literal:
   //
   //     return %_AsyncFunctionResolve(
-  //                .generator_object, {.repl_result: .result});
+  //               .generator_object, {__proto__: null, .repl_result: .result});
   //
   // Should ".result" be a resolved promise itself, the async return
   // would chain the promises and return the resolve value instead of
@@ -829,8 +829,14 @@ Expression* Parser::WrapREPLResult(Expression* value) {
   ObjectLiteralProperty* property =
       factory()->NewObjectLiteralProperty(property_name, value, true);
 
+  Literal* proto_name = factory()->NewStringLiteral(
+      ast_value_factory()->proto_string(), kNoSourcePosition);
+  ObjectLiteralProperty* prototype = factory()->NewObjectLiteralProperty(
+      proto_name, factory()->NewNullLiteral(kNoSourcePosition), false);
+
   ScopedPtrList<ObjectLiteralProperty> properties(pointer_buffer());
   properties.Add(property);
+  properties.Add(prototype);
   return factory()->NewObjectLiteral(properties, false, kNoSourcePosition,
                                      false);
 }
