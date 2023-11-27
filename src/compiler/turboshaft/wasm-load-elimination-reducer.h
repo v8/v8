@@ -37,6 +37,7 @@ static constexpr int kArrayLengthFieldIndex = -1;
 static constexpr int kStringPrepareForGetCodeunitIndex = -2;
 static constexpr int kStringAsWtf16Index = -3;
 static constexpr int kAnyConvertExternIndex = -4;
+static constexpr int kAssertNotNullIndex = -5;
 
 // All "load-like" special cases use the same fake size and type. The specific
 // values we use don't matter; for accurate alias analysis, the type should
@@ -102,10 +103,11 @@ class WasmMemoryContentTable
 
   explicit WasmMemoryContentTable(
       Zone* zone, SparseOpIndexSnapshotTable<bool>& non_aliasing_objects,
-      FixedOpIndexSidetable<OpIndex>& replacements)
+      FixedOpIndexSidetable<OpIndex>& replacements, Graph& graph)
       : ChangeTrackingSnapshotTable(zone),
         non_aliasing_objects_(non_aliasing_objects),
         replacements_(replacements),
+        graph_(graph),
         all_keys_(zone),
         base_keys_(zone),
         offset_keys_(zone) {}
@@ -291,9 +293,23 @@ class WasmMemoryContentTable
     }
   }
 
+ public:
   OpIndex ResolveBase(OpIndex base) {
-    while (replacements_[base] != OpIndex::Invalid()) {
-      base = replacements_[base];
+    while (true) {
+      if (replacements_[base] != OpIndex::Invalid()) {
+        base = replacements_[base];
+        continue;
+      }
+      Operation& op = graph_.Get(base);
+      if (AssertNotNullOp* check = op.TryCast<AssertNotNullOp>()) {
+        base = check->object();
+        continue;
+      }
+      if (WasmTypeCastOp* cast = op.TryCast<WasmTypeCastOp>()) {
+        base = cast->object();
+        continue;
+      }
+      break;  // Terminate if nothing happened.
     }
     return base;
   }
@@ -331,6 +347,8 @@ class WasmMemoryContentTable
   SparseOpIndexSnapshotTable<bool>& non_aliasing_objects_;
   FixedOpIndexSidetable<OpIndex>& replacements_;
 
+  Graph& graph_;
+
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
 
   // TODO(dmercadier): consider using a faster datastructure than
@@ -362,7 +380,7 @@ class WasmLoadEliminationAnalyzer {
         phase_zone_(phase_zone),
         replacements_(graph.op_id_count(), phase_zone, &graph),
         non_aliasing_objects_(phase_zone),
-        memory_(phase_zone, non_aliasing_objects_, replacements_),
+        memory_(phase_zone, non_aliasing_objects_, replacements_, graph_),
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_memory_snapshots_(phase_zone) {}
@@ -429,6 +447,7 @@ class WasmLoadEliminationAnalyzer {
   void ProcessStringPrepareForGetCodeUnit(
       OpIndex op_idx, const StringPrepareForGetCodeUnitOp& op);
   void ProcessAnyConvertExtern(OpIndex op_idx, const AnyConvertExternOp& op);
+  void ProcessAssertNotNull(OpIndex op_idx, const AssertNotNullOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
@@ -552,6 +571,11 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
       case Opcode::kAnyConvertExtern:
         ProcessAnyConvertExtern(op_idx, op.Cast<AnyConvertExternOp>());
+        break;
+      case Opcode::kAssertNotNull:
+        // TODO(14108): We'll probably want to handle WasmTypeCast as
+        // a "load-like" instruction too, to eliminate repeated casts.
+        ProcessAssertNotNull(op_idx, op.Cast<AssertNotNullOp>());
         break;
       case Opcode::kArraySet:
         break;
@@ -731,6 +755,19 @@ void WasmLoadEliminationAnalyzer::ProcessAnyConvertExtern(
   memory_.InsertLoadLike(convert.object(), offset, op_idx);
 }
 
+void WasmLoadEliminationAnalyzer::ProcessAssertNotNull(
+    OpIndex op_idx, const AssertNotNullOp& assert) {
+  static constexpr int offset = wle::kAssertNotNullIndex;
+  OpIndex existing = memory_.FindLoadLike(assert.object(), offset);
+  if (existing.valid()) {
+    DCHECK_EQ(Opcode::kAssertNotNull, graph_.Get(existing).opcode);
+    replacements_[op_idx] = existing;
+    return;
+  }
+  replacements_[op_idx] = OpIndex::Invalid();
+  memory_.InsertLoadLike(assert.object(), offset, op_idx);
+}
+
 // Since we only loosely keep track of what can or can't alias, we assume that
 // anything that was guaranteed to not alias with anything (because it's in
 // {non_aliasing_objects_}) can alias with anything when coming back from the
@@ -787,7 +824,8 @@ void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
 }
 
 void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
-  for (OpIndex input : phi.inputs()) {
+  base::Vector<const OpIndex> inputs = phi.inputs();
+  for (OpIndex input : inputs) {
     if (auto key = non_aliasing_objects_.TryGetKeyFor(input)) {
       non_aliasing_objects_.Set(*key, false);
     }
@@ -795,6 +833,25 @@ void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
     // known as non-aliasing (and is thus considered by default as
     // maybe-aliasing), so there is no need to create an entry for it in
     // {non_aliasing_objects_}.
+  }
+  // This copies some of the functionality of {RequiredOptimizationReducer}:
+  // Phis whose inputs are all the same value can be replaced by that value.
+  // We need to have this logic here because interleaving it with other cases
+  // of load elimination can unlock further optimizations: simplifying Phis
+  // can allow elimination of more loads, which can then allow simplification
+  // of even more Phis.
+  if (inputs.size() > 0) {
+    bool same_inputs = true;
+    OpIndex first = memory_.ResolveBase(inputs.first());
+    for (const OpIndex& input : inputs.SubVectorFrom(1)) {
+      if (memory_.ResolveBase(input) != first) {
+        same_inputs = false;
+        break;
+      }
+    }
+    if (same_inputs) {
+      replacements_[op_idx] = first;
+    }
   }
 }
 
