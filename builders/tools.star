@@ -75,6 +75,7 @@ v8_builder(
             "review-host": "chromium-review.googlesource.com",
             "project": "v8/v8",
             "account": V8_TEST262_IMPORT_ACCOUNT,
+            "failure_recovery": ["test262_update_status_file"],
         }],
     },
 )
