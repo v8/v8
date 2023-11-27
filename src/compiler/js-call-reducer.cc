@@ -22,6 +22,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
@@ -7583,9 +7584,14 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     return inference.NoChange();
   }
 
+  const CallParameters& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return inference.NoChange();
+  }
+  DCHECK(p.feedback().IsValid());
+
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control,
-                                      CallParametersOf(node->op()).feedback());
+                                      control, p.feedback());
 
   const bool depended_on_detaching_protector =
       dependencies()->DependOnArrayBufferDetachingProtector();
