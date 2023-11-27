@@ -700,6 +700,11 @@ path. Add it with -I<path> to the command line
 #define V8_CLANG_NO_SANITIZE(what)
 #endif
 
+// Exposing private symbols requires exposing public symbols too.
+#ifdef BUILDING_V8_SHARED_PRIVATE
+#define BUILDING_V8_SHARED
+#endif
+
 #if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
 #error Inconsistent build configuration: To build the V8 shared library \
 set BUILDING_V8_SHARED, to include its headers for linking against the \

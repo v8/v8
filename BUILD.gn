@@ -723,6 +723,10 @@ if (v8_enable_single_generation == true) {
 assert(!v8_enable_snapshot_compression || v8_use_zlib,
        "Snapshot compression requires zlib")
 
+if (v8_expose_public_symbols == "") {
+  v8_expose_public_symbols = v8_expose_symbols
+}
+
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
@@ -757,6 +761,8 @@ config("internal_config") {
   ]
 
   if (is_component_build) {
+    defines += [ "BUILDING_V8_SHARED_PRIVATE" ]
+  } else if (v8_expose_public_symbols) {
     defines += [ "BUILDING_V8_SHARED" ]
   }
 
@@ -827,7 +833,10 @@ config("external_config") {
   configs = [ ":headers_config" ]
   defines = []
   if (is_component_build) {
-    defines += [ "USING_V8_SHARED" ]
+    defines += [
+      "USING_V8_SHARED",
+      "USING_V8_SHARED_PRIVATE",
+    ]
   }
 
   if (current_cpu == "riscv64" || current_cpu == "riscv32") {

@@ -44,7 +44,8 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
 // static
 void V8HeapCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, GetPtrComprCageBaseAddress(base));
-#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
   set_base_non_inlined(base);
 #else
   base_ = base;
@@ -53,7 +54,8 @@ void V8HeapCompressionScheme::InitBase(Address base) {
 
 // static
 V8_CONST Address V8HeapCompressionScheme::base() {
-#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
   Address base = base_non_inlined();
 #else
   Address base = base_;
@@ -148,7 +150,8 @@ Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
 // static
 void ExternalCodeCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, PrepareCageBaseAddress(base));
-#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
   set_base_non_inlined(base);
 #else
   base_ = base;
@@ -157,7 +160,8 @@ void ExternalCodeCompressionScheme::InitBase(Address base) {
 
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
-#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
   Address base = base_non_inlined();
 #else
   Address base = base_;

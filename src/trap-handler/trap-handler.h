@@ -58,11 +58,11 @@ namespace trap_handler {
 #endif
 
 // Setup for shared library export.
-#if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
+#if defined(BUILDING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
-#elif defined(BUILDING_V8_SHARED)
+#elif defined(BUILDING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
-#elif defined(USING_V8_SHARED) && defined(V8_OS_WIN)
+#elif defined(USING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define TH_EXPORT_PRIVATE
