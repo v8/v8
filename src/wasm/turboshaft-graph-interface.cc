@@ -132,7 +132,7 @@ class TurboshaftGraphBuildingInterface {
   };
 
   TurboshaftGraphBuildingInterface(
-      Assembler& assembler, AssumptionsJournal* assumptions,
+      Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes)
       : mode_(kRegular),
@@ -140,12 +140,14 @@ class TurboshaftGraphBuildingInterface {
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
         func_index_(func_index),
-        wire_bytes_(wire_bytes) {}
+        wire_bytes_(wire_bytes),
+        return_phis_(zone),
+        return_exception_phis_(zone) {}
 
   TurboshaftGraphBuildingInterface(
-      Assembler& assembler, AssumptionsJournal* assumptions,
+      Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-      const WireBytesStorage* wire_bytes, std::vector<OpIndex>* real_parameters,
+      const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
       TSBlock* return_block, TSBlock* catch_block)
       : mode_(catch_block == nullptr ? kInlinedUnhandled : kInlinedWithCatch),
         asm_(assembler),
@@ -155,8 +157,9 @@ class TurboshaftGraphBuildingInterface {
         wire_bytes_(wire_bytes),
         real_parameters_(real_parameters),
         return_block_(return_block),
-        return_catch_block_(catch_block) {
-    DCHECK_NOT_NULL(real_parameters);
+        return_phis_(zone),
+        return_catch_block_(catch_block),
+        return_exception_phis_(zone) {
     DCHECK_NOT_NULL(return_block);
   }
 
@@ -177,14 +180,13 @@ class TurboshaftGraphBuildingInterface {
             index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
       }
     } else {
-      instance_node = (*real_parameters_)[0];
+      instance_node = real_parameters_[0];
       for (; index < decoder->sig_->parameter_count(); index++) {
         // Parameter indices are shifted by 1 because parameter 0 is the
         // instance.
-        ssa_env_[index] = (*real_parameters_)[index + 1];
+        ssa_env_[index] = real_parameters_[index + 1];
       }
-      return_phis_.phi_inputs.resize(decoder->sig_->return_count());
-      return_phis_.phi_types.resize(decoder->sig_->return_count());
+      return_phis_ = BlockPhis(decoder->zone_, decoder->sig_->return_count());
       for (size_t i = 0; i < decoder->sig_->return_count(); i++) {
         return_phis_.phi_types[i] = decoder->sig_->GetReturn(i);
       }
@@ -262,7 +264,7 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.trace_wasm) {
       __ SetCurrentOrigin(
           WasmPositionToOpIndex(decoder->position(), inlining_id_));
-      CallRuntime(Runtime::kWasmTraceEnter, {});
+      CallRuntime(decoder, Runtime::kWasmTraceEnter, {});
     }
 
     auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
@@ -402,7 +404,7 @@ class TurboshaftGraphBuildingInterface {
             ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
                 imm.table_count);
     BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
-    std::vector<TSBlock*> intermediate_blocks;
+    SmallZoneVector<TSBlock*, 16> intermediate_blocks(decoder->zone_);
     TSBlock* default_case = nullptr;
     while (new_block_iterator.has_next()) {
       TSBlock* intermediate = __ NewBlock();
@@ -548,7 +550,7 @@ class TurboshaftGraphBuildingInterface {
 
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
     size_t return_count = decoder->sig_->return_count();
-    base::SmallVector<OpIndex, 8> return_values(return_count);
+    SmallZoneVector<OpIndex, 16> return_values(return_count, decoder->zone_);
     Value* stack_base = return_count == 0
                             ? nullptr
                             : decoder->stack_value(static_cast<uint32_t>(
@@ -569,7 +571,7 @@ class TurboshaftGraphBuildingInterface {
             MemoryRepresentation::FromMachineType(return_type.machine_type()),
             compiler::kNoWriteBarrier);
       }
-      CallRuntime(Runtime::kWasmTraceExit, {info});
+      CallRuntime(decoder, Runtime::kWasmTraceExit, {info});
     }
     if (mode_ == kRegular) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values));
@@ -751,7 +753,7 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
       CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
     result->op = extended_load;
@@ -825,7 +827,7 @@ class TurboshaftGraphBuildingInterface {
         load_kind, transform_kind, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
     result->op = load;
@@ -875,7 +877,7 @@ class TurboshaftGraphBuildingInterface {
         0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
     result->op = load;
@@ -917,7 +919,7 @@ class TurboshaftGraphBuildingInterface {
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
       CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
     }
   }
 
@@ -969,7 +971,7 @@ class TurboshaftGraphBuildingInterface {
                          laneidx, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
     }
   }
 
@@ -1049,16 +1051,17 @@ class TurboshaftGraphBuildingInterface {
 
     // This can't overflow because we've clamped `start` above.
     V<Smi> start_smi = __ TagSmi(start);
-    BuildModifyThreadInWasmFlag(false);
+    BuildModifyThreadInWasmFlag(decoder, false);
     V<Smi> result_value = CallBuiltinThroughJumptable(
         decoder, Builtin::kStringIndexOf, {string, search, start_smi},
         Operator::kEliminatable);
-    BuildModifyThreadInWasmFlag(true);
+    BuildModifyThreadInWasmFlag(decoder, true);
 
     return __ UntagSmi(result_value);
   }
 
-  void BuildModifyThreadInWasmFlagHelper(OpIndex thread_in_wasm_flag_address,
+  void BuildModifyThreadInWasmFlagHelper(FullDecoder* decoder,
+                                         OpIndex thread_in_wasm_flag_address,
                                          bool new_value) {
     if (v8_flags.debug_code) {
       V<Word32> flag_value =
@@ -1069,7 +1072,7 @@ class TurboshaftGraphBuildingInterface {
         OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
             new_value ? AbortReason::kUnexpectedThreadInWasmSet
                       : AbortReason::kUnexpectedThreadInWasmUnset));
-        CallRuntime(Runtime::kAbort, {message_id});
+        CallRuntime(decoder, Runtime::kAbort, {message_id});
         __ Unreachable();
       }
       END_IF
@@ -1080,7 +1083,7 @@ class TurboshaftGraphBuildingInterface {
              compiler::kNoWriteBarrier);
   }
 
-  void BuildModifyThreadInWasmFlag(bool new_value) {
+  void BuildModifyThreadInWasmFlag(FullDecoder* decoder, bool new_value) {
     if (!trap_handler::IsTrapHandlerEnabled()) return;
 
     OpIndex isolate_root = __ LoadRootRegister();
@@ -1088,16 +1091,17 @@ class TurboshaftGraphBuildingInterface {
         __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
                 MemoryRepresentation::PointerSized(),
                 Isolate::thread_in_wasm_flag_address_offset());
-    BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
+    BuildModifyThreadInWasmFlagHelper(decoder, thread_in_wasm_flag_address,
+                                      new_value);
   }
 
 #if V8_INTL_SUPPORT
   V<Tagged> CallStringToLowercase(FullDecoder* decoder, V<Tagged> string) {
-    BuildModifyThreadInWasmFlag(false);
+    BuildModifyThreadInWasmFlag(decoder, false);
     OpIndex result = CallBuiltinThroughJumptable(
         decoder, Builtin::kStringToLowerCaseIntl,
         {string, __ NoContextConstant()}, Operator::kEliminatable);
-    BuildModifyThreadInWasmFlag(true);
+    BuildModifyThreadInWasmFlag(decoder, true);
     return __ AnnotateWasmType(result, kWasmRefString);
   }
 #endif
@@ -1286,8 +1290,8 @@ class TurboshaftGraphBuildingInterface {
     }
     // Case: growable SharedArrayBuffers, LT.
     ELSE {
-      V<Tagged> gsab_length_tagged =
-          CallRuntime(Runtime::kGrowableSharedArrayBufferByteLength, {buffer});
+      V<Tagged> gsab_length_tagged = CallRuntime(
+          decoder, Runtime::kGrowableSharedArrayBufferByteLength, {buffer});
       V<WordPtr> gsab_buffer_byte_length = __ WordPtrSub(
           ChangeTaggedNumberToIntPtr(gsab_length_tagged), view_byte_offset);
       GOTO(done_label, gsab_buffer_byte_length);
@@ -1478,24 +1482,24 @@ class TurboshaftGraphBuildingInterface {
 
       // Other string-related imports.
       case WKI::kDoubleToString:
-        BuildModifyThreadInWasmFlag(false);
+        BuildModifyThreadInWasmFlag(decoder, false);
         result =
             CallBuiltinThroughJumptable(decoder, Builtin::kWasmFloat64ToString,
                                         {args[0].op}, Operator::kEliminatable);
         result = __ AnnotateWasmType(result, kWasmRefString);
-        BuildModifyThreadInWasmFlag(true);
+        BuildModifyThreadInWasmFlag(decoder, true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
                 : kFeature_imported_strings);
         break;
       case WKI::kIntToString:
-        BuildModifyThreadInWasmFlag(false);
+        BuildModifyThreadInWasmFlag(decoder, false);
         result = CallBuiltinThroughJumptable(decoder, Builtin::kWasmIntToString,
                                              {args[0].op, args[1].op},
                                              Operator::kNoDeopt);
         result = __ AnnotateWasmType(result, kWasmRefString);
-        BuildModifyThreadInWasmFlag(true);
+        BuildModifyThreadInWasmFlag(decoder, true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
@@ -1507,21 +1511,21 @@ class TurboshaftGraphBuildingInterface {
           GOTO_IF(__ IsNull(args[0].op, wasm::kWasmStringRef), done,
                   __ Float64Constant(std::numeric_limits<double>::quiet_NaN()));
 
-          BuildModifyThreadInWasmFlag(false);
+          BuildModifyThreadInWasmFlag(decoder, false);
           V<Float64> not_null_res = CallBuiltinThroughJumptable(
               decoder, Builtin::kWasmStringToDouble, {args[0].op},
               Operator::kEliminatable);
-          BuildModifyThreadInWasmFlag(true);
+          BuildModifyThreadInWasmFlag(decoder, true);
           GOTO(done, not_null_res);
 
           BIND(done, result_f64);
           result = result_f64;
         } else {
-          BuildModifyThreadInWasmFlag(false);
+          BuildModifyThreadInWasmFlag(decoder, false);
           result = CallBuiltinThroughJumptable(
               decoder, Builtin::kWasmStringToDouble, {args[0].op},
               Operator::kEliminatable);
-          BuildModifyThreadInWasmFlag(true);
+          BuildModifyThreadInWasmFlag(decoder, true);
         }
         decoder->detected_->Add(kFeature_stringref);
         break;
@@ -1787,7 +1791,7 @@ class TurboshaftGraphBuildingInterface {
             inline_block, case_blocks[i + 1]);
 
         __ Bind(inline_block);
-        base::SmallVector<Value, 2> direct_returns(return_count);
+        SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
               "[function %d%s: Speculatively inlining call_ref #%d, case #%d, "
@@ -1807,7 +1811,7 @@ class TurboshaftGraphBuildingInterface {
       __ Bind(no_inline_block);
       auto [target, ref] =
           BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-      base::SmallVector<Value, 2> ref_returns(return_count);
+      SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
       BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
       for (size_t ret = 0; ret < ref_returns.size(); ret++) {
         case_returns[ret].push_back(ref_returns[ret].op);
@@ -2070,7 +2074,7 @@ class TurboshaftGraphBuildingInterface {
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value arg_values[]) {
     size_t count = imm.tag->sig->parameter_count();
-    base::SmallVector<OpIndex, 8> values(count);
+    SmallZoneVector<OpIndex, 16> values(count, decoder->zone_);
     for (size_t index = 0; index < count; index++) {
       values[index] = arg_values[index].op;
     }
@@ -2717,7 +2721,7 @@ class TurboshaftGraphBuildingInterface {
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
                  const Value args[], Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
-    base::SmallVector<OpIndex, 8> args_vector(field_count);
+    SmallZoneVector<OpIndex, 16> args_vector(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
@@ -2727,7 +2731,7 @@ class TurboshaftGraphBuildingInterface {
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
                         Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
-    base::SmallVector<OpIndex, 8> args(field_count);
+    SmallZoneVector<OpIndex, 16> args(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; i++) {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
@@ -3610,14 +3614,24 @@ class TurboshaftGraphBuildingInterface {
   // Holds phi inputs for a specific block. These include SSA values as well as
   // stack merge values.
   struct BlockPhis {
-    // The first vector corresponds to all inputs of the first phi etc.
-    std::vector<std::vector<OpIndex>> phi_inputs;
-    std::vector<ValueType> phi_types;
-    std::vector<OpIndex> incoming_exception;
+    // TODO(14108): Consider unifying the next three fields into a single
+    // vector of pairs.
+    size_t total_arity;
+    // Pointers into array of size `total_arity`. The first element corresponds
+    // to elements of the first phi etc.
+    SmallZoneVector<OpIndex, 2>* phi_inputs;
+    // Pointer into array of size `total_arity`.
+    ValueType* phi_types;
+    SmallZoneVector<OpIndex, 2> incoming_exception;
 
-    explicit BlockPhis(int total_arity)
-        : phi_inputs(total_arity), phi_types(total_arity) {}
-    BlockPhis() : BlockPhis(0) {}
+    explicit BlockPhis(Zone* zone, size_t total_arity)
+        : total_arity(total_arity),
+          phi_inputs(zone->NewVector<SmallZoneVector<OpIndex, 2>>(
+                             total_arity, SmallZoneVector<OpIndex, 2>(zone))
+                         .data()),
+          phi_types(zone->AllocateArray<ValueType>(total_arity)),
+          incoming_exception(zone) {}
+    BlockPhis(Zone* zone) : BlockPhis(zone, 0) {}
   };
 
   // The InstanceCache caches commonly used fields of the WasmInstanceObject.
@@ -3801,7 +3815,8 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* block = __ NewBlock();
     uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
-    BlockPhis block_phis(decoder->num_locals() + merge_arity + cached_fields);
+    BlockPhis block_phis(decoder->zone_,
+                         decoder->num_locals() + merge_arity + cached_fields);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
       block_phis.phi_types[i] = decoder->local_type(i);
     }
@@ -3827,9 +3842,8 @@ class TurboshaftGraphBuildingInterface {
     // It is guaranteed that this element exists.
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
-    uint32_t merge_arity =
-        static_cast<uint32_t>(phis_for_block.phi_inputs.size()) -
-        decoder->num_locals() - cached_fields;
+    uint32_t merge_arity = static_cast<uint32_t>(phis_for_block.total_arity) -
+                           decoder->num_locals() - cached_fields;
     for (size_t i = 0; i < ssa_env_.size(); i++) {
       phis_for_block.phi_inputs[i].emplace_back(ssa_env_[i]);
     }
@@ -3853,11 +3867,11 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  OpIndex MaybePhi(std::vector<OpIndex>& elements, ValueType type) {
+  OpIndex MaybePhi(base::Vector<OpIndex> elements, ValueType type) {
     if (elements.empty()) return OpIndex::Invalid();
     for (size_t i = 1; i < elements.size(); i++) {
       if (elements[i] != elements[0]) {
-        return __ Phi(base::VectorOf(elements), RepresentationFor(type));
+        return __ Phi(elements, RepresentationFor(type));
       }
     }
     return elements[0];
@@ -3872,26 +3886,28 @@ class TurboshaftGraphBuildingInterface {
     __ Bind(tsblock);
     BlockPhis& block_phis = block_phis_.at(tsblock);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      ssa_env_[i] = MaybePhi(block_phis.phi_inputs[i], block_phis.phi_types[i]);
+      ssa_env_[i] = MaybePhi(base::VectorOf(block_phis.phi_inputs[i]),
+                             block_phis.phi_types[i]);
     }
     uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
     DCHECK_EQ(decoder->num_locals() + merge_arity + cached_fields,
-              block_phis.phi_inputs.size());
+              block_phis.total_arity);
     for (uint32_t i = 0; i < merge_arity; i++) {
-      (*merge)[i].op =
-          MaybePhi(block_phis.phi_inputs[decoder->num_locals() + i],
-                   block_phis.phi_types[decoder->num_locals() + i]);
+      (*merge)[i].op = MaybePhi(
+          base::VectorOf(block_phis.phi_inputs[decoder->num_locals() + i]),
+          block_phis.phi_types[decoder->num_locals() + i]);
     }
     for (uint32_t i = 0; i < cached_fields; i++) {
       uint32_t phi_index = decoder->num_locals() + merge_arity + i;
       instance_cache_.set_mutable_field_value(
-          i, MaybePhi(block_phis.phi_inputs[phi_index],
+          i, MaybePhi(base::VectorOf(block_phis.phi_inputs[phi_index]),
                       block_phis.phi_types[phi_index]));
     }
     DCHECK_IMPLIES(exception == nullptr, block_phis.incoming_exception.empty());
     if (exception != nullptr && !exception->valid()) {
-      *exception = MaybePhi(block_phis.incoming_exception, kWasmExternRef);
+      *exception = MaybePhi(base::VectorOf(block_phis.incoming_exception),
+                            kWasmExternRef);
     }
     block_phis_.erase(tsblock);
   }
@@ -5240,8 +5256,9 @@ class TurboshaftGraphBuildingInterface {
     return result.NotLoadEliminable();
   }
 
-  void TraceMemoryOperation(bool is_store, MemoryRepresentation repr,
-                            V<WordPtr> index, uintptr_t offset) {
+  void TraceMemoryOperation(FullDecoder* decoder, bool is_store,
+                            MemoryRepresentation repr, V<WordPtr> index,
+                            uintptr_t offset) {
     int kAlign = 4;  // Ensure that the LSB is 0, like a Smi.
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
@@ -5256,7 +5273,7 @@ class TurboshaftGraphBuildingInterface {
     __ Store(info, rep_as_int, StoreOp::Kind::RawAligned(),
              MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, mem_rep));
-    CallRuntime(Runtime::kWasmTraceMemory, {info});
+    CallRuntime(decoder, Runtime::kWasmTraceMemory, {info});
   }
 
   void StackCheck(StackCheckOp::CheckKind kind) {
@@ -5521,7 +5538,8 @@ class TurboshaftGraphBuildingInterface {
         compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
         compiler::CanThrow::kYes, __ graph_zone());
 
-    std::vector<OpIndex> arg_indices(sig->parameter_count() + 1);
+    SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
+                                             decoder->zone_);
     arg_indices[0] = ref;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       arg_indices[i + 1] = args[i].op;
@@ -5552,7 +5570,8 @@ class TurboshaftGraphBuildingInterface {
           compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
           compiler::CanThrow::kYes, __ graph_zone());
 
-      base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
+      SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
+                                               decoder->zone_);
       arg_indices[0] = ref;
       for (uint32_t i = 0; i < sig->parameter_count(); i++) {
         arg_indices[i + 1] = args[i].op;
@@ -5564,7 +5583,7 @@ class TurboshaftGraphBuildingInterface {
       // and return the return values to the caller.
       // TODO(14108): This can remain a tail call if the inlined call is also a
       // tail call.
-      base::SmallVector<Value, 8> returns(sig->return_count());
+      SmallZoneVector<Value, 16> returns(sig->return_count(), decoder->zone_);
       // Since an exception in a tail call cannot be caught in this frame, we
       // should only catch exceptions in the generated call if this is a
       // recursively inlined function, and the parent frame provides a handler.
@@ -5673,7 +5692,7 @@ class TurboshaftGraphBuildingInterface {
     return call;
   }
 
-  OpIndex CallRuntime(Runtime::FunctionId f,
+  OpIndex CallRuntime(FullDecoder* decoder, Runtime::FunctionId f,
                       std::initializer_list<const OpIndex> args) {
     const Runtime::Function* fun = Runtime::FunctionForId(f);
     OpIndex isolate_root = __ LoadRootRegister();
@@ -5683,7 +5702,9 @@ class TurboshaftGraphBuildingInterface {
     OpIndex centry_stub =
         __ Load(isolate_root, LoadOp::Kind::RawAligned(),
                 MemoryRepresentation::PointerSized(), builtin_slot_offset);
-    base::SmallVector<OpIndex, 8> centry_args;
+    // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
+    // always suffices.
+    SmallZoneVector<OpIndex, 4> centry_args(decoder->zone_);
     for (OpIndex arg : args) centry_args.emplace_back(arg);
     centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
     centry_args.emplace_back(__ Word32Constant(fun->nargs));
@@ -6172,7 +6193,8 @@ class TurboshaftGraphBuildingInterface {
                       const Value args[], Value returns[]) {
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
 
-    std::vector<OpIndex> inlinee_args(inlinee.sig->parameter_count() + 1);
+    SmallZoneVector<OpIndex, 16> inlinee_args(
+        inlinee.sig->parameter_count() + 1, decoder->zone_);
     inlinee_args[0] = instance_node();
     for (size_t i = 0; i < inlinee.sig->parameter_count(); i++) {
       inlinee_args[i + 1] = args[i].op;
@@ -6216,9 +6238,10 @@ class TurboshaftGraphBuildingInterface {
     WasmFullDecoder<Decoder::FullValidationTag,
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
-                        decoder->detected_, inlinee_body, asm_, assumptions_,
-                        inlining_positions_, func_index, wire_bytes_,
-                        &inlinee_args, callee_return_block, callee_catch_block);
+                        decoder->detected_, inlinee_body, decoder->zone_, asm_,
+                        assumptions_, inlining_positions_, func_index,
+                        wire_bytes_, base::VectorOf(inlinee_args),
+                        callee_return_block, callee_catch_block);
     size_t inlining_id = inlining_positions_->size();
     SourcePosition call_position = SourcePosition(
         decoder->position(), inlining_id_ == kNoInliningId ? -1 : inlining_id_);
@@ -6252,7 +6275,8 @@ class TurboshaftGraphBuildingInterface {
       // We need to handle exceptions in the inlined call.
       __ Bind(callee_catch_block);
       OpIndex exception = MaybePhi(
-          inlinee_decoder.interface().return_exception_phis(), kWasmExternRef);
+          base::VectorOf(inlinee_decoder.interface().return_exception_phis()),
+          kWasmExternRef);
       bool handled_in_this_frame = decoder->current_catch() != -1;
       TSBlock* catch_block;
       if (handled_in_this_frame) {
@@ -6274,8 +6298,8 @@ class TurboshaftGraphBuildingInterface {
     __ Bind(callee_return_block);
     BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
     for (size_t i = 0; i < inlinee.sig->return_count(); i++) {
-      returns[i].op =
-          MaybePhi(return_phis.phi_inputs[i], return_phis.phi_types[i]);
+      returns[i].op = MaybePhi(base::VectorOf(return_phis.phi_inputs[i]),
+                               return_phis.phi_types[i]);
     }
 
     if (!v8_flags.liftoff) {
@@ -6379,7 +6403,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   BlockPhis& return_phis() { return return_phis_; }
-  std::vector<OpIndex>& return_exception_phis() {
+  ZoneVector<OpIndex>& return_exception_phis() {
     return return_exception_phis_;
   }
   void set_inlining_id(uint8_t inlining_id) {
@@ -6420,7 +6444,7 @@ class TurboshaftGraphBuildingInterface {
   /* Used for inlining modes */
   // Contains real parameters for this inlined function, including the instance.
   // Used only in StartFunction();
-  std::vector<OpIndex>* real_parameters_;
+  base::Vector<OpIndex> real_parameters_;
   // The block where this function returns its values (passed by the caller).
   TSBlock* return_block_ = nullptr;
   // The return values for this function. The caller will reconstruct each one
@@ -6431,7 +6455,7 @@ class TurboshaftGraphBuildingInterface {
   TSBlock* return_catch_block_ = nullptr;
   // The exception values for this function (will be reconstructed in the caller
   // with a Phi).
-  std::vector<OpIndex> return_exception_phis_;
+  ZoneVector<OpIndex> return_exception_phis_;
   // The position of the call that is being inlined.
   SourcePosition parent_position_;
 };
@@ -6445,7 +6469,7 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
   Zone zone(allocator, ZONE_NAME);
   Assembler assembler(graph, graph, &zone, node_origins);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
-      decoder(&zone, module, enabled, detected, func_body, assembler,
+      decoder(&zone, module, enabled, detected, func_body, &zone, assembler,
               assumptions, inlining_positions, func_index, wire_bytes);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
