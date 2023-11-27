@@ -3299,7 +3299,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // The C-API function has one extra slot for the PC.
         required_slots++;
       } else if (call_descriptor->IsWasmImportWrapper()) {
-        required_slots += 2;
+        __ Push(xzr, xzr);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
