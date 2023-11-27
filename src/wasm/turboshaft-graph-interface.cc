@@ -217,7 +217,8 @@ class TurboshaftGraphBuildingInterface {
                   // always expanded, regardless of budget.
               func_index_,
               // Pass dummy values for caller, feedback slot, and case.
-              -1, -1, -1);
+              -1, -1, -1,
+              /* inlining depth*/ 0);
           inlining_decisions_->FullyExpand(
               decoder->module_->functions[func_index_].code.length());
         } else {

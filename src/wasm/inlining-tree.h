@@ -33,12 +33,13 @@ class InliningTree : public ZoneObject {
   InliningTree(Zone* zone, const WasmModule* module, uint32_t function_index,
                int call_count, int wire_byte_size,
                uint32_t topmost_caller_index, uint32_t caller_index,
-               int feedback_slot, int the_case)
+               int feedback_slot, int the_case, uint32_t depth)
       : zone_(zone),
         module_(module),
         function_index_(function_index),
         call_count_(call_count),
         wire_byte_size_(wire_byte_size),
+        depth_(depth),
         topmost_caller_index_(topmost_caller_index),
         caller_index_(caller_index),
         feedback_slot_(feedback_slot),
@@ -84,6 +85,14 @@ class InliningTree : public ZoneObject {
 
   base::Vector<CasesPerCallSite> function_calls_{};
 
+  // Limit the nesting depth of inlining. Inlining decisions are based on call
+  // counts. A small function with high call counts that is called recursively
+  // would be inlined until all budget is used.
+  // TODO(14108): This still might not lead to ideal results. Other options
+  // could be explored like penalizing nested inlinees.
+  static constexpr uint32_t kMaxInliningNestingDepth = 7;
+  uint32_t depth_;
+
   // For tracing.
   // TODO(14108): Do not store all of these in every tree node.
   uint32_t topmost_caller_index_;
@@ -116,7 +125,7 @@ void InliningTree::Inline() {
             zone_, module_, callee_index, type_feedback[i].call_count(the_case),
             module_->functions[callee_index].code.length(),
             topmost_caller_index_, function_index_, static_cast<int>(i),
-            the_case);
+            the_case, depth_ + 1);
       }
     }
   }
@@ -160,6 +169,16 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
       }
       continue;
     }
+
+    int min_count_for_inlining = top->wire_byte_size_ / 2;
+    if (top != this && top->wire_byte_size_ >= 12 &&
+        (top->call_count_ < min_count_for_inlining)) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("not called often enough]\n");
+      }
+      continue;
+    }
+
     if (!top->SmallEnoughToInline(initial_graph_size,
                                   inlined_wire_byte_count)) {
       if (v8_flags.trace_wasm_inlining && top != this) {
@@ -174,11 +193,17 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
     inlined_count++;
     inlined_wire_byte_count += top->wire_byte_size_;
     if (top->feedback_found()) {
-      if (v8_flags.trace_wasm_inlining) PrintF("queueing callees]\n");
-      for (CasesPerCallSite cases : top->function_calls_) {
-        for (InliningTree* call : cases) {
-          if (call != nullptr) queue.push(call);
+      if (top->depth_ < kMaxInliningNestingDepth) {
+        if (v8_flags.trace_wasm_inlining) PrintF("queueing callees]\n");
+        for (CasesPerCallSite cases : top->function_calls_) {
+          for (InliningTree* call : cases) {
+            if (call != nullptr) {
+              queue.push(call);
+            }
+          }
         }
+      } else if (v8_flags.trace_wasm_inlining) {
+        PrintF("max inlining depth reached]\n");
       }
     } else {
       if (v8_flags.trace_wasm_inlining) PrintF("feedback not found]\n");
