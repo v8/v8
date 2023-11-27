@@ -332,12 +332,16 @@ class V8_EXPORT Context : public Data {
    * Returns the value that was set or restored by
    * SetContinuationPreservedEmbedderData(), if any.
    */
+  V8_DEPRECATE_SOON(
+      "Use v8::Isolate::GetContinuationPreservedEmbedderData instead")
   Local<Value> GetContinuationPreservedEmbedderData() const;
 
   /**
    * Sets a value that will be stored on continuations and reset while the
    * continuation runs.
    */
+  V8_DEPRECATE_SOON(
+      "Use v8::Isolate::SetContinuationPreservedEmbedderData instead")
   void SetContinuationPreservedEmbedderData(Local<Value> context);
 
   /**

@@ -7234,7 +7234,7 @@ Local<Value> Context::GetContinuationPreservedEmbedderData() const {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   return ToApiHandle<Object>(
       i::direct_handle(
-          i_isolate->isolate_data()->continuation_preserved_embedder_data(),
+          context->native_context()->continuation_preserved_embedder_data(),
           i_isolate),
       i_isolate);
 #else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -7248,8 +7248,8 @@ void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
   i::Isolate* i_isolate = context->GetIsolate();
   if (data.IsEmpty())
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-  i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
-      *Utils::OpenDirectHandle(*data));
+  context->native_context()->set_continuation_preserved_embedder_data(
+      i::HeapObject::cast(*Utils::OpenDirectHandle(*data)));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 }
 

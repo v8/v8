@@ -77,14 +77,19 @@ macro NewPromiseFulfillReactionJobTask(
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseFulfillReactionJobTask {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
-    const continuationData = GetContinuationPreservedEmbedderData();
+    const isolateContinuationData = GetContinuationPreservedEmbedderData();
+    const nativeContext = LoadNativeContext(handlerContext);
     return new PromiseFulfillReactionJobTask{
       map: PromiseFulfillReactionJobTaskMapConstant(),
       argument,
       context: handlerContext,
       handler,
       promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: continuationData
+      isolate_continuation_preserved_embedder_data: isolateContinuationData,
+      context_continuation_preserved_embedder_data:
+          *ContextSlot(
+          nativeContext,
+          ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
     };
   }
 
@@ -105,14 +110,19 @@ macro NewPromiseRejectReactionJobTask(
     promiseOrCapability: JSPromise|PromiseCapability|
     Undefined): PromiseRejectReactionJobTask {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
-    const continuationData = GetContinuationPreservedEmbedderData();
+    const isolateContinuationData = GetContinuationPreservedEmbedderData();
+    const nativeContext = LoadNativeContext(handlerContext);
     return new PromiseRejectReactionJobTask{
       map: PromiseRejectReactionJobTaskMapConstant(),
       argument,
       context: handlerContext,
       handler,
       promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: continuationData
+      isolate_continuation_preserved_embedder_data: isolateContinuationData,
+      context_continuation_preserved_embedder_data:
+          *ContextSlot(
+          nativeContext,
+          ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
     };
   }
 
@@ -295,24 +305,30 @@ transitioning macro NewJSPromise(
 }
 
 macro NewPromiseReaction(
-    implicit context: Context)(_handlerContext: Context,
+    implicit context: Context)(handlerContext: Context,
     next: Zero|PromiseReaction,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined,
     fulfillHandler: Callable|Undefined,
     rejectHandler: Callable|Undefined): PromiseReaction {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
-    const continuationData = GetContinuationPreservedEmbedderData();
+    const isolateContinuationData = GetContinuationPreservedEmbedderData();
+    const nativeContext = LoadNativeContext(handlerContext);
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
       next: next,
       reject_handler: rejectHandler,
       fulfill_handler: fulfillHandler,
       promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: continuationData
+      isolate_continuation_preserved_embedder_data: isolateContinuationData,
+      context_continuation_preserved_embedder_data:
+          *ContextSlot(
+          nativeContext,
+          ContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX)
     };
   }
 
   @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    dcheck(IsContext(handlerContext));
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
       next: next,
