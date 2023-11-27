@@ -66,7 +66,7 @@ class BaselineCompilerTask {
 
     shared_function_info_->set_baseline_code(*code, kReleaseStore);
     shared_function_info_->set_age(0);
-    if (v8_flags.trace_baseline_concurrent_compilation) {
+    if (v8_flags.trace_baseline) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;
       ss << "[Concurrent Sparkplug Off Thread] Function ";
@@ -112,7 +112,7 @@ class BaselineBatchCompilerJob {
       if (shared->is_sparkplug_compiling()) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
-    if (v8_flags.trace_baseline_concurrent_compilation) {
+    if (v8_flags.trace_baseline) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[Concurrent Sparkplug] compiling %zu functions\n",
              tasks_.size());

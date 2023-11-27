@@ -940,8 +940,7 @@ DEFINE_INT(baseline_batch_compilation_threshold, 4 * KB,
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 DEFINE_BOOL(trace_baseline_batch_compilation, false,
             "trace baseline batch compilation")
-DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
-            "trace baseline concurrent compilation")
+DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 #undef FLAG
 #define FLAG FLAG_FULL
 
