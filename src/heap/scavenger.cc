@@ -614,10 +614,10 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
           promotion_list->large_object_promotion_list_) {}
 
 namespace {
-MainAllocator* CreateSharedOldAllocator(Heap* heap) {
+ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_space()) {
-    return new MainAllocator(heap, heap->shared_allocation_space(),
-                             MainAllocator::kInGC);
+    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
+                                   ConcurrentAllocator::Context::kGC);
   }
   return nullptr;
 }

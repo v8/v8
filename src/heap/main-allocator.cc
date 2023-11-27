@@ -100,7 +100,7 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
 bool MainAllocator::IsBlackAllocationEnabled() const {
   // Use the space heap to check whether black allocation is enabled. For shared
   // space this might be different from the LocalHeap's heap.
-  return identity() != NEW_SPACE && !in_gc() &&
+  return identity() != NEW_SPACE &&
          space_heap()->incremental_marking()->black_allocation();
 }
 
@@ -447,10 +447,6 @@ bool MainAllocator::is_main_thread() const {
   return !in_gc() && local_heap()->is_main_thread();
 }
 
-bool MainAllocator::in_gc_for_space() const {
-  return in_gc() && isolate_heap() == space_heap();
-}
-
 Heap* MainAllocator::space_heap() const { return space_->heap(); }
 
 AllocatorPolicy::AllocatorPolicy(MainAllocator* allocator)
@@ -690,7 +686,7 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
       return true;
   }
 
-  if (allocator_->in_gc_for_space()) {
+  if (allocator_->in_gc()) {
     DCHECK_NE(NEW_SPACE, allocator_->identity());
     // The main thread may have acquired all swept pages. Try to steal from
     // it. This can only happen during young generation evacuation.
@@ -759,8 +755,8 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweepingMain(
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =
-      allocator_->in_gc_for_space() ? Sweeper::SweepingMode::kEagerDuringGC
-                                    : Sweeper::SweepingMode::kLazyOrConcurrent;
+      allocator_->in_gc() ? Sweeper::SweepingMode::kEagerDuringGC
+                          : Sweeper::SweepingMode::kLazyOrConcurrent;
 
   space_heap()->sweeper()->ParallelSweepSpace(
       allocator_->identity(), sweeping_mode, required_freed_bytes, max_pages);
