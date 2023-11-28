@@ -70,33 +70,56 @@ class BranchConditionDuplicationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const Operation& cond = __ input_graph().Get(branch.condition());
-    if (cond.saturated_use_count.IsOne()) goto no_change;
-
     OpIndex new_cond = OpIndex::Invalid();
-    switch (cond.opcode) {
-      case Opcode::kComparison:
-        new_cond = MaybeDuplicateComparison(cond.Cast<ComparisonOp>(),
-                                            branch.condition());
-        break;
-      case Opcode::kWordBinop:
-        new_cond = MaybeDuplicateWordBinop(cond.Cast<WordBinopOp>(),
-                                           branch.condition());
-        break;
-      case Opcode::kShift:
-        new_cond =
-            MaybeDuplicateShift(cond.Cast<ShiftOp>(), branch.condition());
-        break;
-      default:
-        goto no_change;
+    if (!MaybeDuplicateCond(cond, branch.condition(), &new_cond)) {
+      goto no_change;
     }
 
-    if (!new_cond.valid()) goto no_change;
+    DCHECK(new_cond.valid());
     __ Branch(new_cond, __ MapToNewGraph(branch.if_true),
               __ MapToNewGraph(branch.if_false), branch.hint);
     return OpIndex::Invalid();
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Select)(OpIndex ig_index, const SelectOp& select) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphSelect(ig_index, select);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const Operation& cond = __ input_graph().Get(select.cond());
+    OpIndex new_cond = OpIndex::Invalid();
+    if (!MaybeDuplicateCond(cond, select.cond(), &new_cond)) goto no_change;
+
+    DCHECK(new_cond.valid());
+    return __ Select(new_cond, __ MapToNewGraph(select.vtrue()),
+                     __ MapToNewGraph(select.vfalse()), select.rep, select.hint,
+                     select.implem);
+  }
+
  private:
+  bool MaybeDuplicateCond(const Operation& cond, OpIndex input_idx,
+                          OpIndex* new_cond) {
+    if (cond.saturated_use_count.IsOne()) return false;
+
+    switch (cond.opcode) {
+      case Opcode::kComparison:
+        *new_cond =
+            MaybeDuplicateComparison(cond.Cast<ComparisonOp>(), input_idx);
+        break;
+      case Opcode::kWordBinop:
+        *new_cond =
+            MaybeDuplicateWordBinop(cond.Cast<WordBinopOp>(), input_idx);
+        break;
+      case Opcode::kShift:
+        *new_cond = MaybeDuplicateShift(cond.Cast<ShiftOp>(), input_idx);
+        break;
+      default:
+        return false;
+    }
+    return new_cond->valid();
+  }
+
   bool MaybeCanDuplicateGenericBinop(OpIndex input_idx, OpIndex left,
                                      OpIndex right) {
     if (__ input_graph().Get(left).saturated_use_count.IsOne() &&
