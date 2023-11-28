@@ -393,6 +393,7 @@ class LiveRangeAndNextUseProcessor {
 
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
+    DCHECK(!node->Is<Identity>());
     node->record_next_use(use_id, input);
 
     // If we are in a loop, loop_used_nodes is non-null. In this case, check if
@@ -427,6 +428,9 @@ class LiveRangeAndNextUseProcessor {
     int use_id = node->id();
     detail::DeepForEachInput(deopt_info,
                              [&](ValueNode* node, InputLocation* input) {
+                               if (node->Is<Identity>()) {
+                                 node = node->input(0).node();
+                               }
                                MarkUse(node, use_id, input, loop_used_nodes);
                              });
   }
@@ -436,6 +440,9 @@ class LiveRangeAndNextUseProcessor {
     int use_id = node->id();
     detail::DeepForEachInput(deopt_info,
                              [&](ValueNode* node, InputLocation* input) {
+                               if (node->Is<Identity>()) {
+                                 node = node->input(0).node();
+                               }
                                MarkUse(node, use_id, input, loop_used_nodes);
                              });
   }
