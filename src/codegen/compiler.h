@@ -565,6 +565,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
                         v8::ScriptType type,
                         ScriptCompiler::CompileOptions options,
+                        ScriptCompiler::CompilationDetails* compilation_details,
                         CompileHintCallback compile_hint_callback = nullptr,
                         void* compile_hint_callback_data = nullptr);
   BackgroundCompileTask(const BackgroundCompileTask&) = delete;
@@ -612,6 +613,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int stack_size_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
+  ScriptCompiler::CompilationDetails* compilation_details_;
 
   // Data needed for merging onto the main thread after background finalization.
   std::unique_ptr<PersistentHandles> persistent_handles_;
@@ -685,11 +687,17 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
 
   bool rejected() const { return cached_data_.rejected(); }
 
+  int64_t background_time_in_microseconds() const {
+    return background_time_in_microseconds_;
+  }
+
  private:
   Isolate* isolate_for_local_isolate_;
   AlignedCachedData cached_data_;
   CodeSerializer::OffThreadDeserializeData off_thread_data_;
   BackgroundMergeTask background_merge_task_;
+  TimedHistogram* timer_;
+  int64_t background_time_in_microseconds_ = 0;
 };
 
 }  // namespace internal

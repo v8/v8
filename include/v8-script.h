@@ -459,6 +459,10 @@ class V8_EXPORT ScriptCompiler {
   struct CompilationDetails {
     InMemoryCacheResult in_memory_cache_result =
         InMemoryCacheResult::kNotAttempted;
+
+    static constexpr int64_t kTimeNotMeasured = -1;
+    int64_t foreground_time_in_microseconds = kTimeNotMeasured;
+    int64_t background_time_in_microseconds = kTimeNotMeasured;
   };
 
   /**

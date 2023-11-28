@@ -2828,9 +2828,9 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
-      std::make_unique<i::BackgroundCompileTask>(data, i_isolate, type, options,
-                                                 compile_hint_callback,
-                                                 compile_hint_callback_data);
+      std::make_unique<i::BackgroundCompileTask>(
+          data, i_isolate, type, options, &source->compilation_details(),
+          compile_hint_callback, compile_hint_callback_data);
   data->task = std::move(task);
   return new ScriptCompiler::ScriptStreamingTask(data);
 }

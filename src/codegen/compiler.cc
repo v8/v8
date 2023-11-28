@@ -1649,6 +1649,7 @@ DeferredFinalizationJobData::DeferredFinalizationJobData(
 BackgroundCompileTask::BackgroundCompileTask(
     ScriptStreamingData* streamed_data, Isolate* isolate, ScriptType type,
     ScriptCompiler::CompileOptions options,
+    ScriptCompiler::CompilationDetails* compilation_details,
     CompileHintCallback compile_hint_callback, void* compile_hint_callback_data)
     : isolate_for_local_isolate_(isolate),
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
@@ -1662,6 +1663,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       worker_thread_runtime_call_stats_(
           isolate->counters()->worker_thread_runtime_call_stats()),
       timer_(isolate->counters()->compile_script_on_background()),
+      compilation_details_(compilation_details),
       start_position_(0),
       end_position_(0),
       function_literal_id_(kFunctionLiteralIdTopLevel),
@@ -1694,6 +1696,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
+      compilation_details_(nullptr),
       input_shared_info_(shared_info),
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
@@ -1880,7 +1883,11 @@ void BackgroundCompileTask::RunOnMainThread(Isolate* isolate) {
 
 void BackgroundCompileTask::Run(
     LocalIsolate* isolate, ReusableUnoptimizedCompileState* reusable_state) {
-  TimedHistogramScope timer(timer_);
+  TimedHistogramScope timer(
+      timer_, nullptr,
+      compilation_details_
+          ? &compilation_details_->background_time_in_microseconds
+          : nullptr);
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
@@ -2381,7 +2388,8 @@ void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
 BackgroundDeserializeTask::BackgroundDeserializeTask(
     Isolate* isolate, std::unique_ptr<ScriptCompiler::CachedData> cached_data)
     : isolate_for_local_isolate_(isolate),
-      cached_data_(cached_data->data, cached_data->length) {
+      cached_data_(cached_data->data, cached_data->length),
+      timer_(isolate->counters()->deserialize_script_on_background()) {
   // If the passed in cached data has ownership of the buffer, move it to the
   // task.
   if (cached_data->buffer_policy == ScriptCompiler::CachedData::BufferOwned &&
@@ -2392,6 +2400,7 @@ BackgroundDeserializeTask::BackgroundDeserializeTask(
 }
 
 void BackgroundDeserializeTask::Run() {
+  TimedHistogramScope timer(timer_, nullptr, &background_time_in_microseconds_);
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
@@ -3185,9 +3194,11 @@ struct ScriptCompileTimerScope {
     kCount
   };
 
-  explicit ScriptCompileTimerScope(
-      Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason)
+  ScriptCompileTimerScope(
+      Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason,
+      ScriptCompiler::CompilationDetails* compilation_details)
       : isolate_(isolate),
+        histogram_scope_(&compilation_details->foreground_time_in_microseconds),
         all_scripts_histogram_scope_(isolate->counters()->compile_script()),
         no_cache_reason_(no_cache_reason),
         hit_isolate_cache_(false),
@@ -3407,7 +3418,8 @@ class StressBackgroundCompileThread : public ParkingThread {
                           : ScriptType::kClassic;
     data()->task = std::make_unique<i::BackgroundCompileTask>(
         data(), isolate, type,
-        ScriptCompiler::CompileOptions::kNoCompileOptions);
+        ScriptCompiler::CompileOptions::kNoCompileOptions,
+        &streamed_source_.compilation_details());
   }
 
   void Run() override { data()->task->Run(); }
@@ -3550,7 +3562,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
     ScriptCompiler::CompilationDetails* compilation_details) {
-  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
+  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
+                                        compilation_details);
 
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     // Have to have exactly one of cached_data or deserialize_task.
@@ -3569,6 +3582,10 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     DCHECK_NULL(compile_hint_callback);
     DCHECK_NULL(compile_hint_callback_data);
   }
+
+  compilation_details->background_time_in_microseconds =
+      deserialize_task ? deserialize_task->background_time_in_microseconds()
+                       : 0;
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -3772,7 +3789,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
-  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
+  ScriptCompiler::CompilationDetails compilation_details;
+  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
+                                        &compilation_details);
 
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     DCHECK(cached_data);
@@ -3863,7 +3882,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   DCHECK(!script_details.origin_options.IsWasm());
 
   ScriptCompileTimerScope compile_timer(
-      isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
+      isolate, ScriptCompiler::kNoCacheBecauseStreamingSource,
+      compilation_details);
   PostponeInterruptsScope postpone(isolate);
 
   BackgroundCompileTask* task = streaming_data->task.get();

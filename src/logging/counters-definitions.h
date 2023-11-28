@@ -297,6 +297,9 @@ namespace internal {
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \
      V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
+  HT(deserialize_script_on_background,                                         \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
+     MICROSECOND)                                                              \
   HT(wasm_max_lazy_compilation_time_5sec,                                      \
      V8.WasmMaxLazyCompilationTime5SecMilliSeconds, 5000, MILLISECOND)         \
   HT(wasm_max_lazy_compilation_time_20sec,                                     \
