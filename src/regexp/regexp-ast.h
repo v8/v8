@@ -655,12 +655,13 @@ class RegExpLookaround final : public RegExpTree {
   enum Type { LOOKAHEAD, LOOKBEHIND };
 
   RegExpLookaround(RegExpTree* body, bool is_positive, int capture_count,
-                   int capture_from, Type type)
+                   int capture_from, Type type, int index)
       : body_(body),
         is_positive_(is_positive),
         capture_count_(capture_count),
         capture_from_(capture_from),
-        type_(type) {}
+        type_(type),
+        index_(index) {}
 
   DECL_BOILERPLATE(Lookaround);
 
@@ -673,6 +674,7 @@ class RegExpLookaround final : public RegExpTree {
   int capture_count() const { return capture_count_; }
   int capture_from() const { return capture_from_; }
   Type type() const { return type_; }
+  int index() const { return index_; }
 
   class Builder {
    public:
@@ -696,6 +698,7 @@ class RegExpLookaround final : public RegExpTree {
   int capture_count_;
   int capture_from_;
   Type type_;
+  int index_;
 };
 
 

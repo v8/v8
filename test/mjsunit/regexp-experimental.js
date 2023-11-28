@@ -95,4 +95,14 @@ Test(/^a/m, "x\na", ["a"], 0);
 Test(/x$/m, "x\na", ["x"], 0);
 
 // The dotall flag.
-Test(/asdf.xyz/s,  "asdf\nxyz", ["asdf\nxyz"], 0);
+Test(/asdf.xyz/s, 'asdf\nxyz', ['asdf\nxyz'], 0);
+
+// Lookbehinds.
+Test(/ab(?<=a(?<=a)b)c/, 'abc', ['abc'], 0);
+Test(/ab(?<=a(?<=a)b)(c)/, 'abc', ['abc', 'c'], 0);
+
+// Negative lookbehind.
+Test(/ab(?<=a(?<!b)b)c/, 'abc', ['abc'], 0);
+Test(/ab(?<=a(?<!(b))b)c/, 'abc', ['abc', undefined], 0);
+Test(/ab(?<=a(?<!b)b)(c)/, 'abc', ['abc', 'c'], 0);
+Test(/ab(?<=a(?<!(b))b)(c)/, 'abc', ['abc', undefined, 'c'], 0);
