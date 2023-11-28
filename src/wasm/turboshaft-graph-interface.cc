@@ -1602,7 +1602,7 @@ class TurboshaftGraphBuildingInterface {
         // string. To enforce this, we inline only if a (successful)
         // `WebAssembly.String.cast` was performed before.
 #if V8_INTL_SUPPORT
-        if (!(IsExplicitStringCast(args[0]))) {
+        if (!IsExplicitStringCast(args[0])) {
           return false;
         }
         V<Tagged> string = args[0].op;
