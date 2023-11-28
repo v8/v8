@@ -9,6 +9,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -132,6 +133,7 @@ class BranchConditionDuplicationReducer : public Next {
         break;
     }
 
+    DisableValueNumbering disable_gvn(this);
     return __ WordBinop(__ MapToNewGraph(binop.left()),
                         __ MapToNewGraph(binop.right()), binop.kind, binop.rep);
   }
@@ -142,6 +144,7 @@ class BranchConditionDuplicationReducer : public Next {
       return OpIndex::Invalid();
     }
 
+    DisableValueNumbering disable_gvn(this);
     return __ Comparison(__ MapToNewGraph(comp.left()),
                          __ MapToNewGraph(comp.right()), comp.kind, comp.rep);
   }
@@ -152,6 +155,7 @@ class BranchConditionDuplicationReducer : public Next {
       return OpIndex::Invalid();
     }
 
+    DisableValueNumbering disable_gvn(this);
     return __ Shift(__ MapToNewGraph(shift.left()),
                     __ MapToNewGraph(shift.right()), shift.kind, shift.rep);
   }

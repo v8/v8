@@ -72,6 +72,37 @@ namespace turboshaft {
 template <class Next>
 class TypeInferenceReducer;
 
+class ScopeCounter {
+ public:
+  void enter() { scopes_++; }
+  void leave() { scopes_--; }
+  bool is_active() { return scopes_ > 0; }
+
+ private:
+  int scopes_{0};
+};
+
+// In rare cases of intentional duplication of instructions, we need to disable
+// value numbering. This scope manages that.
+class DisableValueNumbering {
+ public:
+  template <class Reducer>
+  explicit DisableValueNumbering(Reducer* reducer) {
+    if constexpr (reducer_list_contains<typename Reducer::ReducerList,
+                                        ValueNumberingReducer>::value) {
+      scopes_ = reducer->gvn_disabled_scope();
+      scopes_->enter();
+    }
+  }
+
+  ~DisableValueNumbering() {
+    if (scopes_ != nullptr) scopes_->leave();
+  }
+
+ private:
+  ScopeCounter* scopes_{nullptr};
+};
+
 template <class Next>
 class ValueNumberingReducer : public Next {
 #if defined(__clang__)
@@ -136,6 +167,8 @@ class ValueNumberingReducer : public Next {
     return !entry->IsEmpty();
   }
 
+  ScopeCounter* gvn_disabled_scope() { return &disabled_scope_; }
+
  private:
   // TODO(dmercadier): Once the mapping from Operations to Blocks has been added
   // to turboshaft, remove the `block` field from the `Entry` structure.
@@ -150,6 +183,8 @@ class ValueNumberingReducer : public Next {
 
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
+    if (is_disabled()) return op_idx;
+
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
     if (std::is_same_v<Op, PendingLoopPhiOp> || op.IsBlockTerminator() ||
         (!op.Effects().repetition_is_eliminatable() &&
@@ -293,6 +328,8 @@ class ValueNumberingReducer : public Next {
     return V8_LIKELY(entry > table_.begin()) ? entry - 1 : table_.end() - 1;
   }
 
+  bool is_disabled() { return disabled_scope_.is_active(); }
+
   ZoneVector<Block*> dominator_path_{Asm().phase_zone()};
   base::Vector<Entry> table_ = Asm().phase_zone()->template NewVector<Entry>(
       base::bits::RoundUpToPowerOfTwo(
@@ -300,6 +337,7 @@ class ValueNumberingReducer : public Next {
   size_t mask_ = table_.size() - 1;
   size_t entry_count_ = 0;
   ZoneVector<Entry*> depths_heads_{Asm().phase_zone()};
+  ScopeCounter disabled_scope_;
 };
 
 }  // namespace turboshaft
