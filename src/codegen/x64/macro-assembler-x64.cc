@@ -3972,10 +3972,12 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
-void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
+void MacroAssembler::BailoutIfDeoptimized(Register scratch1,
+                                          Register scratch2) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadTaggedField(scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
-  TestCodeIsMarkedForDeoptimization(scratch);
+  LoadCodePointerField(
+      scratch1, Operand(kJavaScriptCallCodeStartRegister, offset), scratch2);
+  TestCodeIsMarkedForDeoptimization(scratch1);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);
 }

@@ -36,13 +36,21 @@ Address CodePointerTableEntry::GetCodeObject() const {
   DCHECK(!IsFreelistEntry());
   // We reuse the heap object tag bit as marking bit, so we need to explicitly
   // set it here when accessing the pointer.
-  return code_.load(std::memory_order_relaxed) | kMarkingBit;
+  return code_.load(std::memory_order_acquire) | kMarkingBit;
 }
 
 void CodePointerTableEntry::SetCodeObject(Address value) {
   DCHECK_EQ(value & kMarkingBit, kMarkingBit);
   DCHECK(!IsFreelistEntry());
-  code_.store(value, std::memory_order_relaxed);
+  // Currently, we need release-acquire semantics here as this can be a
+  // publishing store: during mark-compact GC, one thread might relocate a Code
+  // object and call SetCodeObject afterwards, while another thread might
+  // access it when processing the associated InstructionStream object. We can
+  // again use relaxed semantics here if one of the following becomes true:
+  // * We no longer access the Code object when relocating an InstructionStream.
+  // * We update the pointers to heap objects in our pointer tables during
+  //   UpdatePointersAfterEvacuation, instead of right after moving the object.
+  code_.store(value, std::memory_order_release);
 }
 
 void CodePointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {

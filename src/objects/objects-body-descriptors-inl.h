@@ -943,6 +943,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  ObjectVisitor* v) {
+    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);

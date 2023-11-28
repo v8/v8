@@ -1271,7 +1271,9 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
 }
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(rbx); }
+void CodeGenerator::BailoutIfDeoptimized() {
+  __ BailoutIfDeoptimized(rbx, kScratchRegister);
+}
 
 bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
                                                 Instruction* instr) {

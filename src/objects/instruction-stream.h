@@ -123,8 +123,8 @@ class InstructionStream : public HeapObject {
 
   // Layout description.
 #define ISTREAM_FIELDS(V)                                                     \
+  V(kCodeOffset, kCodePointerSize)                                            \
   V(kStartOfStrongFieldsOffset, 0)                                            \
-  V(kCodeOffset, kTaggedSize)                                                 \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kEndOfStrongFieldsOffset, 0)                                              \
   /* Data or code not directly visited by GC directly starts here. */         \

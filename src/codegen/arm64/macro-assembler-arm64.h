@@ -1591,9 +1591,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
 
-  // Store a code pointer field.
+  // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
   // enabled, reference code objects through the code pointer table.
+  void LoadCodePointerField(Register destination, MemOperand field_operand) {
+    LoadTrustedPointerField(destination, field_operand,
+                            kCodeIndirectPointerTag);
+  }
+  // Store a code pointer field.
   void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
     StoreTrustedPointerField(value, dst_field_operand);
   }
