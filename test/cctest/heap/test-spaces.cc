@@ -304,7 +304,8 @@ TEST(SemiSpaceNewSpace) {
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator allocator(heap, new_space.get(), allocation_info);
+  MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
+                          &allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
@@ -334,7 +335,8 @@ TEST(PagedNewSpace) {
 
   auto new_space = std::make_unique<PagedNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
-  MainAllocator allocator(heap, new_space.get(), allocation_info);
+  MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
+                          &allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
   CHECK_LT(0, new_space->TotalCapacity());
@@ -369,7 +371,8 @@ TEST(OldSpace) {
   LinearAllocationArea allocation_info;
 
   auto old_space = std::make_unique<OldSpace>(heap);
-  MainAllocator allocator(heap, old_space.get(), allocation_info);
+  MainAllocator allocator(heap->main_thread_local_heap(), old_space.get(),
+                          &allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;

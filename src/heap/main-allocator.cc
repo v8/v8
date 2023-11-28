@@ -21,50 +21,27 @@
 namespace v8 {
 namespace internal {
 
-MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                             LinearAllocationArea& allocation_info)
-    : local_heap_(heap->main_thread_local_heap()),
-      isolate_heap_(heap),
-      space_(space),
-      allocation_info_(allocation_info),
-      allocator_policy_(space->CreateAllocatorPolicy(this)),
-      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
-  CHECK_NOT_NULL(local_heap_);
-  DCHECK_EQ(heap, space->heap());
-  allocation_counter_.emplace();
-  linear_area_original_data_.emplace();
-}
-
-MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space)
-    : local_heap_(heap->main_thread_local_heap()),
-      isolate_heap_(heap),
-      space_(space),
-      allocation_info_(owned_allocation_info_),
-      allocator_policy_(space->CreateAllocatorPolicy(this)),
-      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
-  CHECK_NOT_NULL(local_heap_);
-  DCHECK_EQ(heap, space->heap());
-  allocation_counter_.emplace();
-  linear_area_original_data_.emplace();
-}
-
-MainAllocator::MainAllocator(LocalHeap* local_heap, SpaceWithLinearArea* space)
+MainAllocator::MainAllocator(LocalHeap* local_heap, SpaceWithLinearArea* space,
+                             LinearAllocationArea* allocation_info)
     : local_heap_(local_heap),
       isolate_heap_(local_heap->heap()),
       space_(space),
-      allocation_info_(owned_allocation_info_),
+      allocation_info_(allocation_info != nullptr ? allocation_info
+                                                  : &owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
-      supports_extending_lab_(false) {
+      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
   CHECK_NOT_NULL(local_heap_);
-  DCHECK(!allocation_counter_.has_value());
-  DCHECK(!linear_area_original_data_.has_value());
+  if (local_heap_->is_main_thread()) {
+    allocation_counter_.emplace();
+    linear_area_original_data_.emplace();
+  }
 }
 
 MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space, InGCTag)
     : local_heap_(nullptr),
       isolate_heap_(heap),
       space_(space),
-      allocation_info_(owned_allocation_info_),
+      allocation_info_(&owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
       supports_extending_lab_(false) {
   DCHECK(!allocation_counter_.has_value());

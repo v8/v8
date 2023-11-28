@@ -61,7 +61,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       heap_allocator_(this) {
   DCHECK_IMPLIES(!is_main_thread(), heap_->deserialization_complete());
   if (!is_main_thread()) {
-    heap_allocator_.SetupBackground();
+    heap_allocator_.Setup();
     SetUpMarkingBarrier();
   }
 
@@ -115,7 +115,7 @@ void LocalHeap::SetUpMainThreadForTesting() {
   Unpark();
   DCHECK(is_main_thread());
   DCHECK(IsRunning());
-  heap_allocator_.SetupBackground();
+  heap_allocator_.Setup();
   SetUpMarkingBarrier();
   SetUpSharedMarking();
 }
@@ -124,7 +124,7 @@ void LocalHeap::SetUpMainThread(LinearAllocationArea& new_allocation_info,
                                 LinearAllocationArea& old_allocation_info) {
   DCHECK(is_main_thread());
   DCHECK(IsRunning());
-  heap_allocator_.SetupMain(new_allocation_info, old_allocation_info);
+  heap_allocator_.Setup(&new_allocation_info, &old_allocation_info);
   SetUpMarkingBarrier();
   SetUpSharedMarking();
 }

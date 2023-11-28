@@ -151,35 +151,30 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
-  // Use this constructor on the main thread.
-  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space);
-
-  // Use this constructor on the main thread for spaces that have allocation
-  // support in generated code (currently new and old space).
-  V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
-                                  LinearAllocationArea& allocation_info);
+  // Use this constructor on main/background threads. `allocation_info` can be
+  // used for allocation support in generated code (currently new and old
+  // space).
+  V8_EXPORT_PRIVATE MainAllocator(
+      LocalHeap* heap, SpaceWithLinearArea* space,
+      LinearAllocationArea* allocation_info = nullptr);
 
   // Use this constructor for GC LABs/allocations.
   V8_EXPORT_PRIVATE MainAllocator(Heap* heap, SpaceWithLinearArea* space,
                                   InGCTag);
 
-  // Use this constructor on background threads.
-  V8_EXPORT_PRIVATE MainAllocator(LocalHeap* local_heap,
-                                  SpaceWithLinearArea* space);
-
   // Returns the allocation pointer in this space.
-  Address start() const { return allocation_info_.start(); }
-  Address top() const { return allocation_info_.top(); }
-  Address limit() const { return allocation_info_.limit(); }
+  Address start() const { return allocation_info_->start(); }
+  Address top() const { return allocation_info_->top(); }
+  Address limit() const { return allocation_info_->limit(); }
 
   // The allocation top address.
   Address* allocation_top_address() const {
-    return allocation_info_.top_address();
+    return allocation_info_->top_address();
   }
 
   // The allocation limit address.
   Address* allocation_limit_address() const {
-    return allocation_info_.limit_address();
+    return allocation_info_->limit_address();
   }
 
   Address original_top_acquire() const {
@@ -195,10 +190,10 @@ class MainAllocator {
                                   Address extended_end);
   V8_EXPORT_PRIVATE bool IsPendingAllocation(Address object_address);
 
-  LinearAllocationArea& allocation_info() { return allocation_info_; }
+  LinearAllocationArea& allocation_info() { return *allocation_info_; }
 
   const LinearAllocationArea& allocation_info() const {
-    return allocation_info_;
+    return *allocation_info_;
   }
 
   AllocationCounter& allocation_counter() {
@@ -251,7 +246,9 @@ class MainAllocator {
 #endif  // DEBUG
 
   // Checks whether the LAB is currently in use.
-  V8_INLINE bool IsLabValid() { return allocation_info_.top() != kNullAddress; }
+  V8_INLINE bool IsLabValid() {
+    return allocation_info_->top() != kNullAddress;
+  }
 
   V8_EXPORT_PRIVATE void FreeLinearAllocationArea();
 
@@ -347,7 +344,7 @@ class MainAllocator {
   SpaceWithLinearArea* const space_;
 
   base::Optional<AllocationCounter> allocation_counter_;
-  LinearAllocationArea& allocation_info_;
+  LinearAllocationArea* const allocation_info_;
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
   base::Optional<LinearAreaOriginalData> linear_area_original_data_;

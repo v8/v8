@@ -33,12 +33,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
  public:
   explicit HeapAllocator(LocalHeap*);
 
-  // Set up LABs for the main thread.
-  void SetupMain(LinearAllocationArea& new_allocation_info,
-                 LinearAllocationArea& old_allocation_info);
-
-  // Set up LABs for a background thread.
-  void SetupBackground();
+  // Set up all LABs for this LocalHeap.
+  void Setup(LinearAllocationArea* new_allocation_info = nullptr,
+             LinearAllocationArea* old_allocation_info = nullptr);
 
   void SetReadOnlySpace(ReadOnlySpace*);
 

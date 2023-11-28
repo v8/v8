@@ -19,34 +19,20 @@ class Heap;
 HeapAllocator::HeapAllocator(LocalHeap* local_heap)
     : local_heap_(local_heap), heap_(local_heap->heap()) {}
 
-void HeapAllocator::SetupMain(LinearAllocationArea& new_allocation_info,
-                              LinearAllocationArea& old_allocation_info) {
+void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
+                          LinearAllocationArea* old_allocation_info) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
     spaces_[i] = heap_->space(i);
   }
 
-  if (heap_->new_space()) {
-    new_space_allocator_.emplace(heap_, heap_->new_space(),
+  if (heap_->new_space() && local_heap_->is_main_thread()) {
+    new_space_allocator_.emplace(local_heap_, heap_->new_space(),
                                  new_allocation_info);
   }
 
-  old_space_allocator_.emplace(heap_, heap_->old_space(), old_allocation_info);
-  trusted_space_allocator_.emplace(heap_, heap_->trusted_space());
-  code_space_allocator_.emplace(heap_, heap_->code_space());
+  old_space_allocator_.emplace(local_heap_, heap_->old_space(),
+                               old_allocation_info);
 
-  if (heap_->isolate()->has_shared_space()) {
-    shared_space_allocator_.emplace(local_heap_,
-                                    heap_->shared_allocation_space());
-    shared_lo_space_ = heap_->shared_lo_allocation_space();
-  }
-}
-
-void HeapAllocator::SetupBackground() {
-  for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
-    spaces_[i] = heap_->space(i);
-  }
-
-  old_space_allocator_.emplace(local_heap_, heap_->old_space());
   trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space());
   code_space_allocator_.emplace(local_heap_, heap_->code_space());
 
