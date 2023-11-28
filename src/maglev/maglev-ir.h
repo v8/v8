@@ -314,6 +314,7 @@ class MergePointInterpreterFrameState;
   V(ThrowSuperAlreadyCalledIfNotHole)       \
   V(ThrowIfNotCallable)                     \
   V(ThrowIfNotSuperConstructor)             \
+  V(TransitionElementsKind)                 \
   V(TransitionElementsKindOrCheckMap)       \
   V(UpdateJSArrayLength)                    \
   GAP_MOVE_NODE_LIST(V)                     \
@@ -4817,6 +4818,11 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
+  explicit CheckMaps(uint64_t bitfield,
+                     base::Vector<const compiler::MapRef> maps,
+                     CheckType check_type, Zone* zone)
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
+        maps_(maps.begin(), maps.end(), zone) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -7989,14 +7995,45 @@ class ThrowIfNotSuperConstructor
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class TransitionElementsKind
+    : public FixedInputNodeT<1, TransitionElementsKind> {
+  using Base = FixedInputNodeT<1, TransitionElementsKind>;
+
+ public:
+  static constexpr int kObjectIndex = 0;
+
+  explicit TransitionElementsKind(
+      uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
+      compiler::MapRef transition_target)
+      : Base(bitfield),
+        transition_sources_(transition_sources),
+        transition_target_(transition_target) {}
+
+  // TODO(leszeks): Special case the case where all transitions are fast.
+  static constexpr OpProperties kProperties =
+      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& object_input() { return input(kObjectIndex); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ZoneVector<compiler::MapRef> transition_sources_;
+  const compiler::MapRef transition_target_;
+};
+
 class TransitionElementsKindOrCheckMap
     : public FixedInputNodeT<1, TransitionElementsKindOrCheckMap> {
   using Base = FixedInputNodeT<1, TransitionElementsKindOrCheckMap>;
 
  public:
   explicit TransitionElementsKindOrCheckMap(
-      uint64_t bitfield,
-      base::Vector<const compiler::MapRef> transition_sources,
+      uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)),
         transition_sources_(transition_sources),
@@ -8021,7 +8058,7 @@ class TransitionElementsKindOrCheckMap
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 
-  const base::Vector<const compiler::MapRef> transition_sources_;
+  ZoneVector<compiler::MapRef> transition_sources_;
   const compiler::MapRef transition_target_;
 };
 

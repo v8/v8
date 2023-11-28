@@ -435,6 +435,7 @@ class MaglevGraphBuilder {
                      std::initializer_list<ValueNode*> control_inputs,
                      Args&&... args);
     void Goto(Label* label);
+    void ReducePredecessorCount(Label* label);
     void EndLoop(LoopLabel* loop_label);
     void Bind(Label* label);
     void set(Variable& var, ValueNode* value);
@@ -1782,9 +1783,16 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckMaps(ValueNode* object,
                               base::Vector<const compiler::MapRef> maps);
   ReduceResult BuildTransitionElementsKindOrCheckMap(
-      ValueNode* object,
-      base::Vector<const compiler::MapRef> transition_sources,
+      ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target);
+  ReduceResult BuildCompareMaps(
+      ValueNode* object, base::Vector<const compiler::MapRef> maps,
+      MaglevSubGraphBuilder* sub_graph,
+      base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
+  ReduceResult BuildTransitionElementsKindAndCompareMaps(
+      ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
+      compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
+      base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
@@ -1874,10 +1882,18 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* index,
       const compiler::ElementAccessInfo& access_info,
       compiler::KeyedAccessMode const& keyed_mode);
+  template <typename GenericAccessFunc>
   ReduceResult TryBuildElementAccess(
       ValueNode* object, ValueNode* index,
       compiler::ElementAccessFeedback const& feedback,
-      compiler::FeedbackSource const& feedback_source);
+      compiler::FeedbackSource const& feedback_source,
+      GenericAccessFunc&& build_generic_access);
+  template <typename GenericAccessFunc>
+  ReduceResult TryBuildPolymorphicElementAccess(
+      ValueNode* object, ValueNode* index,
+      const compiler::KeyedAccessMode& keyed_mode,
+      const ZoneVector<compiler::ElementAccessInfo>& access_infos,
+      GenericAccessFunc&& build_generic_access);
 
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be re-used on

@@ -5506,6 +5506,76 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ StoreFloat64(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
 }
 
+namespace {
+
+template <typename NodeT>
+void GenerateTransitionElementsKind(
+    MaglevAssembler* masm, NodeT* node, Register object, Register map,
+    base::Vector<const compiler::MapRef> transition_sources,
+    const compiler::MapRef transition_target, ZoneLabelRef done) {
+  DCHECK(!AnyMapIsHeapNumber(transition_sources));
+  DCHECK(!IsHeapNumberMap(*transition_target.object()));
+
+  for (const compiler::MapRef transition_source : transition_sources) {
+    bool is_simple = IsSimpleMapChangeTransition(
+        transition_source.elements_kind(), transition_target.elements_kind());
+
+    // TODO(leszeks): If there are a lot of transition source maps, move the
+    // source into a register and share the deferred code between maps.
+    __ CompareTaggedAndJumpIf(
+        map, transition_source.object(), kEqual,
+        __ MakeDeferredCode(
+            [](MaglevAssembler* masm, Register object, Register map,
+               RegisterSnapshot register_snapshot,
+               compiler::MapRef transition_target, bool is_simple,
+               ZoneLabelRef done) {
+              if (is_simple) {
+                __ Move(map, transition_target.object());
+                __ StoreTaggedFieldWithWriteBarrier(
+                    object, HeapObject::kMapOffset, map, register_snapshot,
+                    MaglevAssembler::kValueIsDecompressed,
+                    MaglevAssembler::kValueCannotBeSmi);
+              } else {
+                SaveRegisterStateForCall save_state(masm, register_snapshot);
+                __ Push(object, transition_target.object());
+                __ Move(kContextRegister, masm->native_context().object());
+                __ CallRuntime(Runtime::kTransitionElementsKind);
+                save_state.DefineSafepoint();
+              }
+              __ Jump(*done);
+            },
+            object, map, node->register_snapshot(), transition_target,
+            is_simple, done));
+  }
+}
+
+}  // namespace
+
+int TransitionElementsKind::MaxCallStackArgs() const {
+  return std::max(WriteBarrierDescriptor::GetStackParameterCount(), 2);
+}
+
+void TransitionElementsKind::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  set_temporaries_needed(1);
+}
+
+void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object = ToRegister(object_input());
+  Register map = temps.Acquire();
+
+  ZoneLabelRef done(masm);
+
+  __ JumpIfSmi(object, *done, Label::kNear);
+  __ LoadMap(map, object);
+  GenerateTransitionElementsKind(masm, this, object, map,
+                                 base::VectorOf(transition_sources_),
+                                 transition_target_, done);
+  __ bind(*done);
+}
+
 int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
   return std::max(WriteBarrierDescriptor::GetStackParameterCount(), 2);
 }
@@ -5522,9 +5592,6 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
 
   ZoneLabelRef done(masm);
 
-  DCHECK(!AnyMapIsHeapNumber(transition_sources_));
-  DCHECK(!IsHeapNumberMap(*transition_target_.object()));
-
   if (check_type() == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
@@ -5534,39 +5601,9 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
   Register map = temps.Acquire();
   __ LoadMap(map, object);
 
-  for (compiler::MapRef transition_source : transition_sources_) {
-    bool is_simple = IsSimpleMapChangeTransition(
-        transition_source.elements_kind(), transition_target_.elements_kind());
-
-    // TODO(leszeks): If there are a lot of transition source maps, move the
-    // source into a register and share the deferred code between maps.
-    __ CompareTaggedAndJumpIf(
-        map, transition_source.object(), kEqual,
-        // We can use `map` as a temporary register, since the deferred
-        // code will jump to `done`, so we won't use it afterwards.
-        __ MakeDeferredCode(
-            [](MaglevAssembler* masm, Register object, Register temp,
-               RegisterSnapshot register_snapshot,
-               compiler::MapRef transition_target, bool is_simple,
-               ZoneLabelRef done) {
-              if (is_simple) {
-                __ Move(temp, transition_target.object());
-                __ StoreTaggedFieldWithWriteBarrier(
-                    object, HeapObject::kMapOffset, temp, register_snapshot,
-                    MaglevAssembler::kValueIsDecompressed,
-                    MaglevAssembler::kValueCannotBeSmi);
-              } else {
-                SaveRegisterStateForCall save_state(masm, register_snapshot);
-                __ Push(object, transition_target.object());
-                __ Move(kContextRegister, masm->native_context().object());
-                __ CallRuntime(Runtime::kTransitionElementsKind);
-                save_state.DefineSafepoint();
-              }
-              __ Jump(*done);
-            },
-            object, map, register_snapshot(), transition_target_, is_simple,
-            done));
-  }
+  GenerateTransitionElementsKind(masm, this, object, map,
+                                 base::VectorOf(transition_sources_),
+                                 transition_target_, done);
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap);
   __ CompareTaggedAndJumpIf(map, transition_target_.object(), kNotEqual, fail);
   __ bind(*done);

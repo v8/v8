@@ -2039,8 +2039,6 @@
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).
   'compiler/regress-9945-1': [FAIL],
-  # Maglev doesn't support growing elements stores.
-  'array-store-and-grow': [FAIL],
   # This test appears to be relying on no adding a map stability check, but
   # instead using a field representation dependency and allowing a read from
   # the deprecated map. Wiring this through in Maglev would be too messy to be
