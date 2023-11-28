@@ -475,7 +475,8 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
                             module_) ||
-          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_)) {
+          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_) ||
+          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExnRef, module_)) {
         gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
         UpdateSourcePosition(gasm_.effect(), node);
       } else {

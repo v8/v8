@@ -46,6 +46,7 @@ class WasmLoweringReducer : public Next {
         wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
     OpIndex null_value =
         !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
+                !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_) &&
                 static_null != 0
             ? __ UintPtrConstant(static_null)
             : Null(type);
@@ -63,7 +64,8 @@ class WasmLoweringReducer : public Next {
         // (3) the object might be a JS object.
         if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
-            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)) {
+            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
+            wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)) {
           __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
         } else {
           // Otherwise, load the word after the map word.
