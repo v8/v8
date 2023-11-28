@@ -1469,7 +1469,33 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
     const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
     const Operation& input_op = this->Get(change_op.input());
     if (input_op.Is<LoadOp>() && CanCover(node, change_op.input())) {
-      UNIMPLEMENTED();  // TODO(riscv)
+      // Generate sign-extending load.
+      LoadRepresentation load_rep =
+          this->load_view(change_op.input()).loaded_rep();
+      MachineRepresentation rep = load_rep.representation();
+      InstructionCode opcode = kArchNop;
+      switch (rep) {
+        case MachineRepresentation::kBit:  // Fall through.
+        case MachineRepresentation::kWord8:
+          opcode = load_rep.IsSigned() ? kRiscvLbu : kRiscvLb;
+          break;
+        case MachineRepresentation::kWord16:
+          opcode = load_rep.IsSigned() ? kRiscvLhu : kRiscvLh;
+          break;
+        case MachineRepresentation::kWord32:
+        case MachineRepresentation::kWord64:
+          // Since BitcastElider may remove nodes of
+          // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+          // with kWord64 can also reach this line.
+        case MachineRepresentation::kTaggedSigned:
+        case MachineRepresentation::kTagged:
+          opcode = kRiscvLw;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      EmitLoad(this, change_op.input(), opcode, node);
+      return;
     }
     if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
         CanCover(node, change_op.input())) {
