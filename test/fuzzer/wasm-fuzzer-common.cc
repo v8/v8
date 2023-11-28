@@ -772,9 +772,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "const instance = builder.instantiate();\n"
           "try {\n"
           "  print(instance.exports.main(1, 2, 3));\n"
-          "} catch (e) {"
-          "  print('caught exception', e);"
-          "}";
+          "} catch (e) {\n"
+          "  print('caught exception', e);\n"
+          "}\n";
   } else {
     os << "assertThrows(function() { builder.instantiate(); }, "
           "WebAssembly.CompileError);\n";

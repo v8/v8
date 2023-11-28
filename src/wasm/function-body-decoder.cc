@@ -269,6 +269,15 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth++;
         break;
       }
+      case kExprTryTable: {
+        BlockTypeImmediate block_imm(WasmFeatures::All(), &i, i.pc() + 1,
+                                     Decoder::kNoValidation);
+        TryTableImmediate imm(&i, i.pc() + block_imm.length + 1,
+                              Decoder::kNoValidation);
+        os << " entries=" << imm.table_count;
+        control_depth++;
+        break;
+      }
       case kExprEnd:
         os << " @" << i.pc_offset();
         control_depth--;
