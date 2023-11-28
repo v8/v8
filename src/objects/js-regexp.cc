@@ -150,15 +150,25 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-Tagged<Object> JSRegExp::code(bool is_latin1) const {
+Tagged<Object> JSRegExp::code(IsolateForSandbox isolate, bool is_latin1) const {
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   Tagged<Object> value = DataAt(code_index(is_latin1));
+  DCHECK(IsSmi(value) || IsCodeWrapper(value));
+  // TODO(saelo): it would be nice if we could directly use a code pointer to
+  // reference our Code rather than use the CodeWrapper object. However, this
+  // is currently not possible since we use essentially a FixedArray to store
+  // all our fields, and a code pointer isn't a tagged pointer. Instead, we
+  // should consider adding a trusted pointer field that references either the
+  // bytecode or the native code in a sandbox-compatible way.
+  if (IsCodeWrapper(value)) {
+    value = CodeWrapper::cast(value)->code(isolate);
+  }
   DCHECK(IsSmi(value) || IsCode(value));
   return value;
 }
 
 void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
-  SetDataAt(code_index(is_latin1), *code);
+  SetDataAt(code_index(is_latin1), code->wrapper());
 }
 
 Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
@@ -173,8 +183,8 @@ void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
   SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
 
   Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
-  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
+  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, trampoline->wrapper());
+  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, trampoline->wrapper());
 }
 
 bool JSRegExp::ShouldProduceBytecode() {

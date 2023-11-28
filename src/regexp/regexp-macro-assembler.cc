@@ -435,7 +435,7 @@ int NativeRegExpMacroAssembler::Execute(
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Tagged<Code> code = Code::cast(regexp->code(is_one_byte));
+  Tagged<Code> code = Code::cast(regexp->code(isolate, is_one_byte));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =

@@ -1841,9 +1841,9 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       Tagged<Object> uc16_bytecode =
           arr->get(JSRegExp::kIrregexpUC16BytecodeIndex);
 
-      bool is_compiled = IsCode(latin1_code);
+      bool is_compiled = IsCodeWrapper(latin1_code);
       if (is_compiled) {
-        CHECK_EQ(Code::cast(latin1_code)->builtin_id(),
+        CHECK_EQ(CodeWrapper::cast(latin1_code)->code(isolate)->builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1877,11 +1877,11 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       // interpreter.
       CHECK((IsSmi(one_byte_data) &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            IsCode(one_byte_data));
+            IsCodeWrapper(one_byte_data));
       Tagged<Object> uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((IsSmi(uc16_data) &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            IsCode(uc16_data));
+            IsCodeWrapper(uc16_data));
 
       Tagged<Object> one_byte_bytecode =
           arr->get(JSRegExp::kIrregexpLatin1BytecodeIndex);

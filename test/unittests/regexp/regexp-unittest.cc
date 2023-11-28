@@ -2308,7 +2308,7 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
 
   static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
-  Tagged<Object> maybe_code = re->code(kIsNotLatin1);
+  Tagged<Object> maybe_code = re->code(i_isolate(), kIsNotLatin1);
   Tagged<Object> maybe_bytecode = re->bytecode(kIsNotLatin1);
   if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.

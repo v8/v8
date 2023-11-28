@@ -509,7 +509,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  TNode<Code> code = CAST(var_code.value());
+  TNode<CodeWrapper> code_wrapper = CAST(var_code.value());
+  TNode<Code> code =
+      LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {

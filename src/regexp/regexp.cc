@@ -100,7 +100,8 @@ class RegExpImpl final : public AllStatic {
   static int IrregexpNumberOfCaptures(Tagged<FixedArray> re);
   static Tagged<ByteArray> IrregexpByteCode(Tagged<FixedArray> re,
                                             bool is_one_byte);
-  static Tagged<Code> IrregexpNativeCode(Tagged<FixedArray> re,
+  static Tagged<Code> IrregexpNativeCode(IsolateForSandbox isolate,
+                                         Tagged<FixedArray> re,
                                          bool is_one_byte);
 };
 
@@ -439,7 +440,7 @@ Handle<Object> RegExpImpl::AtomExec(Isolate* isolate, Handle<JSRegExp> re,
 bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                         Handle<String> sample_subject,
                                         bool is_one_byte) {
-  Tagged<Object> compiled_code = re->code(is_one_byte);
+  Tagged<Object> compiled_code = re->code(isolate, is_one_byte);
   Tagged<Object> bytecode = re->bytecode(is_one_byte);
   bool needs_initial_compilation =
       compiled_code == Smi::FromInt(JSRegExp::kUninitializedValue);
@@ -468,8 +469,9 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
 namespace {
 
 #ifdef DEBUG
-bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
-  Tagged<Object> entry = re->code(is_one_byte);
+bool RegExpCodeIsValidForPreCompilation(IsolateForSandbox isolate,
+                                        Handle<JSRegExp> re, bool is_one_byte) {
+  Tagged<Object> entry = re->code(isolate, is_one_byte);
   Tagged<Object> bytecode = re->bytecode(is_one_byte);
   // If we're not using the tier-up strategy, entry can only be a smi
   // representing an uncompiled regexp here. If we're using the tier-up
@@ -545,7 +547,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
 
-  DCHECK(RegExpCodeIsValidForPreCompilation(re, is_one_byte));
+  DCHECK(RegExpCodeIsValidForPreCompilation(isolate, re, is_one_byte));
 
   RegExpFlags flags = JSRegExp::AsRegExpFlags(re->flags());
 
@@ -582,7 +584,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
     Tagged<Code> code = Code::cast(*compile_data.code);
-    data->set(JSRegExp::code_index(is_one_byte), code);
+    data->set(JSRegExp::code_index(is_one_byte), code->wrapper());
 
     // Reset bytecode to uninitialized. In case we use tier-up we know that
     // tier-up has happened this way.
@@ -596,7 +598,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
     data->set(JSRegExp::bytecode_index(is_one_byte), *compile_data.code);
     Handle<Code> trampoline =
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
-    data->set(JSRegExp::code_index(is_one_byte), *trampoline);
+    data->set(JSRegExp::code_index(is_one_byte), trampoline->wrapper());
   }
   Handle<FixedArray> capture_name_map =
       RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
@@ -613,7 +615,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
            re->ShouldProduceBytecode() ? "bytecode" : "native code",
            re->ShouldProduceBytecode()
                ? IrregexpByteCode(*data, is_one_byte)->AllocatedSize()
-               : IrregexpNativeCode(*data, is_one_byte)->Size());
+               : IrregexpNativeCode(isolate, *data, is_one_byte)->Size());
   }
 
   return true;
@@ -636,9 +638,11 @@ Tagged<ByteArray> RegExpImpl::IrregexpByteCode(Tagged<FixedArray> re,
   return ByteArray::cast(re->get(JSRegExp::bytecode_index(is_one_byte)));
 }
 
-Tagged<Code> RegExpImpl::IrregexpNativeCode(Tagged<FixedArray> re,
+Tagged<Code> RegExpImpl::IrregexpNativeCode(IsolateForSandbox isolate,
+                                            Tagged<FixedArray> re,
                                             bool is_one_byte) {
-  return Code::cast(re->get(JSRegExp::code_index(is_one_byte)));
+  return CodeWrapper::cast(re->get(JSRegExp::code_index(is_one_byte)))
+      ->code(isolate);
 }
 
 void RegExpImpl::IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,

@@ -2069,8 +2069,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
 
 void CodeWrapper::CodeWrapperPrint(std::ostream& os) {
   PrintHeader(os, "CodeWrapper");
-  Isolate* isolate = GetIsolateForSandbox(*this);
-  os << "\n    code: " << Brief(code(isolate));
+  os << "\n    code: " << Brief(code(Isolate::Current()));
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {

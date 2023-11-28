@@ -67,7 +67,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline Type type_tag() const;
   inline Tagged<String> atom_pattern() const;
   // This could be a Smi kUninitializedValue or InstructionStream.
-  V8_EXPORT_PRIVATE Tagged<Object> code(bool is_latin1) const;
+  V8_EXPORT_PRIVATE Tagged<Object> code(IsolateForSandbox isolate,
+                                        bool is_latin1) const;
   V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
   // This could be a Smi kUninitializedValue or ByteArray.
   V8_EXPORT_PRIVATE Tagged<Object> bytecode(bool is_latin1) const;

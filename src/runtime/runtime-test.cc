@@ -1700,7 +1700,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   bool is_latin1 = Boolean::cast(args[1])->ToBool(isolate);
   bool result;
   if (regexp->type_tag() == JSRegExp::IRREGEXP) {
-    result = IsCode(regexp->code(is_latin1));
+    result = IsCode(regexp->code(isolate, is_latin1));
   } else {
     result = false;
   }
