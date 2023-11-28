@@ -3794,7 +3794,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.WasmOptimization");
 
-    if (v8_flags.wasm_loop_peeling) {
+    if (v8_flags.wasm_loop_peeling &&
+        (detected->has_gc() || detected->has_stringref() ||
+         detected->has_imported_strings())) {
       pipeline.Run<turboshaft::LoopPeelingPhase>();
     }
 
