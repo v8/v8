@@ -2157,7 +2157,7 @@ class MaglevGraphBuilder {
   uint32_t* predecessors_;
 
   bool in_peeled_iteration_ = false;
-  bool in_peeled_loop_ = false;
+  bool any_peeled_loop_ = false;
   bool allow_loop_peeling_;
 
   // When processing the peeled iteration of a loop, we need to reset the

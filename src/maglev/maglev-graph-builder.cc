@@ -4365,7 +4365,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   // have preallocated the space if we see known indices. Turn off this
   // optimization if loop peeling is on.
   if (keyed_mode.access_mode() == compiler::AccessMode::kStoreInLiteral &&
-      index_object->Is<SmiConstant>() && is_jsarray && !in_peeled_loop_) {
+      index_object->Is<SmiConstant>() && is_jsarray && !any_peeled_loop_) {
     index = GetInt32ElementIndex(index_object);
   } else {
     // Check boundaries.
@@ -9131,7 +9131,7 @@ void MaglevGraphBuilder::PeelLoop() {
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));
   in_peeled_iteration_ = true;
-  in_peeled_loop_ = true;
+  any_peeled_loop_ = true;
   allow_loop_peeling_ = false;
   while (iterator_.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
     local_isolate_->heap()->Safepoint();
@@ -9215,9 +9215,6 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     // We have reached the end of the peeled iteration.
     return;
   }
-  // As we only peel innermost loops, once we reach jump loop a second time
-  // we know that this is the end of the loop that we previously peeled.
-  in_peeled_loop_ = false;
 
   if (ShouldEmitOsrInterruptBudgetChecks()) {
     AddNewNode<TryOnStackReplacement>(
