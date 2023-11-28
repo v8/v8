@@ -27,7 +27,6 @@
 namespace v8 {
 namespace internal {
 
-class CompactionSpace;
 class Heap;
 class HeapObject;
 class Isolate;
@@ -116,8 +115,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
   PagedSpaceBase(Heap* heap, AllocationSpace id, Executability executable,
-                 std::unique_ptr<FreeList> free_list,
-                 CompactionSpaceKind compaction_space_kind);
+                 std::unique_ptr<FreeList> free_list);
 
   ~PagedSpaceBase() override { TearDown(); }
 
@@ -269,18 +267,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Return size of allocatable area on a page in this space.
   inline int AreaSize() const { return static_cast<int>(area_size_); }
 
-  bool is_compaction_space() const {
-    return compaction_space_kind_ != CompactionSpaceKind::kNone;
-  }
-
-  CompactionSpaceKind compaction_space_kind() const {
-    return compaction_space_kind_;
-  }
-
-  // Merges {other} into the current space. Note that this modifies {other},
-  // e.g., removes its bump pointer area and resets statistics.
-  void MergeCompactionSpace(CompactionSpace* other);
-
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
   virtual void RefillFreeList();
@@ -338,9 +324,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // to the initial chunk, uncommits addresses in the initial chunk.
   void TearDown();
 
-  // Spaces can use this method to get notified about pages added to it.
-  virtual void NotifyNewPage(Page* page) {}
-
   size_t committed_physical_memory() const {
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
@@ -350,8 +333,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void AddPageImpl(Page* page);
 
   Executability executable_;
-
-  CompactionSpaceKind compaction_space_kind_;
 
   size_t area_size_;
 
@@ -378,9 +359,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     base::Optional<base::MutexGuard> guard_;
   };
 
-  bool SupportsConcurrentAllocation() const {
-    return !is_compaction_space() && (identity() != NEW_SPACE);
-  }
+  bool SupportsConcurrentAllocation() const { return identity() != NEW_SPACE; }
 
   friend class ConcurrentAllocator;
   friend class IncrementalMarking;
@@ -394,67 +373,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
  public:
   PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
-             std::unique_ptr<FreeList> free_list,
-             CompactionSpaceKind compaction_space_kind)
-      : PagedSpaceBase(heap, id, executable, std::move(free_list),
-                       compaction_space_kind) {}
+             std::unique_ptr<FreeList> free_list)
+      : PagedSpaceBase(heap, id, executable, std::move(free_list)) {}
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
-};
-
-// -----------------------------------------------------------------------------
-// Compaction space that is used temporarily during compaction.
-
-class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
- public:
-  CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
-                  CompactionSpaceKind compaction_space_kind)
-      : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   compaction_space_kind) {
-    DCHECK(is_compaction_space());
-  }
-
-  const std::vector<Page*>& GetNewPages() { return new_pages_; }
-
-  void RefillFreeList() final;
-
- protected:
-  void NotifyNewPage(Page* page) final;
-
-  // The space is temporary and not included in any snapshots.
-  bool snapshotable() const final { return false; }
-  // Pages that were allocated in this local space and need to be merged
-  // to the main space.
-  std::vector<Page*> new_pages_;
-};
-
-// A collection of |CompactionSpace|s used by a single compaction task.
-class CompactionSpaceCollection : public Malloced {
- public:
-  explicit CompactionSpaceCollection(Heap* heap,
-                                     CompactionSpaceKind compaction_space_kind);
-
-  CompactionSpace* Get(AllocationSpace space) {
-    switch (space) {
-      case OLD_SPACE:
-        return &old_space_;
-      case CODE_SPACE:
-        return &code_space_;
-      case SHARED_SPACE:
-        return &shared_space_;
-      case TRUSTED_SPACE:
-        return &trusted_space_;
-      default:
-        UNREACHABLE();
-    }
-    UNREACHABLE();
-  }
-
- private:
-  CompactionSpace old_space_;
-  CompactionSpace code_space_;
-  CompactionSpace shared_space_;
-  CompactionSpace trusted_space_;
 };
 
 // -----------------------------------------------------------------------------
@@ -465,8 +387,8 @@ class OldSpace final : public PagedSpace {
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
   explicit OldSpace(Heap* heap)
-      : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   CompactionSpaceKind::kNone) {}
+      : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList()) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -490,8 +412,7 @@ class CodeSpace final : public PagedSpace {
   // Creates a code space object. The constructor does not allocate pages from
   // OS.
   explicit CodeSpace(Heap* heap)
-      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
-                   CompactionSpaceKind::kNone) {}
+      : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList()) {}
 };
 
 // -----------------------------------------------------------------------------
@@ -503,7 +424,7 @@ class SharedSpace final : public PagedSpace {
   // OS.
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
+                   FreeList::CreateFreeList()) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
@@ -529,7 +450,7 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
+                   FreeList::CreateFreeList()) {}
 
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==

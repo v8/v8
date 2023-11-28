@@ -845,8 +845,7 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
                                              size_t initial_capacity,
                                              size_t max_capacity)
     : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
-                     FreeList::CreateFreeListForNewSpace(),
-                     CompactionSpaceKind::kNone),
+                     FreeList::CreateFreeListForNewSpace()),
       initial_capacity_(RoundDown(initial_capacity, Page::kPageSize)),
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {

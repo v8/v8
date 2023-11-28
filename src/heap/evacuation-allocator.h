@@ -18,7 +18,7 @@ namespace internal {
 // that all other allocations also go through EvacuationAllocator.
 class EvacuationAllocator {
  public:
-  EvacuationAllocator(Heap* heap, CompactionSpaceKind compaction_space_kind);
+  explicit EvacuationAllocator(Heap* heap);
 
   // Needs to be called from the main thread to finalize this
   // EvacuationAllocator.
@@ -47,7 +47,6 @@ class EvacuationAllocator {
 
   Heap* const heap_;
   NewSpace* const new_space_;
-  CompactionSpaceCollection compaction_spaces_;
   base::Optional<MainAllocator> new_space_allocator_;
   base::Optional<MainAllocator> old_space_allocator_;
   base::Optional<MainAllocator> code_space_allocator_;

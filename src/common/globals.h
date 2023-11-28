@@ -1352,13 +1352,6 @@ inline std::ostream& operator<<(std::ostream& os, GarbageCollector collector) {
   return os << ToString(collector);
 }
 
-enum class CompactionSpaceKind {
-  kNone,
-  kCompactionSpaceForScavenge,
-  kCompactionSpaceForMarkCompact,
-  kCompactionSpaceForMinorMarkSweep,
-};
-
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum class PageSize { kRegular, kLarge };

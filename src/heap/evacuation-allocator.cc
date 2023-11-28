@@ -9,23 +9,20 @@
 namespace v8 {
 namespace internal {
 
-EvacuationAllocator::EvacuationAllocator(
-    Heap* heap, CompactionSpaceKind compaction_space_kind)
-    : heap_(heap),
-      new_space_(heap->new_space()),
-      compaction_spaces_(heap, compaction_space_kind) {
+EvacuationAllocator::EvacuationAllocator(Heap* heap)
+    : heap_(heap), new_space_(heap->new_space()) {
   if (new_space_) {
     DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
     new_space_allocator_.emplace(heap, new_space_, MainAllocator::kInGC);
   }
 
-  old_space_allocator_.emplace(heap, compaction_spaces_.Get(OLD_SPACE),
-                               MainAllocator::kInGC);
-  code_space_allocator_.emplace(heap, compaction_spaces_.Get(CODE_SPACE),
-                                MainAllocator::kInGC);
-  shared_space_allocator_.emplace(heap, compaction_spaces_.Get(SHARED_SPACE),
-                                  MainAllocator::kInGC);
-  trusted_space_allocator_.emplace(heap, compaction_spaces_.Get(TRUSTED_SPACE),
+  old_space_allocator_.emplace(heap, heap->old_space(), MainAllocator::kInGC);
+  code_space_allocator_.emplace(heap, heap->code_space(), MainAllocator::kInGC);
+  if (heap->shared_space()) {
+    shared_space_allocator_.emplace(heap, heap->shared_space(),
+                                    MainAllocator::kInGC);
+  }
+  trusted_space_allocator_.emplace(heap, heap->trusted_space(),
                                    MainAllocator::kInGC);
 }
 
@@ -63,20 +60,13 @@ void EvacuationAllocator::Finalize() {
   }
 
   old_space_allocator()->FreeLinearAllocationArea();
-  heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
-
   code_space_allocator()->FreeLinearAllocationArea();
-  heap_->code_space()->MergeCompactionSpace(compaction_spaces_.Get(CODE_SPACE));
 
   if (heap_->shared_space()) {
     shared_space_allocator()->FreeLinearAllocationArea();
-    heap_->shared_space()->MergeCompactionSpace(
-        compaction_spaces_.Get(SHARED_SPACE));
   }
 
   trusted_space_allocator()->FreeLinearAllocationArea();
-  heap_->trusted_space()->MergeCompactionSpace(
-      compaction_spaces_.Get(TRUSTED_SPACE));
 }
 
 }  // namespace internal

@@ -1344,17 +1344,17 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         DCHECK(chunk->SweepingDone());
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk, slot);
       } else if (p->IsEvacuationCandidate()) {
         if (p->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
+          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         } else {
-          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
+          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
       } else if (p->InWritableSharedSpace() && !host.InWritableSharedSpace()) {
-        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       }
     }
@@ -4015,8 +4015,7 @@ class Evacuator final : public Malloced {
       : heap_(heap),
         local_pretenuring_feedback_(
             PretenuringHandler::kInitialFeedbackCapacity),
-        local_allocator_(heap_,
-                         CompactionSpaceKind::kCompactionSpaceForMarkCompact),
+        local_allocator_(heap_),
         shared_old_allocator_(CreateSharedOldAllocator(heap_)),
         record_visitor_(heap_),
         new_space_visitor_(heap_, &local_allocator_,

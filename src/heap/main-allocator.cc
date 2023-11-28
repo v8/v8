@@ -336,6 +336,12 @@ Address MainAllocator::ComputeLimit(Address start, Address end,
                                     size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
+  if (in_gc()) {
+    // Limit LAB sizes during GC to allow for multiple LABs on a single page.
+    size_t used = std::max(min_size, kLabSizeInGC);
+    return std::min(end, start + used);
+  }
+
   // Use the full LAB when allocation observers aren't enabled.
   if (!SupportsAllocationObserver()) return end;
 
@@ -457,17 +463,8 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
   int aligned_size_in_bytes = size_in_bytes + filler_size;
   DCHECK_LE(start + aligned_size_in_bytes, end);
 
-  Address limit;
-
-  if (allocator_->in_gc()) {
-    // During GC we allow multiple LABs in new space and since Allocate() above
-    // returns the whole remaining page by default, we limit the size of the LAB
-    // here.
-    size_t used = std::max(aligned_size_in_bytes, kLabSizeInGC);
-    limit = std::min(end, start + used);
-  } else {
-    limit = allocator_->ComputeLimit(start, end, aligned_size_in_bytes);
-  }
+  const Address limit =
+      allocator_->ComputeLimit(start, end, aligned_size_in_bytes);
   CHECK_LE(limit, end);
 
   if (limit != end) {
@@ -667,21 +664,6 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
       return true;
   }
 
-  if (space_->is_compaction_space()) {
-    DCHECK_NE(NEW_SPACE, allocator_->identity());
-    // If there is not enough memory in the compaction space left, try to steal
-    // a page from the corresponding "regular" page space.
-    PagedSpaceBase* main_space =
-        space_heap()->paged_space(allocator_->identity());
-    Page* page = main_space->RemovePageSafe(size_in_bytes);
-    if (page != nullptr) {
-      space_->AddPage(page);
-      if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                        origin))
-        return true;
-    }
-  }
-
   if (allocator_->identity() != NEW_SPACE &&
       space_heap()->ShouldExpandOldGenerationOnSlowAllocation(
           allocator_->local_heap(), origin) &&
@@ -826,7 +808,7 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeListMain(
             allocator_->allocation_info().top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
-  Address limit = allocator_->ComputeLimit(start, end, size_in_bytes);
+  const Address limit = allocator_->ComputeLimit(start, end, size_in_bytes);
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
@@ -854,7 +836,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
     return false;
   }
   allocator_->AdvanceAllocationObservers();
-  Address new_limit =
+  const Address new_limit =
       allocator_->ComputeLimit(current_top, max_limit, size_in_bytes);
   allocator_->ExtendLAB(new_limit);
   DCHECK(allocator_->is_main_thread());

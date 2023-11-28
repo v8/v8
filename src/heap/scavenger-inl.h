@@ -180,7 +180,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
 
   Tagged<HeapObject> target;
   if (allocation.To(&target)) {
-    DCHECK(heap()->non_atomic_marking_state()->IsUnmarked(target));
+    DCHECK(heap()->marking_state()->IsUnmarked(target));
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
