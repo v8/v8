@@ -878,6 +878,14 @@ void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
   WriteTrustedPointerField<kCodeIndirectPointerTag>(offset, value);
 }
 
+bool HeapObject::IsCodePointerFieldCleared(size_t offset) const {
+  return IsTrustedPointerFieldCleared(offset);
+}
+
+void HeapObject::ClearCodePointerField(size_t offset) {
+  ClearTrustedPointerField(offset);
+}
+
 Address HeapObject::ReadCodeEntrypointViaCodePointerField(size_t offset) const {
   return i::ReadCodeEntrypointViaCodePointerField(field_address(offset));
 }
