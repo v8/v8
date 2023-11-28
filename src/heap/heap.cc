@@ -254,7 +254,6 @@ class ScheduleMinorGCTaskObserver final : public AllocationObserver {
 
 Heap::Heap()
     : isolate_(isolate()),
-      heap_allocator_(this),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
@@ -1180,7 +1179,7 @@ void Heap::GarbageCollectionPrologue(
   if (force_gc_on_next_allocation_) force_gc_on_next_allocation_ = false;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  heap_allocator_.UpdateAllocationTimeout();
+  heap_allocator_->UpdateAllocationTimeout();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   // There may be an allocation memento behind objects in new space. Upon
@@ -5425,10 +5424,13 @@ void Heap::DisableInlineAllocation() {
 
 void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   DCHECK_NULL(main_thread_local_heap_);
+  DCHECK_NULL(heap_allocator_);
   main_thread_local_heap_ = main_thread_local_heap;
+  heap_allocator_ = &main_thread_local_heap->heap_allocator_;
+  DCHECK_NOT_NULL(heap_allocator_);
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  heap_allocator_.UpdateAllocationTimeout();
+  heap_allocator_->UpdateAllocationTimeout();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
@@ -5537,7 +5539,7 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
                  read_only_space_ == ro_heap->read_only_space());
   DCHECK_NULL(space_[RO_SPACE].get());
   read_only_space_ = ro_heap->read_only_space();
-  heap_allocator_.SetReadOnlySpace(read_only_space_);
+  heap_allocator_->SetReadOnlySpace(read_only_space_);
 }
 
 void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
@@ -5548,7 +5550,7 @@ void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   }
 
   read_only_space_ = space;
-  heap_allocator_.SetReadOnlySpace(read_only_space_);
+  heap_allocator_->SetReadOnlySpace(read_only_space_);
 }
 
 class StressConcurrentAllocationObserver : public AllocationObserver {
@@ -5634,8 +5636,8 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   trusted_lo_space_ =
       static_cast<TrustedLargeObjectSpace*>(space_[TRUSTED_LO_SPACE].get());
 
-  heap_allocator_.Setup(new_allocation_info, old_allocation_info);
-  main_thread_local_heap()->SetUpMainThread();
+  main_thread_local_heap()->SetUpMainThread(new_allocation_info,
+                                            old_allocation_info);
 
   base::TimeTicks startup_time = base::TimeTicks::Now();
 
@@ -7259,7 +7261,7 @@ void StrongRootAllocatorBase::deallocate_impl(Address* p, size_t n) noexcept {
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 void Heap::set_allocation_timeout(int allocation_timeout) {
-  heap_allocator_.SetAllocationTimeout(allocation_timeout);
+  heap_allocator_->SetAllocationTimeout(allocation_timeout);
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 

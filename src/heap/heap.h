@@ -1635,7 +1635,7 @@ class Heap final {
 
   bool ShouldUseBackgroundThreads() const;
 
-  HeapAllocator* allocator() { return &heap_allocator_; }
+  HeapAllocator* allocator() { return heap_allocator_; }
 
  private:
   class AllocationTrackerForDebugging;
@@ -2061,7 +2061,7 @@ class Heap final {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_ = nullptr;
 
-  HeapAllocator heap_allocator_;
+  HeapAllocator* heap_allocator_ = nullptr;
 
   // These limits are initialized in Heap::ConfigureHeap based on the resource
   // constraints and flags.

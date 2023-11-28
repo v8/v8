@@ -236,15 +236,15 @@ int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationOrigin origin,
                                    AllocationAlignment alignment) {
-  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
+  return heap_allocator_->AllocateRaw(size_in_bytes, type, origin, alignment);
 }
 
 Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
                                 AllocationOrigin origin,
                                 AllocationAlignment alignment) {
   return heap_allocator_
-      .AllocateRawWith<HeapAllocator::kRetryOrFail>(size, allocation, origin,
-                                                    alignment)
+      ->AllocateRawWith<HeapAllocator::kRetryOrFail>(size, allocation, origin,
+                                                     alignment)
       .address();
 }
 
