@@ -30,8 +30,7 @@ uint32_t InstructionStream::body_size() const {
 
 #if V8_EMBEDDED_CONSTANT_POOL_BOOL
 Address InstructionStream::constant_pool() const {
-  return reinterpret_cast<Address>(this) +
-         ReadField<int>(kConstantPoolOffsetOffset);
+  return address() + ReadField<int>(kConstantPoolOffsetOffset);
 }
 #else
 Address InstructionStream::constant_pool() const { return kNullAddress; }
