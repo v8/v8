@@ -463,6 +463,11 @@ class WasmLoadEliminationAnalyzer {
   // modifications. If the snapshots are unchanged, we discard them and don't
   // revisit the loop.
   void SealAndDiscard();
+  void StoreLoopSnapshotInForwardPredecessor(const Block& loop_header);
+
+  // Returns true if the loop's backedge already has snapshot data (meaning that
+  // it was already visited).
+  bool BackedgeHasSnapshot(const Block& loop_header) const;
 
   void InvalidateIfAlias(OpIndex op_idx);
 
@@ -543,6 +548,15 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
                                                bool compute_start_snapshot) {
   if (compute_start_snapshot) {
     BeginBlock(&block);
+  }
+  if (block.IsLoop() && BackedgeHasSnapshot(block)) {
+    // Update the associated snapshot for the forward edge with the merged
+    // snapshot information from the forward- and backward edge.
+    // This will make sure that when evaluating whether a loop needs to be
+    // revisited, the inner loop compares the merged state with the backedge
+    // preventing us from exponential revisits for loops where the backedge
+    // invalidates loads which are eliminatable on the forward edge.
+    StoreLoopSnapshotInForwardPredecessor(block);
   }
 
   for (OpIndex op_idx : graph_.OperationIndices(block)) {
@@ -863,6 +877,26 @@ void WasmLoadEliminationAnalyzer::FinishBlock(const Block* block) {
 void WasmLoadEliminationAnalyzer::SealAndDiscard() {
   non_aliasing_objects_.Seal();
   memory_.Seal();
+}
+
+void WasmLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
+    const Block& loop_header) {
+  auto non_aliasing_snapshot = non_aliasing_objects_.Seal();
+  auto memory_snapshot = memory_.Seal();
+
+  block_to_snapshot_mapping_
+      [loop_header.LastPredecessor()->NeighboringPredecessor()->index()] =
+          Snapshot{non_aliasing_snapshot, memory_snapshot};
+
+  non_aliasing_objects_.StartNewSnapshot(non_aliasing_snapshot);
+  memory_.StartNewSnapshot(memory_snapshot);
+}
+
+bool WasmLoadEliminationAnalyzer::BackedgeHasSnapshot(
+    const Block& loop_header) const {
+  DCHECK(loop_header.IsLoop());
+  return block_to_snapshot_mapping_[loop_header.LastPredecessor()->index()]
+      .has_value();
 }
 
 template <bool for_loop_revisit>

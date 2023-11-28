@@ -14,6 +14,15 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
   if (compute_start_snapshot) {
     BeginBlock(&block);
   }
+  if (block.IsLoop() && BackedgeHasSnapshot(block)) {
+    // Update the associated snapshot for the forward edge with the merged
+    // snapshot information from the forward- and backward edge.
+    // This will make sure that when evaluating whether a loop needs to be
+    // revisited, the inner loop compares the merged state with the backedge
+    // preventing us from exponential revisits for loops where the backedge
+    // invalidates loads which are eliminatable on the forward edge.
+    StoreLoopSnapshotInForwardPredecessor(block);
+  }
 
   for (OpIndex op_idx : graph_.OperationIndices(block)) {
     Operation& op = graph_.Get(op_idx);
@@ -259,6 +268,29 @@ void LateLoadEliminationAnalyzer::SealAndDiscard() {
   non_aliasing_objects_.Seal();
   object_maps_.Seal();
   memory_.Seal();
+}
+
+void LateLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
+    const Block& loop_header) {
+  auto non_aliasing_snapshot = non_aliasing_objects_.Seal();
+  auto object_maps_snapshot = object_maps_.Seal();
+  auto memory_snapshot = memory_.Seal();
+
+  block_to_snapshot_mapping_
+      [loop_header.LastPredecessor()->NeighboringPredecessor()->index()] =
+          Snapshot{non_aliasing_snapshot, object_maps_snapshot,
+                   memory_snapshot};
+
+  non_aliasing_objects_.StartNewSnapshot(non_aliasing_snapshot);
+  object_maps_.StartNewSnapshot(object_maps_snapshot);
+  memory_.StartNewSnapshot(memory_snapshot);
+}
+
+bool LateLoadEliminationAnalyzer::BackedgeHasSnapshot(
+    const Block& loop_header) const {
+  DCHECK(loop_header.IsLoop());
+  return block_to_snapshot_mapping_[loop_header.LastPredecessor()->index()]
+      .has_value();
 }
 
 template <bool for_loop_revisit>

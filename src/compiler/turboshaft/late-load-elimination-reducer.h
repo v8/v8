@@ -652,6 +652,11 @@ class LateLoadEliminationAnalyzer {
   // modifications. If the snapshots are unchanged, we discard them and don't
   // revisit the loop.
   void SealAndDiscard();
+  void StoreLoopSnapshotInForwardPredecessor(const Block& loop_header);
+
+  // Returns true if the loop's backedge already has snapshot data (meaning that
+  // it was already visited).
+  bool BackedgeHasSnapshot(const Block& loop_header) const;
 
   void InvalidateIfAlias(OpIndex op_idx);
 
