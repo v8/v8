@@ -80,7 +80,8 @@ bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
 
 template <class D, class S, class P>
 bool TaggedArrayBase<D, S, P>::IsCowArray() const {
-  return P::map() == P::EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
+  return this->map() ==
+         this->EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
 }
 
 template <class D, class S, class P>
@@ -282,9 +283,9 @@ template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::SlotType
 TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
   if constexpr (kElementsAreMaybeObject) {
-    return P::RawMaybeWeakField(OffsetOfElementAt(index));
+    return this->RawMaybeWeakField(OffsetOfElementAt(index));
   } else {
-    return P::RawField(OffsetOfElementAt(index));
+    return this->RawField(OffsetOfElementAt(index));
   }
 }
 
@@ -394,8 +395,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 template <class D, class S, class P>
 TaggedArrayBase<D, S, P>::TaggedArrayBase(Address ptr) : P(ptr) {}
-template <class D, class S>
-PrimitiveArrayBase<D, S>::PrimitiveArrayBase(Address ptr) : HeapObject(ptr) {}
+template <class D, class S, class P>
+PrimitiveArrayBase<D, S, P>::PrimitiveArrayBase(Address ptr) : P(ptr) {}
 
 CAST_ACCESSOR(FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
@@ -411,6 +412,9 @@ OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
 
 CAST_ACCESSOR(ByteArray)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
+
+CAST_ACCESSOR(TrustedByteArray)
+OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
 
 CAST_ACCESSOR(ExternalPointerArray)
 OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
@@ -575,94 +579,97 @@ int Search(T* array, Tagged<Name> name, int valid_entries,
                                    out_insertion_index);
 }
 
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::length() const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::length() const {
   return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::load(*this));
 }
 
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::length(AcquireLoadTag tag) const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
   return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::Acquire_Load(*this));
 }
 
-template <class D, class S>
-void PrimitiveArrayBase<D, S>::set_length(int value) {
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_length(int value) {
   TaggedField<Smi, D::kLengthOffset>::store(*this, Smi::FromInt(value));
 }
 
-template <class D, class S>
-void PrimitiveArrayBase<D, S>::set_length(int value, ReleaseStoreTag tag) {
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
   TaggedField<Smi, D::kLengthOffset>::Release_Store(*this, Smi::FromInt(value));
 }
 
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::capacity() const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::capacity() const {
   return length();
 }
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::capacity(AcquireLoadTag tag) const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::capacity(AcquireLoadTag tag) const {
   return length(tag);
 }
-template <class D, class S>
-void PrimitiveArrayBase<D, S>::set_capacity(int value) {
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_capacity(int value) {
   set_length(value);
 }
-template <class D, class S>
-void PrimitiveArrayBase<D, S>::set_capacity(int value, ReleaseStoreTag tag) {
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
   set_length(value, tag);
 }
 
-template <class D, class S>
-bool PrimitiveArrayBase<D, S>::IsInBounds(int index) const {
+template <class D, class S, class P>
+bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
   return static_cast<unsigned>(index) < static_cast<unsigned>(length());
 }
 
-template <class D, class S>
-typename S::ElementT PrimitiveArrayBase<D, S>::get(int index) const {
+template <class D, class S, class P>
+typename S::ElementT PrimitiveArrayBase<D, S, P>::get(int index) const {
   DCHECK(IsInBounds(index));
-  return ReadField<typename S::ElementT>(OffsetOfElementAt(index));
+  return this->template ReadField<typename S::ElementT>(
+      OffsetOfElementAt(index));
 }
 
-template <class D, class S>
-void PrimitiveArrayBase<D, S>::set(int index, typename S::ElementT value) {
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set(int index, typename S::ElementT value) {
   DCHECK(IsInBounds(index));
-  WriteField<typename S::ElementT>(OffsetOfElementAt(index), value);
+  this->template WriteField<typename S::ElementT>(OffsetOfElementAt(index),
+                                                  value);
 }
 
 // Due to right-trimming (which creates a filler object before publishing the
 // length through a release-store, see Heap::RightTrimArray), concurrent
 // visitors need to read the length with acquire semantics.
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::AllocatedSize() const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));
 }
 
-template <class D, class S>
-typename S::ElementT* PrimitiveArrayBase<D, S>::AddressOfElementAt(
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::AddressOfElementAt(
     int index) const {
-  return reinterpret_cast<ElementT*>(field_address(OffsetOfElementAt(index)));
+  return reinterpret_cast<ElementT*>(
+      this->field_address(OffsetOfElementAt(index)));
 }
 
-template <class D, class S>
-typename S::ElementT* PrimitiveArrayBase<D, S>::begin() const {
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::begin() const {
   return AddressOfElementAt(0);
 }
 
-template <class D, class S>
-typename S::ElementT* PrimitiveArrayBase<D, S>::end() const {
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::end() const {
   return AddressOfElementAt(length());
 }
 
-template <class D, class S>
-int PrimitiveArrayBase<D, S>::DataSize() const {
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::DataSize() const {
   int data_size = SizeFor(length()) - S::kHeaderSize;
   DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(length() * S::kElementSize));
   return data_size;
 }
 
 // static
-template <class D, class S>
-inline Tagged<D> PrimitiveArrayBase<D, S>::FromAddressOfFirstElement(
+template <class D, class S, class P>
+inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
     Address address) {
   DCHECK_TAG_ALIGNED(address);
   return D::cast(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
@@ -685,9 +692,9 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
 }
 
 // static
-template <class D, class S>
+template <class D, class S, class P>
 template <class IsolateT>
-Handle<D> PrimitiveArrayBase<D, S>::Allocate(
+Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int length,
     base::Optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation) {
@@ -890,6 +897,23 @@ void ByteArray::set_int(int offset, uint32_t value) {
   DCHECK(IsInBounds(offset));
   DCHECK_LE(offset + sizeof(uint32_t), length());
   WriteField<uint32_t>(OffsetOfElementAt(offset), value);
+}
+
+// static
+template <class IsolateT>
+Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedByteArray> result = Handle<TrustedByteArray>::cast(
+      Allocate(isolate, length, &no_gc, AllocationType::kTrusted));
+
+  int padding_size = SizeFor(length) - OffsetOfElementAt(length);
+  memset(result->AddressOfElementAt(length), 0, padding_size);
+
+  return result;
 }
 
 Address FixedAddressArray::get_sandboxed_pointer(int offset) const {

@@ -825,6 +825,10 @@ void ByteArray::ByteArrayVerify(Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 }
 
+void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+}
+
 void ExternalPointerArray::ExternalPointerArrayVerify(Isolate* isolate) {
   FixedArrayBase::FixedArrayBaseVerify(isolate);
 }

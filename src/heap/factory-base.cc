@@ -243,6 +243,11 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 }
 
 template <typename Impl>
+Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(int length) {
+  return TrustedByteArray::New(isolate(), length);
+}
+
+template <typename Impl>
 Handle<ExternalPointerArray> FactoryBase<Impl>::NewExternalPointerArray(
     int length, AllocationType allocation) {
   if (length < 0 || length > ExternalPointerArray::kMaxLength) {

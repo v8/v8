@@ -177,6 +177,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocates a trusted byte array in trusted space, initialized with zeros.
+  Handle<TrustedByteArray> NewTrustedByteArray(int length);
+
   Handle<ExternalPointerArray> NewExternalPointerArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
@@ -402,7 +405,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   friend TorqueGeneratedFactory<Impl>;
   template <class Derived, class Shape, class Super>
   friend class TaggedArrayBase;
-  template <class Derived, class Shape>
+  template <class Derived, class Shape, class Super>
   friend class PrimitiveArrayBase;
 };
 

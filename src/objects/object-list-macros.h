@@ -37,6 +37,7 @@ namespace internal {
 #define SIMPLE_HEAP_OBJECT_LIST_GENERATOR(APPLY, V)                      \
   APPLY(V, ArrayList, ARRAY_LIST)                                        \
   APPLY(V, ByteArray, BYTE_ARRAY)                                        \
+  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)                         \
   APPLY(V, ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY)        \
   APPLY(V, FixedArray, FIXED_ARRAY)                                      \
   APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)                       \

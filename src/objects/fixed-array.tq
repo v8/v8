@@ -39,6 +39,12 @@ extern class ByteArray extends FixedArrayBase {
 }
 
 @cppObjectDefinition
+extern class TrustedByteArray extends ExposedTrustedObject {
+  const length: Smi;
+  bytes[length]: uint8;
+}
+
+@cppObjectDefinition
 extern class ExternalPointerArray extends FixedArrayBase {
   pointers[length]: ExternalPointer;
 }

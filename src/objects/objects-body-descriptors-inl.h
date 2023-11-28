@@ -472,6 +472,17 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class TrustedByteArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {}
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return TrustedByteArray::unchecked_cast(obj)->AllocatedSize();
+  }
+};
+
 class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

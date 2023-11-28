@@ -296,6 +296,12 @@ void ByteArray::ByteArrayPrint(std::ostream& os) {
      << "\n - begin: " << static_cast<void*>(begin()) << "\n";
 }
 
+void TrustedByteArray::TrustedByteArrayPrint(std::ostream& os) {
+  PrintHeader(os, "TrustedByteArray");
+  os << "\n - length: " << length()
+     << "\n - begin: " << static_cast<void*>(begin()) << "\n";
+}
+
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {
   PrintHeader(os, "BytecodeArray");
   os << "\n";
