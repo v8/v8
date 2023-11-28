@@ -257,6 +257,10 @@ class TimedHistogram : public Histogram {
   friend class CountersInitializer;
 
   TimedHistogramResolution resolution_;
+#ifdef DEBUG
+  // Per-thread state mapping.
+  mutable std::unordered_map<int, bool> active_timer_;
+#endif
 
   TimedHistogram() = default;
   TimedHistogram(const TimedHistogram&) = delete;
