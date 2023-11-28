@@ -220,7 +220,7 @@ class TypeInferenceReducer
     // types.
     if (args_.output_graph_typing ==
         Args::OutputGraphTyping::kRefineFromInputGraph) {
-      if (new_block->HasExactlyNPredecessors(1)) {
+      if (new_block->PredecessorCount() == 1) {
         Block* predecessor = new_block->LastPredecessor();
         const Operation& terminator =
             predecessor->LastOperation(Asm().output_graph());

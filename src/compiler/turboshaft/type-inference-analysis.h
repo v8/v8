@@ -130,8 +130,8 @@ class TypeInferenceAnalysis {
 
     // Check if the predecessor is a branch that allows us to refine a few
     // types.
-    DCHECK_IMPLIES(revisit_loop_header, block.HasExactlyNPredecessors(2));
-    if (block.HasExactlyNPredecessors(1)) {
+    DCHECK_IMPLIES(revisit_loop_header, block.PredecessorCount() == 2);
+    if (block.PredecessorCount() == 1) {
       Block* predecessor = block.LastPredecessor();
       const Operation& terminator = predecessor->LastOperation(graph_);
       if (const BranchOp* branch = terminator.TryCast<BranchOp>()) {

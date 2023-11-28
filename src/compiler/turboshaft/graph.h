@@ -339,17 +339,25 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return NeighboringPredecessorIterable(last_predecessor_);
   }
 
-  // TODO(dmercadier): we should store predecessor count in the Blocks directly
-  // (or in the Graph, or in the Assembler), to avoid this O(n) PredecessorCount
-  // method.
   int PredecessorCount() const {
+#ifdef DEBUG
+    CheckPredecessorCount();
+#endif
+    return predecessor_count_;
+  }
+
+#ifdef DEBUG
+  // Checks that the {predecessor_count_} is equal to the number of predecessors
+  // reachable through {last_predecessor_}.
+  void CheckPredecessorCount() const {
     int count = 0;
     for (Block* pred = last_predecessor_; pred != nullptr;
          pred = pred->neighboring_predecessor_) {
       count++;
     }
-    return count;
+    DCHECK_EQ(count, predecessor_count_);
   }
+#endif
 
   // Returns the index of {target} in the predecessors of the current Block.
   // If {target} is not a direct predecessor, returns -1.
@@ -370,22 +378,16 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return pred_count - pred_reverse_index - 1;
   }
 
-  // HasExactlyNPredecessors(n) returns the same result as
-  // `PredecessorCount() == n`, but stops early and iterates at most the first
-  // {n} predecessors.
-  bool HasExactlyNPredecessors(unsigned int n) const {
-    Block* current_pred = last_predecessor_;
-    while (current_pred != nullptr && n != 0) {
-      current_pred = current_pred->neighboring_predecessor_;
-      n--;
-    }
-    return n == 0 && current_pred == nullptr;
-  }
-
   Block* LastPredecessor() const { return last_predecessor_; }
   Block* NeighboringPredecessor() const { return neighboring_predecessor_; }
-  bool HasPredecessors() const { return last_predecessor_ != nullptr; }
-  void ResetLastPredecessor() { last_predecessor_ = nullptr; }
+  bool HasPredecessors() const {
+    DCHECK_EQ(predecessor_count_ == 0, last_predecessor_ == nullptr);
+    return last_predecessor_ != nullptr;
+  }
+  void ResetLastPredecessor() {
+    last_predecessor_ = nullptr;
+    predecessor_count_ = 0;
+  }
 
   // The block from the previous graph which produced the current block. This
   // has to be updated to be the last block that contributed operations to the
@@ -497,6 +499,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     DCHECK_EQ(predecessor->neighboring_predecessor_, nullptr);
     predecessor->neighboring_predecessor_ = last_predecessor_;
     last_predecessor_ = predecessor;
+    predecessor_count_++;
   }
 
   friend class Graph;
@@ -509,6 +512,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   BlockIndex index_ = BlockIndex::Invalid();
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
+  uint32_t predecessor_count_ = 0;
   const Block* origin_ = nullptr;
   // The {custom_data_} field can be used by algorithms to temporarily store
   // block-specific data. This field is not preserved when constructing a new

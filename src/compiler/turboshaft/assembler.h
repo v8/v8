@@ -3517,7 +3517,7 @@ class Assembler : public AssemblerData,
   // Every loop should be finalized once, after it is certain that no backedge
   // can be added anymore.
   void FinalizeLoop(Block* loop_header) {
-    if (loop_header->IsLoop() && loop_header->HasExactlyNPredecessors(1)) {
+    if (loop_header->IsLoop() && loop_header->PredecessorCount() == 1) {
       this->output_graph().TurnLoopIntoMerge(loop_header);
     }
   }

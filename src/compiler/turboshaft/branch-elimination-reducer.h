@@ -298,7 +298,7 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    if (destination_origin->HasExactlyNPredecessors(1)) {
+    if (destination_origin->PredecessorCount() == 1) {
       // This block has a single successor and `destination_origin` has a single
       // predecessor. We can merge these blocks (optimization 5).
       __ CloneAndInlineBlock(destination_origin);

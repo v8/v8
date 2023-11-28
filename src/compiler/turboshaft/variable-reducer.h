@@ -160,7 +160,7 @@ class VariableReducer : public Next {
       return result;
     }
     DCHECK(destination->IsLoop());
-    DCHECK(destination->HasExactlyNPredecessors(2));
+    DCHECK(destination->PredecessorCount() == 2);
     Snapshot loop_header_snapshot =
         *block_to_snapshot_mapping_
             [destination->LastPredecessor()->NeighboringPredecessor()->index()];

@@ -735,7 +735,7 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
       GetRpo(block->GetDominator()), deferred, is_handler);
-  if (block->HasExactlyNPredecessors(1)) {
+  if (block->PredecessorCount() == 1) {
     const turboshaft::Block* predecessor = block->LastPredecessor();
     if (V8_UNLIKELY(
             predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
