@@ -969,6 +969,13 @@ void Decoder::DecodeRType(Instruction* instr) {
       Format(instr, "remuw     'rd, 'rs1, 'rs2");
       break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
+    // Bit-Manipulation ISA-extensions
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
     // TODO(riscv): End Add RISCV M extension macro
     default: {
       switch (instr->BaseOpcode()) {
@@ -1626,6 +1633,13 @@ void Decoder::DecodeIType(Instruction* instr) {
     case RO_FLD:
       Format(instr, "fld       'fd, 'imm12('rs1)");
       break;
+    // Bit-Manipulation ISA-extensions
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
     default:
 #ifdef CAN_USE_RVV_INSTRUCTIONS
       if (instr->vl_vs_width() != -1) {
