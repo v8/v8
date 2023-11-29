@@ -1641,6 +1641,15 @@ bool increment_effect_level_for_node(TurboshaftAdapter* adapter,
   // We need to increment the effect level if the operation consumes any of the
   // dimensions of the {kTurboshaftEffectLevelMask}.
   const turboshaft::Operation& op = adapter->Get(node);
+  if (op.Is<turboshaft::RetainOp>()) {
+    // Retain has CanWrite effect so that it's not reordered before the last
+    // read it protects, but it shouldn't increment the effect level, since
+    // doing a Load(x) after a Retain(x) is safe as long as there is not call
+    // (or something that can trigger GC) in between Retain(x) and Load(x), and
+    // if there were, then this call would increment the effect level, which
+    // would prevent covering in the ISEL.
+    return false;
+  }
   return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask.bits()) !=
          0;
 }
