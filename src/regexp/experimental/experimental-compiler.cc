@@ -155,13 +155,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    if (inside_positive_lookbehind_) {
-      // Positive lookbehinds with capture groups are not currently supported
-      result_ = false;
-    } else {
-      node->body()->Accept(this, nullptr);
-    }
-
+    node->body()->Accept(this, nullptr);
     return nullptr;
   }
 
@@ -171,16 +165,9 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitLookaround(RegExpLookaround* node, void*) override {
-    bool parent_is_positive_lookbehind = inside_positive_lookbehind_;
-    inside_positive_lookbehind_ = node->is_positive();
-
-    if (node->type() == RegExpLookaround::Type::LOOKAHEAD) {
-      result_ = false;
-    } else {
-      node->body()->Accept(this, nullptr);
-    }
-
-    inside_positive_lookbehind_ = parent_is_positive_lookbehind;
+    // TODO(mbid, v8:10765): This will be hard to support, but not impossible I
+    // think.  See product automata.
+    result_ = false;
     return nullptr;
   }
 
@@ -195,10 +182,6 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  private:
   // See comment in `VisitQuantifier`:
   int replication_factor_ = 1;
-
-  // The current implementation does not support capture groups in positive
-  // lookbehinds.
-  bool inside_positive_lookbehind_ = false;
 
   bool result_ = true;
 };
@@ -284,14 +267,6 @@ class BytecodeAssembler {
 
   void EndLoop() { code_.Add(RegExpInstruction::EndLoop(), zone_); }
 
-  void WriteLookTable(int index) {
-    code_.Add(RegExpInstruction::WriteLookTable(index), zone_);
-  }
-
-  void ReadLookTable(int index, bool is_positive) {
-    code_.Add(RegExpInstruction::ReadLookTable(index, is_positive), zone_);
-  }
-
   void Bind(Label& target) {
     DCHECK_EQ(target.state_, Label::UNBOUND);
 
@@ -355,29 +330,11 @@ class CompileVisitor : private RegExpVisitor {
     compiler.assembler_.SetRegisterToCp(1);
     compiler.assembler_.Accept();
 
-    // To handle captureless lookbehinds, we run independent automata for each
-    // lookbehind in lockstep with the main expression. To do so, we compile
-    // each lookbehind to a separate bytecode that we append to the main
-    // expression bytecode. At the end of each lookbehind, we add a
-    // WriteLookTable instruction, writing to a truth table that the lookbehind
-    // holds at the current position.
-    compiler.inside_lookaround_ = true;
-    while (!compiler.lookbehinds_.empty()) {
-      auto node = compiler.lookbehinds_.front();
-      node->body()->Accept(&compiler, nullptr);
-      compiler.assembler_.WriteLookTable(node->index());
-      compiler.lookbehinds_.pop_front();
-    }
-
     return std::move(compiler.assembler_).IntoCode();
   }
 
  private:
-  explicit CompileVisitor(Zone* zone)
-      : zone_(zone),
-        lookbehinds_(zone),
-        assembler_(zone),
-        inside_lookaround_(false) {}
+  explicit CompileVisitor(Zone* zone) : zone_(zone), assembler_(zone) {}
 
   // Generate a disjunction of code fragments compiled by a function `alt_gen`.
   // `alt_gen` is called repeatedly with argument `int i = 0, 1, ..., alt_num -
@@ -792,20 +749,12 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    // Only negative lookbehinds contain captures (enforced by the
-    // `CanBeHandled` visitor). Capture groups inside negative lookarounds
-    // always yield undefined, so we can avoid the SetRegister instructions.
-    if (inside_lookaround_) {
-      node->body()->Accept(this, nullptr);
-    } else {
-      int index = node->index();
-      int start_register = RegExpCapture::StartRegister(index);
-      int end_register = RegExpCapture::EndRegister(index);
-      assembler_.SetRegisterToCp(start_register);
-      node->body()->Accept(this, nullptr);
-      assembler_.SetRegisterToCp(end_register);
-    }
-
+    int index = node->index();
+    int start_register = RegExpCapture::StartRegister(index);
+    int end_register = RegExpCapture::EndRegister(index);
+    assembler_.SetRegisterToCp(start_register);
+    node->body()->Accept(this, nullptr);
+    assembler_.SetRegisterToCp(end_register);
     return nullptr;
   }
 
@@ -815,12 +764,8 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitLookaround(RegExpLookaround* node, void*) override {
-    assembler_.ReadLookTable(node->index(), node->is_positive());
-
-    // Add the lookbehind to the queue of lookbehinds to be compiled.
-    lookbehinds_.push_back(node);
-
-    return nullptr;
+    // TODO(mbid,v8:10765): Support this case.
+    UNREACHABLE();
   }
 
   void* VisitBackReference(RegExpBackReference* node, void*) override {
@@ -838,13 +783,7 @@ class CompileVisitor : private RegExpVisitor {
 
  private:
   Zone* zone_;
-
-  // Stores the AST of the lookbehinds encountered in a queue. They are compiled
-  // after the main expression, in breadth-first order.
-  ZoneLinkedList<RegExpLookaround*> lookbehinds_;
-
   BytecodeAssembler assembler_;
-  bool inside_lookaround_;
 };
 
 }  // namespace
