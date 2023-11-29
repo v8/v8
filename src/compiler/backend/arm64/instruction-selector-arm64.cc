@@ -762,22 +762,19 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector,
   VisitBinop<Adapter, Matcher>(selector, node, opcode, operand_mode, &cont);
 }
 
-// Shared routine for multiple binary operations.
-void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
-                turboshaft::OpIndex binop_idx,
-                turboshaft::RegisterRepresentation rep, InstructionCode opcode,
-                ImmediateMode operand_mode,
-                FlagsContinuationT<TurboshaftAdapter>* cont) {
+void VisitBinopImpl(InstructionSelectorT<TurboshaftAdapter>* selector,
+                    turboshaft::OpIndex binop_idx,
+                    turboshaft::OpIndex left_node,
+                    turboshaft::OpIndex right_node,
+                    turboshaft::RegisterRepresentation rep,
+                    InstructionCode opcode, ImmediateMode operand_mode,
+                    FlagsContinuationT<TurboshaftAdapter>* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
   InstructionOperand inputs[5];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
-
-  const Operation& binop = selector->Get(binop_idx);
-  OpIndex left_node = binop.input(0);
-  OpIndex right_node = binop.input(1);
 
   uint8_t properties = GetBinopProperties(opcode);
   bool can_commute = CanCommuteField::decode(properties);
@@ -841,6 +838,20 @@ void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
 
   selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
                                  inputs, cont);
+}
+
+// Shared routine for multiple binary operations.
+void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
+                turboshaft::OpIndex binop_idx,
+                turboshaft::RegisterRepresentation rep, InstructionCode opcode,
+                ImmediateMode operand_mode,
+                FlagsContinuationT<TurboshaftAdapter>* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& binop = selector->Get(binop_idx);
+  OpIndex left_node = binop.input(0);
+  OpIndex right_node = binop.input(1);
+  return VisitBinopImpl(selector, binop_idx, left_node, right_node, rep, opcode,
+                        operand_mode, cont);
 }
 
 void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
@@ -4416,9 +4427,13 @@ void VisitWord32Compare(InstructionSelectorT<TurboshaftAdapter>* selector,
              (cond == kEqual || cond == kNotEqual)) {
     const WordBinopOp& sub = right.Cast<WordBinopOp>();
     if (selector->MatchIntegralZero(sub.left())) {
-      // TODO(mliedtke): The Turbofan implementation modifies the node in-place,
-      // so porting this case might not be that straightforward.
-      UNIMPLEMENTED();
+      // For a given compare(x, 0 - y) where compare is kEqual or kNotEqual,
+      // it can be expressed as cmn(x, y).
+      opcode = kArm64Cmn32;
+      VisitBinopImpl(selector, node, lhs, sub.right(),
+                     RegisterRepresentation::Word32(), opcode, immediate_mode,
+                     cont);
+      return;
     }
   }
   VisitBinop(selector, node, RegisterRepresentation::Word32(), opcode,
@@ -5404,10 +5419,14 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
                                 kArithmeticImm);
       }
       if (value_op.Is<Opmask::kWord32Equal>()) {
-        // TODO(mliedtke): The turbofan implementation modifes the node
-        // in-place by replacing Word32Equal(Word32Equal(x, y), 0) with
-        // Word32Compare(x, y, ne).
-        UNIMPLEMENTED();
+        // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
+        // A new FlagsContinuation is needed as instead of generating the result
+        // for {node}, it is generated for {value}.
+        FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, value);
+        cont.Negate();
+        VisitWord32Compare(this, value, &cont);
+        EmitIdentity(node);
+        return;
       }
       return VisitWord32Test(this, value, &cont);
     }
