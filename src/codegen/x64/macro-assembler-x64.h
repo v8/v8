@@ -500,6 +500,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void DebugBreak();
 
   void CompareRoot(Register with, RootIndex index);
+  void CompareTaggedRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 
   // Generates function and stub prologue code.

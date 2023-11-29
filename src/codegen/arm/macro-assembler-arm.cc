@@ -1827,6 +1827,10 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
   CompareRange(type_reg, lower_limit, higher_limit);
 }
 
+void MacroAssembler::CompareTaggedRoot(Register obj, RootIndex index) {
+  CompareRoot(obj, index);
+}
+
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();

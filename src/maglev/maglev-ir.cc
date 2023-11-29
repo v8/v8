@@ -4666,18 +4666,13 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(receiver_input());
   // If {value} is a Smi or a HeapNumber, we're done.
   __ JumpIfSmi(value, &done, Label::Distance::kNear);
-  // Note the following DCHECK is relied upon in various compares in this file.
-  DCHECK(!COMPRESS_POINTERS_BOOL ||
-         MacroAssemblerBase::CanBeImmediate(RootIndex::kHeapNumberMap));
-  DCHECK(!COMPRESS_POINTERS_BOOL ||
-         MacroAssemblerBase::CanBeImmediate(RootIndex::kBigIntMap));
   if (mode() == Object::Conversion::kToNumeric) {
     __ LoadMapForCompare(scratch, value);
-    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+    __ CompareTaggedRoot(scratch, RootIndex::kHeapNumberMap);
     // Jump to done if it is a HeapNumber.
     __ JumpIf(kEqual, &done, Label::Distance::kNear);
     // Check if it is a BigInt.
-    __ CompareRoot(scratch, RootIndex::kBigIntMap);
+    __ CompareTaggedRoot(scratch, RootIndex::kBigIntMap);
   } else {
     __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
   }
