@@ -55,7 +55,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.120.1.f75cfb7-gomaip',
+  'reclient_version': 're_client_version:0.121.0.e622934-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'af4595250f514c537d779ea63a56c6c1aeb8309f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4ddd07ca4ab1a5298f25911e293f5bd29b021445',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'aa432dc92dce681c25082c73ffbca95f810f4f9c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c65da25aed99c711ef83d26343733f1a70e5ad1b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6e6fd641653311050933ce3f2ddec2754bad30cf',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '71fc601b51dbdc95b287037510ea20ce9c3fb948',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0acc468d8b47c5665bf75677923c54c96c772b88',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9e5fc28b6b27ad4ffb4c3ddc66388e53e4f0f5b0',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'c078b56f45230567dd7aabd6e9b7e5d79622bc5d',
     'condition': 'checkout_fuchsia',
@@ -276,9 +276,9 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '763198b84378860418e6f80424b4712e47418445',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6cd38f6d30dda7bed3df08427db0b2a4e3fa9e47',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b90fa05c8949d3634ee48ebe90b1a2bfd56498e5',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c21fd3819a09fb151561b738ce1e4fdb6dbf3627',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '85df028e4c5e8a3eaa38fe75e0d78157bee2d668',
   'third_party/logdog/logdog':
@@ -306,7 +306,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7b4829c7a3e887e38faa37c14154fa8f1951c4b0',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '522ab0728a5204e48573ab73f5bd7ae34a7f5ef2',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '990e9cdeeb4b639b6468a7f11206d22b6ecc258e',
   'tools/luci-go': {
       'packages': [
         {
