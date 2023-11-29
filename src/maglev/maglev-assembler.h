@@ -360,6 +360,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
+  inline void MoveTagged(Register dst, Handle<HeapObject> obj);
+
+  inline void LoadMapForCompare(Register dst, Register obj);
+
   inline void LoadByte(Register dst, MemOperand src);
 
   inline void LoadFloat32(DoubleRegister dst, MemOperand src);

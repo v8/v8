@@ -731,6 +731,13 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   Mov(dst, Operand(obj));
 }
+void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
+#ifdef V8_COMPRESS_POINTERS
+  Mov(dst.W(), Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+#else
+  Mov(dst, Operand(obj));
+#endif
+}
 
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   Ldr(dst.S(), src);

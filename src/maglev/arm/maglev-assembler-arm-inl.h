@@ -564,6 +564,9 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
 }
+inline void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
+  Move(dst, obj);
+}
 
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   UseScratchRegisterScope temps(this);

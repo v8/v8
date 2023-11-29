@@ -868,6 +868,14 @@ inline void MaglevAssembler::StringLength(Register result, Register string) {
                   sizeof(int32_t));
 }
 
+void MaglevAssembler::LoadMapForCompare(Register dst, Register obj) {
+#ifdef V8_COMPRESS_POINTERS
+  MacroAssembler::LoadCompressedMap(dst, obj);
+#else
+  MacroAssembler::LoadMap(dst, obj);
+#endif
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

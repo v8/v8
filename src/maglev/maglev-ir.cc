@@ -1442,11 +1442,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
             MaglevAssembler::ScratchRegisterScope temps(masm);
             Register map = temps.GetDefaultScratchRegister();
             Label check_string;
-#ifdef V8_COMPRESS_POINTERS
-            __ LoadCompressedMap(map, object);
-#else
-            __ LoadMap(map, object);
-#endif
+            __ LoadMapForCompare(map, object);
             __ JumpIfNotRoot(
                 map, RootIndex::kHeapNumberMap, &check_string,
                 v8_flags.deopt_every_n_times > 0 ? Label::kFar : Label::kNear);
@@ -2113,7 +2109,7 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
               DCHECK_NE(map, field_index);
               map = field_index;
             }
-            __ LoadMap(map, result_reg);
+            __ LoadMapForCompare(map, result_reg);
             __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, *done);
             DoubleRegister double_value = temps.AcquireDouble();
             __ LoadHeapNumberValue(double_value, result_reg);
@@ -2263,12 +2259,11 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register object = WriteBarrierDescriptor::ObjectRegister();
   DCHECK_EQ(object, ToRegister(object_input()));
   Register value = temps.Acquire();
-  __ Move(value, map_.object());
+  __ MoveTagged(value, map_.object());
 
-  __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
-                                      register_snapshot(),
-                                      MaglevAssembler::kValueIsDecompressed,
-                                      MaglevAssembler::kValueCannotBeSmi);
+  __ StoreTaggedFieldWithWriteBarrier(
+      object, HeapObject::kMapOffset, value, register_snapshot(),
+      MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
@@ -2633,7 +2628,11 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
               __ Move(result, Smi::cast(*constant));
             } else {
               DCHECK(IsHeapObject(*access_info.constant()));
-              __ Move(result, Handle<HeapObject>::cast(constant));
+              if (node->decompresses_tagged_result()) {
+                __ Move(result, Handle<HeapObject>::cast(constant));
+              } else {
+                __ MoveTagged(result, Handle<HeapObject>::cast(constant));
+              }
             }
             break;
           }
@@ -4667,8 +4666,13 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(receiver_input());
   // If {value} is a Smi or a HeapNumber, we're done.
   __ JumpIfSmi(value, &done, Label::Distance::kNear);
+  // Note the following DCHECK is relied upon in various compares in this file.
+  DCHECK(!COMPRESS_POINTERS_BOOL ||
+         MacroAssemblerBase::CanBeImmediate(RootIndex::kHeapNumberMap));
+  DCHECK(!COMPRESS_POINTERS_BOOL ||
+         MacroAssemblerBase::CanBeImmediate(RootIndex::kBigIntMap));
   if (mode() == Object::Conversion::kToNumeric) {
-    __ LoadMap(scratch, value);
+    __ LoadMapForCompare(scratch, value);
     __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
     // Jump to done if it is a HeapNumber.
     __ JumpIf(kEqual, &done, Label::Distance::kNear);
@@ -5530,10 +5534,10 @@ void GenerateTransitionElementsKind(
                compiler::MapRef transition_target, bool is_simple,
                ZoneLabelRef done) {
               if (is_simple) {
-                __ Move(map, transition_target.object());
+                __ MoveTagged(map, transition_target.object());
                 __ StoreTaggedFieldWithWriteBarrier(
                     object, HeapObject::kMapOffset, map, register_snapshot,
-                    MaglevAssembler::kValueIsDecompressed,
+                    MaglevAssembler::kValueIsCompressed,
                     MaglevAssembler::kValueCannotBeSmi);
               } else {
                 SaveRegisterStateForCall save_state(masm, register_snapshot);
@@ -5569,7 +5573,7 @@ void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef done(masm);
 
   __ JumpIfSmi(object, *done, Label::kNear);
-  __ LoadMap(map, object);
+  __ LoadMapForCompare(map, object);
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
                                  transition_target_, done);
@@ -5599,7 +5603,7 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
   }
 
   Register map = temps.Acquire();
-  __ LoadMap(map, object);
+  __ LoadMapForCompare(map, object);
 
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
