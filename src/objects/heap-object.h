@@ -313,9 +313,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                            IsolateForSandbox isolate) const;
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
-  inline bool IsCodePointerFieldCleared(size_t offset) const;
-  inline void ClearCodePointerField(size_t offest);
-
   inline Address ReadCodeEntrypointViaCodePointerField(size_t offset) const;
   inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
                                                      Address value);

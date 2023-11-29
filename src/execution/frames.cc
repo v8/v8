@@ -3471,18 +3471,8 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // - .. because GcSafeFindCodeForInnerPointer does not follow forwarding
     //   pointers and always returns the old object (which is still valid,
     //   *except* for the map_word).
-    //
-    // However, when the sandbox is enabled, this no longer holds as the code
-    // object is loaded from the code pointer talbe, which will have been
-    // updated to point to the relocated Code object.
-    // TODO(saelo): we could re-enable this DCHECK in the future if we
-    // reference Code from InstructionStream through a compressed pointer with
-    // a custom cage base.
-#ifndef V8_ENABLE_SANDBOX
-    static_assert(!kCodeObjectLiveInTrustedSpace);
     DCHECK_EQ(entry->code,
               isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer));
-#endif
   } else {
     // Because this code may be interrupted by a profiling signal that
     // also queries the cache, we cannot update inner_pointer before the code
