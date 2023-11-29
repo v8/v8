@@ -229,7 +229,7 @@
     ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
 
   # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
-  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [arm, ia32, ppc64, s390x, mips64el, mips64, riscv32]', SKIP]],
+  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [arm, ia32, ppc64, s390x, riscv32]', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
