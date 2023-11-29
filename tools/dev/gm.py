@@ -547,6 +547,7 @@ class ArgumentParser(object):
       else:
         break
       path_end -= 1
+    targets = targets or DEFAULT_TARGETS
     path = Path('.'.join(words[:path_end]))
     args_gn = path / "args.gn"
     # Only accept existing build output directories, otherwise fall back
