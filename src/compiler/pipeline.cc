@@ -3794,9 +3794,10 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.WasmOptimization");
 
-    if (v8_flags.wasm_loop_peeling &&
-        (detected->has_gc() || detected->has_stringref() ||
-         detected->has_imported_strings())) {
+    const bool uses_wasm_gc_features = detected->has_gc() ||
+                                       detected->has_stringref() ||
+                                       detected->has_imported_strings();
+    if (v8_flags.wasm_loop_peeling && uses_wasm_gc_features) {
       pipeline.Run<turboshaft::LoopPeelingPhase>();
     }
 
@@ -3804,8 +3805,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       pipeline.Run<turboshaft::LoopUnrollingPhase>();
     }
 
-    if (v8_flags.wasm_opt && (detected->has_gc() || detected->has_stringref() ||
-                              detected->has_imported_strings())) {
+    if (v8_flags.wasm_opt && uses_wasm_gc_features) {
       pipeline.Run<turboshaft::WasmGCOptimizePhase>();
     }
 
@@ -3832,6 +3832,10 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       // This phase has to run very late to allow all previous phases to use
       // debug features.
       pipeline.Run<turboshaft::DebugFeatureLoweringPhase>();
+    }
+
+    if (uses_wasm_gc_features) {
+      pipeline.Run<turboshaft::DecompressionOptimizationPhase>();
     }
 
     data.BeginPhaseKind("V8.InstructionSelection");
