@@ -126,13 +126,13 @@ void innerCallFunctionOn(
     std::unique_ptr<V8RuntimeAgentImpl::CallFunctionOnCallback> callback) {
   V8InspectorImpl* inspector = session->inspector();
 
-  std::unique_ptr<v8::Local<v8::Value>[]> argv = nullptr;
+  std::unique_ptr<v8::Global<v8::Value>[]> argv = nullptr;
   int argc = 0;
   if (optionalArguments.has_value()) {
     protocol::Array<protocol::Runtime::CallArgument>& arguments =
         optionalArguments.value();
     argc = static_cast<int>(arguments.size());
-    argv.reset(new v8::Local<v8::Value>[argc]);
+    argv.reset(new v8::Global<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
       v8::Local<v8::Value> argumentValue;
       Response response = scope.injectedScript()->resolveCallArgument(
@@ -141,7 +141,7 @@ void innerCallFunctionOn(
         callback->sendFailure(response);
         return;
       }
-      argv[i] = argumentValue;
+      argv[i] = v8::Global<v8::Value>(inspector->isolate(), argumentValue);
     }
   }
 

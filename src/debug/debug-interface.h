@@ -546,7 +546,7 @@ int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
-                                 int argc, Local<Value> argv[],
+                                 int argc, Global<Value> argv[],
                                  bool throw_on_side_effect);
 
 enum class EvaluateGlobalMode {

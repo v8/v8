@@ -1160,7 +1160,7 @@ v8::Local<GeneratorObject> GeneratorObject::Cast(v8::Local<v8::Value> value) {
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
-                                 int argc, Local<Value> argv[],
+                                 int argc, Global<Value> argv[],
                                  bool throw_on_side_effect) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, Value);
