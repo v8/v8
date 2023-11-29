@@ -3485,13 +3485,7 @@ struct CatchBlockBeginOp : FixedArityOperationT<0, CatchBlockBeginOp> {
 // Since `OptimizationPhase` does this automatically, lowering throwing
 // operations into an arbitrary subgraph works automatically.
 struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
-  // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-  // pipeline crashes are fixed.
-#if 0
   static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
-#else
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
-#endif
 
   // If there is a `CheckException` operation with a catch block for
   // `throwing_operation`.

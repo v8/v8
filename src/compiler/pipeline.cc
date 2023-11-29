@@ -3307,10 +3307,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   DCHECK_NOT_NULL(data.schedule());
 
   if (v8_flags.turboshaft_csa) {
-    // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-    // pipeline crashes are fixed.
-    UNIMPLEMENTED();
-#if 0
     UnparkedScopeIfNeeded scope(data.broker(),
                                 v8_flags.turboshaft_trace_reduction);
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
@@ -3331,7 +3327,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     data.set_schedule(new_schedule);
     TraceSchedule(data.info(), &data, data.schedule(),
                   turboshaft::RecreateSchedulePhase::phase_name());
-#endif
   }
 
   // First run code generation on a copy of the pipeline, in order to be able to

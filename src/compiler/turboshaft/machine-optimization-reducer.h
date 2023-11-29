@@ -29,6 +29,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
@@ -1748,23 +1749,18 @@ class MachineOptimizationReducer : public Next {
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
 
-          // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-          // pipeline crashes are fixed.
-          DCHECK_NE(broker, nullptr);
-#if 0
+          DCHECK_IMPLIES(PipelineData::Get().pipeline_kind() !=
+                             TurboshaftPipelineKind::kCSA,
+                         broker != nullptr);
           if (broker != nullptr) {
-#endif
-          UnparkedScopeIfNeeded scope(broker);
-          AllowHandleDereference allow_handle_dereference;
-
-          OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
-          if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
-            broker->dependencies()->DependOnStableMap(*map);
-            return __ HeapConstant(map->object());
+            UnparkedScopeIfNeeded scope(broker);
+            AllowHandleDereference allow_handle_dereference;
+            OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
+            if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
+              broker->dependencies()->DependOnStableMap(*map);
+              return __ HeapConstant(map->object());
+            }
           }
-#if 0
-          }
-#endif
         }
         // TODO(dmercadier): consider constant-folding other accesses, in
         // particular for constant objects (ie, if
