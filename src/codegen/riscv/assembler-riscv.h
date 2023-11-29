@@ -172,7 +172,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVC,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
-                                    public AssemblerRISCVV {
+                                    public AssemblerRISCVV,
+                                    public AssemblerRISCVB {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
