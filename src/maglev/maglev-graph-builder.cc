@@ -4605,14 +4605,6 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   int generic_access_predecessors = 0;
   int generic_access_assumed_predecessors = 0;
 
-  if (is_any_store) {
-    done.emplace(&sub_graph, access_info_count);
-  } else {
-    ret_val.emplace(0);
-    done.emplace(
-        &sub_graph, access_info_count,
-        std::initializer_list<MaglevSubGraphBuilder::Variable*>{&*ret_val});
-  }
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
   // access for Uint16/Uint32/Int16/Int32/...).
@@ -4647,8 +4639,24 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
     if (map_check_result.IsDoneWithAbort()) {
       // We know from known possible maps that this branch is not reachable,
       // so don't emit any code for it.
-      sub_graph.ReducePredecessorCount(&*done);
+      if (done.has_value()) {
+        sub_graph.ReducePredecessorCount(&*done);
+      }
       continue;
+    }
+    if (!done.has_value()) {
+      // We initialize the label {done} lazily on the first possible path.
+      // If no possible path exists, it is guaranteed that BuildCheckMaps
+      // emitted an unconditional deopt and we return DoneWithAbort at the end.
+      const int possible_predecessors = access_info_count - i;
+      if (is_any_store) {
+        done.emplace(&sub_graph, possible_predecessors);
+      } else {
+        ret_val.emplace(0);
+        done.emplace(
+            &sub_graph, possible_predecessors,
+            std::initializer_list<MaglevSubGraphBuilder::Variable*>{&*ret_val});
+      }
     }
     ReduceResult result;
     // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
@@ -4705,8 +4713,12 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
     }
     sub_graph.Goto(&*done);
   }
-  sub_graph.Bind(&*done);
-  return is_any_store ? ReduceResult::Done() : sub_graph.get(*ret_val);
+  if (done.has_value()) {
+    sub_graph.Bind(&*done);
+    return is_any_store ? ReduceResult::Done() : sub_graph.get(*ret_val);
+  } else {
+    return ReduceResult::DoneWithAbort();
+  }
 }
 
 void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
