@@ -1668,7 +1668,6 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
   int effect_level = 0;
   for (node_t node : this->nodes(block)) {
     SetEffectLevel(node, effect_level);
-    current_effect_level_ = effect_level;
     if (increment_effect_level_for_node(this, node)) {
       ++effect_level;
     }
@@ -1739,6 +1738,7 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
     } else if (!IsDefined(node)) {
       // Generate code for this node "top down", but schedule the code "bottom
       // up".
+      current_effect_level_ = GetEffectLevel(node);
       VisitNode(node);
       if (!FinishEmittedInstructions(node, current_node_end)) return;
     }
