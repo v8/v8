@@ -37,7 +37,7 @@ struct DecompressionAnalyzer {
   }
 
   void Run() {
-    for (uint32_t next_block_id = graph.block_count() - 1; next_block_id > 0;) {
+    for (int32_t next_block_id = graph.block_count() - 1; next_block_id >= 0;) {
       BlockIndex block_index = BlockIndex(next_block_id);
       --next_block_id;
       const Block& block = graph.Get(block_index);
@@ -58,14 +58,14 @@ struct DecompressionAnalyzer {
   }
 
   template <bool is_loop>
-  void ProcessBlock(const Block& block, uint32_t* next_block_id) {
+  void ProcessBlock(const Block& block, int32_t* next_block_id) {
     for (const Operation& op : base::Reversed(graph.operations(block))) {
       if (is_loop && op.Is<PhiOp>() && NeedsDecompression(op)) {
         const PhiOp& phi = op.Cast<PhiOp>();
         if (!NeedsDecompression(phi.input(1))) {
           Block* backedge = block.LastPredecessor();
           *next_block_id =
-              std::max<uint32_t>(*next_block_id, backedge->index().id());
+              std::max<int32_t>(*next_block_id, backedge->index().id());
         }
       }
       ProcessOperation(op);
