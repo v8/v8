@@ -476,6 +476,13 @@ UTEST_R1_FORM_WITH_RES_F(fneg_s, float, 23.5f, -23.5f)
 // UTEST_R1_FORM_WITH_RES_F(fabs_d, double, -23.5, 23.5)
 // UTEST_R1_FORM_WITH_RES_F(fneg_d, double, 23.5, -23.5)
 
+// -- Bit-Manipulation ISA-extensions --
+// -- Zba --
+
+// -- Zbb: basic --
+
+// -- Zbb: bitwise rotation --
+
 // Test fmv_d
 TEST(RISCV_UTEST_fmv_d_double) {
   CcTest::InitializeVM();
