@@ -448,7 +448,7 @@ class BranchEliminationReducer : public Next {
   // ReplayMissingPredecessors adds to {known_conditions_} and {dominator_path_}
   // the conditions/blocks that related to the dominators of {block} that are
   // not already present. This can happen when control-flow changes during the
-  // OptimizationPhase, which results in a block being visited not right after
+  // CopyingPhase, which results in a block being visited not right after
   // its dominator. For instance, when optimizing a double-diamond like:
   //
   //                  B0

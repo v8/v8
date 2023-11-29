@@ -2696,7 +2696,8 @@ generated_file("v8_generate_features_json") {
   contents = {
     v8_deprecation_warnings = v8_deprecation_warnings
     v8_enable_31bit_smis_on_64bit_arch = v8_enable_31bit_smis_on_64bit_arch
-    v8_enable_conservative_stack_scanning = v8_enable_conservative_stack_scanning
+    v8_enable_conservative_stack_scanning =
+        v8_enable_conservative_stack_scanning
     v8_enable_direct_local = v8_enable_direct_local
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit
@@ -2707,7 +2708,8 @@ generated_file("v8_generate_features_json") {
     v8_enable_map_packing = v8_enable_map_packing
     v8_enable_object_print = v8_enable_object_print
     v8_enable_pointer_compression = v8_enable_pointer_compression
-    v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression_shared_cage
+    v8_enable_pointer_compression_shared_cage =
+        v8_enable_pointer_compression_shared_cage
     v8_enable_sandbox = v8_enable_sandbox
     v8_enable_shared_ro_heap = v8_enable_shared_ro_heap
     v8_enable_short_builtin_calls = v8_enable_short_builtin_calls
@@ -3366,6 +3368,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/build-graph-phase.h",
     "src/compiler/turboshaft/builtin-call-descriptors.h",
+    "src/compiler/turboshaft/copying-phase.h",
     "src/compiler/turboshaft/dataview-reducer.h",
     "src/compiler/turboshaft/dead-code-elimination-phase.h",
     "src/compiler/turboshaft/dead-code-elimination-reducer.h",
@@ -3399,7 +3402,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/opmasks.h",
-    "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/optimize-phase.h",
     "src/compiler/turboshaft/phase.h",
     "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
@@ -4998,6 +5000,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/analyzer-iterator.cc",
     "src/compiler/turboshaft/assembler.cc",
     "src/compiler/turboshaft/build-graph-phase.cc",
+    "src/compiler/turboshaft/copying-phase.cc",
     "src/compiler/turboshaft/dead-code-elimination-phase.cc",
     "src/compiler/turboshaft/debug-feature-lowering-phase.cc",
     "src/compiler/turboshaft/decompression-optimization-phase.cc",
@@ -5015,7 +5018,6 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/machine-lowering-phase.cc",
     "src/compiler/turboshaft/memory-optimization-reducer.cc",
     "src/compiler/turboshaft/operations.cc",
-    "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/optimize-phase.cc",
     "src/compiler/turboshaft/phase.cc",
     "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",

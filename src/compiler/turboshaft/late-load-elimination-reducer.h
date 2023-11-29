@@ -10,6 +10,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/loop-finder.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/zone/zone.h"

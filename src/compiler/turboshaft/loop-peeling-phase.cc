@@ -4,9 +4,9 @@
 
 #include "src/compiler/turboshaft/loop-peeling-phase.h"
 
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/loop-peeling-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -15,11 +15,11 @@
 namespace v8::internal::compiler::turboshaft {
 
 void LoopPeelingPhase::Run(Zone* temp_zone) {
-  turboshaft::OptimizationPhase<
-      turboshaft::LoopPeelingReducer, turboshaft::VariableReducer,
-      turboshaft::MachineOptimizationReducer,
-      turboshaft::RequiredOptimizationReducer,
-      turboshaft::ValueNumberingReducer>::Run(temp_zone);
+  turboshaft::CopyingPhase<turboshaft::LoopPeelingReducer,
+                           turboshaft::VariableReducer,
+                           turboshaft::MachineOptimizationReducer,
+                           turboshaft::RequiredOptimizationReducer,
+                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

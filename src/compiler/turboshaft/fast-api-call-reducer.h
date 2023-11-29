@@ -8,9 +8,9 @@
 #include "include/v8-fast-api-calls.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 

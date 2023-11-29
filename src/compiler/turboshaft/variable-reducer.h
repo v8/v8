@@ -49,7 +49,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 // Note that the VariableAssembler does not do "old-OpIndex => Variable"
 // book-keeping: the users of the Variable should do that themselves (which
-// is what OptimizationPhase does for instance).
+// is what CopyingPhase does for instance).
 
 template <class Next>
 class VariableReducer : public Next {

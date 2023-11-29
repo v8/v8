@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"

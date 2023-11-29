@@ -1276,8 +1276,8 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
     // Predecessors of {current_input_block} and the TF's matching block might
     // not be in the same order, so Phi inputs might need to be reordered to
     // match the new order.
-    // This is similar to what AssembleOutputGraphPhi in OptimizationPhase does,
-    // except that OptimizationPhase has a new->old block mapping, which we
+    // This is similar to what AssembleOutputGraphPhi in CopyingPhase does,
+    // except that CopyingPhase has a new->old block mapping, which we
     // don't have here in RecreateSchedule, so the implementation is slightly
     // different (relying on std::lower_bound rather than looking up the
     // old->new mapping).

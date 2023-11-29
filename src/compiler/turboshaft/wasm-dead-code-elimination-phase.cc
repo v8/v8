@@ -6,8 +6,10 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/branch-condition-duplication-reducer.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/stack-check-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 
@@ -18,10 +20,10 @@ void WasmDeadCodeEliminationPhase::Run(Zone* temp_zone) {
 
   // The value numbering ensures that load with similar patterns in the complex
   // loads can share those calculations.
-  OptimizationPhase<DeadCodeEliminationReducer, StackCheckReducer,
-                    BranchConditionDuplicationReducer,
-                    LoadStoreSimplificationReducer,
-                    ValueNumberingReducer>::Run(temp_zone);
+  CopyingPhase<DeadCodeEliminationReducer, StackCheckReducer,
+               BranchConditionDuplicationReducer,
+               LoadStoreSimplificationReducer,
+               ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

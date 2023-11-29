@@ -55,9 +55,9 @@ struct GraphBuilder {
   Isolate* isolate = PipelineData::Get().isolate();
   JSHeapBroker* broker = PipelineData::Get().broker();
   Zone* graph_zone = PipelineData::Get().graph_zone();
-  using AssemblerT = Assembler<reducer_list<ExplicitTruncationReducer>>;
+  using AssemblerT = TSAssembler<ExplicitTruncationReducer>;
   AssemblerT assembler{PipelineData::Get().graph(), PipelineData::Get().graph(),
-                       phase_zone, nullptr};
+                       phase_zone};
   SourcePositionTable* source_positions =
       PipelineData::Get().source_positions();
   NodeOriginTable* origins = PipelineData::Get().node_origins();

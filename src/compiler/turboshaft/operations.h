@@ -92,7 +92,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 //   representation of the outputs and inputs of this operations.
 // After defining the struct here, you'll also need to integrate it in
 // Turboshaft:
-// - Add an AssembleOutputGraphFoo method in OptimizationPhase (don't forget to
+// - Add an AssembleOutputGraphFoo method in CopyingPhase (don't forget to
 //   MapToNewGraph the OpIndices and the Blocks).
 // - Add one or more Foo(...) helper in AssemblerOpInterface (at least one of
 //   these Foo helper should probably call ReduceIfReachableFoo().
@@ -3482,7 +3482,7 @@ struct CatchBlockBeginOp : FixedArityOperationT<0, CatchBlockBeginOp> {
 // The correct way to produce `CheckExceptionOp` is to create an
 // `Assembler::CatchScope`, which will cause all throwing operations
 // to add a `CheckExceptionOp` automatically while the scope is active.
-// Since `OptimizationPhase` does this automatically, lowering throwing
+// Since `CopyingPhase` does this automatically, lowering throwing
 // operations into an arbitrary subgraph works automatically.
 struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
   static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();

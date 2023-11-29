@@ -9,6 +9,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 
 namespace v8::internal::compiler::turboshaft {

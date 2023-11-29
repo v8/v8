@@ -7,11 +7,12 @@
 
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 

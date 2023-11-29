@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 

@@ -9,6 +9,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {

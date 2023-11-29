@@ -11,6 +11,7 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-subtyping.h"

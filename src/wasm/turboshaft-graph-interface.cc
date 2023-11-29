@@ -30,12 +30,11 @@ namespace v8::internal::wasm {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-using Assembler =
-    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
-        compiler::turboshaft::SelectLoweringReducer,
-        compiler::turboshaft::DataViewReducer,
-        compiler::turboshaft::VariableReducer,
-        compiler::turboshaft::RequiredOptimizationReducer>>;
+using Assembler = compiler::turboshaft::TSAssembler<
+    compiler::turboshaft::SelectLoweringReducer,
+    compiler::turboshaft::DataViewReducer,
+    compiler::turboshaft::VariableReducer,
+    compiler::turboshaft::RequiredOptimizationReducer>;
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
@@ -6528,10 +6527,10 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
     AccountingAllocator* allocator, WasmFeatures enabled,
     const WasmModule* module, WasmFeatures* detected, Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
-    compiler::NodeOriginTable* node_origins, AssumptionsJournal* assumptions,
+    AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
   Zone zone(allocator, ZONE_NAME);
-  Assembler assembler(graph, graph, &zone, node_origins);
+  Assembler assembler(graph, graph, &zone);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
       decoder(&zone, module, enabled, detected, func_body, &zone, assembler,
               assumptions, inlining_positions, func_index, wire_bytes);

@@ -4,7 +4,7 @@
 
 #include "src/compiler/turboshaft/simplified-lowering-phase.h"
 
-#include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 

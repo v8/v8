@@ -11,6 +11,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/diagnostics/code-tracer.h"
 

@@ -34,8 +34,7 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
     AccountingAllocator* allocator, WasmFeatures enabled,
     const WasmModule* module, WasmFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
-    const WireBytesStorage* wire_bytes, compiler::NodeOriginTable* node_origins,
-    AssumptionsJournal* assumptions,
+    const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
 }  // namespace wasm
 }  // namespace v8::internal

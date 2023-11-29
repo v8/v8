@@ -6,8 +6,8 @@
 
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -203,7 +203,7 @@ void DecompressionAnalyzer::MarkAddressingBase(OpIndex base_idx) {
 
 }  // namespace
 
-// Instead of using `OptimizationPhase`, we directly mutate the operations after
+// Instead of using `CopyingPhase`, we directly mutate the operations after
 // the analysis. Doing it in-place is possible because we only modify operation
 // options.
 void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {

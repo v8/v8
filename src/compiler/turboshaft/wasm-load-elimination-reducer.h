@@ -14,6 +14,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/loop-finder.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -958,7 +959,7 @@ bool WasmLoadEliminationAnalyzer::BeginBlock(const Block* block) {
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
   // rather than a reducer. Still, we could "prepare" the insertion now and then
-  // really insert them during the Reduce phase of the OptimizationPhase.
+  // really insert them during the Reduce phase of the CopyingPhase.
   auto merge_memory = [&](MemoryKey key,
                           base::Vector<const OpIndex> predecessors) -> OpIndex {
     if (for_loop_revisit && predecessors[kForwardEdgeOffset].valid() &&

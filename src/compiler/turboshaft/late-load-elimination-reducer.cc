@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/objects/code-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -377,7 +378,7 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
   // rather than a reducer. Still, we could "prepare" the insertion now and then
-  // really insert them during the Reduce phase of the OptimizationPhase.
+  // really insert them during the Reduce phase of the CopyingPhase.
   auto merge_memory = [&](MemoryKey key,
                           base::Vector<const OpIndex> predecessors) -> OpIndex {
     if (for_loop_revisit && predecessors[kForwardEdgeOffset].valid() &&
