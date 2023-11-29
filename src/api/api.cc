@@ -3181,7 +3181,7 @@ Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   return Just(self->GetLineNumber());
 }
@@ -3190,7 +3190,7 @@ int Message::GetStartPosition() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   return self->GetStartPosition();
 }
@@ -3199,7 +3199,7 @@ int Message::GetEndPosition() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   return self->GetEndPosition();
 }
@@ -3214,7 +3214,7 @@ int Message::GetStartColumn() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   return self->GetColumnNumber();
 }
@@ -3224,7 +3224,7 @@ int Message::GetWasmFunctionIndex() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   int start_position = self->GetColumnNumber();
   if (start_position == -1) return Message::kNoWasmFunctionIndexInfo;
@@ -3251,7 +3251,7 @@ int Message::GetEndColumn() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  HandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   const int column_number = self->GetColumnNumber();
   if (column_number == -1) return -1;
