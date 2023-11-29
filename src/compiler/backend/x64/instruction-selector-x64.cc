@@ -720,6 +720,30 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 };
 
+namespace {
+
+struct LoadStoreView {
+  explicit LoadStoreView(const turboshaft::Operation& op) {
+    DCHECK(op.Is<turboshaft::LoadOp>() || op.Is<turboshaft::StoreOp>());
+    if (const turboshaft::LoadOp* load = op.TryCast<turboshaft::LoadOp>()) {
+      base = load->base();
+      index = load->index();
+      offset = load->offset;
+    } else {
+      DCHECK(op.Is<turboshaft::StoreOp>());
+      const turboshaft::StoreOp& store = op.Cast<turboshaft::StoreOp>();
+      base = store.base();
+      index = store.index();
+      offset = store.offset;
+    }
+  }
+  turboshaft::OpIndex base;
+  turboshaft::OptionalOpIndex index;
+  int32_t offset;
+};
+
+}  // namespace
+
 template <>
 AddressingMode
 X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
@@ -728,13 +752,14 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
   using namespace turboshaft;  // NOLINT(build/namespaces)
 
   const Operation& op = Get(operand);
-  if (const LoadOp* load = op.TryCast<LoadOp>()) {
+  if (op.Is<LoadOp>() || op.Is<StoreOp>()) {
+    LoadStoreView load_or_store = LoadStoreView(op);
     if (ExternalReference reference;
-        MatchExternalConstant(load->base(), &reference) &&
-        !load->index().valid()) {
+        MatchExternalConstant(load_or_store.base, &reference) &&
+        !load_or_store.index.valid()) {
       if (selector()->CanAddressRelativeToRootsRegister(reference)) {
         const ptrdiff_t delta =
-            load->offset +
+            load_or_store.offset +
             MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector()->isolate(), reference);
         if (is_int32(delta)) {
