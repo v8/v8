@@ -244,6 +244,11 @@ TryMatchBaseWithScaledIndexAndDisplacement32(
 }
 
 base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
+    turboshaft::OpIndex right);
+
+base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -309,15 +314,27 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     return base::nullopt;
   }
 
+  const WordBinopOp& binop = op.Cast<WordBinopOp>();
+  OpIndex left = binop.left();
+  OpIndex right = binop.right();
+  return TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(selector,
+                                                                  left, right);
+}
+
+base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
+    turboshaft::OpIndex right) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+  result.displacement_mode = kPositiveDisplacement;
+
   auto OwnedByAddressingOperand = [](OpIndex) {
     // TODO(nicohartmann@): Consider providing this. For now we just allow
     // everything to be covered regardless of other uses.
     return true;
   };
-
-  const WordBinopOp& binop = op.Cast<WordBinopOp>();
-  OpIndex left = binop.left();
-  OpIndex right = binop.right();
 
   // Check (S + ...)
   if (MatchScaledIndex(selector, left, &result.index, &result.scale, nullptr) &&
@@ -2250,22 +2267,47 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
 
-  // No need to truncate the values before Int32Add.
+  base::Optional<BaseWithScaledIndexAndDisplacementMatch<Adapter>> m;
   if constexpr (Adapter::IsTurbofan) {
     DCHECK_EQ(node->InputCount(), 2);
     Node* left = node->InputAt(0);
     Node* right = node->InputAt(1);
-    // TODO(nicohartmann): Also optimize this on turboshaft.
+    // No need to truncate the values before Int32Add.
     if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       node->ReplaceInput(0, left->InputAt(0));
     }
     if (right->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       node->ReplaceInput(1, right->InputAt(0));
     }
+
+    // Try to match the Add to a leal pattern
+    m = TryMatchBaseWithScaledIndexAndDisplacement32(this, node);
+
+  } else {
+    const turboshaft::WordBinopOp& add =
+        this->Get(node).template Cast<turboshaft::WordBinopOp>();
+    turboshaft::OpIndex left = add.left();
+    turboshaft::OpIndex right = add.right();
+    // No need to truncate the values before Int32Add.
+    if (const turboshaft::ChangeOp* change =
+            this->Get(left)
+                .template TryCast<
+                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+      left = change->input();
+    }
+    if (const turboshaft::ChangeOp* change =
+            this->Get(right)
+                .template TryCast<
+                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+      right = change->input();
+    }
+
+    // Try to match the Add to a leal pattern
+    m = TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(this, left,
+                                                                 right);
   }
 
-  // Try to match the Add to a leal pattern
-  if (auto m = TryMatchBaseWithScaledIndexAndDisplacement32(this, node)) {
+  if (m.has_value()) {
     if (m->displacement == 0 || g.ValueFitsIntoImmediate(m->displacement)) {
       EmitLea(this, kX64Lea32, node, m->index, m->scale, m->base,
               m->displacement, m->displacement_mode);

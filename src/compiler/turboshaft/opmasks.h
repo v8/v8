@@ -243,6 +243,10 @@ using kTruncateFloat32ToUint32OverflowToMin =
                       RegisterRepresentation::Float32(),
                       RegisterRepresentation::Word32()>;
 
+using kTruncateInt64ToInt32 = ChangeOpMask::For<
+    ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
+    RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
+
 #if V8_ENABLE_WEBASSEMBLY
 
 using Simd128BinopMask =
