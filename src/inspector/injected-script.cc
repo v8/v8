@@ -996,8 +996,9 @@ v8::Local<v8::Object> InjectedScript::commandLineAPI() {
 InjectedScript::Scope::Scope(V8InspectorSessionImpl* session)
     : m_inspector(session->inspector()),
       m_injectedScript(nullptr),
-      m_handleScope(m_inspector->isolate()),
-      m_tryCatch(m_inspector->isolate()),
+      m_isolate(m_inspector->isolate()),
+      m_handleScope(m_isolate),
+      m_tryCatch(m_isolate),
       m_ignoreExceptionsAndMuteConsole(false),
       m_previousPauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_userGesture(false),
@@ -1012,9 +1013,10 @@ Response InjectedScript::Scope::initialize() {
   if (!session) return Response::InternalError();
   Response response = findInjectedScript(session);
   if (!response.IsSuccess()) return response;
-  m_context = m_injectedScript->context()->context();
-  m_context->Enter();
-  if (m_allowEval) m_context->AllowCodeGenerationFromStrings(true);
+  m_context = v8::Global<v8::Context>(m_isolate,
+                                      m_injectedScript->context()->context());
+  context()->Enter();
+  if (m_allowEval) context()->AllowCodeGenerationFromStrings(true);
   return Response::Success();
 }
 
@@ -1027,7 +1029,7 @@ void InjectedScript::Scope::installCommandLineAPI() {
     return;
   }
   m_commandLineAPIScope.reset(new V8Console::CommandLineAPIScope(
-      m_context, m_injectedScript->commandLineAPI(), m_context->Global()));
+      context(), m_injectedScript->commandLineAPI(), context()->Global()));
 }
 
 void InjectedScript::Scope::ignoreExceptionsAndMuteConsole() {
@@ -1057,16 +1059,16 @@ void InjectedScript::Scope::pretendUserGesture() {
 
 void InjectedScript::Scope::allowCodeGenerationFromStrings() {
   DCHECK(!m_allowEval);
-  if (m_context->IsCodeGenerationFromStringsAllowed()) return;
+  if (context()->IsCodeGenerationFromStringsAllowed()) return;
   m_allowEval = true;
-  m_context->AllowCodeGenerationFromStrings(true);
+  context()->AllowCodeGenerationFromStrings(true);
 }
 
 void InjectedScript::Scope::cleanup() {
   m_commandLineAPIScope.reset();
   if (!m_context.IsEmpty()) {
-    if (m_allowEval) m_context->AllowCodeGenerationFromStrings(false);
-    m_context->Exit();
+    if (m_allowEval) context()->AllowCodeGenerationFromStrings(false);
+    context()->Exit();
     m_context.Clear();
   }
 }
