@@ -48,9 +48,7 @@
 #define ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name,    \
                                  function_name, bailout_value,      \
                                  HandleScopeClass, do_callback)     \
-  if (i_isolate->is_execution_terminating()) {                      \
-    return bailout_value;                                           \
-  }                                                                 \
+  DCHECK(!i_isolate->is_execution_terminating());                   \
   HandleScopeClass handle_scope(i_isolate);                         \
   CallDepthScope<do_callback> call_depth_scope(i_isolate, context); \
   API_RCS_SCOPE(i_isolate, class_name, function_name);              \
@@ -58,9 +56,7 @@
   bool has_pending_exception = false
 
 #define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, T)       \
-  if (i_isolate->is_execution_terminating()) {                                 \
-    return MaybeLocal<T>();                                                    \
-  }                                                                            \
+  DCHECK(!i_isolate->is_execution_terminating());                              \
   InternalEscapableScope handle_scope(i_isolate);                              \
   CallDepthScope<false> call_depth_scope(i_isolate, v8::Local<v8::Context>()); \
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
