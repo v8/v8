@@ -3947,13 +3947,15 @@ void VisitCompareZero(InstructionSelectorT<TurboshaftAdapter>* selector,
 
   int effect_level = selector->GetEffectLevel(node, cont);
   if (const auto load = op.TryCast<turboshaft::LoadOp>()) {
-    if (load->loaded_rep == turboshaft::MemoryRepresentation::Int8()) {
+    if (load->loaded_rep == turboshaft::MemoryRepresentation::Int8() ||
+        load->loaded_rep == turboshaft::MemoryRepresentation::Uint8()) {
       if (opcode == kX64Cmp32) {
         opcode = kX64Cmp8;
       } else if (opcode == kX64Test32) {
         opcode = kX64Test8;
       }
-    } else if (load->loaded_rep == turboshaft::MemoryRepresentation::Int16()) {
+    } else if (load->loaded_rep == turboshaft::MemoryRepresentation::Int16() ||
+               load->loaded_rep == turboshaft::MemoryRepresentation::Uint16()) {
       if (opcode == kX64Cmp32) {
         opcode = kX64Cmp16;
       } else if (opcode == kX64Test32) {
