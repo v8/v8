@@ -1916,6 +1916,16 @@ class Heap final {
     return global_allocation_limit_.load(std::memory_order_relaxed);
   }
 
+  bool old_generation_allocation_limit_configured() const {
+    return old_generation_allocation_limit_configured_.load(
+        std::memory_order_relaxed);
+  }
+
+  void set_old_generation_allocation_limit_configured(bool value) {
+    old_generation_allocation_limit_configured_.store(
+        value, std::memory_order_relaxed);
+  }
+
   size_t max_old_generation_size() const {
     return max_old_generation_size_.load(std::memory_order_relaxed);
   }
@@ -2091,7 +2101,7 @@ class Heap final {
   // limit in Heap::RecomputeLimits. The old generation allocation limit is then
   // considered to be configured for all subsequent GCs. After the first full GC
   // this field is only ever reset for top context disposals.
-  bool old_generation_allocation_limit_configured_ = false;
+  std::atomic<bool> old_generation_allocation_limit_configured_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
