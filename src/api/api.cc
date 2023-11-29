@@ -555,6 +555,9 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
                                  const StartupData* existing_snapshot)
     : SnapshotCreator(nullptr, external_references, existing_snapshot) {}
 
+SnapshotCreator::SnapshotCreator(const v8::Isolate::CreateParams& params)
+    : data_(new i::SnapshotCreatorImpl(params)) {}
+
 SnapshotCreator::~SnapshotCreator() {
   DCHECK_NOT_NULL(data_);
   auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);

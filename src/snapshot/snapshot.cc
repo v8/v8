@@ -817,7 +817,13 @@ v8::StartupData WarmUpSnapshotDataBlobInternal(
   //    compilation of executed functions.
   //  - Create a new context. This context will be unpolluted.
   //  - Serialize the isolate and the second context into a new snapshot blob.
-  v8::SnapshotCreator snapshot_creator(nullptr, &cold_snapshot_blob);
+
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &cold_snapshot_blob;
+  params.array_buffer_allocator = allocator.get();
+  v8::SnapshotCreator snapshot_creator(params);
   v8::Isolate* isolate = snapshot_creator.GetIsolate();
   {
     v8::HandleScope scope(isolate);
@@ -837,22 +843,10 @@ v8::StartupData WarmUpSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kKeep);
 }
 
-SnapshotCreatorImpl::SnapshotCreatorImpl(
-    Isolate* isolate, const intptr_t* api_external_references,
-    const StartupData* existing_blob, bool owns_isolate)
-    : owns_isolate_(owns_isolate),
-      isolate_(isolate == nullptr ? Isolate::New() : isolate),
-      array_buffer_allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()) {
-  DCHECK_NOT_NULL(isolate_);
-
-  isolate_->set_array_buffer_allocator(array_buffer_allocator_);
-  isolate_->set_api_external_references(api_external_references);
+void SnapshotCreatorImpl::InitInternal(const StartupData* blob) {
   isolate_->enable_serializer();
   isolate_->Enter();
 
-  const StartupData* blob = existing_blob != nullptr
-                                ? existing_blob
-                                : Snapshot::DefaultSnapshotBlob();
   if (blob != nullptr && blob->raw_size > 0) {
     isolate_->set_snapshot_blob(blob);
     Snapshot::Initialize(isolate_);
@@ -870,6 +864,39 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
   DCHECK_EQ(contexts_.size(), kDefaultContextIndex + 1);
 }
 
+SnapshotCreatorImpl::SnapshotCreatorImpl(
+    Isolate* isolate, const intptr_t* api_external_references,
+    const StartupData* existing_blob, bool owns_isolate)
+    : owns_isolate_(owns_isolate),
+      isolate_(isolate == nullptr ? Isolate::New() : isolate),
+      array_buffer_allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()) {
+  DCHECK_NOT_NULL(isolate_);
+
+  isolate_->set_array_buffer_allocator(array_buffer_allocator_.get());
+  isolate_->set_api_external_references(api_external_references);
+
+  InitInternal(existing_blob ? existing_blob : Snapshot::DefaultSnapshotBlob());
+}
+
+SnapshotCreatorImpl::SnapshotCreatorImpl(
+    const v8::Isolate::CreateParams& params)
+    : owns_isolate_(true), isolate_(Isolate::New()) {
+  if (auto allocator = params.array_buffer_allocator_shared) {
+    CHECK(params.array_buffer_allocator == nullptr ||
+          params.array_buffer_allocator == allocator.get());
+    isolate_->set_array_buffer_allocator(allocator.get());
+    isolate_->set_array_buffer_allocator_shared(std::move(allocator));
+  } else {
+    CHECK_NOT_NULL(params.array_buffer_allocator);
+    isolate_->set_array_buffer_allocator(params.array_buffer_allocator);
+  }
+  isolate_->set_api_external_references(params.external_references);
+  isolate_->heap()->ConfigureHeap(params.constraints, params.cpp_heap);
+
+  InitInternal(params.snapshot_blob ? params.snapshot_blob
+                                    : Snapshot::DefaultSnapshotBlob());
+}
+
 SnapshotCreatorImpl::~SnapshotCreatorImpl() {
   if (isolate_->heap()->read_only_space()->writable()) {
     // Finalize the RO heap in order to leave the Isolate in a consistent state.
@@ -883,7 +910,6 @@ SnapshotCreatorImpl::~SnapshotCreatorImpl() {
   }
   isolate_->Exit();
   if (owns_isolate_) Isolate::Delete(isolate_);
-  delete array_buffer_allocator_;
 }
 
 void SnapshotCreatorImpl::SetDefaultContext(

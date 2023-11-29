@@ -4897,6 +4897,7 @@ size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
                          v8::CppHeap* cpp_heap) {
+  CHECK(!configured_);
   // Initialize max_semi_space_size_.
   {
     max_semi_space_size_ = DefaultMaxSemiSpaceSize();

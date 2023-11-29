@@ -31,6 +31,7 @@
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
+#include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -989,6 +990,19 @@ void TestInt32Expectations(const Int32Expectations& expectations) {
   }
 }
 
+struct SnapshotCreatorParams {
+  explicit SnapshotCreatorParams(const intptr_t* external_references = nullptr,
+                                 const StartupData* existing_blob = nullptr) {
+    allocator.reset(ArrayBuffer::Allocator::NewDefaultAllocator());
+    create_params.array_buffer_allocator = allocator.get();
+    create_params.external_references = external_references;
+    create_params.snapshot_blob = existing_blob;
+  }
+
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
+  v8::Isolate::CreateParams create_params;
+};
+
 void TypedArrayTestHelper(
     const char* code, const Int32Expectations& expectations,
     const char* code_to_run_after_restore = nullptr,
@@ -999,7 +1013,8 @@ void TypedArrayTestHelper(
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -1170,7 +1185,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -1240,7 +1256,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -1300,7 +1317,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -1579,7 +1597,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
 
 namespace {
 v8::StartupData CreateCustomSnapshotWithKeep() {
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3077,7 +3096,8 @@ UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -3103,7 +3123,8 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -3231,7 +3252,8 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator(original_external_references);
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -3327,7 +3349,8 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator(original_external_references);
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -3368,7 +3391,8 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
 
 namespace {
 v8::StartupData CreateSnapshotWithDefaultAndCustom() {
-  v8::SnapshotCreator creator(original_external_references);
+  SnapshotCreatorParams testing_params(original_external_references);
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3429,7 +3453,8 @@ UNINITIALIZED_TEST(SnapshotCreatorNoExternalReferencesDefault) {
 }
 
 v8::StartupData CreateCustomSnapshotWithPreparseDataAndNoOuterScope() {
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3476,7 +3501,8 @@ UNINITIALIZED_TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
 }
 
 v8::StartupData CreateCustomSnapshotArrayJoinWithKeep() {
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3519,7 +3545,8 @@ UNINITIALIZED_TEST(SnapshotCreatorArrayJoinWithKeep) {
 }
 
 v8::StartupData CreateCustomSnapshotWithDuplicateFunctions() {
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3622,7 +3649,8 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
 UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -3655,7 +3683,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
     InternalFieldData* b1 = new InternalFieldData{20};
     InternalFieldData* c1 = new InternalFieldData{30};
 
-    v8::SnapshotCreator creator(original_external_references);
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -3842,7 +3871,8 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   }
 
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     v8::Eternal<v8::Value> eternal_number;
     v8::Persistent<v8::Value> persistent_number_1;
@@ -3992,7 +4022,8 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
     isolate->Dispose();
   }
   {
-    SnapshotCreator creator(nullptr, &blob);
+    SnapshotCreatorParams testing_params(nullptr, &blob);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       // Adding data to a snapshot replaces the list of existing data.
@@ -4055,7 +4086,8 @@ TEST(SnapshotCreatorUnknownHandles) {
   v8::StartupData blob;
 
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     v8::Eternal<v8::Value> eternal_number;
     v8::Persistent<v8::Value> persistent_number;
@@ -4139,7 +4171,8 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
   v8::StartupData blob;
 
   {
-    v8::SnapshotCreator creator(original_external_references);
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       // Set default context. This context implicitly does *not* serialize
@@ -4334,7 +4367,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4389,7 +4423,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4462,7 +4497,8 @@ UNINITIALIZED_TEST(ClassFields) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4543,7 +4579,8 @@ UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4599,7 +4636,8 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4650,7 +4688,8 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4711,7 +4750,8 @@ UNINITIALIZED_TEST(ClassPrivateMethods) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4785,7 +4825,8 @@ UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4880,7 +4921,8 @@ UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -4942,7 +4984,8 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -5063,7 +5106,8 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
   i::v8_flags.allow_natives_syntax = true;
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -5210,7 +5254,8 @@ TEST(CachedCompileFunctionRespectsEager) {
 
 UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
   DisableAlwaysOpt();
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   {
     v8::HandleScope handle_scope(isolate);
@@ -5234,7 +5279,8 @@ UNINITIALIZED_TEST(SnapshotCreatorDontDeferByteArrayForTypedArray) {
   DisableAlwaysOpt();
   v8::StartupData blob;
   {
-    v8::SnapshotCreator creator;
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       v8::HandleScope handle_scope(isolate);
@@ -5262,7 +5308,8 @@ UNINITIALIZED_TEST(SnapshotCreatorDontDeferByteArrayForTypedArray) {
     CHECK(blob.raw_size > 0 && blob.data != nullptr);
   }
   {
-    SnapshotCreator creator(nullptr, &blob);
+    SnapshotCreatorParams testing_params(nullptr, &blob);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     v8::HandleScope scope(isolate);
     USE(v8::Context::New(isolate));
@@ -5292,7 +5339,8 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
   DisableAlwaysOpt();
   DisableLazySourcePositionScope lazy_scope;
 
-  v8::SnapshotCreator creator;
+  SnapshotCreatorParams testing_params;
+  v8::SnapshotCreator creator(testing_params.create_params);
   v8::Isolate* isolate = creator.GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
   {
@@ -5401,7 +5449,8 @@ UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
   v8::StartupData blob;
 
   {
-    v8::SnapshotCreator creator(original_external_references);
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
       // Add a context to the snapshot that adds an object with an accessor to
