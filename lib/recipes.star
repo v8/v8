@@ -35,6 +35,7 @@ def define_all_recipes():
         "run_presubmit",
         "v8",
         "v8/archive",
+        "v8/auto_roll_incoming_deps",
         "v8/bazel",
         "v8/branch_monitor",
         "v8/compilator",
