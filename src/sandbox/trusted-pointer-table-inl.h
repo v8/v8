@@ -127,7 +127,12 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
 
   // Entries must never point into the sandbox, as they couldn't be trusted in
   // that case. This CHECK is a defense-in-depth mechanism to guarantee this.
-  CHECK(!GetProcessWideSandbox()->Contains(pointer));
+  // However, on some platforms we cannot (always) reserve the full address
+  // space for the sandbox. In that case, the trusted space may legitimately
+  // end up inside the sandbox address space. This is ok since these
+  // configurations are anyway considered unsafe.
+  Sandbox* sandbox = GetProcessWideSandbox();
+  CHECK(!sandbox->Contains(pointer) || sandbox->is_partially_reserved());
 }
 
 }  // namespace internal
