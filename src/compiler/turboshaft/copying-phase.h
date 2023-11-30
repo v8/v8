@@ -943,10 +943,6 @@ class GraphVisitor : public Next {
                                    MapToNewGraph(op.right()),
                                    MapToNewGraph(op.frame_state()), op.kind);
   }
-  OpIndex AssembleOutputGraphBigIntEqual(const BigIntEqualOp& op) {
-    return Asm().ReduceBigIntEqual(MapToNewGraph(op.left()),
-                                   MapToNewGraph(op.right()));
-  }
   OpIndex AssembleOutputGraphBigIntComparison(const BigIntComparisonOp& op) {
     return Asm().ReduceBigIntComparison(MapToNewGraph(op.left()),
                                         MapToNewGraph(op.right()), op.kind);

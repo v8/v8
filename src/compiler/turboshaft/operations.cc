@@ -1220,6 +1220,8 @@ std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind) {
 
 std::ostream& operator<<(std::ostream& os, BigIntComparisonOp::Kind kind) {
   switch (kind) {
+    case BigIntComparisonOp::Kind::kEqual:
+      return os << "Equal";
     case BigIntComparisonOp::Kind::kLessThan:
       return os << "LessThan";
     case BigIntComparisonOp::Kind::kLessThanOrEqual:

@@ -2871,18 +2871,17 @@ class TurboshaftAssemblerOpInterface
   BIGINT_BINOP(ShiftRightArithmetic)
 #undef BIGINT_BINOP
 
-  V<Word32> BigIntEqual(V<Tagged> left, V<Tagged> right) {
-    return ReduceIfReachableBigIntEqual(left, right);
-  }
-
-  V<Word32> BigIntComparison(V<Tagged> left, V<Tagged> right,
-                             BigIntComparisonOp::Kind kind) {
+  V<Boolean> BigIntComparison(V<Tagged> left, V<Tagged> right,
+                              BigIntComparisonOp::Kind kind) {
     return ReduceIfReachableBigIntComparison(left, right, kind);
   }
-  V<Word32> BigIntLessThan(V<Tagged> left, V<Tagged> right) {
+  V<Boolean> BigIntEqual(V<Tagged> left, V<Tagged> right) {
+    return BigIntComparison(left, right, BigIntComparisonOp::Kind::kEqual);
+  }
+  V<Boolean> BigIntLessThan(V<Tagged> left, V<Tagged> right) {
     return BigIntComparison(left, right, BigIntComparisonOp::Kind::kLessThan);
   }
-  V<Word32> BigIntLessThanOrEqual(V<Tagged> left, V<Tagged> right) {
+  V<Boolean> BigIntLessThanOrEqual(V<Tagged> left, V<Tagged> right) {
     return BigIntComparison(left, right,
                             BigIntComparisonOp::Kind::kLessThanOrEqual);
   }

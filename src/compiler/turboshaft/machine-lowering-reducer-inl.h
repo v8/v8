@@ -1761,18 +1761,16 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> REDUCE(BigIntEqual)(V<Tagged> left, V<Tagged> right) {
-    return CallBuiltinForBigIntOp(Builtin::kBigIntEqual, {left, right});
-  }
-
-  V<Word32> REDUCE(BigIntComparison)(V<Tagged> left, V<Tagged> right,
-                                     BigIntComparisonOp::Kind kind) {
-    if (kind == BigIntComparisonOp::Kind::kLessThan) {
-      return CallBuiltinForBigIntOp(Builtin::kBigIntLessThan, {left, right});
-    } else {
-      DCHECK_EQ(kind, BigIntComparisonOp::Kind::kLessThanOrEqual);
-      return CallBuiltinForBigIntOp(Builtin::kBigIntLessThanOrEqual,
-                                    {left, right});
+  V<Boolean> REDUCE(BigIntComparison)(V<Tagged> left, V<Tagged> right,
+                                      BigIntComparisonOp::Kind kind) {
+    switch (kind) {
+      case BigIntComparisonOp::Kind::kEqual:
+        return CallBuiltinForBigIntOp(Builtin::kBigIntEqual, {left, right});
+      case BigIntComparisonOp::Kind::kLessThan:
+        return CallBuiltinForBigIntOp(Builtin::kBigIntLessThan, {left, right});
+      case BigIntComparisonOp::Kind::kLessThanOrEqual:
+        return CallBuiltinForBigIntOp(Builtin::kBigIntLessThanOrEqual,
+                                      {left, right});
     }
   }
 
@@ -1805,10 +1803,10 @@ class MachineLoweringReducer : public Next {
         V<Word32> representation =
             __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
 
-        IF(__ Int32LessThanOrEqual(representation, kConsStringTag)) {
+        IF (__ Int32LessThanOrEqual(representation, kConsStringTag)) {
           {
             // if_lessthanoreq_cons
-            IF(__ Word32Equal(representation, kConsStringTag)) {
+            IF (__ Word32Equal(representation, kConsStringTag)) {
               // if_consstring
               V<String> second = __ template LoadField<String>(
                   *receiver, AccessBuilder::ForConsStringSecond());
@@ -1833,13 +1831,13 @@ class MachineLoweringReducer : public Next {
         ELSE {
           // if_greaterthan_cons
           {
-            IF(__ Word32Equal(representation, kThinStringTag)) {
+            IF (__ Word32Equal(representation, kThinStringTag)) {
               // if_thinstring
               receiver = __ template LoadField<String>(
                   *receiver, AccessBuilder::ForThinStringActual());
               GOTO(loop);
             }
-            ELSE_IF(__ Word32Equal(representation, kExternalStringTag)) {
+            ELSE_IF (__ Word32Equal(representation, kExternalStringTag)) {
               // if_externalstring
               // We need to bailout to the runtime for uncached external
               // strings.
@@ -1851,9 +1849,9 @@ class MachineLoweringReducer : public Next {
 
               OpIndex data = __ LoadField(
                   *receiver, AccessBuilder::ForExternalStringResourceData());
-              IF(__ Word32Equal(
-                  __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
-                  kTwoByteStringTag)) {
+              IF (__ Word32Equal(
+                      __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
+                      kTwoByteStringTag)) {
                 // if_twobyte
                 constexpr uint8_t twobyte_size_log2 = 1;
                 V<Word32> value = __ Load(
@@ -1883,7 +1881,9 @@ class MachineLoweringReducer : public Next {
                   *position, __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
               GOTO(loop);
             }
-            ELSE { GOTO(runtime); }
+            ELSE {
+              GOTO(runtime);
+            }
             END_IF
           }
         }

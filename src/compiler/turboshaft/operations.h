@@ -170,7 +170,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ArgumentsLength)                            \
   V(BigIntBinop)                                \
   V(BigIntComparison)                           \
-  V(BigIntEqual)                                \
   V(BigIntUnary)                                \
   V(CheckedClosure)                             \
   V(CheckEqualsInternalizedString)              \
@@ -4583,34 +4582,9 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
 };
 std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind);
 
-struct BigIntEqualOp : FixedArityOperationT<2, BigIntEqualOp> {
-  static constexpr OpEffects effects =
-      OpEffects()
-          // We rely on the inputs having BigInt type.
-          .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::Tagged()>();
-  }
-
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
-
-  BigIntEqualOp(OpIndex left, OpIndex right) : Base(left, right) {}
-
-  void Validate(const Graph& graph) const {
-  }
-
-  auto options() const { return std::tuple{}; }
-};
-
 struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
   enum class Kind : uint8_t {
+    kEqual,
     kLessThan,
     kLessThanOrEqual,
   };
@@ -4629,6 +4603,8 @@ struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
                           MaybeRegisterRepresentation::Tagged()>();
   }
+
+  static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
 
   OpIndex left() const { return Base::input(0); }
   OpIndex right() const { return Base::input(1); }
