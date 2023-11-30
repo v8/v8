@@ -66,6 +66,9 @@ v8_builder(
             "subject": "[test262] Roll test262",
             "roll_test262": True,
             "regular_deps_roller": False,
+            "reviewers": [
+                "syg@chromium.com",
+            ],
         },
     },
 )
