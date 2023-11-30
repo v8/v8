@@ -46,6 +46,53 @@ static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* allocator,
 
 using SpacesTest = TestWithIsolate;
 
+TEST_F(SpacesTest, CompactionSpaceMerge) {
+  Heap* heap = i_isolate()->heap();
+  OldSpace* old_space = heap->old_space();
+  EXPECT_TRUE(old_space != nullptr);
+
+  heap->SetGCState(Heap::MARK_COMPACT);
+
+  CompactionSpace* compaction_space =
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
+                          CompactionSpaceKind::kCompactionSpaceForMarkCompact);
+  MainAllocator allocator(heap, compaction_space, MainAllocator::kInGC);
+  EXPECT_TRUE(compaction_space != nullptr);
+
+  for (Page* p : *old_space) {
+    // Unlink free lists from the main space to avoid reusing the memory for
+    // compaction spaces.
+    old_space->UnlinkFreeListCategories(p);
+  }
+
+  // Cannot loop until "Available()" since we initially have 0 bytes available
+  // and would thus neither grow, nor be able to allocate an object.
+  const int kNumObjects = 10;
+  const int kNumObjectsPerPage =
+      compaction_space->AreaSize() / kMaxRegularHeapObjectSize;
+  const int kExpectedPages =
+      (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
+  for (int i = 0; i < kNumObjects; i++) {
+    Tagged<HeapObject> object =
+        allocator
+            .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                         AllocationOrigin::kGC)
+            .ToObjectChecked();
+    heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
+  }
+  int pages_in_old_space = old_space->CountTotalPages();
+  int pages_in_compaction_space = compaction_space->CountTotalPages();
+  EXPECT_EQ(kExpectedPages, pages_in_compaction_space);
+  allocator.FreeLinearAllocationArea();
+  old_space->MergeCompactionSpace(compaction_space);
+  EXPECT_EQ(pages_in_old_space + pages_in_compaction_space,
+            old_space->CountTotalPages());
+
+  delete compaction_space;
+
+  heap->SetGCState(Heap::NOT_IN_GC);
+}
+
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   constexpr Address address1 = Page::kPageSize;
   Tagged<HeapObject> object1 =

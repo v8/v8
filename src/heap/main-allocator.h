@@ -58,6 +58,8 @@ class SemiSpaceNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   void FreeLinearAllocationArea() final;
 
  private:
+  static constexpr int kLabSizeInGC = 32 * KB;
+
   void FreeLinearAllocationAreaUnsynchronized();
 
   SemiSpaceNewSpace* const space_;
@@ -257,8 +259,6 @@ class MainAllocator {
       AllocationOrigin origin);
 
  private:
-  static constexpr size_t kLabSizeInGC = 32 * KB;
-
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult

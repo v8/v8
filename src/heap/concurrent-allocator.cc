@@ -199,6 +199,7 @@ base::Optional<std::pair<Address, size_t>>
 ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
                                                size_t max_size_in_bytes,
                                                AllocationOrigin origin) {
+  DCHECK(!space_->is_compaction_space());
   DCHECK(space_->identity() == OLD_SPACE || space_->identity() == CODE_SPACE ||
          space_->identity() == SHARED_SPACE ||
          space_->identity() == TRUSTED_SPACE);
