@@ -726,7 +726,15 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
 
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
     IsolateForSandbox isolate) const {
-  Tagged<Object> data = GetData(isolate);
+#ifdef V8_ENABLE_SANDBOX
+  // When the sandbox is enabled, the bytecode array must be loaded via the
+  // trusted pointer field. Loading it from the (tagged) function_data field
+  // would not be safe.
+  Tagged<Object> data = ReadTrustedPointerField<kUnknownIndirectPointerTag>(
+      kTrustedFunctionDataOffset, isolate);
+#else
+  Tagged<Object> data = function_data(kAcquireLoad);
+#endif  // V8_ENABLE_SANDBOX
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     data = baseline_code->bytecode_or_interpreter_data(isolate);
