@@ -326,6 +326,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void StreamingCompilationFailed(size_t prefix_hash);
 
   void FreeNativeModule(NativeModule*);
+  void ClearWeakScriptHandle(Isolate* isolate,
+                             std::unique_ptr<Address*> location);
 
   // Sample the code size of the given {NativeModule} in all isolates that have
   // access to it. Call this after top-tier compilation finished.

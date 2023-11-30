@@ -132,9 +132,32 @@ class WasmGCForegroundTask : public CancelableTask {
   Isolate* isolate_;
 };
 
+class ClearWeakScriptHandleTask : public CancelableTask {
+ public:
+  explicit ClearWeakScriptHandleTask(Isolate* isolate,
+                                     std::unique_ptr<Address*> location)
+      : CancelableTask(isolate->cancelable_task_manager()),
+        location_(std::move(location)) {}
+
+  // We don't override the destructor, because there is nothing to do:
+  // if the task is deleted before it was run, then everything is shutting
+  // down anyway, so destroying the GlobalHandle is no longer relevant (and
+  // it might well be too late to do that safely).
+
+  void RunInternal() override {
+    Address** location = location_.get();
+    if (location) GlobalHandles::Destroy(*location);
+    location_.reset();
+  }
+
+ private:
+  std::unique_ptr<Address*> location_;
+};
+
 class WeakScriptHandle {
  public:
-  explicit WeakScriptHandle(Handle<Script> script) : script_id_(script->id()) {
+  WeakScriptHandle(Handle<Script> script, Isolate* isolate)
+      : script_id_(script->id()), isolate_(isolate) {
     DCHECK(IsString(script->name()) || IsUndefined(script->name()));
     if (IsString(script->name())) {
       source_url_ = String::cast(script->name())->ToCString();
@@ -145,19 +168,27 @@ class WeakScriptHandle {
     GlobalHandles::MakeWeak(location_.get());
   }
 
-  // Usually the destructor of this class is called after the weak callback,
-  // because the Script keeps the NativeModule alive; but for asm.js modules
-  // (and when the NativeModule is freed during isolate shutdown) this isn't
-  // the case.
   ~WeakScriptHandle() {
-    Address** location = location_.get();
-    if (location) GlobalHandles::Destroy(*location);
-    // We could reset {location_}, but this is the destructor anyway.
+    // Usually the destructor of this class is called after the weak callback,
+    // because the Script keeps the NativeModule alive. In that case,
+    // {location_} is already cleared, and there is nothing to do.
+    if (location_.get() == nullptr || *location_.get() == nullptr) return;
+    // For asm.js modules, the Script usually outlives the NativeModule.
+    // We must destroy the GlobalHandle before freeing the memory that's
+    // backing {location_}, so that when the Script does die eventually, there
+    // is no lingering weak GlobalHandle that would try to clear {location_}.
+    // We can't do that from arbitrary threads, so we must post a task to the
+    // main thread.
+    GetWasmEngine()->ClearWeakScriptHandle(isolate_, std::move(location_));
   }
 
   WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
 
   Handle<Script> handle() const { return Handle<Script>(*location_); }
+
+  // Called by ~IsolateInfo. When the Isolate is shutting down, cleaning
+  // up properly is both no longer necessary and no longer safe to do.
+  void Clear() { location_.reset(); }
 
   int script_id() const { return script_id_; }
 
@@ -180,6 +211,9 @@ class WeakScriptHandle {
   // collected in the meantime.
   // TODO(chromium:1132260): Revisit this for huge URLs.
   std::shared_ptr<const char[]> source_url_;
+
+  // The Isolate that the handled script belongs to.
+  Isolate* isolate_;
 };
 
 // If PGO data is being collected, keep all native modules alive, so repeated
@@ -361,13 +395,22 @@ struct WasmEngine::IsolateInfo {
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
   }
 
-#ifdef DEBUG
   ~IsolateInfo() {
     // Before destructing, the {WasmEngine} must have cleared outstanding code
     // to log.
     DCHECK_EQ(0, code_to_log.size());
+
+    // We need the {~WeakScriptHandle} destructor in {scripts} to behave
+    // differently depending on whether the Isolate is in the process of
+    // being destroyed. That's the only situation where we would run the
+    // {~IsolateInfo} destructor, and in that case, we can no longer post
+    // the task that would destroy the {WeakScriptHandle}'s {GlobalHandle};
+    // whereas if only individual entries of {scripts} get deleted, then
+    // we can and should post such tasks.
+    for (auto& [native_module, script_handle] : scripts) {
+      script_handle.Clear();
+    }
   }
-#endif
 
   // All native modules that are being used by this Isolate.
   std::unordered_set<NativeModule*> native_modules;
@@ -407,6 +450,17 @@ struct WasmEngine::IsolateInfo {
   // everywhere.
   std::shared_ptr<OperationsBarrier> wrapper_compilation_barrier_;
 };
+
+void WasmEngine::ClearWeakScriptHandle(Isolate* isolate,
+                                       std::unique_ptr<Address*> location) {
+  // This function is designed for one targeted use case, which always
+  // acquires a lock on {mutex_} before calling here.
+  mutex_.AssertHeld();
+  IsolateInfo* isolate_info = isolates_[isolate].get();
+  std::shared_ptr<TaskRunner> runner = isolate_info->foreground_task_runner;
+  runner->PostTask(std::make_unique<ClearWeakScriptHandleTask>(
+      isolate, std::move(location)));
+}
 
 struct WasmEngine::NativeModuleInfo {
   explicit NativeModuleInfo(std::weak_ptr<NativeModule> native_module)
@@ -519,7 +573,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     // If the same asm.js module is instantiated repeatedly, then we
     // deduplicate the NativeModule, so the script exists already.
     if (scripts.count(native_module.get()) == 0) {
-      scripts.emplace(native_module.get(), WeakScriptHandle(script));
+      scripts.emplace(native_module.get(), WeakScriptHandle(script, isolate));
     }
   }
 
@@ -1647,7 +1701,7 @@ Handle<Script> WasmEngine::GetOrCreateScript(
     DCHECK_EQ(1, isolates_.count(isolate));
     auto& scripts = isolates_[isolate]->scripts;
     DCHECK_EQ(0, scripts.count(native_module.get()));
-    scripts.emplace(native_module.get(), WeakScriptHandle(script));
+    scripts.emplace(native_module.get(), WeakScriptHandle(script, isolate));
     return script;
   }
 }
