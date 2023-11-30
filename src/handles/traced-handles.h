@@ -42,7 +42,8 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   TracedHandles& operator=(const TracedHandles&) = delete;
 
   FullObjectSlot Create(Address value, Address* slot,
-                        GlobalHandleStoreMode store_mode);
+                        TracedReferenceStoreMode store_mode,
+                        TracedReferenceHandling reference_handling);
 
   using NodeBounds = std::vector<std::pair<const void*, const void*>>;
   const NodeBounds GetNodeBounds() const;

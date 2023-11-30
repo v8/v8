@@ -15,6 +15,7 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/base-export.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -424,10 +425,14 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
   }
 
   void SetWrapperClassId(uint16_t class_id) {
+    START_ALLOW_USE_DEPRECATED()
     v8_object_.SetWrapperClassId(class_id);
+    END_ALLOW_USE_DEPRECATED()
   }
 
+  START_ALLOW_USE_DEPRECATED()
   uint16_t WrapperClassId() const { return v8_object_.WrapperClassId(); }
+  END_ALLOW_USE_DEPRECATED()
 
   TracedReference<v8::Object>& wrapper() { return v8_object_; }
 

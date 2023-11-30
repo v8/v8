@@ -9,6 +9,9 @@
 #include "v8config.h"          // NOLINT(build/include_directory)
 
 namespace v8 {
+namespace internal {
+class TracedHandlesImpl;
+}  // namespace internal
 
 class Isolate;
 class Value;
@@ -18,7 +21,16 @@ class Value;
  */
 class V8_EXPORT EmbedderRootsHandler {
  public:
+  enum class RootHandling {
+    kQueryEmbedderForNonDroppableReferences,
+    kDontQueryEmbedderForAnyReference,
+  };
+
   virtual ~EmbedderRootsHandler() = default;
+
+  EmbedderRootsHandler() = default;
+  explicit EmbedderRootsHandler(RootHandling default_traced_reference_handling)
+      : default_traced_reference_handling_(default_traced_reference_handling) {}
 
   /**
    * Returns true if the |TracedReference| handle should be considered as root
@@ -59,6 +71,12 @@ class V8_EXPORT EmbedderRootsHandler {
     ResetRoot(handle);
     return true;
   }
+
+ private:
+  const RootHandling default_traced_reference_handling_ =
+      RootHandling::kQueryEmbedderForNonDroppableReferences;
+
+  friend class internal::TracedHandlesImpl;
 };
 
 }  // namespace v8

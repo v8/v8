@@ -7,6 +7,7 @@
 #include <iterator>
 #include <limits>
 
+#include "include/v8-embedder-heap.h"
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
 #include "src/base/doubly-threaded-list.h"
@@ -49,6 +50,9 @@ class TracedNode final {
 
   bool is_weak() const { return IsWeak::decode(flags_); }
   void set_weak(bool v) { flags_ = IsWeak::update(flags_, v); }
+
+  bool is_droppable() const { return IsDroppable::decode(flags_); }
+  void set_droppable(bool v) { flags_ = IsDroppable::update(flags_, v); }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   bool is_in_use() const {
@@ -116,16 +120,18 @@ class TracedNode final {
   FullObjectSlot location() { return FullObjectSlot(&object_); }
 
   FullObjectSlot Publish(Tagged<Object> object, bool needs_young_bit_update,
-                         bool needs_black_allocation, bool has_old_host);
+                         bool needs_black_allocation, bool has_old_host,
+                         bool is_droppable);
   void Release();
 
  private:
   using IsInUse = base::BitField8<bool, 0, 1>;
   using IsInYoungList = IsInUse::Next<bool, 1>;
   using IsWeak = IsInYoungList::Next<bool, 1>;
+  using IsDroppable = IsWeak::Next<bool, 1>;
   // The markbit is the exception as it can be set from the main and marker
   // threads at the same time.
-  using Markbit = IsWeak::Next<bool, 1>;
+  using Markbit = IsDroppable::Next<bool, 1>;
   using HasOldHost = Markbit::Next<bool, 1>;
 
   Address object_ = kNullAddress;
@@ -150,16 +156,18 @@ TracedNode::TracedNode(IndexType index, IndexType next_free_index)
   DCHECK(!is_weak());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!is_droppable());
 }
 
 // Publishes all internal state to be consumed by other threads.
 FullObjectSlot TracedNode::Publish(Tagged<Object> object,
                                    bool needs_young_bit_update,
                                    bool needs_black_allocation,
-                                   bool has_old_host) {
+                                   bool has_old_host, bool is_droppable_value) {
   DCHECK(!is_in_use());
   DCHECK(!is_weak());
   DCHECK(!markbit());
+  DCHECK(!is_droppable());
   set_class_id(0);
   if (needs_young_bit_update) {
     set_is_in_young_list(true);
@@ -170,6 +178,9 @@ FullObjectSlot TracedNode::Publish(Tagged<Object> object,
   if (has_old_host) {
     DCHECK(is_in_young_list());
     set_has_old_host(true);
+  }
+  if (is_droppable_value) {
+    set_droppable(true);
   }
   set_is_in_use(true);
   reinterpret_cast<std::atomic<Address>*>(&object_)->store(
@@ -186,6 +197,7 @@ void TracedNode::Release() {
   DCHECK(!is_weak());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!is_droppable());
   set_raw_object(kGlobalHandleZapValue);
 }
 
@@ -412,7 +424,8 @@ class TracedHandlesImpl final {
   ~TracedHandlesImpl();
 
   FullObjectSlot Create(Address value, Address* slot,
-                        GlobalHandleStoreMode store_mode);
+                        TracedReferenceStoreMode store_mode,
+                        TracedReferenceHandling reference_handling);
   void Destroy(TracedNodeBlock& node_block, TracedNode& node);
   void Copy(const TracedNode& from_node, Address** to);
   void Move(TracedNode& from_node, Address** from, Address** to);
@@ -453,7 +466,7 @@ class TracedHandlesImpl final {
 
   bool NeedsToBeRemembered(Tagged<Object> value, TracedNode* node,
                            Address* slot,
-                           GlobalHandleStoreMode store_mode) const;
+                           TracedReferenceStoreMode store_mode) const;
 
   TracedNodeBlock::OverallList blocks_;
   size_t num_blocks_ = 0;
@@ -554,14 +567,14 @@ bool NeedsTrackingInYoungNodes(Tagged<Object> object, TracedNode* node) {
 
 bool TracedHandlesImpl::NeedsToBeRemembered(
     Tagged<Object> object, TracedNode* node, Address* slot,
-    GlobalHandleStoreMode store_mode) const {
+    TracedReferenceStoreMode store_mode) const {
   DCHECK(!node->has_old_host());
 
   auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_);
   if (!cpp_heap) {
     return false;
   }
-  if (store_mode == GlobalHandleStoreMode::kInitializingStore) {
+  if (store_mode == TracedReferenceStoreMode::kInitializingStore) {
     // Don't record initializing stores.
     return false;
   }
@@ -575,17 +588,21 @@ bool TracedHandlesImpl::NeedsToBeRemembered(
   return IsCppGCHostOld(*cpp_heap, reinterpret_cast<Address>(slot));
 }
 
-FullObjectSlot TracedHandlesImpl::Create(Address value, Address* slot,
-                                         GlobalHandleStoreMode store_mode) {
+FullObjectSlot TracedHandlesImpl::Create(
+    Address value, Address* slot, TracedReferenceStoreMode store_mode,
+    TracedReferenceHandling reference_handling) {
   DCHECK_NOT_NULL(slot);
   Tagged<Object> object(value);
   auto* node = AllocateNode();
   const bool needs_young_bit_update = NeedsTrackingInYoungNodes(object, node);
   const bool has_old_host = NeedsToBeRemembered(object, node, slot, store_mode);
   const bool needs_black_allocation =
-      is_marking_ && store_mode != GlobalHandleStoreMode::kInitializingStore;
-  auto result_slot = node->Publish(object, needs_young_bit_update,
-                                   needs_black_allocation, has_old_host);
+      is_marking_ && store_mode != TracedReferenceStoreMode::kInitializingStore;
+  const bool is_droppable =
+      reference_handling == TracedReferenceHandling::kDroppable;
+  auto result_slot =
+      node->Publish(object, needs_young_bit_update, needs_black_allocation,
+                    has_old_host, is_droppable);
   // Write barrier and young node tracking may be reordered, so move them below
   // `Publish()`.
   if (needs_young_bit_update) {
@@ -639,7 +656,8 @@ void TracedHandlesImpl::Copy(const TracedNode& from_node, Address** to) {
   DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
   FullObjectSlot o =
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
-             GlobalHandleStoreMode::kAssigningStore);
+             TracedReferenceStoreMode::kAssigningStore,
+             TracedReferenceHandling::kDefault);
   SetSlotThreadSafe(to, o.location());
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -808,15 +826,20 @@ void TracedHandlesImpl::ResetYoungDeadNodes(
 }
 
 namespace {
-void ComputeWeaknessForYoungObject(EmbedderRootsHandler* handler,
-                                   TracedNode* node) {
+void ComputeWeaknessForYoungObject(
+    EmbedderRootsHandler* handler, TracedNode* node,
+    bool should_call_is_root_for_default_traced_reference) {
   DCHECK(!node->is_weak());
   bool is_unmodified_api_object =
       JSObject::IsUnmodifiedApiObject(node->location());
   if (is_unmodified_api_object) {
     FullObjectSlot slot = node->location();
-    node->set_weak(!handler->IsRoot(
-        *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot)));
+    const bool is_weak =
+        node->is_droppable() ||
+        (should_call_is_root_for_default_traced_reference &&
+         !handler->IsRoot(
+             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot)));
+    node->set_weak(is_weak);
   }
 }
 }  // namespace
@@ -832,9 +855,14 @@ void TracedHandlesImpl::ComputeWeaknessForYoungObjects() {
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
+  const bool should_call_is_root_for_default_traced_reference =
+      handler->default_traced_reference_handling_ ==
+      EmbedderRootsHandler::RootHandling::
+          kQueryEmbedderForNonDroppableReferences;
   for (TracedNode* node : young_nodes_) {
     if (!node->is_in_use()) continue;
-    ComputeWeaknessForYoungObject(handler, node);
+    ComputeWeaknessForYoungObject(
+        handler, node, should_call_is_root_for_default_traced_reference);
   }
 }
 
@@ -947,9 +975,10 @@ TracedHandles::TracedHandles(Isolate* isolate)
 
 TracedHandles::~TracedHandles() = default;
 
-FullObjectSlot TracedHandles::Create(Address value, Address* slot,
-                                     GlobalHandleStoreMode store_mode) {
-  return impl_->Create(value, slot, store_mode);
+FullObjectSlot TracedHandles::Create(
+    Address value, Address* slot, TracedReferenceStoreMode store_mode,
+    TracedReferenceHandling reference_handling) {
+  return impl_->Create(value, slot, store_mode, reference_handling);
 }
 
 void TracedHandles::SetIsMarking(bool value) { impl_->SetIsMarking(value); }

@@ -7,6 +7,8 @@
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 
+START_ALLOW_USE_DEPRECATED()
+
 namespace v8::internal {
 
 namespace {
@@ -285,3 +287,5 @@ TEST_F(
 }
 
 }  // namespace v8::internal
+
+END_ALLOW_USE_DEPRECATED()

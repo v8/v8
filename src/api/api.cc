@@ -726,11 +726,12 @@ void VerifyHandleIsNonEmpty(bool is_empty) {
                   "SetNonEmpty() called with empty handle.");
 }
 
-i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
-                                     internal::Address* slot,
-                                     GlobalHandleStoreMode store_mode) {
+i::Address* GlobalizeTracedReference(
+    i::Isolate* i_isolate, i::Address value, internal::Address* slot,
+    TracedReferenceStoreMode store_mode,
+    TracedReferenceHandling reference_handling) {
   return i_isolate->traced_handles()
-      ->Create(value, slot, store_mode)
+      ->Create(value, slot, store_mode, reference_handling)
       .location();
 }
 

@@ -490,7 +490,9 @@ class CppGraphBuilderImpl final {
       // that the snapshot generator  can merge the nodes appropriately.
       // Even with a set class id, do not set up a wrapper node when the edge
       // has a specific name.
+      START_ALLOW_USE_DEPRECATED()
       if (!ref.WrapperClassId() || !edge_name.empty()) return;
+      END_ALLOW_USE_DEPRECATED()
 
       void* back_reference_object = ExtractEmbedderDataBackref(
           reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
@@ -516,8 +518,10 @@ class CppGraphBuilderImpl final {
         auto* profiler =
             reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
         if (profiler->HasGetDetachednessCallback()) {
+          START_ALLOW_USE_DEPRECATED()
           back_state.get_node()->SetDetachedness(
               profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
+          END_ALLOW_USE_DEPRECATED()
         }
       }
     }
