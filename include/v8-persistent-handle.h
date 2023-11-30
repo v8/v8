@@ -257,7 +257,9 @@ struct V8_DEPRECATED("Use v8::Global instead") CopyablePersistentTraits {
  * Copy, assignment and destructor behavior is controlled by the traits
  * class M.
  *
- * Note: Persistent class hierarchy is subject to future changes.
+ * CAVEAT: Persistent objects do not have proper destruction behavior by default
+ * and as such will leak the object without explicit clear. Consider using
+ * `v8::Global` instead which has proper destruction and move semantics.
  */
 template <class T, class M>
 class Persistent : public PersistentBase<T> {
