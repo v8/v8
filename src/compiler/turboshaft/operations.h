@@ -2435,6 +2435,8 @@ struct LoadOp : OperationT<LoadOp> {
     return base::VectorOf(&result_rep, 1);
   }
 
+  MachineType machine_type() const;
+
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     base::Vector<const MaybeRegisterRepresentation> result =

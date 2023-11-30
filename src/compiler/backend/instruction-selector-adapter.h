@@ -804,16 +804,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
     LoadRepresentation loaded_rep() const {
       DCHECK_NOT_NULL(load_);
-      MachineType loaded_rep = load_->loaded_rep.ToMachineType();
-      if (load_->result_rep ==
-          turboshaft::RegisterRepresentation::Compressed()) {
-        if (loaded_rep == MachineType::AnyTagged()) {
-          return MachineType::AnyCompressed();
-        } else if (loaded_rep == MachineType::TaggedPointer()) {
-          return MachineType::CompressedPointer();
-        }
-      }
-      return loaded_rep;
+      return load_->machine_type();
     }
     bool is_protected(bool* traps_on_null) const {
       if (load_) {

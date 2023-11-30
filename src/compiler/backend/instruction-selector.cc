@@ -4927,8 +4927,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     }
     case Opcode::kLoad: {
       const LoadOp& load = op.Cast<LoadOp>();
-      MachineType loaded_type = load.loaded_rep.ToMachineType();
-      MarkAsRepresentation(load.result_rep, node);
+      MachineType loaded_type = load.machine_type();
+      MarkAsRepresentation(loaded_type.representation(), node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
         if (loaded_type.representation() == MachineRepresentation::kWord8 ||

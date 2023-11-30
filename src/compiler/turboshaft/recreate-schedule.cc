@@ -1069,14 +1069,7 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
     index = IntPtrConstant(offset);
   }
 
-  MachineType loaded_rep = op.loaded_rep.ToMachineType();
-  if (op.result_rep == RegisterRepresentation::Compressed()) {
-    if (loaded_rep == MachineType::AnyTagged()) {
-      loaded_rep = MachineType::AnyCompressed();
-    } else if (loaded_rep == MachineType::TaggedPointer()) {
-      loaded_rep = MachineType::CompressedPointer();
-    }
-  }
+  MachineType loaded_rep = op.machine_type();
   const Operator* o;
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
