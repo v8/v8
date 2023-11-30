@@ -734,26 +734,16 @@ static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ j(not_equal, is_bytecode, Label::kNear);
 }
 
-static void GetSharedFunctionInfoBytecodeOrBaseline(
-    MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
-    Label* is_baseline, Label* is_unavailable) {
+static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
+                                                    Register sfi,
+                                                    Register bytecode,
+                                                    Register scratch1,
+                                                    Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
 
   Register data = bytecode;
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  __ movl(scratch1,
-          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ testl(scratch1, scratch1);
-  __ j(zero, is_unavailable);
-  __ ResolveIndirectPointerHandle(data, scratch1, kUnknownIndirectPointerTag);
-#else
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
+  GetSharedFunctionInfoData(masm, data, sfi, scratch1);
 
   if (V8_JITLESS_BOOL) {
     __ IsObjectType(data, INTERPRETER_DATA_TYPE, scratch1);
@@ -768,8 +758,6 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       kBytecodeArrayIndirectPointerTag, scratch1);
 
   __ bind(&done);
-  __ IsObjectType(bytecode, BYTECODE_ARRAY_TYPE, scratch1);
-  __ j(not_equal, is_unavailable);
 }
 
 // static
@@ -859,15 +847,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
-    Label is_baseline, is_unavailable, ok;
+    Label is_baseline, ok;
     __ LoadTaggedField(
         rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     GetSharedFunctionInfoBytecodeOrBaseline(masm, rcx, rcx, kScratchRegister,
-                                            &is_baseline, &is_unavailable);
+                                            &is_baseline);
+    __ IsObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
+    __ Assert(equal, AbortReason::kMissingBytecodeArray);
     __ jmp(&ok);
-
-    __ bind(&is_unavailable);
-    __ Abort(AbortReason::kMissingBytecodeArray);
 
     __ bind(&is_baseline);
     __ IsObjectType(rcx, CODE_TYPE, rcx);
@@ -1091,12 +1078,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(
       FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, shared_function_info);
 
+  Label is_baseline;
+  GetSharedFunctionInfoBytecodeOrBaseline(masm, shared_function_info,
+                                          kInterpreterBytecodeArrayRegister,
+                                          kScratchRegister, &is_baseline);
+
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
-  Label is_baseline, compile_lazy;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, shared_function_info, kInterpreterBytecodeArrayRegister,
-      kScratchRegister, &is_baseline, &compile_lazy);
+  Label compile_lazy;
+  __ IsObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
+                  kScratchRegister);
+  __ j(not_equal, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = rbx;
