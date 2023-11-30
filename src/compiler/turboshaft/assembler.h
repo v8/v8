@@ -2704,9 +2704,10 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    std::vector<OpIndex> temp(inputs.size());
-    for (std::size_t i = 0; i < inputs.size(); ++i) temp[i] = inputs[i];
-    return Phi(base::VectorOf(temp), V<T>::rep);
+    // Downcast from typed `V<T>` wrapper to `OpIndex`.
+    OpIndex* inputs_begin = inputs.data();
+    static_assert(sizeof(OpIndex) == sizeof(V<T>));
+    return Phi(base::VectorOf(inputs_begin, inputs.length()), V<T>::rep);
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep) {
     return ReduceIfReachablePendingLoopPhi(first, rep);
