@@ -47,9 +47,11 @@ class ValueSerializerTest : public TestWithIsolate {
   ValueSerializerTest& operator=(const ValueSerializerTest&) = delete;
 
  protected:
-  ValueSerializerTest()
-      : serialization_context_(Context::New(isolate())),
-        deserialization_context_(Context::New(isolate())) {
+  ValueSerializerTest() {
+    Local<Context> serialization_context = Context::New(isolate());
+    Local<Context> deserialization_context = Context::New(isolate());
+    serialization_context_.Reset(isolate(), serialization_context);
+    deserialization_context_.Reset(isolate(), deserialization_context);
     // Create a host object type that can be tested through
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
@@ -74,24 +76,24 @@ class ValueSerializerTest : public TestWithIsolate {
               info.Holder()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
-         {serialization_context_, deserialization_context_}) {
+         {serialization_context, deserialization_context}) {
       context->Global()
           ->CreateDataProperty(
               context, StringFromUtf8("ExampleHostObject"),
               function_template->GetFunction(context).ToLocalChecked())
           .ToChecked();
     }
-    host_object_constructor_template_ = function_template;
+    host_object_constructor_template_.Reset(isolate(), function_template);
     isolate_ = reinterpret_cast<i::Isolate*>(isolate());
   }
 
   ~ValueSerializerTest() override { DCHECK(!isolate_->has_exception()); }
 
-  const Local<Context>& serialization_context() {
-    return serialization_context_;
+  Local<Context> serialization_context() {
+    return serialization_context_.Get(isolate());
   }
-  const Local<Context>& deserialization_context() {
-    return deserialization_context_;
+  Local<Context> deserialization_context() {
+    return deserialization_context_.Get(isolate());
   }
 
   // Overridden in more specific fixtures.
@@ -116,11 +118,11 @@ class ValueSerializerTest : public TestWithIsolate {
   // Variant which uses JSON.parse/stringify to check the result.
   void RoundTripJSON(const char* source) {
     Local<Value> input_value =
-        JSON::Parse(serialization_context_, StringFromUtf8(source))
+        JSON::Parse(serialization_context(), StringFromUtf8(source))
             .ToLocalChecked();
     Local<Value> result = RoundTripTest(input_value);
     ASSERT_TRUE(result->IsObject());
-    EXPECT_EQ(source, Utf8Value(JSON::Stringify(deserialization_context_,
+    EXPECT_EQ(source, Utf8Value(JSON::Stringify(deserialization_context(),
                                                 result.As<Object>())
                                     .ToLocalChecked()));
   }
@@ -253,19 +255,20 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   Local<Value> EvaluateScriptForInput(const char* utf8_source) {
-    Context::Scope scope(serialization_context_);
+    Context::Scope scope(serialization_context());
     Local<String> source = StringFromUtf8(utf8_source);
     Local<Script> script =
-        Script::Compile(serialization_context_, source).ToLocalChecked();
-    return script->Run(serialization_context_).ToLocalChecked();
+        Script::Compile(serialization_context(), source).ToLocalChecked();
+    return script->Run(serialization_context()).ToLocalChecked();
   }
 
   void ExpectScriptTrue(const char* utf8_source) {
-    Context::Scope scope(deserialization_context_);
+    Context::Scope scope(deserialization_context());
     Local<String> source = StringFromUtf8(utf8_source);
     Local<Script> script =
-        Script::Compile(deserialization_context_, source).ToLocalChecked();
-    Local<Value> value = script->Run(deserialization_context_).ToLocalChecked();
+        Script::Compile(deserialization_context(), source).ToLocalChecked();
+    Local<Value> value =
+        script->Run(deserialization_context()).ToLocalChecked();
     EXPECT_TRUE(value->BooleanValue(isolate()));
   }
 
@@ -280,7 +283,8 @@ class ValueSerializerTest : public TestWithIsolate {
 
   Local<Object> NewHostObject(Local<Context> context, int argc,
                               Local<Value> argv[]) {
-    return host_object_constructor_template_->GetFunction(context)
+    return host_object_constructor_template_.Get(isolate())
+        ->GetFunction(context)
         .ToLocalChecked()
         ->NewInstance(context, argc, argv)
         .ToLocalChecked();
@@ -294,9 +298,9 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
  private:
-  Local<Context> serialization_context_;
-  Local<Context> deserialization_context_;
-  Local<FunctionTemplate> host_object_constructor_template_;
+  Global<Context> serialization_context_;
+  Global<Context> deserialization_context_;
+  Global<FunctionTemplate> host_object_constructor_template_;
   i::Isolate* isolate_;
 };
 
@@ -2026,30 +2030,31 @@ class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
   ValueSerializerTestWithArrayBufferTransfer() {
     {
       Context::Scope scope(serialization_context());
-      input_buffer_ = ArrayBuffer::New(isolate(), 0);
+      input_buffer_.Reset(isolate(), ArrayBuffer::New(isolate(), 0));
     }
     {
       Context::Scope scope(deserialization_context());
-      output_buffer_ = ArrayBuffer::New(isolate(), kTestByteLength);
+      output_buffer_.Reset(isolate(),
+                           ArrayBuffer::New(isolate(), kTestByteLength));
       const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xFF};
-      memcpy(output_buffer_->GetBackingStore()->Data(), data, kTestByteLength);
+      memcpy(output_buffer()->GetBackingStore()->Data(), data, kTestByteLength);
     }
   }
 
-  const Local<ArrayBuffer>& input_buffer() { return input_buffer_; }
-  const Local<ArrayBuffer>& output_buffer() { return output_buffer_; }
+  Local<ArrayBuffer> input_buffer() { return input_buffer_.Get(isolate()); }
+  Local<ArrayBuffer> output_buffer() { return output_buffer_.Get(isolate()); }
 
   void BeforeEncode(ValueSerializer* serializer) override {
-    serializer->TransferArrayBuffer(0, input_buffer_);
+    serializer->TransferArrayBuffer(0, input_buffer());
   }
 
   void BeforeDecode(ValueDeserializer* deserializer) override {
-    deserializer->TransferArrayBuffer(0, output_buffer_);
+    deserializer->TransferArrayBuffer(0, output_buffer());
   }
 
  private:
-  Local<ArrayBuffer> input_buffer_;
-  Local<ArrayBuffer> output_buffer_;
+  Global<ArrayBuffer> input_buffer_;
+  Global<ArrayBuffer> output_buffer_;
 };
 
 TEST_F(ValueSerializerTestWithArrayBufferTransfer,
@@ -2610,18 +2615,24 @@ class ValueSerializerTestWithSharedArrayBufferClone
     data_ = data;
     {
       Context::Scope scope(serialization_context());
-      input_buffer_ =
-          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
+      input_buffer_.Reset(
+          isolate(),
+          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory));
     }
     {
       Context::Scope scope(deserialization_context());
-      output_buffer_ =
-          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
+      output_buffer_.Reset(
+          isolate(),
+          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory));
     }
   }
 
-  const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
-  const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
+  Local<SharedArrayBuffer> input_buffer() {
+    return input_buffer_.Get(isolate());
+  }
+  Local<SharedArrayBuffer> output_buffer() {
+    return output_buffer_.Get(isolate());
+  }
 
   Local<SharedArrayBuffer> NewSharedArrayBuffer(void* data, size_t byte_length,
                                                 bool is_wasm_memory) {
@@ -2665,8 +2676,6 @@ class ValueSerializerTestWithSharedArrayBufferClone
     MOCK_METHOD(Maybe<uint32_t>, GetSharedArrayBufferId,
                 (Isolate*, Local<SharedArrayBuffer> shared_array_buffer),
                 (override));
-    MOCK_METHOD(MaybeLocal<SharedArrayBuffer>, GetSharedArrayBufferFromId,
-                (Isolate*, uint32_t id));
     void ThrowDataCloneError(Local<String> message) override {
       test_->isolate()->ThrowException(Exception::Error(message));
     }
@@ -2700,8 +2709,8 @@ class ValueSerializerTestWithSharedArrayBufferClone
 
  private:
   std::vector<uint8_t> data_;
-  Local<SharedArrayBuffer> input_buffer_;
-  Local<SharedArrayBuffer> output_buffer_;
+  Global<SharedArrayBuffer> input_buffer_;
+  Global<SharedArrayBuffer> output_buffer_;
 };
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,

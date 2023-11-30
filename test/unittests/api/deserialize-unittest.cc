@@ -29,11 +29,11 @@ class DeserializeTest : public TestWithPlatform {
       CHECK_NULL(test->isolate_);
       CHECK(test->context_.IsEmpty());
       test->isolate_ = isolate_wrapper_.isolate();
-      test->context_ = context_;
+      test->context_.Reset(test->isolate_, context_);
     }
     ~IsolateAndContextScope() {
       test_->isolate_ = nullptr;
-      test_->context_ = {};
+      test_->context_.Reset();
     }
 
    private:
@@ -59,11 +59,14 @@ class DeserializeTest : public TestWithPlatform {
   }
 
   Isolate* isolate() { return isolate_; }
-  v8::Local<v8::Context> context() { return context_.ToLocalChecked(); }
+  v8::Local<v8::Context> context() {
+    DCHECK(!context_.IsEmpty());
+    return context_.Get(isolate_);
+  }
 
  private:
   Isolate* isolate_ = nullptr;
-  v8::MaybeLocal<v8::Context> context_;
+  v8::Global<v8::Context> context_;
 };
 
 // Check that deserialization works.
