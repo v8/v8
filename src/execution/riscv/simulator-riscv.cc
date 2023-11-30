@@ -4831,6 +4831,9 @@ Builtin Simulator::LookUp(Address pc) {
 }
 
 void Simulator::DecodeRVIType() {
+  if (v8_flags.riscv_bitmanip) {
+    if (DecodeRVIHType()) return;
+  }
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
       set_rd(get_pc() + kInstrSize);
@@ -5467,6 +5470,20 @@ void Simulator::DecodeCBType() {
       break;
     default:
       UNSUPPORTED();
+  }
+}
+
+// (B)itmanip extension
+bool Simulator::DecodeRVIHType() {
+  switch (instr->InstructionBits() & (kITypeMask | kImm12Mask)) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
   }
 }
 

@@ -129,6 +129,7 @@ class Decoder {
   void DecodeCSType(Instruction* instr);
   void DecodeCJType(Instruction* instr);
   void DecodeCBType(Instruction* instr);
+  bool DecodeIHType(Instruction* instr);  // (B)itmanip extension
 
   void DecodeVType(Instruction* instr);
   void DecodeRvvIVV(Instruction* instr);
@@ -1416,6 +1417,9 @@ void Decoder::DecodeR4Type(Instruction* instr) {
 }
 
 void Decoder::DecodeIType(Instruction* instr) {
+  if (v8_flags.riscv_bitmanip) {
+    if (DecodeIHType()) return;
+  }
   switch (instr->InstructionBits() & kITypeMask) {
     case RO_JALR:
       if (instr->RdValue() == zero_reg.code() &&
@@ -1962,6 +1966,20 @@ void Decoder::DecodeCBType(Instruction* instr) {
       }
     default:
       UNSUPPORTED_RISCV();
+  }
+}
+
+// (B)itmanip extension
+bool Decoder::DecodeIHType(Instruction* instr) {
+  switch (instr->InstructionBits() & (kITypeMask | kImm12Mask)) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
   }
 }
 
