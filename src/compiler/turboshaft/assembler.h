@@ -2943,13 +2943,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableStringConcat(left, right);
   }
 
-  V<Boolean> StringEqual(V<String> left, V<String> right) {
-    return ReduceIfReachableStringEqual(left, right);
-  }
-
   V<Boolean> StringComparison(V<String> left, V<String> right,
                               StringComparisonOp::Kind kind) {
     return ReduceIfReachableStringComparison(left, right, kind);
+  }
+  V<Boolean> StringEqual(V<String> left, V<String> right) {
+    return StringComparison(left, right, StringComparisonOp::Kind::kEqual);
   }
   V<Boolean> StringLessThan(V<String> left, V<String> right) {
     return StringComparison(left, right, StringComparisonOp::Kind::kLessThan);

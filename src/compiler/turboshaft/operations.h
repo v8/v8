@@ -209,7 +209,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringAt)                                   \
   V(StringComparison)                           \
   V(StringConcat)                               \
-  V(StringEqual)                                \
   V(StringFromCodePointAt)                      \
   V(StringIndexOf)                              \
   V(StringLength)                               \
@@ -4892,35 +4891,9 @@ struct StringConcatOp : FixedArityOperationT<2, StringConcatOp> {
   auto options() const { return std::tuple{}; }
 };
 
-struct StringEqualOp : FixedArityOperationT<2, StringEqualOp> {
-  static constexpr OpEffects effects =
-      // String content is immutable, so the operation is pure.
-      OpEffects()
-          // We rely on the input being strings.
-          .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::Tagged()>();
-  }
-
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
-
-  StringEqualOp(OpIndex left, OpIndex right) : Base(left, right) {}
-
-  void Validate(const Graph& graph) const {
-  }
-
-  auto options() const { return std::tuple{}; }
-};
-
 struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
   enum class Kind : uint8_t {
+    kEqual,
     kLessThan,
     kLessThanOrEqual,
   };
@@ -4940,6 +4913,8 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
                           MaybeRegisterRepresentation::Tagged()>();
   }
+
+  static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
 
   OpIndex left() const { return Base::input(0); }
   OpIndex right() const { return Base::input(1); }

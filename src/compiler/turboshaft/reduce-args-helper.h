@@ -309,10 +309,6 @@ class CallWithReduceArgsHelper {
     return callback_(op.left(), op.right());
   }
 
-  OpIndex operator()(const StringEqualOp& op) {
-    return callback_(op.left(), op.right());
-  }
-
   OpIndex operator()(const StringComparisonOp& op) {
     return callback_(op.left(), op.right(), op.kind);
   }

@@ -1270,6 +1270,8 @@ std::ostream& operator<<(std::ostream& os, StringToCaseIntlOp::Kind kind) {
 
 std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind) {
   switch (kind) {
+    case StringComparisonOp::Kind::kEqual:
+      return os << "Equal";
     case StringComparisonOp::Kind::kLessThan:
       return os << "LessThan";
     case StringComparisonOp::Kind::kLessThanOrEqual:

@@ -984,10 +984,6 @@ class GraphVisitor : public Next {
     return Asm().ReduceStringConcat(MapToNewGraph(op.left()),
                                     MapToNewGraph(op.right()));
   }
-  OpIndex AssembleOutputGraphStringEqual(const StringEqualOp& op) {
-    return Asm().ReduceStringEqual(MapToNewGraph(op.left()),
-                                   MapToNewGraph(op.right()));
-  }
   OpIndex AssembleOutputGraphStringComparison(const StringComparisonOp& op) {
     return Asm().ReduceStringComparison(MapToNewGraph(op.left()),
                                         MapToNewGraph(op.right()), op.kind);

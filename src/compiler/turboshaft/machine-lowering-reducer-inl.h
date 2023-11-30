@@ -1966,27 +1966,6 @@ class MachineLoweringReducer : public Next {
     return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
   }
 
-  V<Boolean> REDUCE(StringEqual)(V<String> left, V<String> right) {
-    Label<Boolean> done(this);
-
-    GOTO_IF(__ TaggedEqual(left, right), done,
-            __ HeapConstant(factory_->true_value()));
-
-    V<Word32> left_length =
-        __ template LoadField<Word32>(left, AccessBuilder::ForStringLength());
-    V<Word32> right_length =
-        __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
-    IF(__ Word32Equal(left_length, right_length)) {
-      GOTO(done,
-           __ CallBuiltin_StringEqual(isolate_, left, right,
-                                      __ ChangeInt32ToIntPtr(left_length)));
-    }
-    ELSE { GOTO(done, __ HeapConstant(factory_->false_value())); }
-
-    BIND(done, result);
-    return result;
-  }
-
   V<String> REDUCE(StringConcat)(V<String> left, V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
     return __ CallBuiltin_StringAdd_CheckNone(isolate_, __ NoContextConstant(),
@@ -1996,6 +1975,28 @@ class MachineLoweringReducer : public Next {
   V<Boolean> REDUCE(StringComparison)(V<String> left, V<String> right,
                                       StringComparisonOp::Kind kind) {
     switch (kind) {
+      case StringComparisonOp::Kind::kEqual: {
+        Label<Boolean> done(this);
+
+        GOTO_IF(__ TaggedEqual(left, right), done,
+                __ HeapConstant(factory_->true_value()));
+
+        V<Word32> left_length = __ template LoadField<Word32>(
+            left, AccessBuilder::ForStringLength());
+        V<Word32> right_length = __ template LoadField<Word32>(
+            right, AccessBuilder::ForStringLength());
+        IF (__ Word32Equal(left_length, right_length)) {
+          GOTO(done,
+               __ CallBuiltin_StringEqual(isolate_, left, right,
+                                          __ ChangeInt32ToIntPtr(left_length)));
+        }
+        ELSE {
+          GOTO(done, __ HeapConstant(factory_->false_value()));
+        }
+
+        BIND(done, result);
+        return result;
+      }
       case StringComparisonOp::Kind::kLessThan:
         return __ CallBuiltin_StringLessThan(isolate_, left, right);
       case StringComparisonOp::Kind::kLessThanOrEqual:
