@@ -213,6 +213,11 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
   DCHECK_NE(slot.tag(), kUnknownIndirectPointerTag);
 
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+
+  // We must not see an uninitialized 'self' indirect pointer as we might
+  // otherwise fail to mark the table entry as alive.
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
+
   if (slot.tag() == kCodeIndirectPointerTag) {
     CodePointerTable* table = GetProcessWideCodePointerTable();
     CodePointerTable::Space* space = heap_->code_pointer_space();

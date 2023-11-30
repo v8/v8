@@ -208,6 +208,17 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     base::Mutex mutex_;
   };
 
+  // A Space that supports black allocations.
+  struct SpaceWithBlackAllocationSupport : public Space {
+    bool allocate_black() { return allocate_black_; }
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
+   private:
+    bool allocate_black_ = false;
+  };
+
   ExternalEntityTable() = default;
   ExternalEntityTable(const ExternalEntityTable&) = delete;
   ExternalEntityTable& operator=(const ExternalEntityTable&) = delete;

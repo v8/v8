@@ -29,7 +29,7 @@ class Counters;
 struct TrustedPointerTableEntry {
   // Make this entry a "regular" entry, containing an absolute pointer to a
   // TrustedObject.
-  inline void MakeTrustedPointerEntry(Address value);
+  inline void MakeTrustedPointerEntry(Address value, bool mark_as_alive);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -113,9 +113,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   TrustedPointerTable& operator=(const TrustedPointerTable&) = delete;
 
   // The Spaces used by a TrustedPointerTable.
-  using Space =
-      ExternalEntityTable<TrustedPointerTableEntry,
-                          kTrustedPointerTableReservationSize>::Space;
+  using Space = ExternalEntityTable<
+      TrustedPointerTableEntry,
+      kTrustedPointerTableReservationSize>::SpaceWithBlackAllocationSupport;
 
   // Retrieves the content of the entry referenced by the given handle.
   //

@@ -14,10 +14,10 @@
 namespace v8 {
 namespace internal {
 
-void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address content) {
-  // The marking bit is the LSB of the pointer, which should always be set here
-  // since it is supposed to be a tagged pointer.
-  DCHECK_EQ(content & kMarkingBit, kMarkingBit);
+void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address content,
+                                                       bool mark_as_alive) {
+  DCHECK_EQ(content & kMarkingBit, 0);
+  if (mark_as_alive) content |= kMarkingBit;
   content_.store(content, std::memory_order_relaxed);
 }
 
@@ -33,9 +33,13 @@ Address TrustedPointerTableEntry::GetContent() const {
   return content_.load(std::memory_order_relaxed) | kMarkingBit;
 }
 
-void TrustedPointerTableEntry::SetContent(Address content) {
+void TrustedPointerTableEntry::SetContent(Address new_content) {
   DCHECK(!IsFreelistEntry());
-  content_.store(content, std::memory_order_relaxed);
+  // SetContent shouldn't change the marking state of the entry. Currently this
+  // is always automatically the case, but if this ever fails, we might need to
+  // manually copy the marking bit.
+  DCHECK_EQ(content_ & kMarkingBit, new_content & kMarkingBit);
+  content_.store(new_content, std::memory_order_relaxed);
 }
 
 bool TrustedPointerTableEntry::IsFreelistEntry() const {
@@ -89,7 +93,7 @@ TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
   DCHECK(space->BelongsTo(this));
   Validate(pointer, tag);
   uint32_t index = AllocateEntry(space);
-  at(index).MakeTrustedPointerEntry(pointer);
+  at(index).MakeTrustedPointerEntry(pointer, space->allocate_black());
   return IndexToHandle(index);
 }
 

@@ -29,7 +29,8 @@ class Counters;
 struct CodePointerTableEntry {
   // Make this entry a code pointer entry for the given code object and
   // entrypoint.
-  inline void MakeCodePointerEntry(Address code, Address entrypoint);
+  inline void MakeCodePointerEntry(Address code, Address entrypoint,
+                                   bool mark_as_alive);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -123,8 +124,9 @@ class V8_EXPORT_PRIVATE CodePointerTable
   CodePointerTable& operator=(const CodePointerTable&) = delete;
 
   // The Spaces used by a CodePointerTable.
-  using Space = ExternalEntityTable<CodePointerTableEntry,
-                                    kCodePointerTableReservationSize>::Space;
+  using Space = ExternalEntityTable<
+      CodePointerTableEntry,
+      kCodePointerTableReservationSize>::SpaceWithBlackAllocationSupport;
 
   //
   // This method is atomic and can be called from background threads.

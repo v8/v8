@@ -1324,10 +1324,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
     if (slot.tag() == kCodeIndirectPointerTag) {
       DCHECK(IsCode(host));
-      GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
+      GetProcessWideCodePointerTable()->SetCodeObject(handle, host.address());
     } else {
       TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
-      table.Set(handle, host.ptr(), slot.tag());
+      table.Set(handle, host.address(), slot.tag());
     }
 #else
     UNREACHABLE();

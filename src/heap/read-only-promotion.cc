@@ -438,7 +438,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
         CHECK_EQ(dead_object, Tagged<Object>(cpt->GetCodeObject(handle)));
 
         // Update the table entry to point at the moved RO object.
-        cpt->SetCodeObject(handle, host.ptr());
+        cpt->SetCodeObject(handle, host.address());
 
         if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
           LogUpdatedCodePointerTableEntry(host, slot, Code::cast(dead_object));
