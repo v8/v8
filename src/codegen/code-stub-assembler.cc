@@ -3432,16 +3432,8 @@ TNode<Smi> CodeStubAssembler::LoadSharedFunctionInfoBuiltinId(
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<SharedFunctionInfo> sfi) {
-#ifdef V8_ENABLE_SANDBOX
-  // In this case, the bytecode array must be referenced via a trusted pointer.
-  // Loading it from the tagged function_data field would not be safe.
-  TNode<HeapObject> function_data = LoadTrustedPointerFromObject(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
-      kUnknownIndirectPointerTag);
-#else
-  TNode<HeapObject> function_data =
-      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-#endif  // V8_ENABLE_SANDBOX
+  // In this case, the function data can never contain a Smi (builtin id).
+  TNode<HeapObject> function_data = CAST(LoadSharedFunctionInfoData(sfi));
 
   TVARIABLE(HeapObject, var_result, function_data);
 
