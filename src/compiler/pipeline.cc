@@ -3834,7 +3834,15 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.InstructionSelection");
 
-    if (v8_flags.turboshaft_wasm_instruction_selection) {
+#if V8_TARGET_ARCH_X64
+    bool use_turboshaft_instruction_selection =
+        v8_flags.turboshaft_wasm_instruction_selection_staged;
+#else
+    bool use_turboshaft_instruction_selection =
+        v8_flags.turboshaft_wasm_instruction_selection_experimental;
+#endif
+
+    if (use_turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!pipeline.SelectInstructionsTurboshaft(&linkage)) {
         return false;

@@ -1252,8 +1252,12 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
 DEFINE_BOOL(turboshaft_instruction_selection, false,
             "run instruction selection on Turboshaft IR directly")
 DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_wasm_instruction_selection,
-    "run instruction selection on Turboshaft IR directly for wasm")
+    turboshaft_wasm_instruction_selection_experimental,
+    "run instruction selection on Turboshaft IR directly for wasm, on "
+    "architectures where the feature is experimental")
+DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
+            "run instruction selection on Turboshaft IR directly for wasm, on "
+            "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
                             "run the CSA pipeline with turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_load_elimination,
@@ -1276,8 +1280,6 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 #ifdef V8_TARGET_ARCH_X64
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
-DEFINE_WEAK_IMPLICATION(turboshaft_future,
-                        turboshaft_wasm_instruction_selection)
 #endif
 
 #ifdef DEBUG

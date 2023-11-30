@@ -103,10 +103,16 @@ class LoadStoreSimplificationReducer : public Next {
   bool is_wasm_ = PipelineData::Get().is_wasm();
   // TODO(12783): Remove this flag once the Turbofan instruction selection has
   // been replaced.
+#if V8_TARGET_ARCH_X64
   bool lowering_enabled_ =
-      (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection) ||
+      (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
       (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
-
+#else
+  bool lowering_enabled_ =
+      (is_wasm_ &&
+       v8_flags.turboshaft_wasm_instruction_selection_experimental) ||
+      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
+#endif
   OperationMatcher matcher_{__ output_graph()};
 };
 
