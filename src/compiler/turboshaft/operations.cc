@@ -1324,6 +1324,14 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         SpeculativeNumberBinopOp::Kind kind) {
+  switch (kind) {
+    case SpeculativeNumberBinopOp::Kind::kSafeIntegerAdd:
+      return os << "SafeIntegerAdd";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin) {
   switch (origin) {
     case StackCheckOp::CheckOrigin::kFromJS:

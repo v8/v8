@@ -409,6 +409,10 @@ class CallWithReduceArgsHelper {
     return callback_(op.data_structure(), op.key(), op.kind);
   }
 
+  OpIndex operator()(const SpeculativeNumberBinopOp& op) {
+    return callback_(op.left(), op.right(), op.frame_state(), op.kind);
+  }
+
   OpIndex operator()(const Word32PairBinopOp& op) {
     return callback_(op.left_low(), op.left_high(), op.right_low(),
                      op.right_high(), op.kind);

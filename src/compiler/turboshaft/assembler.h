@@ -3113,6 +3113,12 @@ class TurboshaftAssemblerOpInterface
         table, key,
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
+  V<Object> SpeculativeNumberBinop(V<Object> left, V<Object> right,
+                                   OpIndex frame_state,
+                                   SpeculativeNumberBinopOp::Kind kind) {
+    return ReduceIfReachableSpeculativeNumberBinop(left, right, frame_state,
+                                                   kind);
+  }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   OpIndex GlobalGet(V<WasmInstanceObject> instance,

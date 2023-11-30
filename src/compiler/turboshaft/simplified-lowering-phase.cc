@@ -5,9 +5,12 @@
 #include "src/compiler/turboshaft/simplified-lowering-phase.h"
 
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/simplified-lowering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-void SimplifiedLoweringPhase::Run(Zone* temp_zone) {}
+void SimplifiedLoweringPhase::Run(Zone* temp_zone) {
+  CopyingPhase<SimplifiedLoweringReducer>::Run(temp_zone);
+}
 
 }  // namespace v8::internal::compiler::turboshaft

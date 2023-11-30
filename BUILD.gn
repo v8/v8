@@ -3420,6 +3420,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/select-lowering-reducer.h",
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplified-lowering-phase.h",
+    "src/compiler/turboshaft/simplified-lowering-reducer.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/snapshot-table-opindex.h",
     "src/compiler/turboshaft/snapshot-table.h",

@@ -184,7 +184,7 @@ class FixedOpIndexSidetable : public detail::FixedSidetable<T, OpIndex> {
   using Base = detail::FixedSidetable<T, OpIndex>;
 
  public:
-  explicit FixedOpIndexSidetable(size_t size, Zone* zone, const Graph* graph)
+  FixedOpIndexSidetable(size_t size, Zone* zone, const Graph* graph)
       : Base(size, zone)
 #ifdef DEBUG
         ,

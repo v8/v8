@@ -262,6 +262,10 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(MemoryBarrier)                           \
   V(Comment)
 
+// These are operations used in the frontend and are mostly tied to JS
+// semantics.
+#define TURBOSHAFT_JS_OPERATION_LIST(V) V(SpeculativeNumberBinop)
+
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
 // MachineLoweringPhase.
@@ -275,6 +279,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   TURBOSHAFT_SIMD_OPERATION_LIST(V)                       \
   TURBOSHAFT_MACHINE_OPERATION_LIST(V)                    \
   TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V)                 \
+  TURBOSHAFT_JS_OPERATION_LIST(V)                         \
   TURBOSHAFT_OTHER_OPERATION_LIST(V)
 
 #define TURBOSHAFT_OPERATION_LIST(V)            \
@@ -5811,6 +5816,41 @@ struct CommentOp : FixedArityOperationT<0, CommentOp> {
   auto options() const { return std::tuple{message}; }
 };
 
+struct SpeculativeNumberBinopOp
+    : FixedArityOperationT<3, SpeculativeNumberBinopOp> {
+  enum class Kind : uint8_t {
+    kSafeIntegerAdd,
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanDeopt().CanAllocate();
+
+  OpIndex left() const { return Base::input(0); }
+  OpIndex right() const { return Base::input(1); }
+  OpIndex frame_state() const { return Base::input(2); }
+
+  SpeculativeNumberBinopOp(OpIndex left, OpIndex right, OpIndex frame_state,
+                           Kind kind)
+      : Base(left, right, frame_state), kind(kind) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, SpeculativeNumberBinopOp::Kind kind);
+
 #if V8_ENABLE_WEBASSEMBLY
 
 const RegisterRepresentation& RepresentationFor(wasm::ValueType type);
@@ -5821,7 +5861,7 @@ struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
 
   OpIndex instance() const { return Base::input(0); }
 
-  explicit GlobalGetOp(OpIndex instance, const wasm::WasmGlobal* global)
+  GlobalGetOp(OpIndex instance, const wasm::WasmGlobal* global)
       : Base(instance), global(global) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {

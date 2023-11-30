@@ -158,7 +158,18 @@ struct GraphBuilder {
               ReadOnlyRoots(isolate->heap()).optimized_out()) {
         // Nothing to do in this case.
       } else {
-        ProcessDeoptInput(builder, stack, MachineType::AnyTagged());
+        const Operation& accumulator_op = __ output_graph().Get(Map(stack));
+        const RegisterRepresentation accumulator_rep =
+            accumulator_op.outputs_rep()[0];
+        MachineType type;
+        switch (accumulator_rep.value()) {
+          case RegisterRepresentation::Tagged():
+            type = MachineType::AnyTagged();
+            break;
+          default:
+            UNIMPLEMENTED();
+        }
+        ProcessDeoptInput(builder, stack, type);
       }
     } else {
       ProcessStateValues(builder, stack);
@@ -2184,6 +2195,12 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       return __ FindOrderedHashMapEntryForInt32Key(Map(node->InputAt(0)),
                                                    Map(node->InputAt(1)));
+
+    case IrOpcode::kSpeculativeSafeIntegerAdd:
+      DCHECK(dominating_frame_state.valid());
+      return __ SpeculativeNumberBinop(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          SpeculativeNumberBinopOp::Kind::kSafeIntegerAdd);
 
     case IrOpcode::kBeginRegion:
       inside_region = true;

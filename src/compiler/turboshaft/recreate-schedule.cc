@@ -187,6 +187,7 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
 #define SHOULD_HAVE_BEEN_LOWERED(op) \
   Node* ScheduleBuilder::ProcessOperation(const op##Op&) { UNREACHABLE(); }
 // These operations should have been lowered in previous reducers already.
+TURBOSHAFT_JS_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_OTHER_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_WASM_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)

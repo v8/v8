@@ -1098,6 +1098,12 @@ class GraphVisitor : public Next {
     return Asm().ReduceFindOrderedHashEntry(MapToNewGraph(op.data_structure()),
                                             MapToNewGraph(op.key()), op.kind);
   }
+  OpIndex AssembleOutputGraphSpeculativeNumberBinop(
+      const SpeculativeNumberBinopOp& op) {
+    return Asm().ReduceSpeculativeNumberBinop(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()),
+        MapToNewGraph(op.frame_state()), op.kind);
+  }
   OpIndex AssembleOutputGraphWord32PairBinop(const Word32PairBinopOp& op) {
     return Asm().ReduceWord32PairBinop(
         MapToNewGraph(op.left_low()), MapToNewGraph(op.left_high()),
