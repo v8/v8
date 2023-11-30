@@ -1056,7 +1056,10 @@
   # variant.
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
+}],  # variant == turboshaft
 
+##############################################################################
+['variant == turboshaft or variant == future', {
   # Revectorization is not supported yet in Turboshaft.
   # TODO(14108): Remove once supported.
   'test-run-wasm-simd/RunWasmTurbofan_F32x8Max': [FAIL],
@@ -1129,7 +1132,7 @@
   'test-run-wasm-simd/S128Load32x2S': [FAIL],
   'test-run-wasm-simd/S128Load32x2U': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_ExtractF128': [FAIL],
-}],  # variant == turboshaft
+}],  # variant == turboshaft or variant == future
 
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
