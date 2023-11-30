@@ -1482,6 +1482,7 @@ filegroup(
         "src/handles/shared-object-conveyor-handles.h",
         "src/handles/traced-handles.cc",
         "src/handles/traced-handles.h",
+        "src/handles/traced-handles-inl.h",
         "src/heap/allocation-observer.cc",
         "src/heap/allocation-observer.h",
         "src/heap/allocation-result.h",

@@ -10,7 +10,7 @@
 
 namespace v8 {
 namespace internal {
-class TracedHandlesImpl;
+class TracedHandles;
 }  // namespace internal
 
 class Isolate;
@@ -76,7 +76,7 @@ class V8_EXPORT EmbedderRootsHandler {
   const RootHandling default_traced_reference_handling_ =
       RootHandling::kQueryEmbedderForNonDroppableReferences;
 
-  friend class internal::TracedHandlesImpl;
+  friend class internal::TracedHandles;
 };
 
 }  // namespace v8
