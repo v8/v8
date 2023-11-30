@@ -983,13 +983,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchSetStackPointer: {
       DCHECK(instr->InputAt(0)->IsRegister());
-#if USE_SIMULATOR
-      __ RecordComment("-- Set simulator stack limit --");
-      DCHECK(__ TmpList()->IncludesAliasOf(kSimulatorHltArgument));
-      __ LoadStackLimit(kSimulatorHltArgument, StackLimitKind::kRealStackLimit);
-      __ hlt(kImmExceptionIsSwitchStackLimit);
-#endif  // USE_SIMULATOR
-      __ mov(sp, i.InputRegister(0));
+      if (masm()->options().enable_simulator_code) {
+        __ RecordComment("-- Set simulator stack limit --");
+        DCHECK(__ TmpList()->IncludesAliasOf(kSimulatorHltArgument));
+        __ LoadStackLimit(kSimulatorHltArgument,
+                          StackLimitKind::kRealStackLimit);
+        __ hlt(kImmExceptionIsSwitchStackLimit);
+      }
+      __ Mov(sp, i.InputRegister(0));
       auto fp_scope = static_cast<wasm::FPRelativeScope>(
           MiscField::decode(instr->opcode()));
       if (fp_scope == wasm::kEnterFPRelativeOnlyScope) {
