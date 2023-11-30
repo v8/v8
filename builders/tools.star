@@ -40,7 +40,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_EXPORT_ACCOUNT,
     executable = "recipe:v8/test262_export",
-    schedule = "* * * * * 1970",
+    triggered_by = ["test262-export-trigger"],
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
@@ -52,7 +52,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_IMPORT_ACCOUNT,
     executable = "recipe:v8/auto_roll_incoming_deps",
-    schedule = "* * * * * 1970",
+    schedule = "0 2 * * *",
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
@@ -67,8 +67,9 @@ v8_builder(
             "roll_test262": True,
             "regular_deps_roller": False,
             "reviewers": [
-                "syg@chromium.com",
+                "syg@chromium.org",
             ],
+            "bug": "v8:7834",
         },
     },
 )
