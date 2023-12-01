@@ -45,6 +45,11 @@ bind(
 )
 
 bind(
+    name = "absl_btree",
+    actual = "@com_google_absl//absl/container:btree"
+)
+
+bind(
     name = "absl_flat_hash_map",
     actual = "@com_google_absl//absl/container:flat_hash_map"
 )

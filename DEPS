@@ -340,6 +340,7 @@ include_rules = [
   # https://chromium.googlesource.com/chromium/src/+/main/styleguide/c++/c++11.md
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
+  '+absl/container/btree_map.h',
   '+absl/types/optional.h',
   '+absl/types/variant.h',
   '+absl/status',
