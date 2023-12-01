@@ -5446,7 +5446,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                             "Check if the function scheduled an exception.");
     __ LoadRoot(scratch, RootIndex::kTheHoleValue);
     __ LoadU64(scratch2, __ ExternalReferenceAsOperand(
-                             ER::pending_exception_address(isolate), no_reg));
+                             ER::exception_address(isolate), no_reg));
     __ CmpS64(scratch, scratch2);
     __ bne(&propagate_exception);
   }
