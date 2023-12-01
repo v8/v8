@@ -1279,9 +1279,13 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
+DEFINE_WEAK_IMPLICATION(turboshaft_future,
+                        turboshaft_wasm_instruction_selection_experimental)
 #endif
+DEFINE_WEAK_IMPLICATION(turboshaft_future,
+                        turboshaft_wasm_instruction_selection_staged)
 
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
