@@ -726,7 +726,24 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
 
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
     IsolateForSandbox isolate) const {
-  Tagged<Object> data = GetData(isolate);
+#ifdef V8_ENABLE_SANDBOX
+  // When the sandbox is enabled, the bytecode array must be loaded via the
+  // trusted pointer field. Loading it from the (tagged) function_data field
+  // would not be safe. Here we can't use ReadTrustedPointerField but instead
+  // need an acquire load of the handle to synchronize with the release store in
+  // set_trusted_function_data. Technically, we'd only need memory_order_consume
+  // since we're dealing with dependent loads, but that ordering is not
+  // currently supported (and that's why ReadTrustedPointerField uses a relaxed
+  // load, but TSan doesn't like that).
+  auto trusted_data_slot = RawIndirectPointerField(kTrustedFunctionDataOffset,
+                                                   kUnknownIndirectPointerTag);
+  IndirectPointerHandle trusted_data_handle =
+      trusted_data_slot.Acquire_LoadHandle();
+  Tagged<Object> data =
+      trusted_data_slot.ResolveHandle(trusted_data_handle, isolate);
+#else
+  Tagged<Object> data = function_data(kAcquireLoad);
+#endif  // V8_ENABLE_SANDBOX
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     data = baseline_code->bytecode_or_interpreter_data(isolate);
